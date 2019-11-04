@@ -74,19 +74,20 @@ table_export_settings = [
         'reporting_awscostentrylineitem',
         False,
         """
-        SELECT * FROM {schema}.reporting_awscostentrylineitem
-        LEFT OUTER JOIN {schema}.reporting_awscostentrybill
-            ON (reporting_awscostentrylineitem.cost_entry_bill_id = reporting_awscostentrybill.id)
-        LEFT OUTER JOIN {schema}.reporting_awscostentry
-            ON (reporting_awscostentrylineitem.cost_entry_id = reporting_awscostentry.id)
-        LEFT OUTER JOIN {schema}.reporting_awscostentryproduct
-            ON (reporting_awscostentrylineitem.cost_entry_product_id = reporting_awscostentryproduct.id)
-        LEFT OUTER JOIN {schema}.reporting_awscostentryreservation
-            ON (reporting_awscostentrylineitem.cost_entry_reservation_id = reporting_awscostentryreservation.id)
-        LEFT OUTER JOIN {schema}.reporting_awscostentrypricing
-            ON (reporting_awscostentrylineitem.cost_entry_pricing_id = reporting_awscostentrypricing.id)
-        WHERE reporting_awscostentry.interval_start BETWEEN %(start_date)s AND %(end_date)s
-        OR reporting_awscostentry.interval_end BETWEEN %(start_date)s AND %(end_date)s;
+        SELECT *
+        FROM
+            {schema}.reporting_awscostentrylineitem li
+            JOIN {schema}.reporting_awscostentrybill b ON li.cost_entry_bill_id = b.id
+            JOIN {schema}.reporting_awscostentry e ON li.cost_entry_id = e.id
+            LEFT JOIN {schema}.reporting_awscostentryproduct p ON li.cost_entry_product_id = p.id
+            LEFT JOIN {schema}.reporting_awscostentryreservation r ON li.cost_entry_reservation_id = r.id
+            LEFT JOIN {schema}.reporting_awscostentrypricing pr ON li.cost_entry_pricing_id = pr.id
+        WHERE
+            (
+                e.interval_start BETWEEN %(start_date)s AND %(end_date)s
+                OR e.interval_end BETWEEN %(start_date)s AND %(end_date)s
+            )
+            AND b.provider_id = %(provider_uuid)s
         """,
     ),
     TableExportSetting(
@@ -94,13 +95,17 @@ table_export_settings = [
         'reporting_ocpusagelineitem',
         False,
         """
-        SELECT * FROM {schema}.reporting_ocpusagelineitem
-        LEFT OUTER JOIN {schema}.reporting_ocpusagereport
-            ON (reporting_ocpusagelineitem.report_id = reporting_ocpusagereport.id)
-        LEFT OUTER JOIN {schema}.reporting_ocpusagereportperiod
-            ON (reporting_ocpusagelineitem.report_period_id = reporting_ocpusagereportperiod.id)
-        WHERE reporting_ocpusagereport.interval_start BETWEEN %(start_date)s AND %(end_date)s
-        OR reporting_ocpusagereport.interval_end BETWEEN %(start_date)s AND %(end_date)s;
+        SELECT *
+        FROM
+            {schema}.reporting_ocpusagelineitem i
+            JOIN {schema}.reporting_ocpusagereport r ON i.report_id = r.id
+            JOIN {schema}.reporting_ocpusagereportperiod p ON i.report_period_id = p.id
+        WHERE
+            (
+                r.interval_start BETWEEN %(start_date)s AND %(end_date)s
+                OR r.interval_end BETWEEN %(start_date)s AND %(end_date)s
+            )
+            AND p.provider_id = %(provider_uuid)s
         """,
     ),
     TableExportSetting(
@@ -108,13 +113,17 @@ table_export_settings = [
         'reporting_ocpstoragelineitem',
         False,
         """
-        SELECT * FROM {schema}.reporting_ocpstoragelineitem
-        LEFT OUTER JOIN {schema}.reporting_ocpusagereport
-            ON (reporting_ocpstoragelineitem.report_id = reporting_ocpusagereport.id)
-        LEFT OUTER JOIN {schema}.reporting_ocpusagereportperiod
-            ON (reporting_ocpstoragelineitem.report_period_id = reporting_ocpusagereportperiod.id)
-        WHERE reporting_ocpusagereport.interval_start BETWEEN %(start_date)s AND %(end_date)s
-        OR reporting_ocpusagereport.interval_end BETWEEN %(start_date)s AND %(end_date)s;
+        SELECT *
+        FROM
+            {schema}.reporting_ocpstoragelineitem i
+            JOIN {schema}.reporting_ocpusagereport r ON i.report_id = r.id
+            JOIN {schema}.reporting_ocpusagereportperiod p ON i.report_period_id = p.id
+        WHERE
+            (
+                r.interval_start BETWEEN %(start_date)s AND %(end_date)s
+                OR r.interval_end BETWEEN %(start_date)s AND %(end_date)s
+            )
+            AND p.provider_id = %(provider_uuid)s
         """,
     ),
     TableExportSetting(
@@ -122,16 +131,18 @@ table_export_settings = [
         'reporting_azurecostentrylineitem_daily',
         False,
         """
-        SELECT * FROM {schema}.reporting_azurecostentrylineitem_daily
-        LEFT OUTER JOIN {schema}.reporting_azurecostentrybill
-            ON (reporting_azurecostentrylineitem_daily.cost_entry_bill_id = reporting_azurecostentrybill.id)
-        LEFT OUTER JOIN {schema}.reporting_azurecostentryproductservice
-            ON (reporting_azurecostentrylineitem_daily.cost_entry_product_id
-                = reporting_azurecostentryproductservice.id)
-        LEFT OUTER JOIN {schema}.reporting_azuremeter
-            ON (reporting_azurecostentrylineitem_daily.meter_id = reporting_azuremeter.id)
-        WHERE reporting_azurecostentrybill.billing_period_start BETWEEN %(start_date)s AND %(end_date)s
-        OR reporting_azurecostentrybill.billing_period_end BETWEEN %(start_date)s AND %(end_date)s;
+        SELECT d.*, s.*, m.*
+        FROM
+            {schema}.reporting_azurecostentrylineitem_daily d
+            JOIN {schema}.reporting_azurecostentrybill b ON d.cost_entry_bill_id = b.id
+            LEFT JOIN {schema}.reporting_azurecostentryproductservice s ON d.cost_entry_product_id = s.id
+            LEFT JOIN {schema}.reporting_azuremeter m ON d.meter_id = m.id
+        WHERE
+            (
+                b.billing_period_start BETWEEN %(start_date)s AND %(end_date)s
+                OR b.billing_period_end BETWEEN %(start_date)s AND %(end_date)s
+            )
+            AND b.provider_id = %(provider_uuid)s
         """,
     ),
     TableExportSetting(
@@ -146,8 +157,10 @@ table_export_settings = [
             LEFT JOIN {schema}.reporting_awsaccountalias aa ON aa.id = ds.account_alias_id
             -- LEFT JOIN because sometimes this doesn't exist, but it's unclear why.
             -- It seems that "real" data has it, but fake data from AWS-local+nise does not.
-        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
+        WHERE
+            ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
             -- No need to filter usage_end because usage_end should always match usage_start for this table.
+            AND b.provider_id = %(provider_uuid)s
         """,
     ),
     TableExportSetting(
@@ -160,7 +173,9 @@ table_export_settings = [
             {schema}.reporting_azurecostentrylineitem_daily_summary ds
             JOIN {schema}.reporting_azurecostentrybill b ON b.id = ds.cost_entry_bill_id
             JOIN {schema}.reporting_azuremeter m ON m.id = ds.meter_id
-        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
+        WHERE
+            ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
+            AND b.provider_id = %(provider_uuid)s
         """,
     ),
     TableExportSetting(
@@ -175,8 +190,10 @@ table_export_settings = [
             LEFT JOIN {schema}.reporting_awsaccountalias aa ON aa.id = ds.account_alias_id
             -- LEFT JOIN because sometimes this doesn't exist, but it's unclear why.
             -- It seems that "real" data has it, but fake data from AWS-local+nise does not.
-        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
+        WHERE
+            ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
             -- No need to filter usage_end because usage_end should always match usage_start for this table.
+            AND b.provider_id = %(provider_uuid)s
         """,
     ),
     TableExportSetting(
@@ -191,8 +208,10 @@ table_export_settings = [
             LEFT JOIN {schema}.reporting_awsaccountalias aa ON aa.id = ds.account_alias_id
             -- LEFT JOIN because sometimes this doesn't exist, but it's unclear why.
             -- It seems that "real" data has it, but fake data from AWS-local+nise does not.
-        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
+        WHERE
+            ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
             -- No need to filter usage_end because usage_end should always match usage_start for this table.
+            AND b.provider_id = %(provider_uuid)s
         """,
     ),
     TableExportSetting(
@@ -202,8 +221,21 @@ table_export_settings = [
         """
         SELECT ds.*
         FROM {schema}.reporting_ocpusagelineitem_daily_summary ds
-        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
+        WHERE
+            ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
             -- No need to filter usage_end because usage_end should always match usage_start for this table.
+            AND ds.cluster_id IN (
+                SELECT DISTINCT cluster_id
+                FROM
+                    {schema}.reporting_ocpusagereport r
+                    JOIN {schema}.reporting_ocpusagereportperiod p ON r.report_period_id = p.id
+                WHERE
+                    (
+                        r.interval_start BETWEEN %(start_date)s AND %(end_date)s
+                        OR r.interval_end BETWEEN %(start_date)s AND %(end_date)s
+                    )
+                    AND p.provider_id = %(provider_uuid)s
+            )
         """,
     ),
 ]
@@ -228,15 +260,29 @@ def upload_normalized_data():
     accounts, _ = Orchestrator.get_accounts()
 
     # Deduplicate schema_name since accounts may have the same schema_name but different providers
-    schemas = set(account['schema_name'] for account in accounts)
-    for schema in schemas:
-        LOG.info('%s processing schema %s', log_uuid, schema)
+    schema_providers = set(
+        (account['schema_name'], account['provider_uuid']) for account in accounts
+    )
+    for schema, provider_uuid in schema_providers:
+        LOG.info(
+            '%s processing schema %s provider uuid %s', log_uuid, schema, provider_uuid
+        )
         for table in table_export_settings:
             # Upload this month's reports
-            query_and_upload_to_s3(schema, table, (curr_month_first_day, curr_month_last_day))
+            query_and_upload_to_s3(
+                schema,
+                provider_uuid,
+                table,
+                (curr_month_first_day, curr_month_last_day),
+            )
 
             # Upload last month's reports
-            query_and_upload_to_s3(schema, table, (prev_month_first_day, prev_month_last_day))
+            query_and_upload_to_s3(
+                schema,
+                provider_uuid,
+                table,
+                (prev_month_first_day, prev_month_last_day),
+            )
     LOG.info('%s Completed upload_normalized_data', log_uuid)
 
 
