@@ -278,8 +278,7 @@ class ProviderViewTest(IamTestCase):
         response = client.get(url, **headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    @patch('api.provider.view.ProviderManager._delete_report_data')
-    def test_remove_provider_with_regular_user(self, mock_delete_reports):
+    def test_remove_provider_with_regular_user(self):
         """Test removing a provider with the user account that created it."""
         # Create a Provider as a regular user
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
@@ -303,8 +302,7 @@ class ProviderViewTest(IamTestCase):
         response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
-    @patch('api.provider.view.ProviderManager._delete_report_data')
-    def test_remove_provider_with_remove_exception(self, mock_delete_reports):
+    def test_remove_provider_with_remove_exception(self):
         """Test removing a provider with a database error."""
         # Create Provider with customer owner token
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
@@ -450,8 +448,7 @@ class ProviderViewTest(IamTestCase):
         put_response = client.patch(url, data=provider, format='json', **self.headers)
         self.assertEqual(put_response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    @patch('api.provider.view.ProviderManager._delete_report_data')
-    def test_deleted_before_put_returns_400(self, mock_delete):
+    def test_deleted_before_put_returns_400(self):
         """Test if 400 is raised when a PUT is called on deleted provider."""
         response, provider = create_generic_provider('AZURE', self.headers)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
