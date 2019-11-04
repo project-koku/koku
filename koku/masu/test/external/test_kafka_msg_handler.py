@@ -212,3 +212,26 @@ class KafkaMsgHandlerTest(MasuTestCase):
         msg_handler.process_report(sample_report)
 
         mock_summarize.delay.assert_called_with(mock_download_process_value)
+
+    @patch('masu.external.kafka_msg_handler.summarize_reports')
+    @patch('masu.external.kafka_msg_handler.get_report_files')
+    def test_process_report_inactive_provider(self, mock_get_reports, mock_summarize):
+        """Test processing a report for an inactive provider."""
+        self.ocp_provider.active = False
+        self.ocp_provider.save()
+
+        mock_download_process_value = [
+            {
+                'schema_name': self.schema,
+                'provider_type': OPENSHIFT_CONTAINER_PLATFORM,
+                'provider_uuid': self.ocp_test_provider_uuid,
+                'start_date': DateAccessor().today(),
+            }
+        ]
+        mock_get_reports.return_value = mock_download_process_value
+        cluster_id = self.ocp_provider_resource_name
+        sample_report = {'cluster_id': cluster_id}
+
+        msg_handler.process_report(sample_report)
+
+        mock_summarize.delay.assert_not_called()

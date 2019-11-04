@@ -21,12 +21,13 @@ from unittest.mock import Mock
 from uuid import UUID
 
 from django.db import connection
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 from faker import Faker
 
 from api.common import RH_IDENTITY_HEADER
 from api.iam.serializers import create_schema_name
 from api.models import Customer, Tenant
+from api.query_params import QueryParameters
 from koku.koku_test_runner import KokuTestRunner
 
 
@@ -51,6 +52,7 @@ class IamTestCase(TestCase):
         cls.tenant.save()
         cls.headers = cls.request_context['request'].META
         cls.provider_uuid = UUID('00000000-0000-0000-0000-000000000001')
+        cls.factory = RequestFactory()
 
     @classmethod
     def tearDownClass(cls):
@@ -135,3 +137,15 @@ class IamTestCase(TestCase):
         customer = {'account_id': account,
                     'schema_name': schema}
         return customer
+
+    def mocked_query_params(self, url, view, path=None):
+        """Create QueryParameters using a mocked Request."""
+        m_request = self.factory.get(url)
+        user = Mock()
+        user.access = None
+        user.customer.schema_name = self.tenant.schema_name
+        m_request.user = user
+        if path:
+            m_request.path = path
+        query_params = QueryParameters(m_request, view)
+        return query_params
