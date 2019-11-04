@@ -138,12 +138,14 @@ class IamTestCase(TestCase):
                     'schema_name': schema}
         return customer
 
-    def mocked_query_params(self, url, view):
+    def mocked_query_params(self, url, view, path=None):
         """Create QueryParameters using a mocked Request."""
         m_request = self.factory.get(url)
         user = Mock()
         user.access = None
         user.customer.schema_name = self.tenant.schema_name
         m_request.user = user
+        if path:
+            m_request.path = path
         query_params = QueryParameters(m_request, view)
         return query_params
