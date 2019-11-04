@@ -21,6 +21,7 @@ from uuid import uuid4
 
 from django.urls import reverse
 from rest_framework import status
+from rest_framework import serializers
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -395,6 +396,25 @@ class ProviderViewTest(IamTestCase):
 
         put_json_result = put_response.json()
         self.assertEqual(put_json_result.get('name'), name)
+
+    def test_put_for_aws_provider_error(self):
+        """Test PUT update for AWS provider with error."""
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            response, provider = create_generic_provider('AWS', self.headers)
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready',
+                          side_effect=serializers.ValidationError):
+            json_result = response.json()
+
+            name = 'new_name'
+            provider = copy.deepcopy(PROVIDERS['AWS'])
+            provider['name'] = name
+
+            url = reverse('provider-detail', args=[json_result.get('uuid')])
+            client = APIClient()
+            put_response = client.put(url, data=provider, format='json', **self.headers)
+            self.assertEqual(put_response.status_code, status.HTTP_400_BAD_REQUEST)
 
     @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
     def test_put_for_azure_provider(self, mock_access):
