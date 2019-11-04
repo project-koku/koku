@@ -48,9 +48,11 @@ class SourcesKafkaMsgHandlerTest(TestCase):
     """Test Cases for the Sources Kafka Listener."""
 
     @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_execute_koku_provider_op_create(self):
         """Test to execute Koku Operations to sync with Sources for creation."""
         source_id = 1
+        app_id = 1
         auth_header = Config.SOURCES_FAKE_HEADER
         offset = 2
         provider = Sources(source_id=source_id, auth_header=auth_header, offset=offset)
@@ -61,14 +63,20 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.post('http://www.koku.com/api/cost-management/v1/providers/',
                    status_code=201,
                    json={'uuid': mock_koku_uuid})
+            m.get(f'http://www.sources.com/api/v1.0/applications?filter[source_id]={source_id}',
+                  status_code=200, json={'data': [{'id': app_id}]})
+            m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
+                  status_code=204)
             msg = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
             source_integration.execute_koku_provider_op(msg)
             self.assertEqual(Sources.objects.get(source_id=source_id).koku_uuid, mock_koku_uuid)
 
     @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_execute_koku_provider_op_destroy(self):
         """Test to execute Koku Operations to sync with Sources for destruction."""
         source_id = 1
+        app_id = 1
         auth_header = Config.SOURCES_FAKE_HEADER
         offset = 2
         mock_koku_uuid = faker.uuid4()
@@ -79,14 +87,20 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with requests_mock.mock() as m:
             m.delete(f'http://www.koku.com/api/cost-management/v1/providers/{mock_koku_uuid}/',
                      status_code=204)
+            m.get(f'http://www.sources.com/api/v1.0/applications?filter[source_id]={source_id}',
+                  status_code=200, json={'data': [{'id': app_id}]})
+            m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
+                  status_code=204)
             msg = {'operation': 'destroy', 'provider': provider, 'offset': provider.offset}
             source_integration.execute_koku_provider_op(msg)
             self.assertEqual(Sources.objects.filter(source_id=source_id).exists(), False)
 
     @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_execute_koku_provider_op_update(self):
         """Test to execute Koku Operations to sync with Sources for destruction."""
         source_id = 1
+        app_id = 1
         auth_header = Config.SOURCES_FAKE_HEADER
         offset = 2
         mock_koku_uuid = faker.uuid4()
@@ -98,6 +112,10 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with requests_mock.mock() as m:
             m.put(f'http://www.koku.com/api/cost-management/v1/providers/{mock_koku_uuid}/',
                   status_code=200, json={})
+            m.get(f'http://www.sources.com/api/v1.0/applications?filter[source_id]={source_id}',
+                  status_code=200, json={'data': [{'id': app_id}]})
+            m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
+                  status_code=204)
             msg = {'operation': 'update', 'provider': provider, 'offset': provider.offset}
             source_integration.execute_koku_provider_op(msg)
             response = Sources.objects.get(source_id=source_id)
@@ -121,9 +139,11 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 source_integration.execute_koku_provider_op(msg)
 
     @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_execute_koku_provider_op_destroy_non_recoverable_error(self):
         """Test to execute Koku Operations to sync with Sources with non-recoverable error."""
         source_id = 1
+        app_id = 1
         auth_header = Config.SOURCES_FAKE_HEADER
         offset = 2
 
@@ -134,7 +154,11 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with requests_mock.mock() as m:
             m.post('http://www.koku.com/api/cost-management/v1/providers/',
                    status_code=400,
-                   json={'uuid': faker.uuid4()})
+                   json={'errors': [{'detail': 'koku check failed'}]})
+            m.get(f'http://www.sources.com/api/v1.0/applications?filter[source_id]={source_id}',
+                  status_code=200, json={'data': [{'id': app_id}]})
+            m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
+                  status_code=204)
             with self.assertLogs('sources.kafka_listener', level='ERROR') as logger:
                 msg = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
                 source_integration.execute_koku_provider_op(msg)
