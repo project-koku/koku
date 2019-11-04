@@ -17,7 +17,6 @@
 """Test the Report Queries."""
 from collections import defaultdict
 from decimal import Decimal
-from unittest import skip
 from unittest.mock import patch
 
 from django.db.models import Max
@@ -28,7 +27,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.provider.test import create_generic_provider
 from api.query_filter import QueryFilterCollection
 from api.report.ocp.query_handler import OCPReportQueryHandler
-from api.report.ocp.view import OCPCostView, OCPCpuView, OCPMemoryView, OCPVolumeView
+from api.report.ocp.view import OCPCostView, OCPCpuView
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
@@ -133,7 +132,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         # Add data for a second cluster
         OCPReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
-        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*'
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*'  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
@@ -332,7 +331,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             self.tenant, self.provider, current_month_only=True
         ).add_data_to_tenant()
 
-        url = '?filter[time_scope_value]=-2&filter[resolution]=monthly&filter[time_scope_units]=month&filter[limit]=1&delta=usage__request'
+        url = '?filter[time_scope_value]=-2&filter[resolution]=monthly&filter[time_scope_units]=month&filter[limit]=1&delta=usage__request'  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
 
@@ -526,7 +525,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         )
         data_generator.add_data_to_tenant()
 
-        url = '?filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month&filter[infrastructures]=aws'
+        url = '?filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month&filter[infrastructures]=aws'  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
@@ -544,7 +543,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         )
         data_generator.add_data_to_tenant()
 
-        url = '?filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month&filter[infrastructures]=aws'
+        url = '?filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month&filter[infrastructures]=aws'  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
@@ -557,7 +556,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_order_by_null_values(self):
         """Test that order_by returns properly sorted data with null data."""
-        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
 
@@ -583,7 +582,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         for _ in range(1, 5):
             OCPReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
-        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3&group_by[cluster]=*'
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3&group_by[cluster]=*'  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
 

@@ -25,14 +25,13 @@ from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import connection
 from django.db.models import Count, DateTimeField, F, Max, Sum, Value
 from django.db.models.functions import Cast, Concat
-from django.urls import reverse
 from django.test import TestCase
+from django.urls import reverse
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.test import create_generic_provider
-from api.query_params import QueryParameters
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.aws.view import AWSCostView, AWSInstanceTypeView, AWSStorageView
 from api.report.queries import strip_tag_prefix
@@ -157,20 +156,11 @@ class ReportQueryTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         self.dh = DateHelper()
-        self.factory = RequestFactory()
         super().setUp()
         self.current_month_total = Decimal(0)
         _, self.provider = create_generic_provider('AWS', self.headers)
         self.fake_aws = FakeAWSCostData(self.provider)
         self.add_data_to_tenant(self.fake_aws)
-
-    def _mocked_query_params(self, url, view):
-        m_request = self.factory.get(url)
-        user = MagicMock()
-        user.customer.schema_name = self.tenant.schema_name
-        m_request.user = user
-        query_params = QueryParameters(m_request, view)
-        return query_params
 
     def _populate_daily_table(self):
         included_fields = [

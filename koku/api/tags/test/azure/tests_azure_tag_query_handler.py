@@ -54,9 +54,6 @@ class AzureTagQueryHandlerTest(IamTestCase):
     def test_execute_query_10_day_parameters(self):
         """Test that the execute query runs properly with 10 day query."""
         url = '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily'
-        # params = {'filter': {'resolution': 'daily',
-        #                      'time_scope_value': -10,
-        #                      'time_scope_units': 'day'}}
         query_params = self.mocked_query_params(url, AzureTagView)
         handler = AzureTagQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -67,9 +64,6 @@ class AzureTagQueryHandlerTest(IamTestCase):
     def test_execute_query_30_day_parameters(self):
         """Test that the execute query runs properly with 30 day query."""
         url = '?filter[time_scope_units]=day&filter[time_scope_value]=-30&filter[resolution]=daily'
-        # params = {'filter': {'resolution': 'daily',
-        #                      'time_scope_value': -30,
-        #                      'time_scope_units': 'day'}}
         query_params = self.mocked_query_params(url, AzureTagView)
         handler = AzureTagQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -80,10 +74,6 @@ class AzureTagQueryHandlerTest(IamTestCase):
     def test_execute_query_10_day_parameters_only_keys(self):
         """Test that the execute query runs properly with 10 day query."""
         url = '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&key_only=True'
-        # params = {'filter': {'resolution': 'daily',
-        #                      'time_scope_value': -10,
-        #                      'time_scope_units': 'day'},
-        #           'key_only': True}
         query_params = self.mocked_query_params(url, AzureTagView)
         handler = AzureTagQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -94,9 +84,6 @@ class AzureTagQueryHandlerTest(IamTestCase):
     def test_execute_query_month_parameters(self):
         """Test that the execute query runs properly with single month query."""
         url = '?filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month'
-        # params = {'filter': {'resolution': 'monthly',
-        #                      'time_scope_value': -1,
-        #                      'time_scope_units': 'month'}}
         query_params = self.mocked_query_params(url, AzureTagView)
         handler = AzureTagQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -107,9 +94,6 @@ class AzureTagQueryHandlerTest(IamTestCase):
     def test_execute_query_two_month_parameters(self):
         """Test that the execute query runs properly with two month query."""
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly'
-        # params = {'filter': {'resolution': 'monthly',
-        #                      'time_scope_value': -2,
-        #                      'time_scope_units': 'month'}}
         query_params = self.mocked_query_params(url, AzureTagView)
         handler = AzureTagQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -127,10 +111,6 @@ class AzureTagQueryHandlerTest(IamTestCase):
             subscription_guid = obj.get('subscription_guid')
 
         url = f'?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&filter[subscription_guid]={subscription_guid}'  # noqa: E501
-        # params = {'filter': {'resolution': 'daily',
-        #                      'time_scope_value': -10,
-        #                      'time_scope_units': 'day',
-        #                      'subscription_guid': subscription_guid}}
         query_params = self.mocked_query_params(url, AzureTagView)
         handler = AzureTagQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -141,9 +121,6 @@ class AzureTagQueryHandlerTest(IamTestCase):
     def test_get_tag_keys_filter_true(self):
         """Test that not all tag keys are returned with a filter."""
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly'
-        # params = {'filter': {'resolution': 'monthly',
-        #                      'time_scope_value': -2,
-        #                      'time_scope_units': 'month'}}
         query_params = self.mocked_query_params(url, AzureTagView)
         handler = AzureTagQueryHandler(query_params)
 
@@ -168,9 +145,6 @@ class AzureTagQueryHandlerTest(IamTestCase):
     def test_get_tag_keys_filter_false(self):
         """Test that all tag keys are returned with no filter."""
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly'
-        # params = {'filter': {'resolution': 'monthly',
-        #                      'time_scope_value': -2,
-        #                      'time_scope_units': 'month'}}
         query_params = self.mocked_query_params(url, AzureTagView)
         handler = AzureTagQueryHandler(query_params)
 

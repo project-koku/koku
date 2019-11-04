@@ -18,12 +18,9 @@
 import logging
 import random
 import re
-from unittest.mock import Mock
-from urllib.parse import urlencode
 
 from faker import Faker
 
-from api.query_params import QueryParameters
 from api.utils import DateHelper
 
 LOG = logging.getLogger(__name__)

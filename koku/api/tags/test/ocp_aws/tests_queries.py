@@ -53,9 +53,6 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
     def test_10_day(self):
         """Test that the execute_query() succeeds with 10 day parameters."""
         url = '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily'  # noqa: E501
-        # params = {'filter': {'resolution': 'daily',
-        #                      'time_scope_value': -10,
-        #                      'time_scope_units': 'day'}}
         query_params = self.mocked_query_params(url, OCPAWSTagView)
         handler = OCPAWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -66,9 +63,6 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
     def test_30_day(self):
         """Test that execute_query() succeeds with 30 day parameters."""
         url = '?filter[time_scope_units]=day&filter[time_scope_value]=-30&filter[resolution]=daily'  # noqa: E501
-        # params = {'filter': {'resolution': 'daily',
-        #                      'time_scope_value': -30,
-        #                      'time_scope_units': 'day'}}
         query_params = self.mocked_query_params(url, OCPAWSTagView)
         handler = OCPAWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -79,10 +73,6 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
     def test_10_day_only_keys(self):
         """Test that execute_query() succeeds with 10 day parameters, keys-only."""
         url = '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&key_only=True'  # noqa: E501
-        # params = {'filter': {'resolution': 'daily',
-        #                      'time_scope_value': -10,
-        #                      'time_scope_units': 'day'},
-        #           'key_only': True}
         query_params = self.mocked_query_params(url, OCPAWSTagView)
         handler = OCPAWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -93,9 +83,6 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
     def test_1_month(self):
         """Test that execute_query() succeeds with 1-month parameters."""
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
-        # params = {'filter': {'resolution': 'monthly',
-        #                      'time_scope_value': -1,
-        #                      'time_scope_units': 'month'}}
         query_params = self.mocked_query_params(url, OCPAWSTagView)
         handler = OCPAWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -106,9 +93,6 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
     def test_last_month(self):
         """Test that execute_query() succeeds with last-month parameters."""
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly'
-        # params = {'filter': {'resolution': 'monthly',
-        #                      'time_scope_value': -2,
-        #                      'time_scope_units': 'month'}}
         query_params = self.mocked_query_params(url, OCPAWSTagView)
         handler = OCPAWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -119,10 +103,6 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
     def test_specific_account(self):
         """Test that execute_query() succeeds with account parameter."""
         url = f'?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&filter[account]={str(self.fake.ean8())}'  # noqa: E501
-        # params = {'filter': {'resolution': 'daily',
-        #                      'time_scope_value': -10,
-        #                      'time_scope_units': 'day',
-        #                      'account': str(self.fake.ean8())}}
         query_params = self.mocked_query_params(url, OCPAWSTagView)
         handler = OCPAWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -133,9 +113,6 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
     def test_get_tag_keys(self):
         """Test that all OCP-on-AWS tag keys are returned."""
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly'
-        # params = {'filter': {'resolution': 'monthly',
-        #                      'time_scope_value': -2,
-        #                      'time_scope_units': 'month'}}
         query_params = self.mocked_query_params(url, OCPAWSTagView)
         handler = OCPAWSTagQueryHandler(query_params)
 
