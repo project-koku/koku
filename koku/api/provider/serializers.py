@@ -213,6 +213,7 @@ class ProviderSerializer(serializers.ModelSerializer):
     created_timestamp = serializers.DateTimeField(read_only=True)
     customer = CustomerSerializer(read_only=True)
     created_by = UserSerializer(read_only=True)
+    active = serializers.BooleanField()
 
     # pylint: disable=too-few-public-methods
     class Meta:
@@ -220,7 +221,7 @@ class ProviderSerializer(serializers.ModelSerializer):
 
         model = Provider
         fields = ('uuid', 'name', 'type', 'authentication', 'billing_source',
-                  'customer', 'created_by', 'created_timestamp')
+                  'customer', 'created_by', 'created_timestamp', 'active')
 
     def __init__(self, instance=None, data=empty, **kwargs):
         """Initialize the Provider Serializer.

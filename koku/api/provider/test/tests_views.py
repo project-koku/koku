@@ -20,8 +20,8 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from django.urls import reverse
-from rest_framework import status
 from rest_framework import serializers
+from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
