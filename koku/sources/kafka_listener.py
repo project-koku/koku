@@ -373,6 +373,7 @@ def execute_koku_provider_op(msg):
     provider = msg.get('provider')
     operation = msg.get('operation')
     koku_client = KokuHTTPClient(provider.auth_header)
+    sources_client = SourcesHTTPClient(provider.auth_header, provider.source_id)
     try:
         if operation == 'create':
             LOG.info(f'Creating Koku Provider for Source ID: {str(provider.source_id)}')
@@ -390,12 +391,14 @@ def execute_koku_provider_op(msg):
                                                        provider.authentication, provider.billing_source)
             storage.clear_update_flag(provider.source_id)
             LOG.info(f'Koku Provider UUID {koku_details.get("uuid")} with Source ID {str(provider.source_id)} updated.')
+        sources_client.set_source_status(None)
 
     except KokuHTTPClientError as koku_error:
         raise SourcesIntegrationError('Koku provider error: ', str(koku_error))
     except KokuHTTPClientNonRecoverableError as koku_error:
         err_msg = f'Unable to {operation} provider for Source ID: {str(provider.source_id)}. Reason: {str(koku_error)}'
         LOG.error(err_msg)
+        sources_client.set_source_status(str(koku_error))
 
 
 async def synchronize_sources(process_queue):  # pragma: no cover
