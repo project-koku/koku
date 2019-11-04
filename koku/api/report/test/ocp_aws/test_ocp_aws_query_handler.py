@@ -107,9 +107,6 @@ class OCPAWSQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_daily(self):
         """Test execute_query for current month on daily breakdown."""
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily'
-        # params = {'filter': {'resolution': 'daily',
-        #                      'time_scope_value': -1,
-        #                      'time_scope_units': 'month'}}
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -126,9 +123,6 @@ class OCPAWSQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_monthly(self):
         """Test execute_query for current month on monthly breakdown."""
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily'
-        # params = {'filter': {'resolution': 'daily',
-        #                      'time_scope_value': -1,
-        #                      'time_scope_units': 'month'}}
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -145,10 +139,6 @@ class OCPAWSQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*'  # noqa: E501
-        # params = {'filter': {'resolution': 'monthly',
-        #                      'time_scope_value': -1,
-        #                      'time_scope_units': 'month'},
-        #           'group_by': {'service': ['*']}}
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -177,10 +167,6 @@ class OCPAWSQueryHandlerTest(IamTestCase):
     def test_execute_query_by_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=AmazonEC2'  # noqa: E501
-        # params = {'filter': {'resolution': 'monthly',
-        #                      'time_scope_value': -1,
-        #                      'time_scope_units': 'month'},
-        #           'group_by': {'service': ['AmazonEC2']}}
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -209,10 +195,6 @@ class OCPAWSQueryHandlerTest(IamTestCase):
     def test_query_by_partial_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=eC2'  # noqa: E501
-        # params = {'filter': {'resolution': 'monthly',
-        #                      'time_scope_value': -1,
-        #                      'time_scope_units': 'month'},
-        #           'group_by': {'service': ['eC2']}}
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -241,10 +223,6 @@ class OCPAWSQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_by_account(self):
         """Test execute_query for current month on monthly breakdown by account."""
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*'  # noqa: E501
-        # params = {'filter': {'resolution': 'monthly',
-        #                      'time_scope_value': -1,
-        #                      'time_scope_units': 'month'},
-        #           'group_by': {'account': ['*']}}
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -271,11 +249,6 @@ class OCPAWSQueryHandlerTest(IamTestCase):
     def test_execute_query_by_account_by_service(self):
         """Test execute_query for current month breakdown by account by service."""
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&group_by[service]=*'  # noqa: E501
-        # params = {'filter': {'resolution': 'monthly',
-        #                      'time_scope_value': -1,
-        #                      'time_scope_units': 'month'},
-        #           'group_by': {'account': ['*'],
-        #                        'service': ['*']}}
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
