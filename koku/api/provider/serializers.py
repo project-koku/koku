@@ -213,7 +213,7 @@ class ProviderSerializer(serializers.ModelSerializer):
     created_timestamp = serializers.DateTimeField(read_only=True)
     customer = CustomerSerializer(read_only=True)
     created_by = UserSerializer(read_only=True)
-    active = serializers.BooleanField()
+    active = serializers.BooleanField(read_only=True)
 
     # pylint: disable=too-few-public-methods
     class Meta:
