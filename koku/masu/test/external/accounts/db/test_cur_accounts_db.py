@@ -50,6 +50,9 @@ class CURAccountsDBTest(MasuTestCase):
 
     def test_get_accounts_from_source_with_inactive(self):
         """Test to get all active accounts."""
-        import pdb; pdb.set_trace()
         self.aws_provider.active = False
+        self.aws_provider.save()
 
+        accounts = CURAccountsDB().get_accounts_from_source()
+        if len(accounts) != 2:
+            self.fail('unexpected number of accounts')
