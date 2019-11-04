@@ -79,28 +79,28 @@ def query_and_upload_to_s3(schema, provider_uuid, table_export_setting, date_ran
     )
 
     for the_date in dates_to_iterate:
-        with connection.cursor() as cursor:
-            cursor.db.set_schema(schema)
-            upload_path = get_upload_path(
-                schema,
-                table_export_setting.provider,
-                provider_uuid,
-                the_date,
-                table_export_setting.output_name,
-                iterate_daily,
-            )
-            cursor.execute(
-                table_export_setting.sql.format(schema=schema),
-                {
-                    'start_date': the_date,
-                    'end_date': the_date if iterate_daily else end_date,
-                    'provider_uuid': provider_uuid,
-                },
-            )
-            # Don't upload if result set is empty
-            if cursor.rowcount == 0:
-                continue
-            with NamedTemporaryGZip() as temp_file:
+        with NamedTemporaryGZip() as temp_file:
+            with connection.cursor() as cursor:
+                cursor.db.set_schema(schema)
+                upload_path = get_upload_path(
+                    schema,
+                    table_export_setting.provider,
+                    provider_uuid,
+                    the_date,
+                    table_export_setting.output_name,
+                    iterate_daily,
+                )
+                cursor.execute(
+                    table_export_setting.sql.format(schema=schema),
+                    {
+                        'start_date': the_date,
+                        'end_date': the_date if iterate_daily else end_date,
+                        'provider_uuid': provider_uuid,
+                    },
+                )
+                # Don't upload if result set is empty
+                if cursor.rowcount == 0:
+                    continue
                 writer = csv.writer(temp_file, quotechar='"', quoting=csv.QUOTE_MINIMAL)
                 writer.writerow([field.name for field in cursor.description])
                 while True:
@@ -109,5 +109,5 @@ def query_and_upload_to_s3(schema, provider_uuid, table_export_setting, date_ran
                         break
                     for row in records:
                         writer.writerow(row)
-                temp_file.close()
-                uploader.upload_file(temp_file.name, upload_path)
+            temp_file.close()
+            uploader.upload_file(temp_file.name, upload_path)
