@@ -598,8 +598,8 @@ class OCPReportDataGenerator:
             FROM (
                 SELECT key,
                     value
-                FROM reporting_ocpusagelineitem_daily AS li,
-                    jsonb_each_text(li.pod_labels) labels
+                FROM reporting_ocpstoragelineitem_daily AS li,
+                    jsonb_each_text(li.persistentvolumeclaim_labels) labels
             ) l
             GROUP BY l.key
             ON CONFLICT (key) DO UPDATE
@@ -618,8 +618,8 @@ class OCPReportDataGenerator:
             FROM (
                 SELECT key,
                     value
-                FROM reporting_ocpusagelineitem_daily AS li,
-                    jsonb_each_text(li.pod_labels) labels
+                FROM reporting_ocpstoragelineitem_daily AS li,
+                    jsonb_each_text(li.persistentvolume_labels) labels
             ) l
             GROUP BY l.key
             ON CONFLICT (key) DO UPDATE
