@@ -19,21 +19,34 @@ import copy
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from decimal import Decimal
+<<<<<<< HEAD
 from unittest.mock import PropertyMock, patch
+=======
+from unittest.mock import MagicMock
+>>>>>>> master
 
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import connection
 from django.db.models import Count, DateTimeField, F, Max, Sum, Value
 from django.db.models.functions import Cast, Concat
+<<<<<<< HEAD
 from django.urls import reverse
 from django.test import TestCase
 from rest_framework.exceptions import ValidationError
+=======
+from django.test import RequestFactory, TestCase
+>>>>>>> master
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.test import create_generic_provider
+from api.query_params import QueryParameters
 from api.report.aws.query_handler import AWSReportQueryHandler
+<<<<<<< HEAD
 from api.report.aws.view import AWSCostView, AWSInstanceTypeView, AWSStorageView
+=======
+from api.report.aws.view import AWSCostView  # AWSView, AWSCostView, AWSInstanceTypeView, AWSStorageView
+>>>>>>> master
 from api.report.queries import strip_tag_prefix
 from api.report.test import FakeAWSCostData
 from api.tags.aws.queries import AWSTagQueryHandler
@@ -156,11 +169,20 @@ class ReportQueryTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         self.dh = DateHelper()
+        self.factory = RequestFactory()
         super().setUp()
         self.current_month_total = Decimal(0)
         _, self.provider = create_generic_provider('AWS', self.headers)
         self.fake_aws = FakeAWSCostData(self.provider)
         self.add_data_to_tenant(self.fake_aws)
+
+    def _mocked_query_params(self, url, view):
+        m_request = self.factory.get(url)
+        user = MagicMock()
+        user.customer.schema_name = self.tenant.schema_name
+        m_request.user = user
+        query_params = QueryParameters(m_request, view)
+        return query_params
 
     def _populate_daily_table(self):
         included_fields = [
@@ -1437,8 +1459,13 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_return_others_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
+<<<<<<< HEAD
         url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSTagView)
+=======
+        url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
+        query_params = self._mocked_query_params(url, AWSTagView)
+>>>>>>> master
         handler = AWSTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
         group_by_key = tag_keys[0]
@@ -1461,7 +1488,11 @@ class ReportQueryTest(IamTestCase):
             )
 
         url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[or:tag:{group_by_key}]=*'  # noqa: E501
+<<<<<<< HEAD
         query_params = self.mocked_query_params(url, AWSCostView)
+=======
+        query_params = self._mocked_query_params(url, AWSCostView)
+>>>>>>> master
         handler = AWSReportQueryHandler(query_params)
 
         data = handler.execute_query()
