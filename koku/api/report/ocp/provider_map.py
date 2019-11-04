@@ -21,7 +21,7 @@ from django.db.models.functions import Coalesce
 
 from api.report.provider_map import ProviderMap
 from providers.provider_access import ProviderAccessor
-from reporting.models import CostSummary, OCPUsageLineItemDailySummary
+from reporting.models import OCPUsageLineItemDailySummary
 
 
 class OCPProviderMap(ProviderMap):
@@ -73,7 +73,7 @@ class OCPProviderMap(ProviderMap):
                 'report_type': {
                     'costs': {
                         'tables': {
-                            'query': CostSummary
+                            'query': OCPUsageLineItemDailySummary
                         },
                         'aggregates': {
                             'cost': Sum(
@@ -138,7 +138,7 @@ class OCPProviderMap(ProviderMap):
                     },
                     'costs_by_project': {
                         'tables': {
-                            'query': CostSummary
+                            'query': OCPUsageLineItemDailySummary
                         },
                         'aggregates': {
                             'cost': Sum(
