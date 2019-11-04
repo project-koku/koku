@@ -1,6 +1,7 @@
 -- Place our query in a temporary table
 CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe}} AS (
-    SELECT  li.cluster_id,
+    SELECT li.report_period_id,
+        li.cluster_id,
         li.cluster_alias,
         li.namespace,
         li.pod,
@@ -40,6 +41,7 @@ WHERE usage_start >= {{start_date}}
 
 -- Populate the daily aggregate line item data
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+    report_period_id,
     cluster_id,
     cluster_alias,
     data_source,
@@ -65,7 +67,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     total_capacity_cpu_core_hours,
     total_capacity_memory_gigabyte_hours
 )
-    SELECT cluster_id,
+    SELECT report_period_id,
+        cluster_id,
         cluster_alias,
         'Pod',
         namespace,
