@@ -153,7 +153,7 @@ class ProviderDBAccessor(KokuDBAccess):
 
     def setup_complete(self):
         """
-        Convenience method to set setup_complete to True.
+        Set setup_complete to True.
 
         Args:
             None
