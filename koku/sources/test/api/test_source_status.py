@@ -24,10 +24,12 @@ from faker import Faker
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
+from django.test.utils import override_settings
 
 faker = Faker()
 
 #with patch.object(AWSProvider, 'cost_usage_source_is_reachable', return_value=True):
+@override_settings(ROOT_URLCONF='sources.urls')
 class SourcesStatusTest(TestCase):
     """Test Sources Status API"""
     def setUp(self):
@@ -56,7 +58,7 @@ class SourcesStatusTest(TestCase):
         """Test that the sources_status list View returns 200 OK."""
         import pdb
         pdb.set_trace()
-        url = reverse('sources_status')
+        url = reverse('source-status')
         client = APIClient()
         response = client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -67,7 +69,7 @@ class SourcesStatusTest(TestCase):
         """
         # 200 OK page for sources-list
 
-        url = reverse('sources-status')
+        url = reverse('source-status')
         client = APIClient()
         response = client.get(url + '?source-id=1')
         actualStatus = response.data['data'][0]['source-status']
