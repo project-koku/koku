@@ -347,7 +347,7 @@ async def listen_for_messages(consumer, application_source_id, msg_pending_queue
         await consumer.stop()
 
 
-def execute_koku_provider_op(msg):
+def execute_koku_provider_op(msg, cost_management_type_id):
     """
     Execute the 'create' or 'destroy Koku-Provider operations.
 
@@ -365,6 +365,7 @@ def execute_koku_provider_op(msg):
         msg (Asyncio msg): Dictionary messages containing operation,
                                        provider and offset.
             example: {'operation': 'create', 'provider': SourcesModelObj, 'offset': 3}
+        cost_management_type_id (Integer): Cost Management Type Identifier
 
     Returns:
         None
@@ -391,17 +392,17 @@ def execute_koku_provider_op(msg):
                                                        provider.authentication, provider.billing_source)
             storage.clear_update_flag(provider.source_id)
             LOG.info(f'Koku Provider UUID {koku_details.get("uuid")} with Source ID {str(provider.source_id)} updated.')
-        sources_client.set_source_status(None)
+        sources_client.set_source_status(None, cost_management_type_id)
 
     except KokuHTTPClientError as koku_error:
         raise SourcesIntegrationError('Koku provider error: ', str(koku_error))
     except KokuHTTPClientNonRecoverableError as koku_error:
         err_msg = f'Unable to {operation} provider for Source ID: {str(provider.source_id)}. Reason: {str(koku_error)}'
         LOG.error(err_msg)
-        sources_client.set_source_status(str(koku_error))
+        sources_client.set_source_status(str(koku_error), cost_management_type_id)
 
 
-async def synchronize_sources(process_queue):  # pragma: no cover
+async def synchronize_sources(process_queue, cost_management_type_id):  # pragma: no cover
     """
     Synchronize Platform Sources with Koku Providers.
 
@@ -416,6 +417,7 @@ async def synchronize_sources(process_queue):  # pragma: no cover
         process_queue (Asyncio.Queue): Dictionary messages containing operation,
                                        provider and offset.
             example: {'operation': 'create', 'provider': SourcesModelObj, 'offset': 3}
+        cost_management_type_id (Integer): Cost Management Type Identifier
 
     Returns:
         None
@@ -426,7 +428,7 @@ async def synchronize_sources(process_queue):  # pragma: no cover
         msg = await process_queue.get()
         try:
             with concurrent.futures.ThreadPoolExecutor() as pool:
-                await EVENT_LOOP.run_in_executor(pool, execute_koku_provider_op, msg)
+                await EVENT_LOOP.run_in_executor(pool, execute_koku_provider_op, msg, cost_management_type_id)
         except SourcesIntegrationError as error:
             LOG.error('Re-queueing failed operation. Error: %s', str(error))
             await asyncio.sleep(Config.RETRY_SECONDS)
@@ -473,7 +475,7 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
         while True:
             event_loop.create_task(listen_for_messages(consumer, cost_management_type_id, PENDING_PROCESS_QUEUE))
             event_loop.create_task(process_messages(PENDING_PROCESS_QUEUE))
-            event_loop.create_task(synchronize_sources(PROCESS_QUEUE))
+            event_loop.create_task(synchronize_sources(PROCESS_QUEUE, cost_management_type_id))
             event_loop.run_forever()
     except SourcesHTTPClientError as error:
         LOG.error(f'Unable to connect to Sources REST API.  Check configuration and restart server... Error: {error}')

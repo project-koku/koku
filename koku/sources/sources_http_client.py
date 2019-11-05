@@ -148,9 +148,10 @@ class SourcesHTTPClient:
                              'tenant_id': data_dict.get('extra').get('azure').get('tenant_id')}
         return azure_credentials
 
-    def set_source_status(self, error_msg):
+    def set_source_status(self, error_msg, cost_management_type_id):
         """Set the source status with error message."""
-        application_query_url = '{}/applications?filter[source_id]={}'.format(self._base_url, str(self._source_id))
+        application_query_url = '{}/applications?filter[application_type_id]={}&filter[source_id]={}'.\
+            format(self._base_url, cost_management_type_id, str(self._source_id))
         application_query_response = requests.get(application_query_url, headers=self._identity_header)
         application_id = application_query_response.json().get('data')[0].get('id')
 
