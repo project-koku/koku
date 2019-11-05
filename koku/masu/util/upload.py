@@ -14,13 +14,13 @@ _DB_FETCH_BATCH_SIZE = 2000
 
 
 def get_upload_path(
-    account_name, provider_type, provider_uuid, date, table_name, daily=False
+    schema_name, provider_type, provider_uuid, date, table_name, daily=False
 ):
     """
     Get the s3 upload_path for a file.
 
     Args:
-        account_name (str): Koku user account (schema) name.
+        schema_name (str): Koku user account (schema) name.
         provider_type (str): Koku backend provider type identifier.
         provider_uuid (UUID): Koku backend provider UUID.
         date (date): Date at which the exported data is relevant.
@@ -43,7 +43,7 @@ def get_upload_path(
         '{bucket_path}/{account_name}/{provider_type}/{provider_uuid}/'
         '{date_part}/{table_name}.csv.gz'.format(
             bucket_path=settings.S3_BUCKET_PATH,
-            account_name=account_name,
+            account_name=schema_name,
             provider_type=provider_type,
             provider_uuid=provider_uuid,
             date_part=date_part,
@@ -53,12 +53,14 @@ def get_upload_path(
     return upload_path
 
 
-def query_and_upload_to_s3(schema, provider_uuid, table_export_setting, date_range):
+def query_and_upload_to_s3(
+    schema_name, provider_uuid, table_export_setting, date_range
+):
     """
     Query the database and upload the results to s3.
 
     Args:
-        schema (str): Account schema name in which to execute the query.
+        schema_name (str): Account schema name in which to execute the query.
         provider_uuid (UUID): Provider UUID for filtering the query.
         table_export_setting (TableExportSetting): Settings for the table export.
         date_range (tuple): Pair of date objects of inclusive start and end dates.
@@ -66,7 +68,7 @@ def query_and_upload_to_s3(schema, provider_uuid, table_export_setting, date_ran
     """
     LOG.info(
         'query_and_upload_to_s3: schema %s provider_uuid %s table.output_name %s for %s',
-        schema,
+        schema_name,
         provider_uuid,
         table_export_setting.output_name,
         date_range,
@@ -81,9 +83,9 @@ def query_and_upload_to_s3(schema, provider_uuid, table_export_setting, date_ran
     for the_date in dates_to_iterate:
         with NamedTemporaryGZip() as temp_file:
             with connection.cursor() as cursor:
-                cursor.db.set_schema(schema)
+                cursor.db.set_schema(schema_name)
                 upload_path = get_upload_path(
-                    schema,
+                    schema_name,
                     table_export_setting.provider,
                     provider_uuid,
                     the_date,
@@ -91,7 +93,7 @@ def query_and_upload_to_s3(schema, provider_uuid, table_export_setting, date_ran
                     iterate_daily,
                 )
                 cursor.execute(
-                    table_export_setting.sql.format(schema=schema),
+                    table_export_setting.sql.format(schema=schema_name),
                     {
                         'start_date': the_date,
                         'end_date': the_date if iterate_daily else end_date,
