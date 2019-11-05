@@ -1,14 +1,14 @@
 """Upload utils tests."""
 import calendar
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from unittest.mock import patch
 
+import pytz
 from django.test import TestCase
 
 from masu.celery.tasks import table_export_settings
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.util.upload import get_upload_path, query_and_upload_to_s3
@@ -68,7 +68,10 @@ class TestUploadUtilsWithData(MasuTestCase):
             self.column_map = common_accessor.column_map
         self.creator = ReportObjectCreator(self.schema, self.column_map)
 
-        self.today = DateAccessor().today_with_timezone('UTC')
+        timezone = pytz.timezone('UTC')
+        # Arbitrary date as "today" so we don't drift around with `now`.
+        self.today = datetime(2019, 11, 5, 0, 0, 0, tzinfo=timezone)
+
         self.today_date = date(
             year=self.today.year, month=self.today.month, day=self.today.day
         )
