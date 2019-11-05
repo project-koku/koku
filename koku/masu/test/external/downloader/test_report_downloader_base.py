@@ -48,7 +48,8 @@ class ReportDownloaderBaseTest(MasuTestCase):
     def setUp(self):
         """Setup each test case."""
         super().setUp()
-        self.mock_task = Mock(_request=Mock(return_value={}))
+        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()),
+                                           return_value={}))
         self.downloader = ReportDownloaderBase(task=self.mock_task,
                                                provider_uuid=self.aws_provider_uuid)
         billing_start = self.date_accessor.today_with_timezone('UTC').replace(day=1)

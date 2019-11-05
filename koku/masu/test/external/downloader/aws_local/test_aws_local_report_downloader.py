@@ -22,6 +22,7 @@ import shutil
 import tarfile
 import tempfile
 from tarfile import TarFile
+from unittest.mock import Mock
 
 from faker import Faker
 
@@ -77,16 +78,20 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         mytar = TarFile.open('./koku/masu/test/data/test_local_bucket.tar.gz')
         mytar.extractall(path=self.fake_bucket_name)
         os.makedirs(DATA_DIR, exist_ok=True)
+        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()),
+                                           return_value={}))
         self.report_downloader = ReportDownloader(
-            self.fake_customer_name,
-            self.fake_auth_credential,
-            self.fake_bucket_name,
-            'AWS-local',
-            self.aws_provider_uuid,
+            task=self.mock_task,
+            customer_name=self.fake_customer_name,
+            access_credential=self.fake_auth_credential,
+            report_source=self.fake_bucket_name,
+            provider_type='AWS-local',
+            provider_uuid=self.aws_provider_uuid,
         )
 
         self.aws_local_report_downloader = AWSLocalReportDownloader(
             **{
+                'task': self.mock_task,
                 'customer_name': self.fake_customer_name,
                 'auth_credential': self.fake_auth_credential,
                 'bucket': self.fake_bucket_name,
@@ -117,6 +122,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         """Test initializer when report_name is  provided."""
         report_downloader = AWSLocalReportDownloader(
             **{
+                'task': self.mock_task,
                 'customer_name': self.fake_customer_name,
                 'auth_credential': self.fake_auth_credential,
                 'bucket': self.fake_bucket_name,
@@ -129,6 +135,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         """Test to extract the report and prefix names from a bucket with no prefix."""
         report_downloader = AWSLocalReportDownloader(
             **{
+                'task': self.mock_task,
                 'customer_name': self.fake_customer_name,
                 'auth_credential': self.fake_auth_credential,
                 'bucket': self.fake_bucket_name,
@@ -145,6 +152,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         test_report_date = datetime(year=2018, month=8, day=7)
         with patch.object(DateAccessor, 'today', return_value=test_report_date):
             report_downloader = ReportDownloader(
+                self.mock_task,
                 self.fake_customer_name,
                 self.fake_auth_credential,
                 fake_bucket,
@@ -171,6 +179,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         os.makedirs(full_path)
         report_downloader = AWSLocalReportDownloader(
             **{
+                'task': self.mock_task,
                 'customer_name': self.fake_customer_name,
                 'auth_credential': self.fake_auth_credential,
                 'bucket': bucket,
@@ -192,6 +201,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
 
         report_downloader = AWSLocalReportDownloader(
             **{
+                'task': self.mock_task,
                 'customer_name': self.fake_customer_name,
                 'auth_credential': self.fake_auth_credential,
                 'bucket': bucket,
@@ -207,6 +217,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         bucket = tempfile.mkdtemp()
         report_downloader = AWSLocalReportDownloader(
             **{
+                'task': self.mock_task,
                 'customer_name': self.fake_customer_name,
                 'auth_credential': self.fake_auth_credential,
                 'bucket': bucket,
@@ -225,6 +236,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         test_report_date = datetime(year=2018, month=7, day=7)
         with patch.object(DateAccessor, 'today', return_value=test_report_date):
             report_downloader = ReportDownloader(
+                self.mock_task,
                 self.fake_customer_name,
                 self.fake_auth_credential,
                 fake_bucket,

@@ -26,7 +26,7 @@ import tempfile
 from faker import Faker
 
 from datetime import datetime
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader
@@ -70,12 +70,20 @@ class OCPReportDownloaderTest(MasuTestCase):
             test_manifest_path, os.path.join(report_path, self.test_manifest_path)
         )
 
+        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()),
+                                           return_value={}))
         self.report_downloader = ReportDownloader(
-            self.fake_customer_name, self.cluster_id, None, 'OCP', self.ocp_provider_uuid
+            task=self.mock_task,
+            customer_name=self.fake_customer_name,
+            access_credential=self.cluster_id,
+            report_source=None,
+            provider_type='OCP',
+            provider_uuid=self.ocp_provider_uuid,
         )
 
         self.ocp_report_downloader = OCPReportDownloader(
             **{
+                'task': self.mock_task,
                 'customer_name': self.fake_customer_name,
                 'auth_credential': self.cluster_id,
                 'bucket': None,
