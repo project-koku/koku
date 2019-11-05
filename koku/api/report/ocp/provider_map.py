@@ -290,9 +290,6 @@ class OCPProviderMap(ProviderMap):
                                         'derived_cost', 'cost'],
                     },
                     'volume': {
-                        'tables': {
-                            'query': OCPUsageLineItemDailySummary
-                        },
                         'tag_column': 'volume_labels',
                         'aggregates': {
                             'usage': Sum('persistentvolumeclaim_usage_gigabyte_months'),
