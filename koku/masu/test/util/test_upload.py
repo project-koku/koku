@@ -111,7 +111,13 @@ class TestUploadUtilsWithData(MasuTestCase):
 
     @patch('masu.util.upload.AwsS3Uploader')
     def test_query_and_upload_to_s3(self, mock_uploader):
-        """Assert query_and_upload_to_s3 uploads to S3 with one file."""
+        """
+        Assert query_and_upload_to_s3 uploads to S3 for each query.
+
+        We only have test data reliably set for AWS, but this function should
+        still execute *all* of the table_export_settings queries, effectively
+        providing a syntax check on the SQL even if no results are found.
+        """
         today = self.today
         _, last_day_of_month = calendar.monthrange(today.year, today.month)
         curr_month_first_day = date(year=today.year, month=today.month, day=1)
@@ -120,13 +126,23 @@ class TestUploadUtilsWithData(MasuTestCase):
         )
 
         date_range = (curr_month_first_day, curr_month_last_day)
-        table_export_setting = self.get_table_export_setting_by_name(
-            'reporting_awscostentrylineitem'
-        )
-        query_and_upload_to_s3(
-            self.schema, self.aws_provider_uuid, table_export_setting, date_range
-        )
-        mock_uploader.return_value.upload_file.assert_called_once()
+        for table_export_setting in table_export_settings:
+            mock_uploader.reset_mock()
+            query_and_upload_to_s3(
+                self.schema, self.aws_provider_uuid, table_export_setting, date_range
+            )
+            if table_export_setting.provider == 'aws':
+                if table_export_setting.iterate_daily:
+                    # There are always TWO days of AWS test data.
+                    calls = mock_uploader.return_value.upload_file.call_args_list
+                    self.assertEqual(len(calls), 2)
+                else:
+                    # There is always only ONE month of AWS test data.
+                    mock_uploader.return_value.upload_file.assert_called_once()
+            else:
+                # We ONLY have test data currently for AWS.
+                mock_uploader.return_value.upload_file.assert_not_called()
+
 
     @patch('masu.util.upload.AwsS3Uploader')
     def test_query_and_upload_skips_if_no_data(self, mock_uploader):
