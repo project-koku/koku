@@ -47,9 +47,8 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
 
     def __init__(self, tenant, provider, current_month_only=False):
         """Set up the class."""
-        super().__init__(tenant, current_month_only)
+        super().__init__(tenant, provider, current_month_only)
 
-        self.provider = provider
         aws_usage_start = min(self.report_ranges[0])
         aws_usage_end = max(self.report_ranges[0])
 
