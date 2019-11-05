@@ -16,67 +16,44 @@
 #
 """Test the Sources Status HTTP Client."""
 from django.test import TestCase
-from sources.koku_http_client import KokuHTTPClient
-from sources.config import Config
-import requests_mock
-from unittest.mock import patch
-from faker import Faker
+from django.test.utils import override_settings
 from django.urls import reverse
+from faker import Faker
 from rest_framework import status
 from rest_framework.test import APIClient
-from django.test.utils import override_settings
 
 faker = Faker()
 
-#with patch.object(AWSProvider, 'cost_usage_source_is_reachable', return_value=True):
+
 @override_settings(ROOT_URLCONF='sources.urls')
 class SourcesStatusTest(TestCase):
-    """Test Sources Status API"""
-    def setUp(self):
-        """Test case setup."""
-        super().setUp()
-        self.name = 'Test Provider'
-        self.provider_type = 'PVD'
-        self.authentication = 'testauth'
-        self.billing_source = 'testbillingsource'
+    """Source Status Test Class."""
 
-    @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
-    def test_create_provider(self):
-        """Test to create a provider."""
-        client = KokuHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
-        expected_uuid = '76aa76b9-d4c7-4272-a583-29f4b258fa37'
-        with requests_mock.mock() as m:
-            m.post('http://www.koku.com/api/cost-management/v1/providers/',
-                   status_code=201,
-                   json={'uuid': expected_uuid})
-            response = client.create_provider(self.name, self.provider_type, self.authentication, self.billing_source)
-            self.assertEqual(response.get('uuid'), expected_uuid)
-            print(response.get('uuid'))
-            print(response)
+    def test_http_endpoint_200_OK(self):
+        """
+        Test source-status endpoint returns a 200 OK.
 
-    def testEndpointExists(self):
-        """
-        Test that the sources_status list View returns a response.
-        
-        With no parameters given, we expect it to return a 400 BAD REQUEST
-        """
-        url = reverse('source-status')
-        client = APIClient()
-        response = client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_http_endpoint(self):
-        """
-        Test sources status returns true
+        When we pass in a ?source_id=<integer> parameter, the endpoint should return 200 OK.
         """
         # 200 OK page for sources-list
 
         url = reverse('source-status')
         client = APIClient()
-        response = client.get(url + '?source-id=1')
+        response = client.get(url + '?source_id=1')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_http_endpoint_returns_false_(self):
+        """
+        Test sources status returns False.
+
+        When there's no provider or source, the endpoint should return False
+        """
+        url = reverse('source-status')
+        client = APIClient()
+        response = client.get(url + '?source_id=1')
         import pdb
         pdb.set_trace()
-        actualStatus = response.data['data'][0]['source-status']
+        actualStatus = response.data['data']
+        expectedStatus = False
 
-        expectedStatus = 'True'
-        self.assertEqual(expectedStatus, actualStatus)
+        self.assertEqual(actualStatus, expectedStatus)
