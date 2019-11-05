@@ -23,12 +23,15 @@ from rest_framework import status
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def source_status(request):
-    """SourceStatus view. This view assumes that a provider and source already exist.
+    """
+    SourceStatus view.
+
+    This view assumes that a provider and source already exist.
 
     Boolean Response of whether or not the Source is properly configured.
 
     The parameter source_id corresponds to the Table api_sources
-    
+
     The Response boolean is True if cost_usage_source_ready does not throw an Exception.
     The Response boolean is False if cost_usage_source_ready throws a ValidationError.
     """

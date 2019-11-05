@@ -54,14 +54,16 @@ class SourcesStatusTest(TestCase):
             print(response.get('uuid'))
             print(response)
 
-    def testEndpoint200Response(self):
-        """Test that the sources_status list View returns 200 OK."""
-        import pdb
-        pdb.set_trace()
+    def testEndpointExists(self):
+        """
+        Test that the sources_status list View returns a response.
+        
+        With no parameters given, we expect it to return a 400 BAD REQUEST
+        """
         url = reverse('source-status')
         client = APIClient()
         response = client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_http_endpoint(self):
         """
@@ -72,6 +74,8 @@ class SourcesStatusTest(TestCase):
         url = reverse('source-status')
         client = APIClient()
         response = client.get(url + '?source-id=1')
+        import pdb
+        pdb.set_trace()
         actualStatus = response.data['data'][0]['source-status']
 
         expectedStatus = 'True'
