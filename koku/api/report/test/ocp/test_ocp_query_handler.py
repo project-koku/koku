@@ -56,7 +56,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             'usage_end__lte': self.dh.last_month_end,
         }
         OCPReportDataGenerator(
-            self.tenant, self.provider, self.provider
+            self.tenant, self.provider
         ).add_data_to_tenant()
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
