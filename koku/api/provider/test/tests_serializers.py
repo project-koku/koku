@@ -176,6 +176,7 @@ class ProviderSerializerTest(IamTestCase):
 
         schema_name = serializer.data['customer'].get('schema_name')
         self.assertIsInstance(instance.uuid, uuid.UUID)
+        self.assertTrue(instance.active)
         self.assertIsNone(schema_name)
         self.assertFalse('schema_name' in serializer.data['customer'])
 
@@ -196,6 +197,7 @@ class ProviderSerializerTest(IamTestCase):
 
         schema_name = serializer.data['customer'].get('schema_name')
         self.assertIsInstance(instance.uuid, uuid.UUID)
+        self.assertTrue(instance.active)
         self.assertIsNone(schema_name)
         self.assertFalse('schema_name' in serializer.data['customer'])
 
@@ -216,6 +218,7 @@ class ProviderSerializerTest(IamTestCase):
 
         schema_name = serializer.data['customer'].get('schema_name')
         self.assertIsInstance(instance.uuid, uuid.UUID)
+        self.assertTrue(instance.active)
         self.assertIsNone(schema_name)
         self.assertFalse('schema_name' in serializer.data['customer'])
 
@@ -268,6 +271,7 @@ class ProviderSerializerTest(IamTestCase):
 
         schema_name = serializer.data['customer'].get('schema_name')
         self.assertIsInstance(instance.uuid, uuid.UUID)
+        self.assertTrue(instance.active)
         self.assertIsNone(schema_name)
         self.assertFalse('schema_name' in serializer.data['customer'])
 
@@ -407,6 +411,7 @@ class ProviderSerializerTest(IamTestCase):
 
         schema_name = serializer.data['customer'].get('schema_name')
         self.assertIsInstance(instance.uuid, uuid.UUID)
+        self.assertTrue(instance.active)
         self.assertIsNone(schema_name)
         self.assertFalse('schema_name' in serializer.data['customer'])
 
