@@ -60,7 +60,7 @@ def source_status(request):
         source = Sources.objects.get(source_id=source_id)
     except ObjectDoesNotExist:
         # If the source isn't in our database, return False.
-        return Response(False)
+        return Response(data=False, status=status.HTTP_200_OK)
     source_billing_source = source.billing_source['bucket']
     source_authentication = source.authentication['resource_name']
     provider = source.source_type
@@ -72,4 +72,4 @@ def source_status(request):
         source_ready = True
     except ValidationError:
         source_ready = False
-    return Response(source_ready)
+    return Response(data=source_ready, status=status.HTTP_200_OK)

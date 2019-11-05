@@ -51,9 +51,7 @@ class SourcesStatusTest(TestCase):
         url = reverse('source-status')
         client = APIClient()
         response = client.get(url + '?source_id=1')
-        import pdb
-        pdb.set_trace()
-        actualStatus = response.data['data']
+        actualStatus = response.data
         expectedStatus = False
 
         self.assertEqual(actualStatus, expectedStatus)
