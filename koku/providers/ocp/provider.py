@@ -74,11 +74,12 @@ class OCPProvider(ProviderInterface):
     def _is_on_aws(self, tenant, resource_name):
         """Determine if provider is running on AWS."""
         clusters = self._aws_clusters(tenant)
-        for cluster_id in clusters:
-            if resource_name == cluster_id:
-                return True
+        return resource_name in clusters
 
-        return False
+    def _is_on_azure(self, tenant, resource_name):
+        """Determine if provider is running on Azure."""
+        clusters = self._azure_clusters(tenant)
+        return resource_name in clusters
 
     def infra_type_implementation(self, provider_uuid, tenant):
         """Return infrastructure type."""
@@ -90,6 +91,8 @@ class OCPProvider(ProviderInterface):
 
         if self._is_on_aws(tenant, resource_name):
             return Provider.PROVIDER_AWS
+        if self._is_on_azure(tenant, resource_name):
+            return Provider.PROVIDER_AZURE
 
         return None
 
@@ -112,4 +115,6 @@ class OCPProvider(ProviderInterface):
         clusters = []
         if infrastructure_type == Provider.PROVIDER_AWS:
             clusters = self._aws_clusters(schema_name)
+        if infrastructure_type == Provider.PROVIDER_AZURE:
+            clusters = self._azure_clusters(schema_name)
         return clusters
