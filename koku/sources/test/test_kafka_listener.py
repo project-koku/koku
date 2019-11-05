@@ -66,7 +66,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(f'http://www.sources.com/api/v1.0/applications?filter[source_id]={source_id}',
                   status_code=200, json={'data': [{'id': app_id}]})
             m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
-                  status_code=204)
+                    status_code=204)
             msg = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
             source_integration.execute_koku_provider_op(msg)
             self.assertEqual(Sources.objects.get(source_id=source_id).koku_uuid, mock_koku_uuid)
@@ -90,7 +90,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(f'http://www.sources.com/api/v1.0/applications?filter[source_id]={source_id}',
                   status_code=200, json={'data': [{'id': app_id}]})
             m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
-                  status_code=204)
+                    status_code=204)
             msg = {'operation': 'destroy', 'provider': provider, 'offset': provider.offset}
             source_integration.execute_koku_provider_op(msg)
             self.assertEqual(Sources.objects.filter(source_id=source_id).exists(), False)
@@ -115,7 +115,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(f'http://www.sources.com/api/v1.0/applications?filter[source_id]={source_id}',
                   status_code=200, json={'data': [{'id': app_id}]})
             m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
-                  status_code=204)
+                    status_code=204)
             msg = {'operation': 'update', 'provider': provider, 'offset': provider.offset}
             source_integration.execute_koku_provider_op(msg)
             response = Sources.objects.get(source_id=source_id)
@@ -158,7 +158,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(f'http://www.sources.com/api/v1.0/applications?filter[source_id]={source_id}',
                   status_code=200, json={'data': [{'id': app_id}]})
             m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
-                  status_code=204)
+                    status_code=204)
             with self.assertLogs('sources.kafka_listener', level='ERROR') as logger:
                 msg = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
                 source_integration.execute_koku_provider_op(msg)
