@@ -265,6 +265,7 @@ class OCPAzureProviderMap(ProviderMap):
                             ),
                             'cost_units': Coalesce(Max('currency'), Value('USD')),
                             'usage': Sum(F('usage_quantity')),
+                            # FIXME: Waiting on MSFT for usage_units default
                             'usage_units': Coalesce(
                                 Max('unit_of_measure'),
                                 Value('Storage Type Placeholder'),
@@ -282,7 +283,7 @@ class OCPAzureProviderMap(ProviderMap):
                         'cost_units_key': 'currency',
                         'cost_units_fallback': 'USD',
                         'usage_units_key': 'unit_of_measure',
-                        'usage_units_fallback': 'GB-Mo',
+                        'usage_units_fallback': 'Storage Type Placeholder', # FIXME
                         'sum_columns': [
                             'usage',
                             'infrastructure_cost',
@@ -317,6 +318,7 @@ class OCPAzureProviderMap(ProviderMap):
                             ),
                             'cost_units': Coalesce(Max('currency'), Value('USD')),
                             'usage': Sum('usage_quantity'),
+                            # FIXME: Waiting on MSFT for usage_units default
                             'usage_units': Coalesce(
                                 Max('unit_of_measure'),
                                 Value('Storage Type Placeholder'),
@@ -359,7 +361,7 @@ class OCPAzureProviderMap(ProviderMap):
                         'cost_units_key': 'currency',
                         'cost_units_fallback': 'USD',
                         'usage_units_key': 'unit_of_measure',
-                        'usage_units_fallback': 'GB-Mo',
+                        'usage_units_fallback': 'Storage Type Placeholder', # FIXME
                         'sum_columns': [
                             'usage',
                             'cost',
@@ -421,6 +423,7 @@ class OCPAzureProviderMap(ProviderMap):
                             'count': Count('resource_id', distinct=True),
                             'count_units': Value('instances', output_field=CharField()),
                             'usage': Sum(F('usage_quantity')),
+                            # FIXME: Waiting on MSFT for usage_units default
                             'usage_units': Coalesce(
                                 Max('unit_of_measure'),
                                 Value('Instance Type Placeholder'),
@@ -439,7 +442,7 @@ class OCPAzureProviderMap(ProviderMap):
                         'cost_units_key': 'currency',
                         'cost_units_fallback': 'USD',
                         'usage_units_key': 'unit_of_measure',
-                        'usage_units_fallback': 'Hrs',
+                        'usage_units_fallback': 'Instance Type Placeholder',  # FIXME
                         'count_units_fallback': 'instances',
                         'sum_columns': [
                             'usage',
@@ -505,6 +508,7 @@ class OCPAzureProviderMap(ProviderMap):
                             'count': Count('resource_id', distinct=True),
                             'count_units': Value('instances', output_field=CharField()),
                             'usage': Sum('usage_quantity'),
+                            # FIXME: Waiting on MSFT for usage_units default
                             'usage_units': Coalesce(
                                 Max('unit_of_measure'),
                                 Value('Instance Type Placeholder'),
@@ -523,7 +527,7 @@ class OCPAzureProviderMap(ProviderMap):
                         'cost_units_key': 'currency',
                         'cost_units_fallback': 'USD',
                         'usage_units_key': 'unit_of_measure',
-                        'usage_units_fallback': 'Hrs',
+                        'usage_units_fallback': 'Instance Type Placeholder',  # FIXME
                         'count_units_fallback': 'instances',
                         'sum_columns': [
                             'usage',
