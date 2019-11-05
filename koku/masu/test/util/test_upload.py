@@ -21,13 +21,13 @@ class TestUploadUtils(TestCase):
         """Assert get_upload_path produces an appropriate S3 path for the month."""
 
         report_date = date(2018, 4, 1)
-        account = 'test_acct'
+        schema_name = 'test_acct'
         provider_type = 'test_type'
         provider_uuid = uuid.UUID('de4db3ef-a185-4bad-b33f-d15ea5edc0de', version=4)
         table_name = 'test_table'
         with self.settings(S3_BUCKET_PATH='bucket'):
             path = get_upload_path(
-                account, provider_type, provider_uuid, report_date, table_name
+                schema_name, provider_type, provider_uuid, report_date, table_name
             )
             self.assertEquals(
                 'bucket/test_acct/test_type/de4db3ef-a185-4bad-b33f-d15ea5edc0de/2018/04/00/test_table.csv.gz',
@@ -38,13 +38,13 @@ class TestUploadUtils(TestCase):
         """Assert get_upload_path produces an appropriate S3 path including day of month."""
 
         report_date = date(2018, 4, 1)
-        account = 'test_acct'
+        schema_name = 'test_acct'
         provider_type = 'test_type'
         provider_uuid = uuid.UUID('de4db3ef-a185-4bad-b33f-d15ea5edc0de', version=4)
         table_name = 'test_table'
         with self.settings(S3_BUCKET_PATH='bucket'):
             path = get_upload_path(
-                account,
+                schema_name,
                 provider_type,
                 provider_uuid,
                 report_date,
