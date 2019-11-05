@@ -64,7 +64,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.post('http://www.koku.com/api/cost-management/v1/providers/',
                    status_code=201,
                    json={'uuid': mock_koku_uuid})
-            m.get(f'http://www.sources.com/api/v1.0/applications?filter[application_type_id]={application_type_id}&filter[source_id]={source_id}',
+            m.get('http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}'.
+                  format(application_type_id, source_id),
                   status_code=200, json={'data': [{'id': app_id}]})
             m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
                     status_code=204)
@@ -89,7 +90,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with requests_mock.mock() as m:
             m.delete(f'http://www.koku.com/api/cost-management/v1/providers/{mock_koku_uuid}/',
                      status_code=204)
-            m.get(f'http://www.sources.com/api/v1.0/applications?filter[application_type_id]={application_type_id}&filter[source_id]={source_id}',
+            m.get('http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}'.
+                  format(application_type_id, source_id),
                   status_code=200, json={'data': [{'id': app_id}]})
             m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
                     status_code=204)
@@ -160,7 +162,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.post('http://www.koku.com/api/cost-management/v1/providers/',
                    status_code=400,
                    json={'errors': [{'detail': 'koku check failed'}]})
-            m.get(f'http://www.sources.com/api/v1.0/applications?filter[application_type_id]={application_type_id}&filter[source_id]={source_id}',
+            m.get('http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}'.
+                  format(application_type_id, source_id),
                   status_code=200, json={'data': [{'id': app_id}]})
             m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
                     status_code=204)
