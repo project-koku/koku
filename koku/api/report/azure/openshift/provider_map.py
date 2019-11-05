@@ -35,10 +35,7 @@ class OCPAzureProviderMap(ProviderMap):
             {
                 'provider': 'OCP_AZURE',
                 'alias': 'subscription_guid',
-                'annotations': {
-                    'cluster': 'cluster_id',
-                    'project': 'namespace',
-                },
+                'annotations': {'cluster': 'cluster_id', 'project': 'namespace'},
                 'end_date': 'costentrybill__billing_period_end',
                 'filters': {
                     'project': {'field': 'namespace', 'operation': 'icontains'},
@@ -76,7 +73,8 @@ class OCPAzureProviderMap(ProviderMap):
                     'cluster',  # ocp
                     'project',  # ocp
                     'node',  # ocp
-                    'service_name', 'subscription_guid',  # azure
+                    'service_name',  # azure
+                    'subscription_guid',  # azure
                 ],
                 'tag_column': 'tags',
                 'report_type': {
@@ -241,7 +239,10 @@ class OCPAzureProviderMap(ProviderMap):
                             ),
                             'cost_units': Coalesce(Max('currency'), Value('USD')),
                             'usage': Sum(F('usage_quantity')),
-                            'usage_units': Coalesce(Max('unit_of_measure'), Value('Storage Type Placeholder')),
+                            'usage_units': Coalesce(
+                                Max('unit_of_measure'),
+                                Value('Storage Type Placeholder'),
+                            ),
                         },
                         'annotations': {
                             'cost': Sum(
@@ -264,7 +265,10 @@ class OCPAzureProviderMap(ProviderMap):
                             ),
                             'cost_units': Coalesce(Max('currency'), Value('USD')),
                             'usage': Sum(F('usage_quantity')),
-                            'usage_units': Coalesce(Max('unit_of_measure'), Value('Storage Type Placeholder')),
+                            'usage_units': Coalesce(
+                                Max('unit_of_measure'),
+                                Value('Storage Type Placeholder'),
+                            ),
                         },
                         'count': None,
                         'delta_key': {'usage': Sum('usage_quantity')},
@@ -313,7 +317,10 @@ class OCPAzureProviderMap(ProviderMap):
                             ),
                             'cost_units': Coalesce(Max('currency'), Value('USD')),
                             'usage': Sum('usage_quantity'),
-                            'usage_units': Coalesce(Max('unit_of_measure'), Value('Storage Type Placeholder')),
+                            'usage_units': Coalesce(
+                                Max('unit_of_measure'),
+                                Value('Storage Type Placeholder'),
+                            ),
                         },
                         'annotations': {
                             'cost': Sum(
@@ -335,7 +342,10 @@ class OCPAzureProviderMap(ProviderMap):
                             ),
                             'cost_units': Coalesce(Max('currency'), Value('USD')),
                             'usage': Sum('usage_quantity'),
-                            'usage_units': Coalesce(Max('unit_of_measure'), Value('Storage Type Placeholder')),
+                            'usage_units': Coalesce(
+                                Max('unit_of_measure'),
+                                Value('Storage Type Placeholder'),
+                            ),
                         },
                         'count': None,
                         'delta_key': {'usage': Sum('usage_quantity')},
@@ -382,7 +392,10 @@ class OCPAzureProviderMap(ProviderMap):
                             'cost_units': Coalesce(Max('currency'), Value('USD')),
                             'count': Count('resource_id', distinct=True),
                             'usage': Sum(F('usage_quantity')),
-                            'usage_units': Coalesce(Max('unit_of_measure'), Value('Storage Type Placeholder')),
+                            'usage_units': Coalesce(
+                                Max('unit_of_measure'),
+                                Value('Storage Type Placeholder'),
+                            ),
                         },
                         'aggregate_key': 'usage_quantity',
                         'annotations': {
@@ -408,7 +421,10 @@ class OCPAzureProviderMap(ProviderMap):
                             'count': Count('resource_id', distinct=True),
                             'count_units': Value('instances', output_field=CharField()),
                             'usage': Sum(F('usage_quantity')),
-                            'usage_units': Coalesce(Max('unit_of_measure'), Value('Instance Type Placeholder')),
+                            'usage_units': Coalesce(
+                                Max('unit_of_measure'),
+                                Value('Instance Type Placeholder'),
+                            ),
                         },
                         'count': 'resource_id',
                         'delta_key': {'usage': Sum('usage_quantity')},
@@ -461,7 +477,10 @@ class OCPAzureProviderMap(ProviderMap):
                             'cost_units': Coalesce(Max('currency'), Value('USD')),
                             'count': Count('resource_id', distinct=True),
                             'usage': Sum('usage_quantity'),
-                            'usage_units': Coalesce(Max('unit_of_measure'), Value('Storage Type Placeholder')),
+                            'usage_units': Coalesce(
+                                Max('unit_of_measure'),
+                                Value('Storage Type Placeholder'),
+                            ),
                         },
                         'aggregate_key': 'usage_quantity',
                         'annotations': {
@@ -486,7 +505,10 @@ class OCPAzureProviderMap(ProviderMap):
                             'count': Count('resource_id', distinct=True),
                             'count_units': Value('instances', output_field=CharField()),
                             'usage': Sum('usage_quantity'),
-                            'usage_units': Coalesce(Max('unit_of_measure'), Value('Instance Type Placeholder')),
+                            'usage_units': Coalesce(
+                                Max('unit_of_measure'),
+                                Value('Instance Type Placeholder'),
+                            ),
                         },
                         'count': 'resource_id',
                         'delta_key': {'usage': Sum('usage_quantity')},

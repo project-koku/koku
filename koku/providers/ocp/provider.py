@@ -23,6 +23,7 @@ from rest_framework import serializers
 from tenant_schemas.utils import tenant_context
 
 from api.provider.models import Provider
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
 from ..provider_interface import ProviderInterface
 
@@ -96,6 +97,13 @@ class OCPProvider(ProviderInterface):
         """Return a list of OCP clusters running on AWS."""
         with tenant_context(tenant):
             objects = OCPAWSCostLineItemDailySummary.objects.values_list('cluster_id', flat=True)
+            clusters = list(objects.distinct())
+        return clusters
+
+    def _azure_clusters(self, tenant):
+        """Return a list of OCP clusters running on Azure."""
+        with tenant_context(tenant):
+            objects = OCPAzureCostLineItemDailySummary.objects.values_list('cluster_id', flat=True)
             clusters = list(objects.distinct())
         return clusters
 
