@@ -35,5 +35,5 @@ urlpatterns = [
     url(r'^report_data/$', report_data, name='report_data'),
     url(r'^update_charge/$', update_charge, name='update_charge'),
     url(r'^upload_normalized_data/$', upload_normalized_data, name='upload_normalized_data'),
-    url(r'sources-status/$', SourceStatusView.as_view(), name='sources_status_view')
+    url(r'^sources_status/$', SourceStatusView.as_view(), name='sources_status')
 ]

@@ -54,7 +54,9 @@ class SourcesStatusTest(TestCase):
 
     def testEndpoint200Response(self):
         """Test that the sources_status list View returns 200 OK."""
-        url = reverse('sources_status_view')
+        import pdb
+        pdb.set_trace()
+        url = reverse('sources_status')
         client = APIClient()
         response = client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -65,7 +67,7 @@ class SourcesStatusTest(TestCase):
         """
         # 200 OK page for sources-list
 
-        url = reverse('sources_status-list')
+        url = reverse('sources-status')
         client = APIClient()
         response = client.get(url + '?source-id=1')
         actualStatus = response.data['data'][0]['source-status']
