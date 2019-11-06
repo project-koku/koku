@@ -164,12 +164,12 @@ class OCPReportDataGenerator:
             self._populate_daily_summary_table()
             self._populate_storage_daily_table()
             self._populate_storage_daily_summary_table()
-            self._populate_cost_summary_table()
             self._populate_charge_info()
             self._populate_storage_charge_info()
             self._populate_pod_label_summary_table()
             self._populate_volume_claim_label_summary_table()
             self._populate_volume_label_summary_table()
+            self._populate_cost_summary_table()
 
     def remove_data_from_tenant(self):
         """Remove the added data."""
@@ -598,8 +598,8 @@ class OCPReportDataGenerator:
             FROM (
                 SELECT key,
                     value
-                FROM reporting_ocpusagelineitem_daily AS li,
-                    jsonb_each_text(li.pod_labels) labels
+                FROM reporting_ocpstoragelineitem_daily AS li,
+                    jsonb_each_text(li.persistentvolumeclaim_labels) labels
             ) l
             GROUP BY l.key
             ON CONFLICT (key) DO UPDATE
@@ -618,8 +618,8 @@ class OCPReportDataGenerator:
             FROM (
                 SELECT key,
                     value
-                FROM reporting_ocpusagelineitem_daily AS li,
-                    jsonb_each_text(li.pod_labels) labels
+                FROM reporting_ocpstoragelineitem_daily AS li,
+                    jsonb_each_text(li.persistentvolume_labels) labels
             ) l
             GROUP BY l.key
             ON CONFLICT (key) DO UPDATE

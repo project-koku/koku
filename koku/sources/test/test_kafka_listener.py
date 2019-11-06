@@ -48,9 +48,12 @@ class SourcesKafkaMsgHandlerTest(TestCase):
     """Test Cases for the Sources Kafka Listener."""
 
     @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_execute_koku_provider_op_create(self):
         """Test to execute Koku Operations to sync with Sources for creation."""
         source_id = 1
+        app_id = 1
+        application_type_id = 2
         auth_header = Config.SOURCES_FAKE_HEADER
         offset = 2
         provider = Sources(source_id=source_id, auth_header=auth_header, offset=offset)
@@ -61,14 +64,22 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.post('http://www.koku.com/api/cost-management/v1/providers/',
                    status_code=201,
                    json={'uuid': mock_koku_uuid})
+            m.get('http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}'.
+                  format(application_type_id, source_id),
+                  status_code=200, json={'data': [{'id': app_id}]})
+            m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
+                    status_code=204)
             msg = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
-            source_integration.execute_koku_provider_op(msg)
+            source_integration.execute_koku_provider_op(msg, application_type_id)
             self.assertEqual(Sources.objects.get(source_id=source_id).koku_uuid, mock_koku_uuid)
 
     @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_execute_koku_provider_op_destroy(self):
         """Test to execute Koku Operations to sync with Sources for destruction."""
         source_id = 1
+        app_id = 1
+        application_type_id = 2
         auth_header = Config.SOURCES_FAKE_HEADER
         offset = 2
         mock_koku_uuid = faker.uuid4()
@@ -79,17 +90,25 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with requests_mock.mock() as m:
             m.delete(f'http://www.koku.com/api/cost-management/v1/providers/{mock_koku_uuid}/',
                      status_code=204)
+            m.get('http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}'.
+                  format(application_type_id, source_id),
+                  status_code=200, json={'data': [{'id': app_id}]})
+            m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
+                    status_code=204)
             msg = {'operation': 'destroy', 'provider': provider, 'offset': provider.offset}
-            source_integration.execute_koku_provider_op(msg)
+            source_integration.execute_koku_provider_op(msg, application_type_id)
             self.assertEqual(Sources.objects.filter(source_id=source_id).exists(), False)
 
     @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_execute_koku_provider_op_update(self):
         """Test to execute Koku Operations to sync with Sources for destruction."""
         source_id = 1
+        app_id = 1
         auth_header = Config.SOURCES_FAKE_HEADER
         offset = 2
         mock_koku_uuid = faker.uuid4()
+        application_type_id = 2
 
         provider = Sources(source_id=source_id, auth_header=auth_header, offset=offset, koku_uuid=mock_koku_uuid,
                            pending_update=True)
@@ -98,8 +117,12 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with requests_mock.mock() as m:
             m.put(f'http://www.koku.com/api/cost-management/v1/providers/{mock_koku_uuid}/',
                   status_code=200, json={})
+            m.get(f'http://www.sources.com/api/v1.0/applications?filter[source_id]={source_id}',
+                  status_code=200, json={'data': [{'id': app_id}]})
+            m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
+                    status_code=204)
             msg = {'operation': 'update', 'provider': provider, 'offset': provider.offset}
-            source_integration.execute_koku_provider_op(msg)
+            source_integration.execute_koku_provider_op(msg, application_type_id)
             response = Sources.objects.get(source_id=source_id)
             self.assertEquals(response.pending_update, False)
 
@@ -109,6 +132,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         source_id = 1
         auth_header = Config.SOURCES_FAKE_HEADER
         offset = 2
+        application_type_id = 2
 
         provider = Sources(source_id=source_id, auth_header=auth_header, offset=offset)
         provider.save()
@@ -118,12 +142,15 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                    exc=requests.exceptions.RequestException)
             with self.assertRaises(source_integration.SourcesIntegrationError):
                 msg = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
-                source_integration.execute_koku_provider_op(msg)
+                source_integration.execute_koku_provider_op(msg, application_type_id)
 
     @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_execute_koku_provider_op_destroy_non_recoverable_error(self):
         """Test to execute Koku Operations to sync with Sources with non-recoverable error."""
         source_id = 1
+        app_id = 1
+        application_type_id = 2
         auth_header = Config.SOURCES_FAKE_HEADER
         offset = 2
 
@@ -134,10 +161,15 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with requests_mock.mock() as m:
             m.post('http://www.koku.com/api/cost-management/v1/providers/',
                    status_code=400,
-                   json={'uuid': faker.uuid4()})
+                   json={'errors': [{'detail': 'koku check failed'}]})
+            m.get('http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}'.
+                  format(application_type_id, source_id),
+                  status_code=200, json={'data': [{'id': app_id}]})
+            m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
+                    status_code=204)
             with self.assertLogs('sources.kafka_listener', level='ERROR') as logger:
                 msg = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
-                source_integration.execute_koku_provider_op(msg)
+                source_integration.execute_koku_provider_op(msg, application_type_id)
                 self.assertIn(':Unable to create provider for Source ID: 1', logger.output[0])
 
     def test_get_sources_msg_data(self):
@@ -436,6 +468,28 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEquals(source_obj.authentication, {'resource_name': source_uid})
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_sources_network_auth_info_ocp_with_cluster_id(self):
+        """Test to get authentication information from Sources backend for OCP with cluster_id."""
+        test_source_id = 2
+        test_resource_id = 1
+        cluster_id = faker.uuid4()
+        test_auth_header = Config.SOURCES_FAKE_HEADER
+        ocp_source = Sources(source_id=test_source_id,
+                             auth_header=test_auth_header,
+                             endpoint_id=test_resource_id,
+                             source_type='OCP',
+                             offset=1)
+        ocp_source.save()
+
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sources.com/api/v1.0/sources/{test_source_id}',
+                  status_code=200, json={'source_ref': cluster_id})
+            source_integration.sources_network_auth_info(test_resource_id, test_auth_header)
+
+        source_obj = Sources.objects.get(source_id=test_source_id)
+        self.assertEquals(source_obj.authentication, {'resource_name': cluster_id})
 
     @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_sources_network_auth_info_error(self):

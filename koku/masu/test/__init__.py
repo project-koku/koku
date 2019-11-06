@@ -108,6 +108,7 @@ class MasuTestCase(TransactionTestCase):
             billing_source=self.aws_billing_source,
             customer=self.customer,
             setup_complete=False,
+            active=True
         )
         self.aws_provider.save()
 
@@ -125,6 +126,7 @@ class MasuTestCase(TransactionTestCase):
             authentication=self.ocp_auth,
             customer=self.customer,
             setup_complete=False,
+            active=True
         )
         self.ocp_provider.save()
 
@@ -149,6 +151,7 @@ class MasuTestCase(TransactionTestCase):
             billing_source=self.azure_billing_source,
             customer=self.customer,
             setup_complete=False,
+            active=True
         )
         self.azure_provider.save()
         self.azure_provider_uuid = self.azure_provider.uuid

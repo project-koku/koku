@@ -21,6 +21,7 @@
 # we expect this situation to be temporary as we iterate on these details.
 import calendar
 import collections
+import uuid
 from datetime import date
 
 from botocore.exceptions import ClientError
@@ -211,6 +212,8 @@ table_export_settings = [
 @app.task(name='masu.celery.tasks.upload_normalized_data', queue_name='upload')
 def upload_normalized_data():
     """Scheduled task to export normalized data to s3."""
+    log_uuid = str(uuid.uuid4())
+    LOG.info('%s Beginning upload_normalized_data', log_uuid)
     curr_date = DateAccessor().today()
     curr_month_range = calendar.monthrange(curr_date.year, curr_date.month)
     curr_month_first_day = date(year=curr_date.year, month=curr_date.month, day=1)
@@ -227,12 +230,14 @@ def upload_normalized_data():
     # Deduplicate schema_name since accounts may have the same schema_name but different providers
     schemas = set(account['schema_name'] for account in accounts)
     for schema in schemas:
+        LOG.info('%s processing schema %s', log_uuid, schema)
         for table in table_export_settings:
             # Upload this month's reports
             query_and_upload_to_s3(schema, table, (curr_month_first_day, curr_month_last_day))
 
             # Upload last month's reports
             query_and_upload_to_s3(schema, table, (prev_month_first_day, prev_month_last_day))
+    LOG.info('%s Completed upload_normalized_data', log_uuid)
 
 
 @app.task(name='masu.celery.tasks.sync_data_to_customer',

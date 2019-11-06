@@ -66,13 +66,17 @@ class AzureReportChargeUpdaterTest(MasuTestCase):
         provider_uuid = self.provider_accessor.get_provider().uuid
 
         self.updater = AzureReportChargeUpdater(
-            schema=self.schema,
-            provider_uuid=provider_uuid)
+            schema=self.schema, provider_uuid=provider_uuid
+        )
 
         today = DateAccessor().today_with_timezone('UTC')
-        bill = self.creator.create_azure_cost_entry_bill(provider_uuid=provider_uuid, bill_date=today)
-        product = self.creator.create_azure_cost_entry_product()
-        meter = self.creator.create_azure_meter()
+        bill = self.creator.create_azure_cost_entry_bill(
+            provider_uuid=provider_uuid, bill_date=today
+        )
+        product = self.creator.create_azure_cost_entry_product(
+            provider_uuid=provider_uuid
+        )
+        meter = self.creator.create_azure_meter(provider_uuid=provider_uuid)
         self.creator.create_azure_cost_entry_line_item(bill, product, meter)
 
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
@@ -80,7 +84,6 @@ class AzureReportChargeUpdaterTest(MasuTestCase):
 
         with ProviderDBAccessor(self.azure_test_provider_uuid) as provider_accessor:
             self.provider = provider_accessor.get_provider()
-
 
     def test_azure_update_summary_charge_info(self):
         """Test to verify Azure derived cost summary is calculated."""
