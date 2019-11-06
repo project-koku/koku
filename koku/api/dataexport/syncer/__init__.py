@@ -1,4 +1,5 @@
 """Data export syncer."""
+import uuid
 from abc import ABC, abstractmethod
 from datetime import timedelta
 from itertools import product
@@ -107,6 +108,15 @@ class AwsS3Syncer(SyncerInterface):
 
         """
         if settings.ENABLE_S3_ARCHIVING:
+            log_uuid = str(uuid.uuid4())
+            LOG.info(
+                '%s Beginning sync_bucket to %s for %s from %s to %s',
+                log_uuid,
+                s3_destination_bucket_name,
+                schema_name,
+                date_range[0],
+                date_range[1],
+            )
             start_date, end_date = date_range
             # rrule is inclusive for both dates, so we need to make end_date exclusive
             end_date = end_date - timedelta(days=1)
@@ -144,3 +154,12 @@ class AwsS3Syncer(SyncerInterface):
                     Prefix=prefix
                 ):
                     self._copy_object(s3_destination_bucket, source_object)
+
+            LOG.info(
+                '%s Completed sync_bucket to %s for %s from %s to %s',
+                log_uuid,
+                s3_destination_bucket_name,
+                schema_name,
+                date_range[0],
+                date_range[1],
+            )
