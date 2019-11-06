@@ -130,7 +130,7 @@ class ProviderAccessor:
             self.cost_usage_source_ready(credential, source_name)
         except ValidationError as validation_error:
             for error_key in validation_error.detail.keys():
-                error_msg = validation_error.detail.get(error_key)[0].title()
+                error_msg = str(validation_error.detail.get(error_key)[0])
         if error_msg:
             status = 'unavailable'
         else:
