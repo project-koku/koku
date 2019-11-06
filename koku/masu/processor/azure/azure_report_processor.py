@@ -292,6 +292,7 @@ class AzureReportProcessor(ReportProcessorBase):
 
         """
         row_count = 0
+        is_full_month = self._should_process_full_month()
         self._delete_line_items(AzureReportDBAccessor, self.column_map)
         # pylint: disable=invalid-name
         opener, mode = self._get_file_opener(self._compression)
@@ -300,6 +301,8 @@ class AzureReportProcessor(ReportProcessorBase):
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
+                    if not self._should_process_row(row, 'UsageDateTime', is_full_month):
+                        continue
                     _ = self.create_cost_entry_objects(row, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:
                         LOG.info('Saving report rows %d to %d for %s', row_count,
