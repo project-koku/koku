@@ -24,9 +24,9 @@ from django.urls import reverse
 from faker import Faker
 from rest_framework import status
 from rest_framework.test import APIClient
-from providers.provider_access import ProviderAccessor
-from api.provider.models import Sources
 
+from api.provider.models import Sources
+from providers.provider_access import ProviderAccessor
 
 faker = Faker()
 
@@ -94,14 +94,15 @@ class SourcesStatusTest(TestCase):
         expected_HTTP_code = status.HTTP_200_OK
         self.assertEqual(mock_response_source_status, expected_source_status)
         self.assertEqual(mock_response.status, expected_HTTP_code)
-    def test_happy_path(self):
+
+    def test_success(self):
         """Test that the API returns True when cost_usage_source_ready doesn't throw an exception."""
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
             url = reverse('source-status')
             client = APIClient()
             # Insert a source with ID 1
-            source = Sources.objects.create(
-                source_id=1, 
+            Sources.objects.create(
+                source_id=1,
                 name='New AWS Mock Test Source',
                 source_type='AWS',
                 authentication={},
@@ -125,6 +126,7 @@ class SourcesStatusTest(TestCase):
         response = client.get(url)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data, 'Missing query parameter source_id')
+
     def test_source_id_not_integer(self):
         """
         Test when the user accesses this API when giving a parameter for example '?source_id=string'.
