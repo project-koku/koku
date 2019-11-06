@@ -112,3 +112,28 @@ class SourcesStatusTest(TestCase):
             actual_source_status = response.data
             expected_source_status = True
             self.assertEquals(expected_source_status, actual_source_status)
+
+    def test_missing_query_parameter(self):
+        """
+        Test when the user accesses this API without giving a parameter for example '?source_id=1'.
+
+        The API should respond with an error that there is a missing query paramter 'source_id'
+        The API should respond with HTTP_400_BAD_REQUEST
+        """
+        url = reverse('source-status')
+        client = APIClient()
+        response = client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data, 'Missing query parameter source_id')
+    def test_source_id_not_integer(self):
+        """
+        Test when the user accesses this API when giving a parameter for example '?source_id=string'.
+
+        The API should respond with an error that the source_id must be an integer
+        The API should respond with HTTP_400_BAD_REQUEST
+        """
+        url = reverse('source-status')
+        client = APIClient()
+        response = client.get(url + '?source_id=string')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data, 'source_id must be an integer')
