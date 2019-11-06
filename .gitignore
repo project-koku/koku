@@ -126,4 +126,5 @@ scripts/aws_pricing/
 pgadmin_servers.json
 
 # Testing
-# testing/
+testing/
+
