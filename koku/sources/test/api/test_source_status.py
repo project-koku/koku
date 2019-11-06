@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Sources Status HTTP Client."""
+from unittest.mock import create_autospec
+
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -53,5 +55,38 @@ class SourcesStatusTest(TestCase):
         response = client.get(url + '?source_id=1')
         actualStatus = response.data
         expectedStatus = False
+        self.assertEqual(actualStatus, expectedStatus)
 
         self.assertEqual(actualStatus, expectedStatus)
+
+    def test_mock_response_returns_false(self):
+        """
+        Test sources status returns False.
+
+        This test ensures that a mock response contains the payload 'False'
+        """
+        url = reverse('source-status')
+        client = APIClient()
+        response = client.get(url + '?source_id=1')
+        mock_response = create_autospec(response, data=False, status=status.HTTP_200_OK)
+        mock_response_source_status = mock_response.data
+        expected_source_status = False
+        expected_HTTP_code = status.HTTP_200_OK
+        self.assertEqual(mock_response_source_status, expected_source_status)
+        self.assertEqual(mock_response.status, expected_HTTP_code)
+
+    def test_mock_response_returns_true(self):
+        """
+        Test sources status returns True.
+
+        response.data should contain a True value.
+        """
+        url = reverse('source-status')
+        client = APIClient()
+        response = client.get(url + '?source_id=1')
+        mock_response = create_autospec(response, data=True, status=status.HTTP_200_OK)
+        mock_response_source_status = mock_response.data
+        expected_source_status = True
+        expected_HTTP_code = status.HTTP_200_OK
+        self.assertEqual(mock_response_source_status, expected_source_status)
+        self.assertEqual(mock_response.status, expected_HTTP_code)
