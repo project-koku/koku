@@ -2789,6 +2789,10 @@
                             "type": "string",
                             "description": "OpenShift foundational infrastructure type.",
                             "example": "AWS"
+                        },
+                        "active": {
+                            "type": "boolean",
+                            "description": "Flag to indicate when the provider is configured correctly"
                         }
                     }
                 }]
