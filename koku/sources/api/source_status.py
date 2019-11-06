@@ -1,4 +1,3 @@
-#
 # Copyright 2019 Red Hat, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -31,7 +30,7 @@ from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
 
 
-@never_cache
+@never_cache  # noqa: C901
 @api_view(http_method_names=['GET'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
