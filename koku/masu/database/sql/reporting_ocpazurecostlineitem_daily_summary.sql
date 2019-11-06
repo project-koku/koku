@@ -209,7 +209,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_project_tag_matched AS (
         GROUP BY azure_id
     )
     SELECT tm.*,
-        rm.pretax_cost / spod.shared_pods as pod_cost,
+        tm.pretax_cost / spod.shared_pods as pod_cost,
         sp.shared_projects,
         spod.shared_pods
     FROM cte_tag_matched AS tm
@@ -279,7 +279,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_node_tag_matched AS (
         GROUP BY azure_id
     )
     SELECT tm.*,
-        rm.pretax_cost / spod.shared_pods as pod_cost,
+        tm.pretax_cost / spod.shared_pods as pod_cost,
         sp.shared_projects,
         spod.shared_pods
     FROM cte_tag_matched AS tm
@@ -353,7 +353,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_cluster_tag_matched AS (
         GROUP BY azure_id
     )
     SELECT tm.*,
-        rm.pretax_cost / spod.shared_pods as pod_cost,
+        tm.pretax_cost / spod.shared_pods as pod_cost,
         sp.shared_projects,
         spod.shared_pods
     FROM cte_tag_matched AS tm
@@ -430,7 +430,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_direct_tag_matched AS (
         GROUP BY azure_id
     )
     SELECT tm.*,
-        rm.pretax_cost / spod.shared_pods as pod_cost,
+        tm.pretax_cost / spod.shared_pods as pod_cost,
         sp.shared_projects,
         spod.shared_pods
     FROM cte_tag_matched AS tm
@@ -501,7 +501,8 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_resource_id_matched AS (
         JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice as aps
             ON azure.cost_entry_product_id = aps.id
         JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
-            ON split_part(aps.instance_id, '/', 9) LIKE '%' || ocp.persistentvolume
+            -- Need the doubl percent here for Jinja templating
+            ON split_part(aps.instance_id, '/', 9) LIKE '%%' || ocp.persistentvolume
                 AND date(azure.usage_date_time) = date(ocp.usage_start)
         WHERE date(azure.usage_date_time) >= {{start_date}}
             AND date(azure.usage_date_time) <= {{end_date}}
@@ -596,7 +597,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_project_tag_matched
         GROUP BY azure_id
     )
     SELECT tm.*,
-        rm.pretax_cost / spod.shared_pods as pod_cost,
+        tm.pretax_cost / spod.shared_pods as pod_cost,
         sp.shared_projects,
         spod.shared_pods
     FROM cte_tag_matched AS tm
@@ -663,7 +664,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_node_tag_matched AS
         GROUP BY azure_id
     )
     SELECT tm.*,
-        rm.pretax_cost / spod.shared_pods as pod_cost,
+        tm.pretax_cost / spod.shared_pods as pod_cost,
         sp.shared_projects,
         spod.shared_pods
     FROM cte_tag_matched AS tm
@@ -734,7 +735,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_cluster_tag_matched
         GROUP BY azure_id
     )
     SELECT tm.*,
-        rm.pretax_cost / spod.shared_pods as pod_cost,
+        tm.pretax_cost / spod.shared_pods as pod_cost,
         sp.shared_projects,
         spod.shared_pods
     FROM cte_tag_matched AS tm
@@ -817,7 +818,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_direct_tag_matched AS (
         GROUP BY azure_id
     )
     SELECT tm.*,
-        rm.pretax_cost / spod.shared_pods as pod_cost,
+        tm.pretax_cost / spod.shared_pods as pod_cost,
         sp.shared_projects,
         spod.shared_pods
     FROM cte_tag_matched AS tm
@@ -890,7 +891,6 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         array_agg(DISTINCT li.namespace) as namespace,
         array_agg(DISTINCT li.pod) as pod,
         max(li.node) as node,
-        max(li.resource_id) as resource_id,
         max(li.usage_date_time) as usage_start,
         max(li.usage_date_time) as usage_end,
         max(li.cost_entry_bill_id) as cost_entry_bill_id,
@@ -926,7 +926,6 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         array_agg(DISTINCT li.namespace) as namespace,
         array_agg(DISTINCT li.pod) as pod,
         max(li.node) as node,
-        max(li.resource_id) as resource_id,
         max(li.usage_date_time) as usage_start,
         max(li.usage_date_time) as usage_end,
         max(li.cost_entry_bill_id) as cost_entry_bill_id,
@@ -975,7 +974,6 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         li.pod,
         li.node,
         li.pod_labels,
-        max(li.resource_id) as resource_id,
         max(li.usage_date_time) as usage_start,
         max(li.usage_date_time) as usage_end,
         max(li.cost_entry_bill_id) as cost_entry_bill_id,
@@ -1017,7 +1015,6 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         li.pod,
         li.node,
         li.persistentvolume_labels || li.persistentvolumeclaim_labels as pod_labels,
-        NULL as resource_id,
         max(li.usage_date_time) as usage_start,
         max(li.usage_date_time) as usage_end,
         max(li.cost_entry_bill_id) as cost_entry_bill_id,
@@ -1034,7 +1031,7 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         max(li.shared_pods) as shared_pods,
         li.pod_cost
     FROM reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS li
-    JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice AS p
+JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice AS p
         ON li.cost_entry_product_id = p.id
     JOIN {{schema | sqlsafe}}.reporting_azuremeter as m
         ON li.meter_id = m.id
@@ -1183,3 +1180,4 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_su
         unit_of_measure,
         pod_cost
     FROM reporting_ocpazurecostlineitem_project_daily_summary_{{uuid | sqlsafe}}
+;
