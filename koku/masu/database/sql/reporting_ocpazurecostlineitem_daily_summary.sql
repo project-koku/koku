@@ -102,8 +102,6 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_resource_id_matched AS (
             azure.pretax_cost,
             azure.offer_id,
             azure.tags
-            -- aps.instance_id,
-            -- split_part(aps.instance_id, '/', 9) as split_instance_id
         FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as azure
         JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice as aps
             ON azure.cost_entry_product_id = aps.id
@@ -114,7 +112,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_resource_id_matched AS (
             -- so we are matching only on the node name
             -- which should match the split Azure instance ID
             ON split_part(aps.instance_id, '/', 9) = ocp.node
-                AND azure.usage_date_time::date = ocp.usage_start::date
+                AND date(azure.usage_date_time) = date(ocp.usage_start)
         WHERE date(azure.usage_date_time) >= {{start_date}}
             AND date(azure.usage_date_time) <= {{end_date}}
             -- azure_where_clause
@@ -190,7 +188,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_project_tag_matched AS (
         FROM reporting_azure_tags as azure
         JOIN reporting_ocp_pod_tags as ocp
             ON azure.key = 'openshift_project' AND azure.value = lower(ocp.namespace)
-                AND azure.usage_date_time::date = ocp.usage_start::date
+                AND date(azure.usage_date_time) = date(ocp.usage_start)
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocp_azure_resource_id_matched AS rm
             ON rm.azure_id = azure.id
@@ -257,7 +255,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_node_tag_matched AS (
         FROM reporting_azure_tags as azure
         JOIN reporting_ocp_pod_tags as ocp
             ON azure.key = 'openshift_node' AND azure.value = lower(ocp.node)
-                AND azure.usage_date_time::date = ocp.usage_start::date
+                AND date(azure.usage_date_time) = date(ocp.usage_start)
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocp_azure_resource_id_matched AS rm
             ON rm.azure_id = azure.id
@@ -328,7 +326,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_cluster_tag_matched AS (
         JOIN reporting_ocp_pod_tags as ocp
             ON (azure.key = 'openshift_cluster' AND azure.value = ocp.cluster_id
                 OR azure.key = 'openshift_cluster' AND azure.value = ocp.cluster_alias)
-                AND azure.usage_date_time::date = ocp.usage_start::date
+                AND date(azure.usage_date_time) = date(ocp.usage_start)
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocp_azure_resource_id_matched AS rm
             ON rm.azure_id = azure.id
@@ -402,7 +400,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_direct_tag_matched AS (
         JOIN reporting_ocp_pod_tags as ocp
             ON azure.key = ocp.key
                 AND azure.value = ocp.value
-                AND azure.usage_date_time::date = ocp.usage_start::date
+                AND date(azure.usage_date_time) = date(ocp.usage_start)
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocp_azure_resource_id_matched AS rm
             ON rm.azure_id = azure.id
@@ -504,7 +502,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_resource_id_matched AS (
             ON azure.cost_entry_product_id = aps.id
         JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
             ON split_part(aps.instance_id, '/', 9) LIKE '%' || ocp.persistentvolume
-                AND azure.usage_date_time::date = ocp.usage_start::date
+                AND date(azure.usage_date_time) = date(ocp.usage_start)
         WHERE date(azure.usage_date_time) >= {{start_date}}
             AND date(azure.usage_date_time) <= {{end_date}}
             -- azure_where_clause
@@ -577,7 +575,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_project_tag_matched
         FROM reporting_azure_tags as azure
         JOIN reporting_ocp_storage_tags as ocp
             ON azure.key = 'openshift_project' AND azure.value = ocp.namespace
-                AND azure.usage_date_time::date = ocp.usage_start::date
+                AND date(azure.usage_date_time) = date(ocp.usage_start)
         LEFT JOIN reporting_ocp_azure_storage_resource_id_matched AS rm
             ON rm.azure_id = azure.id
         WHERE date(azure.usage_date_time) >= {{start_date}}
@@ -641,7 +639,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_node_tag_matched AS
         FROM reporting_azure_tags as azure
         JOIN reporting_ocp_storage_tags as ocp
             ON azure.key = 'openshift_node' AND azure.value = ocp.node
-                AND azure.usage_date_time::date = ocp.usage_start::date
+                AND date(azure.usage_date_time) = date(ocp.usage_start)
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocp_azure_storage_resource_id_matched AS rm
             ON rm.azure_id = azure.id
@@ -709,7 +707,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_cluster_tag_matched
         JOIN reporting_ocp_storage_tags as ocp
             ON (azure.key = 'openshift_cluster' AND azure.value = ocp.cluster_id
                 OR azure.key = 'openshift_cluster' AND azure.value = ocp.cluster_alias)
-                AND azure.usage_date_time::date = ocp.usage_start::date
+                AND date(azure.usage_date_time) = date(ocp.usage_start)
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocp_azure_storage_resource_id_matched AS rm
             ON rm.azure_id = azure.id
@@ -789,7 +787,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_direct_tag_matched AS (
                         AND azure.value = ocp.persistentvolume
                     )
             )
-                AND azure.usage_date_time::date = ocp.usage_start::date
+                AND date(azure.usage_date_time) = date(ocp.usage_start)
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocp_azure_storage_resource_id_matched AS rm
             ON rm.azure_id = azure.id
@@ -900,12 +898,14 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         max(p.service_name) as service_name,
         max(p.additional_info->>'ServiceType') as instance_type,
         max(p.resource_location) as resource_location,
+        max(split_part(p.instance_id, '/', 9)) as resource_id,
         max(m.currency) as currency,
         max(m.unit_of_measure) as unit_of_measure,
         li.tags,
         max(li.usage_quantity) as usage_quantity,
         max(li.pretax_cost) as pretax_cost,
         max(li.shared_projects) as shared_projects,
+        max(li.offer_id) as offer_id,
         pc.project_costs as project_costs
     FROM reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} as li
     JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice AS p
@@ -934,12 +934,14 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         max(p.service_name) as service_name,
         max(p.additional_info->>'ServiceType') as instance_type,
         max(p.resource_location) as resource_location,
+        max(split_part(p.instance_id, '/', 9)) as resource_id,
         max(m.currency) as currency,
         max(m.unit_of_measure) as unit_of_measure,
         li.tags,
         max(li.usage_quantity) as usage_quantity,
         max(li.pretax_cost) as pretax_cost,
         max(li.shared_projects) as shared_projects,
+        max(li.offer_id) as offer_id,
         pc.project_costs as project_costs
     FROM reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS li
     JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice AS p
@@ -981,10 +983,12 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         max(p.service_name) as service_name,
         max(p.additional_info->>'ServiceType') as instance_type,
         max(p.resource_location) as resource_location,
+        max(split_part(p.instance_id, '/', 9)) as resource_id,
         max(m.currency) as currency,
         max(m.unit_of_measure) as unit_of_measure,
-        sum(li.usage_quantity / li.shared_pods) as usage_amount,
+        sum(li.usage_quantity / li.shared_pods) as usage_quantity,
         sum(li.pretax_cost / li.shared_pods) as pretax_cost,
+        max(li.offer_id) as offer_id,
         max(li.shared_pods) as shared_pods,
         li.pod_cost
     FROM reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} as li
@@ -1021,10 +1025,12 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         max(p.service_name) as service_name,
         max(p.additional_info->>'ServiceType') as instance_type,
         max(p.resource_location) as resource_location,
+        max(split_part(p.instance_id, '/', 9)) as resource_id,
         max(m.currency) as currency,
         max(m.unit_of_measure) as unit_of_measure,
-        sum(li.usage_quantity / li.shared_pods) as usage_amount,
+        sum(li.usage_quantity / li.shared_pods) as usage_quantity,
         sum(li.pretax_cost / li.shared_pods) as pretax_cost,
+        max(li.offer_id) as offer_id,
         max(li.shared_pods) as shared_pods,
         li.pod_cost
     FROM reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS li
