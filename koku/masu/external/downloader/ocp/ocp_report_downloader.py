@@ -70,7 +70,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     def get_report_for(self, date_time):
         """
-        Get OCP usage report files cooresponding to a date.
+        Get OCP usage report files corresponding to a date.
 
         Args:
             date_time (DateTime): Start date of the usage report.
