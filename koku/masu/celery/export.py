@@ -130,17 +130,14 @@ table_export_settings = [
         'reporting_ocpawscostlineitem_daily_summary',
         True,
         """
-        SELECT ds.*, aa.account_id, aa.account_alias, b.*
+        SELECT DISTINCT ds.*
         FROM
             {schema}.reporting_ocpawscostlineitem_daily_summary ds
-            JOIN {schema}.reporting_awscostentrybill b ON b.id = ds.account_alias_id
-            LEFT JOIN {schema}.reporting_awsaccountalias aa ON aa.id = ds.account_alias_id
-            -- LEFT JOIN because sometimes this doesn't exist, but it's unclear why.
-            -- It seems that "real" data has it, but fake data from AWS-local+nise does not.
+            JOIN {schema}.reporting_ocpusagereportperiod rp ON ds.cluster_id = rp.cluster_id
         WHERE
             ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
             -- No need to filter usage_end because usage_end should always match usage_start for this table.
-            AND b.provider_id = %(provider_uuid)s
+            AND rp.provider_id = %(provider_uuid)s
         """,
     ),
     TableExportSetting(
@@ -148,41 +145,29 @@ table_export_settings = [
         'reporting_ocpawscostlineitem_project_daily_summary',
         True,
         """
-        SELECT ds.*, aa.account_id, aa.account_alias, b.*
+        SELECT DISTINCT pds.*
         FROM
-            {schema}.reporting_ocpawscostlineitem_project_daily_summary ds
-            JOIN {schema}.reporting_awscostentrybill b ON b.id = ds.account_alias_id
-            LEFT JOIN {schema}.reporting_awsaccountalias aa ON aa.id = ds.account_alias_id
-            -- LEFT JOIN because sometimes this doesn't exist, but it's unclear why.
-            -- It seems that "real" data has it, but fake data from AWS-local+nise does not.
+            {schema}.reporting_ocpawscostlineitem_project_daily_summary pds
+            JOIN {schema}.reporting_ocpusagereportperiod rp ON pds.cluster_id = rp.cluster_id
         WHERE
-            ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
+            pds.usage_start BETWEEN %(start_date)s AND %(end_date)s
             -- No need to filter usage_end because usage_end should always match usage_start for this table.
-            AND b.provider_id = %(provider_uuid)s
-        """,
+            AND rp.provider_id = %(provider_uuid)s
+        """
     ),
     TableExportSetting(
         'ocp',
         'reporting_ocpusagelineitem_daily_summary',
         True,
         """
-        SELECT ds.*
-        FROM {schema}.reporting_ocpusagelineitem_daily_summary ds
+        SELECT DISTINCT ds.*
+        FROM
+            {schema}.reporting_ocpusagelineitem_daily_summary ds
+            JOIN {schema}.reporting_ocpusagereportperiod rp ON ds.cluster_id = rp.cluster_id
         WHERE
             ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
             -- No need to filter usage_end because usage_end should always match usage_start for this table.
-            AND ds.cluster_id IN (
-                SELECT DISTINCT cluster_id
-                FROM
-                    {schema}.reporting_ocpusagereport r
-                    JOIN {schema}.reporting_ocpusagereportperiod p ON r.report_period_id = p.id
-                WHERE
-                    (
-                        r.interval_start BETWEEN %(start_date)s AND %(end_date)s
-                        OR r.interval_end BETWEEN %(start_date)s AND %(end_date)s
-                    )
-                    AND p.provider_id = %(provider_uuid)s
-            )
+            AND rp.provider_id = %(provider_uuid)s
         """,
     ),
 ]
