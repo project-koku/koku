@@ -266,7 +266,7 @@ def get_account(provider_uuid):
         LOG.info('Unable to get accounts. Error: %s', str(error))
         return None
 
-    return all_accounts.pop()
+    return all_accounts.pop() if all_accounts else None
 
 
 def process_report(report):
@@ -290,13 +290,13 @@ def process_report(report):
     if provider_uuid:
         LOG.info('Found provider_uuid: %s for cluster_id: %s', str(provider_uuid), str(cluster_id))
         account = get_account(provider_uuid)
-        LOG.info('Processing report for account %s', account)
+        if account:
+            LOG.info('Processing report for account %s', account)
+            reports_to_summarize = get_report_files(**account)
+            LOG.info('Processing complete for account %s', account)
 
-        reports_to_summarize = get_report_files(**account)
-        LOG.info('Processing complete for account %s', account)
-
-        async_id = summarize_reports.delay(reports_to_summarize)
-        LOG.info('Summarization celery uuid: %s', str(async_id))
+            async_id = summarize_reports.delay(reports_to_summarize)
+            LOG.info('Summarization celery uuid: %s', str(async_id))
     else:
         LOG.error('Could not find provider_uuid for cluster_id: %s', str(cluster_id))
 
