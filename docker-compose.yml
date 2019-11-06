@@ -158,9 +158,9 @@ services:
         - DJANGO_SETTINGS_MODULE=koku.settings
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
-        - ENABLE_S3_ARCHIVING=False
-        - S3_BUCKET_NAME=koku-bucket
-        - S3_BUCKET_PATH=data_archive
+        - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-True}
+        - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+        - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
         - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
         - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
       privileged: true
