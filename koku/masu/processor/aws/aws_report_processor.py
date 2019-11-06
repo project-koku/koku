@@ -122,15 +122,27 @@ class AWSReportProcessor(ReportProcessorBase):
 
         """
         row_count = 0
-        self._delete_line_items(AWSReportDBAccessor, self.column_map)
         opener, mode = self._get_file_opener(self._compression)
         is_finalized_data = self._check_for_finalized_bill()
+        is_full_month = self._should_process_full_month()
+        self._delete_line_items(
+            AWSReportDBAccessor,
+            self.column_map,
+            is_finalized=is_finalized_data
+        )
+        opener, mode = self._get_file_opener(self._compression)
         # pylint: disable=invalid-name
         with opener(self._report_path, mode) as f:
             with AWSReportDBAccessor(self._schema_name, self.column_map) as report_db:
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
+                    # If this isn't an initial load and it isn't finalized data
+                    # we should only process recent data.
+                    if not self._should_process_row(row, 'lineItem/UsageStartDate',
+                                                    is_full_month,
+                                                    is_finalized=is_finalized_data):
+                        continue
                     bill_id = self.create_cost_entry_objects(row, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:
                         LOG.debug('Saving report rows %d to %d for %s', row_count,
