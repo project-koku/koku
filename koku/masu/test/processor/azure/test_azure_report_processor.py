@@ -25,6 +25,7 @@ import tempfile
 import shutil
 from unittest.mock import patch
 
+from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
@@ -333,3 +334,44 @@ class AzureReportProcessorTest(MasuTestCase):
         removed_files = self.processor.remove_temp_cur_files(cur_dir)
         self.assertEqual(sorted(removed_files), sorted(expected_delete_list))
         shutil.rmtree(cur_dir)
+
+    def test_should_process_row_within_cuttoff_date(self):
+        """Test that we correctly determine a row should be processed."""
+        today = self.date_accessor.today_with_timezone('UTC')
+        row = {'UsageDateTime': today.isoformat()}
+
+        processor = AzureReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.azure_provider_uuid,
+        )
+
+        should_process = processor._should_process_row(
+            row,
+            'UsageDateTime',
+            False
+        )
+
+        self.assertTrue(should_process)
+
+    def test_should_process_row_outside_cuttoff_date(self):
+        """Test that we correctly determine a row should be processed."""
+        today = self.date_accessor.today_with_timezone('UTC')
+        usage_start = today - relativedelta(days=10)
+        row = {'UsageDateTime': usage_start.isoformat()}
+
+        processor = AzureReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.azure_provider_uuid,
+        )
+
+        should_process = processor._should_process_row(
+            row,
+            'UsageDateTime',
+            False
+        )
+
+        self.assertFalse(should_process)
