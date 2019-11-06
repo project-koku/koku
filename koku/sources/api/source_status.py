@@ -61,8 +61,20 @@ def source_status(request):
     except ObjectDoesNotExist:
         # If the source isn't in our database, return False.
         return Response(data=False, status=status.HTTP_200_OK)
-    source_billing_source = source.billing_source['bucket']
-    source_authentication = source.authentication['resource_name']
+    # Get the source billing_source, whether it's named bucket
+    if source.billing_source.get('bucket'):
+        source_billing_source = source.billing_source.get('bucket')
+    elif source.billing_source.get('data_source'):
+        source_billing_source = source.billing_source.get('data_source')
+    else:
+        source_billing_source = {}
+    # Get the source authentication
+    if source.authentication.get('resource_name'):
+        source_authentication = source.authentication.get('resource_name')
+    elif source.authentication.get('credentials'):
+        source_authentication = source.authentication.get('credentials')
+    else:
+        source_authentication = {}
     provider = source.source_type
 
     interface = ProviderAccessor(provider)
