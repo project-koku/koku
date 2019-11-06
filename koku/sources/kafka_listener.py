@@ -443,7 +443,7 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
             # The reason for catching all exceptions is to ensure that the event
             # loop remains active in the event that provider synchronization fails unexpectedly.
             provider = msg.get('provider')
-            source_id = provider.source_id if provider else "unknown"
+            source_id = provider.source_id if provider else 'unknown'
             LOG.error(f'Source {source_id} Unexpected synchronization error: {str(error)}')
 
 
