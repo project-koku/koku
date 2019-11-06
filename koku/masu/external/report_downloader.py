@@ -48,9 +48,10 @@ class ReportDownloaderError(Exception):
 class ReportDownloader:
     """Interface for masu to use to get CUR accounts."""
 
-    def __init__(self, customer_name, access_credential, report_source,
+    def __init__(self, task, customer_name, access_credential, report_source,
                  provider_type, provider_uuid, report_name=None):
         """Set the downloader based on the backend cloud provider."""
+        self.task = task
         self.customer_name = customer_name
         self.credential = access_credential
         self.cur_source = report_source
@@ -79,42 +80,48 @@ class ReportDownloader:
 
         """
         if self.provider_type == AMAZON_WEB_SERVICES:
-            return AWSReportDownloader(customer_name=self.customer_name,
+            return AWSReportDownloader(task=self.task,
+                                       customer_name=self.customer_name,
                                        auth_credential=self.credential,
                                        bucket=self.cur_source,
                                        report_name=self.report_name,
                                        provider_uuid=self.provider_uuid)
 
         if self.provider_type == AWS_LOCAL_SERVICE_PROVIDER:
-            return AWSLocalReportDownloader(customer_name=self.customer_name,
+            return AWSLocalReportDownloader(task=self.task,
+                                            customer_name=self.customer_name,
                                             auth_credential=self.credential,
                                             bucket=self.cur_source,
                                             report_name=self.report_name,
                                             provider_uuid=self.provider_uuid)
 
         if self.provider_type == AZURE:
-            return AzureReportDownloader(customer_name=self.customer_name,
+            return AzureReportDownloader(task=self.task,
+                                         customer_name=self.customer_name,
                                          auth_credential=self.credential,
                                          billing_source=self.cur_source,
                                          report_name=self.report_name,
                                          provider_uuid=self.provider_uuid)
 
         if self.provider_type == AZURE_LOCAL_SERVICE_PROVIDER:
-            return AzureLocalReportDownloader(customer_name=self.customer_name,
+            return AzureLocalReportDownloader(task=self.task,
+                                              customer_name=self.customer_name,
                                               auth_credential=self.credential,
                                               billing_source=self.cur_source,
                                               report_name=self.report_name,
                                               provider_uuid=self.provider_uuid)
 
         if self.provider_type == OPENSHIFT_CONTAINER_PLATFORM:
-            return OCPReportDownloader(customer_name=self.customer_name,
+            return OCPReportDownloader(task=self.task,
+                                       customer_name=self.customer_name,
                                        auth_credential=self.credential,
                                        bucket=self.cur_source,
                                        report_name=self.report_name,
                                        provider_uuid=self.provider_uuid)
 
         if self.provider_type == GCP:
-            return GCPReportDownloader(customer_name=self.customer_name,
+            return GCPReportDownloader(task=self.task,
+                                       customer_name=self.customer_name,
                                        auth_credential=self.credential,
                                        billing_source=self.cur_source,
                                        report_name=self.report_name,

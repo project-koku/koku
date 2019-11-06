@@ -48,18 +48,21 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     empty_manifest = {'reportKeys': []}
 
-    def __init__(self, customer_name, auth_credential, bucket, report_name=None, **kwargs):
+    # Disabling this linter until we can refactor
+    # pylint: disable=too-many-arguments
+    def __init__(self, task, customer_name, auth_credential, bucket, report_name=None, **kwargs):
         """
-        Initializer.
+        Constructor.
 
         Args:
+            task             (Object) bound celery object
             customer_name    (String) Name of the customer
             auth_credential  (String) Authentication credential for S3 bucket (RoleARN)
             report_name      (String) Name of the Cost Usage Report to download (optional)
             bucket           (String) Name of the S3 bucket containing the CUR
 
         """
-        super().__init__(**kwargs)
+        super().__init__(task, **kwargs)
 
         self.customer_name = customer_name.replace(' ', '_')
 
