@@ -275,7 +275,7 @@ class OCPReportDataGenerator:
                 'node_capacity_cpu_cores': Decimal(node_cpu_cores),
                 'node_capacity_cpu_core_seconds': Decimal(node_cpu_cores * 3600),
                 'node_capacity_memory_bytes': Decimal(node_memory_gb * 1e9),
-                'node_capacity_memory_byte_seconds': Decimal(node_memory_gb * 1e9 * 3600),
+                'node_capacity_memory_byte_seconds': Decimal(node_memory_gb * 1e7 * 3600),
                 'pod_labels': self._gen_pod_labels(report),
                 'resource_id': 'i-{}'.format(resource_id)
             }
@@ -490,7 +490,7 @@ class OCPReportDataGenerator:
                 'volume_request_storage_byte_seconds': Decimal(random.uniform(0, 3600) * 1e9),
                 'persistentvolumeclaim_usage_byte_seconds': Decimal(random.uniform(0, 3600) * 1e9),
                 'persistentvolumeclaim_capacity_bytes': Decimal(vol_gb * 1e9),
-                'persistentvolumeclaim_capacity_byte_seconds': Decimal(vol_gb * 1e9 * 3600),
+                'persistentvolumeclaim_capacity_byte_seconds': Decimal(vol_gb * 1e7 * 3600),
                 'persistentvolume_labels': self._gen_pod_labels(report),
                 'persistentvolumeclaim_labels': self._gen_pod_labels(report)
             }

@@ -120,10 +120,10 @@ class OCPAWSCostLineItemDailySummary(models.Model):
     # with a GROUP BY cluster/node.
     # Project cost is a summation of pod costs with a GROUP BY project
     # The cost of un-utilized resources = sum(unblended_cost) - sum(project_cost)
-    unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9,
                                          null=True)
 
-    markup_cost = models.DecimalField(max_digits=17, decimal_places=9,
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9,
                                       null=True)
 
     # This is a count of the number of projects that share an AWS resource
@@ -231,17 +231,17 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
 
     currency_code = models.CharField(max_length=10, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9,
                                          null=True)
 
     project_markup_cost = models.DecimalField(
-        max_digits=17,
+        max_digits=24,
         decimal_places=9,
         null=True
     )
 
     pod_cost = models.DecimalField(
         max_digits=24,
-        decimal_places=6,
+        decimal_places=9,
         null=True
     )
