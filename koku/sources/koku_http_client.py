@@ -116,7 +116,7 @@ class KokuHTTPClient:
             return provider_fn(billing_source)
 
     def _handle_bad_requests(self, response):
-        """Helper method to raise exceptions with error message string for Platform Sources."""
+        """Raise an exception with error message string for Platform Sources."""
         if response.status_code == 401 or response.status_code == 403:
             raise KokuHTTPClientNonRecoverableError('Insufficient Permissions')
         if response.status_code == 400:
