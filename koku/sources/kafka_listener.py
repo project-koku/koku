@@ -262,6 +262,10 @@ def sources_network_info(source_id, auth_header):
     source_type_name = sources_network.get_source_type_name(source_type_id)
     endpoint_id = sources_network.get_endpoint_id()
 
+    if not endpoint_id:
+        LOG.error(f'Unable to find endpoint for Source ID: {source_id}')
+        return
+
     if source_type_name == SOURCES_OCP_SOURCE_NAME:
         source_type = 'OCP'
     elif source_type_name == SOURCES_AWS_SOURCE_NAME:
