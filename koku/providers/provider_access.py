@@ -18,6 +18,8 @@
 
 import logging
 
+from rest_framework.serializers import ValidationError
+
 from api.provider.models import Provider
 from providers.aws.provider import AWSProvider
 from providers.aws_local.provider import AWSLocalProvider
@@ -27,7 +29,6 @@ from providers.gcp.provider import GCPProvider
 from providers.gcp_local.provider import GCPLocalProvider
 from providers.ocp.provider import OCPProvider
 
-from rest_framework.serializers import ValidationError
 
 LOG = logging.getLogger(__name__)
 
