@@ -21,9 +21,11 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
+
 from faker import Faker
 from rest_framework import status
 from rest_framework.test import APIClient
+from rest_framework.exceptions import ValidationError
 
 from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
@@ -139,3 +141,50 @@ class SourcesStatusTest(TestCase):
         response = client.get(url + '?source_id=string')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data, 'source_id must be an integer')
+
+    def test_validation_error_causes_false(self):
+        """
+        Test when a ValidationError occurs in ProviderAccessor.cost_usage_source_ready().
+
+        The API should return data=False.
+        """
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', side_effect=ValidationError):
+            url = reverse('source-status')
+            client = APIClient()
+            # Insert a source with ID 1
+            Sources.objects.create(
+                source_id=1,
+                name='New AWS Mock Test Source',
+                source_type='AWS',
+                authentication={},
+                billing_source={'bucket': ''},
+                koku_uuid='',
+                offset=1)
+            response = client.get(url + '?source_id=1')
+            actual_source_status = response.data
+            expected_source_status = False
+            self.assertEquals(expected_source_status, actual_source_status)
+
+    def test_billing_source(self):
+        """
+        Test when billing_source contains 'data_source' instead of 'bucket'.
+
+        Test when a ValidationError occurs in ProviderAccessor.cost_usage_source_ready().
+        The API should return data=True.
+        """
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            url = reverse('source-status')
+            client = APIClient()
+            # Insert a source with ID 1
+            Sources.objects.create(
+                source_id=1,
+                name='New AWS Mock Test Source',
+                source_type='AWS',
+                authentication={'credentials': ''},
+                billing_source={'data_source': ''},
+                koku_uuid='',
+                offset=1)
+            response = client.get(url + '?source_id=1')
+            actual_source_status = response.data
+            expected_source_status = True
+            self.assertEquals(expected_source_status, actual_source_status)
