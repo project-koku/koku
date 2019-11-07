@@ -58,9 +58,9 @@ class SourcesHTTPClient:
             raise SourcesHTTPClientError('Status Code: ', r.status_code)
         endpoint_response = r.json()
 
-        if not endpoint_response.get('data'):
-            raise SourcesHTTPClientError(f'No authentication details for Source: {self._source_id}')
-        endpoint_id = endpoint_response.get('data')[0].get('id')
+        endpoint_id = None
+        if endpoint_response.get('data'):
+            endpoint_id = endpoint_response.get('data')[0].get('id')
 
         return endpoint_id
 
@@ -153,15 +153,19 @@ class SourcesHTTPClient:
         application_query_url = '{}/applications?filter[application_type_id]={}&filter[source_id]={}'.\
             format(self._base_url, cost_management_type_id, str(self._source_id))
         application_query_response = requests.get(application_query_url, headers=self._identity_header)
-        application_id = application_query_response.json().get('data')[0].get('id')
+        response_data = application_query_response.json().get('data')
+        if response_data:
+            application_id = response_data[0].get('id')
 
-        application_url = '{}/applications/{}'.format(self._base_url, str(application_id))
-        if error_msg:
-            status = 'unavailable'
-        else:
-            status = 'available'
-            error_msg = ''
-        json_data = {'availability_status': status, 'availability_status_error': str(error_msg)}
-        application_response = requests.patch(application_url, json=json_data, headers=self._identity_header)
-        if application_response.status_code != 204:
-            raise SourcesHTTPClientError(f'Unable to set status for Source: {self._source_id}')
+            application_url = '{}/applications/{}'.format(self._base_url, str(application_id))
+            if error_msg:
+                status = 'unavailable'
+            else:
+                status = 'available'
+                error_msg = ''
+            json_data = {'availability_status': status, 'availability_status_error': str(error_msg)}
+            application_response = requests.patch(application_url, json=json_data, headers=self._identity_header)
+            if application_response.status_code != 204:
+                raise SourcesHTTPClientError(f'Unable to set status for Source: {self._source_id}')
+            return True
+        return False
