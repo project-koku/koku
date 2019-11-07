@@ -244,3 +244,50 @@ class SourcesHTTPClientTest(TestCase):
                   status_code=404, json={'data': [{'id': resource_id}]})
             with self.assertRaises(SourcesHTTPClientError):
                 client.get_endpoint_id()
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_set_source_status(self):
+        """Test to set source status."""
+        test_source_id = 1
+        application_type_id = 2
+        application_id = 3
+        status = 'available'
+        error_msg = 'my error'
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=test_source_id)
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sources.com/api/v1.0/applications?filter[application_type_id]={application_type_id}&filter[source_id]={test_source_id}',
+                  status_code=200, json={'data': [{'id': application_id}]})
+            m.patch(f'http://www.sources.com/api/v1.0/applications/{application_id}',
+                    status_code=204, json={'availability_status': status, 'availability_status_error': str(error_msg)})
+            response = client.set_source_status(error_msg, application_type_id)
+            self.assertTrue(response)
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_set_source_status_source_deleted(self):
+        """Test to set source status after source has been deleted."""
+        test_source_id = 1
+        application_type_id = 2
+        error_msg = 'my error'
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=test_source_id)
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sources.com/api/v1.0/applications?filter[application_type_id]={application_type_id}&filter[source_id]={test_source_id}',
+                  status_code=200, json={'data': []})
+            response = client.set_source_status(error_msg, application_type_id)
+            self.assertFalse(response)
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_set_source_status_patch_fail(self):
+        """Test to set source status where the patch fails."""
+        test_source_id = 1
+        application_type_id = 2
+        application_id = 3
+        status = 'available'
+        error_msg = 'my error'
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=test_source_id)
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sources.com/api/v1.0/applications?filter[application_type_id]={application_type_id}&filter[source_id]={test_source_id}',
+                  status_code=200, json={'data': [{'id': application_id}]})
+            m.patch(f'http://www.sources.com/api/v1.0/applications/{application_id}',
+                    status_code=400, json={'availability_status': status, 'availability_status_error': str(error_msg)})
+            with self.assertRaises(SourcesHTTPClientError):
+                client.set_source_status(error_msg, application_type_id)

@@ -167,3 +167,6 @@ class SourcesHTTPClient:
             application_response = requests.patch(application_url, json=json_data, headers=self._identity_header)
             if application_response.status_code != 204:
                 raise SourcesHTTPClientError(f'Unable to set status for Source: {self._source_id}')
+            return True
+        return False
+
