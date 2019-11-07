@@ -74,27 +74,26 @@ def upload_normalized_data():
 
     accounts, _ = Orchestrator.get_accounts()
 
-    # Deduplicate schema_name since accounts may have the same schema_name but different providers
-    schema_providers = set(
-        (account['schema_name'], account['provider_uuid']) for account in accounts
-    )
-    for schema, provider_uuid in schema_providers:
+    for account in accounts:
         LOG.info(
-            '%s processing schema %s provider uuid %s', log_uuid, schema, provider_uuid
+            '%s processing schema %s provider uuid %s',
+            log_uuid,
+            account['schema_name'],
+            account['provider_uuid'],
         )
         for table in table_export_settings:
             # Upload this month's reports
             query_and_upload_to_s3(
-                schema,
-                provider_uuid,
+                account['schema_name'],
+                account['provider_uuid'],
                 table,
                 (curr_month_first_day, curr_month_last_day),
             )
 
             # Upload last month's reports
             query_and_upload_to_s3(
-                schema,
-                provider_uuid,
+                account['schema_name'],
+                account['provider_uuid'],
                 table,
                 (prev_month_first_day, prev_month_last_day),
             )
