@@ -165,7 +165,7 @@ class SourcesStatusTest(TestCase):
             expected_source_status = False
             self.assertEquals(expected_source_status, actual_source_status)
 
-    def test_billing_source(self):
+    def test_billing_source_data_source(self):
         """
         Test when billing_source contains 'data_source' instead of 'bucket'.
 
@@ -181,6 +181,26 @@ class SourcesStatusTest(TestCase):
                 name='New AWS Mock Test Source',
                 source_type='AWS',
                 authentication={'credentials': ''},
+                billing_source={'data_source': ''},
+                koku_uuid='',
+                offset=1)
+            response = client.get(url + '?source_id=1')
+            actual_source_status = response.data
+            expected_source_status = True
+            self.assertEquals(expected_source_status, actual_source_status)
+    def test_authentication_resource_name(self):
+        """
+        Test when the authentication is named 'resource_name' instead of 'credentials'
+        """
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            url = reverse('source-status')
+            client = APIClient()
+            # Insert a source with ID 1
+            Sources.objects.create(
+                source_id=1,
+                name='New AWS Mock Test Source',
+                source_type='AWS',
+                authentication={'resource_name': ''},
                 billing_source={'data_source': ''},
                 koku_uuid='',
                 offset=1)
