@@ -169,4 +169,3 @@ class SourcesHTTPClient:
                 raise SourcesHTTPClientError(f'Unable to set status for Source: {self._source_id}')
             return True
         return False
-

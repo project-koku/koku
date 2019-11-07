@@ -255,7 +255,8 @@ class SourcesHTTPClientTest(TestCase):
         error_msg = 'my error'
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=test_source_id)
         with requests_mock.mock() as m:
-            m.get(f'http://www.sources.com/api/v1.0/applications?filter[application_type_id]={application_type_id}&filter[source_id]={test_source_id}',
+            m.get((f'http://www.sources.com/api/v1.0/applications?'
+                   f'filter[application_type_id]={application_type_id}&filter[source_id]={test_source_id}'),
                   status_code=200, json={'data': [{'id': application_id}]})
             m.patch(f'http://www.sources.com/api/v1.0/applications/{application_id}',
                     status_code=204, json={'availability_status': status, 'availability_status_error': str(error_msg)})
@@ -270,7 +271,8 @@ class SourcesHTTPClientTest(TestCase):
         error_msg = 'my error'
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=test_source_id)
         with requests_mock.mock() as m:
-            m.get(f'http://www.sources.com/api/v1.0/applications?filter[application_type_id]={application_type_id}&filter[source_id]={test_source_id}',
+            m.get((f'http://www.sources.com/api/v1.0/applications?'
+                   f'filter[application_type_id]={application_type_id}&filter[source_id]={test_source_id}'),
                   status_code=200, json={'data': []})
             response = client.set_source_status(error_msg, application_type_id)
             self.assertFalse(response)
@@ -285,7 +287,8 @@ class SourcesHTTPClientTest(TestCase):
         error_msg = 'my error'
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=test_source_id)
         with requests_mock.mock() as m:
-            m.get(f'http://www.sources.com/api/v1.0/applications?filter[application_type_id]={application_type_id}&filter[source_id]={test_source_id}',
+            m.get((f'http://www.sources.com/api/v1.0/applications?'
+                   f'filter[application_type_id]={application_type_id}&filter[source_id]={test_source_id}'),
                   status_code=200, json={'data': [{'id': application_id}]})
             m.patch(f'http://www.sources.com/api/v1.0/applications/{application_id}',
                     status_code=400, json={'availability_status': status, 'availability_status_error': str(error_msg)})
