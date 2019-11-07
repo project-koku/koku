@@ -21,11 +21,10 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
-
 from faker import Faker
 from rest_framework import status
-from rest_framework.test import APIClient
 from rest_framework.exceptions import ValidationError
+from rest_framework.test import APIClient
 
 from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
@@ -188,10 +187,9 @@ class SourcesStatusTest(TestCase):
             actual_source_status = response.data
             expected_source_status = True
             self.assertEquals(expected_source_status, actual_source_status)
+
     def test_authentication_resource_name(self):
-        """
-        Test when the authentication is named 'resource_name' instead of 'credentials'
-        """
+        """Test when the authentication is named 'resource_name' instead of 'credentials'."""
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
             url = reverse('source-status')
             client = APIClient()
