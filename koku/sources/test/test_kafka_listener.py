@@ -448,6 +448,33 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         self.assertEquals(source_obj.authentication, {})
 
     @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_sources_network_info_no_endpoint(self):
+        """Test to get additional Source context from Sources API with no endpoint found."""
+        test_source_id = 1
+        mock_source_name = 'source name'
+        source_type_id = 1
+        source_uid = faker.uuid4()
+        test_auth_header = Config.SOURCES_FAKE_HEADER
+        ocp_source = Sources(source_id=test_source_id,
+                             auth_header=test_auth_header,
+                             offset=1)
+        ocp_source.save()
+
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sources.com/api/v1.0/sources/{test_source_id}',
+                  status_code=200, json={'name': mock_source_name, 'source_type_id': source_type_id, 'uid': source_uid})
+            m.get(f'http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}',
+                  status_code=200, json={'data': [{'name': mock_source_name}]})
+            m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}',
+                  status_code=200, json={'data': []})
+            source_integration.sources_network_info(test_source_id, test_auth_header)
+
+        source_obj = Sources.objects.get(source_id=test_source_id)
+        self.assertIsNone(source_obj.name)
+        self.assertEquals(source_obj.source_type, '')
+        self.assertEquals(source_obj.authentication, {})
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_sources_network_auth_info(self):
         """Test to get authentication information from Sources backend."""
         test_source_id = 2

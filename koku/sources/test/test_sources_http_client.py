@@ -230,8 +230,7 @@ class SourcesHTTPClientTest(TestCase):
         with requests_mock.mock() as m:
             m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={source_id}',
                   status_code=200, json={'data': []})
-            with self.assertRaises(SourcesHTTPClientError):
-                client.get_endpoint_id()
+            self.assertIsNone(client.get_endpoint_id())
 
     @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_get_endpoint_id_misconfigured(self):
