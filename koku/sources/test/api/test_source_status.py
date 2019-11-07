@@ -156,7 +156,7 @@ class SourcesStatusTest(TestCase):
                 name='New AWS Mock Test Source',
                 source_type='AWS',
                 authentication={},
-                billing_source={'bucket': ''},
+                billing_source={'bucket': 'hi'},
                 koku_uuid='',
                 offset=1)
             response = client.get(url + '?source_id=1')
@@ -179,8 +179,8 @@ class SourcesStatusTest(TestCase):
                 source_id=1,
                 name='New AWS Mock Test Source',
                 source_type='AWS',
-                authentication={'credentials': ''},
-                billing_source={'data_source': ''},
+                authentication={'credentials': 'hi'},
+                billing_source={'data_source': 'ho'},
                 koku_uuid='',
                 offset=1)
             response = client.get(url + '?source_id=1')
@@ -198,8 +198,8 @@ class SourcesStatusTest(TestCase):
                 source_id=1,
                 name='New AWS Mock Test Source',
                 source_type='AWS',
-                authentication={'resource_name': ''},
-                billing_source={'data_source': ''},
+                authentication={'resource_name': 'ho'},
+                billing_source={'data_source': 'hi'},
                 koku_uuid='',
                 offset=1)
             response = client.get(url + '?source_id=1')
