@@ -62,6 +62,10 @@ class OCPAWSCostLineItemDailySummary(models.Model):
         ]
 
     # OCP Fields
+    report_period = models.ForeignKey(
+        'OCPUsageReportPeriod', on_delete=models.CASCADE, null=True
+    )
+
     cluster_id = models.CharField(max_length=50, null=True)
 
     cluster_alias = models.CharField(max_length=256, null=True)
@@ -171,6 +175,10 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
         ]
 
     # OCP Fields
+    report_period = models.ForeignKey(
+        'OCPUsageReportPeriod', on_delete=models.CASCADE, null=True
+    )
+
     cluster_id = models.CharField(max_length=50, null=True)
 
     cluster_alias = models.CharField(max_length=256, null=True)

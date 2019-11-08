@@ -23,22 +23,21 @@ import copy
 import csv
 import tempfile
 import shutil
+from unittest.mock import patch
+
+from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
 
+from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
+from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
-
 from masu.processor.azure.azure_report_processor import AzureReportProcessor
-from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
-
-from masu.config import Config
-
 from masu.test import MasuTestCase
-from unittest.mock import patch
 
 
 class AzureReportProcessorTest(MasuTestCase):
@@ -49,8 +48,6 @@ class AzureReportProcessorTest(MasuTestCase):
         """Set up the test class with required objects."""
         super().setUpClass()
         cls.test_report = './koku/masu/test/data/azure/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv'
-
-
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
 
@@ -337,3 +334,44 @@ class AzureReportProcessorTest(MasuTestCase):
         removed_files = self.processor.remove_temp_cur_files(cur_dir)
         self.assertEqual(sorted(removed_files), sorted(expected_delete_list))
         shutil.rmtree(cur_dir)
+
+    def test_should_process_row_within_cuttoff_date(self):
+        """Test that we correctly determine a row should be processed."""
+        today = self.date_accessor.today_with_timezone('UTC')
+        row = {'UsageDateTime': today.isoformat()}
+
+        processor = AzureReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.azure_provider_uuid,
+        )
+
+        should_process = processor._should_process_row(
+            row,
+            'UsageDateTime',
+            False
+        )
+
+        self.assertTrue(should_process)
+
+    def test_should_process_row_outside_cuttoff_date(self):
+        """Test that we correctly determine a row should be processed."""
+        today = self.date_accessor.today_with_timezone('UTC')
+        usage_start = today - relativedelta(days=10)
+        row = {'UsageDateTime': usage_start.isoformat()}
+
+        processor = AzureReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.azure_provider_uuid,
+        )
+
+        should_process = processor._should_process_row(
+            row,
+            'UsageDateTime',
+            False
+        )
+
+        self.assertFalse(should_process)

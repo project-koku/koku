@@ -30,7 +30,7 @@ from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.azure import common as utils
-from masu.util.common import extract_uuids_from_string
+from masu.util.common import extract_uuids_from_string, month_date_range
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -47,18 +47,21 @@ class AzureReportDownloaderNoFileError(Exception):
 class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """Azure Cost and Usage Report Downloader."""
 
-    def __init__(self, customer_name, auth_credential, billing_source, report_name=None, **kwargs):
+    # Disabling this linter until we can refactor
+    # pylint: disable=too-many-arguments
+    def __init__(self, task, customer_name, auth_credential, billing_source, report_name=None, **kwargs):
         """
         Constructor.
 
         Args:
+            task             (Object) bound celery object
             customer_name    (String) Name of the customer
             auth_credential  (Dict) Dictionary containing Azure authentication details.
             report_name      (String) Name of the Cost Usage Report to download (optional)
             billing_source   (Dict) Dictionary containing Azure Storage blob details.
 
         """
-        super().__init__(**kwargs)
+        super().__init__(task, **kwargs)
 
         self._provider_uuid = kwargs.get('provider_uuid')
         self.customer_name = customer_name.replace(' ', '_')
@@ -102,7 +105,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     example: "/cost/costreport/20190801-20190831"
 
         """
-        report_date_range = utils.month_date_range(date_time)
+        report_date_range = month_date_range(date_time)
         return '{}/{}/{}'.format(self.directory, self.export_name,
                                  report_date_range)
 

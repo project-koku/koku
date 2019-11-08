@@ -28,7 +28,7 @@ from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
-from masu.util.azure import common as utils
+from masu.util import common as utils
 from reporting.provider.azure.models import (AzureCostEntryBill,
                                              AzureCostEntryLineItemDaily,
                                              AzureCostEntryProductService,
@@ -182,6 +182,7 @@ class AzureReportProcessor(ReportProcessorBase):
         value_set = set(data.values())
         if value_set == {''}:
             return
+        data['provider_id'] = self._provider_uuid
         product_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
             data,
@@ -218,9 +219,11 @@ class AzureReportProcessor(ReportProcessorBase):
         value_set = set(data.values())
         if value_set == {''}:
             return
+        data['provider_id'] = self._provider_uuid
         meter_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
-            data
+            data,
+            conflict_columns=['meter_id']
         )
         self.processed_report.meters[key] = meter_id
         return meter_id
@@ -289,6 +292,7 @@ class AzureReportProcessor(ReportProcessorBase):
 
         """
         row_count = 0
+        is_full_month = self._should_process_full_month()
         self._delete_line_items(AzureReportDBAccessor, self.column_map)
         # pylint: disable=invalid-name
         opener, mode = self._get_file_opener(self._compression)
@@ -297,6 +301,8 @@ class AzureReportProcessor(ReportProcessorBase):
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
+                    if not self._should_process_row(row, 'UsageDateTime', is_full_month):
+                        continue
                     _ = self.create_cost_entry_objects(row, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:
                         LOG.info('Saving report rows %d to %d for %s', row_count,

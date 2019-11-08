@@ -1,13 +1,14 @@
 """Upload utils tests."""
 import calendar
-from datetime import date, timedelta
+import uuid
+from datetime import date, datetime, timedelta
 from unittest.mock import patch
 
+import pytz
 from django.test import TestCase
 
 from masu.celery.tasks import table_export_settings
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.util.upload import get_upload_path, query_and_upload_to_s3
@@ -20,26 +21,39 @@ class TestUploadUtils(TestCase):
         """Assert get_upload_path produces an appropriate S3 path for the month."""
 
         report_date = date(2018, 4, 1)
-        account = 'test_acct'
-        provider_type = 'test'
+        schema_name = 'test_acct'
+        provider_type = 'test_type'
+        provider_uuid = uuid.UUID('de4db3ef-a185-4bad-b33f-d15ea5edc0de', version=4)
         table_name = 'test_table'
         with self.settings(S3_BUCKET_PATH='bucket'):
-            path = get_upload_path(account, provider_type, report_date, table_name)
-            self.assertEquals('bucket/test_acct/test/2018/04/00/test_table.csv.gz', path)
+            path = get_upload_path(
+                schema_name, provider_type, provider_uuid, report_date, table_name
+            )
+            self.assertEquals(
+                'bucket/test_acct/test_type/de4db3ef-a185-4bad-b33f-d15ea5edc0de/2018/04/00/test_table.csv.gz',
+                path,
+            )
 
     def test_get_upload_path_daily(self):
         """Assert get_upload_path produces an appropriate S3 path including day of month."""
 
         report_date = date(2018, 4, 1)
-        account = 'test_acct'
-        provider_type = 'test'
+        schema_name = 'test_acct'
+        provider_type = 'test_type'
+        provider_uuid = uuid.UUID('de4db3ef-a185-4bad-b33f-d15ea5edc0de', version=4)
         table_name = 'test_table'
         with self.settings(S3_BUCKET_PATH='bucket'):
             path = get_upload_path(
-                account, provider_type, report_date, table_name, daily=True
+                schema_name,
+                provider_type,
+                provider_uuid,
+                report_date,
+                table_name,
+                daily=True,
             )
             self.assertEquals(
-                'bucket/test_acct/test/2018/04/01/test_table.csv.gz', path
+                'bucket/test_acct/test_type/de4db3ef-a185-4bad-b33f-d15ea5edc0de/2018/04/01/test_table.csv.gz',
+                path,
             )
 
 
@@ -54,7 +68,10 @@ class TestUploadUtilsWithData(MasuTestCase):
             self.column_map = common_accessor.column_map
         self.creator = ReportObjectCreator(self.schema, self.column_map)
 
-        self.today = DateAccessor().today_with_timezone('UTC')
+        timezone = pytz.timezone('UTC')
+        # Arbitrary date as "today" so we don't drift around with `now`.
+        self.today = datetime(2019, 11, 5, 0, 0, 0, tzinfo=timezone)
+
         self.today_date = date(
             year=self.today.year, month=self.today.month, day=self.today.day
         )
@@ -97,7 +114,13 @@ class TestUploadUtilsWithData(MasuTestCase):
 
     @patch('masu.util.upload.AwsS3Uploader')
     def test_query_and_upload_to_s3(self, mock_uploader):
-        """Assert query_and_upload_to_s3 uploads to S3 with one file."""
+        """
+        Assert query_and_upload_to_s3 uploads to S3 for each query.
+
+        We only have test data reliably set for AWS, but this function should
+        still execute *all* of the table_export_settings queries, effectively
+        providing a syntax check on the SQL even if no results are found.
+        """
         today = self.today
         _, last_day_of_month = calendar.monthrange(today.year, today.month)
         curr_month_first_day = date(year=today.year, month=today.month, day=1)
@@ -106,11 +129,23 @@ class TestUploadUtilsWithData(MasuTestCase):
         )
 
         date_range = (curr_month_first_day, curr_month_last_day)
-        table_export_setting = self.get_table_export_setting_by_name(
-            'reporting_awscostentrylineitem'
-        )
-        query_and_upload_to_s3(self.schema, table_export_setting, date_range)
-        mock_uploader.return_value.upload_file.assert_called_once()
+        for table_export_setting in table_export_settings:
+            mock_uploader.reset_mock()
+            query_and_upload_to_s3(
+                self.schema, self.aws_provider_uuid, table_export_setting, date_range
+            )
+            if table_export_setting.provider == 'aws':
+                if table_export_setting.iterate_daily:
+                    # There are always TWO days of AWS test data.
+                    calls = mock_uploader.return_value.upload_file.call_args_list
+                    self.assertEqual(len(calls), 2)
+                else:
+                    # There is always only ONE month of AWS test data.
+                    mock_uploader.return_value.upload_file.assert_called_once()
+            else:
+                # We ONLY have test data currently for AWS.
+                mock_uploader.return_value.upload_file.assert_not_called()
+
 
     @patch('masu.util.upload.AwsS3Uploader')
     def test_query_and_upload_skips_if_no_data(self, mock_uploader):
@@ -119,7 +154,9 @@ class TestUploadUtilsWithData(MasuTestCase):
         table_export_setting = self.get_table_export_setting_by_name(
             'reporting_awscostentrylineitem'
         )
-        query_and_upload_to_s3(self.schema, table_export_setting, date_range)
+        query_and_upload_to_s3(
+            self.schema, self.aws_provider_uuid, table_export_setting, date_range
+        )
         mock_uploader.return_value.upload_file.assert_not_called()
 
     @patch('masu.util.upload.AwsS3Uploader')
@@ -129,6 +166,8 @@ class TestUploadUtilsWithData(MasuTestCase):
         table_export_setting = self.get_table_export_setting_by_name(
             'reporting_awscostentrylineitem_daily_summary'
         )
-        query_and_upload_to_s3(self.schema, table_export_setting, date_range)
+        query_and_upload_to_s3(
+            self.schema, self.aws_provider_uuid, table_export_setting, date_range
+        )
         # expect one upload call for yesterday and one for today
         self.assertEqual(mock_uploader.return_value.upload_file.call_count, 2)

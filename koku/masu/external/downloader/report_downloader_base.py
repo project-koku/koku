@@ -19,6 +19,7 @@ import datetime
 import logging
 from tempfile import mkdtemp
 
+from koku.celery import app
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 
@@ -34,14 +35,25 @@ class ReportDownloaderBase():
     """
 
     # pylint: disable=unused-argument
-    def __init__(self, download_path=None, **kwargs):
+    def __init__(self, task, download_path=None, **kwargs):
         """
         Create a downloader.
 
         Args:
+            task          (Object) bound celery object
             download_path (String) filesystem path to store downloaded files
 
+        Kwargs:
+            customer_name     (String) customer name
+            access_credential (Dict) provider access credentials
+            report_source     (String) cost report source
+            provider_type     (String) cloud provider type
+            provider_uuid     (String) cloud provider uuid
+            report_name       (String) cost report name
+
         """
+        self._task = task
+
         if download_path:
             self.download_path = download_path
         else:
@@ -62,6 +74,22 @@ class ReportDownloaderBase():
                 manifest_id = manifest.id
         return manifest_id
 
+    def check_task_queues(self, task_id):
+        """Check if the provided task id is in the celery queues."""
+        # inspect() returns {'worker_name': [{'id': uuid4(), <...>}, {'id': uuid4(), <...>}]}
+        inspect = app.control.inspect()
+
+        def unroll(obj):
+            """Unwrap list values."""
+            return [task.get('id') for tasklist in obj for task in tasklist]
+
+        active = unroll(inspect.active().values())
+        reserved = unroll(inspect.reserved().values())
+        scheduled = unroll(inspect.scheduled().values())
+        if task_id in active + reserved + scheduled:
+            return True
+        return False
+
     def check_if_manifest_should_be_downloaded(self, assembly_id):
         """Check if we should download this manifest.
 
@@ -81,7 +109,15 @@ class ReportDownloaderBase():
                 assembly_id,
                 self._provider_uuid
             )
+
             if manifest:
+                if manifest.task and self.check_task_queues(manifest.task):
+                    # if the previous task is still in the celery queues, it is
+                    # probably still running. We should not queue a new download
+                    # until it completes.
+                    return False
+                LOG.info('No task-id found for manifest "%s".', manifest.id)
+
                 manifest_id = manifest.id
                 num_processed_files = manifest.num_processed_files
                 num_total_files = manifest.num_total_files
@@ -89,10 +125,12 @@ class ReportDownloaderBase():
                     completed_datetime = manifest_accessor.get_last_report_completed_datetime(
                         manifest_id
                     )
-                    if completed_datetime and completed_datetime < last_completed_cutoff:
+                    if (completed_datetime and completed_datetime < last_completed_cutoff) or \
+                            not completed_datetime:
                         # It has been more than an hour since we processed a file
-                        # and we didn't finish processing. We should download
-                        # and reprocess.
+                        # and we didn't finish processing. Or, if there is a
+                        # start time but no completion time recorded.
+                        # We should download and reprocess.
                         manifest_accessor.reset_manifest(manifest_id)
                         return True
                 # The manifest exists and we have processed all the files.
@@ -119,7 +157,8 @@ class ReportDownloaderBase():
                     'assembly_id': assembly_id,
                     'billing_period_start_datetime': billing_start,
                     'num_total_files': num_of_files,
-                    'provider_uuid': self._provider_uuid
+                    'provider_uuid': self._provider_uuid,
+                    'task': self._task.request.id
                 }
                 manifest_entry = manifest_accessor.add(**manifest_dict)
 

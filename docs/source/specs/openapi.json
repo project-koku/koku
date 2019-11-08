@@ -2378,6 +2378,9 @@
                             "type": "string",
                             "format": "date-time",
                             "readOnly": true
+                        },
+                        "markup": {
+                              "$ref": "#/components/schemas/Markup"
                         }
                     }
                 }]
@@ -2789,6 +2792,10 @@
                             "type": "string",
                             "description": "OpenShift foundational infrastructure type.",
                             "example": "AWS"
+                        },
+                        "active": {
+                            "type": "boolean",
+                            "description": "Flag to indicate when the provider is configured correctly"
                         }
                     }
                 }]

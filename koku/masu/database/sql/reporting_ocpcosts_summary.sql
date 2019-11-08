@@ -1,5 +1,6 @@
 CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost AS (
-    SELECT ocp_aws.usage_start,
+    SELECT ocp_aws.report_period_id,
+        ocp_aws.usage_start,
         ocp_aws.cluster_id,
         ocp_aws.cluster_alias,
         ocp_aws.namespace,
@@ -13,7 +14,8 @@ CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost AS (
     WHERE date(ocp_aws.usage_start) >= {{start_date}}
         AND date(ocp_aws.usage_start) <= {{end_date}}
         AND ocp_aws.cluster_id = {{cluster_id}}
-    GROUP BY ocp_aws.usage_start,
+    GROUP BY ocp_aws.report_period_id,
+        ocp_aws.usage_start,
         ocp_aws.cluster_id,
         ocp_aws.cluster_alias,
         ocp_aws.namespace,
@@ -29,6 +31,7 @@ UPDATE reporting_ocpusagelineitem_daily_summary ods
         project_infra_cost = ic.project_infra_cost
     FROM reporting_ocp_infrastructure_cost AS ic
     WHERE ic.data_source = 'Pod'
+        AND ods.report_period_id = ic.report_period_id
         AND ods.usage_start = ic.usage_start
         AND ods.cluster_id = ic.cluster_id
         AND ods.cluster_alias = ic.cluster_alias
@@ -44,6 +47,7 @@ UPDATE reporting_ocpusagelineitem_daily_summary ods
         project_infra_cost = ic.project_infra_cost
     FROM reporting_ocp_infrastructure_cost AS ic
     WHERE ic.data_source = 'Storage'
+        AND ods.report_period_id = ic.report_period_id
         AND ods.usage_start = ic.usage_start
         AND ods.cluster_id = ic.cluster_id
         AND ods.cluster_alias = ic.cluster_alias
@@ -55,7 +59,8 @@ UPDATE reporting_ocpusagelineitem_daily_summary ods
 ;
 
 CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{{uuid | sqlsafe}} AS (
-    SELECT usageli.usage_start,
+    SELECT usageli.report_period_id,
+        usageli.usage_start,
         usageli.usage_end,
         usageli.cluster_id,
         usageli.cluster_alias,
@@ -76,7 +81,8 @@ CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{{uuid | sqlsafe}} AS (
 
     UNION ALL
 
-    SELECT storageli.usage_start,
+    SELECT storageli.report_period_id,
+        storageli.usage_start,
         storageli.usage_end,
         storageli.cluster_id,
         storageli.cluster_alias,
@@ -97,7 +103,8 @@ CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{{uuid | sqlsafe}} AS (
 
     UNION ALL
 
-    SELECT ocp_aws.usage_start,
+    SELECT ocp_aws.report_period_id,
+        ocp_aws.usage_start,
         ocp_aws.usage_end,
         ocp_aws.cluster_id,
         ocp_aws.cluster_alias,
@@ -126,6 +133,7 @@ WHERE date(usage_start) >= {{start_date}}
 
 -- Populate the ocp costs summary table
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpcosts_summary (
+    report_period_id,
     cluster_id,
     cluster_alias,
     namespace,
@@ -140,7 +148,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpcosts_summary (
     project_infra_cost,
     pod_labels
 )
-    SELECT cluster_id,
+    SELECT report_period_id,
+        cluster_id,
         cluster_alias,
         namespace,
         pod,

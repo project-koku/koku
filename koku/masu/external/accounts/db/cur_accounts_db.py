@@ -14,10 +14,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Database source impelmentation to provide all CUR accounts for CURAccounts access."""
+"""Database source implementation to provide all CUR accounts for CURAccounts access."""
+import logging
 
 from masu.database.provider_collector import ProviderCollector
 from masu.external.accounts.cur_accounts_interface import CURAccountsInterface
+
+LOG = logging.getLogger(__name__)
 
 
 # pylint: disable=too-few-public-methods
@@ -60,6 +63,9 @@ class CURAccountsDB(CURAccountsInterface):
         with ProviderCollector() as collector:
             all_providers = collector.get_providers()
             for provider in all_providers:
+                if provider.active is False:
+                    LOG.info(f'Provider {provider.uuid} is not active. Processing suspended...')
+                    continue
                 if provider_uuid and str(provider.uuid) != provider_uuid:
                     continue
                 account = {
