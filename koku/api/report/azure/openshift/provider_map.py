@@ -283,7 +283,7 @@ class OCPAzureProviderMap(ProviderMap):
                         'cost_units_key': 'currency',
                         'cost_units_fallback': 'USD',
                         'usage_units_key': 'unit_of_measure',
-                        'usage_units_fallback': 'Storage Type Placeholder', # FIXME
+                        'usage_units_fallback': 'Storage Type Placeholder',  # FIXME
                         'sum_columns': [
                             'usage',
                             'infrastructure_cost',
@@ -361,7 +361,7 @@ class OCPAzureProviderMap(ProviderMap):
                         'cost_units_key': 'currency',
                         'cost_units_fallback': 'USD',
                         'usage_units_key': 'unit_of_measure',
-                        'usage_units_fallback': 'Storage Type Placeholder', # FIXME
+                        'usage_units_fallback': 'Storage Type Placeholder',  # FIXME
                         'sum_columns': [
                             'usage',
                             'cost',

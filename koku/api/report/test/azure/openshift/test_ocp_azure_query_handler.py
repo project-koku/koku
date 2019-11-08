@@ -22,7 +22,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.provider.test import create_generic_provider
 from api.report.azure.openshift.query_handler import OCPAzureReportQueryHandler
 from api.report.azure.openshift.view import (
-    OCPAzureCostView,
+    # OCPAzureCostView,
     OCPAzureInstanceTypeView,
     OCPAzureStorageView,
 )
@@ -65,7 +65,7 @@ class OCPAWSQueryHandlerTestNoData(IamTestCase):
         self.assertIsNotNone(total.get('usage'))
         self.assertIsInstance(total.get('usage'), dict)
         self.assertEqual(total.get('usage').get('value'), 0)
-        self.assertEqual(total.get('usage').get('units'), 'Instance Type Placeholder') #FIXME
+        self.assertEqual(total.get('usage').get('units'), 'Instance Type Placeholder')  # FIXME
         self.assertIsNotNone(total.get('count'))
         self.assertIsInstance(total.get('count'), dict)
         self.assertEqual(total.get('count').get('value'), 0)
