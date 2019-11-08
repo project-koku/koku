@@ -134,7 +134,7 @@ class Provider(models.Model):
                                    on_delete=models.SET_NULL)
     setup_complete = models.BooleanField(default=False)
     created_timestamp = models.DateTimeField(auto_now_add=True, blank=True, null=True)
-    active = models.BooleanField(default=False)
+    active = models.BooleanField(default=True)
 
 
 class Sources(models.Model):

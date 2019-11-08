@@ -196,8 +196,8 @@ class KokuCustomerOnboarder:
 
         provider_sql = """
             INSERT INTO api_provider (uuid, name, type, authentication_id, billing_source_id,
-                                    created_by_id, customer_id, setup_complete)
-            VALUES(%s, %s, %s, %s, %s, 1, 1, False)
+                                    created_by_id, customer_id, setup_complete, active)
+            VALUES(%s, %s, %s, %s, %s, 1, 1, False, True)
             RETURNING id
             ;
         """
