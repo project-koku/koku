@@ -38,6 +38,11 @@ from reporting.models import (
 class OCPAzureReportDataGenerator(object):
     """Populate the database with OCP on Azure report data."""
 
+    AZURE_SERVICE_CHOICES = [
+        'Storage',
+        'Virtual Machines',
+    ]
+
     def __init__(self, tenant, provider, current_month_only=False, config=None):
         """Set up the class."""
         # prevent future whammy:
@@ -120,7 +125,7 @@ class OCPAzureReportDataGenerator(object):
             ):
                 table.objects.all().delete()
 
-    def add_data_to_tenant(self, fixed_fields=None):
+    def add_data_to_tenant(self, fixed_fields=None, service_name=None):
         """Populate tenant with data."""
         words = list(set([self.fake.word() for _ in range(10)]))
         self.cluster_id = random.choice(words)
@@ -142,6 +147,8 @@ class OCPAzureReportDataGenerator(object):
                 for report_date in self.report_ranges[i]:
                     for row in self.ocp_azure_summary_line_items:
                         self._randomize_line_item(retained_fields=fixed_fields)
+                        if service_name:
+                            self.config.service_name = service_name
                         li = self._populate_ocp_azure_cost_line_item_daily_summary(row, report_date)
                         self._populate_ocp_azure_cost_line_item_project_daily_summary(
                             li, row, report_date
