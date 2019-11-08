@@ -16,13 +16,14 @@
 #
 """Populate test data for OCP on Azure reports."""
 import random
+from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
 from faker import Faker
 from model_bakery import baker
 from tenant_schemas.utils import tenant_context
 
-from api.models import Provider, Tenant
+from api.models import Provider, ProviderAuthentication, ProviderBillingSource, Tenant
 from api.report.test.azure.helpers import FakeAzureConfig
 from api.utils import DateHelper
 from reporting.models import (
@@ -145,6 +146,33 @@ class OCPAzureReportDataGenerator(object):
                         self._populate_ocp_azure_cost_line_item_project_daily_summary(
                             li, row, report_date
                         )
+
+    def create_ocp_provider(self, cluster_id, cluster_alias):
+        """Create OCP test provider."""
+        auth = baker.make(
+            ProviderAuthentication,
+            provider_resource_name=cluster_id,
+        )
+        bill = baker.make(
+            ProviderBillingSource,
+            bucket='',
+        )
+        provider_uuid = uuid4()
+        provider_data = {
+            'uuid': provider_uuid,
+            'name': cluster_alias,
+            'authentication': auth,
+            'billing_source': bill,
+            'customer': None,
+            'created_by': None,
+            'type': 'OCP',
+            'setup_complete': False
+        }
+        provider = Provider(**provider_data)
+        provider.save()
+        self.cluster_alias = cluster_alias
+        self.provider_uuid = provider_uuid
+        return provider
 
     def _randomize_line_item(self, retained_fields=None):
         """Update our FakeAzureConfig to generate a new line item."""

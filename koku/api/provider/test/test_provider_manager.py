@@ -467,7 +467,6 @@ class ProviderManagerTest(IamTestCase):
                                            authentication=provider_authentication,)
         data_generator = OCPAzureReportDataGenerator(self.tenant, provider, current_month_only=True)
         data_generator.add_data_to_tenant()
-        data_generator.add_azure_data_to_tenant()
         data_generator.create_ocp_provider(data_generator.cluster_id, data_generator.cluster_alias)
 
         provider_uuid = data_generator.provider_uuid
