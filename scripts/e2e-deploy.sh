@@ -124,7 +124,7 @@ done
 
 ### create secrets
 echo "Applying secrets."
-${OC} apply -f ${KOKU_SECRETS}
+${OC} process -f ${KOKU_SECRETS} | ${OC} apply -n ${SECRETS_PROJECT} -f -
 
 ### set policy to allow pulling images from buildfactory
 echo "Adding image pull policy."
