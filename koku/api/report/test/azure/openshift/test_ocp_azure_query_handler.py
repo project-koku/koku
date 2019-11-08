@@ -26,7 +26,6 @@ from api.report.azure.openshift.view import (
     OCPAzureInstanceTypeView,
     OCPAzureStorageView,
 )
-from api.report.test.azure.helpers import FakeAzureConfig
 from api.report.test.azure.openshift.helpers import OCPAzureReportDataGenerator
 from api.utils import DateHelper
 from reporting.models import OCPAzureCostLineItemDailySummary
@@ -151,7 +150,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         )
         self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
 
-
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
         self.generator.add_data_to_tenant(service_name='Storage')
@@ -239,4 +237,3 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             self.assertIsInstance(month_data, list)
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('values'), list)
-
