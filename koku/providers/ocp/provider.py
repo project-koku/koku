@@ -46,7 +46,7 @@ class OCPProviderError(Exception):
 
 
 class OCPProvider(ProviderInterface):
-    """Provider interface defnition."""
+    """Provider interface definition."""
 
     def name(self):
         """Return name of the provider."""
@@ -69,6 +69,8 @@ class OCPProvider(ProviderInterface):
         message = 'Stub to verify that OCP report for cluster {} is accessible.'.format(
                   cluster_id)
         LOG.info(message)
+
+        return True
 
     def _is_on_aws(self, tenant, resource_name):
         """Determine if provider is running on AWS."""

@@ -1,4 +1,5 @@
 """Tests for celery tasks."""
+import uuid
 from datetime import date, datetime
 from unittest.mock import call, patch, Mock
 
@@ -50,20 +51,35 @@ class TestCeleryTasks(MasuTestCase):
         test_export_setting = {
             'provider': 'test',
             'table_name': 'test',
-            'sql': 'test_sql'
+            'sql': 'test_sql',
         }
         schema_name = 'acct10001'
+        provider_uuid = uuid.uuid4()
 
         mock_date.return_value = date(2015, 1, 5)
 
-        mock_orchestrator.get_accounts.return_value = [{'schema_name': schema_name}], []
+        mock_orchestrator.get_accounts.return_value = (
+            [{'schema_name': schema_name, 'provider_uuid': provider_uuid}],
+            [],
+        )
+
         current_month_start = date(2015, 1, 1)
         current_month_end = date(2015, 1, 31)
         prev_month_start = date(2014, 12, 1)
         prev_month_end = date(2014, 12, 31)
 
-        call_curr_month = call(schema_name, test_export_setting, (current_month_start, current_month_end))
-        call_prev_month = call(schema_name, test_export_setting, (prev_month_start, prev_month_end))
+        call_curr_month = call(
+            schema_name,
+            provider_uuid,
+            test_export_setting,
+            (current_month_start, current_month_end),
+        )
+        call_prev_month = call(
+            schema_name,
+            provider_uuid,
+            test_export_setting,
+            (prev_month_start, prev_month_end),
+        )
 
         with patch('masu.celery.tasks.table_export_settings', [test_export_setting]):
             tasks.upload_normalized_data()
@@ -75,8 +91,18 @@ class TestCeleryTasks(MasuTestCase):
         prev_month_start = date(2012, 2, 1)
         prev_month_end = date(2012, 2, 29)
 
-        call_curr_month = call(schema_name, test_export_setting, (current_month_start, current_month_end))
-        call_prev_month = call(schema_name, test_export_setting, (prev_month_start, prev_month_end))
+        call_curr_month = call(
+            schema_name,
+            provider_uuid,
+            test_export_setting,
+            (current_month_start, current_month_end),
+        )
+        call_prev_month = call(
+            schema_name,
+            provider_uuid,
+            test_export_setting,
+            (prev_month_start, prev_month_end),
+        )
 
         with patch('masu.celery.tasks.table_export_settings', [test_export_setting]):
             tasks.upload_normalized_data()

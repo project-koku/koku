@@ -17,7 +17,7 @@
 
 """Test the ReportDownloader object."""
 
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 from uuid import uuid4
 
 from faker import Faker
@@ -58,6 +58,8 @@ class ReportDownloaderTest(MasuTestCase):
     def setUp(self):
         super().setUp()
         self.fake_creds = fake_arn(service='iam', generate_account_id=True)
+        self.mock_task = Mock(request=Mock(id=str(FAKE.uuid4()),
+                                           return_value={}))
 
     def create_downloader(self, provider_type):
         """
@@ -71,6 +73,7 @@ class ReportDownloaderTest(MasuTestCase):
 
         """
         downloader = ReportDownloader(
+            task=self.mock_task,
             customer_name=FAKE.name(),
             access_credential=self.fake_creds,
             report_source=FAKE.slug(),

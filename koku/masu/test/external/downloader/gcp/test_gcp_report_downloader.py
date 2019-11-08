@@ -75,6 +75,8 @@ class GCPReportDownloaderTest(MasuTestCase):
             # mock_storage_client = mock_storage.Client.return_value
             # mock_storage_client.lookup_bucket.return_value = {}
             downloader = GCPReportDownloader(
+                task=Mock(request=Mock(id=str(FAKE.uuid4()),
+                                       return_value={})),
                 customer_name=customer_name,
                 billing_source=billing_source,
                 provider_uuid=provider_uuid,
@@ -88,7 +90,9 @@ class GCPReportDownloaderTest(MasuTestCase):
             ValidationError
         )
         with self.assertRaises(GCPReportDownloaderError):
-            GCPReportDownloader(FAKE.name(), {'bucket': FAKE.slug()})
+            GCPReportDownloader(Mock(request=Mock(id=str(FAKE.uuid4()),
+                                                  return_value={})),
+                                FAKE.name(), {'bucket': FAKE.slug()})
 
     def test_init_reachable_bucket_is_okay(self):
         """Assert GCPReportDownloader initializes with expected values."""
@@ -100,7 +104,9 @@ class GCPReportDownloaderTest(MasuTestCase):
         ) as mock_provider, patch(
             'masu.external.downloader.gcp.gcp_report_downloader.storage'
         ) as mock_storage:
-            downloader = GCPReportDownloader(customer_name, billing_source)
+            downloader = GCPReportDownloader(Mock(request=Mock(id=str(FAKE.uuid4()),
+                                                               return_value={})),
+                                             customer_name, billing_source)
             mock_storage.Client.return_value.lookup_bucket.assert_called_with(
                 bucket_name
             )
