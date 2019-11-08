@@ -178,11 +178,13 @@ class AWSReportProcessorTest(MasuTestCase):
             counts[table_name] = count
 
         bill_date = self.manifest.billing_period_start_datetime.date()
+
         expected = (
-            f'INFO:masu.processor.report_processor_base:Deleting data for:\n'
-            f' schema_name: acct10001\n'
-            f' provider_uuid: {self.aws_provider_uuid}\n'
-            f' bill date: {bill_date}'
+            f'INFO:masu.processor.report_processor_base:Processing bill starting on {bill_date}.\n'
+            f' Processing entire month.\n'
+            f' schema_name: {self.schema},\n'
+            f'provider_uuid: {self.aws_provider_uuid},\n'
+            f' manifest_id: {self.manifest.id}'
         )
         logging.disable(
             logging.NOTSET
@@ -1252,3 +1254,16 @@ class AWSReportProcessorTest(MasuTestCase):
         )
 
         self.assertTrue(should_process)
+
+    def test_get_date_column_filter(self):
+        """Test that the Azure specific filter is returned."""
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=self.manifest.id,
+        )
+        date_filter = processor.get_date_column_filter()
+
+        self.assertIn('usage_start__gte', date_filter)
