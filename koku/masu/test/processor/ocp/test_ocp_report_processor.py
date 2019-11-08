@@ -76,12 +76,12 @@ class OCPReportProcessorTest(MasuTestCase):
         """Set up the test class with required objects."""
         super().setUpClass()
         # These test reports should be replaced with OCP reports once processor is impelmented.
-        cls.test_report = './koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'
-        cls.storage_report = (
+        cls.test_report_path = './koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'
+        cls.storage_report_path = (
             './koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_storage.csv'
         )
         cls.unknown_report = './koku/masu/test/data/test_cur.csv'
-        cls.test_report_gzip = './koku/masu/test/data/test_cur.csv.gz'
+        cls.test_report_gzip_path = './koku/masu/test/data/test_cur.csv.gz'
 
         cls.date_accessor = DateAccessor()
         cls.billing_start = cls.date_accessor.today_with_timezone('UTC').replace(
@@ -106,7 +106,7 @@ class OCPReportProcessorTest(MasuTestCase):
         cls.report_tables = list(_report_tables.values())
 
         # Grab a single row of test data to work with
-        with open(cls.test_report, 'r') as f:
+        with open(cls.test_report_path, 'r') as f:
             reader = csv.DictReader(f)
             cls.row = next(reader)
 
@@ -117,6 +117,14 @@ class OCPReportProcessorTest(MasuTestCase):
 
     def setUp(self):
         super().setUp()
+        self.temp_dir = tempfile.mkdtemp()
+        self.test_report = f'{self.temp_dir}/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'
+        self.storage_report = f'{self.temp_dir}/e6b3701e-1e91-433b-b238-a31e49937558_storage.csv'
+        self.test_report_gzip = f'{self.temp_dir}/test_cur.csv.gz'
+        shutil.copy2(self.test_report_path, self.test_report)
+        shutil.copy2(self.storage_report_path, self.storage_report)
+        shutil.copy2(self.test_report_gzip_path, self.test_report_gzip)
+
         self.manifest_dict = {
             'assembly_id': self.assembly_id,
             'billing_period_start_datetime': self.billing_start,
@@ -136,6 +144,7 @@ class OCPReportProcessorTest(MasuTestCase):
     def tearDown(self):
         """Return the database to a pre-test state."""
         super().tearDown()
+        shutil.rmtree(self.temp_dir)
         self.ocp_processor._processor.processed_report.remove_processed_rows()
         self.ocp_processor._processor.line_item_columns = None
 
@@ -207,6 +216,7 @@ class OCPReportProcessorTest(MasuTestCase):
                 'reporting_ocpusagelineitem_daily_summary',
             ):
                 self.assertTrue(count >= counts[table_name])
+        self.assertFalse(os.path.exists(self.test_report))
 
     def test_process_default_small_batches(self):
         """Test the processing of an uncompressed file in small batches."""
@@ -258,6 +268,8 @@ class OCPReportProcessorTest(MasuTestCase):
             with schema_context(self.schema):
                 count = table.objects.count()
             counts[table_name] = count
+
+        shutil.copy2(self.test_report_path, self.test_report)
 
         processor = OCPReportProcessor(
             schema_name='acct10001',
@@ -598,6 +610,8 @@ class OCPReportProcessorTest(MasuTestCase):
             with schema_context(self.schema):
                 count = table.objects.count()
             counts[table_name] = count
+
+        shutil.copy2(self.storage_report_path, self.storage_report)
 
         processor = OCPReportProcessor(
             schema_name='acct10001',

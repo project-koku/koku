@@ -22,10 +22,10 @@ import datetime
 import gzip
 import json
 import logging
+import os
 import random
 import shutil
 import tempfile
-import psycopg2
 from unittest.mock import Mock, patch
 
 from dateutil.relativedelta import relativedelta
@@ -75,11 +75,8 @@ class AWSReportProcessorTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        cls.test_report = './koku/masu/test/data/test_cur.csv'
-        cls.test_report_gzip = './koku/masu/test/data/test_cur.csv.gz'
-
-        temp_dir = tempfile.mkdtemp()
-        shutil.copy2(cls.test_report, temp_dir)
+        cls.test_report_test_path = './koku/masu/test/data/test_cur.csv'
+        cls.test_report_gzip_test_path = './koku/masu/test/data/test_cur.csv.gz'
 
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
@@ -93,12 +90,19 @@ class AWSReportProcessorTest(MasuTestCase):
         _report_tables.pop('tags_summary', None)
         cls.report_tables = list(_report_tables.values())
         # Grab a single row of test data to work with
-        with open(cls.test_report, 'r') as f:
+        with open(cls.test_report_test_path, 'r') as f:
             reader = csv.DictReader(f)
             cls.row = next(reader)
 
     def setUp(self):
         super().setUp()
+
+        self.temp_dir = tempfile.mkdtemp()
+        self.test_report = f'{self.temp_dir}/test_cur.csv'
+        self.test_report_gzip = f'{self.temp_dir}/test_cur.csv.gz'
+
+        shutil.copy2(self.test_report_test_path, self.test_report)
+        shutil.copy2(self.test_report_gzip_test_path, self.test_report_gzip)
 
         self.processor = AWSReportProcessor(
             schema_name=self.schema,
@@ -126,6 +130,8 @@ class AWSReportProcessorTest(MasuTestCase):
     def tearDown(self):
         """Return the database to a pre-test state."""
         super().tearDown()
+
+        shutil.rmtree(self.temp_dir)
 
         self.processor.processed_report.remove_processed_rows()
         self.processor.line_item_columns = None
@@ -201,6 +207,8 @@ class AWSReportProcessorTest(MasuTestCase):
             else:
                 self.assertTrue(count > counts[table_name])
 
+        self.assertFalse(os.path.exists(self.test_report))
+
     def test_process_gzip(self):
         """Test the processing of a gzip compressed file."""
         counts = {}
@@ -233,7 +241,6 @@ class AWSReportProcessorTest(MasuTestCase):
                 self.assertTrue(count >= counts[table_name])
             else:
                 self.assertTrue(count > counts[table_name])
-            self.assertTrue(os.path.exists(downloader.download_path))
 
     def test_process_duplicates(self):
         """Test that row duplicates are not inserted into the DB."""
@@ -259,6 +266,8 @@ class AWSReportProcessorTest(MasuTestCase):
         # Wipe stale data
         with schema_context(self.schema):
             self.accessor._get_db_obj_query(AWS_CUR_TABLE_MAP['line_item']).delete()
+
+        shutil.copy2(self.test_report_test_path, self.test_report)
 
         processor = AWSReportProcessor(
             schema_name=self.schema,
@@ -444,6 +453,11 @@ class AWSReportProcessorTest(MasuTestCase):
         with schema_context(self.schema):
             bill = bill_table.objects.first()
 
+        with open(tmp_file, 'w') as f:
+            writer = csv.DictWriter(f, fieldnames=field_names)
+            writer.writeheader()
+            writer.writerows(data)
+
         processor = AWSReportProcessor(
             schema_name=self.schema,
             report_path=tmp_file,
@@ -454,6 +468,11 @@ class AWSReportProcessorTest(MasuTestCase):
         processor.process()
 
         finalized_datetime = bill.finalized_datetime
+
+        with open(tmp_file, 'w') as f:
+            writer = csv.DictWriter(f, fieldnames=field_names)
+            writer.writeheader()
+            writer.writerows(data)
 
         processor = AWSReportProcessor(
             schema_name=self.schema,

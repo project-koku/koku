@@ -3,7 +3,6 @@ import logging
 from collections import OrderedDict
 from datetime import datetime
 from numbers import Number
-
 from os import remove
 
 import pandas

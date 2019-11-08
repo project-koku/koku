@@ -16,9 +16,8 @@
 #
 
 """Test the AzureReportProcessor object."""
-import datetime
+import os
 import logging
-import json
 import copy
 import csv
 import tempfile
@@ -32,7 +31,6 @@ from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
@@ -47,7 +45,7 @@ class AzureReportProcessorTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        cls.test_report = './koku/masu/test/data/azure/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv'
+        cls.test_report_path = './koku/masu/test/data/azure/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv'
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
 
@@ -59,13 +57,18 @@ class AzureReportProcessorTest(MasuTestCase):
         _report_tables.pop('tags_summary', None)
         cls.report_tables = list(_report_tables.values())
         # Grab a single row of test data to work with
-        with open(cls.test_report, 'r', encoding='utf-8-sig') as f:
+        with open(cls.test_report_path, 'r', encoding='utf-8-sig') as f:
             reader = csv.DictReader(f)
             cls.row = next(reader)
 
     def setUp(self):
         """Set up each test."""
         super().setUp()
+        self.temp_dir = tempfile.mkdtemp()
+        self.test_report = f'{self.temp_dir}/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv'
+
+        shutil.copy2(self.test_report_path, self.test_report)
+
         self.assembly_id = '1234'
         self.processor = AzureReportProcessor(
             schema_name=self.schema,
@@ -89,6 +92,11 @@ class AzureReportProcessorTest(MasuTestCase):
         self.report_schema = self.accessor.report_schema
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
         self.manifest_accessor.commit()
+
+    def tearDown(self):
+        """Tear down test case."""
+        super().tearDown()
+        shutil.rmtree(self.temp_dir)
 
     def test_azure_initializer(self):
         """Test Azure initializer."""
@@ -129,6 +137,7 @@ class AzureReportProcessorTest(MasuTestCase):
             with schema_context(self.schema):
                 count = table.objects.count()
             self.assertTrue(count > counts[table_name])
+        self.assertFalse(os.path.exists(self.test_report))
 
     def test_process_azure_small_batches(self):
         """Test the processing of an uncompressed azure file in small batches."""
@@ -202,6 +211,8 @@ class AzureReportProcessorTest(MasuTestCase):
         # Wipe stale data
         with schema_context(self.schema):
             self.accessor._get_db_obj_query(AZURE_REPORT_TABLE_MAP['line_item']).delete()
+
+        shutil.copy2(self.test_report_path, self.test_report)
 
         processor = AzureReportProcessor(
             schema_name=self.schema,

@@ -271,4 +271,3 @@ class ReportProcessorBase():
         # Remove any old files that have failed processing.
         removed_files = []
         return removed_files
-
