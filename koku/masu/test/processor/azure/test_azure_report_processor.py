@@ -338,3 +338,15 @@ class AzureReportProcessorTest(MasuTestCase):
         )
 
         self.assertFalse(should_process)
+
+    def test_get_date_column_filter(self):
+        """Test that the Azure specific filter is returned."""
+        processor = AzureReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.azure_provider_uuid,
+        )
+        date_filter = processor.get_date_column_filter()
+
+        self.assertIn('usage_date_time__gte', date_filter)
