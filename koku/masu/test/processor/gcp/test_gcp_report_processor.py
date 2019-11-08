@@ -1,9 +1,11 @@
 """Test GCPReportProcessor."""
 import uuid
 from datetime import datetime
-
+import os
 import pytz
 import numpy as np
+import shutil
+import tempfile
 from dateutil import parser
 from faker import Faker
 from tenant_schemas.utils import schema_context
@@ -30,7 +32,7 @@ class GCPReportProcessorTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        cls.test_report = './koku/masu/test/data/gcp/evidence-2019-06-03.csv'
+        cls.test_report_path = './koku/masu/test/data/gcp/evidence-2019-06-03.csv'
 
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
@@ -41,6 +43,11 @@ class GCPReportProcessorTest(MasuTestCase):
     def setUp(self):
         """Set up GCP tests."""
         super().setUp()
+        self.temp_dir = tempfile.mkdtemp()
+        self.test_report = f'{self.temp_dir}/evidence-2019-06-03.csv'
+
+        shutil.copy2(self.test_report_path, self.test_report)
+
         gcp_auth = ProviderAuthentication.objects.create(
             credentials={"project-id": fake.word()}
         )
@@ -85,6 +92,11 @@ class GCPReportProcessorTest(MasuTestCase):
         )
         self.accessor = GCPReportDBAccessor(self.schema, self.column_map)
 
+    def tearDown(self):
+        """Tear down test case."""
+        super().tearDown()
+        shutil.rmtree(self.temp_dir)
+
     def test_gcp_process(self):
         """Test the processing of an GCP file writes objects to the database."""
         self.processor.process()
@@ -92,6 +104,7 @@ class GCPReportProcessorTest(MasuTestCase):
             self.assertTrue(len(GCPCostEntryLineItemDaily.objects.all()) > 0)
             self.assertTrue(len(GCPProject.objects.all()) > 0)
             self.assertEquals(1, len(GCPCostEntryBill.objects.all()))
+        self.assertFalse(os.path.exists(self.test_report))
 
     def test_create_gcp_cost_entry_bill(self):
         """Test calling _get_or_create_cost_entry_bill on an entry bill that doesn't exist creates it."""
@@ -177,6 +190,9 @@ class GCPReportProcessorTest(MasuTestCase):
 
         # Why another processor instance? because calling process() with the same processor instance fails
         # django.db.utils.InternalError: no such savepoint.
+
+        shutil.copy2(self.test_report_path, self.test_report)
+
         processor = GCPReportProcessor(
             schema_name=self.schema,
             report_path=self.test_report,

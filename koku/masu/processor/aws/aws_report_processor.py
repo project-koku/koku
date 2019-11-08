@@ -20,7 +20,7 @@
 import csv
 import json
 import logging
-from os import path
+from os import path, remove
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
@@ -169,6 +169,9 @@ class AWSReportProcessor(ReportProcessorBase):
 
         LOG.info('Completed report processing for file: %s and schema: %s',
                  self._report_name, self._schema_name)
+
+        LOG.info('Removing processed file: %s', self._report_path)
+        remove(self._report_path)
 
         return is_finalized_data
 
