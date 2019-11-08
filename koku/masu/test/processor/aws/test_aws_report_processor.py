@@ -176,11 +176,13 @@ class AWSReportProcessorTest(MasuTestCase):
             counts[table_name] = count
 
         bill_date = self.manifest.billing_period_start_datetime.date()
+
         expected = (
-            f'INFO:masu.processor.report_processor_base:Deleting data for:\n'
-            f' schema_name: acct10001\n'
-            f' provider_uuid: {self.aws_provider_uuid}\n'
-            f' bill date: {bill_date}'
+            f'INFO:masu.processor.report_processor_base:Processing bill starting on {bill_date}.\n'
+            f' Processing entire month.\n'
+            f' schema_name: {self.schema},\n'
+            f'provider_uuid: {self.aws_provider_uuid},\n'
+            f' manifest_id: {self.manifest.id}'
         )
         logging.disable(
             logging.NOTSET
