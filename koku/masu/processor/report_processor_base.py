@@ -234,6 +234,8 @@ class ReportProcessorBase():
             bill_date = manifest.billing_period_start_datetime.date()
             provider_uuid = manifest.provider_id
 
+        date_filter = self.get_date_column_filter()
+
         with db_accessor(self._schema_name, column_map) as accessor:
             bills = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
             bills = bills.filter(billing_period_start=bill_date).all()
@@ -242,7 +244,6 @@ class ReportProcessorBase():
                     line_item_query = accessor.get_lineitem_query_for_billid(bill.id)
                     delete_date = bill_date
                     if not is_finalized and not is_full_month:
-                        date_filter = self.get_date_column_filter()
                         delete_date = self.data_cutoff_date
                         # This means we are processing a mid-month update
                         # and only need to delete a small window of data
