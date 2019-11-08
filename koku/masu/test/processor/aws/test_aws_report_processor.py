@@ -16,13 +16,10 @@
 #
 
 """Test the AWSReportProcessor."""
-from collections import defaultdict
 import csv
 import copy
 import datetime
-from decimal import Decimal
 import gzip
-from itertools import islice
 import json
 import logging
 import random
@@ -39,14 +36,11 @@ from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
-from masu.test.database.helpers import ReportObjectCreator
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_processor import AWSReportProcessor, ProcessedReport
-import masu.util.common as common_util
 from masu.test import MasuTestCase
 
 
@@ -84,6 +78,8 @@ class AWSReportProcessorTest(MasuTestCase):
         cls.test_report = './koku/masu/test/data/test_cur.csv'
         cls.test_report_gzip = './koku/masu/test/data/test_cur.csv.gz'
 
+        temp_dir = tempfile.mkdtemp()
+        shutil.copy2(cls.test_report, temp_dir)
 
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
@@ -237,6 +233,7 @@ class AWSReportProcessorTest(MasuTestCase):
                 self.assertTrue(count >= counts[table_name])
             else:
                 self.assertTrue(count > counts[table_name])
+            self.assertTrue(os.path.exists(downloader.download_path))
 
     def test_process_duplicates(self):
         """Test that row duplicates are not inserted into the DB."""
@@ -868,55 +865,6 @@ class AWSReportProcessorTest(MasuTestCase):
         )
 
         self.assertEqual(product_id, expected_id)
-
-    def test_remove_temp_cur_files(self):
-        """Test to remove temporary cost usage files."""
-        cur_dir = tempfile.mkdtemp()
-
-        manifest_data = {"assemblyId": "6e019de5-a41d-4cdb-b9a0-99bfba9a9cb5"}
-        manifest = '{}/{}'.format(cur_dir, 'koku-Manifest.json')
-        with open(manifest, 'w') as outfile:
-            json.dump(manifest_data, outfile)
-
-        file_list = [
-            {
-                'file': '6e019de5-a41d-4cdb-b9a0-99bfba9a9cb5-koku-1.csv.gz',
-                'processed_date': datetime.datetime(year=2018, month=5, day=3),
-            },
-            {
-                'file': '6e019de5-a41d-4cdb-b9a0-99bfba9a9cb5-koku-2.csv.gz',
-                'processed_date': datetime.datetime(year=2018, month=5, day=3),
-            },
-            {
-                'file': '2aeb9169-2526-441c-9eca-d7ed015d52bd-koku-1.csv.gz',
-                'processed_date': datetime.datetime(year=2018, month=5, day=2),
-            },
-            {
-                'file': '6c8487e8-c590-4e6a-b2c2-91a2375c0bad-koku-1.csv.gz',
-                'processed_date': datetime.datetime(year=2018, month=5, day=1),
-            },
-            {
-                'file': '6c8487e8-c590-4e6a-b2c2-91a2375d0bed-koku-1.csv.gz',
-                'processed_date': None,
-            },
-        ]
-        expected_delete_list = []
-        for item in file_list:
-            path = '{}/{}'.format(cur_dir, item['file'])
-            f = open(path, 'w')
-            obj = self.manifest_accessor.get_manifest(self.assembly_id,
-                                                      self.aws_provider_uuid)
-            with ReportStatsDBAccessor(item['file'], obj.id) as stats:
-                stats.update(last_completed_datetime=item['processed_date'])
-            f.close()
-            if (
-                not item['file'].startswith(manifest_data.get('assemblyId'))
-            ):
-                expected_delete_list.append(path)
-
-        removed_files = self.processor.remove_temp_cur_files(cur_dir)
-        self.assertEqual(sorted(removed_files), sorted(expected_delete_list))
-        shutil.rmtree(cur_dir)
 
     def test_check_for_finalized_bill_bill_is_finalized(self):
         """Verify that a file with invoice_id is marked as finalzed."""

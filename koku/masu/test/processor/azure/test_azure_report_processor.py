@@ -287,54 +287,6 @@ class AzureReportProcessorTest(MasuTestCase):
 
         self.assertIsNotNone(self.processor.line_item_columns)
 
-    def test_azure_remove_temp_cur_files(self):
-        """Test to remove temporary cost usage files."""
-        cur_dir = tempfile.mkdtemp()
-
-        manifest_data = {"assemblyId": "31727a10-f4b4-43a2-80e5-bef1aaeabfc1"}
-        manifest = '{}/{}'.format(cur_dir, 'Manifest.json')
-        with open(manifest, 'w') as outfile:
-            json.dump(manifest_data, outfile)
-
-        file_list = [
-            {
-                'file': 'costreport_31727a10-f4b4-43a2-80e5-bef1aaeabfc1.csv',
-                'processed_date': datetime.datetime(year=2018, month=5, day=3),
-            },
-            {
-                'file': 'costreport_31727a10-f4b4-43a2-80e5-bef1aaeabfc1.csv',
-                'processed_date': datetime.datetime(year=2018, month=5, day=3),
-            },
-            {
-                'file': 'costreport_2aeb9169-2526-441c-9eca-d7ed015d52bd.csv',
-                'processed_date': datetime.datetime(year=2018, month=5, day=2),
-            },
-            {
-                'file': 'costreport_6c8487e8-c590-4e6a-b2c2-91a2375c0bad.csv',
-                'processed_date': datetime.datetime(year=2018, month=5, day=1),
-            },
-            {
-                'file': 'costreport_6c8487e8-c590-4e6a-b2c2-91a2375d0bed.csv',
-                'processed_date': None,
-            },
-        ]
-        expected_delete_list = []
-        for item in file_list:
-            path = '{}/{}'.format(cur_dir, item['file'])
-            f = open(path, 'w')
-            obj = self.manifest_accessor.get_manifest(self.assembly_id,
-                                                      self.azure_provider_uuid)
-            with ReportStatsDBAccessor(item['file'], obj.id) as stats:
-                stats.update(last_completed_datetime=item['processed_date'])
-            f.close()
-            if (
-                not manifest_data.get('assemblyId') in item['file']
-            ):
-                expected_delete_list.append(path)
-        removed_files = self.processor.remove_temp_cur_files(cur_dir)
-        self.assertEqual(sorted(removed_files), sorted(expected_delete_list))
-        shutil.rmtree(cur_dir)
-
     def test_should_process_row_within_cuttoff_date(self):
         """Test that we correctly determine a row should be processed."""
         today = self.date_accessor.today_with_timezone('UTC')

@@ -4,6 +4,8 @@ from collections import OrderedDict
 from datetime import datetime
 from numbers import Number
 
+from os import remove
+
 import pandas
 import pytz
 from dateutil import parser
@@ -248,3 +250,6 @@ class GCPReportProcessor(ReportProcessorBase):
 
             LOG.info('Completed report processing for file: %s and schema: %s',
                      self._report_name, self._schema_name)
+
+            LOG.info('Removing processed file: %s', self._report_path)
+            remove(self._report_path)

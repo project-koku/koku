@@ -125,6 +125,7 @@ class ReportProcessor:
             [String] - List of files that were removed.
 
         """
+        return
         try:
             return self._processor.remove_temp_cur_files(path)
         except Exception as err:

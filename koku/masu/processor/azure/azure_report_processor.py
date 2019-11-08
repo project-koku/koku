@@ -16,9 +16,11 @@
 #
 
 """Processor for Azure Cost Usage Reports."""
+
 import csv
 import logging
 from datetime import datetime
+from os import remove
 
 import pytz
 from dateutil import parser
@@ -324,6 +326,9 @@ class AzureReportProcessor(ReportProcessorBase):
 
                 LOG.info('Completed report processing for file: %s and schema: %s',
                          self._report_name, self._schema_name)
+            LOG.info('Removing processed file: %s', self._report_path)
+            remove(self._report_path)
+
             return True
 
     def _update_mappings(self):

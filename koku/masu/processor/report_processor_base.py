@@ -18,9 +18,7 @@
 import csv
 import gzip
 import io
-import json
 import logging
-from os import listdir
 
 import ciso8601
 from dateutil.relativedelta import relativedelta
@@ -31,7 +29,6 @@ from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.processor import ALLOWED_COMPRESSIONS
-from masu.util.common import clear_temp_directory
 
 LOG = logging.getLogger(__name__)
 
@@ -271,18 +268,7 @@ class ReportProcessorBase():
     @staticmethod
     def remove_temp_cur_files(report_path):
         """Remove temporary report files."""
-        LOG.info('Cleaning up temporary report files for %s', report_path)
-        current_assembly_id = None
-        files = listdir(report_path)
-        for file in files:
-            file_path = '{}/{}'.format(report_path, file)
-            if file.endswith('Manifest.json'):
-                with open(file_path, 'r') as manifest_file_handle:
-                    manifest_json = json.load(manifest_file_handle)
-                    current_assembly_id = manifest_json.get('assemblyId')
-
+        # Remove any old files that have failed processing.
         removed_files = []
-        if current_assembly_id:
-            removed_files = clear_temp_directory(report_path, current_assembly_id)
-
         return removed_files
+
