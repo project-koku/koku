@@ -57,21 +57,11 @@ OCP_PASSWORD=developer
 # see: https://access.redhat.com/terms-based-registry/#/accounts
 REGISTRY_REDHAT_IO_SECRETS=''
 
-if [ -z "${REGISTRY_REDHAT_IO_SECRETS}" ]; then
-    echo 'Please specify a secrets file for registry.redhat.io'
-    exit 1
-fi
-
 # location of application secrets
 KOKU_SECRETS=$(dirname $0)/e2e-secrets.yml
 
 # location of e2e repo clone
 E2E_REPO=''
-
-if [ -z "${E2E_REPO}" ]; then
-    echo 'Please specify the location of the e2e-deploy repo'
-    exit 1
-fi
 
 # location of application environment vars
 DEPLOY_ENV=${E2E_REPO}/env/smoke.yml
@@ -88,7 +78,19 @@ IQE=$(which iqe)
 
 ########## END CONFIGURATION ##########
 ########## You shouldn't need to edit below here. ##########
+
 pushd ${E2E_REPO}
+
+### validation
+if [ -z "${REGISTRY_REDHAT_IO_SECRETS}" ]; then
+    echo 'Please specify a secrets file for registry.redhat.io'
+    exit 1
+fi
+
+if [ -z "${E2E_REPO}" ]; then
+    echo 'Please specify the location of the e2e-deploy repo'
+    exit 1
+fi
 
 for cmd in "${OC}" "${OCDEPLOYER}" "${IQE}"; do
     if [ -z ${cmd} ]; then
