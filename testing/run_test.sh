@@ -29,7 +29,6 @@ main() {
                            -v $SCRIPTPATH/local_providers/aws_local_2:/tmp/local_bucket_2 \
                            -v $SCRIPTPATH/local_providers/aws_local_3:/tmp/local_bucket_3 \
                            -v $SCRIPTPATH/local_providers/aws_local_4:/tmp/local_bucket_4 \
-                           -v $SCRIPTPATH/local_providers/aws_local_5:/tmp/local_bucket_5 \
                            -v $SCRIPTPATH/local_providers/azure_local:/tmp/local_container \
                            -v $SCRIPTPATH/pvc_dir/insights_local:/var/tmp/masu/insights_local \
                            $IMAGE \
