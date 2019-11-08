@@ -126,6 +126,10 @@ class OCPReportProcessor():
         """Process report file."""
         return self._processor.process()
 
+    def remove_temp_cur_files(self, report_path):
+        """Process temporary files."""
+        return self._processor.remove_temp_cur_files(report_path)
+
 
 class OCPReportProcessorBase(ReportProcessorBase):
     """Base class for OCP report processing."""
