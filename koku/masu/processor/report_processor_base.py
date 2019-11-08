@@ -26,6 +26,7 @@ import ciso8601
 from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
 
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED
@@ -233,14 +234,6 @@ class ReportProcessorBase():
             bill_date = manifest.billing_period_start_datetime.date()
             provider_uuid = manifest.provider_id
 
-        stmt = (
-            f'Deleting data for:\n'
-            f' schema_name: {self._schema_name}\n'
-            f' provider_uuid: {provider_uuid}\n'
-            f' bill date: {str(bill_date)}'
-        )
-        LOG.info(stmt)
-
         with db_accessor(self._schema_name, column_map) as accessor:
             bills = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
             bills = bills.filter(billing_period_start=bill_date).all()
@@ -249,12 +242,11 @@ class ReportProcessorBase():
                     line_item_query = accessor.get_lineitem_query_for_billid(bill.id)
                     delete_date = bill_date
                     if not is_finalized and not is_full_month:
+                        date_filter = self.get_date_column_filter()
                         delete_date = self.data_cutoff_date
                         # This means we are processing a mid-month update
                         # and only need to delete a small window of data
-                        line_item_query = line_item_query.filter(
-                            usage_start__gte=self.data_cutoff_date
-                        )
+                        line_item_query = line_item_query.filter(**date_filter)
                     log_statement = (
                         f'Deleting data for:\n'
                         f' schema_name: {self._schema_name}\n'
@@ -267,6 +259,15 @@ class ReportProcessorBase():
                     line_item_query.delete()
 
         return True
+
+    def get_date_column_filter(self):
+        """Return a filter using the provider-appropriate column."""
+        with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
+            type = provider_accessor.get_type().lower()
+        if type == 'azure':
+            return {'usage_date_time__gte': self.data_cutoff_date}
+        else:
+            return {'usage_start__gte': self.data_cutoff_date}
 
     @staticmethod
     def remove_temp_cur_files(report_path):

@@ -1285,3 +1285,16 @@ class AWSReportProcessorTest(MasuTestCase):
         )
 
         self.assertTrue(should_process)
+
+    def test_get_date_column_filter(self):
+        """Test that the Azure specific filter is returned."""
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=self.manifest.id,
+        )
+        date_filter = processor.get_date_column_filter()
+
+        self.assertIn('usage_start__gte', date_filter)
