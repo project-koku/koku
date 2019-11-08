@@ -394,9 +394,10 @@ class OCPAzureProviderMap(ProviderMap):
                             'cost_units': Coalesce(Max('currency'), Value('USD')),
                             'count': Count('resource_id', distinct=True),
                             'usage': Sum(F('usage_quantity')),
+                            # FIXME: Waiting on MSFT for usage_units default
                             'usage_units': Coalesce(
                                 Max('unit_of_measure'),
-                                Value('Storage Type Placeholder'),
+                                Value('Instance Type Placeholder'),
                             ),
                         },
                         'aggregate_key': 'usage_quantity',
@@ -480,9 +481,10 @@ class OCPAzureProviderMap(ProviderMap):
                             'cost_units': Coalesce(Max('currency'), Value('USD')),
                             'count': Count('resource_id', distinct=True),
                             'usage': Sum('usage_quantity'),
+                            # FIXME: Waiting on MSFT for usage_units default
                             'usage_units': Coalesce(
                                 Max('unit_of_measure'),
-                                Value('Storage Type Placeholder'),
+                                Value('Instance Type Placeholder'),
                             ),
                         },
                         'aggregate_key': 'usage_quantity',

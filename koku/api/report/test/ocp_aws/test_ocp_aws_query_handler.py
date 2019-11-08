@@ -114,7 +114,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertEqual(total.get('total'), current_totals.get('total'))
+        self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
 
     def test_execute_query_current_month_daily(self):
         """Test execute_query for current month on daily breakdown."""
@@ -131,7 +131,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         current_totals = self.get_totals_by_time_scope(
             aggregates, self.this_month_filter
         )
-        self.assertEqual(total.get('cost', {}).get('value'), current_totals.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
 
     def test_execute_query_current_month_monthly(self):
         """Test execute_query for current month on monthly breakdown."""
@@ -148,7 +148,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         current_totals = self.get_totals_by_time_scope(
             aggregates, self.this_month_filter
         )
-        self.assertEqual(total.get('cost', {}).get('value'), current_totals.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
@@ -166,7 +166,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         current_totals = self.get_totals_by_time_scope(
             aggregates, self.this_month_filter
         )
-        self.assertEqual(total.get('cost', {}).get('value'), current_totals.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -195,7 +195,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         current_totals = self.get_totals_by_time_scope(
             aggregates, self.this_month_filter
         )
-        self.assertEqual(total.get('cost', {}).get('value'), current_totals.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -224,7 +224,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         current_totals = self.get_totals_by_time_scope(
             aggregates, self.this_month_filter
         )
-        self.assertEqual(total.get('cost', {}).get('value'), current_totals.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -253,12 +253,12 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         current_totals = self.get_totals_by_time_scope(
             aggregates, self.this_month_filter
         )
-        self.assertEqual(total.get('cost', {}).get('value'), current_totals.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
-            month_val = data_item.get('date')
-            month_data = data_item.get('accounts')
+            month_val = data_item.get('date', 'not-a-date')
+            month_data = data_item.get('accounts', 'not-a-list')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
             for month_item in month_data:
@@ -280,12 +280,12 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         current_totals = self.get_totals_by_time_scope(
             aggregates, self.this_month_filter
         )
-        self.assertEqual(total.get('cost', {}).get('value'), current_totals.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
-            month_val = data_item.get('date')
-            month_data = data_item.get('accounts')
+            month_val = data_item.get('date', 'not-a-date')
+            month_data = data_item.get('accounts', 'not-a-string')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
             for month_item in month_data:

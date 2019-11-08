@@ -62,45 +62,6 @@ class OCPAzureCostView(OCPAzureView):
     report = 'costs'
 
 
-class OCPAzureStorageView(OCPAzureView):
-    """Get OpenShift on Azure storage usage data.
-
-    @api {get} /cost-management/v1/reports/openshift/infrastructures/azure/storage/ Get OpenShift on Azure storage usage.  # noqa: E501
-    @apiName getOpenShiftAzureStorageData
-    @apiGroup OpenShift Report
-    @apiVersion 1.0.0
-    @apiDescription Get OpenShift on Azure storage usage data.
-
-    @apiHeader {String} token User authorization token.
-
-    @apiParam (Query Param) {Object} filter The filter to apply to the report.
-    @apiParam (Query Param) {Object} group_by The grouping to apply to the report.
-    @apiParam (Query Param) {Object} order_by The ordering to apply to the report.
-    @apiParamExample {json} Query Param:
-        ?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[project]=*
-
-    @apiSuccess {Object} group_by  The grouping to applied to the report.
-    @apiSuccess {Object} filter  The filter to applied to the report.
-    @apiSuccess {Object} data  The report data.
-    @apiSuccess {Object} total Aggregates statistics for the report range.
-    @apiSuccessExample {json} Success-Response:
-        HTTP 200 OK
-        Allow: GET, OPTIONS
-        Content-Type: application/json
-        Vary: Accept
-
-        {
-        }
-    @apiSuccessExample {text} Success-Response:
-        HTTP/1.1 200 OK
-        cost,date,project,total,units
-        11.674377,2019-01,namespace_ci,24.0,GB-Mo
-
-    """
-
-    report = 'storage'
-
-
 class OCPAzureInstanceTypeView(OCPAzureView):
     """Get OpenShift on Azure instance usage data.
 
@@ -139,3 +100,42 @@ class OCPAzureInstanceTypeView(OCPAzureView):
     """
 
     report = 'instance_type'
+
+
+class OCPAzureStorageView(OCPAzureView):
+    """Get OpenShift on Azure storage usage data.
+
+    @api {get} /cost-management/v1/reports/openshift/infrastructures/azure/storage/ Get OpenShift on Azure storage usage.  # noqa: E501
+    @apiName getOpenShiftAzureStorageData
+    @apiGroup OpenShift Report
+    @apiVersion 1.0.0
+    @apiDescription Get OpenShift on Azure storage usage data.
+
+    @apiHeader {String} token User authorization token.
+
+    @apiParam (Query Param) {Object} filter The filter to apply to the report.
+    @apiParam (Query Param) {Object} group_by The grouping to apply to the report.
+    @apiParam (Query Param) {Object} order_by The ordering to apply to the report.
+    @apiParamExample {json} Query Param:
+        ?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[project]=*
+
+    @apiSuccess {Object} group_by  The grouping to applied to the report.
+    @apiSuccess {Object} filter  The filter to applied to the report.
+    @apiSuccess {Object} data  The report data.
+    @apiSuccess {Object} total Aggregates statistics for the report range.
+    @apiSuccessExample {json} Success-Response:
+        HTTP 200 OK
+        Allow: GET, OPTIONS
+        Content-Type: application/json
+        Vary: Accept
+
+        {
+        }
+    @apiSuccessExample {text} Success-Response:
+        HTTP/1.1 200 OK
+        cost,date,project,total,units
+        11.674377,2019-01,namespace_ci,24.0,GB-Mo
+
+    """
+
+    report = 'storage'
