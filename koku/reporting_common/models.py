@@ -40,6 +40,7 @@ class CostUsageReportManifest(models.Model):
     num_processed_files = models.IntegerField(default=0)
     num_total_files = models.IntegerField()
     provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE)
+    task = models.UUIDField(null=True)
 
 
 class CostUsageReportStatus(models.Model):

@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "a600ff8939de3548d87c94d69b1ad1fa93a4826f74b3a4494b8834f44a84a80f"
+            "sha256": "3697412afd5076e8fc9cc53f9bca1602ad2ecf2918c911e58b703bbcb1197043"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -210,6 +210,13 @@
                 "sha256:fc323ffcaeaed0e0a02bf4d117757b98aed530d9ed4531e3e15460124c106691"
             ],
             "version": "==3.0.4"
+        },
+        "ciso8601": {
+            "hashes": [
+                "sha256:307342e8bb362ae41a3f3a089c11b374116823bce6fbe5d784e2a2dc37f2c753"
+            ],
+            "index": "pypi",
+            "version": "==2.1.2"
         },
         "cryptography": {
             "hashes": [
