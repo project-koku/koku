@@ -18,6 +18,8 @@
 
 import logging
 
+from rest_framework.serializers import ValidationError
+
 from api.provider.models import Provider
 from providers.aws.provider import AWSProvider
 from providers.aws_local.provider import AWSLocalProvider
@@ -101,6 +103,40 @@ class ProviderAccessor:
 
         """
         return self.service.cost_usage_source_is_reachable(credential, source_name)
+
+    def availability_status(self, credential, source_name):
+        """
+        Return the availability status for a provider.
+
+        Connectivity and account validation checks are performed to
+        ensure that Koku can access a cost usage report from the provider.
+
+        This method will return the detailed error message in the event that
+        the provider fails the service provider checks.
+
+        Args:
+            credential (Object): Provider Authorization Credentials
+                                 example: AWS - RoleARN
+                                          arn:aws:iam::589175555555:role/CostManagement
+            source_name (List): Identifier of the cost usage report source
+                                example: AWS - S3 Bucket
+
+        Returns:
+            status (Dict): {'availability_status': 'unavailable/available',
+                            'availability_status_error': ValidationError-detail}
+
+        """
+        error_msg = ''
+        try:
+            self.cost_usage_source_ready(credential, source_name)
+        except ValidationError as validation_error:
+            for error_key in validation_error.detail.keys():
+                error_msg = str(validation_error.detail.get(error_key)[0])
+        if error_msg:
+            status = 'unavailable'
+        else:
+            status = 'available'
+        return {'availability_status': status, 'availability_status_error': str(error_msg)}
 
     def infrastructure_type(self, provider_uuid, schema_name):
         """
