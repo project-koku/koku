@@ -128,7 +128,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         if ocp_etag != stored_etag or not os.path.isfile(full_file_path):
             LOG.info('Downloading %s to %s', key, full_file_path)
-            shutil.copy2(key, full_file_path)
+            shutil.move(key, full_file_path)
             shutil.copy2(source_manifest_path, full_manfiest_path)
         return full_file_path, ocp_etag
 
