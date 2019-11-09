@@ -23,7 +23,6 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from faker import Faker
 from rest_framework import status
-from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
 from api.provider.models import Sources
@@ -36,33 +35,16 @@ faker = Faker()
 class SourcesStatusTest(TestCase):
     """Source Status Test Class."""
 
-    def test_http_endpoint_200_OK(self):
+    def test_http_endpoint_source_not_found(self):
         """
-        Test source-status endpoint returns a 200 OK.
+        Test sources status returns 404 when source isn't found.
 
-        When we pass in a ?source_id=<integer> parameter, the endpoint should return 200 OK.
-        """
-        # 200 OK page for sources-list
-
-        url = reverse('source-status')
-        client = APIClient()
-        response = client.get(url + '?source_id=1')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_http_endpoint_returns_false_(self):
-        """
-        Test sources status returns False.
-
-        When there's no provider or source, the endpoint should return False
+        When there's no provider or source, the endpoint should return 404.
         """
         url = reverse('source-status')
         client = APIClient()
         response = client.get(url + '?source_id=1')
-        actualStatus = response.data
-        expectedStatus = False
-        self.assertEqual(actualStatus, expectedStatus)
-
-        self.assertEqual(actualStatus, expectedStatus)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_mock_response_returns_false(self):
         """
@@ -97,8 +79,9 @@ class SourcesStatusTest(TestCase):
         self.assertEqual(mock_response.status, expected_HTTP_code)
 
     def test_success(self):
-        """Test that the API returns True when cost_usage_source_ready doesn't throw an exception."""
-        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+        """Test that the API returns status when a source is configured correctly."""
+        mock_status = {'availability_status': 'available', 'availability_status_error': ''}
+        with patch.object(ProviderAccessor, 'availability_status', return_value=mock_status):
             url = reverse('source-status')
             client = APIClient()
             # Insert a source with ID 1
@@ -107,13 +90,12 @@ class SourcesStatusTest(TestCase):
                 name='New AWS Mock Test Source',
                 source_type='AWS',
                 authentication={},
-                billing_source={'bucket': ''},
+                billing_source={'bucket': 'my-bucket'},
                 koku_uuid='',
                 offset=1)
             response = client.get(url + '?source_id=1')
             actual_source_status = response.data
-            expected_source_status = True
-            self.assertEquals(expected_source_status, actual_source_status)
+            self.assertEquals(mock_status, actual_source_status)
 
     def test_missing_query_parameter(self):
         """
@@ -141,13 +123,14 @@ class SourcesStatusTest(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data, 'source_id must be an integer')
 
-    def test_validation_error_causes_false(self):
+    def test_validation_error_causes_unavailable_status(self):
         """
-        Test when a ValidationError occurs in ProviderAccessor.cost_usage_source_ready().
+        Test when an unavailable status is returned by ProviderAccessor.availability_status().
 
-        The API should return data=False.
+        The API should return the appropriate status response.
         """
-        with patch.object(ProviderAccessor, 'cost_usage_source_ready', side_effect=ValidationError):
+        mock_status = {'availability_status': 'unavailable', 'availability_status_error': 'error msg'}
+        with patch.object(ProviderAccessor, 'availability_status', return_value=mock_status):
             url = reverse('source-status')
             client = APIClient()
             # Insert a source with ID 1
@@ -161,17 +144,17 @@ class SourcesStatusTest(TestCase):
                 offset=1)
             response = client.get(url + '?source_id=1')
             actual_source_status = response.data
-            expected_source_status = False
-            self.assertEquals(expected_source_status, actual_source_status)
+            self.assertEquals(mock_status, actual_source_status)
 
     def test_billing_source_data_source(self):
         """
         Test when billing_source contains 'data_source' instead of 'bucket'.
 
-        Test when a ValidationError occurs in ProviderAccessor.cost_usage_source_ready().
+        Test when a ValidationError occurs in ProviderAccessor.availability_status().
         The API should return data=True.
         """
-        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+        mock_status = {'availability_status': 'available', 'availability_status_error': ''}
+        with patch.object(ProviderAccessor, 'availability_status', return_value=mock_status):
             url = reverse('source-status')
             client = APIClient()
             # Insert a source with ID 1
@@ -185,12 +168,12 @@ class SourcesStatusTest(TestCase):
                 offset=1)
             response = client.get(url + '?source_id=1')
             actual_source_status = response.data
-            expected_source_status = True
-            self.assertEquals(expected_source_status, actual_source_status)
+            self.assertEquals(mock_status, actual_source_status)
 
     def test_authentication_resource_name(self):
         """Test when the authentication is named 'resource_name' instead of 'credentials'."""
-        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+        mock_status = {'availability_status': 'available', 'availability_status_error': ''}
+        with patch.object(ProviderAccessor, 'availability_status', return_value=mock_status):
             url = reverse('source-status')
             client = APIClient()
             # Insert a source with ID 1
@@ -204,5 +187,4 @@ class SourcesStatusTest(TestCase):
                 offset=1)
             response = client.get(url + '?source_id=1')
             actual_source_status = response.data
-            expected_source_status = True
-            self.assertEquals(expected_source_status, actual_source_status)
+            self.assertEquals(mock_status, actual_source_status)
