@@ -26,6 +26,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.test import create_generic_provider
+from api.query_filter import QueryFilter
 from api.report.azure.openshift.query_handler import OCPAzureReportQueryHandler
 from api.report.azure.openshift.view import (
     OCPAzureCostView,
@@ -371,49 +372,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                 self.assertLess(current, data_point)
                 current = data_point
 
-
-    def test_execute_query_curr_month_by_subscription_guid_w_order_by_subscription_guid(
-        self
-    ):
-        """Test execute_query for current month on monthly breakdown by subscription_guid with asc order."""
-        self.generator.add_data_to_tenant()
-        OCPAzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
-
-        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[subscription_guid]=asc&group_by[subscription_guid]=*'  # noqa: E501
-        query_params = self.mocked_query_params(url, OCPAzureCostView)
-        handler = OCPAzureReportQueryHandler(query_params)
-        query_output = handler.execute_query()
-        data = query_output.get('data')
-        self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get('total'))
-        total = query_output.get('total')
-        aggregates = handler._mapper.report_type_map.get('aggregates')
-        current_totals = self.get_totals_by_time_scope(
-            aggregates, self.this_month_filter
-        )
-        self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), current_totals.get('cost'))
-
-        cmonth_str = self.dh.this_month_start.strftime('%Y-%m')
-        for data_item in data:
-            month_val = data_item.get('date')
-            month_data = data_item.get('subscription_guids')
-            self.assertEqual(month_val, cmonth_str)
-            self.assertIsInstance(month_data, list)
-            self.assertEqual(len(month_data), 2)
-            current = '0'
-            for month_item in month_data:
-                self.assertIsInstance(month_item.get('subscription_guid'), str)
-                self.assertIsInstance(month_item.get('values'), list)
-                self.assertIsNotNone(
-                    month_item.get('values')[0].get('subscription_guid')
-                )
-                data_point = month_item.get('values')[0].get('subscription_guid')
-                if data_point == '1 Other':
-                    continue
-                self.assertLess(current, data_point)
-                current = data_point
-
     def test_execute_query_curr_month_by_filtered_resource_location(self):
         """Test execute_query for current month on monthly breakdown by filtered resource_location."""
         self.generator.add_data_to_tenant()
@@ -596,7 +554,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         for data_item in data:
             month = data_item.get('date')
             self.assertEqual(month, cmonth_str)
-
 
     def test_execute_query_w_delta(self):
         """Test grouped by deltas."""
