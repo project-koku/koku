@@ -504,18 +504,19 @@ class OCPUsageLineItemDailySummary(models.Model):
     )
 
     # Cost columns moved in from the CostSummary table
-
+    # Need more precision on calculated fields, otherwise there will be
+    # Rounding errors
     infra_cost = models.DecimalField(
-        max_digits=27,
-        decimal_places=9,
+        max_digits=33,
+        decimal_places=15,
         null=True
     )
 
     # This field is used in place of infrastructure_cost when
     # grouping by project
     project_infra_cost = models.DecimalField(
-        max_digits=27,
-        decimal_places=9,
+        max_digits=33,
+        decimal_places=15,
         null=True
     )
 
