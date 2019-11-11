@@ -21,7 +21,6 @@ from rest_framework import status
 from rest_framework.decorators import (api_view,
                                        permission_classes,
                                        renderer_classes)
-from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
@@ -36,16 +35,15 @@ from providers.provider_access import ProviderAccessor
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def source_status(request):
     """
-    Source Status view.
+    Source availability status endpoint for Platform Sources to get cost management source status.
 
-    This view assumes that a provider and source already exist.
+    Parameter:
+        source_id corresponds to the table api_sources
 
-    Boolean Response of whether or not the Source is properly configured.
+    Returns:
+        status (Dict): {'availability_status': 'unavailable/available',
+                        'availability_status_error': ValidationError-detail}
 
-    The parameter source_id corresponds to the Table api_sources
-
-    The Response boolean is True if cost_usage_source_ready does not throw an Exception.
-    The Response boolean is False if cost_usage_source_ready throws a ValidationError.
     """
     source_id = request.query_params.get('source_id', None)
     if source_id is None:
@@ -58,8 +56,8 @@ def source_status(request):
     try:
         source = Sources.objects.get(source_id=source_id)
     except ObjectDoesNotExist:
-        # If the source isn't in our database, return False.
-        return Response(data=False, status=status.HTTP_200_OK)
+        # Source isn't in our database, return 404.
+        return Response(status=status.HTTP_404_NOT_FOUND)
     # Get the source billing_source, whether it's named bucket
     if source.billing_source.get('bucket'):
         source_billing_source = source.billing_source.get('bucket')
@@ -77,10 +75,6 @@ def source_status(request):
     provider = source.source_type
 
     interface = ProviderAccessor(provider)
-    source_ready = False
-    try:
-        source_ready = interface.cost_usage_source_ready(source_authentication, source_billing_source)
-        source_ready = True
-    except ValidationError:
-        source_ready = False
-    return Response(data=source_ready, status=status.HTTP_200_OK)
+
+    availability_status = interface.availability_status(source_authentication, source_billing_source)
+    return Response(availability_status, status=status.HTTP_200_OK)

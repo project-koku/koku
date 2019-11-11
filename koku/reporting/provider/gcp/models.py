@@ -48,7 +48,7 @@ class GCPCostEntryLineItemDaily(models.Model):
     measurement_type = models.CharField(max_length=512)
     consumption = models.BigIntegerField()
     unit = models.CharField(max_length=63, null=True, blank=True)
-    cost = models.DecimalField(max_digits=17, decimal_places=9,
+    cost = models.DecimalField(max_digits=24, decimal_places=9,
                                null=True, blank=True)
     currency = models.CharField(max_length=10)
     description = models.CharField(max_length=256, null=True, blank=True)
