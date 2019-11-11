@@ -65,17 +65,19 @@ class CostSummary(models.Model):
         null=True
     )
 
+    # Need more precision on calculated fields, otherwise there will be
+    # Rounding errors
     infra_cost = models.DecimalField(
-        max_digits=24,
-        decimal_places=9,
+        max_digits=30,
+        decimal_places=15,
         null=True
     )
 
     # This field is used in place of infrastructure_cost when
     # grouping by project
     project_infra_cost = models.DecimalField(
-        max_digits=24,
-        decimal_places=9,
+        max_digits=30,
+        decimal_places=15,
         null=True
     )
 
