@@ -592,10 +592,10 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         mock_markup.return_value = markup
         mock_rate_map.return_value = rate_metric_map
 
-        cpu_usage_rate_value = float(cpu_rate_usage.get('tiered_rates')[0].get('value'))
-        cpu_request_rate_value = float(cpu_rate_request.get('tiered_rates')[0].get('value'))
-        mem_usage_rate_value = float(mem_rate_usage.get('tiered_rates')[0].get('value'))
-        mem_request_rate_value = float(mem_rate_request.get('tiered_rates')[0].get('value'))
+        cpu_usage_rate_value = Decimal(cpu_rate_usage.get('tiered_rates')[0].get('value'))
+        cpu_request_rate_value = Decimal(cpu_rate_request.get('tiered_rates')[0].get('value'))
+        mem_usage_rate_value = Decimal(mem_rate_usage.get('tiered_rates')[0].get('value'))
+        mem_request_rate_value = Decimal(mem_rate_request.get('tiered_rates')[0].get('value'))
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -610,15 +610,15 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         with schema_context(self.schema):
             items = self.accessor._get_db_obj_query(table_name).all()
             for item in items:
-                mem_usage_value = float(item.pod_usage_memory_gigabyte_hours)
-                mem_request_value = float(item.pod_request_memory_gigabyte_hours)
+                mem_usage_value = item.pod_usage_memory_gigabyte_hours
+                mem_request_value = item.pod_request_memory_gigabyte_hours
                 mem_charge = (mem_usage_value * mem_usage_rate_value) + (mem_request_value * mem_request_rate_value)
-                self.assertAlmostEqual(float(mem_charge), float(item.pod_charge_memory_gigabyte_hours), places=6)
+                self.assertAlmostEqual(mem_charge, item.pod_charge_memory_gigabyte_hours, places=6)
 
-                cpu_usage_value = float(item.pod_usage_cpu_core_hours) if item.pod_usage_cpu_core_hours else float(0.0)
-                cpu_request_value = float(item.pod_request_cpu_core_hours)
+                cpu_usage_value = item.pod_usage_cpu_core_hours if item.pod_usage_cpu_core_hours else Decimal('0.0')
+                cpu_request_value = item.pod_request_cpu_core_hours
                 cpu_charge = (cpu_usage_value * cpu_usage_rate_value) + (cpu_request_value * cpu_request_rate_value)
-                self.assertAlmostEqual(float(cpu_charge), float(item.pod_charge_cpu_core_hours), places=6)
+                self.assertAlmostEqual(cpu_charge, item.pod_charge_cpu_core_hours, places=6)
 
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
@@ -633,7 +633,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         mock_markup.return_value = markup
         mock_rate_map.return_value = rate_metric_map
 
-        cpu_rate_value = float(cpu_rate.get('tiered_rates')[0].get('value'))
+        cpu_rate_value = Decimal(cpu_rate.get('tiered_rates')[0].get('value'))
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -648,9 +648,9 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         with schema_context(self.schema):
             items = self.accessor._get_db_obj_query(table_name).all()
             for item in items:
-                cpu_usage_value = float(item.pod_usage_cpu_core_hours) if item.pod_usage_cpu_core_hours else float(0.0)
-                self.assertAlmostEqual(0.0, float(item.pod_charge_memory_gigabyte_hours), places=6)
-                self.assertAlmostEqual(float(cpu_usage_value*cpu_rate_value), float(item.pod_charge_cpu_core_hours), places=6)
+                cpu_usage_value = item.pod_usage_cpu_core_hours if item.pod_usage_cpu_core_hours else Decimal(0.0)
+                self.assertAlmostEqual(0.0, item.pod_charge_memory_gigabyte_hours)
+                self.assertAlmostEqual(cpu_usage_value*cpu_rate_value, item.pod_charge_cpu_core_hours, places=6)
 
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
@@ -664,7 +664,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         mock_markup.return_value = markup
         mock_rate_map.return_value = rate_metric_map
 
-        mem_rate_value = float(mem_rate.get('tiered_rates')[0].get('value'))
+        mem_rate_value = Decimal(mem_rate.get('tiered_rates')[0].get('value'))
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -679,9 +679,9 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         with schema_context(self.schema):
             items = self.accessor._get_db_obj_query(table_name).all()
             for item in items:
-                mem_usage_value = float(item.pod_usage_memory_gigabyte_hours)
-                self.assertAlmostEqual(float(mem_usage_value*mem_rate_value), float(item.pod_charge_memory_gigabyte_hours), places=6)
-                self.assertAlmostEqual(0.0, float(item.pod_charge_cpu_core_hours), places=6)
+                mem_usage_value = Decimal(item.pod_usage_memory_gigabyte_hours)
+                self.assertAlmostEqual(mem_usage_value*mem_rate_value, Decimal(item.pod_charge_memory_gigabyte_hours), places=6)
+                self.assertAlmostEqual(0.0, Decimal(item.pod_charge_cpu_core_hours), places=6)
 
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
@@ -696,8 +696,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         mock_markup.return_value = markup
         mock_rate_map.return_value = rate_metric_map
 
-        usage_rate_value = float(usage_rate.get('tiered_rates')[0].get('value'))
-        request_rate_value = float(request_rate.get('tiered_rates')[0].get('value'))
+        usage_rate_value = Decimal(usage_rate.get('tiered_rates')[0].get('value'))
+        request_rate_value = Decimal(request_rate.get('tiered_rates')[0].get('value'))
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -714,10 +714,10 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         with schema_context(self.schema):
             items = self.accessor._get_db_obj_query(table_name).filter(data_source='Storage').all()
             for item in items:
-                storage_charge = float(item.persistentvolumeclaim_charge_gb_month)
-                expected_usage_charge = usage_rate_value * float(item.persistentvolumeclaim_usage_gigabyte_months)
-                expected_request_charge = request_rate_value * float(item.volume_request_storage_gigabyte_months)
-                self.assertAlmostEqual(float(storage_charge), float(expected_usage_charge + expected_request_charge), places=6)
+                storage_charge = Decimal(item.persistentvolumeclaim_charge_gb_month)
+                expected_usage_charge = usage_rate_value * Decimal(item.persistentvolumeclaim_usage_gigabyte_months)
+                expected_request_charge = request_rate_value * Decimal(item.volume_request_storage_gigabyte_months)
+                self.assertAlmostEqual(storage_charge, expected_usage_charge + expected_request_charge, places=6)
 
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
@@ -730,8 +730,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         mock_markup.return_value = markup
         mock_rate_map.return_value = rate_metric_map
 
-        mem_rate_value = float(mem_rate.get('tiered_rates')[0].get('value'))
-        markup_percentage = float(markup.get('value')) / 100
+        mem_rate_value = Decimal(mem_rate.get('tiered_rates')[0].get('value'))
+        markup_percentage = Decimal(markup.get('value')) / 100
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -746,8 +746,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         with schema_context(self.schema):
             items = self.accessor._get_db_obj_query(table_name).all()
             for item in items:
-                markup_value = float(item.markup)
-                self.assertAlmostEqual(float(markup_value), float(mem_rate_value * markup_percentage), places=6)
+                markup_value = Decimal(item.markup)
+                self.assertAlmostEqual(markup_value, mem_rate_value * markup_percentage, places=6)
 
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
@@ -760,8 +760,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         mock_markup.return_value = markup
         mock_rate_map.return_value = rate_metric_map
 
-        mem_rate_value = float(mem_rate.get('tiered_rates')[0].get('value'))
-        markup_percentage = float(markup.get('value')) / 100
+        mem_rate_value = Decimal(mem_rate.get('tiered_rates')[0].get('value'))
+        markup_percentage = Decimal(markup.get('value')) / 100
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -780,8 +780,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         with schema_context(self.schema):
             items = self.accessor._get_db_obj_query(table_name).all()
             for item in items:
-                markup_value = float(item.markup)
-                self.assertAlmostEqual(float(markup_value), float(mem_rate_value * markup_percentage), places=6)
+                markup_value = Decimal(item.markup)
+                self.assertAlmostEqual(markup_value, mem_rate_value * markup_percentage, places=6)
 
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
@@ -914,7 +914,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                                 'tiered_rates': [{'value': 2.5, 'unit': 'USD'}]}]
         self.creator.create_cost_model(other_provider_uuid, 'OCP', other_cpu_usage_rate)
 
-        cpu_rate_value = float(cpu_usage_rate[0].get('tiered_rates')[0].get('value'))
+        cpu_rate_value = Decimal(cpu_usage_rate[0].get('tiered_rates')[0].get('value'))
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -931,6 +931,9 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         items = self.accessor._get_db_obj_query(table_name).all()
         with schema_context(self.schema):
             for item in items:
-                cpu_usage_value = float(item.pod_usage_cpu_core_hours) if item.pod_usage_cpu_core_hours else float(0.0)
-                self.assertAlmostEqual(0.0, float(item.pod_charge_memory_gigabyte_hours), places=5)
-                self.assertAlmostEqual(float(cpu_usage_value*cpu_rate_value), float(item.pod_charge_cpu_core_hours), places=5)
+                cpu_usage_value = Decimal(item.pod_usage_cpu_core_hours) if \
+                    item.pod_usage_cpu_core_hours else Decimal(0.0)
+                self.assertAlmostEqual(0.0, Decimal(item.pod_charge_memory_gigabyte_hours), places=5)
+                self.assertAlmostEqual(cpu_usage_value*cpu_rate_value,
+                                       Decimal(item.pod_charge_cpu_core_hours),
+                                       places=6)
