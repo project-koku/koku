@@ -35,7 +35,10 @@ class OCPAzureProviderMap(ProviderMap):
             {
                 'provider': 'OCP_AZURE',
                 'alias': 'subscription_guid',
-                'annotations': {'cluster': 'cluster_id', 'project': 'namespace'},
+                'annotations': {
+                    'cluster': 'cluster_id',
+                    'project': 'namespace',
+                },
                 'end_date': 'costentrybill__billing_period_end',
                 'filters': {
                     'project': {'field': 'namespace', 'operation': 'icontains'},
@@ -75,6 +78,8 @@ class OCPAzureProviderMap(ProviderMap):
                     'node',  # ocp
                     'service_name',  # azure
                     'subscription_guid',  # azure
+                    'resource_location',  # azure
+                    'instance_type',  # azure
                 ],
                 'tag_column': 'tags',
                 'report_type': {
