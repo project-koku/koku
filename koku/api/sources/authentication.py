@@ -18,14 +18,26 @@
 """View for Sources-Proxy Azure authentications endpoint."""
 import requests
 from django.conf import settings
+from django.utils.encoding import force_text
 from requests.exceptions import RequestException
 from rest_framework import status
 from rest_framework.decorators import (api_view,
                                        permission_classes,
                                        renderer_classes)
+from rest_framework.exceptions import APIException
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+
+
+class AuthenticationException(APIException):
+    """Authentication internal error exception."""
+
+    def __init__(self, error_msg):
+        """Initialize with status code 400."""
+        super().__init__()
+        self.status_code = status.HTTP_400_BAD_REQUEST
+        self.detail = {'detail': force_text(error_msg)}
 
 
 @api_view(http_method_names=['POST'])
@@ -39,7 +51,8 @@ def authentication(request):
         response = requests.post(url, json=request_data)
         status_code = response.status_code
         response = response.json()
+        if status_code != status.HTTP_201_CREATED:
+            raise AuthenticationException(str(response))
     except RequestException as conn_err:
-        response = str(conn_err)
-        status_code = status.HTTP_400_BAD_REQUEST
+        raise AuthenticationException(str(conn_err))
     return Response(response, status=status_code)

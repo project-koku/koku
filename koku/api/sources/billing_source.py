@@ -18,15 +18,27 @@
 """View for Sources-Proxy AWS and Azure billing source endpoint."""
 import requests
 from django.conf import settings
+from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
 from requests.exceptions import RequestException
 from rest_framework import status
 from rest_framework.decorators import (api_view,
                                        permission_classes,
                                        renderer_classes)
+from rest_framework.exceptions import APIException
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+
+
+class BillingSourceException(APIException):
+    """Billing Source internal error exception."""
+
+    def __init__(self, error_msg):
+        """Initialize with status code 400."""
+        super().__init__()
+        self.status_code = status.HTTP_400_BAD_REQUEST
+        self.detail = {'detail': force_text(error_msg)}
 
 
 @never_cache
@@ -41,7 +53,8 @@ def billing_source(request):
         response = requests.post(url, json=request_data)
         status_code = response.status_code
         response = response.json()
+        if status_code != status.HTTP_201_CREATED:
+            raise BillingSourceException(str(response))
     except RequestException as conn_err:
-        response = str(conn_err)
-        status_code = status.HTTP_400_BAD_REQUEST
+        raise BillingSourceException(str(conn_err))
     return Response(response, status=status_code)

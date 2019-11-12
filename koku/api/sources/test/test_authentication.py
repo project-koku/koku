@@ -41,7 +41,7 @@ class AuthenticationProxyTests(TestCase):
                        status_code=201, json={'source_id': test_source_id,
                                               'credentials': credentials})
 
-                params = {'source_id': test_source_id, 'billing_source': credentials}
+                params = {'source_id': test_source_id, 'credentials': credentials}
                 response = self.client.post(reverse('authentication'), json.dumps(params),
                                             content_type='application/json')
 
@@ -50,19 +50,37 @@ class AuthenticationProxyTests(TestCase):
                 self.assertEqual(response.status_code, 201)
                 self.assertIn(str(credentials), str(body))
 
+    def test_post_authentication_proxy_error(self):
+        """Test the POST authentication proxy endpoint with connection error."""
+        test_source_id = 1
+        credentials = {'subscription_id': 'subscription-uuid'}
+        with self.settings(SOURCES_CLIENT_BASE_URL='http://www.sourcesclient.com/api/v1'):
+            with requests_mock.mock() as m:
+                m.post(f'http://www.sourcesclient.com/api/v1/authentication/',
+                       exc=requests.exceptions.RequestException)
 
-def test_post_authentication_proxy_error(self):
-    """Test the POST authentication proxy endpoint with connection error."""
-    test_source_id = 1
-    credentials = {'subscription_id': 'subscription-uuid'}
-    with self.settings(SOURCES_CLIENT_BASE_URL='http://www.sourcesclient.com/api/v1'):
-        with requests_mock.mock() as m:
-            m.post(f'http://www.sourcesclient.com/api/v1/billing_source/',
-                   exc=requests.exceptions.RequestException,
-                   json={'source_id': test_source_id, 'credentials': credentials})
+                params = {'source_id': test_source_id, 'credentials': credentials}
+                response = self.client.post(reverse('authentication'), json.dumps(params),
+                                            content_type='application/json')
 
-            params = {'source_id': test_source_id, 'billing_source': credentials}
-            response = self.client.post(reverse('billing-source'), json.dumps(params),
-                                        content_type='application/json')
+                self.assertEqual(response.status_code, 400)
 
-            self.assertEqual(response.status_code, 400)
+    def test_post_authentication_proxy_server_error(self):
+        """Test the POST authentication proxy endpoint with an server error."""
+        test_source_id = 1
+        credentials = {'subscription_id': 'subscription-uuid'}
+
+        error_msg = 'Subscription ID not found'
+        with self.settings(SOURCES_CLIENT_BASE_URL='http://www.sourcesclient.com/api/v1'):
+            with requests_mock.mock() as m:
+                m.post(f'http://www.sourcesclient.com/api/v1/authentication/',
+                       status_code=400,
+                       json=error_msg)
+
+                params = {'source_id': test_source_id, 'credentials': credentials}
+                response = self.client.post(reverse('authentication'), json.dumps(params),
+                                            content_type='application/json')
+                self.assertEqual(response.status_code, 400)
+                self.assertTrue(response.data.get('errors'))
+                self.assertEqual(response.data.get('errors')[0].get('detail'), error_msg)
+                self.assertEqual(response.data.get('errors')[0].get('status'), 400)
