@@ -25,6 +25,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.models import Provider, ProviderAuthentication, ProviderBillingSource, Tenant
 from api.report.test.azure.helpers import FakeAzureConfig
+from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.utils import DateHelper
 from reporting.models import (
     AzureCostEntryBill,
@@ -38,11 +39,6 @@ from reporting.models import (
 class OCPAzureReportDataGenerator(object):
     """Populate the database with OCP on Azure report data."""
 
-    AZURE_SERVICE_CHOICES = [
-        'Storage',
-        'Virtual Machines',
-    ]
-
     def __init__(self, tenant, provider, current_month_only=False, config=None):
         """Set up the class."""
         # prevent future whammy:
@@ -54,21 +50,21 @@ class OCPAzureReportDataGenerator(object):
 
         self.tenant = tenant
         self.provider = provider
+        self.current_month_only = current_month_only
         self.config = config if config else FakeAzureConfig()
         self.fake = Faker()
         self.dh = DateHelper()
         self.provider_uuid = provider.uuid
+        self.ocp_generator = None
 
         # generate a list of dicts with unique keys.
-        self.period_ranges, self.report_ranges = self.report_period_and_range(
-            current_month_only=current_month_only
-        )
+        self.period_ranges, self.report_ranges = self.report_period_and_range()
 
-    def report_period_and_range(self, current_month_only=False):
+    def report_period_and_range(self):
         """Return the report period and range."""
         period = []
         ranges = []
-        if current_month_only:
+        if self.current_month_only:
             report_days = 10
             diff_from_first = self.dh.today - self.dh.this_month_start
             if diff_from_first.days < 10:
@@ -118,6 +114,8 @@ class OCPAzureReportDataGenerator(object):
 
     def remove_data_from_tenant(self):
         """Remove the added data."""
+        if self.ocp_generator:
+            self.ocp_generator.remove_data_from_tenant()
         with tenant_context(self.tenant):
             for table in (
                 OCPAzureCostLineItemDailySummary,
@@ -125,9 +123,22 @@ class OCPAzureReportDataGenerator(object):
             ):
                 table.objects.all().delete()
 
+    def add_ocp_data_to_tenant(self):
+        """Populate tenant with OCP data."""
+        assert self.cluster_id, 'method must be called after add_data_to_tenant'
+        self.ocp_generator = OCPReportDataGenerator(self.tenant, self.provider, self.current_month_only)
+        ocp_config = {
+            'cluster_id': self.cluster_id,
+            'cluster_alias': self.cluster_alias,
+            'namespaces': self.namespaces,
+            'nodes': self.nodes,
+        }
+        self.ocp_generator.add_data_to_tenant(**ocp_config)
+
     def add_data_to_tenant(self, fixed_fields=None, service_name=None):
         """Populate tenant with data."""
         words = list(set([self.fake.word() for _ in range(10)]))
+
         self.cluster_id = random.choice(words)
         self.cluster_alias = random.choice(words)
         self.namespaces = random.sample(words, k=2)
