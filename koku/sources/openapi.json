@@ -50,7 +50,7 @@
                   "NotAvailable": {
                     "value": {
                       "availability_status": "unavailabile",
-                      "availability_status_error": "Bucket cost-usage-buckett could not be found with arn:aws:iam::589173575009:role/CostManagement."
+                      "availability_status_error": "Bucket nonexistantbucketexample could not be found with arn:aws:iam::999999999999:role/CostManagement."
                     }
                   }
                 }
