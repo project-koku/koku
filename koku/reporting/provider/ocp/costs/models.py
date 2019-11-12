@@ -48,46 +48,48 @@ class CostSummary(models.Model):
     usage_end = models.DateTimeField(null=False)
 
     pod_charge_cpu_core_hours = models.DecimalField(
-        max_digits=24,
-        decimal_places=6,
+        max_digits=27,
+        decimal_places=9,
         null=True
     )
 
     pod_charge_memory_gigabyte_hours = models.DecimalField(
-        max_digits=24,
-        decimal_places=6,
+        max_digits=27,
+        decimal_places=9,
         null=True
     )
 
     persistentvolumeclaim_charge_gb_month = models.DecimalField(
-        max_digits=24,
-        decimal_places=6,
+        max_digits=27,
+        decimal_places=9,
         null=True
     )
 
+    # Need more precision on calculated fields, otherwise there will be
+    # Rounding errors
     infra_cost = models.DecimalField(
-        max_digits=24,
-        decimal_places=6,
+        max_digits=33,
+        decimal_places=15,
         null=True
     )
 
     # This field is used in place of infrastructure_cost when
     # grouping by project
     project_infra_cost = models.DecimalField(
-        max_digits=24,
-        decimal_places=6,
+        max_digits=33,
+        decimal_places=15,
         null=True
     )
 
     markup_cost = models.DecimalField(
-        max_digits=24,
-        decimal_places=6,
+        max_digits=27,
+        decimal_places=9,
         null=True
     )
 
     project_markup_cost = models.DecimalField(
-        max_digits=24,
-        decimal_places=6,
+        max_digits=27,
+        decimal_places=9,
         null=True
     )
 
