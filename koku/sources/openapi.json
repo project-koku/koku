@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "description": "The Sources Status API.  You can find out more about     Cost Management at [https://github.com/project-koku/](https://github.com/project-koku/).",
+    "description": "The Sources Status API.  You can find out more about Cost Management at [https://github.com/project-koku/](https://github.com/project-koku/).",
     "version": "1.0.0",
     "title": "Sources Status API",
     "license": {
