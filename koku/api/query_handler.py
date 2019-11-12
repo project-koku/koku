@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Query Handling for all APIs."""
-import copy
 import datetime
 import logging
 
@@ -299,4 +298,3 @@ class QueryHandler:
         filters.add(query_filter=end_filter)
 
         return filters
-
