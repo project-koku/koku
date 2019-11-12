@@ -30,7 +30,8 @@ class OCPAzureGroupBySerializer(
         'subscription_guid',
         'resource_location',
         'instance_type',
-        'service_name' 'project',
+        'service_name',
+        'project',
         'cluster',
         'node',
     )

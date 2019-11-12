@@ -180,7 +180,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
             month_val = data_item.get('date', 'not-a-date')
-            month_data = data_item.get('subscription_guids', 'not-a-list')
+            month_data = data_item.get('subscription_guids')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
             for month_item in month_data:
@@ -204,11 +204,11 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             aggregates, self.this_month_filter
         )
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), current_totals.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
 
         cmonth_str = self.dh.this_month_start.strftime('%Y-%m')
         for data_item in data:
-            month_val = data_item.get('date')
+            month_val = data_item.get('date', 'not-a-date')
             month_data = data_item.get('service_names')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
@@ -250,7 +250,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
         cmonth_str = self.dh.this_month_start.strftime('%Y-%m')
         for data_item in data:
-            month_val = data_item.get('date')
+            month_val = data_item.get('date', 'not-a-date')
             month_data = data_item.get('service_names')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
@@ -277,11 +277,11 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             aggregates, self.this_month_filter
         )
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), current_totals.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
-            month_val = data_item.get('date')
+            month_val = data_item.get('date', 'not-a-date')
             month_data = data_item.get('subscription_guids')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
@@ -308,11 +308,11 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             aggregates, self.this_month_filter
         )
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), current_totals.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
 
         cmonth_str = self.dh.this_month_start.strftime('%Y-%m')
         for data_item in data:
-            month_val = data_item.get('date')
+            month_val = data_item.get('date', 'not-a-date')
             month_data = data_item.get('subscription_guids')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
@@ -350,11 +350,11 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             aggregates, self.this_month_filter
         )
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), current_totals.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
 
         cmonth_str = self.dh.this_month_start.strftime('%Y-%m')
         for data_item in data:
-            month_val = data_item.get('date')
+            month_val = data_item.get('date', 'not-a-date')
             month_data = data_item.get('subscription_guids')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
@@ -371,6 +371,69 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                     continue
                 self.assertLess(current, data_point)
                 current = data_point
+
+    def test_execute_query_curr_month_by_cluster(self):
+        """Test execute_query for current month on monthly breakdown by group_by cluster."""
+        self.generator.add_data_to_tenant()
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPAzureCostView)
+        handler = OCPAzureReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        aggregates = handler._mapper.report_type_map.get('aggregates')
+        current_totals = self.get_totals_by_time_scope(
+            aggregates, self.this_month_filter
+        )
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
+
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date', 'not-a-date')
+            month_data = data_item.get('clusters')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
+            for month_item in month_data:
+                self.assertIsInstance(month_item.get('cluster'), str)
+                self.assertIsInstance(month_item.get('values'), list)
+                self.assertIsNotNone(month_item.get('values')[0].get('cost'))
+
+    def test_execute_query_by_filtered_cluster(self):
+        """Test execute_query monthly breakdown by filtered cluster."""
+        self.generator.add_data_to_tenant()
+
+        cluster = self.generator.cluster_id
+        url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]={cluster}'  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPAzureCostView)
+        handler = OCPAzureReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        aggregates = handler._mapper.report_type_map.get('aggregates')
+        filters = {**self.this_month_filter, 'cluster_id__icontains': cluster}
+        for filt in handler._mapper.report_type_map.get('filter'):
+            if filt:
+                qf = QueryFilter(**filt)
+                filters.update({qf.composed_query_string(): qf.parameter})
+        current_totals = self.get_totals_by_time_scope(aggregates, filters)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
+
+        cmonth_str = self.dh.this_month_start.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date', 'not-a-date')
+            month_data = data_item.get('clusters')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
+            for month_item in month_data:
+                self.assertIsInstance(month_item.get('cluster'), str)
+                self.assertIsInstance(month_item.get('values'), list)
+                self.assertIsNotNone(month_item.get('values')[0].get('cost'))
 
     def test_execute_query_curr_month_by_filtered_resource_location(self):
         """Test execute_query for current month on monthly breakdown by filtered resource_location."""
@@ -389,11 +452,11 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             aggregates, self.this_month_filter
         )
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), current_totals.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
-            month_val = data_item.get('date')
+            month_val = data_item.get('date', 'not-a-date')
             month_data = data_item.get('resource_locations')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
@@ -419,11 +482,11 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             aggregates, self.this_month_filter
         )
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), current_totals.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
 
         cmonth_str = self.dh.this_month_start.strftime('%Y-%m')
         for data_item in data:
-            month_val = data_item.get('date')
+            month_val = data_item.get('date', 'not-a-date')
             month_data = data_item.get('values')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
@@ -461,11 +524,11 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                 filters.update({qf.composed_query_string(): qf.parameter})
         current_totals = self.get_totals_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), current_totals.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
 
         cmonth_str = self.dh.this_month_start.strftime('%Y-%m')
         for data_item in data:
-            month_val = data_item.get('date')
+            month_val = data_item.get('date', 'not-a-date')
             month_data = data_item.get('values')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
@@ -487,11 +550,11 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             aggregates, self.this_month_filter
         )
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), current_totals.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value', 0), current_totals.get('cost', 1))
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
-            month_val = data_item.get('date')
+            month_val = data_item.get('date', 'not-a-date')
             month_data = data_item.get('values')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
@@ -552,7 +615,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         cmonth_str = self.dh.this_month_start.strftime('%Y-%m')
         self.assertEqual(len(data), 2)
         for data_item in data:
-            month = data_item.get('date')
+            month = data_item.get('date', 'not-a-date')
             self.assertEqual(month, cmonth_str)
 
     def test_execute_query_w_delta(self):
