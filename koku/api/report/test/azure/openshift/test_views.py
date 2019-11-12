@@ -1,32 +1,20 @@
-# dikt = {
-#     'group_by': OrderedDict([('subscription_guid', ['*'])]),
-#     'filter': OrderedDict(
-#         [
-#             ('time_scope_value', '-10'),
-#             ('time_scope_units', 'day'),
-#             ('resolution', 'daily'),
-#         ]
-#     ),
-#     'order_by': OrderedDict(),
-#     'data': [
-#         {'date': '2019-11-03', 'subscription_guids': []},
-#         {'date': '2019-11-04', 'subscription_guids': []},
-#         {'date': '2019-11-05', 'subscription_guids': []},
-#         {'date': '2019-11-06', 'subscription_guids': []},
-#         {'date': '2019-11-07', 'subscription_guids': []},
-#         {'date': '2019-11-08', 'subscription_guids': []},
-#         {'date': '2019-11-09', 'subscription_guids': []},
-#         {'date': '2019-11-10', 'subscription_guids': []},
-#         {'date': '2019-11-11', 'subscription_guids': []},
-#         {'date': '2019-11-12', 'subscription_guids': []},
-#     ],
-#     'total': {
-#         'cost': {'value': 0, 'units': 'USD'},
-#         'infrastructure_cost': {'value': 0, 'units': 'USD'},
-#         'derived_cost': {'value': 0, 'units': 'USD'},
-#         'markup_cost': {'value': 0, 'units': 'USD'},
-#     },
-# }
+#
+# Copyright 2019 Red Hat, Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+"""Test the OCP-on-Azure Report views."""
 
 from django.test import RequestFactory
 from django.urls import reverse
