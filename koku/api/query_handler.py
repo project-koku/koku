@@ -300,33 +300,3 @@ class QueryHandler:
 
         return filters
 
-    def _get_cluster_group_by(self, group_by):
-        """Determine if a GROUP BY list requires implicit group by cluster.
-
-        Args:
-            group_by (list): The list of group by params
-
-        Returns:
-            (list): A new group by list with cluster if needed
-
-        """
-        # To avoid namespace/node name collisions we implicitly
-        # group by cluster as well. We make a copy of the group_by
-        # here to do the actual grouping, but kepe the original
-        # unaltered so as to keep the final API result grouped by
-        # the specified group by value
-        if 'cluster' in group_by:
-            return group_by
-        clustered_group_by = copy.copy(group_by)
-
-        for value in group_by:
-            if value in ('project', 'node'):
-                clustered_group_by.extend(['cluster', 'cluster_alias'])
-                break
-
-        for value in self.parameters.get('filter', {}).keys():
-            if value in ('project', 'node') and 'cluster_id' not in clustered_group_by:
-                clustered_group_by.extend(['cluster', 'cluster_alias'])
-                break
-
-        return clustered_group_by

@@ -806,10 +806,6 @@ class OCPReportViewTest(IamTestCase):
         for entry in data.get('data', []):
             for project in entry.get('projects', []):
                 self.assertEqual(project.get('project'), project_of_interest)
-                values = project.get('values', [])
-                for value in values:
-                    self.assertIn('cluster', value)
-                    self.assertIn('cluster_alias', value)
 
     def test_execute_query_group_by_project_duplicate_projects(self):
         """Test that same-named projects across clusters are accounted for."""
@@ -831,10 +827,7 @@ class OCPReportViewTest(IamTestCase):
             for project in entry.get('projects', []):
                 self.assertEqual(project.get('project'), project_of_interest)
                 values = project.get('values', [])
-                self.assertEqual(len(values), 2)
-                for value in values:
-                    self.assertIn('cluster', value)
-                    self.assertIn('cluster_alias', value)
+                self.assertEqual(len(values), 1)
 
     def test_execute_query_filter_by_project_duplicate_projects(self):
         """Test that same-named projects across clusters are accounted for."""
@@ -855,10 +848,7 @@ class OCPReportViewTest(IamTestCase):
         data = response.json()
         for entry in data.get('data', []):
             values = entry.get('values', [])
-            self.assertEqual(len(values), 2)
-            for value in values:
-                self.assertIn('cluster', value)
-                self.assertIn('cluster_alias', value)
+            self.assertEqual(len(values), 1)
 
     def test_execute_query_group_by_cluster(self):
         """Test that grouping by cluster filters data."""
@@ -940,10 +930,7 @@ class OCPReportViewTest(IamTestCase):
             for node in entry.get('nodes', []):
                 self.assertEqual(node.get('node'), node_of_interest)
                 values = node.get('values', [])
-                self.assertEqual(len(values), 2)
-                for value in values:
-                    self.assertIn('cluster', value)
-                    self.assertIn('cluster_alias', value)
+                self.assertEqual(len(values), 1)
 
     def test_execute_query_filter_by_node_duplicate_projects(self):
         """Test that same-named nodes across clusters are accounted for."""
@@ -964,10 +951,7 @@ class OCPReportViewTest(IamTestCase):
         data = response.json()
         for entry in data.get('data', []):
             values = entry.get('values', [])
-            self.assertEqual(len(values), 2)
-            for value in values:
-                self.assertIn('cluster', value)
-                self.assertIn('cluster_alias', value)
+            self.assertEqual(len(values), 1)
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
