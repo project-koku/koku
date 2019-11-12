@@ -140,7 +140,7 @@ services:
           context: .
           dockerfile: Dockerfile-env
       working_dir: /koku/koku
-      entrypoint: ['celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync']
+      entrypoint: ['celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data']
 
       environment:
         - AWS_ACCESS_KEY_ID
