@@ -18,12 +18,9 @@
 import logging
 import random
 import re
-from unittest.mock import Mock
-from urllib.parse import urlencode
 
 from faker import Faker
 
-from api.query_params import QueryParameters
 from api.utils import DateHelper
 
 LOG = logging.getLogger(__name__)
@@ -50,7 +47,7 @@ class FakeAWSCostData:
                     'eu-west-1', 'eu-west-2', 'eu-west-3',
                     'sa-east-1']
 
-    def __init__(self, account_alias=None, account_id=None,
+    def __init__(self, provider, account_alias=None, account_id=None,
                  availability_zone=None, bill=None,
                  billing_period_end=None, billing_period_start=None,
                  cost_entry=None, instance_type=None, line_item=None,
@@ -58,6 +55,7 @@ class FakeAWSCostData:
                  resource_id=None):
         """Constructor."""
         # properties
+        self.provider = provider
         self._account_alias = account_alias
         self._account_id = account_id
         self._availability_zone = availability_zone
@@ -181,7 +179,8 @@ class FakeAWSCostData:
             self._bill = {'bill_type': 'Anniversary',
                           'payer_account_id': self.account_id,
                           'billing_period_start': self.billing_period_start,
-                          'billing_period_end': self.billing_period_end}
+                          'billing_period_end': self.billing_period_end,
+                          'provider_id': self.provider.uuid}
         return self._bill
 
     @bill.setter
@@ -406,50 +405,3 @@ class FakeAWSCostData:
             labels['{}_label'.format(label_key)] = label_value
 
         return labels
-
-
-class FakeQueryParameters:
-    """A fake QueryParameters class for testing.
-
-    This class mocks out just the bare minimum of QueryParameter interfaces.
-    For the get_* methods, the provided default value from the caller is generally used.
-    """
-
-    def __init__(self, parameters, **kwargs):
-        """Constructor."""
-        # here be defaults, if not present in parameters or kwargs
-        # format: (key_name, default)
-        defaults = [('report_type', 'costs'),
-                    ('tag_keys', []),
-                    ('delta', None),
-                    ('url_data', urlencode(parameters)),
-                    ('accept_type', []),
-                    ('access', {}), ]
-        parameters.update(kwargs)
-
-        for key, val in defaults:
-            if key not in parameters:
-                parameters[key] = val
-
-        self._parameters = parameters
-        self.mock_qp = Mock(spec=QueryParameters,
-                            parameters=parameters,
-                            get=self.fake_get,
-                            get_group_by=self.fake_get_group_by,
-                            get_filter=self.fake_get_filter,
-                            **parameters)
-
-    def fake_get(self, item, default=None):
-        """Mock getter returns query params."""
-        fields = ['filter', 'group_by', 'order_by']
-        if item in fields:
-            return self._parameters.get(item, default)
-        return default
-
-    def fake_get_filter(self, filt, default=None):
-        """Mock getter returns query params."""
-        return self.fake_get('filter', default={}).get(filt, default)
-
-    def fake_get_group_by(self, key, default=None):
-        """Mock getter returns query params."""
-        return self.fake_get('group_by', default={}).get(key, default)

@@ -45,7 +45,6 @@ koku:
 
 import argparse
 import os
-import pkgutil
 import sys
 from base64 import b64encode
 from json import dumps as json_dumps
@@ -59,6 +58,8 @@ except ImportError:
     from yaml import Loader
 import requests
 
+BASEDIR = os.path.dirname(os.path.realpath(__file__))
+DEFAULT_CONFIG = BASEDIR + '/test_customer.yaml'
 SUPPORTED_PROVIDERS = ['aws', 'ocp', 'azure']
 
 
@@ -195,8 +196,8 @@ class KokuCustomerOnboarder:
 
         provider_sql = """
             INSERT INTO api_provider (uuid, name, type, authentication_id, billing_source_id,
-                                    created_by_id, customer_id, setup_complete)
-            VALUES(%s, %s, %s, %s, %s, 1, 1, False)
+                                    created_by_id, customer_id, setup_complete, active)
+            VALUES(%s, %s, %s, %s, %s, 1, 1, False, True)
             RETURNING id
             ;
         """
@@ -241,6 +242,7 @@ def get_token(account_id, username, email):
 
 def load_yaml(filename):
     """Load from a YAML file."""
+    print(f'Loading: {filename}')
     try:
         with open(filename, 'r+') as fhandle:
             yamlfile = load(fhandle, Loader=Loader)
@@ -252,23 +254,19 @@ def load_yaml(filename):
 if __name__ == '__main__':
     PARSER = argparse.ArgumentParser()
     PARSER.add_argument('-f', '--file', dest='config_file',
-                        help='YAML-formatted configuration file name')
+                        help='YAML-formatted configuration file name',
+                        default=DEFAULT_CONFIG)
     PARSER.add_argument('--bypass-api', dest='bypass_api', action='store_true',
                         help='Create Provider in DB, bypassing Koku API')
     ARGS = vars(PARSER.parse_args())
 
     try:
-        sys.path.append(os.getcwd())
-        DEFAULT_CONFIG = pkgutil.get_data('scripts', 'test_customer.yaml')
-        CONFIG = load(DEFAULT_CONFIG, Loader=Loader)
-    except AttributeError:
-        CONFIG = None
-
-    if ARGS.get('config_file'):
         CONFIG = load_yaml(ARGS.get('config_file'))
+    except AttributeError:
+        sys.exit('Invalid configuration file.')
 
-    if CONFIG is None:
-        sys.exit('No configuration file provided')
+    if not CONFIG:
+        sys.exit('No configuration file provided.')
 
     CONFIG.update(ARGS)
     print(f'Config: {CONFIG}')

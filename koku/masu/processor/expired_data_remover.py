@@ -128,7 +128,7 @@ class ExpiredDataRemover():
         LOG.info(msg)
         return expiration_date
 
-    def remove(self, simulate=False, provider_id=None):
+    def remove(self, simulate=False, provider_uuid=None):
         """
         Remove expired data based on the retention policy.
 
@@ -139,10 +139,10 @@ class ExpiredDataRemover():
             ([{}]) List of dictionaries containing 'account_payer_id' and 'billing_period_start'
 
         """
-        if provider_id is not None:
+        if provider_uuid is not None:
             removed_data = self._cleaner.purge_expired_report_data(
                 simulate=simulate,
-                provider_id=provider_id
+                provider_uuid=provider_uuid
             )
         else:
             expiration_date = self._calculate_expiration_date()

@@ -16,10 +16,11 @@
 #
 
 """Common util functions."""
+import calendar
 import gzip
 import logging
 import re
-from os import listdir, remove
+from os import remove
 from tempfile import gettempdir
 from uuid import uuid4
 
@@ -78,23 +79,28 @@ def ingest_method_for_provider(provider):
     return ingest_map.get(provider)
 
 
-def clear_temp_directory(report_path, current_assembly_id):
-    """Remove temporary files from masu temp directory."""
-    files = listdir(report_path)
-    removed_files = []
-    for file in files:
-        file_path = '{}/{}'.format(report_path, file)
+def month_date_range(for_date_time):
+    """
+    Get a formatted date range string for the given date.
 
-        uuids = extract_uuids_from_string(file_path)
-        assembly_id = uuids.pop() if uuids else None
-        if assembly_id and assembly_id != current_assembly_id:
-            try:
-                LOG.info('Removing %s, Current Assembly ID is %s', file_path, str(current_assembly_id))
-                remove(file_path)
-                removed_files.append(file_path)
-            except FileNotFoundError:
-                LOG.warning('Unable to locate file: %s', file_path)
-    return removed_files
+    Date range is aligned on the first day of the current
+    month and ends on the first day of the next month from the
+    specified date.
+
+    Args:
+        for_date_time (DateTime): The starting datetime object
+
+    Returns:
+        (String): "YYYYMMDD-YYYYMMDD", example: "19701101-19701201"
+
+    """
+    start_month = for_date_time.replace(day=1, second=1, microsecond=1)
+    _, num_days = calendar.monthrange(for_date_time.year, for_date_time.month)
+    end_month = start_month.replace(day=num_days)
+    timeformat = '%Y%m%d'
+    return '{}-{}'.format(
+        start_month.strftime(timeformat), end_month.strftime(timeformat)
+    )
 
 
 class NamedTemporaryGZip:

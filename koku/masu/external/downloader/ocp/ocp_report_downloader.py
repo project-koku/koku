@@ -37,18 +37,21 @@ LOG = logging.getLogger(__name__)
 class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """OCP Cost and Usage Report Downloader."""
 
-    def __init__(self, customer_name, auth_credential, bucket, report_name=None, **kwargs):
+    # Disabling this linter until we can refactor
+    # pylint: disable=too-many-arguments
+    def __init__(self, task, customer_name, auth_credential, bucket, report_name=None, **kwargs):
         """
         Initializer.
 
         Args:
+            task             (Object) bound celery object
             customer_name    (String) Name of the customer
             auth_credential  (String) OpenShift cluster ID
             report_name      (String) Name of the Cost Usage Report to download (optional)
             bucket           (String) Not used for OCP
 
         """
-        super().__init__(**kwargs)
+        super().__init__(task, **kwargs)
 
         LOG.debug('Connecting to OCP service provider...')
 
@@ -125,7 +128,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         if ocp_etag != stored_etag or not os.path.isfile(full_file_path):
             LOG.info('Downloading %s to %s', key, full_file_path)
-            shutil.copy2(key, full_file_path)
+            shutil.move(key, full_file_path)
             shutil.copy2(source_manifest_path, full_manfiest_path)
         return full_file_path, ocp_etag
 

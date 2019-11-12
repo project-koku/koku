@@ -176,21 +176,25 @@ class AWSReportDownloaderTest(MasuTestCase):
     def setUp(self, fake_session):
         super().setUp()
         os.makedirs(DATA_DIR, exist_ok=True)
+        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()),
+                                           return_value={}))
 
         self.report_downloader = ReportDownloader(
-            self.fake_customer_name,
-            self.auth_credential,
-            self.fake_bucket_name,
-            'AWS',
-            self.aws_provider_id,
+            task=self.mock_task,
+            customer_name=self.fake_customer_name,
+            access_credential=self.auth_credential,
+            report_source=self.fake_bucket_name,
+            provider_type='AWS',
+            provider_uuid=self.aws_provider_uuid,
         )
         self.aws_report_downloader = AWSReportDownloader(
             **{
+                'task': self.mock_task,
                 'customer_name': self.fake_customer_name,
                 'auth_credential': self.auth_credential,
                 'bucket': self.fake_bucket_name,
                 'report_name': self.fake_report_name,
-                'provider_id': self.aws_provider_id,
+                'provider_uuid': self.aws_provider_uuid,
             }
         )
 
@@ -249,19 +253,21 @@ class AWSReportDownloaderTest(MasuTestCase):
         ):
             with self.assertRaises(AWSReportDownloaderError):
                 report_downloader = ReportDownloader(
-                    self.fake_customer_name,
-                    self.auth_credential,
-                    self.fake_bucket_name,
-                    'AWS',
-                    self.aws_provider_id,
+                    task=self.mock_task,
+                    customer_name=self.fake_customer_name,
+                    access_credential=self.auth_credential,
+                    report_source=self.fake_bucket_name,
+                    provider_type='AWS',
+                    provider_uuid=self.aws_provider_uuid,
                 )
                 AWSReportDownloader(
                     **{
+                        'task': self.mock_task,
                         'customer_name': self.fake_customer_name,
                         'auth_credential': self.auth_credential,
                         'bucket': self.fake_bucket_name,
                         'report_name': self.fake_report_name,
-                        'provider_id': self.aws_provider_id,
+                        'provider_uuid': self.aws_provider_uuid,
                     }
                 )
                 report_downloader.download_report(fake_report_date)
@@ -273,7 +279,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         with self.assertRaises(MasuProviderError):
             AWSReportDownloader(
-                self.fake_customer_name, auth_credential, 's3_bucket', 'wrongreport'
+                self.mock_task, self.fake_customer_name, auth_credential, 's3_bucket', 'wrongreport'
             )
 
     @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
@@ -281,7 +287,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         # actual test
         auth_credential = fake_arn(service='iam', generate_account_id=True)
         downloader = AWSReportDownloader(
-            self.fake_customer_name, auth_credential, self.fake_bucket_name
+            self.mock_task, self.fake_customer_name, auth_credential, self.fake_bucket_name
         )
         self.assertEqual(downloader.report_name, self.fake_report_name)
 
@@ -296,7 +302,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         with self.assertRaises(MasuProviderError):
             AWSReportDownloader(
-                self.fake_customer_name, auth_credential, self.fake_bucket_name
+                self.mock_task, self.fake_customer_name, auth_credential, self.fake_bucket_name
             )
 
     @patch('masu.external.downloader.aws.aws_report_downloader.shutil')
@@ -308,7 +314,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         auth_credential = fake_arn(service='iam', generate_account_id=True)
         downloader = AWSReportDownloader(
-            self.fake_customer_name, auth_credential, self.fake_bucket_name
+            self.mock_task, self.fake_customer_name, auth_credential, self.fake_bucket_name
         )
         downloader.s3_client = fake_client
 
@@ -327,7 +333,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         auth_credential = fake_arn(service='iam', generate_account_id=True)
         downloader = AWSReportDownloader(
-            self.fake_customer_name, auth_credential, self.fake_bucket_name
+            self.mock_task, self.fake_customer_name, auth_credential, self.fake_bucket_name
         )
         downloader.s3_client = fake_client
 
@@ -344,7 +350,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         auth_credential = fake_arn(service='iam', generate_account_id=True)
         downloader = AWSReportDownloader(
-            self.fake_customer_name, auth_credential, self.fake_bucket_name
+            self.mock_task, self.fake_customer_name, auth_credential, self.fake_bucket_name
         )
         downloader.s3_client = fake_client
 
@@ -366,7 +372,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         auth_credential = fake_arn(service='iam', generate_account_id=True)
         downloader = AWSReportDownloader(
-            self.fake_customer_name, auth_credential, self.fake_bucket_name
+            self.mock_task, self.fake_customer_name, auth_credential, self.fake_bucket_name
         )
         downloader.s3_client = fake_client
 
@@ -386,7 +392,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         auth_credential = fake_arn(service='iam', generate_account_id=True)
         downloader = AWSReportDownloader(
-            self.fake_customer_name, auth_credential, self.fake_bucket_name
+            self.mock_task, self.fake_customer_name, auth_credential, self.fake_bucket_name
         )
         downloader.s3_client = fake_client
 
@@ -406,7 +412,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         auth_credential = fake_arn(service='iam', generate_account_id=True)
         downloader = AWSReportDownloader(
-            self.fake_customer_name, auth_credential, self.fake_bucket_name
+            self.mock_task, self.fake_customer_name, auth_credential, self.fake_bucket_name
         )
         downloader.s3_client = fake_client
 
@@ -422,7 +428,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         auth_credential = fake_arn(service='iam', generate_account_id=True)
         downloader = AWSReportDownloader(
-            self.fake_customer_name, auth_credential, self.fake_bucket_name
+            self.mock_task, self.fake_customer_name, auth_credential, self.fake_bucket_name
         )
         downloader.s3_client = fake_client
 
@@ -437,7 +443,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         auth_credential = fake_arn(service='iam', generate_account_id=True)
         downloader = AWSReportDownloader(
-            self.fake_customer_name, auth_credential, self.fake_bucket_name
+            self.mock_task, self.fake_customer_name, auth_credential, self.fake_bucket_name
         )
         downloader.s3_client = fake_client
 
@@ -451,10 +457,11 @@ class AWSReportDownloaderTest(MasuTestCase):
         """Test that data is returned on the reports to process."""
         current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
         auth_credential = fake_arn(service='iam', generate_account_id=True)
-        downloader = AWSReportDownloader(self.fake_customer_name,
+        downloader = AWSReportDownloader(self.mock_task,
+                                         self.fake_customer_name,
                                          auth_credential,
                                          self.fake_bucket_name,
-                                         provider_id=self.aws_provider_id)
+                                         provider_uuid=self.aws_provider_uuid)
 
         start_str = current_month.strftime(downloader.manifest_date_format)
         assembly_id = '1234'
@@ -479,7 +486,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_entry = manifest_accessor.get_manifest(
                 assembly_id,
-                self.aws_provider_id
+                self.aws_provider_uuid
             )
             expected['manifest_id'] = manifest_entry.id
 
@@ -495,7 +502,8 @@ class AWSReportDownloaderTest(MasuTestCase):
         """Test that no data is returned when we don't want to process."""
         current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
         auth_credential = fake_arn(service='iam', generate_account_id=True)
-        downloader = AWSReportDownloader(self.fake_customer_name,
+        downloader = AWSReportDownloader(self.mock_task,
+                                         self.fake_customer_name,
                                          auth_credential,
                                          self.fake_bucket_name)
 

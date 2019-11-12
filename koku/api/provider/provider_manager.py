@@ -18,16 +18,13 @@
 
 import logging
 
-import requests
-from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
-from providers.provider_access import ProviderAccessor, ProviderAccessorError
-from requests.exceptions import ConnectionError
 from tenant_schemas.utils import tenant_context
 
 from api.provider.models import Provider, Sources
 from cost_models.models import CostModelMap
+from providers.provider_access import ProviderAccessor, ProviderAccessorError
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
@@ -90,13 +87,13 @@ class ProviderManager:
         query = None
         with tenant_context(tenant):
             if provider.type == 'OCP':
-                query = OCPUsageReportPeriod.objects.filter(provider_id=provider.id,
+                query = OCPUsageReportPeriod.objects.filter(provider=provider,
                                                             report_period_start=period_start).first()
             elif provider.type == 'AWS' or provider.type == 'AWS-local':
-                query = AWSCostEntryBill.objects.filter(provider_id=provider.id,
+                query = AWSCostEntryBill.objects.filter(provider=provider,
                                                         billing_period_start=period_start).first()
             elif provider.type == 'AZURE' or provider.type == 'AZURE-local':
-                query = AzureCostEntryBill.objects.filter(provider_id=provider.id,
+                query = AzureCostEntryBill.objects.filter(provider=provider,
                                                           billing_period_start=period_start).first()
         if query and query.summary_data_creation_datetime:
             stats['summary_data_creation_datetime'] = query.summary_data_creation_datetime.strftime(DATE_TIME_FORMAT)
@@ -184,29 +181,10 @@ class ProviderManager:
                 billing_source.delete()
             if provider_rate_objs:
                 provider_rate_objs.delete()
-            try:
-                self._delete_report_data()
-            except ConnectionError as err:
-                LOG.error(err)
-                LOG.warning(('The masu service is unavailable. '
-                             'Unable to remove report data for provider.'))
+
             self.model.delete()
 
             LOG.info('Provider: {} removed by {}'.format(self.model.name, current_user.username))
         else:
             err_msg = 'User {} does not have permission to delete provider {}'.format(current_user, str(self.model))
             raise ProviderManagerError(err_msg)
-
-    def _delete_report_data(self):
-        """Call masu to delete report data for the provider."""
-        LOG.info('Calling masu to delete report data for provider %s',
-                 self.model.id)
-        params = {
-            'schema': self.model.customer.schema_name,
-            'provider': self.model.type,
-            'provider_id': self.model.id
-        }
-        # Delete the report data for this provider
-        delete_url = settings.MASU_BASE_URL + settings.MASU_API_REPORT_DATA
-        response = requests.delete(delete_url, params=params)
-        LOG.info('Response: %s', response.json())

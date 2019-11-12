@@ -57,7 +57,7 @@ class ReportChargeUpdaterTest(MasuTestCase):
     )
     def test_aws_route(self, mock_update):
         """Test that AWS charge updating works as expected."""
-        updater = ReportChargeUpdater(self.schema, self.aws_test_provider_uuid)
+        updater = ReportChargeUpdater(self.schema, self.aws_provider_uuid)
         self.assertIsInstance(updater._updater, AWSReportChargeUpdater)
         updater.update_charge_info()
         mock_update.assert_called()

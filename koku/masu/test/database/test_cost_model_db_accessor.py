@@ -37,7 +37,7 @@ class CostModelDBAccessorTest(MasuTestCase):
         self.column_map = ReportingCommonDBAccessor().column_map
         self.creator = ReportObjectCreator(self.schema, self.column_map)
 
-        reporting_period = self.creator.create_ocp_report_period()
+        reporting_period = self.creator.create_ocp_report_period(provider_uuid=self.provider_uuid)
         report = self.creator.create_ocp_report(reporting_period)
         self.creator.create_ocp_usage_line_item(
             reporting_period,
@@ -187,7 +187,7 @@ class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
         self.column_map = ReportingCommonDBAccessor().column_map
         self.creator = ReportObjectCreator(self.schema, self.column_map)
 
-        reporting_period = self.creator.create_ocp_report_period()
+        reporting_period = self.creator.create_ocp_report_period(self.ocp_provider_uuid)
         report = self.creator.create_ocp_report(reporting_period)
         self.creator.create_ocp_usage_line_item(
             reporting_period,

@@ -55,7 +55,7 @@ class AzureReportSummaryUpdater:
                 # Override the bill date to correspond with the manifest
                 bill_date = self._manifest.billing_period_start_datetime.date()
                 bills = accessor.get_cost_entry_bills_query_by_provider(
-                    self._provider.id
+                    self._provider.uuid
                 )
                 bills = bills.filter(billing_period_start=bill_date).all()
 
@@ -117,7 +117,7 @@ class AzureReportSummaryUpdater:
 
         with AzureReportDBAccessor(self._schema_name, self._column_map) as accessor:
             # Need these bills on the session to update dates after processing
-            bills = accessor.bills_for_provider_id(self._provider.id, start_date)
+            bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
             LOG.info('Updating Azure report summary tables: \n\tSchema: %s'
                      '\n\tProvider: %s \n\tDates: %s - %s',
                      self._schema_name, self._provider.uuid, start_date, end_date)

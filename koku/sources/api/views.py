@@ -20,3 +20,4 @@
 # pylint: disable=unused-import
 from sources.api.billing_source import billing_source
 from sources.api.authentication import authentication
+from sources.api.source_status import source_status

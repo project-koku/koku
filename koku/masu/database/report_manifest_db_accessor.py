@@ -32,10 +32,10 @@ class ReportManifestDBAccessor(KokuDBAccess):
         self._table = CostUsageReportManifest
         self.date_accessor = DateAccessor()
 
-    def get_manifest(self, assembly_id, provider_id):
+    def get_manifest(self, assembly_id, provider_uuid):
         """Get the manifest associated with the provided provider and id."""
         query = self._get_db_obj_query()
-        return query.filter(provider_id=provider_id)\
+        return query.filter(provider_id=provider_uuid)\
             .filter(assembly_id=assembly_id).first()
 
     def get_manifest_by_id(self, manifest_id):
@@ -61,7 +61,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
                                 billing_period_start_datetime,
                                 num_processed_files (optional),
                                 num_total_files,
-                                provider_id,
+                                provider_uuid,
         Returns:
             None
 
@@ -72,6 +72,11 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
         if 'num_processed_files' not in kwargs:
             kwargs['num_processed_files'] = 0
+
+        # The Django model insists on calling this field provider_id
+        if 'provider_uuid' in kwargs:
+            uuid = kwargs.pop('provider_uuid')
+            kwargs['provider_id'] = uuid
 
         return super().add(**kwargs)
 
@@ -97,3 +102,12 @@ class ReportManifestDBAccessor(KokuDBAccess):
             file.last_completed_datetime = None
             file.last_started_datetime = None
             file.save()
+
+    def get_manifest_list_for_provider_and_bill_date(self, provider_uuid, bill_date):
+        """Return all manifests for a provider and bill date."""
+        filters = {
+            'provider_id': provider_uuid,
+            'billing_period_start_datetime__date': bill_date
+        }
+        return CostUsageReportManifest.objects.\
+            filter(**filters).all()

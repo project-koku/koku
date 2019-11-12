@@ -20,7 +20,7 @@
 import csv
 import json
 import logging
-from os import path
+from os import path, remove
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
@@ -68,7 +68,7 @@ class AWSReportProcessor(ReportProcessorBase):
     """Cost Usage Report processor."""
 
     # pylint:disable=too-many-arguments
-    def __init__(self, schema_name, report_path, compression, provider_id, manifest_id=None):
+    def __init__(self, schema_name, report_path, compression, provider_uuid, manifest_id=None):
         """Initialize the report processor.
 
         Args:
@@ -82,7 +82,7 @@ class AWSReportProcessor(ReportProcessorBase):
             schema_name=schema_name,
             report_path=report_path,
             compression=compression,
-            provider_id=provider_id,
+            provider_uuid=provider_uuid,
             manifest_id=manifest_id,
             processed_report=ProcessedReport()
         )
@@ -109,7 +109,7 @@ class AWSReportProcessor(ReportProcessorBase):
         stmt = (
             f'Initialized report processor for:\n'
             f' schema_name: {self._schema_name}\n'
-            f' provider_id: {provider_id}\n'
+            f' provider_uuid: {provider_uuid}\n'
             f' file: {self._report_name}'
         )
         LOG.info(stmt)
@@ -122,15 +122,27 @@ class AWSReportProcessor(ReportProcessorBase):
 
         """
         row_count = 0
-        self._delete_line_items(AWSReportDBAccessor, self.column_map)
         opener, mode = self._get_file_opener(self._compression)
         is_finalized_data = self._check_for_finalized_bill()
+        is_full_month = self._should_process_full_month()
+        self._delete_line_items(
+            AWSReportDBAccessor,
+            self.column_map,
+            is_finalized=is_finalized_data
+        )
+        opener, mode = self._get_file_opener(self._compression)
         # pylint: disable=invalid-name
         with opener(self._report_path, mode) as f:
             with AWSReportDBAccessor(self._schema_name, self.column_map) as report_db:
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
+                    # If this isn't an initial load and it isn't finalized data
+                    # we should only process recent data.
+                    if not self._should_process_row(row, 'lineItem/UsageStartDate',
+                                                    is_full_month,
+                                                    is_finalized=is_finalized_data):
+                        continue
                     bill_id = self.create_cost_entry_objects(row, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:
                         LOG.debug('Saving report rows %d to %d for %s', row_count,
@@ -157,6 +169,9 @@ class AWSReportProcessor(ReportProcessorBase):
 
         LOG.info('Completed report processing for file: %s and schema: %s',
                  self._report_name, self._schema_name)
+
+        LOG.info('Removing processed file: %s', self._report_path)
+        remove(self._report_path)
 
         return is_finalized_data
 
@@ -262,7 +277,7 @@ class AWSReportProcessor(ReportProcessorBase):
         bill_type = row.get('bill/BillType')
         payer_account_id = row.get('bill/PayerAccountId')
 
-        key = (bill_type, payer_account_id, start_date, self._provider_id)
+        key = (bill_type, payer_account_id, start_date, self._provider_uuid)
         if key in self.processed_report.bills:
             return self.processed_report.bills[key]
 
@@ -271,7 +286,7 @@ class AWSReportProcessor(ReportProcessorBase):
 
         data = self._get_data_for_table(row, table_name._meta.db_table)
 
-        data['provider_id'] = self._provider_id
+        data['provider_id'] = self._provider_uuid
 
         bill_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,

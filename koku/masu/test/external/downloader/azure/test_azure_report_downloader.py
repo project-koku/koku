@@ -20,20 +20,20 @@ import shutil
 from datetime import datetime
 from tempfile import NamedTemporaryFile
 from pathlib import Path
+from unittest.mock import patch, Mock
+
+from faker import Faker
 
 from masu.config import Config
-
-from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader, AzureReportDownloaderError
+from masu.external.downloader.azure.azure_report_downloader import (AzureReportDownloader,
+                                                                    AzureReportDownloaderError)
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
-
-from masu.util.azure import common as utils
-
+from masu.util import common as utils
 from masu.test import MasuTestCase
 
-from unittest.mock import patch
-
 DATA_DIR = Config.TMP_DIR
+
 
 class MockAzureService:
     def __init__(self):
@@ -98,6 +98,8 @@ class MockAzureService:
 class AzureReportDownloaderTest(MasuTestCase):
     """Test Cases for the AzureReportDownloader object."""
 
+    fake = Faker()
+
     @patch('masu.external.downloader.azure.azure_report_downloader.AzureService')
     def setUp(self, mock_service):
         """Set up each test."""
@@ -108,11 +110,14 @@ class AzureReportDownloaderTest(MasuTestCase):
         self.auth_credential = self.azure_credentials
         self.billing_source = self.azure_data_source
 
+        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()),
+                                           return_value={}))
         self.downloader = AzureReportDownloader(
+            task=self.mock_task,
             customer_name=self.customer_name,
             auth_credential=self.auth_credential,
             billing_source=self.billing_source,
-            provider_id=self.azure_provider_id)
+            provider_uuid=self.azure_provider_uuid)
         self.mock_data = MockAzureService()
 
 
@@ -120,8 +125,9 @@ class AzureReportDownloaderTest(MasuTestCase):
         super().tearDown()
         shutil.rmtree(DATA_DIR, ignore_errors=True)
 
-    @patch('masu.external.downloader.azure.azure_report_downloader.AzureService', return_value=MockAzureService())
-    def test_get_azure_client(self, mock_service):
+    @patch('masu.external.downloader.azure.azure_report_downloader.AzureService',
+           return_value=MockAzureService())
+    def test_get_azure_client(self, _):
         """Test to verify Azure downloader is initialized."""
         client = self.downloader._get_azure_client(self.azure_credentials, self.azure_data_source)
         self.assertIsNotNone(client)

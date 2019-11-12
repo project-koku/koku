@@ -32,11 +32,14 @@ class AWSCostEntryBill(models.Model):
     class Meta:
         """Meta for AWSCostEntryBill."""
 
-        unique_together = ('bill_type', 'payer_account_id',
-                           'billing_period_start', 'provider_id')
+        unique_together = (
+            'bill_type',
+            'payer_account_id',
+            'billing_period_start',
+            'provider',
+        )
 
-    billing_resource = models.CharField(max_length=50, default='aws',
-                                        null=False)
+    billing_resource = models.CharField(max_length=50, default='aws', null=False)
     bill_type = models.CharField(max_length=50, null=False)
     payer_account_id = models.CharField(max_length=50, null=False)
     billing_period_start = models.DateTimeField(null=False)
@@ -46,9 +49,7 @@ class AWSCostEntryBill(models.Model):
     finalized_datetime = models.DateTimeField(null=True)
     derived_cost_datetime = models.DateTimeField(null=True)
 
-    # provider_id is intentionally not a foreign key
-    # to prevent masu complication
-    provider_id = models.IntegerField(null=True)
+    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE)
 
 
 class AWSCostEntry(models.Model):
@@ -61,17 +62,12 @@ class AWSCostEntry(models.Model):
     class Meta:
         """Meta for AWSCostEntry."""
 
-        indexes = [
-            models.Index(
-                fields=['interval_start'],
-                name='interval_start_idx',
-            ),
-        ]
+        indexes = [models.Index(fields=['interval_start'], name='interval_start_idx')]
 
     interval_start = models.DateTimeField(null=False)
     interval_end = models.DateTimeField(null=False)
 
-    bill = models.ForeignKey('AWSCostEntryBill', on_delete=models.PROTECT)
+    bill = models.ForeignKey('AWSCostEntryBill', on_delete=models.CASCADE)
 
 
 class AWSCostEntryLineItem(models.Model):
@@ -83,17 +79,17 @@ class AWSCostEntryLineItem(models.Model):
 
     id = models.BigAutoField(primary_key=True)
 
-    cost_entry = models.ForeignKey('AWSCostEntry',
-                                   on_delete=models.PROTECT)
-    cost_entry_bill = models.ForeignKey('AWSCostEntryBill',
-                                        on_delete=models.PROTECT)
-    cost_entry_product = models.ForeignKey('AWSCostEntryProduct',
-                                           on_delete=models.PROTECT, null=True)
-    cost_entry_pricing = models.ForeignKey('AWSCostEntryPricing',
-                                           on_delete=models.PROTECT, null=True)
-    cost_entry_reservation = models.ForeignKey('AWSCostEntryReservation',
-                                               on_delete=models.PROTECT,
-                                               null=True)
+    cost_entry = models.ForeignKey('AWSCostEntry', on_delete=models.CASCADE)
+    cost_entry_bill = models.ForeignKey('AWSCostEntryBill', on_delete=models.CASCADE)
+    cost_entry_product = models.ForeignKey(
+        'AWSCostEntryProduct', on_delete=models.SET_NULL, null=True
+    )
+    cost_entry_pricing = models.ForeignKey(
+        'AWSCostEntryPricing', on_delete=models.SET_NULL, null=True
+    )
+    cost_entry_reservation = models.ForeignKey(
+        'AWSCostEntryReservation', on_delete=models.SET_NULL, null=True
+    )
 
     tags = JSONField(null=True)
 
@@ -108,52 +104,37 @@ class AWSCostEntryLineItem(models.Model):
     operation = models.CharField(max_length=50, null=True)
     availability_zone = models.CharField(max_length=50, null=True)
     resource_id = models.CharField(max_length=256, null=True)
-    usage_amount = models.DecimalField(max_digits=17, decimal_places=9,
-                                       null=True)
+    usage_amount = models.DecimalField(max_digits=17, decimal_places=9, null=True)
     normalization_factor = models.FloatField(null=True)
     normalized_usage_amount = models.DecimalField(
-        max_digits=17,
-        decimal_places=9,
-        null=True
+        max_digits=17, decimal_places=9, null=True
     )
     currency_code = models.CharField(max_length=10)
-    unblended_rate = models.DecimalField(max_digits=17, decimal_places=9,
-                                         null=True)
-    unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
-                                         null=True)
-    blended_rate = models.DecimalField(max_digits=17, decimal_places=9,
-                                       null=True)
-    blended_cost = models.DecimalField(max_digits=17, decimal_places=9,
-                                       null=True)
-    public_on_demand_cost = models.DecimalField(max_digits=17, decimal_places=9,
-                                                null=True)
-    public_on_demand_rate = models.DecimalField(max_digits=17, decimal_places=9,
-                                                null=True)
+    unblended_rate = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    blended_rate = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    public_on_demand_cost = models.DecimalField(
+        max_digits=17, decimal_places=9, null=True
+    )
+    public_on_demand_rate = models.DecimalField(
+        max_digits=17, decimal_places=9, null=True
+    )
     reservation_amortized_upfront_fee = models.DecimalField(
-        max_digits=17,
-        decimal_places=9,
-        null=True
+        max_digits=17, decimal_places=9, null=True
     )
     reservation_amortized_upfront_cost_for_usage = models.DecimalField(
-        max_digits=17,
-        decimal_places=9,
-        null=True
+        max_digits=17, decimal_places=9, null=True
     )
     reservation_recurring_fee_for_usage = models.DecimalField(
-        max_digits=17,
-        decimal_places=9,
-        null=True
+        max_digits=17, decimal_places=9, null=True
     )
     # Unused reservation fields more useful for later predictions.
     reservation_unused_quantity = models.DecimalField(
-        max_digits=17,
-        decimal_places=9,
-        null=True
+        max_digits=17, decimal_places=9, null=True
     )
     reservation_unused_recurring_fee = models.DecimalField(
-        max_digits=17,
-        decimal_places=9,
-        null=True
+        max_digits=17, decimal_places=9, null=True
     )
     tax_type = models.TextField(null=True)
 
@@ -171,32 +152,25 @@ class AWSCostEntryLineItemDaily(models.Model):
         db_table = 'reporting_awscostentrylineitem_daily'
 
         indexes = [
-            models.Index(
-                fields=['usage_start'],
-                name='usage_start_idx',
-            ),
-            models.Index(
-                fields=['product_code'],
-                name='product_code_idx',
-            ),
-            models.Index(
-                fields=['usage_account_id'],
-                name='usage_account_id_idx',
-            ),
+            models.Index(fields=['usage_start'], name='usage_start_idx'),
+            models.Index(fields=['product_code'], name='product_code_idx'),
+            models.Index(fields=['usage_account_id'], name='usage_account_id_idx'),
         ]
 
     id = models.BigAutoField(primary_key=True)
 
-    cost_entry_bill = models.ForeignKey('AWSCostEntryBill',
-                                        on_delete=models.PROTECT,
-                                        null=True)
-    cost_entry_product = models.ForeignKey('AWSCostEntryProduct',
-                                           on_delete=models.PROTECT, null=True)
-    cost_entry_pricing = models.ForeignKey('AWSCostEntryPricing',
-                                           on_delete=models.PROTECT, null=True)
-    cost_entry_reservation = models.ForeignKey('AWSCostEntryReservation',
-                                               on_delete=models.PROTECT,
-                                               null=True)
+    cost_entry_bill = models.ForeignKey(
+        'AWSCostEntryBill', on_delete=models.CASCADE, null=True
+    )
+    cost_entry_product = models.ForeignKey(
+        'AWSCostEntryProduct', on_delete=models.SET_NULL, null=True
+    )
+    cost_entry_pricing = models.ForeignKey(
+        'AWSCostEntryPricing', on_delete=models.SET_NULL, null=True
+    )
+    cost_entry_reservation = models.ForeignKey(
+        'AWSCostEntryReservation', on_delete=models.SET_NULL, null=True
+    )
 
     line_item_type = models.CharField(max_length=50, null=False)
     usage_account_id = models.CharField(max_length=50, null=False)
@@ -207,23 +181,20 @@ class AWSCostEntryLineItemDaily(models.Model):
     operation = models.CharField(max_length=50, null=True)
     availability_zone = models.CharField(max_length=50, null=True)
     resource_id = models.CharField(max_length=256, null=True)
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9,
-                                       null=True)
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     normalization_factor = models.FloatField(null=True)
     normalized_usage_amount = models.FloatField(null=True)
     currency_code = models.CharField(max_length=10)
-    unblended_rate = models.DecimalField(max_digits=17, decimal_places=9,
-                                         null=True)
-    unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
-                                         null=True)
-    blended_rate = models.DecimalField(max_digits=17, decimal_places=9,
-                                       null=True)
-    blended_cost = models.DecimalField(max_digits=17, decimal_places=9,
-                                       null=True)
-    public_on_demand_cost = models.DecimalField(max_digits=17, decimal_places=9,
-                                                null=True)
-    public_on_demand_rate = models.DecimalField(max_digits=17, decimal_places=9,
-                                                null=True)
+    unblended_rate = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    blended_rate = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    public_on_demand_cost = models.DecimalField(
+        max_digits=17, decimal_places=9, null=True
+    )
+    public_on_demand_rate = models.DecimalField(
+        max_digits=17, decimal_places=9, null=True
+    )
     tax_type = models.TextField(null=True)
     tags = JSONField(null=True)
 
@@ -244,49 +215,30 @@ class AWSCostEntryLineItemDailySummary(models.Model):
         db_table = 'reporting_awscostentrylineitem_daily_summary'
 
         indexes = [
+            models.Index(fields=['usage_start'], name='summary_usage_start_idx'),
+            models.Index(fields=['product_code'], name='summary_product_code_idx'),
             models.Index(
-                fields=['usage_start'],
-                name='summary_usage_start_idx',
+                fields=['usage_account_id'], name='summary_usage_account_id_idx'
             ),
-            models.Index(
-                fields=['product_code'],
-                name='summary_product_code_idx',
-            ),
-            models.Index(
-                fields=['usage_account_id'],
-                name='summary_usage_account_id_idx',
-            ),
-            GinIndex(
-                fields=['tags'],
-                name='tags_idx',
-            ),
-            models.Index(
-                fields=['account_alias'],
-                name='summary_account_alias_idx',
-            ),
-            models.Index(
-                fields=['product_family'],
-                name='summary_product_family_idx',
-            ),
-            models.Index(
-                fields=['instance_type'],
-                name='summary_instance_type_idx',
-            ),
+            GinIndex(fields=['tags'], name='tags_idx'),
+            models.Index(fields=['account_alias'], name='summary_account_alias_idx'),
+            models.Index(fields=['product_family'], name='summary_product_family_idx'),
+            models.Index(fields=['instance_type'], name='summary_instance_type_idx'),
         ]
 
     id = models.BigAutoField(primary_key=True)
 
-    cost_entry_bill = models.ForeignKey('AWSCostEntryBill',
-                                        on_delete=models.PROTECT,
-                                        null=True)
+    cost_entry_bill = models.ForeignKey(
+        'AWSCostEntryBill', on_delete=models.CASCADE, null=True
+    )
 
     # The following fields are used for grouping
     usage_start = models.DateTimeField(null=False)
     usage_end = models.DateTimeField(null=True)
     usage_account_id = models.CharField(max_length=50, null=False)
-    account_alias = models.ForeignKey('AWSAccountAlias',
-                                      on_delete=models.PROTECT,
-                                      null=True)
+    account_alias = models.ForeignKey(
+        'AWSAccountAlias', on_delete=models.PROTECT, null=True
+    )
     product_code = models.CharField(max_length=50, null=False)
     product_family = models.CharField(max_length=150, null=True)
     availability_zone = models.CharField(max_length=50, null=True)
@@ -296,25 +248,21 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     # The following fields are aggregates
     resource_ids = ArrayField(models.CharField(max_length=256), null=True)
     resource_count = models.IntegerField(null=True)
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9,
-                                       null=True)
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     normalization_factor = models.FloatField(null=True)
     normalized_usage_amount = models.FloatField(null=True)
     currency_code = models.CharField(max_length=10)
-    unblended_rate = models.DecimalField(max_digits=17, decimal_places=9,
-                                         null=True)
-    unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
-                                         null=True)
-    markup_cost = models.DecimalField(max_digits=17, decimal_places=9,
-                                      null=True)
-    blended_rate = models.DecimalField(max_digits=17, decimal_places=9,
-                                       null=True)
-    blended_cost = models.DecimalField(max_digits=17, decimal_places=9,
-                                       null=True)
-    public_on_demand_cost = models.DecimalField(max_digits=17, decimal_places=9,
-                                                null=True)
-    public_on_demand_rate = models.DecimalField(max_digits=17, decimal_places=9,
-                                                null=True)
+    unblended_rate = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    blended_rate = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    public_on_demand_cost = models.DecimalField(
+        max_digits=17, decimal_places=9, null=True
+    )
+    public_on_demand_rate = models.DecimalField(
+        max_digits=17, decimal_places=9, null=True
+    )
     tax_type = models.TextField(null=True)
     tags = JSONField(null=True)
 
@@ -338,13 +286,7 @@ class AWSCostEntryProduct(models.Model):
         """Meta for AWSCostEntryProduct."""
 
         unique_together = ('sku', 'product_name', 'region')
-
-        indexes = [
-            models.Index(
-                fields=['region'],
-                name='region_idx',
-            ),
-        ]
+        indexes = [models.Index(fields=['region'], name='region_idx')]
 
     sku = models.CharField(max_length=128, null=True)
     product_name = models.TextField(null=True)
@@ -364,9 +306,7 @@ class AWSCostEntryReservation(models.Model):
     reservation_arn = models.TextField(unique=True)
     number_of_reservations = models.PositiveIntegerField(null=True)
     units_per_reservation = models.DecimalField(
-        max_digits=17,
-        decimal_places=9,
-        null=True
+        max_digits=17, decimal_places=9, null=True
     )
     start_time = models.DateTimeField(null=True)
     end_time = models.DateTimeField(null=True)

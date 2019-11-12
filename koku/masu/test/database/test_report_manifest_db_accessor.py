@@ -16,6 +16,8 @@
 #
 
 """Test the ReportManifestDBAccessor."""
+import copy
+
 from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -30,13 +32,12 @@ class ReportManifestDBAccessorTest(IamTestCase):
         """Set up the test class."""
         super().setUp()
         self.schema = self.schema_name
-
         billing_start = DateAccessor().today_with_timezone('UTC').replace(day=1)
         self.manifest_dict = {
             'assembly_id': '1234',
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
-            'provider_id': 1,
+            'provider_uuid': self.provider_uuid,
         }
         self.manifest_accessor = ReportManifestDBAccessor()
 
@@ -59,13 +60,13 @@ class ReportManifestDBAccessorTest(IamTestCase):
             added_manifest = self.manifest_accessor.add(**self.manifest_dict)
 
             assembly_id = self.manifest_dict.get('assembly_id')
-            provider_id = self.manifest_dict.get('provider_id')
-            manifest = self.manifest_accessor.get_manifest(assembly_id, provider_id)
+            provider_uuid = self.manifest_dict.get('provider_uuid')
+            manifest = self.manifest_accessor.get_manifest(assembly_id, provider_uuid)
 
         self.assertIsNotNone(manifest)
         self.assertEqual(added_manifest, manifest)
         self.assertEqual(manifest.assembly_id, assembly_id)
-        self.assertEqual(manifest.provider_id, provider_id)
+        self.assertEqual(manifest.provider_id, provider_uuid)
         self.assertEqual(
             manifest.num_total_files, self.manifest_dict.get('num_total_files')
         )
@@ -73,7 +74,6 @@ class ReportManifestDBAccessorTest(IamTestCase):
     def test_get_manifest_by_id(self):
         """Test that the right manifest is returned by id."""
         with schema_context(self.schema):
-
             added_manifest = self.manifest_accessor.add(**self.manifest_dict)
             manifest = self.manifest_accessor.get_manifest_by_id(added_manifest.id)
         self.assertIsNotNone(manifest)
@@ -86,3 +86,30 @@ class ReportManifestDBAccessorTest(IamTestCase):
             now = DateAccessor().today_with_timezone('UTC')
             self.manifest_accessor.mark_manifest_as_updated(manifest)
             self.assertGreater(manifest.manifest_updated_datetime, now)
+
+    def test_get_manifest_list_for_provider_and_bill_date(self):
+        """Test that all manifests are returned for a provider and bill."""
+        bill_date = self.manifest_dict['billing_period_start_datetime'].date()
+        manifest_dict = copy.deepcopy(self.manifest_dict)
+        manifest_one = self.manifest_accessor.add(**manifest_dict)
+        result = self.manifest_accessor.get_manifest_list_for_provider_and_bill_date(
+            self.provider_uuid,
+            bill_date
+        )
+        self.assertEqual(len(result), 1)
+
+        manifest_dict['assembly_id'] = '2345'
+        manifest_two = self.manifest_accessor.add(**manifest_dict)
+        result = self.manifest_accessor.get_manifest_list_for_provider_and_bill_date(
+            self.provider_uuid,
+            bill_date
+        )
+        self.assertEqual(len(result), 2)
+
+        manifest_dict['assembly_id'] = '3456'
+        manifest_two = self.manifest_accessor.add(**manifest_dict)
+        result = self.manifest_accessor.get_manifest_list_for_provider_and_bill_date(
+            self.provider_uuid,
+            bill_date
+        )
+        self.assertEqual(len(result), 3)

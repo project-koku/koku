@@ -43,9 +43,10 @@ from reporting_common.models import CostUsageReportManifest, CostUsageReportStat
 class OCPReportDataGenerator:
     """Populate the database with OCP report data."""
 
-    def __init__(self, tenant, current_month_only=False, dated_tags=None):
+    def __init__(self, tenant, provider, current_month_only=False, dated_tags=None):
         """Set up the class."""
         self.tenant = tenant
+        self.provider = provider
         self.fake = Faker()
         self.dh = DateHelper()
         self.labels = []
@@ -82,7 +83,7 @@ class OCPReportDataGenerator:
                 list(self.today - relativedelta(days=i) for i in range(10)),
             ]
 
-    def create_manifest_entry(self, billing_period_start, provider_id):
+    def create_manifest_entry(self, billing_period_start, provider_uuid):
         """Populate a report manifest entry."""
         manifest_creation_datetime = billing_period_start + relativedelta(days=random.randint(1, 27))
         manifest_updated_datetime = manifest_creation_datetime + relativedelta(days=random.randint(1, 2))
@@ -93,7 +94,7 @@ class OCPReportDataGenerator:
             'billing_period_start_datetime': billing_period_start,
             'num_processed_files': 1,
             'num_total_files': 1,
-            'provider_id': provider_id
+            'provider_id': provider_uuid
         }
         manifest_entry = CostUsageReportManifest(**data)
         manifest_entry.save()
@@ -121,7 +122,8 @@ class OCPReportDataGenerator:
     def add_data_to_tenant(self, **kwargs):
         """Populate tenant with data."""
         words = list(set([self.fake.word() for _ in range(10)]))
-        provider_id = kwargs.get('provider_id')
+        provider_uuid = kwargs.get('provider_uuid', self.provider.uuid)
+
         self.cluster_id = random.choice(words)
         self.cluster_alias = random.choice(words)
         if kwargs.get('namespaces'):
@@ -147,10 +149,9 @@ class OCPReportDataGenerator:
         ]
         with tenant_context(self.tenant):
             for i, period in enumerate(self.period_ranges):
-                report_period = self.create_ocp_report_period(period, provider_id)
-                if provider_id:
-                    manifest_entry = self.create_manifest_entry(report_period.report_period_start, provider_id)
-                    self.create_report_status_entry(manifest_entry.billing_period_start_datetime, manifest_entry.id)
+                report_period = self.create_ocp_report_period(period, provider_uuid)
+                manifest_entry = self.create_manifest_entry(report_period.report_period_start, provider_uuid)
+                self.create_report_status_entry(manifest_entry.billing_period_start_datetime, manifest_entry.id)
                 for report_date in self.report_ranges[i]:
                     report = self.create_ocp_report(
                         report_period,
@@ -163,12 +164,12 @@ class OCPReportDataGenerator:
             self._populate_daily_summary_table()
             self._populate_storage_daily_table()
             self._populate_storage_daily_summary_table()
-            self._populate_cost_summary_table()
             self._populate_charge_info()
             self._populate_storage_charge_info()
             self._populate_pod_label_summary_table()
             self._populate_volume_claim_label_summary_table()
             self._populate_volume_label_summary_table()
+            self._populate_cost_summary_table()
 
     def remove_data_from_tenant(self):
         """Remove the added data."""
@@ -188,7 +189,7 @@ class OCPReportDataGenerator:
                       CostUsageReportStatus):
             table.objects.all().delete()
 
-    def create_ocp_report_period(self, period, provider_id=1):
+    def create_ocp_report_period(self, period, provider_uuid):
         """Create the OCP report period DB rows."""
         data = {
             'cluster_id': self.cluster_id,
@@ -197,10 +198,10 @@ class OCPReportDataGenerator:
             'summary_data_creation_datetime': self.dh._now,
             'summary_data_updated_datetime': self.dh._now,
             'derived_cost_datetime': self.dh._now,
-            'provider_id': provider_id
+            'provider_id': provider_uuid
         }
-        report_period = OCPUsageReportPeriod(**data)
-        report_period.save()
+        report_period, _ = OCPUsageReportPeriod.objects.get_or_create(**data)
+        # report_period.save()
         return report_period
 
     def create_ocp_report(self, period, interval_start):
@@ -597,8 +598,8 @@ class OCPReportDataGenerator:
             FROM (
                 SELECT key,
                     value
-                FROM reporting_ocpusagelineitem_daily AS li,
-                    jsonb_each_text(li.pod_labels) labels
+                FROM reporting_ocpstoragelineitem_daily AS li,
+                    jsonb_each_text(li.persistentvolumeclaim_labels) labels
             ) l
             GROUP BY l.key
             ON CONFLICT (key) DO UPDATE
@@ -617,8 +618,8 @@ class OCPReportDataGenerator:
             FROM (
                 SELECT key,
                     value
-                FROM reporting_ocpusagelineitem_daily AS li,
-                    jsonb_each_text(li.pod_labels) labels
+                FROM reporting_ocpstoragelineitem_daily AS li,
+                    jsonb_each_text(li.persistentvolume_labels) labels
             ) l
             GROUP BY l.key
             ON CONFLICT (key) DO UPDATE

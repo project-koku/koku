@@ -19,9 +19,10 @@ from tenant_schemas.utils import tenant_context
 
 from api.functions import JSONBObjectKeys
 from api.iam.test.iam_test_case import IamTestCase
-from api.report.test import FakeQueryParameters
+from api.provider.test import create_generic_provider
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.tags.ocp_aws.queries import OCPAWSTagQueryHandler
+from api.tags.ocp_aws.view import OCPAWSTagView
 from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummary
 
@@ -34,14 +35,16 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
         """Set up the tests."""
         super().setUp()
         self.dh = DateHelper()
-        generator = OCPAWSReportDataGenerator(self.tenant)
+        _, self.provider = create_generic_provider('AZURE', self.headers)
+        generator = OCPAWSReportDataGenerator(self.tenant, self.provider)
         generator.add_data_to_tenant()
         generator.add_aws_data_to_tenant()
 
     def test_no_parameters(self):
         """Test that the execute_query() succeeds with no parameters."""
-        # '?'
-        handler = OCPAWSTagQueryHandler(FakeQueryParameters({}, tenant=self.tenant).mock_qp)
+        url = '?'
+        query_params = self.mocked_query_params(url, OCPAWSTagView)
+        handler = OCPAWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'day')
@@ -49,12 +52,9 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
 
     def test_10_day(self):
         """Test that the execute_query() succeeds with 10 day parameters."""
-        # '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily'
-        params = {'filter': {'resolution': 'daily',
-                             'time_scope_value': -10,
-                             'time_scope_units': 'day'}}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = OCPAWSTagQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily'  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPAWSTagView)
+        handler = OCPAWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'day')
@@ -62,12 +62,9 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
 
     def test_30_day(self):
         """Test that execute_query() succeeds with 30 day parameters."""
-        # '?filter[time_scope_units]=day&filter[time_scope_value]=-30&filter[resolution]=daily'
-        params = {'filter': {'resolution': 'daily',
-                             'time_scope_value': -30,
-                             'time_scope_units': 'day'}}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = OCPAWSTagQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=day&filter[time_scope_value]=-30&filter[resolution]=daily'  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPAWSTagView)
+        handler = OCPAWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'day')
@@ -75,13 +72,9 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
 
     def test_10_day_only_keys(self):
         """Test that execute_query() succeeds with 10 day parameters, keys-only."""
-        # '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&key_only=True'
-        params = {'filter': {'resolution': 'daily',
-                             'time_scope_value': -10,
-                             'time_scope_units': 'day'},
-                  'key_only': True}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = OCPAWSTagQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&key_only=True'  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPAWSTagView)
+        handler = OCPAWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'day')
@@ -89,12 +82,9 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
 
     def test_1_month(self):
         """Test that execute_query() succeeds with 1-month parameters."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
-        params = {'filter': {'resolution': 'monthly',
-                             'time_scope_value': -1,
-                             'time_scope_units': 'month'}}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = OCPAWSTagQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
+        query_params = self.mocked_query_params(url, OCPAWSTagView)
+        handler = OCPAWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'month')
@@ -102,12 +92,9 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
 
     def test_last_month(self):
         """Test that execute_query() succeeds with last-month parameters."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly'
-        params = {'filter': {'resolution': 'monthly',
-                             'time_scope_value': -2,
-                             'time_scope_units': 'month'}}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = OCPAWSTagQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly'
+        query_params = self.mocked_query_params(url, OCPAWSTagView)
+        handler = OCPAWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'month')
@@ -115,13 +102,9 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
 
     def test_specific_account(self):
         """Test that execute_query() succeeds with account parameter."""
-        # '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&filter[account]=some_account'
-        params = {'filter': {'resolution': 'daily',
-                             'time_scope_value': -10,
-                             'time_scope_units': 'day',
-                             'account': str(self.fake.ean8())}}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = OCPAWSTagQueryHandler(query_params.mock_qp)
+        url = f'?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&filter[account]={str(self.fake.ean8())}'  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPAWSTagView)
+        handler = OCPAWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'day')
@@ -129,19 +112,19 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
 
     def test_get_tag_keys(self):
         """Test that all OCP-on-AWS tag keys are returned."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly'
-        params = {'filter': {'resolution': 'monthly',
-                             'time_scope_value': -2,
-                             'time_scope_units': 'month'}}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = OCPAWSTagQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly'
+        query_params = self.mocked_query_params(url, OCPAWSTagView)
+        handler = OCPAWSTagQueryHandler(query_params)
 
         with tenant_context(self.tenant):
-            tag_keys = OCPAWSCostLineItemDailySummary.objects\
-                .annotate(tag_keys=JSONBObjectKeys('tags'))\
-                .values('tag_keys')\
-                .distinct()\
+            tag_keys = (
+                OCPAWSCostLineItemDailySummary.objects.annotate(
+                    tag_keys=JSONBObjectKeys('tags')
+                )
+                .values('tag_keys')
+                .distinct()
                 .all()
+            )
             tag_keys = [tag.get('tag_keys') for tag in tag_keys]
 
         result = handler.get_tag_keys()

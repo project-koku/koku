@@ -23,7 +23,7 @@ import tempfile
 
 from faker import Faker
 
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.azure_local.azure_local_report_downloader import (
@@ -80,21 +80,25 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
         shutil.copy2(test_report, self.csv_key)
 
         os.makedirs(DATA_DIR, exist_ok=True)
+        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()),
+                                           return_value={}))
         self.report_downloader = ReportDownloader(
-            self.customer_name,
-            self.fake_auth_credential,
-            self.fake_bucket_name,
-            'AZURE-local',
-            self.azure_provider_id,
+            task=self.mock_task,
+            customer_name=self.customer_name,
+            access_credential=self.fake_auth_credential,
+            report_source=self.fake_bucket_name,
+            provider_type='AZURE-local',
+            provider_uuid=self.azure_provider_uuid,
         )
 
         self.azure_local_report_downloader = AzureLocalReportDownloader(
             **{
+                'task': self.mock_task,
                 'customer_name': self.customer_name,
                 'auth_credential': self.fake_auth_credential,
                 'billing_source': self.fake_bucket_name,
                 'bucket': self.fake_bucket_name,
-                'provider_id': self.azure_provider_id,
+                'provider_uuid': self.azure_provider_uuid,
             }
         )
 

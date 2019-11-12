@@ -36,14 +36,13 @@ class AWSReportChargeUpdaterError(Exception):
 class AWSReportChargeUpdater:
     """Class to update AWS report summary data with charge information."""
 
-    def __init__(self, schema, provider_uuid, provider_id):
+    def __init__(self, schema, provider_uuid):
         """Establish the database connection.
 
         Args:
             schema (str): The customer schema to associate with
 
         """
-        self._provider_id = provider_id
         self._provider_uuid = provider_uuid
         self._schema = schema
         with ReportingCommonDBAccessor() as reporting_common:
@@ -84,12 +83,13 @@ class AWSReportChargeUpdater:
         LOG.debug('Starting charge calculation updates for provider: %s. Dates: %s-%s',
                   self._provider_uuid, str(start_date), str(end_date))
 
+        self._update_markup_cost(start_date, end_date)
+
         with AWSReportDBAccessor(self._schema, self._column_map) as accessor:
             LOG.debug('Updating AWS derived cost summary for schema: %s and provider: %s',
                       self._schema, self._provider_uuid)
-            bills = accessor.bills_for_provider_id(self._provider_id, start_date)
+            bills = accessor.bills_for_provider_uuid(self._provider_uuid, start_date)
             with schema_context(self._schema):
                 for bill in bills:
                     bill.derived_cost_datetime = DateAccessor().today_with_timezone('UTC')
                     bill.save()
-        self._update_markup_cost(start_date, end_date)

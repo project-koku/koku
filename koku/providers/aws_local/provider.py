@@ -46,3 +46,4 @@ class AWSLocalProvider(AWSProvider):
             key = 'bucket'
             message = 'Bucket is a required parameter for AWS.'
             raise serializers.ValidationError(error_obj(key, message))
+        return True

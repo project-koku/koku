@@ -59,10 +59,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with ProviderDBAccessor(
             provider_uuid=self.ocp_test_provider_uuid
         ) as provider_accessor:
-            self.ocp_provider_id = provider_accessor.get_provider().id
+            self.ocp_provider_uuid = provider_accessor.get_provider().uuid
 
         self.reporting_period = self.creator.create_ocp_report_period(
-            provider_id=self.ocp_provider_id, cluster_id=self.cluster_id
+            provider_uuid=self.ocp_provider_uuid, cluster_id=self.cluster_id
         )
         self.report = self.creator.create_ocp_report(self.reporting_period)
         pod = ''.join(random.choice(string.ascii_lowercase) for _ in range(10))
@@ -188,8 +188,15 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """Test that report periods are returned by date filter."""
         period_start = DateAccessor().today_with_timezone('UTC').replace(day=1)
         prev_period_start = period_start - relativedelta.relativedelta(months=1)
-        reporting_period = self.creator.create_ocp_report_period(period_start)
-        prev_reporting_period = self.creator.create_ocp_report_period(prev_period_start)
+        reporting_period = self.creator.create_ocp_report_period(
+            self.ocp_provider_uuid,
+            period_date=period_start
+        )
+        prev_reporting_period = self.creator.create_ocp_report_period(
+            self.ocp_provider_uuid,
+            period_date=prev_period_start
+        )
+
         with schema_context(self.schema):
             periods = self.accessor.get_usage_periods_by_date(period_start.date())
             self.assertIn(reporting_period, periods)
@@ -198,9 +205,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     def test_get_usage_period_query_by_provider(self):
         """Test that periods are returned filtered by provider."""
-        provider_id = self.ocp_provider_id
+        provider_uuid = self.ocp_provider_uuid
 
-        period_query = self.accessor.get_usage_period_query_by_provider(provider_id)
+        period_query = self.accessor.get_usage_period_query_by_provider(provider_uuid)
         with schema_context(self.schema):
             periods = period_query.all()
 
@@ -208,20 +215,20 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
             period = periods[0]
 
-            self.assertEqual(period.provider_id, provider_id)
+            self.assertEqual(period.provider_id, provider_uuid)
 
-    def test_report_periods_for_provider_id(self):
+    def test_report_periods_for_provider_uuid(self):
         """Test that periods are returned filtered by provider id and start date."""
-        provider_id = self.ocp_provider_id
+        provider_uuid = self.ocp_provider_uuid
         start_date = str(self.reporting_period.report_period_start)
 
-        periods = self.accessor.report_periods_for_provider_id(provider_id, start_date)
+        periods = self.accessor.report_periods_for_provider_uuid(provider_uuid, start_date)
         with schema_context(self.schema):
             self.assertGreater(len(periods), 0)
 
             period = periods[0]
 
-            self.assertEqual(period.provider_id, provider_id)
+            self.assertEqual(period.provider_id, provider_uuid)
 
     @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
     def test_get_lineitem_query_for_reportid(self, mock_vacuum):
@@ -321,7 +328,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """Test that the line item daily summary table populates."""
         self.tearDown()
         self.reporting_period = self.creator.create_ocp_report_period(
-            provider_id=self.ocp_provider_id, cluster_id=self.cluster_id
+            provider_uuid=self.ocp_provider_uuid, cluster_id=self.cluster_id
         )
         self.report = self.creator.create_ocp_report(self.reporting_period)
         report_table_name = OCP_REPORT_TABLE_MAP['report']
@@ -400,7 +407,14 @@ class OCPReportDBAccessorTest(MasuTestCase):
         last_month = today - relativedelta.relativedelta(months=1)
 
         for start_date in (today, last_month):
-            period = self.creator.create_ocp_report_period(start_date)
+            period = self.creator.create_ocp_report_period(
+                self.ocp_provider_uuid,
+                period_date=start_date
+            )
+            period = self.creator.create_ocp_report_period(
+            self.ocp_provider_uuid,
+            period_date=start_date
+        )
             report = self.creator.create_ocp_report(period, start_date)
             self.creator.create_ocp_usage_line_item(period, report)
 
@@ -449,7 +463,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
         last_month = today - relativedelta.relativedelta(months=1)
 
         for start_date in (today, last_month):
-            period = self.creator.create_ocp_report_period(start_date)
+            period = self.creator.create_ocp_report_period(
+                self.ocp_provider_uuid,
+                period_date=start_date
+            )
             report = self.creator.create_ocp_report(period, start_date)
             self.creator.create_ocp_storage_line_item(period, report)
 
@@ -497,7 +514,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
         last_month = today - relativedelta.relativedelta(months=1)
 
         for start_date in (today, last_month):
-            period = self.creator.create_ocp_report_period(start_date)
+            period = self.creator.create_ocp_report_period(
+            self.ocp_provider_uuid,
+            period_date=start_date
+        )
             report = self.creator.create_ocp_report(period, start_date)
             self.creator.create_ocp_storage_line_item(period, report)
         with schema_context(self.schema):

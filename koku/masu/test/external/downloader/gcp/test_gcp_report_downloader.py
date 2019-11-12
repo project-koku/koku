@@ -2,6 +2,7 @@
 import shutil
 from datetime import datetime
 from unittest.mock import Mock, patch
+from uuid import uuid4
 
 from faker import Faker
 from rest_framework.exceptions import ValidationError
@@ -38,7 +39,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         shutil.rmtree(DATA_DIR, ignore_errors=True)
 
     def create_gcp_downloader_with_mock_gcp_storage(
-        self, customer_name=None, bucket_name=None, provider_id=None, report_prefix=None
+        self, customer_name=None, bucket_name=None, provider_uuid=None, report_prefix=None
     ):
         """
         Create a GCPReportDownloader instance that skips the initial GCP client/bucket check.
@@ -49,7 +50,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         Args:
             customer_name (str): optional customer name; will be randomly generated if None
             bucket_name (str): optional bucket name; will be randomly generated if None
-            provider_id (int): optional provider ID; will be randomly generated if None
+            provider_uuid (uuid): optional provider UUID; will be randomly generated if None
             report_prefix (str): optional report prefix
 
         Returns:
@@ -64,8 +65,8 @@ class GCPReportDownloaderTest(MasuTestCase):
         billing_source = {'bucket': bucket_name}
         if report_prefix:
             billing_source['report_prefix'] = report_prefix
-        if not provider_id:
-            provider_id = FAKE.pyint()
+        if not provider_uuid:
+            provider_uuid = uuid4()
         with patch(
             'masu.external.downloader.gcp.gcp_report_downloader.GCPProvider'
         ) as mock_provider, patch(
@@ -74,9 +75,11 @@ class GCPReportDownloaderTest(MasuTestCase):
             # mock_storage_client = mock_storage.Client.return_value
             # mock_storage_client.lookup_bucket.return_value = {}
             downloader = GCPReportDownloader(
+                task=Mock(request=Mock(id=str(FAKE.uuid4()),
+                                       return_value={})),
                 customer_name=customer_name,
                 billing_source=billing_source,
-                provider_id=provider_id,
+                provider_uuid=provider_uuid,
             )
         return downloader
 
@@ -87,7 +90,9 @@ class GCPReportDownloaderTest(MasuTestCase):
             ValidationError
         )
         with self.assertRaises(GCPReportDownloaderError):
-            GCPReportDownloader(FAKE.name(), {'bucket': FAKE.slug()})
+            GCPReportDownloader(Mock(request=Mock(id=str(FAKE.uuid4()),
+                                                  return_value={})),
+                                FAKE.name(), {'bucket': FAKE.slug()})
 
     def test_init_reachable_bucket_is_okay(self):
         """Assert GCPReportDownloader initializes with expected values."""
@@ -99,7 +104,9 @@ class GCPReportDownloaderTest(MasuTestCase):
         ) as mock_provider, patch(
             'masu.external.downloader.gcp.gcp_report_downloader.storage'
         ) as mock_storage:
-            downloader = GCPReportDownloader(customer_name, billing_source)
+            downloader = GCPReportDownloader(Mock(request=Mock(id=str(FAKE.uuid4()),
+                                                               return_value={})),
+                                             customer_name, billing_source)
             mock_storage.Client.return_value.lookup_bucket.assert_called_with(
                 bucket_name
             )
@@ -226,12 +233,12 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Assert appropriate generation of assembly ID."""
         start_date = datetime(2019, 2, 1)
         end_date = datetime(2019, 2, 28)
-        provider_id = 42
+        provider_uuid = uuid4()
         file_count = 15
-        expected_assembly_id = '42:2019-02-01:2019-02-28:15'
+        expected_assembly_id = f'{provider_uuid}:2019-02-01:2019-02-28:15'
 
         downloader = self.create_gcp_downloader_with_mock_gcp_storage(
-            provider_id=provider_id
+            provider_uuid=provider_uuid
         )
         assembly_id = downloader._generate_assembly_id(start_date, end_date, file_count)
         self.assertEqual(assembly_id, expected_assembly_id)

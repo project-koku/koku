@@ -77,11 +77,12 @@ class GetReportFileTests(MasuTestCase):
         """Test task"""
         account = fake_arn(service='iam', generate_account_id=True)
         report = _get_report_files(
+            Mock(),
             customer_name=self.fake.word(),
             authentication=account,
             provider_type='AWS',
             report_name=self.fake.word(),
-            provider_uuid=self.aws_test_provider_uuid,
+            provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
         )
 
@@ -100,11 +101,12 @@ class GetReportFileTests(MasuTestCase):
         expected = 'INFO:masu.processor._tasks.download:Available disk space'
         with self.assertLogs('masu.processor._tasks.download', level='INFO') as logger:
             _get_report_files(
+                Mock(),
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
                 report_name=self.fake.word(),
-                provider_uuid=self.aws_test_provider_uuid,
+                provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
             )
             statement_found = False
@@ -131,11 +133,12 @@ class GetReportFileTests(MasuTestCase):
         )
         with self.assertLogs('masu.processor._tasks.download', level='INFO') as logger:
             _get_report_files(
+                Mock(),
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
                 report_name=self.fake.word(),
-                provider_uuid=self.aws_test_provider_uuid,
+                provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
             )
             self.assertIn(expected, logger.output)
@@ -150,11 +153,12 @@ class GetReportFileTests(MasuTestCase):
 
         with self.assertRaises(Exception):
             _get_report_files(
+                Mock(),
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
                 report_name=self.fake.word(),
-                provider_uuid=self.aws_test_provider_uuid,
+                provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
             )
 
@@ -175,11 +179,12 @@ class GetReportFileTests(MasuTestCase):
         account = fake_arn(service='iam', generate_account_id=True)
         with patch.object(ReportDownloader, 'get_reports') as download_call:
             _get_report_files(
+                Mock(),
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
                 report_name=self.fake.word(),
-                provider_uuid=self.aws_test_provider_uuid,
+                provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
             )
 
@@ -203,11 +208,12 @@ class GetReportFileTests(MasuTestCase):
         account = fake_arn(service='iam', generate_account_id=True)
         with patch.object(ReportDownloader, 'get_reports') as download_call:
             _get_report_files(
+                Mock(),
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
                 report_name=self.fake.word(),
-                provider_uuid=self.aws_test_provider_uuid,
+                provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
             )
 
@@ -225,11 +231,12 @@ class GetReportFileTests(MasuTestCase):
 
         try:
             _get_report_files(
+                Mock(),
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
                 report_name=self.fake.word(),
-                provider_uuid=self.aws_test_provider_uuid,
+                provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
             )
         except ReportDownloaderError:
@@ -243,11 +250,12 @@ class GetReportFileTests(MasuTestCase):
         account = fake_arn(service='iam', generate_account_id=True)
 
         _get_report_files(
+            Mock(),
             customer_name=self.fake.word(),
             authentication=account,
             provider_type='AWS',
             report_name=self.fake.word(),
-            provider_uuid=self.aws_test_provider_uuid,
+            provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
         )
         fake_status.assert_called_with(ProviderStatusCode.READY)
@@ -268,7 +276,7 @@ class ProcessReportFileTests(MasuTestCase):
         path = '{}/{}'.format(report_dir, 'file1.csv')
         schema_name = self.schema
         provider = 'AWS'
-        provider_uuid = self.aws_test_provider_uuid
+        provider_uuid = self.aws_provider_uuid
         report_dict = {
             'file': path,
             'compression': 'gzip',
@@ -303,7 +311,7 @@ class ProcessReportFileTests(MasuTestCase):
         path = '{}/{}'.format(report_dir, 'file1.csv')
         schema_name = self.schema
         provider = 'AWS'
-        provider_uuid = self.aws_test_provider_uuid
+        provider_uuid = self.aws_provider_uuid
         report_dict = {
             'file': path,
             'compression': 'gzip',
@@ -334,7 +342,7 @@ class ProcessReportFileTests(MasuTestCase):
         path = '{}/{}'.format(report_dir, 'file1.csv')
         schema_name = self.schema
         provider = 'AWS'
-        provider_uuid = self.aws_test_provider_uuid
+        provider_uuid = self.aws_provider_uuid
         report_dict = {
             'file': path,
             'compression': 'gzip',
@@ -363,7 +371,7 @@ class ProcessReportFileTests(MasuTestCase):
         path = '{}/{}'.format(report_dir, 'file1.csv')
         schema_name = self.schema
         provider = 'AWS'
-        provider_uuid = self.aws_test_provider_uuid
+        provider_uuid = self.aws_provider_uuid
         report_dict = {
             'file': path,
             'compression': 'gzip',
@@ -437,7 +445,7 @@ class TestProcessorTasks(MasuTestCase):
             'provider_type': 'AWS',
             'schema_name': self.fake.word(),
             'billing_source': self.fake.word(),
-            'provider_uuid': self.aws_test_provider_uuid,
+            'provider_uuid': self.aws_provider_uuid,
         }
 
     @patch('masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime')
@@ -646,7 +654,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         for cost_entry_date in (self.start_date, last_month):
             bill = self.creator.create_cost_entry_bill(
-                provider_id=self.aws_provider.id, bill_date=cost_entry_date
+                provider_uuid=self.aws_provider_uuid, bill_date=cost_entry_date
             )
             cost_entry = self.creator.create_cost_entry(bill, cost_entry_date)
             for family in [
@@ -664,12 +672,12 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         provider_ocp_uuid = self.ocp_test_provider_uuid
 
         with ProviderDBAccessor(provider_uuid=provider_ocp_uuid) as provider_accessor:
-            provider_id = provider_accessor.get_provider().id
+            provider_uuid = provider_accessor.get_provider().uuid
 
         cluster_id = self.ocp_provider_resource_name
         for period_date in (self.start_date, last_month):
             period = self.creator.create_ocp_report_period(
-                period_date, provider_id=provider_id, cluster_id=cluster_id
+                provider_uuid=provider_uuid, period_date=period_date, cluster_id=cluster_id
             )
             report = self.creator.create_ocp_report(period, period_date)
             for _ in range(25):
@@ -680,7 +688,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     def test_update_summary_tables_aws(self, mock_charge_info, mock_cost_summary):
         """Test that the summary table task runs."""
         provider = 'AWS'
-        provider_aws_uuid = self.aws_test_provider_uuid
+        provider_aws_uuid = self.aws_provider_uuid
 
         daily_table_name = AWS_CUR_TABLE_MAP['line_item_daily']
         summary_table_name = AWS_CUR_TABLE_MAP['line_item_daily_summary']
@@ -711,7 +719,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     def test_update_summary_tables_aws_end_date(self, mock_charge_info):
         """Test that the summary table task respects a date range."""
         provider = 'AWS'
-        provider_aws_uuid = self.aws_test_provider_uuid
+        provider_aws_uuid = self.aws_provider_uuid
         ce_table_name = AWS_CUR_TABLE_MAP['cost_entry']
         daily_table_name = AWS_CUR_TABLE_MAP['line_item_daily']
         summary_table_name = AWS_CUR_TABLE_MAP['line_item_daily_summary']
@@ -813,7 +821,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             provider_obj = provider_accessor.get_provider()
 
         usage_period_qry = self.ocp_accessor.get_usage_period_query_by_provider(
-            provider_obj.id
+            provider_obj.uuid
         )
         with schema_context(self.schema):
             cluster_id = usage_period_qry.first().cluster_id

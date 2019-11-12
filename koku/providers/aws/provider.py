@@ -157,6 +157,7 @@ class AWSProvider(ProviderInterface):
             message = 'Unable to obtain organization data with {}.'.format(
                 credential_name)
             LOG.info(message)
+        return True
 
     def infra_type_implementation(self, provider_uuid, tenant):
         """Return infrastructure type."""

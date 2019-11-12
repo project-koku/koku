@@ -43,9 +43,9 @@ class ProviderStatusAccessorTest(MasuTestCase):
 
         self.date_accessor = DateAccessor()
 
-        with ProviderDBAccessor(self.aws_test_provider_uuid) as provider_accessor:
+        with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
-            self.provider_id = provider.id
+            self.provider_uuid = provider.uuid
 
     def _setup_random_status(self):
         """Set up a randomized status for testing.
@@ -54,14 +54,14 @@ class ProviderStatusAccessorTest(MasuTestCase):
         facilitate testing the case where there is no status in the DB.
         """
         self.test_status = {
-            'provider_id': self.provider_id,
+            'provider_id': self.provider_uuid,
             'status': random.choice(list(ProviderStatusCode)),
             'last_message': self.FAKE.word(),
             'retries': random.randint(0, 10),
             'timestamp': self.date_accessor.today_with_timezone('UTC')
         }
 
-        with ProviderStatusAccessor(self.aws_test_provider_uuid) as accessor:
+        with ProviderStatusAccessor(self.aws_provider_uuid) as accessor:
             status = accessor.add(**self.test_status)
             status.save()
             self.time_stamp = status.timestamp
@@ -69,7 +69,7 @@ class ProviderStatusAccessorTest(MasuTestCase):
     def test_init(self):
         """Test __init__() when a status is in the DB."""
         self._setup_random_status()
-        with ProviderStatusAccessor(self.aws_test_provider_uuid) as accessor:
+        with ProviderStatusAccessor(self.aws_provider_uuid) as accessor:
             self.assertIsNotNone(accessor._table)
             self.assertIsNotNone(accessor._obj)
 
@@ -81,34 +81,34 @@ class ProviderStatusAccessorTest(MasuTestCase):
     def test_get_status(self):
         """Test get_status()."""
         self._setup_random_status()
-        with ProviderStatusAccessor(self.aws_test_provider_uuid) as accessor:
+        with ProviderStatusAccessor(self.aws_provider_uuid) as accessor:
             output = accessor.get_status()
             self.assertEqual(output, self.test_status.get('status'))
 
     def test_get_last_message(self):
         """Test get_last_message()."""
         self._setup_random_status()
-        with ProviderStatusAccessor(self.aws_test_provider_uuid) as accessor:
+        with ProviderStatusAccessor(self.aws_provider_uuid) as accessor:
             output = accessor.get_last_message()
             self.assertEqual(output, self.test_status.get('last_message'))
 
     def test_get_retries(self):
         """Test get_retries()."""
         self._setup_random_status()
-        with ProviderStatusAccessor(self.aws_test_provider_uuid) as accessor:
+        with ProviderStatusAccessor(self.aws_provider_uuid) as accessor:
             output = accessor.get_retries()
             self.assertEqual(output, self.test_status.get('retries'))
 
     def test_get_provider_uuid(self):
         """Test get_provider_uuid()."""
         self._setup_random_status()
-        with ProviderStatusAccessor(self.aws_test_provider_uuid) as accessor:
+        with ProviderStatusAccessor(self.aws_provider_uuid) as accessor:
             output = accessor.get_provider_uuid()
-            self.assertEqual(output, self.aws_test_provider_uuid)
+            self.assertEqual(output, self.aws_provider_uuid)
 
     def test_get_timestamp(self):
         """Test get_timestamp()."""
         self._setup_random_status()
-        with ProviderStatusAccessor(self.aws_test_provider_uuid) as accessor:
+        with ProviderStatusAccessor(self.aws_provider_uuid) as accessor:
             output = accessor.get_timestamp()
             self.assertEqual(output, self.time_stamp)

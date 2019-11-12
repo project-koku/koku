@@ -16,9 +16,11 @@
 #
 
 """Processor for Azure Cost Usage Reports."""
+
 import csv
 import logging
 from datetime import datetime
+from os import remove
 
 import pytz
 from dateutil import parser
@@ -28,7 +30,7 @@ from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
-from masu.util.azure import common as utils
+from masu.util import common as utils
 from reporting.provider.azure.models import (AzureCostEntryBill,
                                              AzureCostEntryLineItemDaily,
                                              AzureCostEntryProductService,
@@ -63,7 +65,7 @@ class AzureReportProcessor(ReportProcessorBase):
     """Cost Usage Report processor."""
 
     # pylint:disable=too-many-arguments
-    def __init__(self, schema_name, report_path, compression, provider_id, manifest_id=None):
+    def __init__(self, schema_name, report_path, compression, provider_uuid, manifest_id=None):
         """Initialize the report processor.
 
         Args:
@@ -77,7 +79,7 @@ class AzureReportProcessor(ReportProcessorBase):
             schema_name=schema_name,
             report_path=report_path,
             compression=compression,
-            provider_id=provider_id,
+            provider_uuid=provider_uuid,
             manifest_id=manifest_id,
             processed_report=ProcessedAzureReport()
         )
@@ -105,7 +107,7 @@ class AzureReportProcessor(ReportProcessorBase):
         stmt = (
             f'Initialized report processor for:\n'
             f' schema_name: {self._schema_name}\n'
-            f' provider_id: {provider_id}\n'
+            f' provider_uuid: {provider_uuid}\n'
             f' file: {report_path}'
         )
         LOG.info(stmt)
@@ -129,7 +131,7 @@ class AzureReportProcessor(ReportProcessorBase):
         start_date_utc = parser.parse(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
         end_date_utc = parser.parse(end_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
 
-        key = (start_date_utc, self._provider_id)
+        key = (start_date_utc, self._provider_uuid)
         if key in self.processed_report.bills:
             return self.processed_report.bills[key]
 
@@ -138,7 +140,7 @@ class AzureReportProcessor(ReportProcessorBase):
 
         data = self._get_data_for_table(row, table_name._meta.db_table)
 
-        data['provider_id'] = self._provider_id
+        data['provider_id'] = self._provider_uuid
         data['billing_period_start'] = datetime.strftime(start_date_utc, '%Y-%m-%d %H:%M%z')
         data['billing_period_end'] = datetime.strftime(end_date_utc, '%Y-%m-%d %H:%M%z')
 
@@ -182,6 +184,7 @@ class AzureReportProcessor(ReportProcessorBase):
         value_set = set(data.values())
         if value_set == {''}:
             return
+        data['provider_id'] = self._provider_uuid
         product_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
             data,
@@ -218,9 +221,11 @@ class AzureReportProcessor(ReportProcessorBase):
         value_set = set(data.values())
         if value_set == {''}:
             return
+        data['provider_id'] = self._provider_uuid
         meter_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
-            data
+            data,
+            conflict_columns=['meter_id']
         )
         self.processed_report.meters[key] = meter_id
         return meter_id
@@ -289,6 +294,7 @@ class AzureReportProcessor(ReportProcessorBase):
 
         """
         row_count = 0
+        is_full_month = self._should_process_full_month()
         self._delete_line_items(AzureReportDBAccessor, self.column_map)
         # pylint: disable=invalid-name
         opener, mode = self._get_file_opener(self._compression)
@@ -297,6 +303,8 @@ class AzureReportProcessor(ReportProcessorBase):
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
+                    if not self._should_process_row(row, 'UsageDateTime', is_full_month):
+                        continue
                     _ = self.create_cost_entry_objects(row, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:
                         LOG.info('Saving report rows %d to %d for %s', row_count,
@@ -318,6 +326,9 @@ class AzureReportProcessor(ReportProcessorBase):
 
                 LOG.info('Completed report processing for file: %s and schema: %s',
                          self._report_name, self._schema_name)
+            LOG.info('Removing processed file: %s', self._report_path)
+            remove(self._report_path)
+
             return True
 
     def _update_mappings(self):

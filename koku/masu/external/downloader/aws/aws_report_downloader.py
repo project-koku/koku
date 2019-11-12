@@ -58,21 +58,24 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     empty_manifest = {'reportKeys': []}
 
-    def __init__(self, customer_name, auth_credential, bucket, report_name=None, **kwargs):
+    # Disabling until we can refactor
+    # pylint: disable=too-many-arguments
+    def __init__(self, task, customer_name, auth_credential, bucket, report_name=None, **kwargs):
         """
         Constructor.
 
         Args:
+            task             (Object) bound celery object
             customer_name    (String) Name of the customer
             auth_credential  (String) Authentication credential for S3 bucket (RoleARN)
             report_name      (String) Name of the Cost Usage Report to download (optional)
             bucket           (String) Name of the S3 bucket containing the CUR
 
         """
-        super().__init__(**kwargs)
+        super().__init__(task, **kwargs)
 
         self.customer_name = customer_name.replace(' ', '_')
-        self._provider_id = kwargs.get('provider_id')
+        self._provider_uuid = kwargs.get('provider_uuid')
 
         LOG.debug('Connecting to AWS...')
         session = utils.get_assume_role_session(utils.AwsArn(auth_credential),
@@ -285,7 +288,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             stmt = (
                 f'This manifest has already been downloaded and processed:\n'
                 f' schema_name: {self.customer_name},\n'
-                f' provider_id: {self._provider_id},\n'
+                f' provider_uuid: {self._provider_uuid},\n'
                 f' manifest_id: {manifest_id}'
             )
             LOG.info(stmt)

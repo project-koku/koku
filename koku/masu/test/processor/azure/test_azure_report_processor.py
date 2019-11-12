@@ -16,29 +16,26 @@
 #
 
 """Test the AzureReportProcessor object."""
-import datetime
+import os
 import logging
-import json
 import copy
 import csv
 import tempfile
 import shutil
+from unittest.mock import patch
+
+from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
 
+from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
+from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
-
 from masu.processor.azure.azure_report_processor import AzureReportProcessor
-from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
-
-from masu.config import Config
-
 from masu.test import MasuTestCase
-from unittest.mock import patch
 
 
 class AzureReportProcessorTest(MasuTestCase):
@@ -48,9 +45,7 @@ class AzureReportProcessorTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        cls.test_report = './koku/masu/test/data/azure/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv'
-
-
+        cls.test_report_path = './koku/masu/test/data/azure/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv'
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
 
@@ -62,19 +57,24 @@ class AzureReportProcessorTest(MasuTestCase):
         _report_tables.pop('tags_summary', None)
         cls.report_tables = list(_report_tables.values())
         # Grab a single row of test data to work with
-        with open(cls.test_report, 'r', encoding='utf-8-sig') as f:
+        with open(cls.test_report_path, 'r', encoding='utf-8-sig') as f:
             reader = csv.DictReader(f)
             cls.row = next(reader)
 
     def setUp(self):
         """Set up each test."""
         super().setUp()
+        self.temp_dir = tempfile.mkdtemp()
+        self.test_report = f'{self.temp_dir}/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv'
+
+        shutil.copy2(self.test_report_path, self.test_report)
+
         self.assembly_id = '1234'
         self.processor = AzureReportProcessor(
             schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=self.azure_provider_id,
+            provider_uuid=self.azure_provider_uuid,
         )
 
         billing_start = self.date_accessor.today_with_timezone('UTC').replace(
@@ -85,13 +85,18 @@ class AzureReportProcessorTest(MasuTestCase):
             'assembly_id': self.assembly_id,
             'billing_period_start_datetime': billing_start,
             'num_total_files': 1,
-            'provider_id': self.azure_provider.id,
+            'provider_uuid': self.azure_provider_uuid,
         }
 
         self.accessor = AzureReportDBAccessor(self.schema, self.column_map)
         self.report_schema = self.accessor.report_schema
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
         self.manifest_accessor.commit()
+
+    def tearDown(self):
+        """Tear down test case."""
+        super().tearDown()
+        shutil.rmtree(self.temp_dir)
 
     def test_azure_initializer(self):
         """Test Azure initializer."""
@@ -132,6 +137,7 @@ class AzureReportProcessorTest(MasuTestCase):
             with schema_context(self.schema):
                 count = table.objects.count()
             self.assertTrue(count > counts[table_name])
+        self.assertFalse(os.path.exists(self.test_report))
 
     def test_process_azure_small_batches(self):
         """Test the processing of an uncompressed azure file in small batches."""
@@ -141,7 +147,7 @@ class AzureReportProcessorTest(MasuTestCase):
                 schema_name=self.schema,
                 report_path=self.test_report,
                 compression=UNCOMPRESSED,
-                provider_id=self.azure_provider_id,
+                provider_uuid=self.azure_provider_uuid,
             )
 
             # Re-run test with new configuration and verify it's still successful.
@@ -156,7 +162,7 @@ class AzureReportProcessorTest(MasuTestCase):
                 schema_name=self.schema,
                 report_path=self.test_report,
                 compression=UNCOMPRESSED,
-                provider_id=self.azure_provider_id,
+                provider_uuid=self.azure_provider_uuid,
             )
             report_db = self.accessor
             report_schema = report_db.report_schema
@@ -188,7 +194,7 @@ class AzureReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=self.azure_provider.id,
+            provider_uuid=self.azure_provider_uuid,
         )
 
         # Process for the first time
@@ -206,11 +212,13 @@ class AzureReportProcessorTest(MasuTestCase):
         with schema_context(self.schema):
             self.accessor._get_db_obj_query(AZURE_REPORT_TABLE_MAP['line_item']).delete()
 
+        shutil.copy2(self.test_report_path, self.test_report)
+
         processor = AzureReportProcessor(
             schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=self.azure_provider.id,
+            provider_uuid=self.azure_provider_uuid,
         )
         # Process for the second time
         processor.process()
@@ -231,10 +239,10 @@ class AzureReportProcessorTest(MasuTestCase):
 
         query = self.accessor._get_db_obj_query(table_name)
         id_in_db = query.order_by('-id').first().id
-        provider_id = query.order_by('-id').first().provider_id
+        provider_uuid = query.order_by('-id').first().provider_id
 
         self.assertEqual(bill_id, id_in_db)
-        self.assertIsNotNone(provider_id)
+        self.assertIsNotNone(provider_uuid)
 
     def test_azure_create_product(self):
         """Test that a product id is returned."""
@@ -290,50 +298,55 @@ class AzureReportProcessorTest(MasuTestCase):
 
         self.assertIsNotNone(self.processor.line_item_columns)
 
-    def test_azure_remove_temp_cur_files(self):
-        """Test to remove temporary cost usage files."""
-        cur_dir = tempfile.mkdtemp()
+    def test_should_process_row_within_cuttoff_date(self):
+        """Test that we correctly determine a row should be processed."""
+        today = self.date_accessor.today_with_timezone('UTC')
+        row = {'UsageDateTime': today.isoformat()}
 
-        manifest_data = {"assemblyId": "31727a10-f4b4-43a2-80e5-bef1aaeabfc1"}
-        manifest = '{}/{}'.format(cur_dir, 'Manifest.json')
-        with open(manifest, 'w') as outfile:
-            json.dump(manifest_data, outfile)
+        processor = AzureReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.azure_provider_uuid,
+        )
 
-        file_list = [
-            {
-                'file': 'costreport_31727a10-f4b4-43a2-80e5-bef1aaeabfc1.csv',
-                'processed_date': datetime.datetime(year=2018, month=5, day=3),
-            },
-            {
-                'file': 'costreport_31727a10-f4b4-43a2-80e5-bef1aaeabfc1.csv',
-                'processed_date': datetime.datetime(year=2018, month=5, day=3),
-            },
-            {
-                'file': 'costreport_2aeb9169-2526-441c-9eca-d7ed015d52bd.csv',
-                'processed_date': datetime.datetime(year=2018, month=5, day=2),
-            },
-            {
-                'file': 'costreport_6c8487e8-c590-4e6a-b2c2-91a2375c0bad.csv',
-                'processed_date': datetime.datetime(year=2018, month=5, day=1),
-            },
-            {
-                'file': 'costreport_6c8487e8-c590-4e6a-b2c2-91a2375d0bed.csv',
-                'processed_date': None,
-            },
-        ]
-        expected_delete_list = []
-        for item in file_list:
-            path = '{}/{}'.format(cur_dir, item['file'])
-            f = open(path, 'w')
-            obj = self.manifest_accessor.get_manifest(self.assembly_id,
-                                                      self.azure_provider.id)
-            with ReportStatsDBAccessor(item['file'], obj.id) as stats:
-                stats.update(last_completed_datetime=item['processed_date'])
-            f.close()
-            if (
-                not manifest_data.get('assemblyId') in item['file']
-            ):
-                expected_delete_list.append(path)
-        removed_files = self.processor.remove_temp_cur_files(cur_dir)
-        self.assertEqual(sorted(removed_files), sorted(expected_delete_list))
-        shutil.rmtree(cur_dir)
+        should_process = processor._should_process_row(
+            row,
+            'UsageDateTime',
+            False
+        )
+
+        self.assertTrue(should_process)
+
+    def test_should_process_row_outside_cuttoff_date(self):
+        """Test that we correctly determine a row should be processed."""
+        today = self.date_accessor.today_with_timezone('UTC')
+        usage_start = today - relativedelta(days=10)
+        row = {'UsageDateTime': usage_start.isoformat()}
+
+        processor = AzureReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.azure_provider_uuid,
+        )
+
+        should_process = processor._should_process_row(
+            row,
+            'UsageDateTime',
+            False
+        )
+
+        self.assertFalse(should_process)
+
+    def test_get_date_column_filter(self):
+        """Test that the Azure specific filter is returned."""
+        processor = AzureReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.azure_provider_uuid,
+        )
+        date_filter = processor.get_date_column_filter()
+
+        self.assertIn('usage_date_time__gte', date_filter)

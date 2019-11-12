@@ -90,16 +90,16 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             return usage_period_query
 
     # pylint: disable=invalid-name
-    def get_usage_period_query_by_provider(self, provider_id):
+    def get_usage_period_query_by_provider(self, provider_uuid):
         """Return all report periods for the specified provider."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name)\
-                .filter(provider_id=provider_id)
+                .filter(provider_id=provider_uuid)
 
-    def report_periods_for_provider_id(self, provider_id, start_date=None):
-        """Return all report periods for provider_id on date."""
-        report_periods = self.get_usage_period_query_by_provider(provider_id)
+    def report_periods_for_provider_uuid(self, provider_uuid, start_date=None):
+        """Return all report periods for provider_uuid on date."""
+        report_periods = self.get_usage_period_query_by_provider(provider_uuid)
         with schema_context(self.schema):
             if start_date:
                 report_date = parse(start_date).replace(day=1)

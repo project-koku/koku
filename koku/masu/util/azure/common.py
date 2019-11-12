@@ -16,7 +16,6 @@
 #
 
 """Common util functions."""
-import calendar
 import datetime
 import logging
 import re
@@ -45,30 +44,6 @@ def extract_uuids_from_string(source_string):
     uuid_regex = '[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
     found_uuid = re.findall(uuid_regex, source_string, re.IGNORECASE)
     return found_uuid
-
-
-def month_date_range(for_date_time):
-    """
-    Get a formatted date range string for the given date.
-
-    Date range is aligned on the first day of the current
-    month and ends on the first day of the next month from the
-    specified date.
-
-    Args:
-        for_date_time (DateTime): The starting datetime object
-
-    Returns:
-        (String): "YYYYMMDD-YYYYMMDD", example: "19701101-19701201"
-
-    """
-    start_month = for_date_time.replace(day=1, second=1, microsecond=1)
-    _, num_days = calendar.monthrange(for_date_time.year, for_date_time.month)
-    end_month = start_month.replace(day=num_days)
-    timeformat = '%Y%m%d'
-    return '{}-{}'.format(
-        start_month.strftime(timeformat), end_month.strftime(timeformat)
-    )
 
 
 def get_local_file_name(cur_key):
@@ -129,7 +104,7 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
 
     with AzureReportDBAccessor(schema, column_map) as report_accessor:
         with schema_context(schema):
-            bills = report_accessor.get_cost_entry_bills_query_by_provider(provider.id)
+            bills = report_accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
             if start_date:
                 bills = bills.filter(billing_period_start__gte=start_date)
             if end_date:

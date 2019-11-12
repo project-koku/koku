@@ -76,12 +76,12 @@ class OCPReportProcessorTest(MasuTestCase):
         """Set up the test class with required objects."""
         super().setUpClass()
         # These test reports should be replaced with OCP reports once processor is impelmented.
-        cls.test_report = './koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'
-        cls.storage_report = (
+        cls.test_report_path = './koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'
+        cls.storage_report_path = (
             './koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_storage.csv'
         )
         cls.unknown_report = './koku/masu/test/data/test_cur.csv'
-        cls.test_report_gzip = './koku/masu/test/data/test_cur.csv.gz'
+        cls.test_report_gzip_path = './koku/masu/test/data/test_cur.csv.gz'
 
         cls.date_accessor = DateAccessor()
         cls.billing_start = cls.date_accessor.today_with_timezone('UTC').replace(
@@ -106,7 +106,7 @@ class OCPReportProcessorTest(MasuTestCase):
         cls.report_tables = list(_report_tables.values())
 
         # Grab a single row of test data to work with
-        with open(cls.test_report, 'r') as f:
+        with open(cls.test_report_path, 'r') as f:
             reader = csv.DictReader(f)
             cls.row = next(reader)
 
@@ -117,11 +117,19 @@ class OCPReportProcessorTest(MasuTestCase):
 
     def setUp(self):
         super().setUp()
+        self.temp_dir = tempfile.mkdtemp()
+        self.test_report = f'{self.temp_dir}/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'
+        self.storage_report = f'{self.temp_dir}/e6b3701e-1e91-433b-b238-a31e49937558_storage.csv'
+        self.test_report_gzip = f'{self.temp_dir}/test_cur.csv.gz'
+        shutil.copy2(self.test_report_path, self.test_report)
+        shutil.copy2(self.storage_report_path, self.storage_report)
+        shutil.copy2(self.test_report_gzip_path, self.test_report_gzip)
+
         self.manifest_dict = {
             'assembly_id': self.assembly_id,
             'billing_period_start_datetime': self.billing_start,
             'num_total_files': 2,
-            'provider_id': self.ocp_provider.id
+            'provider_uuid': self.ocp_provider_uuid
         }
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
         self.manifest_accessor.commit()
@@ -130,12 +138,13 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=self.ocp_provider.id,
+            provider_uuid=self.ocp_provider_uuid,
         )
 
     def tearDown(self):
         """Return the database to a pre-test state."""
         super().tearDown()
+        shutil.rmtree(self.temp_dir)
         self.ocp_processor._processor.processed_report.remove_processed_rows()
         self.ocp_processor._processor.line_item_columns = None
 
@@ -152,7 +161,7 @@ class OCPReportProcessorTest(MasuTestCase):
                 schema_name='acct10001',
                 report_path=self.test_report,
                 compression='unsupported',
-                provider_id=1,
+                provider_uuid=self.ocp_provider_uuid,
             )
 
     def test_detect_report_type(self):
@@ -160,7 +169,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
         self.assertEqual(usage_processor.report_type, OCPReportTypes.CPU_MEM_USAGE)
 
@@ -168,7 +177,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
         self.assertEqual(storage_processor.report_type, OCPReportTypes.STORAGE)
 
@@ -177,7 +186,7 @@ class OCPReportProcessorTest(MasuTestCase):
                 schema_name='acct10001',
                 report_path=self.unknown_report,
                 compression=UNCOMPRESSED,
-                provider_id=1,
+                provider_uuid=self.ocp_provider_uuid,
             )
 
     def test_process_default(self):
@@ -187,7 +196,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
         report_db = self.accessor
         report_schema = report_db.report_schema
@@ -207,6 +216,7 @@ class OCPReportProcessorTest(MasuTestCase):
                 'reporting_ocpusagelineitem_daily_summary',
             ):
                 self.assertTrue(count >= counts[table_name])
+        self.assertFalse(os.path.exists(self.test_report))
 
     def test_process_default_small_batches(self):
         """Test the processing of an uncompressed file in small batches."""
@@ -216,7 +226,7 @@ class OCPReportProcessorTest(MasuTestCase):
                 schema_name='acct10001',
                 report_path=self.test_report,
                 compression=UNCOMPRESSED,
-                provider_id=1,
+                provider_uuid=self.ocp_provider_uuid,
             )
             report_db = self.accessor
             report_schema = report_db.report_schema
@@ -244,7 +254,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
 
         # Process for the first time
@@ -259,11 +269,13 @@ class OCPReportProcessorTest(MasuTestCase):
                 count = table.objects.count()
             counts[table_name] = count
 
+        shutil.copy2(self.test_report_path, self.test_report)
+
         processor = OCPReportProcessor(
             schema_name='acct10001',
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
         # Process for the second time
         processor.process()
@@ -295,7 +307,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=tmp_file,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
 
         # Process for the first time
@@ -455,7 +467,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
         storage_processor._processor._create_usage_report_line_item(
             row, report_period_id, report_id, self.accessor
@@ -480,7 +492,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             report_period_id = storage_processor._processor._create_report_period(
@@ -535,81 +547,6 @@ class OCPReportProcessorTest(MasuTestCase):
 
         self.assertIsNotNone(self.ocp_processor._processor.line_item_columns)
 
-    def test_remove_ocp_temp_cur_files(self):
-        """Test to remove temporary usage report files."""
-        insights_local_dir = tempfile.mkdtemp()
-        cluster_id = 'my-ocp-cluster'
-        manifest_date = "2018-05-01"
-        manifest_data = {"uuid": "6e019de5-a41d-4cdb-b9a0-99bfba9a9cb5",
-                         "cluster_id": cluster_id,
-                         "date": manifest_date}
-        manifest = '{}/{}'.format(insights_local_dir, 'manifest.json')
-        with open(manifest, 'w') as outfile:
-            json.dump(manifest_data, outfile)
-
-        file_list = [
-            {
-                'file': '6e019de5-a41d-4cdb-b9a0-99bfba9a9cb5-ocp-1.csv.gz',
-                'processed_date': datetime.datetime(year=2018, month=5, day=3),
-            },
-            {
-                'file': '6e019de5-a41d-4cdb-b9a0-99bfba9a9cb5-ocp-2.csv.gz',
-                'processed_date': datetime.datetime(year=2018, month=5, day=3),
-            },
-            {
-                'file': '2aeb9169-2526-441c-9eca-d7ed015d52bd-ocp-1.csv.gz',
-                'processed_date': datetime.datetime(year=2018, month=5, day=2),
-            },
-            {
-                'file': '6c8487e8-c590-4e6a-b2c2-91a2375c0bad-ocp-1.csv.gz',
-                'processed_date': datetime.datetime(year=2018, month=5, day=1),
-            },
-            {
-                'file': '6c8487e8-c590-4e6a-b2c2-91a2375d0bed-ocp-1.csv.gz',
-                'processed_date': None,
-            },
-        ]
-        expected_delete_list = []
-        for item in file_list:
-            path = '{}/{}'.format(insights_local_dir, item['file'])
-            f = open(path, 'w')
-            obj = self.manifest_accessor.get_manifest(self.assembly_id,
-                                                      self.ocp_provider.id)
-            stats = ReportStatsDBAccessor(item['file'], obj.id)
-            stats.update(last_completed_datetime=item['processed_date'])
-            stats.commit()
-            stats.close_session()
-            f.close()
-            if (
-                not item['file'].startswith(manifest_data.get('uuid'))
-            ):
-                expected_delete_list.append(path)
-        fake_dir = tempfile.mkdtemp()
-        with patch.object(Config, 'INSIGHTS_LOCAL_REPORT_DIR', fake_dir):
-            destination_dir = '{}/{}/{}'.format(fake_dir,
-                                                cluster_id,
-                                                month_date_range(parser.parse(manifest_date)))
-            os.makedirs(destination_dir, exist_ok=True)
-            removed_files = self.ocp_processor.remove_temp_cur_files(insights_local_dir)
-            self.assertEqual(sorted(removed_files), sorted(expected_delete_list))
-            shutil.rmtree(insights_local_dir)
-            shutil.rmtree(fake_dir)
-
-    def test_remove_temp_cur_files_missing_manifest(self):
-        """Test to remove temporary usage report files with missing uuid in manifest."""
-        insights_local_dir = tempfile.mkdtemp()
-        cluster_id = 'my-ocp-cluster'
-        manifest_data = {"uuid": "6e019de5-a41d-4cdb-b9a0-99bfba9a9cb5",
-                         "cluster_id": cluster_id}
-        manifest = '{}/{}'.format(insights_local_dir, 'manifest.json')
-        with open(manifest, 'w') as outfile:
-            json.dump(manifest_data, outfile)
-
-        expected_delete_list = []
-        removed_files = self.ocp_processor.remove_temp_cur_files(insights_local_dir)
-        self.assertEqual(sorted(removed_files), sorted(expected_delete_list))
-        shutil.rmtree(insights_local_dir)
-
     def test_process_pod_labels(self):
         """Test that our report label string format is parsed."""
         test_label_str = 'label_one:first|label_two:next|label_three:final'
@@ -636,7 +573,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
 
         report_db = self.accessor
@@ -659,7 +596,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
 
         # Process for the first time
@@ -674,11 +611,13 @@ class OCPReportProcessorTest(MasuTestCase):
                 count = table.objects.count()
             counts[table_name] = count
 
+        shutil.copy2(self.storage_report_path, self.storage_report)
+
         processor = OCPReportProcessor(
             schema_name='acct10001',
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
         # Process for the second time
         processor.process()
@@ -694,7 +633,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
 
         report_db = self.accessor
@@ -714,7 +653,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
 
         report_db = self.accessor
