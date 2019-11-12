@@ -1,0 +1,109 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "description": "The Sources Status API.  You can find out more about     Cost Management at [https://github.com/project-koku/](https://github.com/project-koku/).",
+    "version": "1.0.0",
+    "title": "Sources Status API",
+    "license": {
+      "name": "AGPL-3.0",
+      "url": "https://opensource.org/licenses/AGPL-3.0"
+    }
+  },
+  "tags": [
+    {
+      "name": "Source Status",
+      "description": "Operations about report downloads"
+    }
+  ],
+  "paths": {
+    "/source_status/": {
+      "get": {
+        "summary": "Get Source Status",
+        "description": "Return whether or not a source is correctly set up.",
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "query",
+            "description": "The source_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The status of the source",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusGetResponse"
+                },
+                "examples": {
+                  "Available": {
+                    "value": {
+                      "availability_status": "available",
+                      "availability_status_error": ""
+                    }
+                  },
+                  "NotAvailable": {
+                    "value": {
+                      "availability_status": "unavailabile",
+                      "availability_status_error": "Bucket cost-usage-buckett could not be found with arn:aws:iam::589173575009:role/CostManagement."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A 400 code occurs when the client either did not provide a source_id parameter, or source_id is not an integer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusGetResponseSourceIdNotInteger"
+                },
+                "examples": {
+                  "NonInteger": {
+                    "value": "source_id must be an integer"
+                  },
+                  "MissingSourceId": {
+                    "value": "Missing query parameter source_id"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Source is not in our database"
+          }
+        },
+        "tags": [
+          "Source Status"
+        ]
+      },
+      "parameters": []
+    }
+  },
+  "components": {
+    "schemas": {
+      "StatusGetResponse": {
+        "type": "object",
+        "properties": {
+          "availability_status": {
+            "type": "string",
+            "example": "available"
+          },
+          "availability_status_error": {
+            "type": "string",
+            "example": ""
+          }
+        }
+      },
+      "StatusGetResponseSourceIdNotInteger": {
+        "type": "string"
+      }
+    }
+  }
+}
