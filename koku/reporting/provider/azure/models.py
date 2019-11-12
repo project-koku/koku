@@ -73,7 +73,7 @@ class AzureMeter(models.Model):
     meter_category = models.CharField(max_length=50, null=True)
     meter_subcategory = models.CharField(max_length=50, null=True)
     meter_region = models.CharField(max_length=50, null=True)
-    resource_rate = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    resource_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False)
     unit_of_measure = models.CharField(max_length=63, null=True)
 
@@ -102,7 +102,7 @@ class AzureCostEntryLineItemDaily(models.Model):
     tags = JSONField(null=True)
     usage_date_time = models.DateTimeField(null=False)
     usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    pretax_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     offer_id = models.PositiveIntegerField(null=True)
 
 
@@ -129,8 +129,8 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     usage_start = models.DateTimeField(null=False)
     usage_end = models.DateTimeField(null=True)
     usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    pretax_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
-    markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     offer_id = models.PositiveIntegerField(null=True)
     currency = models.CharField(max_length=10, null=False, default='USD')
     instance_ids = ArrayField(models.CharField(max_length=256), null=True)
