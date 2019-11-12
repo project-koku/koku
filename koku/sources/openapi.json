@@ -12,7 +12,7 @@
   "tags": [
     {
       "name": "Source Status",
-      "description": "Operations about report downloads"
+      "description": "Platform sources cost management availability status"
     }
   ],
   "paths": {
