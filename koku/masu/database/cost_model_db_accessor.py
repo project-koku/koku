@@ -116,3 +116,9 @@ class CostModelDBAccessor(ReportDBAccessorBase):
         storage_request_rates = self.get_rates('storage_gb_request_per_month')
         LOG.info('OCP Storage request rates: %s', str(storage_request_rates))
         return storage_request_rates
+
+    def get_node_per_month_rates(self):
+        """Get the storage request rates."""
+        node_rates = self.get_rates('node_cost_per_month')
+        LOG.info('OCP Node rate: %s', str(node_rates))
+        return node_rates

@@ -284,6 +284,22 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         except OCPReportChargeUpdaterError as error:
             LOG.error('Unable to calculate storage usage charge. Error: %s', str(error))
 
+    def _update_monthly_cost(self, start_date=None, end_date=None):
+        """Update the monthly cost for a period of time."""
+        try:
+            with CostModelDBAccessor(self._schema, self._provider_uuid,
+                                     self._column_map) as cost_model_accessor, \
+                    OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
+                rates = cost_model_accessor.get_node_per_month_rates()
+                if rates:
+                    tiers = self._normalize_tier(rates.get('tiered_rates', []))
+                    for tier in tiers:
+                        node_rate = Decimal(tier.get('value'))
+                        report_accessor.populate_monthly_cost(node_rate, start_date, end_date)
+
+        except OCPReportChargeUpdaterError as error:
+            LOG.error('Unable to update monthly costs. Error: %s', str(error))
+
     def update_summary_charge_info(self, start_date=None, end_date=None):
         """Update the OCP summary table with the charge information.
 
@@ -302,6 +318,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         self._update_pod_charge()
         self._update_storage_charge()
         self._update_markup_cost(start_date, end_date)
+        self._update_monthly_cost(start_date, end_date)
 
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             report_periods = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)

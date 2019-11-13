@@ -55,7 +55,9 @@ class CostModelDBAccessorTest(MasuTestCase):
             {'metric': {'name': 'storage_gb_usage_per_month'},
              'tiered_rates': [{'value': 5.5, 'unit': 'USD'}]},
             {'metric': {'name': 'storage_gb_request_per_month'},
-             'tiered_rates': [{'value': 6.5, 'unit': 'USD'}]}
+             'tiered_rates': [{'value': 6.5, 'unit': 'USD'}]},
+            {'metric': {'name': 'node_cost_per_month'},
+             'tiered_rates': [{'value': 7.5, 'unit': 'USD'}]}
         ]
 
         self.markup = {'value': 10, 'unit': 'percent'}
@@ -88,6 +90,9 @@ class CostModelDBAccessorTest(MasuTestCase):
             self.assertEqual(type(storage_usage_rate), dict)
 
             storage_request_rate = cost_model_accessor.get_rates('storage_gb_request_per_month')
+            self.assertEqual(type(storage_request_rate), dict)
+
+            storage_request_rate = cost_model_accessor.get_rates('node_cost_per_month')
             self.assertEqual(type(storage_request_rate), dict)
 
             missing_rate = cost_model_accessor.get_rates('wrong_metric')
@@ -176,6 +181,15 @@ class CostModelDBAccessorTest(MasuTestCase):
             uuid = cost_model_accessor._get_cost_model().uuid
             self.assertEqual(cost_model_accessor._get_cost_model().uuid, uuid)
 
+    def test_get_node_cost_per_month(self):
+        """Test get memory request rates."""
+        with CostModelDBAccessor(self.schema, self.provider_uuid,
+                                 self.column_map) as cost_model_accessor:
+            node_cost = cost_model_accessor.get_node_per_month_rates()
+            self.assertEqual(type(node_cost), dict)
+            self.assertEqual(node_cost.get('tiered_rates')[0].get('value'), 7.5)
+
+
 class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
     """Test Cases for the CostModelDBAccessor object."""
 
@@ -208,6 +222,7 @@ class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
                                  self.column_map) as cost_model_accessor:
             cpu_usage_rate = cost_model_accessor.get_rates('cpu_core_usage_per_hour')
             self.assertIsNone(cpu_usage_rate)
+
 
 class CostModelDBAccessorNoCostModel(MasuTestCase):
     """Test Cases for the CostModelDBAccessor object."""
