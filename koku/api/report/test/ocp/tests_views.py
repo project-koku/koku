@@ -594,6 +594,7 @@ class OCPReportViewTest(IamTestCase):
                                    Value(0, output_field=DecimalField()))
                         + Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
                         + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                        + Coalesce(F('monthly_cost'), Value(0, output_field=DecimalField()))
                     )
                 ).get('total')
             current_total = current_total if current_total is not None else 0
@@ -610,6 +611,7 @@ class OCPReportViewTest(IamTestCase):
                                    Value(0, output_field=DecimalField()))
                         + Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
                         + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                        + Coalesce(F('monthly_cost'), Value(0, output_field=DecimalField()))
                     )
                 )
 
@@ -626,6 +628,7 @@ class OCPReportViewTest(IamTestCase):
                                    Value(0, output_field=DecimalField()))
                         + Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
                         + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                        + Coalesce(F('monthly_cost'), Value(0, output_field=DecimalField()))
                     )
                 )
 

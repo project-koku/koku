@@ -83,6 +83,7 @@ class OCPProviderMap(ProviderMap):
                                            Value(0, output_field=DecimalField()))
                                 + Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
                                 + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                                + Coalesce(F('monthly_cost'), Value(0, output_field=DecimalField()))
                             ),
                             'infrastructure_cost': Sum(F('infra_cost')),
                             'derived_cost': Sum(
@@ -95,6 +96,9 @@ class OCPProviderMap(ProviderMap):
                             ),
                             'markup_cost': Sum(
                                 Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
+                            'monthly_cost': Sum(
+                                Coalesce(F('monthly_cost'), Value(0, output_field=DecimalField()))
                             ),
                         },
                         'default_ordering': {'cost': 'desc'},
@@ -106,6 +110,7 @@ class OCPProviderMap(ProviderMap):
                                            Value(0, output_field=DecimalField()))
                                 + Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
                                 + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                                + Coalesce(F('monthly_cost'), Value(0, output_field=DecimalField()))
                             ),
                             'infrastructure_cost': Sum(F('infra_cost')),
                             'derived_cost': Sum(
@@ -118,6 +123,9 @@ class OCPProviderMap(ProviderMap):
                             ),
                             'markup_cost': Sum(
                                 Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
+                            'monthly_cost': Sum(
+                                Coalesce(F('monthly_cost'), Value(0, output_field=DecimalField()))
                             ),
                             'cost_units': Value('USD', output_field=CharField())
                         },
@@ -130,11 +138,12 @@ class OCPProviderMap(ProviderMap):
                                            Value(0, output_field=DecimalField()))
                                 + Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
                                 + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                                + Coalesce(F('monthly_cost'), Value(0, output_field=DecimalField()))
                             ),
                         },
                         'filter': [{}],
                         'cost_units_key': 'USD',
-                        'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost', 'markup_cost'],
+                        'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost', 'markup_cost', 'monthly_cost'],
                     },
                     'costs_by_project': {
                         'tables': {
