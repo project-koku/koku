@@ -70,6 +70,12 @@ class AwsS3Uploader(UploaderInterface):
                     str(e),
                 )
                 raise e
+            logger.info(
+                'finished uploading %s to s3://%s/%s',
+                local_path,
+                self.s3_bucket_name,
+                remote_path,
+            )
         else:
             logger.info(
                 'Skipping upload of %s to %s; upload feature is disabled',
