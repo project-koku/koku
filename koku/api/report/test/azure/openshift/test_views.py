@@ -52,6 +52,10 @@ class AzureReportViewTest(IamTestCase):
                 url = reverse(name)
                 response = self.client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
+                json_result = response.json()
+                self.assertIsNotNone(json_result.get('data'))
+                self.assertIsInstance(json_result.get('data'), list)
+                self.assertTrue(len(json_result.get('data')) > 0)
 
     def test_get_names_invalid_query_param(self):
         """Test costs reports runs with an invalid query param."""
