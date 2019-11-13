@@ -127,7 +127,6 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
         provider_uuid (UUID): Koku backend provider UUID.
 
     """
-
     if not schema_name or not provider_type or not provider_uuid:
         # Sanity-check all of these inputs in case somehow any receives an
         # empty value such as None or '' because we need to minimize the risk
