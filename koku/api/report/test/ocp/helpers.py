@@ -142,6 +142,8 @@ class OCPReportDataGenerator:
             }
             for i, node in enumerate(self.nodes)
         ]
+        self.node_cost = kwargs.get('node_cost', random.randint(1, 200))
+
         with tenant_context(self.tenant):
             for i, period in enumerate(self.period_ranges):
                 report_period = self.create_ocp_report_period(period, provider_uuid)
@@ -165,6 +167,9 @@ class OCPReportDataGenerator:
             self._populate_volume_claim_label_summary_table()
             self._populate_volume_label_summary_table()
             self._populate_cost_summary_table()
+
+            for period in self.period_ranges:
+                self._populate_monthly_charge_info(period[0], self.node_cost, len(self.nodes))
 
     def remove_data_from_tenant(self):
         """Remove the added data."""
@@ -418,6 +423,16 @@ class OCPReportDataGenerator:
             entry.pod_charge_cpu_core_hours = cpu_charge
 
             entry.save()
+
+    def _populate_monthly_charge_info(self, start_date, node_cost, num_nodes):
+        """Populate the charge information in summary table."""
+        total_cost = node_cost * num_nodes
+
+        OCPUsageLineItemDailySummary.objects.create(
+            usage_start=start_date,
+            usage_end=start_date,
+            monthly_cost=total_cost
+        )
 
     def _populate_storage_charge_info(self):
         """Populate the storage charge information in summary table."""

@@ -99,7 +99,7 @@ class CommonUtilTests(MasuTestCase):
         self.assertIsInstance(result['Decimal'], str)
 
     def test_ingest_method_type(self):
-        """Test taht the correct ingest method is returned for provider type."""
+        """Test that the correct ingest method is returned for provider type."""
         test_matrix = [
             {'provider_type': AMAZON_WEB_SERVICES, 'expected_ingest': POLL_INGEST},
             {
@@ -122,6 +122,17 @@ class CommonUtilTests(MasuTestCase):
                 test.get('provider_type')
             )
             self.assertEqual(ingest_method, test.get('expected_ingest'))
+
+    def test_month_date_range_tuple(self):
+        """Test month_date_range_tuple returns first of the month and first of next month."""
+        test_date = datetime(year=2018, month=12, day=15)
+        expected_start_month = datetime(year=2018, month=12, day=1)
+        expected_start_next_month = datetime(year=2019, month=1, day=1)
+
+        start_month, first_next_month = common_utils.month_date_range_tuple(test_date)
+
+        self.assertEquals(start_month, expected_start_month)
+        self.assertEquals(first_next_month, expected_start_next_month)
 
 
 class NamedTemporaryGZipTests(TestCase):

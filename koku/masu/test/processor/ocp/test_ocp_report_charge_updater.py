@@ -26,18 +26,17 @@ import uuid
 from tenant_schemas.utils import schema_context
 
 from masu.database import OCP_REPORT_TABLE_MAP
-from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_report_charge_updater import (
     OCPReportChargeUpdater,
     OCPReportChargeUpdaterError,
 )
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-
+from masu.util.common import month_date_range_tuple
+from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
 class OCPReportChargeUpdaterTest(MasuTestCase):
     """Test Cases for the OCPReportChargeUpdater object."""
@@ -1002,3 +1001,34 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 self.assertAlmostEqual(cpu_usage_value*cpu_rate_value,
                                        Decimal(item.pod_charge_cpu_core_hours),
                                        places=6)
+
+    def test_update_monthly_cost(self):
+        """Test OCP charge for monthly costs is updated."""
+        node_cost = random.randrange(1, 200)
+        monthly_cost_metric = [{'metric': {'name': 'node_cost_per_month'},
+                                'tiered_rates': [{'value': node_cost, 'unit': 'USD'}]}]
+        self.creator.create_cost_model(self.ocp_provider_uuid, 'OCP', monthly_cost_metric)
+
+        usage_period = self.accessor.get_current_usage_period()
+        start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
+        end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
+
+        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
+        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
+        self.updater.update_summary_charge_info(
+            str(usage_period.report_period_start),
+            str(usage_period.report_period_end)
+        )
+
+        with schema_context(self.schema):
+            unique_nodes = OCPUsageLineItemDailySummary.objects.filter(
+                usage_start__gte=usage_period.report_period_start,
+                usage_start__lt=usage_period.report_period_end,
+                node__isnull=False
+            ).values_list('node').distinct().count()
+
+            monthly_cost_row = OCPUsageLineItemDailySummary.objects.filter(
+                monthly_cost__isnull=False
+            ).first()
+            self.assertGreater(monthly_cost_row.monthly_cost, 0)
+            self.assertEquals(monthly_cost_row.monthly_cost, unique_nodes*node_cost)
