@@ -4347,6 +4347,10 @@
                                                         "cost": {
                                                             "value": 1499.92962634,
                                                             "units": "USD"
+                                                        },
+                                                        "monthly_cost": {
+                                                            "value": 0,
+                                                            "units": "USD"
                                                         }
                                                     }]
                                                 },

@@ -40,5 +40,12 @@
         "label_metric": "Storage",
         "label_measurement": "Request",
         "label_measurement_unit": "GB-month"
+    },
+    {
+        "source_type": "OCP",
+        "metric": "node_cost_per_month",
+        "label_metric": "Node",
+        "label_measurement": "Currency",
+        "label_measurement_unit": "node-month"
     }
 ]
