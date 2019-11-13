@@ -16,7 +16,7 @@
     }
   ],
   "paths": {
-    "/source_status/": {
+    "/source-status/": {
       "get": {
         "summary": "Get Source Status",
         "description": "Return whether or not a source is correctly set up.",
