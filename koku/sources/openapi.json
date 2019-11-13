@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "description": "The Sources Status API.  You can find out more about     Cost Management at [https://github.com/project-koku/](https://github.com/project-koku/).",
+    "description": "The Sources Status API.  You can find out more about Cost Management at [https://github.com/project-koku/](https://github.com/project-koku/).",
     "version": "1.0.0",
     "title": "Sources Status API",
     "license": {
@@ -12,7 +12,7 @@
   "tags": [
     {
       "name": "Source Status",
-      "description": "Operations about report downloads"
+      "description": "Platform sources cost management availability status"
     }
   ],
   "paths": {
@@ -50,7 +50,7 @@
                   "NotAvailable": {
                     "value": {
                       "availability_status": "unavailabile",
-                      "availability_status_error": "Bucket cost-usage-buckett could not be found with arn:aws:iam::589173575009:role/CostManagement."
+                      "availability_status_error": "Bucket nonexistantbucketexample could not be found with arn:aws:iam::999999999999:role/CostManagement."
                     }
                   }
                 }
