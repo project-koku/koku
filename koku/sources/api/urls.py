@@ -22,6 +22,6 @@ from sources.api.views import authentication, billing_source, source_status
 urlpatterns = [
     url(r'^authentication/$', authentication, name='authentication'),
     url(r'^status/$', get_status, name='server-status'),
-    url(r'^source_status/$', source_status, name='source-status'),
+    url(r'^source-status/$', source_status, name='source-status'),
     url(r'^billing_source/$', billing_source, name='billing-source'),
 ]
