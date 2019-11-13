@@ -75,10 +75,9 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             query_group_by = ['date'] + group_by_value
             query_order_by = ['-date']
             query_order_by.extend([self.order])
-            clustered_group_by = self._get_cluster_group_by(query_group_by)
 
             annotations = self._mapper.report_type_map.get('annotations')
-            query_data = query_data.values(*clustered_group_by).annotate(**annotations)
+            query_data = query_data.values(*query_group_by).annotate(**annotations)
 
             if 'cluster' in query_group_by or 'cluster' in self.query_filter:
                 query_data = query_data.annotate(
