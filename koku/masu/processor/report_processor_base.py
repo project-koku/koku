@@ -164,7 +164,7 @@ class ReportProcessorBase():
                 f'No manifest provided, processing as a new billing period.\n'
                 f' Processing entire month.\n'
                 f' schema_name: {self._schema_name},\n'
-                f'provider_uuid: {self._provider_uuid},\n'
+                f' provider_uuid: {self._provider_uuid},\n'
                 f' manifest_id: {self._manifest_id}'
             )
             LOG.info(log_statement)
@@ -179,7 +179,7 @@ class ReportProcessorBase():
             f'Processing bill starting on {bill_date}.\n'
             f' Processing entire month.\n'
             f' schema_name: {self._schema_name},\n'
-            f'provider_uuid: {self._provider_uuid},\n'
+            f' provider_uuid: {self._provider_uuid},\n'
             f' manifest_id: {self._manifest_id}'
         )
 
@@ -205,7 +205,7 @@ class ReportProcessorBase():
                     f'Processing bill starting on {bill_date}.\n'
                     f' Processing data on or after {self.data_cutoff_date}.\n'
                     f' schema_name: {self._schema_name},\n'
-                    f'provider_uuid: {self._provider_uuid},\n'
+                    f' provider_uuid: {self._provider_uuid},\n'
                     f' manifest_id: {self._manifest_id}'
                 )
                 LOG.info(log_statement)
