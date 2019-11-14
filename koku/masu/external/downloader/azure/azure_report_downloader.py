@@ -141,10 +141,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest['reportKeys'] = [report_name]
         manifest['Compression'] = UNCOMPRESSED
 
-        manifest_file = '{}/{}'.format(self._get_exports_data_directory(), 'Manifest.json')
-        with open(manifest_file, 'w') as manifest_hdl:
-            manifest_hdl.write(json.dumps(manifest))
-
         return manifest
 
     def get_report_context_for_date(self, date_time):

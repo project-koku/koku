@@ -99,10 +99,6 @@ class AzureLocalReportDownloader(AzureReportDownloader):
         manifest['reportKeys'] = [f'{local_path}/{report_name}']
         manifest['Compression'] = UNCOMPRESSED
 
-        manifest_file = '{}/{}'.format(self._get_exports_data_directory(), 'Manifest.json')
-        with open(manifest_file, 'w') as manifest_hdl:
-            manifest_hdl.write(json.dumps(manifest))
-
         return manifest
 
     def download_file(self, key, stored_etag=None):
