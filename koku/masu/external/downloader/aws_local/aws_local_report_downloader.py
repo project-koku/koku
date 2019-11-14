@@ -141,7 +141,17 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         with open(manifest_file, 'r') as manifest_file_handle:
             manifest_json = json.load(manifest_file_handle)
 
-        return manifest_json
+        return manifest_file, manifest_json
+
+    def _remove_manifest_file(self, manifest_file):
+        """Clean up the manifest file after extracting information."""
+        try:
+            os.remove(manifest_file)
+            LOG.info('Deleted manifest file at %s', directory)
+        except OSError as error:
+            LOG.error('Could not delete manifest file at %s', directory)
+
+        return None
 
     def _get_report_path(self, date_time):
         """
@@ -207,10 +217,12 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         report_dict = {}
-        manifest = self._get_manifest(date_time)
+        manifest_file, manifest = self._get_manifest(date_time)
         manifest_id = None
         if manifest != self.empty_manifest:
             manifest_id = self._prepare_db_manifest_record(manifest)
+
+        self._remove_manifest_file(manifest_file)
 
         report_dict['manifest_id'] = manifest_id
         report_dict['assembly_id'] = manifest.get('assemblyId')
