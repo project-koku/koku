@@ -68,6 +68,20 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         report_meta = utils.get_report_details(directory)
         return report_meta
 
+    def _remove_manifest_file(self, date_time):
+        """Clean up the manifest file after extracting information."""
+        dates = utils.month_date_range(date_time)
+        directory = '{}/{}/{}'.format(REPORTS_DIR, self.cluster_id, dates)
+
+        manifest_path = '{}/{}'.format(directory, 'manifest.json')
+        try:
+            os.remove(manifest_path)
+            LOG.info('Deleted manifest file at %s', directory)
+        except OSError as error:
+            LOG.error('Could not delete manifest file at %s', directory)
+
+        return None
+
     def get_report_for(self, date_time):
         """
         Get OCP usage report files corresponding to a date.
@@ -157,6 +171,9 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         report_dict['assembly_id'] = manifest.get('uuid')
         report_dict['compression'] = UNCOMPRESSED
         report_dict['files'] = self.get_report_for(date_time)
+        # Remove the manifest file now that we have saved the info
+        # in the database.
+        self._remove_manifest_file(date_time)
         return report_dict
 
     def get_local_file_for_report(self, report):
