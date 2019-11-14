@@ -1,4 +1,5 @@
 """Collection of tests for the data export uploader."""
+import logging
 from unittest.mock import patch
 
 import faker
@@ -16,6 +17,13 @@ class DummyException(Exception):
 
 class AwsS3UploaderTest(TestCase):
     """AwsS3Uploader test case."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Test Class setup."""
+        super().setUpClass()
+        # We need to see all expected logs for tests here.
+        logging.disable(logging.NOTSET)
 
     @patch('api.dataexport.uploader.boto3')
     def test_upload_file_success(self, mock_boto3):
