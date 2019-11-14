@@ -29,6 +29,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider, ProviderAuthentication, ProviderBillingSource, Sources
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
+from api.report.test.azure.openshift.helpers import OCPAzureReportDataGenerator
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from cost_models.cost_model_manager import CostModelManager
@@ -453,6 +454,25 @@ class ProviderManagerTest(IamTestCase):
         manager = ProviderManager(provider_uuid)
         infrastructure_name = manager.get_infrastructure_name(self.tenant)
         self.assertEqual(infrastructure_name, 'AWS')
+
+        data_generator.remove_data_from_tenant()
+
+    def test_ocp_on_azure_infrastructure_type(self):
+        """Test that the provider infrastructure returns Azure when running on Azure."""
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1002')
+        provider = Provider.objects.create(name='ocpprovidername',
+                                           type='AZURE',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,)
+        data_generator = OCPAzureReportDataGenerator(self.tenant, provider, current_month_only=True)
+        data_generator.add_data_to_tenant()
+        data_generator.create_ocp_provider(data_generator.cluster_id, data_generator.cluster_alias)
+
+        provider_uuid = data_generator.provider_uuid
+        manager = ProviderManager(provider_uuid)
+        infrastructure_name = manager.get_infrastructure_name(self.tenant)
+        self.assertEqual(infrastructure_name, 'AZURE')
 
         data_generator.remove_data_from_tenant()
 
