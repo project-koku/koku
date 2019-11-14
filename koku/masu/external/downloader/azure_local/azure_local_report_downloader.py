@@ -17,7 +17,6 @@
 """Azure-Local Report Downloader."""
 
 import hashlib
-import json
 import logging
 import os
 import shutil

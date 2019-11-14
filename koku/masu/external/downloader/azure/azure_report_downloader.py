@@ -20,7 +20,6 @@
 # disabled until we get travis to not fail on warnings, or the fixme is
 # resolved.
 import datetime
-import json
 import logging
 import os
 
