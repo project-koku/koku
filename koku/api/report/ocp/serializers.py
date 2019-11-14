@@ -72,6 +72,7 @@ class FilterSerializer(BaseFilterSerializer):
 
     INFRASTRUCTURE_CHOICES = (
         ('aws', 'aws'),
+        ('azure', 'azure'),
     )
 
     _opfields = ('project', 'cluster', 'node', 'pod', 'infrastructures')
