@@ -125,7 +125,7 @@ class AzureProviderMap(ProviderMap):
                             'count': Max('instance_count'),
                             'count_units': Value('instance_types', output_field=CharField()),
                             'usage': Sum('usage_quantity'),
-                            # Waiting on MSFT for usage_units default
+                            # FIXME: Waiting on MSFT for usage_units default
                             'usage_units': Coalesce(Max('unit_of_measure'), Value('Instance Type Placeholder'))
                         },
                         'delta_key': {'usage': Sum('usage_quantity')},
@@ -138,7 +138,7 @@ class AzureProviderMap(ProviderMap):
                         'cost_units_key': 'currency',
                         'cost_units_fallback': 'USD',
                         'usage_units_key': 'unit_of_measure',
-                        'usage_units_fallback': 'Instance Type Placeholder',  # Waiting on MSFT
+                        'usage_units_fallback': 'Instance Type Placeholder',  # FIXME: Waiting on MSFT
                         'count_units_fallback': 'instances',
                         'sum_columns': ['usage', 'cost', 'infrastructure_cost',
                                         'derived_cost', 'markup_cost', 'count'],
@@ -173,7 +173,7 @@ class AzureProviderMap(ProviderMap):
                             'count': Max('instance_count'),
                             'count_units': Value('instances', output_field=CharField()),
                             'usage': Sum('usage_quantity'),
-                            # Waiting on MSFT for usage_units default
+                            # FIXME: Waiting on MSFT for usage_units default
                             'usage_units': Coalesce(Max('unit_of_measure'), Value('Storage Type Placeholder'))
                         },
                         'delta_key': {'usage': Sum('usage_quantity')},
@@ -185,7 +185,7 @@ class AzureProviderMap(ProviderMap):
                         'cost_units_key': 'currency',
                         'cost_units_fallback': 'USD',
                         'usage_units_key': 'unit_of_measure',
-                        'usage_units_fallback': 'Storage Type Placeholder',
+                        'usage_units_fallback': 'Storage Type Placeholder',  # FIXME
                         'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'markup_cost'],
                         'default_ordering': {'usage': 'desc'},
                     },

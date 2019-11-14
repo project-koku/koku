@@ -169,6 +169,11 @@ class QueryParameters:
         self._set_access_aws()
         self._set_access_ocp()
 
+    def _set_access_ocp_azure(self):
+        """Alter query parameters based on user access."""
+        self._set_access_azure()
+        self._set_access_ocp()
+
     def _set_time_scope_defaults(self):
         """Set the default filter parameters."""
         time_scope_units = self.get_filter('time_scope_units')
