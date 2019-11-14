@@ -26,6 +26,9 @@ from api.provider.view import ProviderViewSet
 from api.report.azure.view import (AzureCostView,
                                    AzureInstanceTypeView,
                                    AzureStorageView)
+from api.report.azure.openshift.view import (OCPAzureCostView,
+                                             OCPAzureInstanceTypeView,
+                                             OCPAzureStorageView)
 from api.report.aws.view import (AWSCostView,
                                  AWSInstanceTypeView,
                                  AWSStorageView)
@@ -39,6 +42,7 @@ from api.report.ocp_aws.view import (OCPAWSCostView,
 from api.status.views import StatusView
 from api.tags.aws.view import AWSTagView
 from api.tags.azure.view import AzureTagView
+from api.tags.azure.openshift.view import OCPAzureTagView
 from api.tags.ocp.view import OCPTagView
 from api.tags.ocp_aws.view import OCPAWSTagView
 from api.sources.billing_source import billing_source
