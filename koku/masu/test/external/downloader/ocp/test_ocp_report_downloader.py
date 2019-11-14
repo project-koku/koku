@@ -139,3 +139,10 @@ class OCPReportDownloaderTest(MasuTestCase):
         with patch.object(DateAccessor, 'today', return_value=test_report_date):
             reports = self.report_downloader.download_report(test_report_date)
         self.assertEqual(reports, [])
+
+    def test_remove_manifest_file(self):
+        """Test that a manifest file is deleted after use."""
+        test_report_date = datetime(year=2018, month=9, day=7)
+        self.assertTrue(os.path.isfile(self.test_manifest_path))
+        self.ocp_report_downloader._remove_manifest_file(test_report_date)
+        self.assertFalse(os.path.isfile(self.test_manifest_path))

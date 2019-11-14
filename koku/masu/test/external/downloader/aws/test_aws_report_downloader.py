@@ -451,9 +451,10 @@ class AWSReportDownloaderTest(MasuTestCase):
             downloader.download_file(self.fake.file_path())
 
     @patch('masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.check_if_manifest_should_be_downloaded')
+    @patch('masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._remove_manifest_file')
     @patch('masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._get_manifest')
     @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
-    def test_get_report_context_for_date_should_download(self, mock_session, mock_manifest, mock_check):
+    def test_get_report_context_for_date_should_download(self, mock_session, mock_manifest, mock_delete, mock_check):
         """Test that data is returned on the reports to process."""
         current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
         auth_credential = fake_arn(service='iam', generate_account_id=True)
@@ -496,9 +497,10 @@ class AWSReportDownloaderTest(MasuTestCase):
             self.assertEqual(value, expected.get(key))
 
     @patch('masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.check_if_manifest_should_be_downloaded')
+    @patch('masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._remove_manifest_file')
     @patch('masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._get_manifest')
     @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
-    def test_get_report_context_for_date_should_not_download(self, mock_session, mock_manifest, mock_check):
+    def test_get_report_context_for_date_should_not_download(self, mock_session, mock_manifest, mock_delete, mock_check):
         """Test that no data is returned when we don't want to process."""
         current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
         auth_credential = fake_arn(service='iam', generate_account_id=True)
@@ -523,3 +525,13 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         result = downloader.get_report_context_for_date(current_month)
         self.assertEqual(result, expected)
+
+    def test_remove_manifest_file(self):
+        manifest_file = f'{DATA_DIR}/test_manifest.json'
+
+        with open(manifest_file, 'w') as f:
+            f.write('Test')
+
+        self.assertTrue(os.path.isfile(manifest_file))
+        self.aws_report_downloader._remove_manifest_file(manifest_file)
+        self.assertFalse(os.path.isfile(manifest_file))
