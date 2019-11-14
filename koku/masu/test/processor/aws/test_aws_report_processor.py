@@ -183,7 +183,7 @@ class AWSReportProcessorTest(MasuTestCase):
             f'INFO:masu.processor.report_processor_base:Processing bill starting on {bill_date}.\n'
             f' Processing entire month.\n'
             f' schema_name: {self.schema},\n'
-            f'provider_uuid: {self.aws_provider_uuid},\n'
+            f' provider_uuid: {self.aws_provider_uuid},\n'
             f' manifest_id: {self.manifest.id}'
         )
         logging.disable(

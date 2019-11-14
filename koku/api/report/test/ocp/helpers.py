@@ -124,16 +124,11 @@ class OCPReportDataGenerator:
         words = list(set([self.fake.word() for _ in range(10)]))
         provider_uuid = kwargs.get('provider_uuid', self.provider.uuid)
 
-        self.cluster_id = random.choice(words)
-        self.cluster_alias = random.choice(words)
-        if kwargs.get('namespaces'):
-            self.namespaces = kwargs['namespaces']
-        else:
-            self.namespaces = random.sample(words, k=2)
-        if kwargs.get('nodes'):
-            self.nodes = kwargs['nodes']
-        else:
-            self.nodes = random.sample(words, k=2)
+        self.cluster_id = kwargs.get('cluster_id', random.choice(words))
+        self.cluster_alias = kwargs.get('cluster_alias', random.choice(words))
+        self.namespaces = kwargs.get('namespaces', random.sample(words, k=2))
+        self.nodes = kwargs.get('nodes', random.sample(words, k=2))
+
         self.pods = random.sample(words, k=2)
         self.storage_classes = ['gp2', 'standard', 'magnetic']
         self.line_items = [

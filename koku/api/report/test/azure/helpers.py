@@ -244,6 +244,11 @@ class FakeAzureConfig(UserDict):
         return self._get_prop('service_name',
                               random.choice(list(AZURE_SERVICES.keys())))
 
+    @service_name.setter
+    def service_name(self, name):
+        """Set the service name."""
+        self.data['service_name'] = name
+
     @property
     def service_tier(self):
         """Return the service tier."""
