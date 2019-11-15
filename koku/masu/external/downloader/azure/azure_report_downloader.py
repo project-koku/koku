@@ -20,7 +20,6 @@
 # disabled until we get travis to not fail on warnings, or the fixme is
 # resolved.
 import datetime
-import json
 import logging
 import os
 
@@ -140,10 +139,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest['billingPeriod'] = billing_period
         manifest['reportKeys'] = [report_name]
         manifest['Compression'] = UNCOMPRESSED
-
-        manifest_file = '{}/{}'.format(self._get_exports_data_directory(), 'Manifest.json')
-        with open(manifest_file, 'w') as manifest_hdl:
-            manifest_hdl.write(json.dumps(manifest))
 
         return manifest
 

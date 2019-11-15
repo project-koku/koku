@@ -175,13 +175,23 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             manifest_file, _ = self.download_file(manifest)
         except AWSReportDownloaderNoFileError as err:
             LOG.error('Unable to get report manifest. Reason: %s', str(err))
-            return self.empty_manifest
+            return '', self.empty_manifest
 
         manifest_json = None
         with open(manifest_file, 'r') as manifest_file_handle:
             manifest_json = json.load(manifest_file_handle)
 
-        return manifest_json
+        return manifest_file, manifest_json
+
+    def _remove_manifest_file(self, manifest_file):
+        """Clean up the manifest file after extracting information."""
+        try:
+            os.remove(manifest_file)
+            LOG.info('Deleted manifest file at %s', manifest_file)
+        except OSError:
+            LOG.error('Could not delete manifest file at %s', manifest_file)
+
+        return None
 
     def _get_report_path(self, date_time):
         """
@@ -276,12 +286,13 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         should_download = True
         manifest_dict = {}
         report_dict = {}
-        manifest = self._get_manifest(date_time)
+        manifest_file, manifest = self._get_manifest(date_time)
         if manifest != self.empty_manifest:
             manifest_dict = self._prepare_db_manifest_record(manifest)
             should_download = self.check_if_manifest_should_be_downloaded(
                 manifest_dict.get('assembly_id')
             )
+        self._remove_manifest_file(manifest_file)
 
         if not should_download:
             manifest_id = self._get_existing_manifest_db_id(manifest_dict.get('assembly_id'))
