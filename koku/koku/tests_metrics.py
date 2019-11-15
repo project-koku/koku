@@ -19,7 +19,7 @@ import logging
 import random
 from datetime import datetime
 from unittest import mock
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 from django.db import OperationalError
 from faker import Faker
@@ -28,6 +28,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from koku.metrics import DatabaseStatus
 
 FAKE = Faker()
+
 
 class DatabaseStatusTest(IamTestCase):
     """Test DatabaseStatus object."""
@@ -90,9 +91,6 @@ class DatabaseStatusTest(IamTestCase):
     @patch('koku.metrics.connection')
     def test_schema_size_null(self, mock_connection):
         """ Test that schema_size() parses rows with null values correctly."""
-        logging.disable(0)
-        LOG = logging.getLogger(__name__)
-
         fake_rows = [(random.choice([FAKE.word(), '', None]),
                       random.choice([FAKE.pyint(), '', None]))
                      for _ in range(0, random.randint(2, 20))]
