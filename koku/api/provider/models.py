@@ -134,6 +134,8 @@ class Provider(models.Model):
         CLOUD_PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
                             (PROVIDER_AZURE, PROVIDER_AZURE),
                             (PROVIDER_GCP, PROVIDER_GCP))
+    PROVIDER_LIST = [choice[0] for choice in PROVIDER_CHOICES]
+    CLOUD_PROVIDER_LIST = [choice[0] for choice in CLOUD_PROVIDER_CHOICES]
 
     uuid = models.UUIDField(default=uuid4, primary_key=True)
     name = models.CharField(max_length=256, null=False)
