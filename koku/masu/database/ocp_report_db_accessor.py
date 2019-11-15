@@ -657,49 +657,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         )
         self._commit_and_vacuum(table_name, agg_sql, bind_params=list(agg_sql_params))
 
-    def populate_markup_cost(self, markup, cluster_id=None):
-        """Set markup costs in the database."""
-        with schema_context(self.schema):
-            if cluster_id:
-                OCPUsageLineItemDailySummary.objects.filter(cluster_id=cluster_id).update(
-                    markup_cost=(
-                        Coalesce(F('pod_charge_cpu_core_hours'), Value(0, output_field=DecimalField()))
-                        + Coalesce(F('pod_charge_memory_gigabyte_hours'), Value(0, output_field=DecimalField()))
-                        + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
-                                   Value(0, output_field=DecimalField()))
-                        + Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
-                    ) * markup
-                )
-                OCPUsageLineItemDailySummary.objects.filter(cluster_id=cluster_id).update(
-                    project_markup_cost=(
-                        Coalesce(F('pod_charge_cpu_core_hours'), Value(0, output_field=DecimalField()))
-                        + Coalesce(F('pod_charge_memory_gigabyte_hours'), Value(0, output_field=DecimalField()))
-                        + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
-                                   Value(0, output_field=DecimalField()))
-                        + Coalesce(F('project_infra_cost'), Value(0, output_field=DecimalField()))
-                    ) * markup
-                )
-            else:
-                OCPUsageLineItemDailySummary.objects.update(
-                    markup_cost=(
-                        Coalesce(F('pod_charge_cpu_core_hours'), Value(0, output_field=DecimalField()))
-                        + Coalesce(F('pod_charge_memory_gigabyte_hours'), Value(0, output_field=DecimalField()))
-                        + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
-                                   Value(0, output_field=DecimalField()))
-                        + Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
-                    ) * markup
-                )
-                OCPUsageLineItemDailySummary.objects.update(
-                    project_markup_cost=(
-                        Coalesce(F('pod_charge_cpu_core_hours'), Value(0, output_field=DecimalField()))
-                        + Coalesce(F('pod_charge_memory_gigabyte_hours'), Value(0, output_field=DecimalField()))
-                        + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
-                                   Value(0, output_field=DecimalField()))
-                        + Coalesce(F('project_infra_cost'), Value(0, output_field=DecimalField()))
-                    ) * markup
-                )
 
-    def populate_ocp_on_aws_markup_cost(self, aws_markup, ocp_markup, cluster_id):
+    def populate_markup_cost(self, aws_markup, ocp_markup, cluster_id):
         """Set markup cost for OCP-on-AWS in Cost Summary."""
         with schema_context(self.schema):
             OCPUsageLineItemDailySummary.objects.filter(cluster_id=cluster_id).update(
