@@ -17,7 +17,6 @@
 """Azure-Local Report Downloader."""
 
 import hashlib
-import json
 import logging
 import os
 import shutil
@@ -98,10 +97,6 @@ class AzureLocalReportDownloader(AzureReportDownloader):
         manifest['billingPeriod'] = billing_period
         manifest['reportKeys'] = [f'{local_path}/{report_name}']
         manifest['Compression'] = UNCOMPRESSED
-
-        manifest_file = '{}/{}'.format(self._get_exports_data_directory(), 'Manifest.json')
-        with open(manifest_file, 'w') as manifest_hdl:
-            manifest_hdl.write(json.dumps(manifest))
 
         return manifest
 
