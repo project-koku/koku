@@ -51,11 +51,8 @@ class ReportChargeUpdater:
         self._schema = customer_schema
         self._provider_uuid = provider_uuid
 
-        with ProviderDBAccessor(provider_uuid) as provider_accessor:
-            provider_type = provider_accessor.get_type()
-        self._provider = provider_type
-        self._provider_uuid = provider_accessor.get_provider().uuid
-
+        with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
+            self._provider = provider_accessor.get_provider()
         try:
             self._updater = self._set_updater()
         except Exception as err:
@@ -74,12 +71,12 @@ class ReportChargeUpdater:
             (Object) : Provider-specific report summary updater
 
         """
-        if self._provider in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
-            return AWSReportChargeUpdater(self._schema, self._provider_uuid)
-        if self._provider in (AZURE, AZURE_LOCAL_SERVICE_PROVIDER):
-            return AzureReportChargeUpdater(self._schema, self._provider_uuid)
-        if self._provider in (OPENSHIFT_CONTAINER_PLATFORM, ):
-            return OCPReportChargeUpdater(self._schema, self._provider_uuid)
+        if self._provider.type in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
+            return AWSReportChargeUpdater(self._schema, self._provider)
+        if self._provider.type in (AZURE, AZURE_LOCAL_SERVICE_PROVIDER):
+            return AzureReportChargeUpdater(self._schema, self._provider)
+        if self._provider.type in (OPENSHIFT_CONTAINER_PLATFORM, ):
+            return OCPReportChargeUpdater(self._schema, self._provider)
 
         return None
 
