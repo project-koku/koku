@@ -376,13 +376,12 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             cursor.execute(infra_sql, list(infra_sql_params))
             results = cursor.fetchall()
 
-        db_results = []
+        db_results = {}
         for entry in results:
-            db_dict = {}
-            db_dict['aws_uuid'] = entry[0]
-            db_dict['ocp_uuid'] = entry[1]
-            db_dict['cluster_id'] = entry[2]
-            db_results.append(db_dict)
+            # This dictionary is keyed on an OpenShift provider UUID
+            # and the tuple contains
+            # (Infrastructure Provider UUID, Infrastructure Provider Type)
+            db_results[entry[0]] = (entry[1], entry[2])
 
         return db_results
 
