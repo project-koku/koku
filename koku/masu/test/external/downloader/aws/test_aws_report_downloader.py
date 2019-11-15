@@ -249,7 +249,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         }
 
         with patch.object(
-            AWSReportDownloader, '_get_manifest', return_value=mock_manifest
+            AWSReportDownloader, '_get_manifest', return_value=('', mock_manifest)
         ):
             with self.assertRaises(AWSReportDownloaderError):
                 report_downloader = ReportDownloader(
@@ -468,12 +468,15 @@ class AWSReportDownloaderTest(MasuTestCase):
         assembly_id = '1234'
         compression = downloader.report.get('Compression')
         report_keys = ['file1', 'file2']
-        mock_manifest.return_value = {
-            'assemblyId': assembly_id,
-            'Compression': compression,
-            'reportKeys': report_keys,
-            'billingPeriod': {'start': start_str}
-        }
+        mock_manifest.return_value = (
+            '',
+            {
+                'assemblyId': assembly_id,
+                'Compression': compression,
+                'reportKeys': report_keys,
+                'billingPeriod': {'start': start_str}
+            }
+        )
         mock_check.return_value = True
 
         expected = {
@@ -513,12 +516,15 @@ class AWSReportDownloaderTest(MasuTestCase):
         assembly_id = '1234'
         compression = downloader.report.get('Compression')
         report_keys = ['file1', 'file2']
-        mock_manifest.return_value = {
-            'assemblyId': assembly_id,
-            'Compression': compression,
-            'reportKeys': report_keys,
-            'billingPeriod': {'start': start_str}
-        }
+        mock_manifest.return_value = (
+            '',
+            {
+                'assemblyId': assembly_id,
+                'Compression': compression,
+                'reportKeys': report_keys,
+                'billingPeriod': {'start': start_str}
+            }
+        )
         mock_check.return_value = False
 
         expected = {}

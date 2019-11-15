@@ -175,7 +175,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             manifest_file, _ = self.download_file(manifest)
         except AWSReportDownloaderNoFileError as err:
             LOG.error('Unable to get report manifest. Reason: %s', str(err))
-            return self.empty_manifest
+            return '', self.empty_manifest
 
         manifest_json = None
         with open(manifest_file, 'r') as manifest_file_handle:
