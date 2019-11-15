@@ -127,12 +127,9 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         local_filename = utils.get_local_file_name(key)
-        manifest_filename = 'manifest.json'
-        source_manifest_path = f'{os.path.dirname(key)}/{manifest_filename}'
 
         directory_path = f'{DATA_DIR}/{self.customer_name}/ocp/{self.cluster_id}'
         full_file_path = f'{directory_path}/{local_filename}'
-        full_manfiest_path = f'{directory_path}/{manifest_filename}'
 
         # Make sure the data directory exists
         os.makedirs(directory_path, exist_ok=True)
@@ -143,7 +140,6 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if ocp_etag != stored_etag or not os.path.isfile(full_file_path):
             LOG.info('Downloading %s to %s', key, full_file_path)
             shutil.move(key, full_file_path)
-            shutil.copy2(source_manifest_path, full_manfiest_path)
         return full_file_path, ocp_etag
 
     def get_report_context_for_date(self, date_time):
