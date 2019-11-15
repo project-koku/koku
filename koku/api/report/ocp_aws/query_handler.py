@@ -72,10 +72,9 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
             query_group_by = ['date'] + group_by_value
             query_order_by = ['-date', ]
             query_order_by.extend([self.order])
-            clustered_group_by = self._get_cluster_group_by(query_group_by)
 
             annotations = self._mapper.report_type_map.get('annotations')
-            query_data = query_data.values(*clustered_group_by).annotate(**annotations)
+            query_data = query_data.values(*query_group_by).annotate(**annotations)
 
             if 'account' in query_group_by:
                 query_data = query_data.annotate(account_alias=Coalesce(
