@@ -28,6 +28,7 @@ from api.provider.test import create_generic_provider
 from api.query_filter import QueryFilterCollection
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.view import OCPCostView, OCPCpuView
+from api.report.test.azure.openshift.helpers import OCPAzureReportDataGenerator
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
@@ -530,8 +531,30 @@ class OCPReportQueryHandlerTest(IamTestCase):
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
 
-        for entry in query_data.get('data', []):
-            for value in entry.get('values', []):
+        self.assertTrue(query_data.get('data'))  # check that returned list is not empty
+        for entry in query_data.get('data'):
+            self.assertTrue(entry.get('values'))
+            for value in entry.get('values'):
+                self.assertIsNotNone(value.get('usage').get('value'))
+                self.assertIsNotNone(value.get('request').get('value'))
+        data_generator.remove_data_from_tenant()
+
+    def test_filter_by_infrastructure_ocp_on_azure(self):
+        """Test that filter by infrastructure for ocp on azure."""
+        data_generator = OCPAzureReportDataGenerator(
+            self.tenant, self.provider, current_month_only=True
+        )
+        data_generator.add_data_to_tenant()
+        data_generator.add_ocp_data_to_tenant()
+        url = '?filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month&filter[infrastructures]=azure'  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPCpuView)
+        handler = OCPReportQueryHandler(query_params)
+        query_data = handler.execute_query()
+
+        self.assertTrue(query_data.get('data'))  # check that returned list is not empty
+        for entry in query_data.get('data'):
+            self.assertTrue(entry.get('values'))
+            for value in entry.get('values'):
                 self.assertIsNotNone(value.get('usage').get('value'))
                 self.assertIsNotNone(value.get('request').get('value'))
         data_generator.remove_data_from_tenant()
@@ -548,8 +571,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
 
-        for entry in query_data.get('data', []):
-            for value in entry.get('values', []):
+        self.assertTrue(query_data.get('data'))  # check that returned list is not empty
+        for entry in query_data.get('data'):
+            for value in entry.get('values'):
                 self.assertEqual(value.get('usage').get('value'), 0)
                 self.assertEqual(value.get('request').get('value'), 0)
         data_generator.remove_data_from_tenant()
