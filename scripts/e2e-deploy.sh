@@ -49,7 +49,7 @@ OPENSHIFT_API_URL=https://api.crc.testing:6443
 
 ### login info
 ADMIN_USER=kubeadmin
-ADMIN_PASSWORD=wyozw-5ywAy-5yoap-7rj8q
+ADMIN_PASSWORD=e4FEb-9dxdF-9N2wH-Dj7B8
 OCP_USER=developer
 OCP_PASSWORD=developer
 
@@ -58,13 +58,13 @@ OCP_PASSWORD=developer
 REGISTRY_REDHAT_IO_SECRETS=''
 
 # location of application secrets
-KOKU_SECRETS=$(dirname $0)/e2e-secrets.yml
+KOKU_SECRETS=$(dirname $(readlink -f $0))/e2e-secrets.yml
 
 # location of e2e repo clone
 E2E_REPO=''
 
 # location of application environment vars
-DEPLOY_ENV=${E2E_REPO}/env/smoke.yml
+DEPLOY_ENV=${E2E_REPO}/env/dev.yml
 
 # Project names to use
 SECRETS_PROJECT=secrets
@@ -132,9 +132,7 @@ ${OC} policy add-role-to-user system:image-puller system:serviceaccount:${DEPLOY
 
 ### create builds
 # doing the initial builds can take a while
-# ocdeployer only waits 10 minutes and can timeout while builds
-# are still running. So, we ignore any non-zero exit because it's not
-# necessarily a problem.
+# So, we ignore any non-zero exit because it's not necessarily a problem.
 echo "Creating builds in project ${BUILDFACTORY_PROJECT}"
 ${OCDEPLOYER} deploy -s hccm -t buildfactory ${BUILDFACTORY_PROJECT} || true
 
