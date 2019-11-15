@@ -16,14 +16,18 @@
 #
 """Test the prometheus metrics."""
 import logging
+import random
+from datetime import datetime
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 from django.db import OperationalError
+from faker import Faker
 
 from api.iam.test.iam_test_case import IamTestCase
 from koku.metrics import DatabaseStatus
 
+FAKE = Faker()
 
 class DatabaseStatusTest(IamTestCase):
     """Test DatabaseStatus object."""
@@ -45,13 +49,13 @@ class DatabaseStatusTest(IamTestCase):
         dbs.collect()
         self.assertTrue(mock_gauge.called)
 
-    def test_query(self):
-        """Test _query()."""
-        test_query = 'SELECT count(*) from now()'
-        expected = [{'count': 1}]
+    def test_query_cache(self):
+        """Test that query() returns a cached response when available."""
         dbs = DatabaseStatus()
-        result = dbs.query(test_query)
-        self.assertEqual(result, expected)
+        dbs._last_result = 1
+        dbs._last_query = datetime.now()
+        result = dbs.query('SELECT count(*) from now()')
+        self.assertEqual(result, 1)
 
     def test_query_exception(self):
         """Test _query() when an exception is thrown."""
@@ -63,3 +67,45 @@ class DatabaseStatusTest(IamTestCase):
             dbs = DatabaseStatus()
             with self.assertLogs(level=logging.WARNING):
                 dbs.query(test_query)
+
+    @patch('koku.metrics.connection')
+    def test_schema_size_valid(self, mock_connection):
+        """ Test that schema_size() parses rows correctly."""
+        fake_rows = [(FAKE.word(), FAKE.pyint())
+                     for _ in range(0, random.randint(2, 20))]
+
+        # Mocked up objects:
+        #   connection.cursor().fetchall()
+        #   connection.cursor().description
+        mock_ctx = Mock(return_value=Mock(description=[('schema',), ('size',)],
+                                          fetchall=Mock(return_value=fake_rows)))
+        mock_connection.cursor = Mock(return_value=Mock(__enter__=mock_ctx,
+                                                        __exit__=mock_ctx))
+
+        expected = [dict(zip(['schema', 'size'], row)) for row in fake_rows if len(row) == 2]
+        dbs = DatabaseStatus()
+        result = dbs.schema_size()
+        self.assertEqual(result, expected)
+
+    @patch('koku.metrics.connection')
+    def test_schema_size_null(self, mock_connection):
+        """ Test that schema_size() parses rows with null values correctly."""
+        logging.disable(0)
+        LOG = logging.getLogger(__name__)
+
+        fake_rows = [(random.choice([FAKE.word(), '', None]),
+                      random.choice([FAKE.pyint(), '', None]))
+                     for _ in range(0, random.randint(2, 20))]
+
+        # Mocked up objects:
+        #   connection.cursor().fetchall()
+        #   connection.cursor().description
+        mock_ctx = Mock(return_value=Mock(description=[('schema',), ('size',)],
+                                          fetchall=Mock(return_value=fake_rows)))
+        mock_connection.cursor = Mock(return_value=Mock(__enter__=mock_ctx,
+                                                        __exit__=mock_ctx))
+
+        expected = [dict(zip(['schema', 'size'], row)) for row in fake_rows if len(row) == 2]
+        dbs = DatabaseStatus()
+        result = dbs.schema_size()
+        self.assertEqual(result, expected)
