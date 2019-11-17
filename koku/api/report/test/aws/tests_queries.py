@@ -21,11 +21,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from unittest.mock import PropertyMock, patch
 
-from django.contrib.postgres.aggregates import ArrayAgg
-from django.db import connection
-from django.db.models import Count, DateTimeField, F, Max, Sum, Value
-from django.db.models.functions import Cast, Concat
-from django.test import TestCase
+from django.db.models import F, Sum
 from django.urls import reverse
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
@@ -34,22 +30,13 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.provider.test import create_generic_provider
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.aws.view import AWSCostView, AWSInstanceTypeView, AWSStorageView
-from api.report.queries import ReportQueryHandler, strip_tag_prefix
+from api.report.queries import strip_tag_prefix
 from api.report.test import FakeAWSCostData
 from api.report.test.aws.helpers import AWSReportDataGenerator
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
-from reporting.models import (
-    AWSAccountAlias,
-    AWSCostEntry,
-    AWSCostEntryBill,
-    AWSCostEntryLineItem,
-    AWSCostEntryLineItemDaily,
-    AWSCostEntryLineItemDailySummary,
-    AWSCostEntryPricing,
-    AWSCostEntryProduct,
-)
+from reporting.models import AWSCostEntryLineItemDailySummary, AWSCostEntryProduct
 
 
 class AWSReportQueryTest(IamTestCase):
