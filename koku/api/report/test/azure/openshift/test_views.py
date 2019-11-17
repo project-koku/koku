@@ -20,7 +20,6 @@ from django.test import RequestFactory
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
-from rest_framework_csv.renderers import CSVRenderer
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
@@ -44,40 +43,6 @@ class AzureReportViewTest(IamTestCase):
             serializer.save()
         self.client = APIClient()
         self.factory = RequestFactory()
-
-    def test_get_named_view(self):
-        """Test costs reports runs with a customer owner."""
-        for name in self.NAMES:
-            with self.subTest(name=name):
-                url = reverse(name)
-                response = self.client.get(url, **self.headers)
-                self.assertEqual(response.status_code, status.HTTP_200_OK)
-                json_result = response.json()
-                self.assertIsNotNone(json_result.get('data'))
-                self.assertIsInstance(json_result.get('data'), list)
-                self.assertTrue(len(json_result.get('data')) > 0)
-
-    def test_get_names_invalid_query_param(self):
-        """Test costs reports runs with an invalid query param."""
-        for name in self.NAMES:
-            with self.subTest(name=name):
-                query = 'group_by[invalid]=*'
-                url = reverse(name) + '?' + query
-                response = self.client.get(url, **self.headers)
-                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_get_named_csv(self):
-        """Test CSV output of inventory named reports."""
-        self.client = APIClient(HTTP_ACCEPT='text/csv')
-        for name in self.NAMES:
-            with self.subTest(name=name):
-                url = reverse(name)
-                response = self.client.get(url, content_type='text/csv', **self.headers)
-                response.render()
-
-                self.assertEqual(response.status_code, status.HTTP_200_OK)
-                self.assertEqual(response.accepted_media_type, 'text/csv')
-                self.assertIsInstance(response.accepted_renderer, CSVRenderer)
 
     def test_execute_query_w_delta_total(self):
         """Test that delta=total returns deltas."""

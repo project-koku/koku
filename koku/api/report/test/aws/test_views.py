@@ -14,13 +14,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Test the Azure Report views."""
-
-from unittest.mock import patch
+"""Test the AWS Report views."""
+from unittest.mock import Mock, patch
 
 from django.http import HttpRequest, QueryDict
+# from django.test import RequestFactory
 from django.urls import reverse
-from faker import Faker
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -29,15 +28,13 @@ from rest_framework.test import APIClient
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
-from api.report.azure.view import AzureCostView
+from api.report.aws.view import AWSCostView
 from api.report.view import _convert_units
 from api.utils import UnitConverter
 
-FAKE = Faker()
 
-
-class AzureReportViewTest(IamTestCase):
-    """Azure report view test cases."""
+class AWSReportViewTest(IamTestCase):
+    """Tests the report view."""
 
     def setUp(self):
         """Set up the customer view tests."""
@@ -45,10 +42,11 @@ class AzureReportViewTest(IamTestCase):
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
+        self.client = APIClient()
 
         self.report = {
             'group_by': {
-                'subscription_guid': ['*']
+                'account': ['*']
             },
             'filter': {
                 'resolution': 'monthly',
@@ -59,58 +57,58 @@ class AzureReportViewTest(IamTestCase):
             'data': [
                 {
                     'date': '2018-07',
-                    'subscription_guids': [
+                    'accounts': [
                         {
-                            'subscription_guid': '00000000-0000-0000-0000-000000000000',
+                            'account': '4418636104713',
                             'values': [
                                 {
                                     'date': '2018-07',
                                     'units': 'GB-Mo',
-                                    'subscription_guid': '00000000-0000-0000-0000-000000000000',
+                                    'account': '4418636104713',
                                     'total': 1826.74238146924
                                 }
                             ]
                         },
                         {
-                            'subscription_guid': '11111111-1111-1111-1111-111111111111',
+                            'account': '8577742690384',
                             'values': [
                                 {
                                     'date': '2018-07',
                                     'units': 'GB-Mo',
-                                    'subscription_guid': '11111111-1111-1111-1111-111111111111',
+                                    'account': '8577742690384',
                                     'total': 1137.74036198065
                                 }
                             ]
                         },
                         {
-                            'subscription_guid': '22222222-2222-2222-2222-222222222222',
+                            'account': '3474227945050',
                             'values': [
                                 {
                                     'date': '2018-07',
                                     'units': 'GB-Mo',
-                                    'subscription_guid': '22222222-2222-2222-2222-222222222222',
+                                    'account': '3474227945050',
                                     'total': 1045.80659412797
                                 }
                             ]
                         },
                         {
-                            'subscription_guid': '33333333-3333-3333-3333-333333333333',
+                            'account': '7249815104968',
                             'values': [
                                 {
                                     'date': '2018-07',
                                     'units': 'GB-Mo',
-                                    'subscription_guid': '33333333-3333-3333-3333-333333333333',
+                                    'account': '7249815104968',
                                     'total': 807.326470618818
                                 }
                             ]
                         },
                         {
-                            'subscription_guid': '44444444-4444-4444-4444-444444444444',
+                            'account': '9420673783214',
                             'values': [
                                 {
                                     'date': '2018-07',
                                     'units': 'GB-Mo',
-                                    'subscription_guid': '44444444-4444-4444-4444-444444444444',
+                                    'account': '9420673783214',
                                     'total': 658.306642830709
                                 }
                             ]
@@ -123,6 +121,25 @@ class AzureReportViewTest(IamTestCase):
                 'units': 'GB-Mo'
             }
         }
+
+    def test_execute_query_w_delta_total(self):
+        """Test that delta=total returns deltas."""
+        qs = 'delta=cost'
+        url = reverse('reports-aws-costs') + '?' + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_execute_query_w_delta_bad_choice(self):
+        """Test invalid delta value."""
+        bad_delta = 'Invalid'
+        expected = f'"{bad_delta}" is not a valid choice.'
+        qs = f'group_by[account]=*&filter[limit]=2&delta={bad_delta}'
+        url = reverse('reports-aws-costs') + '?' + qs
+
+        response = self.client.get(url, **self.headers)
+        result = str(response.data.get('delta')[0])
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(result, expected)
 
     def test_convert_units_success(self):
         """Test unit conversion succeeds."""
@@ -159,7 +176,7 @@ class AzureReportViewTest(IamTestCase):
         to_unit = 'byte'
         expected_unit = f'{to_unit}-Mo'
 
-        report = self.report['data'][0]['subscription_guids'][0]['values'][0]
+        report = self.report['data'][0]['accounts'][0]['values'][0]
         report_total = report.get('total')
         result = _convert_units(converter, report, to_unit)
         result_unit = result.get('units')
@@ -167,49 +184,3 @@ class AzureReportViewTest(IamTestCase):
 
         self.assertEqual(expected_unit, result_unit)
         self.assertEqual(report_total * 1E9, result_total)
-
-    @patch('api.report.azure.query_handler.AzureReportQueryHandler')
-    def test_costview_with_units_success(self, mock_handler):
-        """Test unit conversion succeeds in AzureCostView."""
-        mock_handler.return_value.execute_query.return_value = self.report
-        params = {
-            'group_by[subscription_guid]': '*',
-            'filter[resolution]': 'monthly',
-            'filter[time_scope_value]': '-1',
-            'filter[time_scope_units]': 'month',
-            'units': 'byte',
-            'SERVER_NAME': ''
-        }
-        user = User.objects.get(
-            username=self.user_data['username']
-        )
-
-        django_request = HttpRequest()
-        qd = QueryDict(mutable=True)
-        qd.update(params)
-        django_request.GET = qd
-        request = Request(django_request)
-        request.user = user
-
-        response = AzureCostView().get(request)
-        self.assertIsInstance(response, Response)
-
-    def test_execute_query_w_delta_total(self):
-        """Test that delta=total returns deltas."""
-        qs = 'delta=cost'
-        url = reverse('reports-azure-costs') + '?' + qs
-        client = APIClient()
-        response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_execute_query_w_delta_bad_choice(self):
-        """Test invalid delta value."""
-        bad_delta = 'Invalid'
-        expected = f'"{bad_delta}" is not a valid choice.'
-        qs = f'group_by[subscription_guid]=*&filter[limit]=2&delta={bad_delta}'
-        url = reverse('reports-azure-costs') + '?' + qs
-        client = APIClient()
-        response = client.get(url, **self.headers)
-        result = str(response.data.get('delta')[0])
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(result, expected)
