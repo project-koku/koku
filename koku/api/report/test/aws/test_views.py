@@ -15,20 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the AWS Report views."""
-from unittest.mock import Mock, patch
-
-from django.http import HttpRequest, QueryDict
-# from django.test import RequestFactory
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.request import Request
-from rest_framework.response import Response
 from rest_framework.test import APIClient
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import User
-from api.report.aws.view import AWSCostView
 from api.report.view import _convert_units
 from api.utils import UnitConverter
 
