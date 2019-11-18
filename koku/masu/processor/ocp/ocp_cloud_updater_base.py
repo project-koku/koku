@@ -52,6 +52,7 @@ class OCPCloudUpdaterBase:
         """
         self._schema_name = schema
         self._provider = provider
+        self._provider_uuid = str(self._provider.uuid)
         self._manifest = manifest
         with ReportingCommonDBAccessor() as reporting_common:
             self._column_map = reporting_common.column_map
@@ -72,11 +73,11 @@ class OCPCloudUpdaterBase:
                 infra_type = provider_accessor.get_infrastructure_type()
                 infra_provider_uuid = provider_accessor.get_infrastructure_provider_uuid()
                 if infra_provider_uuid:
-                    infra_map[self._provider.uuid] = (infra_provider_uuid, infra_type)
+                    infra_map[self._provider_uuid] = (infra_provider_uuid, infra_type)
             elif self._provider.type in Provider.CLOUD_PROVIDER_LIST:
                 associated_providers = provider_accessor.get_associated_openshift_providers()
                 for provider in associated_providers:
-                    infra_map[provider.uuid] = (self._provider.uuid, self._provider.type)
+                    infra_map[str(provider.uuid)] = (self._provider_uuid, self._provider.type)
         return infra_map
 
     def _generate_ocp_infra_map_from_sql(self, start_date, end_date):
@@ -90,12 +91,21 @@ class OCPCloudUpdaterBase:
             infra_map (dict) The OCP infrastructure map.
 
         """
-        infra_map = None
-        with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
-            infra_map = accessor.get_ocp_infrastructure_map(start_date, end_date)
-        if infra_map:
-            # Save to DB
-            self.set_provider_infra_map(infra_map)
+        infra_map = {}
+        if self._provider.type == Provider.PROVIDER_OCP:
+            with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
+                infra_map = accessor.get_ocp_infrastructure_map(
+                    start_date, end_date, ocp_provider_uuid=self._provider_uuid
+                )
+        elif self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+            with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
+                infra_map = accessor.get_ocp_infrastructure_map(
+                    start_date, end_date, aws_provider_uuid=self._provider_uuid
+                )
+
+        # Save to DB
+        self.set_provider_infra_map(infra_map)
+
         return infra_map
 
     def set_provider_infra_map(self, infra_map):
