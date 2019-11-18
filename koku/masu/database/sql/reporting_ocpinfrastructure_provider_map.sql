@@ -3,13 +3,23 @@ CREATE TEMPORARY TABLE ocp_infrastructure_temp AS (
     SELECT aws.cost_entry_bill_id,
         ocp.report_period_id
     FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily as aws
+    JOIN {{schema | sqlsafe}}.reporting_awscostentrybill as bill
+        ON aws.cost_entry_bill_id = bill.id
     JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
         ON date(aws.usage_start) = date(ocp.usage_start)
             AND aws.resource_id = ocp.resource_id
+    JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as rp
+        ON ocp.report_period_id = rp.id
     WHERE date(aws.usage_start) >= {{start_date}}
         AND date(aws.usage_start) <= {{end_date}}
         AND date(ocp.usage_start) >= {{start_date}}
         AND date(ocp.usage_start) <= {{end_date}}
+        {% if aws_provider_uuid %}
+        AND bill.provider_id = {{aws_provider_uuid}}
+        {% endif %}
+        {% if ocp_provider_uuid %}
+        AND rp.provider_id = {{ocp_provider_uuid}}
+        {% endif %}
     GROUP BY aws.cost_entry_bill_id, ocp.report_period_id
 )
 ;
