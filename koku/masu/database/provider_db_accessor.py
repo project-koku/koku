@@ -241,12 +241,13 @@ class ProviderDBAccessor(KokuDBAccess):
 
     def get_associated_openshift_providers(self):
         """Returns a list of OpenShift clusters associated with the cloud provider."""
-        mapping = ProviderInfrastructureMap.objects.get(
+        mapping = ProviderInfrastructureMap.objects.filter(
             infrastructure_provider_id=self.provider.uuid
-        )
+        ).first()
 
-        associated_openshift_providers = Provider.objects.get(
-            infrastructure=mapping
-        ).all()
+        if mapping:
+            associated_openshift_providers = Provider.objects.filter(
+                infrastructure=mapping
+            ).all()
 
         return associated_openshift_providers
