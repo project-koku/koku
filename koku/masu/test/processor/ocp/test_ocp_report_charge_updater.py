@@ -53,9 +53,6 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
             schema='acct10001',
             column_map=cls.column_map
         )
-        cls.provider_accessor = ProviderDBAccessor(
-            provider_uuid=cls.ocp_provider_uuid
-        )
         cls.report_schema = cls.accessor.report_schema
         cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
@@ -63,15 +60,19 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
     def setUp(self):
         """"Set up a test with database objects."""
         super().setUp()
-        provider_uuid = self.provider_accessor.get_provider().uuid
+        with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
+            self.provider = provider_accessor.get_provider()
+
         self.cluster_id = self.ocp_provider_resource_name
 
-        reporting_period = self.creator.create_ocp_report_period(provider_uuid=provider_uuid, cluster_id=self.cluster_id)
+        reporting_period = self.creator.create_ocp_report_period(
+            provider_uuid=self.provider.uuid, cluster_id=self.cluster_id
+        )
 
         report = self.creator.create_ocp_report(reporting_period, reporting_period.report_period_start)
         self.updater = OCPReportChargeUpdater(
             schema=self.schema,
-            provider_uuid=provider_uuid
+            provider=self.provider
         )
         pod = ''.join(random.choice(string.ascii_lowercase) for _ in range(10))
         namespace = ''.join(random.choice(string.ascii_lowercase) for _ in range(10))
