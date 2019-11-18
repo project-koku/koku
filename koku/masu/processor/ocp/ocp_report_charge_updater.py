@@ -25,7 +25,6 @@ from tenant_schemas.utils import schema_context
 
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.util.ocp.common import get_cluster_id_from_provider
@@ -195,7 +194,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         if infra_tuple:
             aws_uuid = infra_tuple[0]
             with CostModelDBAccessor(self._schema, aws_uuid,
-                                    self._column_map) as cost_model_accessor:
+                                     self._column_map) as cost_model_accessor:
                 markup = cost_model_accessor.get_markup()
                 aws_markup_value = float(markup.get('value', 0)) / 100
         with CostModelDBAccessor(self._schema, self._provider.uuid,
@@ -208,7 +207,6 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
                      '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s',
                      self._schema, self._provider.uuid, start_date, end_date)
             accessor.populate_markup_cost(aws_markup_value, ocp_markup_value, cluster_id)
-
 
     # pylint: disable=too-many-locals
     def _update_pod_charge(self):

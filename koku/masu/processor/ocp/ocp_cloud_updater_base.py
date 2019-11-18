@@ -16,21 +16,13 @@
 #
 """Updater base for OpenShift on Cloud Infrastructures."""
 # pylint: skip-file
-import datetime
 import logging
 
-from tenant_schemas.utils import schema_context
-
 from api.provider.models import Provider
-from masu.database.aws_report_db_accessor import AWSReportDBAccessor
-from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.external import AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER, OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.date_accessor import DateAccessor
-from masu.util.aws.common import get_bills_from_provider
-from masu.util.ocp.common import get_cluster_id_from_provider
 
 LOG = logging.getLogger(__name__)
 
@@ -61,11 +53,12 @@ class OCPCloudUpdaterBase:
     def get_infra_map(self):
         """Check a provider for an existing OpenShift/Cloud relationship.
 
-            Returns:
-                infra_map (list[tuple]): A list of provider relationships
-                    of the form [(OpenShift Provider UUID,
-                                  Infrastructure Provider UUID,
-                                  Infrastructure Provider Type)]
+        Returns:
+            infra_map (list[tuple]): A list of provider relationships
+                of the form [(OpenShift Provider UUID,
+                                Infrastructure Provider UUID,
+                                Infrastructure Provider Type)]
+
         """
         infra_map = {}
         with ProviderDBAccessor(self._provider.uuid) as provider_accessor:
@@ -109,8 +102,10 @@ class OCPCloudUpdaterBase:
         return infra_map
 
     def set_provider_infra_map(self, infra_map):
-        """Use the infra map created in _generate_ocp_infra_map_from_sql
-            to map providers to infrastructures."""
+        """Use the infra map to map providers to infrastructures.
+
+        The infra_map comes from created in _generate_ocp_infra_map_from_sql.
+        """
         for key, infra_tuple in infra_map.items():
             with ProviderDBAccessor(key) as provider_accessor:
                 provider_accessor.set_infrastructure(
@@ -121,8 +116,9 @@ class OCPCloudUpdaterBase:
     def get_openshift_and_infra_providers_lists(self, infra_map):
         """Return two lists.
 
-            One of OpenShift provider UUIDS,
-            the other of infrastructrure provider UUIDS.
+        One of OpenShift provider UUIDS,
+        the other of infrastructrure provider UUIDS.
+
         """
         openshift_provider_uuids = [key for key in infra_map]
         infra_provider_uuids = [value[0] for value in infra_map.values()]

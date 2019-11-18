@@ -17,10 +17,7 @@
 """Accessor for Provider information from koku database."""
 
 from api.provider.models import Provider, ProviderInfrastructureMap
-from masu.database.customer_db_accessor import CustomerDBAccessor
 from masu.database.koku_database_access import KokuDBAccess
-from masu.database.provider_auth_db_accessor import ProviderAuthDBAccessor
-from masu.database.provider_billing_source_db_accessor import ProviderBillingSourceDBAccessor
 
 
 class ProviderDBAccessor(KokuDBAccess):
@@ -43,7 +40,7 @@ class ProviderDBAccessor(KokuDBAccess):
 
     @property
     def provider(self):
-        """The provider this accessor is instantiated for."""
+        """Return the provider this accessor is instantiated for."""
         if self._provider is None:
             self._provider = self._get_db_obj_query().first()
         return self._provider
@@ -210,10 +207,7 @@ class ProviderDBAccessor(KokuDBAccess):
         return None
 
     def get_infrastructure_provider_uuid(self):
-        """
-        Return the UUID of the infrastructure provider
-        an OpenShift cluster is installed on.
-        """
+        """Return the UUID of the infrastructure provider an OpenShift cluster is installed on."""
         if self.infrastructure:
             infra_uuid = self.infrastructure.infrastructure_provider.uuid
             return str(infra_uuid) if infra_uuid else None
@@ -230,6 +224,7 @@ class ProviderDBAccessor(KokuDBAccess):
 
         Returns:
             None
+
         """
         mapping, _ = ProviderInfrastructureMap.objects.get_or_create(
             infrastructure_provider_id=infrastructure_provider_uuid,
@@ -240,7 +235,7 @@ class ProviderDBAccessor(KokuDBAccess):
         self.provider.save()
 
     def get_associated_openshift_providers(self):
-        """Returns a list of OpenShift clusters associated with the cloud provider."""
+        """Return a list of OpenShift clusters associated with the cloud provider."""
         mapping = ProviderInfrastructureMap.objects.filter(
             infrastructure_provider_id=self.provider.uuid
         ).first()
