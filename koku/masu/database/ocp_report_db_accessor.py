@@ -342,7 +342,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._commit_and_vacuum(
             table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
-    def get_ocp_infrastructure_map(self, start_date, end_date):
+    def get_ocp_infrastructure_map(self, start_date, end_date, **kwargs):
         """Get the OCP on infrastructure map.
 
         Args:
@@ -353,6 +353,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        # kwargs here allows us to optionally pass in a provider UUID based on
+        # the provider type this is run for
+        ocp_provider_uuid = kwargs.get('ocp_provider_uuid')
+        aws_provider_uuid = kwargs.get('aws_provider_uuid')
         # In case someone passes this function a string instead of the date object like we asked...
         # Cast the string into a date object, end_date into date object instead of string
         if isinstance(start_date, str):
@@ -367,7 +371,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'uuid': str(uuid.uuid4()).replace('-', '_'),
             'start_date': start_date,
             'end_date': end_date,
-            'schema': self.schema
+            'schema': self.schema,
+            'aws_provider_uuid': aws_provider_uuid,
+            'ocp_provider_uuid': ocp_provider_uuid
         }
         infra_sql, infra_sql_params = self.jinja_sql.prepare_query(
             infra_sql, infra_sql_params)
