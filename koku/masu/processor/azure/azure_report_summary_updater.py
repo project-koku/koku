@@ -40,7 +40,7 @@ class AzureReportSummaryUpdater:
             schema (str): The customer schema to associate with
 
         """
-        self._schema_name = schema
+        self._schema = schema
         self._provider = provider
         self._manifest = manifest
         with ReportingCommonDBAccessor() as reporting_common:
@@ -49,7 +49,7 @@ class AzureReportSummaryUpdater:
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
-        with AzureReportDBAccessor(self._schema_name, self._column_map) as accessor:
+        with AzureReportDBAccessor(self._schema, self._column_map) as accessor:
             # This is the normal processing route
             if self._manifest:
                 # Override the bill date to correspond with the manifest
@@ -60,7 +60,7 @@ class AzureReportSummaryUpdater:
                 bills = bills.filter(billing_period_start=bill_date).all()
 
                 do_month_update = False
-                with schema_context(self._schema_name):
+                with schema_context(self._schema):
                     do_month_update = self._determine_if_full_summary_update_needed(
                         bills[0]
                     )
@@ -107,20 +107,20 @@ class AzureReportSummaryUpdater:
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
         bills = get_bills_from_provider(
             self._provider.uuid,
-            self._schema_name,
+            self._schema,
             datetime.datetime.strptime(start_date, '%Y-%m-%d'),
             datetime.datetime.strptime(end_date, '%Y-%m-%d')
         )
         bill_ids = []
-        with schema_context(self._schema_name):
+        with schema_context(self._schema):
             bill_ids = [str(bill.id) for bill in bills]
 
-        with AzureReportDBAccessor(self._schema_name, self._column_map) as accessor:
+        with AzureReportDBAccessor(self._schema, self._column_map) as accessor:
             # Need these bills on the session to update dates after processing
             bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
             LOG.info('Updating Azure report summary tables: \n\tSchema: %s'
                      '\n\tProvider: %s \n\tDates: %s - %s',
-                     self._schema_name, self._provider.uuid, start_date, end_date)
+                     self._schema, self._provider.uuid, start_date, end_date)
             accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
             accessor.populate_tags_summary_table()
             for bill in bills:

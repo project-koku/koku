@@ -48,10 +48,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
             schema (str): The customer schema to associate with
 
         """
-        self._schema = schema
-        with ReportingCommonDBAccessor() as reporting_common:
-            self._column_map = reporting_common.column_map
-        self._provider = provider
+        super().__init__(schema, provider, None)
         self._cluster_id = None
 
     @staticmethod

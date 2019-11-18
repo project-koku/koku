@@ -20,4 +20,3 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         """
         super().__init__(schema, column_map)
         self.column_map = column_map
-        self._schema_name = schema
