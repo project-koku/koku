@@ -49,9 +49,8 @@ class ReportChargeUpdater:
 
         """
         self._schema = customer_schema
-        self._provider_uuid = provider_uuid
 
-        with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
+        with ProviderDBAccessor(provider_uuid) as provider_accessor:
             self._provider = provider_accessor.get_provider()
         try:
             self._updater = self._set_updater()
