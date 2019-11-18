@@ -774,7 +774,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.updater._update_storage_charge()
 
         self.updater._cluster_id = None
-        self.updater._update_markup_cost()
+        self.updater._update_markup_cost(start_date, end_date)
 
         table_name = OCP_REPORT_TABLE_MAP['cost_summary']
 
