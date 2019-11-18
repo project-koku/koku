@@ -1,4 +1,4 @@
-FROM centos:latest
+FROM rhel7:latest
 
 ENV LANG en_US.UTF-8
 
@@ -15,7 +15,10 @@ ENV HOME=/var/lib/rabbitmq \
     RABBITMQ_LOGS=- \
     RABBITMQ_SASL_LOGS=-
 
-RUN yum -y update && \
+RUN yum-config-manager --enable rhel-7-server-rpms \
+                       --enable rhel-7-server-supplementary-rpms \
+                       --enable rhel-7-server-optional-rpms && \
+    yum -y update && \
     yum clean all
 
 RUN curl -LO https://github.com/rabbitmq/erlang-rpm/releases/download/v${ERLANG_VERSION}/erlang-${ERLANG_VERSION}-1.el7.x86_64.rpm && \

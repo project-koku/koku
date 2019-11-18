@@ -26,6 +26,9 @@
 # - registry.redhat.io secrets YAML
 #     see: https://docs.openshift.com/container-platform/4.2/registry/registry-options.html#registry-authentication-enabled-registry-overview_registry-options
 #
+#     NOTE: This script assumes you're using a pull secrets YAML from https://access.redhat.com/terms-based-registry
+#     NOTE: You may need to alter this script if your pull secrets are in a different format
+#
 # - a clone of these repositories:
 #     https://github.com/project-koku/koku
 #     https://github.com/RedHatInsights/e2e-deploy
@@ -35,6 +38,8 @@
 #     - oc
 #     - ocdeployer
 #     - iqe
+#     - python
+#     - base64
 #
 #   Check the READMEs in the above git repos for installation instructions
 #
@@ -48,8 +53,6 @@ set -e
 OPENSHIFT_API_URL=https://api.crc.testing:6443
 
 ### login info
-ADMIN_USER=kubeadmin
-ADMIN_PASSWORD=e4FEb-9dxdF-9N2wH-Dj7B8
 OCP_USER=developer
 OCP_PASSWORD=developer
 
@@ -100,15 +103,7 @@ for cmd in "${OC}" "${OCDEPLOYER}" "${IQE}"; do
     fi
 done
 
-${OC} login -u ${ADMIN_USER} -p ${ADMIN_PASSWORD} ${OPENSHIFT_API_URL}
-VALIDATE="${OC} get -n openshift secret/registry-redhat-io-secret -o name"
-if [ "$($VALIDATE)" != 'secret/registry-redhat-io-secret' ]; then
-    echo "Adding registry.redhat.io secret."
-    ${OC} project openshift
-    ${OC} create secret generic registry-redhat-io-secret --from-file=${REGISTRY_REDHAT_IO_SECRETS}
-    ${OC} secrets link --for=pull builder registry-redhat-io-secret
-fi
-
+# ensure we're logged in
 ${OC} login -u ${OCP_USER} -p ${OCP_PASSWORD} ${OPENSHIFT_API_URL}
 
 ### create projects
@@ -122,6 +117,22 @@ for project in "${SECRETS_PROJECT}" "${BUILDFACTORY_PROJECT}" "${DEPLOY_PROJECT}
     ${OC} new-project ${project}
 done
 
+echo "Adding registry.redhat.io secret."
+# the json distributed by access.redhat.com/terms-based-registry is a nested object.
+# oc wants the contents of the .data object, so we need to unwrap the outer layer
+# in order to load the pull secrets dockerconfigjson object into the secret.
+if [ -f ${REGISTRY_REDHAT_IO_SECRETS} ]; then
+    SECRET=$(cat ${REGISTRY_REDHAT_IO_SECRETS} | \
+             python -c 'import yaml, sys; print(yaml.safe_load(sys.stdin).get("data").get(".dockerconfigjson"))' | \
+             base64 -d)
+    echo ${SECRET} | ${OC} create secret generic registry-redhat-io-secret \
+                                --from-file=.dockerconfigjson=/dev/stdin \
+                                -n ${BUILDFACTORY_PROJECT} \
+                                --type=kubernetes.io/dockerconfigjson
+    ${OC} secrets link default registry-redhat-io-secret -n ${BUILDFACTORY_PROJECT} --for=pull
+    ${OC} secrets link builder registry-redhat-io-secret -n ${BUILDFACTORY_PROJECT}
+fi
+
 ### create secrets
 echo "Applying secrets."
 ${OC} process -f ${KOKU_SECRETS} | ${OC} apply -n ${SECRETS_PROJECT} -f -
@@ -133,6 +144,8 @@ ${OC} policy add-role-to-user system:image-puller system:serviceaccount:${DEPLOY
 ### create builds
 # doing the initial builds can take a while
 # So, we ignore any non-zero exit because it's not necessarily a problem.
+# Until we come up with a more intelligent design, the user will need to spot
+# build failures and elect to not continue the deploy when prompted.
 echo "Creating builds in project ${BUILDFACTORY_PROJECT}"
 ${OCDEPLOYER} deploy -s hccm -t buildfactory ${BUILDFACTORY_PROJECT} || true
 

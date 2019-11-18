@@ -200,7 +200,7 @@ parameters:
 - description: Image stream tag for the image you'd like to use to build the application
   name: FROM_IMAGE
   required: true
-  value: centos:latest
+  value: rhel7:latest
 - description: RabbitMQ Autocluster version to use
   name: RABBITMQ_AUTOCLUSTER_VERSION
   required: true
