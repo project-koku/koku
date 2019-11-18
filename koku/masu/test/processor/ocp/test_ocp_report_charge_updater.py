@@ -60,7 +60,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
     def setUp(self):
         """"Set up a test with database objects."""
         super().setUp()
-        with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
+        with ProviderDBAccessor(self.ocp_provider_uuid) as provider_accessor:
             self.provider = provider_accessor.get_provider()
 
         self.cluster_id = self.ocp_provider_resource_name
@@ -910,10 +910,10 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                           'tiered_rates': [{'value': 1.5, 'unit': 'USD'}]}]
         self.creator.create_cost_model(self.ocp_provider_uuid, 'OCP', cpu_usage_rate)
 
-        other_provider_uuid = '6e212746-484a-40cd-bba0-09a19d132d64'
+        other_provider_uuid = self.aws_provider_uuid
         other_cpu_usage_rate = [{'metric': {'name': 'cpu_core_usage_per_hour'},
                                 'tiered_rates': [{'value': 2.5, 'unit': 'USD'}]}]
-        self.creator.create_cost_model(other_provider_uuid, 'OCP', other_cpu_usage_rate)
+        self.creator.create_cost_model(other_provider_uuid, 'AWS', other_cpu_usage_rate)
 
         cpu_rate_value = Decimal(cpu_usage_rate[0].get('tiered_rates')[0].get('value'))
 
@@ -928,7 +928,6 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         with OCPReportDBAccessor(schema='acct10001', column_map=self.column_map) as accessor:
             self.assertIsNotNone(accessor.get_current_usage_period().derived_cost_datetime)
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-
         items = self.accessor._get_db_obj_query(table_name).all()
         with schema_context(self.schema):
             for item in items:
