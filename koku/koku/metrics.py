@@ -46,9 +46,10 @@ class DatabaseStatus():
             ]
 
         """
+        # cache response for 5 minutes.
         query_interval = datetime.now() - timedelta(minutes=5)
         if self._last_query and \
-                self._last_query < query_interval:
+                self._last_query > query_interval:
             return self._last_result
 
         retries = 0
@@ -73,7 +74,7 @@ class DatabaseStatus():
         names = [desc[0] for desc in cursor.description]
 
         # transform list-of-lists into list-of-dicts including column names.
-        result = [dict(zip(names, row)) for row in rows]
+        result = [dict(zip(names, row)) for row in rows if len(row) == 2]
 
         self._last_result = result
         self._last_query = datetime.now()
@@ -84,7 +85,7 @@ class DatabaseStatus():
         """Collect stats and report using Prometheus objects."""
         stats = self.schema_size()
         for item in stats:
-            PGSQL_GAUGE.labels(schema=item.get('schema')).set(item.get('size', 0))
+            PGSQL_GAUGE.labels(schema=item.get('schema')).set(item.get('size'))
 
     def schema_size(self):
         """Show DB storage consumption.
