@@ -197,19 +197,19 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         cluster_id = get_cluster_id_from_provider(self._provider.uuid)
         if infra_tuple:
             aws_uuid = infra_tuple[0]
-            with CostModelDBAccessor(self._schema_name, aws_uuid,
+            with CostModelDBAccessor(self._schema, aws_uuid,
                                     self._column_map) as cost_model_accessor:
                 markup = cost_model_accessor.get_markup()
                 aws_markup_value = float(markup.get('value', 0)) / 100
-        with CostModelDBAccessor(self._schema_name, self._provider.uuid,
+        with CostModelDBAccessor(self._schema, self._provider.uuid,
                                  self._column_map) as cost_model_accessor:
             markup = cost_model_accessor.get_markup()
             ocp_markup_value = float(markup.get('value', 0)) / 100
 
-        with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
+        with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             LOG.info('Updating OpenShift markup for'
                      '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s',
-                     self._schema_name, self._provider.uuid, start_date, end_date)
+                     self._schema, self._provider.uuid, start_date, end_date)
             accessor.populate_markup_cost(aws_markup_value, ocp_markup_value, cluster_id)
 
 
@@ -306,7 +306,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
                  self._provider.uuid, self._cluster_id)
         self._update_pod_charge()
         self._update_storage_charge()
-        self._update_markup_cost()
+        self._update_markup_cost(start_date, end_date)
 
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             report_periods = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
