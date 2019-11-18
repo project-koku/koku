@@ -26,8 +26,8 @@ from django.db.models.functions import Cast
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider, ProviderAuthentication, ProviderBillingSource
-from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test import FakeAWSCostData
+from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.utils import DateHelper
 from reporting.models import (AWSAccountAlias,
                               AWSCostEntry,
