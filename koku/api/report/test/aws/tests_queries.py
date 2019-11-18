@@ -975,6 +975,7 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_query_costs_with_totals(self):
         """Test execute_query() - costs with totals.
+
         Query for instance_types, validating that cost totals are present.
         """
         self.generator.add_data_to_tenant(FakeAWSCostData(self.provider), product='ec2')
@@ -998,6 +999,7 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_query_instance_types_with_totals(self):
         """Test execute_query() - instance types with totals.
+
         Query for instance_types, validating that cost totals are present.
         """
         self.generator.add_data_to_tenant(FakeAWSCostData(self.provider), product='ec2')
@@ -1022,6 +1024,7 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_query_storage_with_totals(self):
         """Test execute_query() - storage with totals.
+
         Query for storage, validating that cost totals are present.
         """
         self.generator.add_data_to_tenant(FakeAWSCostData(self.provider), product='ebs')
