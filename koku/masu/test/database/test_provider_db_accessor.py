@@ -162,12 +162,11 @@ class ProviderDBAccessorTest(MasuTestCase):
         mapping = ProviderInfrastructureMap.objects.filter(
             infrastructure_provider_id=self.aws_provider_uuid,
             infrastructure_type=infrastructure_type
-        )
+        ).first()
 
         mapping_on_provider = Provider.objects.filter(infrastructure=mapping).first()
-
         self.assertEqual(
-            mapping.id, mapping_on_provider.id
+            mapping.id, mapping_on_provider.infrastructure.id
         )
 
     def test_get_associated_openshift_providers(self):
