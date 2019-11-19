@@ -357,6 +357,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         # the provider type this is run for
         ocp_provider_uuid = kwargs.get('ocp_provider_uuid')
         aws_provider_uuid = kwargs.get('aws_provider_uuid')
+        azure_provider_uuid = kwargs.get('azure_provider_uuid')
         # In case someone passes this function a string instead of the date object like we asked...
         # Cast the string into a date object, end_date into date object instead of string
         if isinstance(start_date, str):
@@ -373,7 +374,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'end_date': end_date,
             'schema': self.schema,
             'aws_provider_uuid': aws_provider_uuid,
-            'ocp_provider_uuid': ocp_provider_uuid
+            'ocp_provider_uuid': ocp_provider_uuid,
+            'azure_provider_uuid': azure_provider_uuid
         }
         infra_sql, infra_sql_params = self.jinja_sql.prepare_query(
             infra_sql, infra_sql_params)
