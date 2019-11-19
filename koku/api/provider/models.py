@@ -108,11 +108,12 @@ class Provider(models.Model):
     PROVIDER_OCP = 'OCP'
     PROVIDER_AZURE = 'AZURE'
     PROVIDER_GCP = 'GCP'
+    # Local Providers are for local development and testing
+    PROVIDER_AWS_LOCAL = 'AWS-local'
+    PROVIDER_AZURE_LOCAL = 'AZURE-local'
+    PROVIDER_GCP_LOCAL = 'GCP-local'
 
     if settings.DEBUG:
-        PROVIDER_AWS_LOCAL = 'AWS-local'
-        PROVIDER_AZURE_LOCAL = 'AZURE-local'
-        PROVIDER_GCP_LOCAL = 'GCP-local'
         PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
                             (PROVIDER_OCP, PROVIDER_OCP),
                             (PROVIDER_AZURE, PROVIDER_AZURE),
@@ -120,11 +121,24 @@ class Provider(models.Model):
                             (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
                             (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
                             (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL))
+        CLOUD_PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
+                                  (PROVIDER_AZURE, PROVIDER_AZURE),
+                                  (PROVIDER_GCP, PROVIDER_GCP),
+                                  (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
+                                  (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
+                                  (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL))
     else:
         PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
                             (PROVIDER_OCP, PROVIDER_OCP),
                             (PROVIDER_AZURE, PROVIDER_AZURE),
                             (PROVIDER_GCP, PROVIDER_GCP))
+        CLOUD_PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
+                                  (PROVIDER_AZURE, PROVIDER_AZURE),
+                                  (PROVIDER_GCP, PROVIDER_GCP))
+    # These lists are intended for use for provider type checking
+    # throughout the codebase
+    PROVIDER_LIST = [choice[0] for choice in PROVIDER_CHOICES]
+    CLOUD_PROVIDER_LIST = [choice[0] for choice in CLOUD_PROVIDER_CHOICES]
 
     uuid = models.UUIDField(default=uuid4, primary_key=True)
     name = models.CharField(max_length=256, null=False)
@@ -139,8 +153,15 @@ class Provider(models.Model):
     created_by = models.ForeignKey('User', null=True,
                                    on_delete=models.SET_NULL)
     setup_complete = models.BooleanField(default=False)
+
     created_timestamp = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+
     active = models.BooleanField(default=True)
+
+    # This field applies to OpenShift providers and identifies
+    # which (if any) cloud provider the cluster is on
+    infrastructure = models.ForeignKey('ProviderInfrastructureMap', null=True,
+                                       on_delete=models.SET_NULL)
 
 
 @receiver(post_delete, sender=Provider)
@@ -245,3 +266,18 @@ class ProviderStatus(models.Model):
     last_message = models.CharField(max_length=256, null=False)
     timestamp = models.DateTimeField()
     retries = models.IntegerField(null=False, default=0)
+
+
+class ProviderInfrastructureMap(models.Model):
+    """A lookup table for OpenShift providers.
+
+    Used to determine which underlying instrastructure and
+    associated provider the cluster is installed on.
+    """
+
+    infrastructure_type = models.CharField(
+        max_length=50, choices=Provider.CLOUD_PROVIDER_CHOICES
+    )
+    infrastructure_provider = models.ForeignKey(
+        'Provider', on_delete=models.CASCADE
+    )

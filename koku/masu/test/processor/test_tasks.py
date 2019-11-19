@@ -49,7 +49,6 @@ from masu.processor.tasks import (
     update_charge_info,
     update_all_summary_tables,
     update_summary_tables,
-    update_cost_summary_table,
 )
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
@@ -683,9 +682,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             for _ in range(25):
                 self.creator.create_ocp_usage_line_item(period, report)
 
-    @patch('masu.processor.tasks.update_cost_summary_table')
     @patch('masu.processor.tasks.update_charge_info')
-    def test_update_summary_tables_aws(self, mock_charge_info, mock_cost_summary):
+    def test_update_summary_tables_aws(self, mock_charge_info):
         """Test that the summary table task runs."""
         provider = 'AWS'
         provider_aws_uuid = self.aws_provider_uuid
@@ -713,7 +711,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             self.assertNotEqual(summary_query.count(), initial_summary_count)
 
         mock_charge_info.apply_async.assert_called()
-        mock_cost_summary.si.assert_called()
 
     @patch('masu.processor.tasks.update_charge_info')
     def test_update_summary_tables_aws_end_date(self, mock_charge_info):
@@ -777,12 +774,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self.assertEqual(result_start_date, expected_start_date)
         self.assertEqual(result_end_date, expected_end_date)
 
-    @patch('masu.processor.tasks.update_cost_summary_table')
     @patch('masu.processor.tasks.update_charge_info')
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
     def test_update_summary_tables_ocp(
-        self, mock_markup, mock_rate_map, mock_charge_info, mock_cost_summary
+        self, mock_markup, mock_rate_map, mock_charge_info
     ):
         """Test that the summary table task runs."""
         markup = {}
@@ -852,7 +848,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 self.assertIsNotNone(item.persistentvolumeclaim_usage_gigabyte_months)
 
         mock_charge_info.apply_async.assert_called()
-        mock_cost_summary.si.assert_called()
 
     @patch('masu.processor.tasks.update_charge_info')
     @patch(
@@ -921,17 +916,3 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         update_all_summary_tables(start_date)
 
         mock_update.delay.assert_called_with(ANY, ANY, ANY, str(start_date), ANY)
-
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_cost_summary_table')
-    def test_update_cost_summary_table(self, mock_update):
-        """Tests that the updater updates the cost summary table."""
-        provider = 'OCP'
-        provider_aws_uuid = self.ocp_test_provider_uuid
-        manifest_id = None
-        start_date = self.start_date.replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        ) + relativedelta.relativedelta(months=-1)
-
-        update_cost_summary_table(self.schema, provider_aws_uuid, start_date=start_date)
-
-        mock_update.assert_called()

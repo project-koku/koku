@@ -22,14 +22,14 @@ import uuid
 
 from dateutil.parser import parse
 from django.db import connection
-from django.db.models import F
+from django.db.models import DecimalField, F, Value
+from django.db.models.functions import Coalesce
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from reporting.provider.ocp.costs.models import CostSummary
 from reporting.provider.ocp.models import (OCPUsageLineItemDailySummary,
                                            OCPUsageReport,
                                            OCPUsageReportPeriod)
@@ -342,7 +342,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._commit_and_vacuum(
             table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
-    def get_ocp_infrastructure_map(self, start_date, end_date):
+    def get_ocp_infrastructure_map(self, start_date, end_date, **kwargs):
         """Get the OCP on infrastructure map.
 
         Args:
@@ -353,6 +353,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        # kwargs here allows us to optionally pass in a provider UUID based on
+        # the provider type this is run for
+        ocp_provider_uuid = kwargs.get('ocp_provider_uuid')
+        aws_provider_uuid = kwargs.get('aws_provider_uuid')
         # In case someone passes this function a string instead of the date object like we asked...
         # Cast the string into a date object, end_date into date object instead of string
         if isinstance(start_date, str):
@@ -367,7 +371,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'uuid': str(uuid.uuid4()).replace('-', '_'),
             'start_date': start_date,
             'end_date': end_date,
-            'schema': self.schema
+            'schema': self.schema,
+            'aws_provider_uuid': aws_provider_uuid,
+            'ocp_provider_uuid': ocp_provider_uuid
         }
         infra_sql, infra_sql_params = self.jinja_sql.prepare_query(
             infra_sql, infra_sql_params)
@@ -376,13 +382,12 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             cursor.execute(infra_sql, list(infra_sql_params))
             results = cursor.fetchall()
 
-        db_results = []
+        db_results = {}
         for entry in results:
-            db_dict = {}
-            db_dict['aws_uuid'] = entry[0]
-            db_dict['ocp_uuid'] = entry[1]
-            db_dict['cluster_id'] = entry[2]
-            db_results.append(db_dict)
+            # This dictionary is keyed on an OpenShift provider UUID
+            # and the tuple contains
+            # (Infrastructure Provider UUID, Infrastructure Provider Type)
+            db_results[entry[0]] = (entry[1], entry[2])
 
         return db_results
 
@@ -558,8 +563,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._commit_and_vacuum(
             table_name, summary_sql, start_date, end_date, list(summary_sql_params))
 
-    def populate_cost_summary_table(self, cluster_id, start_date=None, end_date=None):
-        """Populate the cost summary table.
+    def update_summary_infrastructure_cost(self, cluster_id, start_date, end_date):
+        """Populate the infrastructure costs on the daily usage summary table.
 
         Args:
             start_date (datetime.date) The date to start populating the table.
@@ -576,7 +581,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         if isinstance(start_date, datetime.datetime):
             start_date = start_date.date()
             end_date = end_date.date()
-        table_name = OCP_REPORT_TABLE_MAP['cost_summary']
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
         if start_date is None:
             start_date_qry = self._get_db_obj_query(table_name).order_by('usage_start').first()
             start_date = str(start_date_qry.usage_start) if start_date_qry else None
@@ -657,48 +662,53 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         )
         self._commit_and_vacuum(table_name, agg_sql, bind_params=list(agg_sql_params))
 
-    def populate_markup_cost(self, markup, cluster_id=None):
-        """Set markup costs in the database."""
+    def populate_markup_cost(self, infra_provider_markup, ocp_markup, cluster_id):
+        """Set markup cost for OCP including infrastructure cost markup."""
         with schema_context(self.schema):
-            if cluster_id:
-                CostSummary.objects.filter(cluster_id=cluster_id).update(
-                    markup_cost=((F('pod_charge_cpu_core_hours')
-                                  + F('pod_charge_memory_gigabyte_hours')
-                                  + F('persistentvolumeclaim_charge_gb_month')
-                                  + F('infra_cost')) * markup)
-                )
-                CostSummary.objects.filter(cluster_id=cluster_id).update(
-                    project_markup_cost=((F('pod_charge_cpu_core_hours')
-                                          + F('pod_charge_memory_gigabyte_hours')
-                                          + F('persistentvolumeclaim_charge_gb_month')
-                                          + F('project_infra_cost')) * markup)
-                )
-            else:
-                CostSummary.objects.update(
-                    markup_cost=((F('pod_charge_cpu_core_hours')
-                                  + F('pod_charge_memory_gigabyte_hours')
-                                  + F('persistentvolumeclaim_charge_gb_month')
-                                  + F('infra_cost')) * markup)
-                )
-                CostSummary.objects.update(
-                    project_markup_cost=((F('pod_charge_cpu_core_hours')
-                                          + F('pod_charge_memory_gigabyte_hours')
-                                          + F('persistentvolumeclaim_charge_gb_month')
-                                          + F('project_infra_cost')) * markup)
-                )
+            OCPUsageLineItemDailySummary.objects.filter(cluster_id=cluster_id).update(
+                markup_cost=(
+                    (
+                        Coalesce(
+                            F('pod_charge_cpu_core_hours'),
+                            Value(0, output_field=DecimalField())
+                        )
+                        + Coalesce(
+                            F('pod_charge_memory_gigabyte_hours'),
+                            Value(0, output_field=DecimalField())
+                        )
+                        + Coalesce(
+                            F('persistentvolumeclaim_charge_gb_month'),
+                            Value(0, output_field=DecimalField())
+                        )
 
-    def populate_ocp_on_aws_markup_cost(self, aws_markup, ocp_markup, cluster_id):
-        """Set markup cost for OCP-on-AWS in Cost Summary."""
-        with schema_context(self.schema):
-            CostSummary.objects.filter(cluster_id=cluster_id).update(
-                markup_cost=((F('pod_charge_cpu_core_hours')
-                              + F('pod_charge_memory_gigabyte_hours')
-                              + F('persistentvolumeclaim_charge_gb_month')) * ocp_markup
-                             + F('infra_cost') * aws_markup)
+                    ) * ocp_markup
+                    + (
+                        Coalesce(
+                            F('infra_cost'),
+                            Value(0, output_field=DecimalField())
+                        )
+                    ) * infra_provider_markup
+                )
             )
-            CostSummary.objects.filter(cluster_id=cluster_id).update(
-                project_markup_cost=((F('pod_charge_cpu_core_hours')
-                                      + F('pod_charge_memory_gigabyte_hours')
-                                      + F('persistentvolumeclaim_charge_gb_month')) * ocp_markup
-                                     + F('project_infra_cost') * aws_markup)
+            OCPUsageLineItemDailySummary.objects.filter(cluster_id=cluster_id).update(
+                project_markup_cost=(
+                    (
+                        Coalesce(
+                            F('pod_charge_cpu_core_hours'),
+                            Value(0, output_field=DecimalField())
+                        )
+                        + Coalesce(
+                            F('pod_charge_memory_gigabyte_hours'),
+                            Value(0, output_field=DecimalField())
+                        )
+                        + Coalesce(
+                            F('persistentvolumeclaim_charge_gb_month'),
+                            Value(0, output_field=DecimalField())
+                        )
+
+                    ) * ocp_markup
+                    + (
+                        Coalesce(F('project_infra_cost'), Value(0, output_field=DecimalField()))
+                    ) * infra_provider_markup
+                )
             )

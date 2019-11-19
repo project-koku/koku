@@ -56,7 +56,7 @@ class ReportProcessorBase():
             err_msg = f'Compression {compression} is not supported.'
             raise MasuProcessingError(err_msg)
 
-        self._schema_name = schema_name
+        self._schema = schema_name
         self._report_path = report_path
         self._compression = compression.upper()
         self._provider_uuid = provider_uuid
@@ -163,7 +163,7 @@ class ReportProcessorBase():
             log_statement = (
                 f'No manifest provided, processing as a new billing period.\n'
                 f' Processing entire month.\n'
-                f' schema_name: {self._schema_name},\n'
+                f' schema_name: {self._schema},\n'
                 f' provider_uuid: {self._provider_uuid},\n'
                 f' manifest_id: {self._manifest_id}'
             )
@@ -178,7 +178,7 @@ class ReportProcessorBase():
         log_statement = (
             f'Processing bill starting on {bill_date}.\n'
             f' Processing entire month.\n'
-            f' schema_name: {self._schema_name},\n'
+            f' schema_name: {self._schema},\n'
             f' provider_uuid: {self._provider_uuid},\n'
             f' manifest_id: {self._manifest_id}'
         )
@@ -204,7 +204,7 @@ class ReportProcessorBase():
                 log_statement = (
                     f'Processing bill starting on {bill_date}.\n'
                     f' Processing data on or after {self.data_cutoff_date}.\n'
-                    f' schema_name: {self._schema_name},\n'
+                    f' schema_name: {self._schema},\n'
                     f' provider_uuid: {self._provider_uuid},\n'
                     f' manifest_id: {self._manifest_id}'
                 )
@@ -233,10 +233,10 @@ class ReportProcessorBase():
 
         date_filter = self.get_date_column_filter()
 
-        with db_accessor(self._schema_name, column_map) as accessor:
+        with db_accessor(self._schema, column_map) as accessor:
             bills = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
             bills = bills.filter(billing_period_start=bill_date).all()
-            with schema_context(self._schema_name):
+            with schema_context(self._schema):
                 for bill in bills:
                     line_item_query = accessor.get_lineitem_query_for_billid(bill.id)
                     delete_date = bill_date
@@ -247,7 +247,7 @@ class ReportProcessorBase():
                         line_item_query = line_item_query.filter(**date_filter)
                     log_statement = (
                         f'Deleting data for:\n'
-                        f' schema_name: {self._schema_name}\n'
+                        f' schema_name: {self._schema}\n'
                         f' provider_uuid: {provider_uuid}\n'
                         f' bill date: {str(bill_date)}\n'
                         f' bill ID: {bill.id}\n'

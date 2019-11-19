@@ -150,7 +150,7 @@ class OCPReportProcessorTest(MasuTestCase):
 
     def test_initializer(self):
         """Test initializer."""
-        self.assertIsNotNone(self.ocp_processor._processor._schema_name)
+        self.assertIsNotNone(self.ocp_processor._processor._schema)
         self.assertIsNotNone(self.ocp_processor._processor._report_path)
         self.assertIsNotNone(self.ocp_processor._processor._compression)
 

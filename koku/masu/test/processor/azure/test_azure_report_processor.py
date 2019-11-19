@@ -100,7 +100,7 @@ class AzureReportProcessorTest(MasuTestCase):
 
     def test_azure_initializer(self):
         """Test Azure initializer."""
-        self.assertIsNotNone(self.processor._schema_name)
+        self.assertIsNotNone(self.processor._schema)
         self.assertIsNotNone(self.processor._report_path)
         self.assertIsNotNone(self.processor._report_name)
         self.assertIsNotNone(self.processor._compression)
