@@ -189,15 +189,15 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         """
         aws_markup_value = 0.0
         infra_map = self.get_infra_map()
-        infra_tuple = infra_map.get(self._provider.uuid)
-        cluster_id = get_cluster_id_from_provider(self._provider.uuid)
+        infra_tuple = infra_map.get(self._provider_uuid)
+        cluster_id = get_cluster_id_from_provider(self._provider_uuid)
         if infra_tuple:
             aws_uuid = infra_tuple[0]
             with CostModelDBAccessor(self._schema, aws_uuid,
                                      self._column_map) as cost_model_accessor:
                 markup = cost_model_accessor.get_markup()
                 aws_markup_value = float(markup.get('value', 0)) / 100
-        with CostModelDBAccessor(self._schema, self._provider.uuid,
+        with CostModelDBAccessor(self._schema, self._provider_uuid,
                                  self._column_map) as cost_model_accessor:
             markup = cost_model_accessor.get_markup()
             ocp_markup_value = float(markup.get('value', 0)) / 100
@@ -205,14 +205,14 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             LOG.info('Updating OpenShift markup for'
                      '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s',
-                     self._schema, self._provider.uuid, start_date, end_date)
+                     self._schema, self._provider_uuid, start_date, end_date)
             accessor.populate_markup_cost(aws_markup_value, ocp_markup_value, cluster_id)
 
     # pylint: disable=too-many-locals
     def _update_pod_charge(self):
         """Calculate and store total POD charges."""
         try:
-            with CostModelDBAccessor(self._schema, self._provider.uuid,
+            with CostModelDBAccessor(self._schema, self._provider_uuid,
                                      self._column_map) as cost_model_accessor:
                 cpu_usage_rates = cost_model_accessor.get_cpu_core_usage_per_hour_rates()
                 cpu_request_rates = cost_model_accessor.get_cpu_core_request_per_hour_rates()
@@ -260,7 +260,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
     def _update_storage_charge(self):
         """Calculate and store the storage charges."""
         try:
-            with CostModelDBAccessor(self._schema, self._provider.uuid,
+            with CostModelDBAccessor(self._schema, self._provider_uuid,
                                      self._column_map) as cost_model_accessor:
                 storage_usage_rates = cost_model_accessor.get_storage_gb_usage_per_month_rates()
                 storage_request_rates = cost_model_accessor.get_storage_gb_request_per_month_rates()
@@ -295,16 +295,16 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
             None
 
         """
-        self._cluster_id = get_cluster_id_from_provider(self._provider.uuid)
+        self._cluster_id = get_cluster_id_from_provider(self._provider_uuid)
 
         LOG.info('Starting charge calculation updates for provider: %s. Cluster ID: %s.',
-                 self._provider.uuid, self._cluster_id)
+                 self._provider_uuid, self._cluster_id)
         self._update_pod_charge()
         self._update_storage_charge()
         self._update_markup_cost(start_date, end_date)
 
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
-            report_periods = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+            report_periods = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
             with schema_context(self._schema):
                 for period in report_periods:
                     period.derived_cost_datetime = DateAccessor().today_with_timezone('UTC')
