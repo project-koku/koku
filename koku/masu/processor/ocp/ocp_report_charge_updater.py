@@ -196,12 +196,11 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
             with CostModelDBAccessor(self._schema, aws_uuid,
                                      self._column_map) as cost_model_accessor:
                 markup = cost_model_accessor.get_markup()
-                aws_markup_value = Decimal(markup.get('value', 0) / 100)
+                aws_markup_value = Decimal(markup.get('value', 0)) / 100
         with CostModelDBAccessor(self._schema, self._provider_uuid,
                                  self._column_map) as cost_model_accessor:
             markup = cost_model_accessor.get_markup()
-            ocp_markup_value = Decimal(markup.get('value', 0) / 100)
-
+            ocp_markup_value = Decimal(markup.get('value', 0)) / 100
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             LOG.info('Updating OpenShift markup for'
                      '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s',
