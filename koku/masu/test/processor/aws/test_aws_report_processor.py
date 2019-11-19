@@ -138,7 +138,7 @@ class AWSReportProcessorTest(MasuTestCase):
 
     def test_initializer(self):
         """Test initializer."""
-        self.assertIsNotNone(self.processor._schema_name)
+        self.assertIsNotNone(self.processor._schema)
         self.assertIsNotNone(self.processor._report_path)
         self.assertIsNotNone(self.processor._report_name)
         self.assertIsNotNone(self.processor._compression)

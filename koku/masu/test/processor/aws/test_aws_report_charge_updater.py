@@ -67,19 +67,15 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
             'provider_uuid': self.aws_provider_uuid,
         }
 
-        self.provider_accessor = ProviderDBAccessor(
-            provider_uuid=self.aws_provider_uuid
-        )
-        provider_uuid = self.provider_accessor.get_provider().uuid
-        self.provider_accessor = ProviderDBAccessor(
-            provider_uuid=self.aws_provider_uuid
-        )
+        with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
+            self.provider = provider_accessor.get_provider()
+
         self.updater = AWSReportChargeUpdater(
             schema=self.schema,
-            provider_uuid=provider_uuid,
+            provider=self.provider,
         )
         today = DateAccessor().today_with_timezone('UTC')
-        bill = self.creator.create_cost_entry_bill(provider_uuid=provider_uuid, bill_date=today)
+        bill = self.creator.create_cost_entry_bill(provider_uuid=self.provider.uuid, bill_date=today)
         cost_entry = self.creator.create_cost_entry(bill, today)
         product = self.creator.create_cost_entry_product()
         pricing = self.creator.create_cost_entry_pricing()
@@ -90,9 +86,6 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
 
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
         self.manifest_accessor.commit()
-
-        with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
-            self.provider = provider_accessor.get_provider()
 
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
     def test_update_summary_charge_info(self, mock_markup):

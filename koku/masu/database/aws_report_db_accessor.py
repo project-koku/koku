@@ -59,7 +59,6 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         super().__init__(schema, column_map)
         self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
         self.column_map = column_map
-        self._schema_name = schema
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
 
