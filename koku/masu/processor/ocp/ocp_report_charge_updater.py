@@ -206,6 +206,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
                      '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s',
                      self._schema, self._provider_uuid, start_date, end_date)
             accessor.populate_markup_cost(aws_markup_value, ocp_markup_value, cluster_id)
+        LOG.info('Finished updating markup.')
 
     # pylint: disable=too-many-locals
     def _update_pod_charge(self):
