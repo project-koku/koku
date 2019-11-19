@@ -23,6 +23,33 @@ CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost AS (
         ocp_aws.pod,
         ocp_aws.node,
         ocp_aws.pod_labels
+
+    UNION
+
+    SELECT ocp_azure.report_period_id,
+        ocp_azure.usage_start,
+        ocp_azure.cluster_id,
+        ocp_azure.cluster_alias,
+        ocp_azure.namespace,
+        ocp_azure.data_source,
+        ocp_azure.pod,
+        ocp_azure.node,
+        ocp_azure.pod_labels,
+        sum(ocp_azure.pretax_cost) AS infra_cost,
+        sum(ocp_azure.pod_cost) AS project_infra_cost
+    FROM {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary AS ocp_azure
+    WHERE date(ocp_azure.usage_start) >= {{start_date}}
+        AND date(ocp_azure.usage_start) <= {{end_date}}
+        AND ocp_azure.cluster_id = {{cluster_id}}
+    GROUP BY ocp_azure.report_period_id,
+        ocp_azure.usage_start,
+        ocp_azure.cluster_id,
+        ocp_azure.cluster_alias,
+        ocp_azure.namespace,
+        ocp_azure.data_source,
+        ocp_azure.pod,
+        ocp_azure.node,
+        ocp_azure.pod_labels
 )
 ;
 
