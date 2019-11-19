@@ -462,13 +462,6 @@ class OCPReportViewTest(IamTestCase):
                 self.assertTrue('usage' in values)
                 self.assertTrue('request' in values)
 
-    def test_execute_query_ocp_memory(self):
-        """Test that OCP Mem endpoint works."""
-        url = reverse('reports-openshift-memory')
-        client = APIClient()
-        response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
     def test_execute_query_ocp_memory_group_by_limit(self):
         """Test that OCP Mem endpoint works with limits."""
         url = reverse('reports-openshift-memory')
@@ -506,13 +499,6 @@ class OCPReportViewTest(IamTestCase):
                 usage_total = projects[0].get('values')[0].get('usage', {}).get('value') + \
                     projects[1].get('values')[0].get('usage', {}).get('value')
                 self.assertEqual(usage_total, totals.get(date))
-
-    def test_execute_query_ocp_costs(self):
-        """Test that the costs endpoint is reachable."""
-        url = reverse('reports-openshift-costs')
-        client = APIClient()
-        response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_execute_query_ocp_costs_group_by_cluster(self):
         """Test that the costs endpoint is reachable."""
