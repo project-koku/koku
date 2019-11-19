@@ -16,6 +16,7 @@
 #
 
 """Test the ProviderDBAccessor utility object."""
+from api.provider.models import Provider, ProviderInfrastructureMap
 from masu.database.customer_db_accessor import CustomerDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external import AMAZON_WEB_SERVICES
@@ -134,3 +135,48 @@ class ProviderDBAccessorTest(MasuTestCase):
                 raise Exception('Dont save me!')
         with ProviderDBAccessor(uuid) as accessor:
             self.assertEqual(False, accessor.get_setup_complete())
+
+    def test_get_infrastructure_type(self):
+        """Test that infrastructure type is returned."""
+        infrastructure_type = 'AWS'
+        with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
+            accessor.set_infrastructure(self.aws_provider_uuid, infrastructure_type)
+            self.assertEqual(accessor.get_infrastructure_type(), infrastructure_type)
+
+    def test_get_infrastructure_provider_uuid(self):
+        """Test that infrastructure provider UUID is returned."""
+        infrastructure_type = 'AWS'
+        with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
+            accessor.set_infrastructure(self.aws_provider_uuid, infrastructure_type)
+            self.assertEqual(
+                accessor.get_infrastructure_provider_uuid(),
+                self.aws_provider_uuid
+            )
+
+    def test_set_infrastructure(self):
+        """Test that infrastructure provider UUID is returned."""
+        infrastructure_type = 'AWS'
+        with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
+            accessor.set_infrastructure(self.aws_provider_uuid, infrastructure_type)
+
+        mapping = ProviderInfrastructureMap.objects.filter(
+            infrastructure_provider_id=self.aws_provider_uuid,
+            infrastructure_type=infrastructure_type
+        ).first()
+
+        mapping_on_provider = Provider.objects.filter(infrastructure=mapping).first()
+        self.assertEqual(
+            mapping.id, mapping_on_provider.infrastructure.id
+        )
+
+    def test_get_associated_openshift_providers(self):
+        """Test that infrastructure provider UUID is returned."""
+        infrastructure_type = 'AWS'
+        with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
+            accessor.set_infrastructure(self.aws_provider_uuid, infrastructure_type)
+
+        with ProviderDBAccessor(self.aws_provider_uuid) as accessor:
+            providers = accessor.get_associated_openshift_providers()
+
+        self.assertEqual(len(providers), 1)
+        self.assertEqual(str(providers[0].uuid), self.ocp_provider_uuid)

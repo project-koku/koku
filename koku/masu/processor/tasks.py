@@ -241,10 +241,7 @@ def update_summary_tables(
 
     if provider_uuid:
         update_charge_info.apply_async(
-            args=(schema_name, provider_uuid, start_date, end_date),
-            link=update_cost_summary_table.si(
-                schema_name, provider_uuid, start_date, end_date, manifest_id
-            ),
+            args=(schema_name, provider_uuid, start_date, end_date)
         )
 
 
@@ -307,34 +304,3 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
 
     updater = ReportChargeUpdater(schema_name, provider_uuid)
     updater.update_charge_info(start_date, end_date)
-
-
-@app.task(name='masu.processor.tasks.update_cost_summary_table', queue_name='reporting')
-def update_cost_summary_table(
-    schema_name, provider_uuid, start_date, end_date=None, manifest_id=None
-):
-    """Update derived costs summary table.
-
-    Args:
-        schema_name (str) The DB schema name.
-        provider_uuid (str) The provider uuid.
-        manifest_id (str) The manifest id.
-        start_date (str, Optional) - Start date of range to update derived cost.
-        end_date (str, Optional) - End date of range to update derived cost.
-
-    Returns:
-        None
-
-    """
-    worker_stats.COST_SUMMARY_ATTEMPTS_COUNTER.inc()
-
-    stmt = (
-        f'update_cost_summary_table called with args:\n'
-        f' schema_name: {schema_name},\n'
-        f' provider_uuid: {provider_uuid}\n'
-        f' manifest_id: {manifest_id}'
-    )
-    LOG.info(stmt)
-
-    updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
-    updater.update_cost_summary_table(start_date, end_date)

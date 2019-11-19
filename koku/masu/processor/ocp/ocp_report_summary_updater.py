@@ -40,7 +40,7 @@ class OCPReportSummaryUpdater:
             schema (str): The customer schema to associate with
 
         """
-        self._schema_name = schema
+        self._schema = schema
         self._provider = provider
         self._manifest = manifest
         self._cluster_id = get_cluster_id_from_provider(self._provider.uuid)
@@ -65,11 +65,11 @@ class OCPReportSummaryUpdater:
         )
         LOG.info('Updating OpenShift report daily tables for \n\tSchema: %s '
                  '\n\tProvider: %s \n\tCluster: %s \n\tDates: %s - %s',
-                 self._schema_name, self._provider.uuid, self._cluster_id,
+                 self._schema, self._provider.uuid, self._cluster_id,
                  start_date, end_date)
-        with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
+        with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             accessor.populate_line_item_daily_table(start_date, end_date, self._cluster_id)
-        with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
+        with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             accessor.populate_storage_line_item_daily_table(start_date, end_date, self._cluster_id)
 
         return start_date, end_date
@@ -91,11 +91,11 @@ class OCPReportSummaryUpdater:
         )
         LOG.info('Updating OpenShift report summary tables for \n\tSchema: %s '
                  '\n\tProvider: %s \n\tCluster: %s \n\tDates: %s - %s',
-                 self._schema_name, self._provider.uuid, self._cluster_id,
+                 self._schema, self._provider.uuid, self._cluster_id,
                  start_date, end_date)
 
         report_periods = None
-        with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
+        with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             report_periods = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
             accessor.populate_line_item_daily_summary_table(start_date, end_date, self._cluster_id)
             accessor.populate_pod_label_summary_table()
@@ -116,7 +116,7 @@ class OCPReportSummaryUpdater:
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
         # Default to this month's bill
-        with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
+        with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             if self._manifest:
                 # Override the bill date to correspond with the manifest
                 bill_date = self._manifest.billing_period_start_datetime.date()
@@ -127,7 +127,7 @@ class OCPReportSummaryUpdater:
                     report_period_start=bill_date
                 ).all()
                 do_month_update = True
-                with schema_context(self._schema_name):
+                with schema_context(self._schema):
                     if report_periods is not None and len(report_periods) > 0:
                         do_month_update = self._determine_if_full_summary_update_needed(
                             report_periods[0]

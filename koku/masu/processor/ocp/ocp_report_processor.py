@@ -154,7 +154,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
         with ReportingCommonDBAccessor() as report_common_db:
             self.column_map = report_common_db.column_map
 
-        with OCPReportDBAccessor(self._schema_name, self.column_map) as report_db:
+        with OCPReportDBAccessor(self._schema, self.column_map) as report_db:
             self.existing_report_periods_map = report_db.get_report_periods()
             self.existing_report_map = report_db.get_reports()
 
@@ -278,7 +278,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
         row_count = 0
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode) as f:
-            with OCPReportDBAccessor(self._schema_name, self.column_map) as report_db:
+            with OCPReportDBAccessor(self._schema, self.column_map) as report_db:
                 temp_table = report_db.create_temp_table(
                     self.table_name._meta.db_table,
                     drop_column='id'
@@ -320,7 +320,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
                     row_count += len(self.processed_report.line_items)
 
         LOG.info('Completed report processing for file: %s and schema: %s',
-                 self._report_path, self._schema_name)
+                 self._report_path, self._schema)
 
         LOG.info('Removing processed file: %s', self._report_path)
         remove(self._report_path)
@@ -348,7 +348,7 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
         self.table_name = OCPUsageLineItem()
         stmt = (
             f'Initialized report processor for:\n'
-            f' schema_name: {self._schema_name}\n'
+            f' schema_name: {self._schema}\n'
             f' provider_uuid: {provider_uuid}\n'
             f' file: {self._report_path}'
         )
@@ -423,7 +423,7 @@ class OCPStorageProcessor(OCPReportProcessorBase):
         self.table_name = OCPStorageLineItem()
         stmt = (
             f'Initialized report processor for:\n'
-            f' schema_name: {self._schema_name}\n'
+            f' schema_name: {self._schema}\n'
             f' provider_uuid: {provider_uuid}\n'
             f' file: {self._report_path}'
         )
