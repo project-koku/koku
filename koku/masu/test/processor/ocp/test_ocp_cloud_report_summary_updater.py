@@ -299,7 +299,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         infrastructure_type = 'AWS'
         with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
             accessor.set_infrastructure(self.aws_provider_uuid, infrastructure_type)
-            ocp_provider = provider_accessor.get_provider()
+            ocp_provider = accessor.get_provider()
 
         updater = OCPCloudReportSummaryUpdater(
             schema=self.schema,
@@ -315,11 +315,11 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(infra_map.get(self.ocp_provider_uuid), expected_mapping)
 
         with ProviderDBAccessor(self.aws_provider_uuid) as accessor:
-            aws_provider = provider_accessor.get_provider()
+            aws_provider = accessor.get_provider()
 
         updater = OCPCloudReportSummaryUpdater(
             schema=self.schema,
-            provider=ocp_provider,
+            provider=aws_provider,
             manifest=None
         )
 

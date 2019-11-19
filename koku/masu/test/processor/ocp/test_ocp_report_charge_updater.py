@@ -720,19 +720,18 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 expected_request_charge = request_rate_value * Decimal(item.volume_request_storage_gigabyte_months)
                 self.assertAlmostEqual(storage_charge, expected_usage_charge + expected_request_charge, places=6)
 
-    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
-    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
-    def test_update_summary_markup_charge(self, mock_markup, mock_rate_map):
+    def test_update_summary_markup_charge(self):
         markup = {'value': 10, 'unit': 'percent'}
-        mem_rate = {'tiered_rates': [{'value': '100', 'unit': 'USD'}]}
-        cpu_rate = None
-        rate_metric_map = {'memory_gb_usage_per_hour': mem_rate, 'cpu_core_usage_per_hour': cpu_rate}
-
-        mock_markup.return_value = markup
-        mock_rate_map.return_value = rate_metric_map
-
-        mem_rate_value = Decimal(mem_rate.get('tiered_rates')[0].get('value'))
         markup_percentage = Decimal(markup.get('value')) / 100
+        rate = [
+            {
+                'metric': {'name': 'memory_gb_usage_per_hour'},
+                'tiered_rates': [{'value': 1, 'unit': 'USD'}]
+            }
+        ]
+        self.creator.create_cost_model(
+            self.ocp_provider_uuid, 'OCP', rates=rate, markup=markup
+        )
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -742,12 +741,15 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_charge_info()
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-
-        with schema_context(self.schema):
-            items = self.accessor._get_db_obj_query(table_name).all()
-            for item in items:
-                markup_value = Decimal(item.markup)
-                self.assertAlmostEqual(markup_value, mem_rate_value * markup_percentage, places=6)
+        with OCPReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
+            with schema_context(self.schema):
+                items = accessor._get_db_obj_query(table_name).all()
+                for item in items:
+                    markup_value = item.markup_cost
+                    self.assertEqual(
+                        markup_value,
+                        item.pod_charge_memory_gigabyte_hours * markup_percentage
+                    )
 
     def test_update_summary_markup_charge_with_infrastructure_markup(self):
         """Test that markup for infrastructure is included."""
@@ -810,19 +812,19 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                         expected_project_markup_cost, item.project_markup_cost
                     )
 
-    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
-    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
-    def test_update_summary_markup_charge_no_clusterid(self, mock_markup, mock_rate_map):
+    def test_update_summary_markup_charge_no_clusterid(self):
+        """Test that markup is calculated without a cluster id."""
         markup = {'value': 10, 'unit': 'percent'}
-        mem_rate = {'tiered_rates': [{'value': '100', 'unit': 'USD'}]}
-        cpu_rate = None
-        rate_metric_map = {'memory_gb_usage_per_hour': mem_rate, 'cpu_core_usage_per_hour': cpu_rate}
-
-        mock_markup.return_value = markup
-        mock_rate_map.return_value = rate_metric_map
-
-        mem_rate_value = Decimal(mem_rate.get('tiered_rates')[0].get('value'))
         markup_percentage = Decimal(markup.get('value')) / 100
+        rate = [
+            {
+                'metric': {'name': 'memory_gb_usage_per_hour'},
+                'tiered_rates': [{'value': 1, 'unit': 'USD'}]
+            }
+        ]
+        self.creator.create_cost_model(
+            self.ocp_provider_uuid, 'OCP', rates=rate, markup=markup
+        )
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -837,12 +839,15 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.updater._update_markup_cost(start_date, end_date)
 
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-
-        with schema_context(self.schema):
-            items = self.accessor._get_db_obj_query(table_name).all()
-            for item in items:
-                markup_value = Decimal(item.markup)
-                self.assertAlmostEqual(markup_value, mem_rate_value * markup_percentage, places=6)
+        with OCPReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
+            with schema_context(self.schema):
+                items = accessor._get_db_obj_query(table_name).all()
+                for item in items:
+                    markup_value = Decimal(item.markup_cost)
+                    self.assertEqual(
+                        markup_value,
+                        item.pod_charge_memory_gigabyte_hours * markup_percentage
+                    )
 
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
