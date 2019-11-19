@@ -294,51 +294,37 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         for k, v in found_values.items():
             self.assertAlmostEqual(v, possible_values[k], places=6)
 
-    # @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
-    # def test_update_cost_summary_table_for_markup(self, mock_markup):
-    #     """Test that summary tables are updated correctly."""
-    #     markup = {'value': 10, 'unit': 'percent'}
-    #     mock_markup.return_value = markup
-    #     self._generate_ocp_on_aws_data()
+    def test_get_infra_map(self):
+        """Test that an infrastructure map is returned."""
+        infrastructure_type = 'AWS'
+        with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
+            accessor.set_infrastructure(self.aws_provider_uuid, infrastructure_type)
+            ocp_provider = provider_accessor.get_provider()
 
-    #     start_date = self.date_accessor.today_with_timezone('UTC')
-    #     end_date = start_date + datetime.timedelta(days=1)
-    #     start_date = start_date - relativedelta.relativedelta(months=1)
-    #     start_date_str = start_date.strftime('%Y-%m-%d')
-    #     end_date_str = end_date.strftime('%Y-%m-%d')
-    #     with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
-    #         provider = provider_accessor.get_provider()
-    #     updater = OCPCloudReportSummaryUpdater(
-    #         schema='acct10001',
-    #         provider=provider,
-    #         manifest=None
-    #     )
+        updater = OCPCloudReportSummaryUpdater(
+            schema=self.schema,
+            provider=ocp_provider,
+            manifest=None
+        )
 
-    #     updater.update_summary_tables(start_date_str, end_date_str)
+        expected_mapping = (self.aws_provider_uuid, 'AWS')
+        infra_map = updater.get_infra_map()
 
-    #     cluster_id = get_cluster_id_from_provider(self.ocp_test_provider_uuid)
-    #     with OCPReportDBAccessor(self.schema, self.column_map) as ocp_accessor:
-    #         ocp_accessor.update_summary_infrastructure_cost(cluster_id, start_date, end_date)
-    #         cost_summary_table = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-    #         cost_summary_query = ocp_accessor._get_db_obj_query(cost_summary_table)
+        self.assertEqual(len(infra_map.keys()), 1)
+        self.assertIn(self.ocp_provider_uuid, infra_map)
+        self.assertEqual(infra_map.get(self.ocp_provider_uuid), expected_mapping)
 
-    #     possible_values = {}
-    #     with schema_context(self.schema):
-    #         for item in cost_summary_query:
-    #             possible_values.update({item.cluster_id: (
-    #                 (item.pod_charge_cpu_core_hours
-    #                 + item.pod_charge_memory_gigabyte_hours
-    #                 + item.persistentvolumeclaim_charge_gb_month
-    #                 + item.infra_cost) * decimal.Decimal(0.1)
-    #             )})
+        with ProviderDBAccessor(self.aws_provider_uuid) as accessor:
+            aws_provider = provider_accessor.get_provider()
 
-    #     updater.update_cost_summary_table(start_date_str, end_date_str)
+        updater = OCPCloudReportSummaryUpdater(
+            schema=self.schema,
+            provider=ocp_provider,
+            manifest=None
+        )
 
-    #     with OCPReportDBAccessor(self.schema, self.column_map) as ocp_accessor:
-    #         query = ocp_accessor._get_db_obj_query(cost_summary_table)
-    #         found_values = {}
-    #         for item in query:
-    #             found_values.update({item.cluster_id: item.markup_cost})
+        infra_map = updater.get_infra_map()
 
-    #     for k, v in found_values.items():
-    #         self.assertAlmostEqual(v, possible_values[k], places=6)
+        self.assertEqual(len(infra_map.keys()), 1)
+        self.assertIn(self.ocp_provider_uuid, infra_map)
+        self.assertEqual(infra_map.get(self.ocp_provider_uuid), expected_mapping)
