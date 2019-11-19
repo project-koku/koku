@@ -24,6 +24,7 @@ from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary, OCPAzureCostLineItemProjectDailySummary
 from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
@@ -188,3 +189,52 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             base_query = self._get_db_obj_query(table_name)
             summary_item_query = base_query.filter(cost_entry_bill_id=bill_id)
             return summary_item_query
+
+    def populate_ocp_on_azure_cost_daily_summary(self, start_date, end_date,
+                                                 cluster_id, bill_ids):
+        """Populate the daily cost aggregated summary for OCP on AWS.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (None)
+
+        """
+        table_name = AZURE_REPORT_TABLE_MAP['ocp_on_azure_daily_summary']
+        summary_sql = pkgutil.get_data(
+            'masu.database',
+            'sql/reporting_ocpazurecostlineitem_daily_summary.sql'
+        )
+        summary_sql = summary_sql.decode('utf-8')
+        summary_sql_params = {
+            'uuid': str(uuid.uuid4()).replace('-', '_'),
+            'start_date': start_date,
+            'end_date': end_date,
+            'bill_ids': bill_ids,
+            'cluster_id': cluster_id,
+            'schema': self.schema
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
+            summary_sql, summary_sql_params)
+
+        self._commit_and_vacuum(
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
+
+    def populate_ocp_on_azure_markup_cost(self, markup, bill_ids=None):
+        """Set markup costs in the database."""
+        with schema_context(self.schema):
+            if bill_ids:
+                for bill_id in bill_ids:
+                    OCPAzureCostLineItemDailySummary.objects.\
+                        filter(cost_entry_bill_id=bill_id).\
+                        update(markup_cost=(F('pretax_cost') * markup))
+                    OCPAzureCostLineItemProjectDailySummary.objects.\
+                        filter(cost_entry_bill_id=bill_id).\
+                        update(project_markup_cost=(F('pretax_cost') * markup))
+            else:
+                OCPAzureCostLineItemDailySummary.objects.\
+                    update(markup_cost=(F('pretax_cost') * markup))
+                OCPAzureCostLineItemProjectDailySummary.objects.\
+                    update(project_markup_cost=(F('pretax_cost') * markup))
