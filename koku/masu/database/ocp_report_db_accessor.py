@@ -662,8 +662,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         )
         self._commit_and_vacuum(table_name, agg_sql, bind_params=list(agg_sql_params))
 
-    def populate_markup_cost(self, aws_markup, ocp_markup, cluster_id):
-        """Set markup cost for OCP-on-AWS in Cost Summary."""
+    def populate_markup_cost(self, infra_provider_markup, ocp_markup, cluster_id):
+        """Set markup cost for OCP including infrastructure cost markup."""
         with schema_context(self.schema):
             OCPUsageLineItemDailySummary.objects.filter(cluster_id=cluster_id).update(
                 markup_cost=(
@@ -687,7 +687,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                             F('infra_cost'),
                             Value(0, output_field=DecimalField())
                         )
-                    ) * aws_markup
+                    ) * infra_provider_markup
                 )
             )
             OCPUsageLineItemDailySummary.objects.filter(cluster_id=cluster_id).update(
@@ -709,6 +709,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     ) * ocp_markup
                     + (
                         Coalesce(F('project_infra_cost'), Value(0, output_field=DecimalField()))
-                    ) * aws_markup
+                    ) * infra_provider_markup
                 )
             )
