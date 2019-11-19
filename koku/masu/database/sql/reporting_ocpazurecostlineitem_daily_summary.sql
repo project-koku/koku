@@ -75,6 +75,7 @@ CREATE TEMPORARY TABLE reporting_ocp_pod_tags AS (
 CREATE TEMPORARY TABLE reporting_ocp_azure_resource_id_matched AS (
     WITH cte_resource_id_matched AS (
         SELECT ocp.id AS ocp_id,
+            ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
@@ -158,6 +159,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_resource_id_matched AS (
 CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_project_tag_matched AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
+            ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
@@ -225,6 +227,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_project_tag_matched AS (
 CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_node_tag_matched AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
+            ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
@@ -295,6 +298,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_node_tag_matched AS (
 CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_cluster_tag_matched AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
+            ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
@@ -369,6 +373,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_cluster_tag_matched AS (
 CREATE TEMPORARY TABLE reporting_ocp_azure_direct_tag_matched AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
+            ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
@@ -473,6 +478,7 @@ CREATE TEMPORARY TABLE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} 
 CREATE TEMPORARY TABLE reporting_ocp_azure_storage_resource_id_matched AS (
     WITH cte_resource_id_matched AS (
         SELECT ocp.id AS ocp_id,
+            ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
@@ -549,6 +555,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_resource_id_matched AS (
 CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_project_tag_matched AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
+            ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
@@ -613,6 +620,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_project_tag_matched
 CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_node_tag_matched AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
+            ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
@@ -680,6 +688,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_node_tag_matched AS
 CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_cluster_tag_matched AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
+            ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
@@ -751,6 +760,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_cluster_tag_matched
 CREATE TEMPORARY TABLE reporting_ocp_azure_storage_direct_tag_matched AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
+            ocp.report_period_id,
             ocp.cluster_id,
             ocp.cluster_alias,
             ocp.namespace,
@@ -886,7 +896,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         ) AS pc
         GROUP BY pc.azure_id
     )
-    SELECT max(li.cluster_id) as cluster_id,
+    SELECT max(li.report_period_id) as report_period_id,
+        max(li.cluster_id) as cluster_id,
         max(li.cluster_alias) as cluster_alias,
         array_agg(DISTINCT li.namespace) as namespace,
         array_agg(DISTINCT li.pod) as pod,
@@ -921,7 +932,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
 
     UNION
 
-    SELECT max(li.cluster_id) as cluster_id,
+    SELECT max(li.report_period_id) as report_period_id,
+        max(li.cluster_id) as cluster_id,
         max(li.cluster_alias) as cluster_alias,
         array_agg(DISTINCT li.namespace) as namespace,
         array_agg(DISTINCT li.pod) as pod,
@@ -967,7 +979,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
 -- number of pods sharing the cost so the values turn out the
 -- same when reported.
 CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uuid | sqlsafe}} AS (
-    SELECT li.cluster_id,
+    SELECT li.report_period_id,
+        li.cluster_id,
         li.cluster_alias,
         'Pod' as data_source,
         li.namespace,
@@ -997,7 +1010,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
     WHERE date(li.usage_date_time) >= {{start_date}}
         AND date(li.usage_date_time) <= {{end_date}}
     -- Grouping by OCP this time for the by project view
-    GROUP BY li.ocp_id,
+    GROUP BY li.report_period_id,
+        li.ocp_id,
         li.cluster_id,
         li.cluster_alias,
         li.namespace,
@@ -1008,7 +1022,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
 
     UNION
 
-    SELECT li.cluster_id,
+    SELECT li.report_period_id,
+        li.cluster_id,
         li.cluster_alias,
         'Storage' as data_source,
         li.namespace,
@@ -1040,7 +1055,8 @@ JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice AS p
     WHERE date(li.usage_date_time) >= {{start_date}}
         AND date(li.usage_date_time) <= {{end_date}}
         AND ulid.azure_id IS NULL
-    GROUP BY li.ocp_id,
+    GROUP BY li.report_period_id,
+        li.ocp_id,
         li.cluster_id,
         li.cluster_alias,
         li.namespace,
@@ -1072,6 +1088,7 @@ WHERE date(usage_start) >= {{start_date}}
 
 -- Populate the daily aggregate line item data
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary (
+    report_period_id,
     cluster_id,
     cluster_alias,
     namespace,
@@ -1094,7 +1111,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary (
     shared_projects,
     project_costs
 )
-    SELECT cluster_id,
+    SELECT report_period_id,
+        cluster_id,
         cluster_alias,
         namespace,
         pod,
@@ -1136,6 +1154,7 @@ WHERE date(usage_start) >= {{start_date}}
 ;
 
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary (
+    report_period_id,
     cluster_id,
     cluster_alias,
     data_source,
@@ -1158,7 +1177,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_su
     unit_of_measure,
     pod_cost
 )
-    SELECT cluster_id,
+    SELECT report_period_id,
+        cluster_id,
         cluster_alias,
         data_source,
         namespace,
