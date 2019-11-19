@@ -17,7 +17,6 @@
 """Azure-Local Report Downloader."""
 
 import hashlib
-import json
 import logging
 import os
 import shutil
@@ -36,11 +35,15 @@ LOG = logging.getLogger(__name__)
 class AzureLocalReportDownloader(AzureReportDownloader):
     """Azure Cost and Usage Report Downloader."""
 
-    def __init__(self, customer_name, auth_credential, billing_source, report_name=None, **kwargs):
+    # Disabling this linter until we can refactor
+    # pylint: disable=too-many-arguments
+    def __init__(self, task, customer_name, auth_credential,
+                 billing_source, report_name=None, **kwargs):
         """
         Constructor.
 
         Args:
+            task             (Object) bound celery object
             customer_name    (String) Name of the customer
             auth_credential  (Dict) Dictionary containing Azure authentication details.
             report_name      (String) Name of the Cost Usage Report to download (optional)
@@ -48,7 +51,8 @@ class AzureLocalReportDownloader(AzureReportDownloader):
 
         """
         kwargs['is_local'] = True
-        super().__init__(customer_name, auth_credential, billing_source, report_name, **kwargs)
+        super().__init__(task, customer_name, auth_credential,
+                         billing_source, report_name, **kwargs)
 
         self._provider_uuid = kwargs.get('provider_uuid')
         self.customer_name = customer_name.replace(' ', '_')
@@ -93,10 +97,6 @@ class AzureLocalReportDownloader(AzureReportDownloader):
         manifest['billingPeriod'] = billing_period
         manifest['reportKeys'] = [f'{local_path}/{report_name}']
         manifest['Compression'] = UNCOMPRESSED
-
-        manifest_file = '{}/{}'.format(self._get_exports_data_directory(), 'Manifest.json')
-        with open(manifest_file, 'w') as manifest_hdl:
-            manifest_hdl.write(json.dumps(manifest))
 
         return manifest
 

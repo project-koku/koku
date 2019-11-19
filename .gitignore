@@ -112,6 +112,7 @@ pg_data/
 
 # static files
 koku/staticfiles/
+koku/static/
 scripts/aws_cost_usage/
 scripts/aws_pricing/
 

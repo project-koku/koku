@@ -26,7 +26,7 @@ import tempfile
 from faker import Faker
 
 from datetime import datetime
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader
@@ -70,12 +70,20 @@ class OCPReportDownloaderTest(MasuTestCase):
             test_manifest_path, os.path.join(report_path, self.test_manifest_path)
         )
 
+        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()),
+                                           return_value={}))
         self.report_downloader = ReportDownloader(
-            self.fake_customer_name, self.cluster_id, None, 'OCP', self.ocp_provider_uuid
+            task=self.mock_task,
+            customer_name=self.fake_customer_name,
+            access_credential=self.cluster_id,
+            report_source=None,
+            provider_type='OCP',
+            provider_uuid=self.ocp_provider_uuid,
         )
 
         self.ocp_report_downloader = OCPReportDownloader(
             **{
+                'task': self.mock_task,
                 'customer_name': self.fake_customer_name,
                 'auth_credential': self.cluster_id,
                 'bucket': None,
@@ -131,3 +139,10 @@ class OCPReportDownloaderTest(MasuTestCase):
         with patch.object(DateAccessor, 'today', return_value=test_report_date):
             reports = self.report_downloader.download_report(test_report_date)
         self.assertEqual(reports, [])
+
+    def test_remove_manifest_file(self):
+        """Test that a manifest file is deleted after use."""
+        test_report_date = datetime(year=2018, month=9, day=7)
+        self.assertTrue(os.path.isfile(self.test_manifest_path))
+        self.ocp_report_downloader._remove_manifest_file(test_report_date)
+        self.assertFalse(os.path.isfile(self.test_manifest_path))

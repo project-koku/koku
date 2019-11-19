@@ -16,12 +16,18 @@
 #
 """Models for provider management."""
 
+import logging
+from functools import partial
 from uuid import uuid4
 
 from django.conf import settings
 from django.contrib.postgres.fields import JSONField
-from django.db import models
+from django.db import models, transaction
 from django.db.models.constraints import CheckConstraint
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+
+LOG = logging.getLogger(__name__)
 
 
 class ProviderAuthentication(models.Model):
@@ -102,11 +108,12 @@ class Provider(models.Model):
     PROVIDER_OCP = 'OCP'
     PROVIDER_AZURE = 'AZURE'
     PROVIDER_GCP = 'GCP'
+    # Local Providers are for local development and testing
+    PROVIDER_AWS_LOCAL = 'AWS-local'
+    PROVIDER_AZURE_LOCAL = 'AZURE-local'
+    PROVIDER_GCP_LOCAL = 'GCP-local'
 
     if settings.DEBUG:
-        PROVIDER_AWS_LOCAL = 'AWS-local'
-        PROVIDER_AZURE_LOCAL = 'AZURE-local'
-        PROVIDER_GCP_LOCAL = 'GCP-local'
         PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
                             (PROVIDER_OCP, PROVIDER_OCP),
                             (PROVIDER_AZURE, PROVIDER_AZURE),
@@ -114,11 +121,24 @@ class Provider(models.Model):
                             (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
                             (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
                             (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL))
+        CLOUD_PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
+                                  (PROVIDER_AZURE, PROVIDER_AZURE),
+                                  (PROVIDER_GCP, PROVIDER_GCP),
+                                  (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
+                                  (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
+                                  (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL))
     else:
         PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
                             (PROVIDER_OCP, PROVIDER_OCP),
                             (PROVIDER_AZURE, PROVIDER_AZURE),
                             (PROVIDER_GCP, PROVIDER_GCP))
+        CLOUD_PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
+                                  (PROVIDER_AZURE, PROVIDER_AZURE),
+                                  (PROVIDER_GCP, PROVIDER_GCP))
+    # These lists are intended for use for provider type checking
+    # throughout the codebase
+    PROVIDER_LIST = [choice[0] for choice in PROVIDER_CHOICES]
+    CLOUD_PROVIDER_LIST = [choice[0] for choice in CLOUD_PROVIDER_CHOICES]
 
     uuid = models.UUIDField(default=uuid4, primary_key=True)
     name = models.CharField(max_length=256, null=False)
@@ -133,7 +153,41 @@ class Provider(models.Model):
     created_by = models.ForeignKey('User', null=True,
                                    on_delete=models.SET_NULL)
     setup_complete = models.BooleanField(default=False)
+
     created_timestamp = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+
+    active = models.BooleanField(default=True)
+
+    # This field applies to OpenShift providers and identifies
+    # which (if any) cloud provider the cluster is on
+    infrastructure = models.ForeignKey('ProviderInfrastructureMap', null=True,
+                                       on_delete=models.SET_NULL)
+
+
+@receiver(post_delete, sender=Provider)
+def provider_post_delete_callback(*args, **kwargs):
+    """
+    Asynchronously delete this Provider's archived data.
+
+    Note: Signal receivers must accept keyword arguments (**kwargs).
+    """
+    provider = kwargs['instance']
+    if not provider.customer:
+        LOG.warning(
+            'Provider %s has no Customer; we cannot call delete_archived_data.',
+            provider.uuid,
+        )
+        return
+    # Local import of task function to avoid potential import cycle.
+    from masu.celery.tasks import delete_archived_data
+
+    delete_func = partial(
+        delete_archived_data.delay,
+        provider.customer.schema_name,
+        provider.type,
+        provider.uuid,
+    )
+    transaction.on_commit(delete_func)
 
 
 class Sources(models.Model):
@@ -212,3 +266,18 @@ class ProviderStatus(models.Model):
     last_message = models.CharField(max_length=256, null=False)
     timestamp = models.DateTimeField()
     retries = models.IntegerField(null=False, default=0)
+
+
+class ProviderInfrastructureMap(models.Model):
+    """A lookup table for OpenShift providers.
+
+    Used to determine which underlying instrastructure and
+    associated provider the cluster is installed on.
+    """
+
+    infrastructure_type = models.CharField(
+        max_length=50, choices=Provider.CLOUD_PROVIDER_CHOICES
+    )
+    infrastructure_provider = models.ForeignKey(
+        'Provider', on_delete=models.CASCADE
+    )

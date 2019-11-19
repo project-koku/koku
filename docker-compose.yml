@@ -140,7 +140,7 @@ services:
           context: .
           dockerfile: Dockerfile-env
       working_dir: /koku/koku
-      entrypoint: ['celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process']
+      entrypoint: ['celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data']
 
       environment:
         - AWS_ACCESS_KEY_ID
@@ -158,9 +158,9 @@ services:
         - DJANGO_SETTINGS_MODULE=koku.settings
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
-        - ENABLE_S3_ARCHIVING=False
-        - S3_BUCKET_NAME=koku-bucket
-        - S3_BUCKET_PATH=data_archive
+        - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-True}
+        - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+        - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
         - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
         - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
       privileged: true
@@ -174,6 +174,7 @@ services:
         - './testing/local_providers/aws_local_2:/tmp/local_bucket_2'
         - './testing/local_providers/aws_local_3:/tmp/local_bucket_3'
         - './testing/local_providers/aws_local_4:/tmp/local_bucket_4'
+        - './testing/local_providers/aws_local_5:/tmp/local_bucket_5'
         - './testing/local_providers/insights_local:/var/tmp/masu/insights_local'
       links:
           - koku-rabbit

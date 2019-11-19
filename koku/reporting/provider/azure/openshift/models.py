@@ -95,10 +95,10 @@ class OCPAzureCostLineItemDailySummary(models.Model):
     usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     # Cost breakdown can be done by cluster, node, project, and pod.
-    # Cluster and node cost can be determined by summing the AWS unblended_cost
+    # Cluster and node cost can be determined by summing the Azure pretax_cost
     # with a GROUP BY cluster/node.
     # Project cost is a summation of pod costs with a GROUP BY project
-    # The cost of un-utilized resources = sum(unblended_cost) - sum(project_cost)
+    # The cost of un-utilized resources = sum(pretax_cost) - sum(project_cost)
     pretax_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
@@ -114,7 +114,7 @@ class OCPAzureCostLineItemDailySummary(models.Model):
     shared_projects = models.IntegerField(null=False, default=1)
 
     # A JSON dictionary of the project cost, keyed by project/namespace name
-    # See comment on unblended_cost for project cost explanation
+    # See comment on pretax_cost for project cost explanation
     project_costs = JSONField(null=True)
 
 

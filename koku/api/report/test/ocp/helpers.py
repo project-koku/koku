@@ -124,16 +124,11 @@ class OCPReportDataGenerator:
         words = list(set([self.fake.word() for _ in range(10)]))
         provider_uuid = kwargs.get('provider_uuid', self.provider.uuid)
 
-        self.cluster_id = random.choice(words)
-        self.cluster_alias = random.choice(words)
-        if kwargs.get('namespaces'):
-            self.namespaces = kwargs['namespaces']
-        else:
-            self.namespaces = random.sample(words, k=2)
-        if kwargs.get('nodes'):
-            self.nodes = kwargs['nodes']
-        else:
-            self.nodes = random.sample(words, k=2)
+        self.cluster_id = kwargs.get('cluster_id', random.choice(words))
+        self.cluster_alias = kwargs.get('cluster_alias', random.choice(words))
+        self.namespaces = kwargs.get('namespaces', random.sample(words, k=2))
+        self.nodes = kwargs.get('nodes', random.sample(words, k=2))
+
         self.pods = random.sample(words, k=2)
         self.storage_classes = ['gp2', 'standard', 'magnetic']
         self.line_items = [
@@ -275,7 +270,7 @@ class OCPReportDataGenerator:
                 'node_capacity_cpu_cores': Decimal(node_cpu_cores),
                 'node_capacity_cpu_core_seconds': Decimal(node_cpu_cores * 3600),
                 'node_capacity_memory_bytes': Decimal(node_memory_gb * 1e9),
-                'node_capacity_memory_byte_seconds': Decimal(node_memory_gb * 1e9 * 3600),
+                'node_capacity_memory_byte_seconds': Decimal(node_memory_gb * 1e7 * 3600),
                 'pod_labels': self._gen_pod_labels(report),
                 'resource_id': 'i-{}'.format(resource_id)
             }
@@ -490,7 +485,7 @@ class OCPReportDataGenerator:
                 'volume_request_storage_byte_seconds': Decimal(random.uniform(0, 3600) * 1e9),
                 'persistentvolumeclaim_usage_byte_seconds': Decimal(random.uniform(0, 3600) * 1e9),
                 'persistentvolumeclaim_capacity_bytes': Decimal(vol_gb * 1e9),
-                'persistentvolumeclaim_capacity_byte_seconds': Decimal(vol_gb * 1e9 * 3600),
+                'persistentvolumeclaim_capacity_byte_seconds': Decimal(vol_gb * 1e7 * 3600),
                 'persistentvolume_labels': self._gen_pod_labels(report),
                 'persistentvolumeclaim_labels': self._gen_pod_labels(report)
             }
@@ -598,8 +593,8 @@ class OCPReportDataGenerator:
             FROM (
                 SELECT key,
                     value
-                FROM reporting_ocpusagelineitem_daily AS li,
-                    jsonb_each_text(li.pod_labels) labels
+                FROM reporting_ocpstoragelineitem_daily AS li,
+                    jsonb_each_text(li.persistentvolumeclaim_labels) labels
             ) l
             GROUP BY l.key
             ON CONFLICT (key) DO UPDATE
@@ -618,8 +613,8 @@ class OCPReportDataGenerator:
             FROM (
                 SELECT key,
                     value
-                FROM reporting_ocpusagelineitem_daily AS li,
-                    jsonb_each_text(li.pod_labels) labels
+                FROM reporting_ocpstoragelineitem_daily AS li,
+                    jsonb_each_text(li.persistentvolume_labels) labels
             ) l
             GROUP BY l.key
             ON CONFLICT (key) DO UPDATE

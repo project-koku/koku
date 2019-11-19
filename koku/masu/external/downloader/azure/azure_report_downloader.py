@@ -20,7 +20,6 @@
 # disabled until we get travis to not fail on warnings, or the fixme is
 # resolved.
 import datetime
-import json
 import logging
 import os
 
@@ -47,18 +46,21 @@ class AzureReportDownloaderNoFileError(Exception):
 class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """Azure Cost and Usage Report Downloader."""
 
-    def __init__(self, customer_name, auth_credential, billing_source, report_name=None, **kwargs):
+    # Disabling this linter until we can refactor
+    # pylint: disable=too-many-arguments
+    def __init__(self, task, customer_name, auth_credential, billing_source, report_name=None, **kwargs):
         """
         Constructor.
 
         Args:
+            task             (Object) bound celery object
             customer_name    (String) Name of the customer
             auth_credential  (Dict) Dictionary containing Azure authentication details.
             report_name      (String) Name of the Cost Usage Report to download (optional)
             billing_source   (Dict) Dictionary containing Azure Storage blob details.
 
         """
-        super().__init__(**kwargs)
+        super().__init__(task, **kwargs)
 
         self._provider_uuid = kwargs.get('provider_uuid')
         self.customer_name = customer_name.replace(' ', '_')
@@ -137,10 +139,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest['billingPeriod'] = billing_period
         manifest['reportKeys'] = [report_name]
         manifest['Compression'] = UNCOMPRESSED
-
-        manifest_file = '{}/{}'.format(self._get_exports_data_directory(), 'Manifest.json')
-        with open(manifest_file, 'w') as manifest_hdl:
-            manifest_hdl.write(json.dumps(manifest))
 
         return manifest
 

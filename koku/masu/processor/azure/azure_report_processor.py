@@ -16,9 +16,11 @@
 #
 
 """Processor for Azure Cost Usage Reports."""
+
 import csv
 import logging
 from datetime import datetime
+from os import remove
 
 import pytz
 from dateutil import parser
@@ -88,13 +90,13 @@ class AzureReportProcessor(ReportProcessorBase):
         self._datetime_format = Config.AZURE_DATETIME_STR_FORMAT
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
 
-        self._schema_name = schema_name
+        self._schema = schema_name
 
         # Gather database accessors
         with ReportingCommonDBAccessor() as report_common_db:
             self.column_map = report_common_db.column_map
 
-        with AzureReportDBAccessor(self._schema_name, self.column_map) as report_db:
+        with AzureReportDBAccessor(self._schema, self.column_map) as report_db:
             self.report_schema = report_db.report_schema
             self.existing_bill_map = report_db.get_cost_entry_bills()
             self.existing_product_map = report_db.get_products()
@@ -104,7 +106,7 @@ class AzureReportProcessor(ReportProcessorBase):
 
         stmt = (
             f'Initialized report processor for:\n'
-            f' schema_name: {self._schema_name}\n'
+            f' schema_name: {self._schema}\n'
             f' provider_uuid: {provider_uuid}\n'
             f' file: {report_path}'
         )
@@ -292,14 +294,17 @@ class AzureReportProcessor(ReportProcessorBase):
 
         """
         row_count = 0
+        is_full_month = self._should_process_full_month()
         self._delete_line_items(AzureReportDBAccessor, self.column_map)
         # pylint: disable=invalid-name
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode, encoding='utf-8-sig') as f:
-            with AzureReportDBAccessor(self._schema_name, self.column_map) as report_db:
+            with AzureReportDBAccessor(self._schema, self.column_map) as report_db:
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
+                    if not self._should_process_row(row, 'UsageDateTime', is_full_month):
+                        continue
                     _ = self.create_cost_entry_objects(row, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:
                         LOG.info('Saving report rows %d to %d for %s', row_count,
@@ -320,7 +325,10 @@ class AzureReportProcessor(ReportProcessorBase):
                 report_db.commit()
 
                 LOG.info('Completed report processing for file: %s and schema: %s',
-                         self._report_name, self._schema_name)
+                         self._report_name, self._schema)
+            LOG.info('Removing processed file: %s', self._report_path)
+            remove(self._report_path)
+
             return True
 
     def _update_mappings(self):

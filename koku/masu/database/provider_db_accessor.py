@@ -16,11 +16,8 @@
 #
 """Accessor for Provider information from koku database."""
 
-from api.provider.models import Provider
-from masu.database.customer_db_accessor import CustomerDBAccessor
+from api.provider.models import Provider, ProviderInfrastructureMap
 from masu.database.koku_database_access import KokuDBAccess
-from masu.database.provider_auth_db_accessor import ProviderAuthDBAccessor
-from masu.database.provider_billing_source_db_accessor import ProviderBillingSourceDBAccessor
 
 
 class ProviderDBAccessor(KokuDBAccess):
@@ -39,6 +36,19 @@ class ProviderDBAccessor(KokuDBAccess):
         self._uuid = provider_uuid
         self._auth_id = auth_id
         self._table = Provider
+        self._provider = None
+
+    @property
+    def provider(self):
+        """Return the provider this accessor is instantiated for."""
+        if self._provider is None:
+            self._provider = self._get_db_obj_query().first()
+        return self._provider
+
+    @property
+    def infrastructure(self):
+        """Return the infrastructure object for the provider."""
+        return self.provider.infrastructure
 
     # pylint: disable=arguments-differ
     def _get_db_obj_query(self):
@@ -60,7 +70,7 @@ class ProviderDBAccessor(KokuDBAccess):
 
     def get_provider(self):
         """Return the provider."""
-        return self._get_db_obj_query().first()
+        return self.provider
 
     def get_uuid(self):
         """
@@ -73,8 +83,7 @@ class ProviderDBAccessor(KokuDBAccess):
                     example: "edf94475-235e-4b64-ba18-0b81f2de9c9e"
 
         """
-        obj = self._get_db_obj_query().first()
-        return str(obj.uuid) if obj else None
+        return str(self.provider.uuid) if self.provider else None
 
     def get_provider_name(self):
         """
@@ -87,8 +96,7 @@ class ProviderDBAccessor(KokuDBAccess):
                     example: "Test Provider"
 
         """
-        obj = self._get_db_obj_query().first()
-        return obj.name if obj else None
+        return self.provider.name if self.provider else None
 
     def get_type(self):
         """
@@ -101,8 +109,7 @@ class ProviderDBAccessor(KokuDBAccess):
                     example: "AWS"
 
         """
-        obj = self._get_db_obj_query().first()
-        return obj.type if obj else None
+        return self.provider.type if self.provider else None
 
     def get_authentication(self):
         """
@@ -115,11 +122,7 @@ class ProviderDBAccessor(KokuDBAccess):
                     example: "arn:aws:iam::111111111111:role/CostManagement"
 
         """
-        obj = self._get_db_obj_query().first()
-        authentication_id = obj.authentication_id
-        with ProviderAuthDBAccessor(authentication_id) as auth_accessor:
-            provider_resource_name = auth_accessor.get_provider_resource_name()
-        return provider_resource_name
+        return self.provider.authentication.provider_resource_name
 
     def get_billing_source(self):
         """
@@ -132,11 +135,7 @@ class ProviderDBAccessor(KokuDBAccess):
                     example: "my-s3-cur-bucket"
 
         """
-        obj = self._get_db_obj_query().first()
-        billing_source_id = obj.billing_source_id
-        with ProviderBillingSourceDBAccessor(billing_source_id) as billing_accessor:
-            bucket = billing_accessor.get_bucket()
-        return bucket
+        return self.provider.billing_source.bucket
 
     def get_setup_complete(self):
         """
@@ -148,12 +147,11 @@ class ProviderDBAccessor(KokuDBAccess):
             (Boolean): "True if a report has been processed for the provider.",
 
         """
-        obj = self._get_db_obj_query().first()
-        return obj.setup_complete if obj else None
+        return self.provider.setup_complete if self.provider else None
 
     def setup_complete(self):
         """
-        Convinence method to set setup_complete to True.
+        Set setup_complete to True.
 
         Args:
             None
@@ -161,9 +159,8 @@ class ProviderDBAccessor(KokuDBAccess):
             None
 
         """
-        obj = self._get_db_obj_query().first()
-        obj.setup_complete = True
-        obj.save()
+        self.provider.setup_complete = True
+        self.provider.save()
 
     def get_customer_uuid(self):
         """
@@ -176,11 +173,7 @@ class ProviderDBAccessor(KokuDBAccess):
                     example: "edf94475-235e-4b64-ba18-0b81f2de9c9e"
 
         """
-        obj = self._get_db_obj_query().first()
-        customer_id = obj.customer_id
-        with CustomerDBAccessor(customer_id) as customer_accessor:
-            uuid = customer_accessor.get_uuid()
-        return uuid
+        return str(self.provider.customer.uuid)
 
     def get_customer_name(self):
         """
@@ -205,8 +198,53 @@ class ProviderDBAccessor(KokuDBAccess):
             (String): "Name of the database schema",
 
         """
-        obj = self._get_db_obj_query().first()
-        customer_id = obj.customer_id
-        with CustomerDBAccessor(customer_id) as customer_accessor:
-            schema_name = customer_accessor.get_schema_name()
-        return schema_name
+        return self.provider.customer.schema_name
+
+    def get_infrastructure_type(self):
+        """Retrun the infrastructure type for an OpenShift provider."""
+        if self.infrastructure:
+            return self.infrastructure.infrastructure_type
+        return None
+
+    def get_infrastructure_provider_uuid(self):
+        """Return the UUID of the infrastructure provider an OpenShift cluster is installed on."""
+        if self.infrastructure:
+            infra_uuid = self.infrastructure.infrastructure_provider.uuid
+            return str(infra_uuid) if infra_uuid else None
+        return None
+
+    def set_infrastructure(self, infrastructure_provider_uuid, infrastructure_type):
+        """Create an infrastructure mapping for an OpenShift provider.
+
+        Args:
+            infrastructure_type (str): The provider type this cluster is installed on.
+                Ex. AWS, AZURE, GCP
+            infrastructure_provider_uuid (str): The UUID of the provider this cluster
+                is installed on.
+
+        Returns:
+            None
+
+        """
+        mapping, _ = ProviderInfrastructureMap.objects.get_or_create(
+            infrastructure_provider_id=infrastructure_provider_uuid,
+            infrastructure_type=infrastructure_type
+        )
+
+        self.provider.infrastructure = mapping
+        self.provider.save()
+
+    def get_associated_openshift_providers(self):
+        """Return a list of OpenShift clusters associated with the cloud provider."""
+        associated_openshift_providers = []
+
+        mapping = ProviderInfrastructureMap.objects.filter(
+            infrastructure_provider_id=self.provider.uuid
+        ).first()
+
+        if mapping:
+            associated_openshift_providers = Provider.objects.filter(
+                infrastructure=mapping
+            ).all()
+
+        return associated_openshift_providers

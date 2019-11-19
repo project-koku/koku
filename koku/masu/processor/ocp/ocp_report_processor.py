@@ -26,16 +26,12 @@ import json
 import logging
 from datetime import datetime
 from enum import Enum
-from os import path
-
-from dateutil import parser
+from os import path, remove
 
 from masu.config import Config
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
-from masu.util.common import clear_temp_directory
-from masu.util.ocp.common import month_date_range
 from reporting.provider.ocp.models import OCPStorageLineItem, OCPUsageLineItem, OCPUsageReport, OCPUsageReportPeriod
 
 LOG = logging.getLogger(__name__)
@@ -131,32 +127,8 @@ class OCPReportProcessor():
         return self._processor.process()
 
     def remove_temp_cur_files(self, report_path):
-        """Remove temporary report files."""
-        LOG.info('Cleaning up temporary report files for %s', report_path)
-
-        manifest_path = '{}/{}'.format(report_path, 'manifest.json')
-        current_assembly_id = None
-        cluster_id = None
-        payload_date = None
-        month_range = None
-        with open(manifest_path, 'r') as manifest_file_handle:
-            manifest_json = json.load(manifest_file_handle)
-            current_assembly_id = manifest_json.get('uuid')
-            cluster_id = manifest_json.get('cluster_id')
-            payload_date = manifest_json.get('date')
-            if payload_date:
-                month_range = month_date_range(parser.parse(payload_date))
-
-        removed_files = []
-        if current_assembly_id:
-            removed_files = clear_temp_directory(report_path, current_assembly_id)
-
-        if current_assembly_id and cluster_id and month_range:
-            insights_local_path = '{}/{}/{}'.format(Config.INSIGHTS_LOCAL_REPORT_DIR,
-                                                    cluster_id, month_range)
-            clear_temp_directory(insights_local_path, current_assembly_id)
-
-        return removed_files
+        """Process temporary files."""
+        return self._processor.remove_temp_cur_files(report_path)
 
 
 class OCPReportProcessorBase(ReportProcessorBase):
@@ -182,7 +154,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
         with ReportingCommonDBAccessor() as report_common_db:
             self.column_map = report_common_db.column_map
 
-        with OCPReportDBAccessor(self._schema_name, self.column_map) as report_db:
+        with OCPReportDBAccessor(self._schema, self.column_map) as report_db:
             self.existing_report_periods_map = report_db.get_report_periods()
             self.existing_report_map = report_db.get_reports()
 
@@ -306,7 +278,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
         row_count = 0
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode) as f:
-            with OCPReportDBAccessor(self._schema_name, self.column_map) as report_db:
+            with OCPReportDBAccessor(self._schema, self.column_map) as report_db:
                 temp_table = report_db.create_temp_table(
                     self.table_name._meta.db_table,
                     drop_column='id'
@@ -348,7 +320,10 @@ class OCPReportProcessorBase(ReportProcessorBase):
                     row_count += len(self.processed_report.line_items)
 
         LOG.info('Completed report processing for file: %s and schema: %s',
-                 self._report_path, self._schema_name)
+                 self._report_path, self._schema)
+
+        LOG.info('Removing processed file: %s', self._report_path)
+        remove(self._report_path)
 
 
 class OCPCpuMemReportProcessor(OCPReportProcessorBase):
@@ -373,7 +348,7 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
         self.table_name = OCPUsageLineItem()
         stmt = (
             f'Initialized report processor for:\n'
-            f' schema_name: {self._schema_name}\n'
+            f' schema_name: {self._schema}\n'
             f' provider_uuid: {provider_uuid}\n'
             f' file: {self._report_path}'
         )
@@ -448,7 +423,7 @@ class OCPStorageProcessor(OCPReportProcessorBase):
         self.table_name = OCPStorageLineItem()
         stmt = (
             f'Initialized report processor for:\n'
-            f' schema_name: {self._schema_name}\n'
+            f' schema_name: {self._schema}\n'
             f' provider_uuid: {provider_uuid}\n'
             f' file: {self._report_path}'
         )

@@ -447,6 +447,9 @@ docker-iqe-smokes-tests:
 docker-iqe-api-tests:
 	./testing/run_api_tests.sh
 
+docker-iqe-vortex-tests:
+	./testing/run_vortex_api_tests.sh
+
 ########################
 ### Internal targets ###
 ########################

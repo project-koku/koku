@@ -16,7 +16,6 @@
 #
 """Test the Provider views."""
 import json
-import logging
 from unittest.mock import patch
 
 from dateutil import parser
@@ -30,6 +29,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider, ProviderAuthentication, ProviderBillingSource, Sources
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
+from api.report.test.azure.openshift.helpers import OCPAzureReportDataGenerator
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from cost_models.cost_model_manager import CostModelManager
@@ -155,8 +155,7 @@ class ProviderManagerTest(IamTestCase):
         with self.assertRaises(ProviderManagerError):
             ProviderManager(uuid='abc')
 
-    @patch('api.provider.provider_manager.ProviderManager._delete_report_data')
-    def test_remove_aws(self, mock_delete_report):
+    def test_remove_aws(self):
         """Remove aws provider."""
         # Create Provider
         provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='arn:aws:iam::2:role/mg')
@@ -187,8 +186,7 @@ class ProviderManagerTest(IamTestCase):
         self.assertEqual(auth_count, 0)
         self.assertEqual(billing_count, 0)
 
-    @patch('api.provider.provider_manager.ProviderManager._delete_report_data')
-    def test_remove_aws_auth_billing_remain(self, mock_delete_report):
+    def test_remove_aws_auth_billing_remain(self):
         """Remove aws provider."""
         # Create Provider
         provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='arn:aws:iam::2:role/mg')
@@ -228,8 +226,7 @@ class ProviderManagerTest(IamTestCase):
         self.assertEqual(auth_count, 1)
         self.assertEqual(billing_count, 1)
 
-    @patch('api.provider.provider_manager.ProviderManager._delete_report_data')
-    def test_remove_ocp(self, mock_delete_report):
+    def test_remove_ocp(self):
         """Remove ocp provider."""
         # Create Provider
         provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
@@ -273,8 +270,7 @@ class ProviderManagerTest(IamTestCase):
         provider_query = Provider.objects.all().filter(uuid=provider_uuid)
         self.assertFalse(provider_query)
 
-    @patch('api.provider.provider_manager.ProviderManager._delete_report_data')
-    def test_remove_ocp_added_via_sources(self, mock_delete_report):
+    def test_remove_ocp_added_via_sources(self):
         """Remove ocp provider added via sources."""
         # Create Provider
         provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
@@ -296,8 +292,7 @@ class ProviderManagerTest(IamTestCase):
         provider_query = Provider.objects.all().filter(uuid=provider_uuid)
         self.assertFalse(provider_query)
 
-    @patch('api.provider.provider_manager.ProviderManager._delete_report_data')
-    def test_direct_remove_ocp_added_via_sources(self, mock_delete_report):
+    def test_direct_remove_ocp_added_via_sources(self):
         """Remove ocp provider added via sources directly."""
         # Create Provider
         provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
@@ -317,33 +312,6 @@ class ProviderManagerTest(IamTestCase):
             manager = ProviderManager(provider_uuid)
             with self.assertRaises(ProviderManagerError):
                 manager.remove(delete_request)
-
-    @patch('api.provider.provider_manager.requests.delete')
-    def test_delete_report_data(self, mock_delete):
-        """Test that the masu API call returns a response."""
-        logging.disable(logging.NOTSET)
-
-        response = MockResponse(200, '{"Response": "OK"}')
-        mock_delete.return_value = response
-        expected_message = f'INFO:api.provider.provider_manager:Response: {response.json()}'
-
-        provider_authentication = ProviderAuthentication.objects.create(
-            provider_resource_name='arn:aws:iam::2:role/mg'
-        )
-        provider_billing = ProviderBillingSource.objects.create(
-            bucket='my_s3_bucket'
-        )
-        provider = Provider.objects.create(name='awsprovidername',
-                                           created_by=self.user,
-                                           customer=self.customer,
-                                           authentication=provider_authentication,
-                                           billing_source=provider_billing)
-        provider_uuid = provider.uuid
-        manager = ProviderManager(provider_uuid)
-
-        with self.assertLogs('api.provider.provider_manager', level='INFO') as logger:
-            manager._delete_report_data()
-            self.assertIn(expected_message, logger.output)
 
     def test_update_ocp_added_via_sources(self):
         """Raise error on update to ocp provider added via sources."""
@@ -486,6 +454,25 @@ class ProviderManagerTest(IamTestCase):
         manager = ProviderManager(provider_uuid)
         infrastructure_name = manager.get_infrastructure_name(self.tenant)
         self.assertEqual(infrastructure_name, 'AWS')
+
+        data_generator.remove_data_from_tenant()
+
+    def test_ocp_on_azure_infrastructure_type(self):
+        """Test that the provider infrastructure returns Azure when running on Azure."""
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1002')
+        provider = Provider.objects.create(name='ocpprovidername',
+                                           type='AZURE',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,)
+        data_generator = OCPAzureReportDataGenerator(self.tenant, provider, current_month_only=True)
+        data_generator.add_data_to_tenant()
+        data_generator.create_ocp_provider(data_generator.cluster_id, data_generator.cluster_alias)
+
+        provider_uuid = data_generator.provider_uuid
+        manager = ProviderManager(provider_uuid)
+        infrastructure_name = manager.get_infrastructure_name(self.tenant)
+        self.assertEqual(infrastructure_name, 'AZURE')
 
         data_generator.remove_data_from_tenant()
 

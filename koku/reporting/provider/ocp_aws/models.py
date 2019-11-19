@@ -62,6 +62,10 @@ class OCPAWSCostLineItemDailySummary(models.Model):
         ]
 
     # OCP Fields
+    report_period = models.ForeignKey(
+        'OCPUsageReportPeriod', on_delete=models.CASCADE, null=True
+    )
+
     cluster_id = models.CharField(max_length=50, null=True)
 
     cluster_alias = models.CharField(max_length=256, null=True)
@@ -116,10 +120,10 @@ class OCPAWSCostLineItemDailySummary(models.Model):
     # with a GROUP BY cluster/node.
     # Project cost is a summation of pod costs with a GROUP BY project
     # The cost of un-utilized resources = sum(unblended_cost) - sum(project_cost)
-    unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
+    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15,
                                          null=True)
 
-    markup_cost = models.DecimalField(max_digits=17, decimal_places=9,
+    markup_cost = models.DecimalField(max_digits=30, decimal_places=15,
                                       null=True)
 
     # This is a count of the number of projects that share an AWS resource
@@ -171,6 +175,10 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
         ]
 
     # OCP Fields
+    report_period = models.ForeignKey(
+        'OCPUsageReportPeriod', on_delete=models.CASCADE, null=True
+    )
+
     cluster_id = models.CharField(max_length=50, null=True)
 
     cluster_alias = models.CharField(max_length=256, null=True)
@@ -216,24 +224,26 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
 
     unit = models.CharField(max_length=63, null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9,
+    # Need more precision on calculated fields, otherwise there will be
+    # Rounding errors
+    usage_amount = models.DecimalField(max_digits=30, decimal_places=15,
                                        null=True)
 
     normalized_usage_amount = models.FloatField(null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
+    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15,
                                          null=True)
 
     project_markup_cost = models.DecimalField(
-        max_digits=17,
-        decimal_places=9,
+        max_digits=30,
+        decimal_places=15,
         null=True
     )
 
     pod_cost = models.DecimalField(
-        max_digits=24,
-        decimal_places=6,
+        max_digits=30,
+        decimal_places=15,
         null=True
     )

@@ -23,6 +23,7 @@ from rest_framework import serializers
 from tenant_schemas.utils import tenant_context
 
 from api.provider.models import Provider
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
 from ..provider_interface import ProviderInterface
 
@@ -46,7 +47,7 @@ class OCPProviderError(Exception):
 
 
 class OCPProvider(ProviderInterface):
-    """Provider interface defnition."""
+    """Provider interface definition."""
 
     def name(self):
         """Return name of the provider."""
@@ -70,14 +71,17 @@ class OCPProvider(ProviderInterface):
                   cluster_id)
         LOG.info(message)
 
+        return True
+
     def _is_on_aws(self, tenant, resource_name):
         """Determine if provider is running on AWS."""
         clusters = self._aws_clusters(tenant)
-        for cluster_id in clusters:
-            if resource_name == cluster_id:
-                return True
+        return resource_name in clusters
 
-        return False
+    def _is_on_azure(self, tenant, resource_name):
+        """Determine if provider is running on Azure."""
+        clusters = self._azure_clusters(tenant)
+        return resource_name in clusters
 
     def infra_type_implementation(self, provider_uuid, tenant):
         """Return infrastructure type."""
@@ -89,6 +93,8 @@ class OCPProvider(ProviderInterface):
 
         if self._is_on_aws(tenant, resource_name):
             return Provider.PROVIDER_AWS
+        if self._is_on_azure(tenant, resource_name):
+            return Provider.PROVIDER_AZURE
 
         return None
 
@@ -99,9 +105,18 @@ class OCPProvider(ProviderInterface):
             clusters = list(objects.distinct())
         return clusters
 
+    def _azure_clusters(self, tenant):
+        """Return a list of OCP clusters running on Azure."""
+        with tenant_context(tenant):
+            objects = OCPAzureCostLineItemDailySummary.objects.values_list('cluster_id', flat=True)
+            clusters = list(objects.distinct())
+        return clusters
+
     def infra_key_list_implementation(self, infrastructure_type, schema_name):
         """Return a list of cluster ids on the given infrastructure type."""
         clusters = []
         if infrastructure_type == Provider.PROVIDER_AWS:
             clusters = self._aws_clusters(schema_name)
+        if infrastructure_type == Provider.PROVIDER_AZURE:
+            clusters = self._azure_clusters(schema_name)
         return clusters

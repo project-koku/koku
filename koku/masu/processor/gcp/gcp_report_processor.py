@@ -3,6 +3,7 @@ import logging
 from collections import OrderedDict
 from datetime import datetime
 from numbers import Number
+from os import remove
 
 import pandas
 import pytz
@@ -63,14 +64,14 @@ class GCPReportProcessor(ReportProcessorBase):
         self._report_name = report_path
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
 
-        self._schema_name = schema_name
+        self._schema = schema_name
 
         # Gather database accessors
         with ReportingCommonDBAccessor() as report_common_db:
             self.column_map = report_common_db.column_map
 
         LOG.info('Initialized report processor for file: %s and schema: %s',
-                 report_path, self._schema_name)
+                 report_path, self._schema)
 
         self.line_item_columns = None
 
@@ -202,7 +203,7 @@ class GCPReportProcessor(ReportProcessorBase):
         report_csv = pandas.read_csv(self._report_path, chunksize=self._batch_size,
                                      compression='infer')
 
-        with GCPReportDBAccessor(self._schema_name, self.column_map) as report_db:
+        with GCPReportDBAccessor(self._schema, self.column_map) as report_db:
 
             for chunk in report_csv:
 
@@ -247,4 +248,7 @@ class GCPReportProcessor(ReportProcessorBase):
                 self.processed_report.remove_processed_rows()
 
             LOG.info('Completed report processing for file: %s and schema: %s',
-                     self._report_name, self._schema_name)
+                     self._report_name, self._schema)
+
+            LOG.info('Removing processed file: %s', self._report_path)
+            remove(self._report_path)

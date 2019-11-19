@@ -48,18 +48,21 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     empty_manifest = {'reportKeys': []}
 
-    def __init__(self, customer_name, auth_credential, bucket, report_name=None, **kwargs):
+    # Disabling this linter until we can refactor
+    # pylint: disable=too-many-arguments
+    def __init__(self, task, customer_name, auth_credential, bucket, report_name=None, **kwargs):
         """
-        Initializer.
+        Constructor.
 
         Args:
+            task             (Object) bound celery object
             customer_name    (String) Name of the customer
             auth_credential  (String) Authentication credential for S3 bucket (RoleARN)
             report_name      (String) Name of the Cost Usage Report to download (optional)
             bucket           (String) Name of the S3 bucket containing the CUR
 
         """
-        super().__init__(**kwargs)
+        super().__init__(task, **kwargs)
 
         self.customer_name = customer_name.replace(' ', '_')
 
@@ -132,13 +135,23 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             manifest_file, _ = self.download_file(manifest)
         except AWSReportDownloaderNoFileError as err:
             LOG.error('Unable to get report manifest. Reason: %s', str(err))
-            return self.empty_manifest
+            return '', self.empty_manifest
 
         manifest_json = None
         with open(manifest_file, 'r') as manifest_file_handle:
             manifest_json = json.load(manifest_file_handle)
 
-        return manifest_json
+        return manifest_file, manifest_json
+
+    def _remove_manifest_file(self, manifest_file):
+        """Clean up the manifest file after extracting information."""
+        try:
+            os.remove(manifest_file)
+            LOG.info('Deleted manifest file at %s', manifest_file)
+        except OSError:
+            LOG.error('Could not delete manifest file at %s', manifest_file)
+
+        return None
 
     def _get_report_path(self, date_time):
         """
@@ -204,10 +217,12 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         report_dict = {}
-        manifest = self._get_manifest(date_time)
+        manifest_file, manifest = self._get_manifest(date_time)
         manifest_id = None
         if manifest != self.empty_manifest:
             manifest_id = self._prepare_db_manifest_record(manifest)
+
+        self._remove_manifest_file(manifest_file)
 
         report_dict['manifest_id'] = manifest_id
         report_dict['assembly_id'] = manifest.get('assemblyId')

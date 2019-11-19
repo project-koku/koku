@@ -20,19 +20,22 @@
 # disabled module-wide due to current state of task signature.
 # we expect this situation to be temporary as we iterate on these details.
 import calendar
-import collections
+import math
 import uuid
 from datetime import date
 
+import boto3
 from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer, SyncedFileInColdStorageError
 from koku.celery import app
+from masu.celery.export import table_export_settings
 from masu.external.date_accessor import DateAccessor
 from masu.processor.orchestrator import Orchestrator
 from masu.util.upload import query_and_upload_to_s3
@@ -56,159 +59,6 @@ def remove_expired_data():
     orchestrator.remove_expired_report_data()
 
 
-TableExportSetting = collections.namedtuple(
-    'TableExportSetting', ['provider', 'output_name', 'iterate_daily', 'sql']
-)
-TableExportSetting.__doc__ = """\
-Settings for exporting table data using a custom SQL query.
-
-- provider (str): the provider service's name (e.g. "aws", "azure", "ocp")
-- output_name (str): a name to use when saving the query's results
-- iterate_daily (bool): if True, the query should be run once per day over a date range
-- sql (str): raw SQL query to execute to gather table data
-"""
-
-table_export_settings = [
-    TableExportSetting(
-        'aws',
-        'reporting_awscostentrylineitem',
-        False,
-        """
-        SELECT * FROM {schema}.reporting_awscostentrylineitem
-        LEFT OUTER JOIN {schema}.reporting_awscostentrybill
-            ON (reporting_awscostentrylineitem.cost_entry_bill_id = reporting_awscostentrybill.id)
-        LEFT OUTER JOIN {schema}.reporting_awscostentry
-            ON (reporting_awscostentrylineitem.cost_entry_id = reporting_awscostentry.id)
-        LEFT OUTER JOIN {schema}.reporting_awscostentryproduct
-            ON (reporting_awscostentrylineitem.cost_entry_product_id = reporting_awscostentryproduct.id)
-        LEFT OUTER JOIN {schema}.reporting_awscostentryreservation
-            ON (reporting_awscostentrylineitem.cost_entry_reservation_id = reporting_awscostentryreservation.id)
-        LEFT OUTER JOIN {schema}.reporting_awscostentrypricing
-            ON (reporting_awscostentrylineitem.cost_entry_pricing_id = reporting_awscostentrypricing.id)
-        WHERE reporting_awscostentry.interval_start BETWEEN %(start_date)s AND %(end_date)s
-        OR reporting_awscostentry.interval_end BETWEEN %(start_date)s AND %(end_date)s;
-        """,
-    ),
-    TableExportSetting(
-        'ocp',
-        'reporting_ocpusagelineitem',
-        False,
-        """
-        SELECT * FROM {schema}.reporting_ocpusagelineitem
-        LEFT OUTER JOIN {schema}.reporting_ocpusagereport
-            ON (reporting_ocpusagelineitem.report_id = reporting_ocpusagereport.id)
-        LEFT OUTER JOIN {schema}.reporting_ocpusagereportperiod
-            ON (reporting_ocpusagelineitem.report_period_id = reporting_ocpusagereportperiod.id)
-        WHERE reporting_ocpusagereport.interval_start BETWEEN %(start_date)s AND %(end_date)s
-        OR reporting_ocpusagereport.interval_end BETWEEN %(start_date)s AND %(end_date)s;
-        """,
-    ),
-    TableExportSetting(
-        'ocp',
-        'reporting_ocpstoragelineitem',
-        False,
-        """
-        SELECT * FROM {schema}.reporting_ocpstoragelineitem
-        LEFT OUTER JOIN {schema}.reporting_ocpusagereport
-            ON (reporting_ocpstoragelineitem.report_id = reporting_ocpusagereport.id)
-        LEFT OUTER JOIN {schema}.reporting_ocpusagereportperiod
-            ON (reporting_ocpstoragelineitem.report_period_id = reporting_ocpusagereportperiod.id)
-        WHERE reporting_ocpusagereport.interval_start BETWEEN %(start_date)s AND %(end_date)s
-        OR reporting_ocpusagereport.interval_end BETWEEN %(start_date)s AND %(end_date)s;
-        """,
-    ),
-    TableExportSetting(
-        'azure',
-        'reporting_azurecostentrylineitem_daily',
-        False,
-        """
-        SELECT * FROM {schema}.reporting_azurecostentrylineitem_daily
-        LEFT OUTER JOIN {schema}.reporting_azurecostentrybill
-            ON (reporting_azurecostentrylineitem_daily.cost_entry_bill_id = reporting_azurecostentrybill.id)
-        LEFT OUTER JOIN {schema}.reporting_azurecostentryproductservice
-            ON (reporting_azurecostentrylineitem_daily.cost_entry_product_id
-                = reporting_azurecostentryproductservice.id)
-        LEFT OUTER JOIN {schema}.reporting_azuremeter
-            ON (reporting_azurecostentrylineitem_daily.meter_id = reporting_azuremeter.id)
-        WHERE reporting_azurecostentrybill.billing_period_start BETWEEN %(start_date)s AND %(end_date)s
-        OR reporting_azurecostentrybill.billing_period_end BETWEEN %(start_date)s AND %(end_date)s;
-        """,
-    ),
-    TableExportSetting(
-        'aws',
-        'reporting_awscostentrylineitem_daily_summary',
-        True,
-        """
-        SELECT ds.*, aa.account_id, aa.account_alias, b.*
-        FROM
-            {schema}.reporting_awscostentrylineitem_daily_summary ds
-            JOIN {schema}.reporting_awscostentrybill b ON b.id = ds.cost_entry_bill_id
-            LEFT JOIN {schema}.reporting_awsaccountalias aa ON aa.id = ds.account_alias_id
-            -- LEFT JOIN because sometimes this doesn't exist, but it's unclear why.
-            -- It seems that "real" data has it, but fake data from AWS-local+nise does not.
-        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
-            -- No need to filter usage_end because usage_end should always match usage_start for this table.
-        """,
-    ),
-    TableExportSetting(
-        'azure',
-        'reporting_azurecostentrylineitem_daily_summary',
-        True,
-        """
-        SELECT ds.*, b.*, m.*
-        FROM
-            {schema}.reporting_azurecostentrylineitem_daily_summary ds
-            JOIN {schema}.reporting_azurecostentrybill b ON b.id = ds.cost_entry_bill_id
-            JOIN {schema}.reporting_azuremeter m ON m.id = ds.meter_id
-        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
-        """,
-    ),
-    TableExportSetting(
-        'ocp',
-        'reporting_ocpawscostlineitem_daily_summary',
-        True,
-        """
-        SELECT ds.*, aa.account_id, aa.account_alias, b.*
-        FROM
-            {schema}.reporting_ocpawscostlineitem_daily_summary ds
-            JOIN {schema}.reporting_awscostentrybill b ON b.id = ds.account_alias_id
-            LEFT JOIN {schema}.reporting_awsaccountalias aa ON aa.id = ds.account_alias_id
-            -- LEFT JOIN because sometimes this doesn't exist, but it's unclear why.
-            -- It seems that "real" data has it, but fake data from AWS-local+nise does not.
-        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
-            -- No need to filter usage_end because usage_end should always match usage_start for this table.
-        """,
-    ),
-    TableExportSetting(
-        'ocp',
-        'reporting_ocpawscostlineitem_project_daily_summary',
-        True,
-        """
-        SELECT ds.*, aa.account_id, aa.account_alias, b.*
-        FROM
-            {schema}.reporting_ocpawscostlineitem_project_daily_summary ds
-            JOIN {schema}.reporting_awscostentrybill b ON b.id = ds.account_alias_id
-            LEFT JOIN {schema}.reporting_awsaccountalias aa ON aa.id = ds.account_alias_id
-            -- LEFT JOIN because sometimes this doesn't exist, but it's unclear why.
-            -- It seems that "real" data has it, but fake data from AWS-local+nise does not.
-        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
-            -- No need to filter usage_end because usage_end should always match usage_start for this table.
-        """,
-    ),
-    TableExportSetting(
-        'ocp',
-        'reporting_ocpusagelineitem_daily_summary',
-        True,
-        """
-        SELECT ds.*
-        FROM {schema}.reporting_ocpusagelineitem_daily_summary ds
-        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
-            -- No need to filter usage_end because usage_end should always match usage_start for this table.
-        """,
-    ),
-]
-
-
 @app.task(name='masu.celery.tasks.upload_normalized_data', queue_name='upload')
 def upload_normalized_data():
     """Scheduled task to export normalized data to s3."""
@@ -227,17 +77,108 @@ def upload_normalized_data():
 
     accounts, _ = Orchestrator.get_accounts()
 
-    # Deduplicate schema_name since accounts may have the same schema_name but different providers
-    schemas = set(account['schema_name'] for account in accounts)
-    for schema in schemas:
-        LOG.info('%s processing schema %s', log_uuid, schema)
+    for account in accounts:
+        LOG.info(
+            '%s processing schema %s provider uuid %s',
+            log_uuid,
+            account['schema_name'],
+            account['provider_uuid'],
+        )
         for table in table_export_settings:
             # Upload this month's reports
-            query_and_upload_to_s3(schema, table, (curr_month_first_day, curr_month_last_day))
+            query_and_upload_to_s3(
+                account['schema_name'],
+                account['provider_uuid'],
+                table,
+                (curr_month_first_day, curr_month_last_day),
+            )
 
             # Upload last month's reports
-            query_and_upload_to_s3(schema, table, (prev_month_first_day, prev_month_last_day))
+            query_and_upload_to_s3(
+                account['schema_name'],
+                account['provider_uuid'],
+                table,
+                (prev_month_first_day, prev_month_last_day),
+            )
     LOG.info('%s Completed upload_normalized_data', log_uuid)
+
+
+@app.task(
+    name='masu.celery.tasks.delete_archived_data',
+    queue_name='delete_archived_data',
+    autoretry_for=(ClientError,),
+    max_retries=10,
+    retry_backoff=10,
+)
+def delete_archived_data(schema_name, provider_type, provider_uuid):
+    """
+    Delete archived data from our S3 bucket for a given provider.
+
+    This function chiefly follows the deletion of a provider.
+
+    This task is defined to attempt up to 10 retries using exponential backoff
+    starting with a 10-second delay. This is intended to allow graceful handling
+    of temporary AWS S3 connectivity issues because it is relatively important
+    for us to delete this archived data.
+
+    Args:
+        schema_name (str): Koku user account (schema) name.
+        provider_type (str): Koku backend provider type identifier.
+        provider_uuid (UUID): Koku backend provider UUID.
+
+    """
+    if not schema_name or not provider_type or not provider_uuid:
+        # Sanity-check all of these inputs in case somehow any receives an
+        # empty value such as None or '' because we need to minimize the risk
+        # of deleting unrelated files from our S3 bucket.
+        messages = []
+        if not schema_name:
+            message = 'missing required argument: schema_name'
+            LOG.error(message)
+            messages.append(message)
+        if not provider_type:
+            message = 'missing required argument: provider_type'
+            LOG.error(message)
+            messages.append(message)
+        if not provider_uuid:
+            message = 'missing required argument: provider_uuid'
+            LOG.error(message)
+            messages.append(message)
+        raise TypeError('delete_archived_data() %s', ', '.join(messages))
+
+    if not settings.ENABLE_S3_ARCHIVING:
+        LOG.info('Skipping delete_archived_data; upload feature is disabled')
+        return
+
+    if not settings.S3_BUCKET_PATH:
+        message = 'settings.S3_BUCKET_PATH must have a not-empty value'
+        LOG.error(message)
+        raise ImproperlyConfigured(message)
+
+    # We need to normalize capitalization and "-local" dev providers.
+    provider_slug = provider_type.lower().split('-')[0]
+    prefix = f'{settings.S3_BUCKET_PATH}/{schema_name}/{provider_slug}/{provider_uuid}/'
+    LOG.info('attempting to delete our archived data in S3 under %s', prefix)
+
+    s3_resource = boto3.resource('s3', settings.S3_REGION)
+    s3_bucket = s3_resource.Bucket(settings.S3_BUCKET_NAME)
+    object_keys = [
+        {'Key': s3_object.key} for s3_object in s3_bucket.objects.filter(Prefix=prefix)
+    ]
+    batch_size = 1000  # AWS S3 delete API limits to 1000 objects per request.
+    for batch_number in range(math.ceil(len(object_keys) / batch_size)):
+        batch_start = batch_size * batch_number
+        batch_end = batch_start + batch_size
+        object_keys_batch = object_keys[batch_start:batch_end]
+        s3_bucket.delete_objects(Delete={'Objects': object_keys_batch})
+
+    remaining_objects = list(s3_bucket.objects.filter(Prefix=prefix))
+    if remaining_objects:
+        LOG.warning(
+            'Found %s objects after attempting to delete all objects with prefix %s',
+            len(remaining_objects),
+            prefix,
+        )
 
 
 @app.task(name='masu.celery.tasks.sync_data_to_customer',

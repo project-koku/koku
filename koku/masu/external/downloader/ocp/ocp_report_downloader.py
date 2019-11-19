@@ -37,18 +37,21 @@ LOG = logging.getLogger(__name__)
 class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """OCP Cost and Usage Report Downloader."""
 
-    def __init__(self, customer_name, auth_credential, bucket, report_name=None, **kwargs):
+    # Disabling this linter until we can refactor
+    # pylint: disable=too-many-arguments
+    def __init__(self, task, customer_name, auth_credential, bucket, report_name=None, **kwargs):
         """
         Initializer.
 
         Args:
+            task             (Object) bound celery object
             customer_name    (String) Name of the customer
             auth_credential  (String) OpenShift cluster ID
             report_name      (String) Name of the Cost Usage Report to download (optional)
             bucket           (String) Not used for OCP
 
         """
-        super().__init__(**kwargs)
+        super().__init__(task, **kwargs)
 
         LOG.debug('Connecting to OCP service provider...')
 
@@ -65,9 +68,23 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         report_meta = utils.get_report_details(directory)
         return report_meta
 
+    def _remove_manifest_file(self, date_time):
+        """Clean up the manifest file after extracting information."""
+        dates = utils.month_date_range(date_time)
+        directory = '{}/{}/{}'.format(REPORTS_DIR, self.cluster_id, dates)
+
+        manifest_path = '{}/{}'.format(directory, 'manifest.json')
+        try:
+            os.remove(manifest_path)
+            LOG.info('Deleted manifest file at %s', directory)
+        except OSError:
+            LOG.error('Could not delete manifest file at %s', directory)
+
+        return None
+
     def get_report_for(self, date_time):
         """
-        Get OCP usage report files cooresponding to a date.
+        Get OCP usage report files corresponding to a date.
 
         Args:
             date_time (DateTime): Start date of the usage report.
@@ -110,12 +127,9 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         local_filename = utils.get_local_file_name(key)
-        manifest_filename = 'manifest.json'
-        source_manifest_path = f'{os.path.dirname(key)}/{manifest_filename}'
 
         directory_path = f'{DATA_DIR}/{self.customer_name}/ocp/{self.cluster_id}'
         full_file_path = f'{directory_path}/{local_filename}'
-        full_manfiest_path = f'{directory_path}/{manifest_filename}'
 
         # Make sure the data directory exists
         os.makedirs(directory_path, exist_ok=True)
@@ -125,8 +139,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         if ocp_etag != stored_etag or not os.path.isfile(full_file_path):
             LOG.info('Downloading %s to %s', key, full_file_path)
-            shutil.copy2(key, full_file_path)
-            shutil.copy2(source_manifest_path, full_manfiest_path)
+            shutil.move(key, full_file_path)
         return full_file_path, ocp_etag
 
     def get_report_context_for_date(self, date_time):
@@ -154,6 +167,9 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         report_dict['assembly_id'] = manifest.get('uuid')
         report_dict['compression'] = UNCOMPRESSED
         report_dict['files'] = self.get_report_for(date_time)
+        # Remove the manifest file now that we have saved the info
+        # in the database.
+        self._remove_manifest_file(date_time)
         return report_dict
 
     def get_local_file_for_report(self, report):

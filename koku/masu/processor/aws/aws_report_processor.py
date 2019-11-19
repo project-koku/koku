@@ -20,7 +20,7 @@
 import csv
 import json
 import logging
-from os import path
+from os import path, remove
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
@@ -96,7 +96,7 @@ class AWSReportProcessor(ReportProcessorBase):
         with ReportingCommonDBAccessor() as report_common_db:
             self.column_map = report_common_db.column_map
 
-        with AWSReportDBAccessor(self._schema_name, self.column_map) as report_db:
+        with AWSReportDBAccessor(self._schema, self.column_map) as report_db:
             self.report_schema = report_db.report_schema
             self.existing_bill_map = report_db.get_cost_entry_bills()
             self.existing_cost_entry_map = report_db.get_cost_entries()
@@ -108,7 +108,7 @@ class AWSReportProcessor(ReportProcessorBase):
 
         stmt = (
             f'Initialized report processor for:\n'
-            f' schema_name: {self._schema_name}\n'
+            f' schema_name: {self._schema}\n'
             f' provider_uuid: {provider_uuid}\n'
             f' file: {self._report_name}'
         )
@@ -122,15 +122,27 @@ class AWSReportProcessor(ReportProcessorBase):
 
         """
         row_count = 0
-        self._delete_line_items(AWSReportDBAccessor, self.column_map)
         opener, mode = self._get_file_opener(self._compression)
         is_finalized_data = self._check_for_finalized_bill()
+        is_full_month = self._should_process_full_month()
+        self._delete_line_items(
+            AWSReportDBAccessor,
+            self.column_map,
+            is_finalized=is_finalized_data
+        )
+        opener, mode = self._get_file_opener(self._compression)
         # pylint: disable=invalid-name
         with opener(self._report_path, mode) as f:
-            with AWSReportDBAccessor(self._schema_name, self.column_map) as report_db:
+            with AWSReportDBAccessor(self._schema, self.column_map) as report_db:
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
+                    # If this isn't an initial load and it isn't finalized data
+                    # we should only process recent data.
+                    if not self._should_process_row(row, 'lineItem/UsageStartDate',
+                                                    is_full_month,
+                                                    is_finalized=is_finalized_data):
+                        continue
                     bill_id = self.create_cost_entry_objects(row, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:
                         LOG.debug('Saving report rows %d to %d for %s', row_count,
@@ -156,7 +168,10 @@ class AWSReportProcessor(ReportProcessorBase):
                 report_db.commit()
 
         LOG.info('Completed report processing for file: %s and schema: %s',
-                 self._report_name, self._schema_name)
+                 self._report_name, self._schema)
+
+        LOG.info('Removing processed file: %s', self._report_path)
+        remove(self._report_path)
 
         return is_finalized_data
 

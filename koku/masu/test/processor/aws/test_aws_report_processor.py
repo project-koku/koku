@@ -16,34 +16,31 @@
 #
 
 """Test the AWSReportProcessor."""
-from collections import defaultdict
 import csv
 import copy
 import datetime
-from decimal import Decimal
 import gzip
-from itertools import islice
 import json
 import logging
+import os
 import random
 import shutil
 import tempfile
-import psycopg2
+from unittest.mock import Mock, patch
 
+from dateutil.relativedelta import relativedelta
+from django.db.models import Max
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
-from masu.test.database.helpers import ReportObjectCreator
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_processor import AWSReportProcessor, ProcessedReport
-import masu.util.common as common_util
 from masu.test import MasuTestCase
 
 
@@ -78,9 +75,8 @@ class AWSReportProcessorTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        cls.test_report = './koku/masu/test/data/test_cur.csv'
-        cls.test_report_gzip = './koku/masu/test/data/test_cur.csv.gz'
-
+        cls.test_report_test_path = './koku/masu/test/data/test_cur.csv'
+        cls.test_report_gzip_test_path = './koku/masu/test/data/test_cur.csv.gz'
 
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
@@ -94,12 +90,19 @@ class AWSReportProcessorTest(MasuTestCase):
         _report_tables.pop('tags_summary', None)
         cls.report_tables = list(_report_tables.values())
         # Grab a single row of test data to work with
-        with open(cls.test_report, 'r') as f:
+        with open(cls.test_report_test_path, 'r') as f:
             reader = csv.DictReader(f)
             cls.row = next(reader)
 
     def setUp(self):
         super().setUp()
+
+        self.temp_dir = tempfile.mkdtemp()
+        self.test_report = f'{self.temp_dir}/test_cur.csv'
+        self.test_report_gzip = f'{self.temp_dir}/test_cur.csv.gz'
+
+        shutil.copy2(self.test_report_test_path, self.test_report)
+        shutil.copy2(self.test_report_gzip_test_path, self.test_report_gzip)
 
         self.processor = AWSReportProcessor(
             schema_name=self.schema,
@@ -128,12 +131,14 @@ class AWSReportProcessorTest(MasuTestCase):
         """Return the database to a pre-test state."""
         super().tearDown()
 
+        shutil.rmtree(self.temp_dir)
+
         self.processor.processed_report.remove_processed_rows()
         self.processor.line_item_columns = None
 
     def test_initializer(self):
         """Test initializer."""
-        self.assertIsNotNone(self.processor._schema_name)
+        self.assertIsNotNone(self.processor._schema)
         self.assertIsNotNone(self.processor._report_path)
         self.assertIsNotNone(self.processor._report_name)
         self.assertIsNotNone(self.processor._compression)
@@ -173,11 +178,13 @@ class AWSReportProcessorTest(MasuTestCase):
             counts[table_name] = count
 
         bill_date = self.manifest.billing_period_start_datetime.date()
+
         expected = (
-            f'INFO:masu.processor.report_processor_base:Deleting data for:\n'
-            f' schema_name: acct10001\n'
-            f' provider_uuid: {self.aws_provider_uuid}\n'
-            f' bill date: {bill_date}'
+            f'INFO:masu.processor.report_processor_base:Processing bill starting on {bill_date}.\n'
+            f' Processing entire month.\n'
+            f' schema_name: {self.schema},\n'
+            f' provider_uuid: {self.aws_provider_uuid},\n'
+            f' manifest_id: {self.manifest.id}'
         )
         logging.disable(
             logging.NOTSET
@@ -201,6 +208,8 @@ class AWSReportProcessorTest(MasuTestCase):
                 self.assertTrue(count >= counts[table_name])
             else:
                 self.assertTrue(count > counts[table_name])
+
+        self.assertFalse(os.path.exists(self.test_report))
 
     def test_process_gzip(self):
         """Test the processing of a gzip compressed file."""
@@ -259,6 +268,8 @@ class AWSReportProcessorTest(MasuTestCase):
         # Wipe stale data
         with schema_context(self.schema):
             self.accessor._get_db_obj_query(AWS_CUR_TABLE_MAP['line_item']).delete()
+
+        shutil.copy2(self.test_report_test_path, self.test_report)
 
         processor = AWSReportProcessor(
             schema_name=self.schema,
@@ -444,6 +455,11 @@ class AWSReportProcessorTest(MasuTestCase):
         with schema_context(self.schema):
             bill = bill_table.objects.first()
 
+        with open(tmp_file, 'w') as f:
+            writer = csv.DictWriter(f, fieldnames=field_names)
+            writer.writeheader()
+            writer.writerows(data)
+
         processor = AWSReportProcessor(
             schema_name=self.schema,
             report_path=tmp_file,
@@ -454,6 +470,11 @@ class AWSReportProcessorTest(MasuTestCase):
         processor.process()
 
         finalized_datetime = bill.finalized_datetime
+
+        with open(tmp_file, 'w') as f:
+            writer = csv.DictWriter(f, fieldnames=field_names)
+            writer.writeheader()
+            writer.writerows(data)
 
         processor = AWSReportProcessor(
             schema_name=self.schema,
@@ -866,55 +887,6 @@ class AWSReportProcessorTest(MasuTestCase):
 
         self.assertEqual(product_id, expected_id)
 
-    def test_remove_temp_cur_files(self):
-        """Test to remove temporary cost usage files."""
-        cur_dir = tempfile.mkdtemp()
-
-        manifest_data = {"assemblyId": "6e019de5-a41d-4cdb-b9a0-99bfba9a9cb5"}
-        manifest = '{}/{}'.format(cur_dir, 'koku-Manifest.json')
-        with open(manifest, 'w') as outfile:
-            json.dump(manifest_data, outfile)
-
-        file_list = [
-            {
-                'file': '6e019de5-a41d-4cdb-b9a0-99bfba9a9cb5-koku-1.csv.gz',
-                'processed_date': datetime.datetime(year=2018, month=5, day=3),
-            },
-            {
-                'file': '6e019de5-a41d-4cdb-b9a0-99bfba9a9cb5-koku-2.csv.gz',
-                'processed_date': datetime.datetime(year=2018, month=5, day=3),
-            },
-            {
-                'file': '2aeb9169-2526-441c-9eca-d7ed015d52bd-koku-1.csv.gz',
-                'processed_date': datetime.datetime(year=2018, month=5, day=2),
-            },
-            {
-                'file': '6c8487e8-c590-4e6a-b2c2-91a2375c0bad-koku-1.csv.gz',
-                'processed_date': datetime.datetime(year=2018, month=5, day=1),
-            },
-            {
-                'file': '6c8487e8-c590-4e6a-b2c2-91a2375d0bed-koku-1.csv.gz',
-                'processed_date': None,
-            },
-        ]
-        expected_delete_list = []
-        for item in file_list:
-            path = '{}/{}'.format(cur_dir, item['file'])
-            f = open(path, 'w')
-            obj = self.manifest_accessor.get_manifest(self.assembly_id,
-                                                      self.aws_provider_uuid)
-            with ReportStatsDBAccessor(item['file'], obj.id) as stats:
-                stats.update(last_completed_datetime=item['processed_date'])
-            f.close()
-            if (
-                not item['file'].startswith(manifest_data.get('assemblyId'))
-            ):
-                expected_delete_list.append(path)
-
-        removed_files = self.processor.remove_temp_cur_files(cur_dir)
-        self.assertEqual(sorted(removed_files), sorted(expected_delete_list))
-        shutil.rmtree(cur_dir)
-
     def test_check_for_finalized_bill_bill_is_finalized(self):
         """Verify that a file with invoice_id is marked as finalzed."""
         data = []
@@ -1017,3 +989,281 @@ class AWSReportProcessorTest(MasuTestCase):
                 line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
                 self.assertFalse(result)
                 self.assertNotEqual(line_item_query.count(), 0)
+
+    @patch('masu.processor.report_processor_base.ReportProcessorBase._should_process_full_month')
+    def test_delete_line_items_use_data_cutoff_date(self, mock_should_process):
+        """Test that only three days of data are deleted."""
+        mock_should_process.return_value = True
+
+        today = self.date_accessor.today_with_timezone('UTC').replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0
+        )
+        first_of_month = today.replace(day=1)
+        first_of_next_month =first_of_month + relativedelta(months=1)
+        days_in_month = [today - relativedelta(days=i) for i in range(today.day)]
+
+        self.manifest.billing_period_start_datetime = first_of_month
+        self.manifest.save()
+
+        data = []
+        table_name = AWS_CUR_TABLE_MAP['line_item']
+
+        with open(self.test_report, 'r') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                data.append(row)
+
+        for row in data:
+            row['lineItem/UsageStartDate'] = random.choice(days_in_month)
+            row['bill/BillingPeriodStartDate'] = first_of_month
+            row['bill/BillingPeriodEndDate'] = first_of_next_month
+
+        tmp_file = '/tmp/test_delete_data_cutoff.csv'
+        field_names = data[0].keys()
+
+        with open(tmp_file, 'w') as f:
+            writer = csv.DictWriter(f, fieldnames=field_names)
+            writer.writeheader()
+            writer.writerows(data)
+
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=tmp_file,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=self.manifest.id,
+        )
+        processor.process()
+
+        # Get latest data date.
+        with schema_context(self.schema):
+            bills = self.accessor.get_cost_entry_bills()
+            for bill_id in bills.values():
+                line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
+                undeleted_max_date = line_item_query.aggregate(max_date=Max('usage_start'))
+
+        mock_should_process.return_value = False
+        processor._delete_line_items(
+            AWSReportDBAccessor,
+            self.column_map,
+            is_finalized=False
+        )
+
+        with schema_context(self.schema):
+            bills = self.accessor.get_cost_entry_bills()
+            for bill_id in bills.values():
+                line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
+                if today.day <= 3:
+                    self.assertEqual(line_item_query.count(), 0)
+                else:
+                    max_date = line_item_query.aggregate(max_date=Max('usage_start'))
+                    self.assertLess(max_date.get('max_date').date(), processor.data_cutoff_date)
+                    self.assertLess(max_date.get('max_date').date(),
+                                    undeleted_max_date.get('max_date').date())
+                    self.assertNotEqual(line_item_query.count(), 0)
+
+    @patch('masu.processor.report_processor_base.DateAccessor')
+    def test_data_cutoff_date_not_start_of_month(self, mock_date):
+        """Test that the data_cuttof_date respects month boundaries."""
+        today = self.date_accessor.today_with_timezone('UTC').replace(day=10)
+        expected = today.date() - relativedelta(days=2)
+
+        mock_date.return_value.today_with_timezone.return_value = today
+
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=self.manifest.id,
+        )
+        self.assertEqual(expected, processor.data_cutoff_date)
+
+    @patch('masu.processor.report_processor_base.DateAccessor')
+    def test_data_cutoff_date_start_of_month(self, mock_date):
+        """Test that the data_cuttof_date respects month boundaries."""
+        today = self.date_accessor.today_with_timezone('UTC')
+        first_of_month = today.replace(day=1)
+
+        mock_date.return_value.today_with_timezone.return_value = first_of_month
+
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=self.manifest.id,
+        )
+        self.assertEqual(first_of_month.date(), processor.data_cutoff_date)
+
+    @patch('masu.processor.report_processor_base.ReportManifestDBAccessor')
+    def test_should_process_full_month_first_manifest_for_bill(self, mock_manifest_accessor):
+        """Test that we process data for a new bill/manifest completely."""
+        mock_manifest = Mock()
+        today = self.date_accessor.today_with_timezone('UTC')
+        mock_manifest.billing_period_start_datetime = today
+        mock_manifest.num_processed_files = 1
+        mock_manifest.num_total_files = 2
+        mock_manifest_accessor.return_value.__enter__.return_value.get_manifest_by_id.return_value = mock_manifest
+        mock_manifest_accessor.return_value.__enter__.return_value.get_manifest_list_for_provider_and_bill_date.return_value = [mock_manifest]
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=self.manifest.id,
+        )
+
+        self.assertTrue(processor._should_process_full_month())
+
+    @patch('masu.processor.report_processor_base.ReportManifestDBAccessor')
+    def test_should_process_full_month_not_first_manifest_for_bill(self, mock_manifest_accessor):
+        """Test that we process a window of data for the bill/manifest."""
+        mock_manifest = Mock()
+        today = self.date_accessor.today_with_timezone('UTC')
+        mock_manifest.billing_period_start_datetime = today
+        mock_manifest.num_processed_files = 1
+        mock_manifest.num_total_files = 1
+        mock_manifest_accessor.return_value.__enter__.return_value.get_manifest_by_id.return_value = mock_manifest
+        mock_manifest_accessor.return_value.__enter__.return_value.get_manifest_list_for_provider_and_bill_date.return_value = [mock_manifest, mock_manifest]
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=self.manifest.id,
+        )
+
+        self.assertFalse(processor._should_process_full_month())
+
+    @patch('masu.processor.report_processor_base.ReportManifestDBAccessor')
+    def test_should_process_full_month_manifest_for_not_current_month(self, mock_manifest_accessor):
+        """Test that we process this manifest completely."""
+        mock_manifest = Mock()
+        last_month = self.date_accessor.today_with_timezone('UTC') - relativedelta(months=1)
+        mock_manifest.billing_period_start_datetime = last_month
+        mock_manifest_accessor.return_value.__enter__.return_value.get_manifest_by_id.return_value = mock_manifest
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=self.manifest.id,
+        )
+
+        self.assertTrue(processor._should_process_full_month())
+
+    def test_should_process_full_month_no_manifest(self):
+        """Test that we process this manifest completely."""
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid
+        )
+
+        self.assertTrue(processor._should_process_full_month())
+
+    def test_should_process_row_within_cuttoff_date(self):
+        """Test that we correctly determine a row should be processed."""
+        today = self.date_accessor.today_with_timezone('UTC')
+        row = {'lineItem/UsageStartDate': today.isoformat()}
+
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=self.manifest.id,
+        )
+
+        should_process = processor._should_process_row(
+            row,
+            'lineItem/UsageStartDate',
+            False
+        )
+
+        self.assertTrue(should_process)
+
+    def test_should_process_row_outside_cuttoff_date(self):
+        """Test that we correctly determine a row should be processed."""
+        today = self.date_accessor.today_with_timezone('UTC')
+        usage_start = today - relativedelta(days=10)
+        row = {'lineItem/UsageStartDate': usage_start.isoformat()}
+
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=self.manifest.id,
+        )
+
+        should_process = processor._should_process_row(
+            row,
+            'lineItem/UsageStartDate',
+            False
+        )
+
+        self.assertFalse(should_process)
+
+    def test_should_process_is_full_month(self):
+        """Test that we correctly determine a row should be processed."""
+        today = self.date_accessor.today_with_timezone('UTC')
+        usage_start = today - relativedelta(days=10)
+        row = {'lineItem/UsageStartDate': usage_start.isoformat()}
+
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=self.manifest.id,
+        )
+
+        should_process = processor._should_process_row(
+            row,
+            'lineItem/UsageStartDate',
+            True
+        )
+
+        self.assertTrue(should_process)
+
+    def test_should_process_is_finalized(self):
+        """Test that we correctly determine a row should be processed."""
+        today = self.date_accessor.today_with_timezone('UTC')
+        usage_start = today - relativedelta(days=10)
+        row = {'lineItem/UsageStartDate': usage_start.isoformat()}
+
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=self.manifest.id,
+        )
+
+        should_process = processor._should_process_row(
+            row,
+            'lineItem/UsageStartDate',
+            False,
+            is_finalized=True
+        )
+
+        self.assertTrue(should_process)
+
+    def test_get_date_column_filter(self):
+        """Test that the Azure specific filter is returned."""
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=self.manifest.id,
+        )
+        date_filter = processor.get_date_column_filter()
+
+        self.assertIn('usage_start__gte', date_filter)

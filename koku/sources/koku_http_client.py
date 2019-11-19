@@ -115,6 +115,17 @@ class KokuHTTPClient:
         if provider_fn:
             return provider_fn(billing_source)
 
+    def _handle_bad_requests(self, response):
+        """Raise an exception with error message string for Platform Sources."""
+        if response.status_code == 401 or response.status_code == 403:
+            raise KokuHTTPClientNonRecoverableError('Insufficient Permissions')
+        if response.status_code == 400:
+            detail_msg = 'Unknown Error'
+            errors = response.json().get('errors')
+            if errors:
+                detail_msg = errors[0].get('detail')
+            raise KokuHTTPClientNonRecoverableError(detail_msg)
+
     def create_provider(self, name, provider_type, authentication, billing_source):
         """Koku HTTP call to create provider."""
         url = '{}/{}/'.format(self._base_url, 'providers')
@@ -127,9 +138,10 @@ class KokuHTTPClient:
             r = requests.post(url, headers=self._identity_header, json=json_data)
         except RequestException as conn_err:
             raise KokuHTTPClientError('Failed to create provider. Connection Error: ', str(conn_err))
+        self._handle_bad_requests(r)
+
         if r.status_code != 201:
-            raise KokuHTTPClientNonRecoverableError('Unable to create provider. Status Code: ',
-                                                    str(r.status_code))
+            raise KokuHTTPClientNonRecoverableError(str(r.status_code))
         return r.json()
 
     def update_provider(self, provider_uuid, name, provider_type, authentication, billing_source):
@@ -146,9 +158,10 @@ class KokuHTTPClient:
             raise KokuHTTPClientError('Failed to create provider. Connection Error: ', str(conn_err))
         if r.status_code == 404:
             raise KokuHTTPClientNonRecoverableError('Provider not found. Error: ', str(r.json()))
+        self._handle_bad_requests(r)
+
         if r.status_code != 200:
-            raise KokuHTTPClientNonRecoverableError('Unable to create provider. Status Code: ',
-                                                    str(r.status_code))
+            raise KokuHTTPClientNonRecoverableError(str(r.status_code))
         return r.json()
 
     def destroy_provider(self, provider_uuid):
