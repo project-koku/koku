@@ -15,7 +15,8 @@ ENV HOME=/var/lib/rabbitmq \
     RABBITMQ_LOGS=- \
     RABBITMQ_SASL_LOGS=-
 
-RUN yum-config-manager --enable rhel-7-server-rpms \
+RUN yum repolist all && \
+    yum-config-manager --enable rhel-7-server-rpms \
                        --enable rhel-7-server-supplementary-rpms \
                        --enable rhel-7-server-optional-rpms && \
     yum -y update && \
