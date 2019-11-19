@@ -741,14 +741,74 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_charge_info()
-
-        table_name = OCP_REPORT_TABLE_MAP['cost_summary']
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         with schema_context(self.schema):
             items = self.accessor._get_db_obj_query(table_name).all()
             for item in items:
                 markup_value = Decimal(item.markup)
                 self.assertAlmostEqual(markup_value, mem_rate_value * markup_percentage, places=6)
+
+    def test_update_summary_markup_charge_with_infrastructure_markup(self):
+        """Test that markup for infrastructure is included."""
+        rate = [
+            {
+                'metric': {'name': 'cpu_core_usage_per_hour'},
+                'tiered_rates': [{'value': 1.5, 'unit': 'USD'}]
+            }
+        ]
+        openshift_markup = {'value': 10, 'unit': 'percent'}
+        self.creator.create_cost_model(
+            self.ocp_provider_uuid, 'OCP', rates=rate, markup=openshift_markup
+        )
+
+        aws_markup = {'value': 5, 'unit': 'percent'}
+        self.creator.create_cost_model(
+            self.aws_provider_uuid, 'AWS', markup=aws_markup
+        )
+
+        # Set infrastructure relationship for OCP on AWS
+        # This is required to pick up the AWS markup
+        with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
+            accessor.set_infrastructure(self.aws_provider_uuid, 'AWS')
+
+        usage_period = self.accessor.get_current_usage_period()
+        start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
+        end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
+
+        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
+        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
+        with OCPReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
+            # Add some infrastructure cost
+            summary_items = accessor._get_db_obj_query(table_name)
+            for item in summary_items:
+                item.infra_cost = Decimal(1.0)
+                item.project_infra_cost = Decimal(0.5)
+                item.save()
+        self.updater.update_summary_charge_info()
+        with OCPReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
+            self.assertIsNotNone(accessor.get_current_usage_period().derived_cost_datetime)
+
+            items = accessor._get_db_obj_query(table_name).all()
+            with schema_context(self.schema):
+                for item in items:
+                    derived_cost = Decimal(0)
+                    derived_cost += item.pod_charge_cpu_core_hours if item.pod_charge_cpu_core_hours else Decimal(0)
+                    derived_cost +=  item.pod_charge_memory_gigabyte_hours if item.pod_charge_memory_gigabyte_hours else Decimal(0)
+                    derived_cost +=  item.persistentvolumeclaim_charge_gb_month if item.persistentvolumeclaim_charge_gb_month else Decimal(0)
+                    infra_cost = item.infra_cost if item.infra_cost else Decimal(0)
+                    project_infra_cost = item.project_infra_cost if item.project_infra_cost else Decimal(0)
+                    expected_markup_cost = derived_cost * openshift_markup['value'] / 100 \
+                        + infra_cost * aws_markup['value'] / 100
+                    expected_project_markup_cost = derived_cost * openshift_markup['value'] / 100 \
+                        + project_infra_cost * aws_markup['value'] / 100
+                    self.assertEqual(
+                        expected_markup_cost, item.markup_cost
+                    )
+                    self.assertEqual(
+                        expected_project_markup_cost, item.project_markup_cost
+                    )
 
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
@@ -776,7 +836,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.updater._cluster_id = None
         self.updater._update_markup_cost(start_date, end_date)
 
-        table_name = OCP_REPORT_TABLE_MAP['cost_summary']
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         with schema_context(self.schema):
             items = self.accessor._get_db_obj_query(table_name).all()
