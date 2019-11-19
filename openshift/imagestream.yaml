@@ -56,7 +56,6 @@ objects:
       referencePolicy:
         type: Source
 
-# RabbitMQ builds on base RHEL 7
 - apiVersion: v1
   kind: ImageStream
   metadata:
@@ -71,6 +70,25 @@ objects:
       from:
         kind: DockerImage
         name: registry.redhat.io/rhel7/rhel:latest
+      name: latest
+      referencePolicy:
+        type: Source
+
+# RabbitMQ builds on centos 7, for now.
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: centos
+    namespace: ${NAMESPACE}
+  spec:
+    dockerImageRepository: registry.centos.org/centos/centos
+    lookupPolicy:
+      local: false
+    tags:
+    - annotations: null
+      from:
+        kind: DockerImage
+        name: registry.centos.org/centos/centos:latest
       name: latest
       referencePolicy:
         type: Source
