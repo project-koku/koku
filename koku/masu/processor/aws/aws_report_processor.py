@@ -22,6 +22,8 @@ import json
 import logging
 from os import path, remove
 
+from django.conf import settings
+
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -170,8 +172,10 @@ class AWSReportProcessor(ReportProcessorBase):
         LOG.info('Completed report processing for file: %s and schema: %s',
                  self._report_name, self._schema)
 
-        LOG.info('Removing processed file: %s', self._report_path)
-        remove(self._report_path)
+
+        if not settings.DEVELOPMENT:
+            LOG.info('Removing processed file: %s', self._report_path)
+            remove(self._report_path)
 
         return is_finalized_data
 
