@@ -30,6 +30,8 @@ from api.provider.models import (Provider,
                                  Sources)
 from providers.provider_access import ProviderAccessor
 
+from sources.storage import SourcesStorageError, add_provider_billing_source
+
 PROVIDER_CHOICE_LIST = [provider[0].lower() for provider in Provider.PROVIDER_CHOICES]
 
 REPORT_PREFIX_MAX_LENGTH = 64
@@ -207,18 +209,21 @@ BILLING_SOURCE_SERIALIZERS = {'AWS': AWSBillingSourceSerializer,
                               }
 
 
-class ProviderSerializer(serializers.ModelSerializer):
+class SourcesSerializer(serializers.ModelSerializer):
     """Serializer for the Sources model."""
 
-    source_id = serializers.IntegerField()
-    name = serializers.CharField(max_length=256, required=True,
-                                 allow_null=False, allow_blank=False)
-    authentication = serializers.JSONField()
-    billing_source = serializers.JSONField()
-    source_type = serializers.CharField(max_length=50, required=True,
-                                        allow_null=False, allow_blank=False)
-    koku_uuid = serializers.CharField(max_length=512, required=True,
-                                      allow_null=False, allow_blank=False)
+    source_id = serializers.IntegerField(required=False, read_only=True)
+    name = serializers.CharField(max_length=256, required=False,
+                                 allow_null=False, allow_blank=False,
+                                 read_only=True)
+    authentication = serializers.JSONField(required=False)
+    billing_source = serializers.JSONField(required=False)
+    source_type = serializers.CharField(max_length=50, required=False,
+                                        allow_null=False, allow_blank=False,
+                                        read_only=True)
+    koku_uuid = serializers.CharField(max_length=512, required=False,
+                                      allow_null=False, allow_blank=False,
+                                      read_only=True)
 
     # pylint: disable=too-few-public-methods
     class Meta:
@@ -304,44 +309,56 @@ class ProviderSerializer(serializers.ModelSerializer):
         provider.save()
         return provider
 
+    def _validate_billing_source(self, provider_type, billing_source):
+        """Validate billing source parameters."""
+        if provider_type == 'AWS':
+            if not billing_source.get('bucket'):
+                raise SourcesStorageError('Missing AWS bucket.')
+        elif provider_type == 'AZURE':
+            data_source = billing_source.get('data_source')
+            if not data_source:
+                raise SourcesStorageError('Missing AZURE data_source.')
+            if not data_source.get('resource_group'):
+                raise SourcesStorageError('Missing AZURE resource_group')
+            if not data_source.get('storage_account'):
+                raise SourcesStorageError('Missing AZURE storage_account')
+
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
-        import pdb; pdb.set_trace()
-        provider_type = validated_data['type']
-        interface = ProviderAccessor(provider_type)
 
-        authentication = validated_data.pop('authentication')
-        credentials = authentication.get('credentials')
-        provider_resource_name = credentials.get('provider_resource_name')
+        billing_source = validated_data.get('billing_source')
+        authentication = validated_data.get('authentication')
 
-        billing_source = validated_data.pop('billing_source')
-        data_source = billing_source.get('data_source')
-        bucket = billing_source.get('bucket')
-
-        try:
-            if credentials and data_source and provider_type not in ['AWS', 'OCP']:
-                interface.cost_usage_source_ready(credentials, data_source)
-            else:
-                interface.cost_usage_source_ready(provider_resource_name, bucket)
-        except serializers.ValidationError as validation_error:
-            instance.active = False
-            instance.save()
-            raise validation_error
-
-        with transaction.atomic():
-            bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
-            auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
-
-            for key in validated_data.keys():
-                setattr(instance, key, validated_data[key])
-
-            instance.authentication = auth
-            instance.billing_source = bill
-            instance.active = True
-
+        if billing_source:
             try:
-                instance.save()
-            except IntegrityError:
-                error = {'Error': 'A Provider already exists with that Authentication and Billing Source'}
-                raise serializers.ValidationError(error)
-            return instance
+                if instance.source_type not in ('AWS', 'AZURE'):
+                    raise SourcesStorageError('Source is not AWS nor AZURE.')
+                self._validate_billing_source(instance.source_type, billing_source)
+                instance.billing_source = billing_source
+                if instance.koku_uuid:
+                    instance.pending_update = True
+                    instance.save(update_fields=['billing_source', 'pending_update'])
+                else:
+                    instance.save()
+            except Sources.DoesNotExist:
+                raise SourcesStorageError('Source does not exist')
+
+        if authentication:
+            try:
+                if instance.source_type not in ('AZURE',):
+                    raise SourcesStorageError('Source is not AZURE.')
+                auth_dict = instance.authentication
+                if not auth_dict.get('credentials'):
+                    raise SourcesStorageError('Missing credentials key')
+                subscription_id = authentication.get('credentials', {}).get('subscription_id')
+                auth_dict['credentials']['subscription_id'] = subscription_id
+                instance.authentication = auth_dict
+                if instance.koku_uuid:
+                    instance.pending_update = True
+                    instance.save(update_fields=['authentication', 'pending_update'])
+                else:
+                    instance.save()
+            except Sources.DoesNotExist:
+                raise SourcesStorageError('Source does not exist')
+        return instance
+

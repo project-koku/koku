@@ -34,7 +34,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import UUIDField
 
 from api.iam.models import Customer
-from sources.api import serializers
+from sources.api.serializers import SourcesSerializer
 from api.provider.models import Sources
 from api.query_params import get_tenant
 
@@ -87,6 +87,7 @@ class SourcesViewSet(mixins.CreateModelMixin,
     `update()`, and `list()` actions.
     """
 
+    serializer_class = SourcesSerializer
     lookup_field = 'source_id'
     queryset = Sources.objects.all()
     permission_classes = (AllowAny,)
@@ -95,10 +96,7 @@ class SourcesViewSet(mixins.CreateModelMixin,
 
     def get_serializer_class(self):
         """Return the appropriate serializer depending on user."""
-        if 'schema_name' in self.request.META.get('QUERY_STRING', ''):
-            return serializers.AdminProviderSerializer
-        else:
-            return serializers.ProviderSerializer
+        return SourcesSerializer
 
     def get_queryset(self):
         """Get a queryset.
@@ -120,6 +118,11 @@ class SourcesViewSet(mixins.CreateModelMixin,
     def create(self, request, *args, **kwargs):
         """Create a Source."""
         return super().create(request=request, args=args, kwargs=kwargs)
+
+    @never_cache
+    def patch(self, request, *args, **kwargs):
+        import pdb; pdb.set_trace()
+        return self.update_partial(request, *args, **kwargs)
 
     @never_cache
     def update(self, request, *args, **kwargs):
