@@ -130,7 +130,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
     @patch('masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map')
     @patch('masu.processor.ocp.ocp_cloud_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary')
     @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.update_summary_infrastructure_cost')
-    @patch('masu.processor.ocp.ocp_cloud_summary_updater.get_bills_from_provider')
+    @patch('masu.processor.ocp.ocp_cloud_summary_updater.aws_get_bills_from_provider')
     def test_update_summary_tables_with_aws_provider(
         self, mock_utility, mock_ocp, mock_ocp_on_aws, mock_map
     ):

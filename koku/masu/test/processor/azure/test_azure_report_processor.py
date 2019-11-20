@@ -55,6 +55,8 @@ class AzureReportProcessorTest(MasuTestCase):
         _report_tables = copy.deepcopy(AZURE_REPORT_TABLE_MAP)
         _report_tables.pop('line_item_daily_summary', None)
         _report_tables.pop('tags_summary', None)
+        _report_tables.pop('ocp_on_azure_daily_summary', None)
+        _report_tables.pop('ocp_on_azure_project_daily_summary', None)
         cls.report_tables = list(_report_tables.values())
         # Grab a single row of test data to work with
         with open(cls.test_report_path, 'r', encoding='utf-8-sig') as f:
