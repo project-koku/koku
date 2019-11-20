@@ -84,3 +84,13 @@ UPDATE reporting_ocpusagelineitem_daily_summary ods
         AND ods.node = ic.node
         AND ods.volume_labels = ic.pod_labels
 ;
+
+UPDATE reporting_ocpusagelineitem_daily_summary ods
+    SET infra_cost = 0::decimal
+    WHERE infra_cost IS NULL
+;
+
+UPDATE reporting_ocpusagelineitem_daily_summary ods
+    SET project_infra_cost = 0::decimal
+    WHERE project_infra_cost IS NULL
+;
