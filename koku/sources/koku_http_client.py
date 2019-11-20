@@ -136,7 +136,6 @@ class KokuHTTPClient:
                                                                             billing_source)}
         if source_uuid:
             json_data['uuid'] = str(source_uuid)
-        print(f'json_data: {str(json_data)}')
         try:
             r = requests.post(url, headers=self._identity_header, json=json_data)
         except RequestException as conn_err:

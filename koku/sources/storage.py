@@ -299,7 +299,7 @@ def add_provider_sources_network_info(source_id, source_uuid, name, source_type,
 
     Args:
         source_id (Integer) - Platform-Sources identifier
-        source_id (UUID) - Platform-Sources uid
+        source_uuidd (UUID) - Platform-Sources uid
         name (String) - Source name
         source_type (String) - Source type. i.e. AWS, OCP, Azure
 
