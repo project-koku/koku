@@ -132,7 +132,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
             markup = cost_model_accessor.get_markup()
             markup_value = Decimal(markup.get('value', 0)) / 100
 
-        # OpenShift on AWS
+        # OpenShift on Azure
         with AzureReportDBAccessor(self._schema, self._column_map) as accessor:
             LOG.info('Updating OpenShift on Azure summary table for '
                      '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s'
