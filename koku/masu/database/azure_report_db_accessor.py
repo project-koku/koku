@@ -24,7 +24,6 @@ from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
-from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary, OCPAzureCostLineItemProjectDailySummary
 from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
@@ -34,6 +33,8 @@ from reporting.provider.azure.models import (AzureCostEntryBill,
                                              AzureCostEntryLineItemDailySummary,
                                              AzureCostEntryProductService,
                                              AzureMeter)
+from reporting.provider.azure.openshift.models import (OCPAzureCostLineItemDailySummary,
+                                                       OCPAzureCostLineItemProjectDailySummary)
 
 LOG = logging.getLogger(__name__)
 

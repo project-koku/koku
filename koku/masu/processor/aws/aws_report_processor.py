@@ -172,7 +172,6 @@ class AWSReportProcessor(ReportProcessorBase):
         LOG.info('Completed report processing for file: %s and schema: %s',
                  self._report_name, self._schema)
 
-
         if not settings.DEVELOPMENT:
             LOG.info('Removing processed file: %s', self._report_path)
             remove(self._report_path)
