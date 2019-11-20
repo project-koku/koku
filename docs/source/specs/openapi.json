@@ -1972,7 +1972,7 @@
                 }
             }
         },
-        "/sources/billing_source/": {
+        "/sources/billing-source/": {
             "post": {
                 "tags": [
                     "Sources Billing Source"

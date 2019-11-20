@@ -37,7 +37,7 @@ class BillingSourceProxyTests(TestCase):
         billing_source = {'bucket': 'cost-usage-bucket'}
         with self.settings(SOURCES_CLIENT_BASE_URL='http://www.sourcesclient.com/api/v1'):
             with requests_mock.mock() as m:
-                m.post(f'http://www.sourcesclient.com/api/v1/billing_source/',
+                m.post(f'http://www.sourcesclient.com/api/v1/billing-source/',
                        status_code=201, json={'source_id': test_source_id,
                                               'billing_source': billing_source})
 
@@ -56,7 +56,7 @@ class BillingSourceProxyTests(TestCase):
         billing_source = {'bucket': 'cost-usage-bucket'}
         with self.settings(SOURCES_CLIENT_BASE_URL='http://www.sourcesclient.com/api/v1'):
             with requests_mock.mock() as m:
-                m.post(f'http://www.sourcesclient.com/api/v1/billing_source/',
+                m.post(f'http://www.sourcesclient.com/api/v1/billing-source/',
                        exc=requests.exceptions.RequestException)
 
                 params = {'source_id': test_source_id, 'billing_source': billing_source}
@@ -73,7 +73,7 @@ class BillingSourceProxyTests(TestCase):
 
         with self.settings(SOURCES_CLIENT_BASE_URL='http://www.sourcesclient.com/api/v1'):
             with requests_mock.mock() as m:
-                m.post(f'http://www.sourcesclient.com/api/v1/billing_source/',
+                m.post(f'http://www.sourcesclient.com/api/v1/billing-source/',
                        status_code=400,
                        json=error_msg)
 

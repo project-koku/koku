@@ -49,7 +49,7 @@ def billing_source(request):
     """Create billing source for AWS and Azure sources."""
     request_data = request.data
     try:
-        url = f'{settings.SOURCES_CLIENT_BASE_URL}/billing_source/'
+        url = f'{settings.SOURCES_CLIENT_BASE_URL}/billing-source/'
         response = requests.post(url, json=request_data)
         status_code = response.status_code
         response = response.json()
