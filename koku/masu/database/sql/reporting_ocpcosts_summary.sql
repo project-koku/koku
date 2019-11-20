@@ -59,7 +59,7 @@ UPDATE reporting_ocpusagelineitem_daily_summary ods
     FROM reporting_ocp_infrastructure_cost AS ic
     WHERE ic.data_source = 'Pod'
         AND ods.report_period_id = ic.report_period_id
-        AND ods.usage_start = ic.usage_start
+        AND date(ods.usage_start) = date(ic.usage_start)
         AND ods.cluster_id = ic.cluster_id
         AND ods.cluster_alias = ic.cluster_alias
         AND ods.namespace = ic.namespace
@@ -75,7 +75,7 @@ UPDATE reporting_ocpusagelineitem_daily_summary ods
     FROM reporting_ocp_infrastructure_cost AS ic
     WHERE ic.data_source = 'Storage'
         AND ods.report_period_id = ic.report_period_id
-        AND ods.usage_start = ic.usage_start
+        AND date(ods.usage_start) = date(ic.usage_start)
         AND ods.cluster_id = ic.cluster_id
         AND ods.cluster_alias = ic.cluster_alias
         AND ods.namespace = ic.namespace
