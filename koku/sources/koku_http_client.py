@@ -166,9 +166,12 @@ class KokuHTTPClient:
 
     def destroy_provider(self, provider_uuid):
         """Koku HTTP call to destroy provider."""
+        print('HTTP CLIENT DESTROY')
         url = '{}/{}/{}/'.format(self._base_url, 'providers', provider_uuid)
         try:
+            print('DELETING')
             response = requests.delete(url, headers=self._identity_header)
+            print(f'Response: {str(response.status_code)}')
         except RequestException as conn_err:
             raise KokuHTTPClientError('Failed to delete provider. Connection Error: ', str(conn_err))
         if response.status_code == 404:

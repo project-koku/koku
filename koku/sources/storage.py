@@ -236,6 +236,7 @@ def destroy_provider_event(source_id):
         None
 
     """
+    LOG.info('DESTROY PROVIDER EVENT')
     koku_uuid = None
     try:
         query = Sources.objects.get(source_id=source_id)
