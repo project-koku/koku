@@ -25,13 +25,13 @@ objects:
     name: postgresql
     namespace: ${NAMESPACE}
   spec:
-    dockerImageRepository: registry.redhat.io/rhel7/postgresql-10
+    dockerImageRepository: registry.redhat.io/rhscl/postgresql-10-rhel7
     lookupPolicy:
       local: false
     tags:
     - from:
         kind: DockerImage
-        name: rhel7/postgresql-10
+        name: rhscl/postgresql-10-rhel7
         resourceVersion: latest
       name: latest
       referencePolicy:

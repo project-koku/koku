@@ -103,12 +103,12 @@ for cmd in "${OC}" "${OCDEPLOYER}" "${IQE}"; do
     fi
 done
 
-# ensure we're logged in
+### ensure we're logged in
 ${OC} login -u ${OCP_USER} -p ${OCP_PASSWORD} ${OPENSHIFT_API_URL}
 
 ### create projects
 for project in "${SECRETS_PROJECT}" "${BUILDFACTORY_PROJECT}" "${DEPLOY_PROJECT}"; do
-    VALIDATE="${OC} get project/${project} -o name 2>/dev/null"
+    VALIDATE="${OC} get project/${project} -o name"
     echo "Checking if project ${project} exists."
     if [ "$($VALIDATE)x" != "x" ]; then
         echo "Project '${project}' already exists. Exiting."
@@ -125,12 +125,16 @@ if [ -f ${REGISTRY_REDHAT_IO_SECRETS} ]; then
     SECRET=$(cat ${REGISTRY_REDHAT_IO_SECRETS} | \
              python -c 'import yaml, sys; print(yaml.safe_load(sys.stdin).get("data").get(".dockerconfigjson"))' | \
              base64 -d)
-    echo ${SECRET} | ${OC} create secret generic registry-redhat-io-secret \
-                                --from-file=.dockerconfigjson=/dev/stdin \
-                                -n ${BUILDFACTORY_PROJECT} \
-                                --type=kubernetes.io/dockerconfigjson
-    ${OC} secrets link default registry-redhat-io-secret -n ${BUILDFACTORY_PROJECT} --for=pull
-    ${OC} secrets link builder registry-redhat-io-secret -n ${BUILDFACTORY_PROJECT}
+    # we need to install the pull secret into multiple projects because setting
+    # up a shared secret across projects is not well-supported by OCP <=4.2.
+    for project in "${BUILDFACTORY_PROJECT}" "${DEPLOY_PROJECT}"; do
+        echo ${SECRET} | ${OC} create secret generic registry-redhat-io-secret \
+                                    --from-file=.dockerconfigjson=/dev/stdin \
+                                    -n ${project} \
+                                    --type=kubernetes.io/dockerconfigjson
+        ${OC} secrets link default registry-redhat-io-secret -n ${project} --for=pull
+        ${OC} secrets link builder registry-redhat-io-secret -n ${project}
+    done
 fi
 
 ### create secrets
