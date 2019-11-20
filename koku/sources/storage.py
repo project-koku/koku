@@ -293,12 +293,13 @@ def add_provider_sources_auth_info(source_id, authentication):
         LOG.error('Unable to add authentication details.  Source ID: %s does not exist', str(source_id))
 
 
-def add_provider_sources_network_info(source_id, name, source_type, endpoint_id):
+def add_provider_sources_network_info(source_id, source_uuid, name, source_type, endpoint_id):
     """
     Add additional Sources information to a Source database object.
 
     Args:
         source_id (Integer) - Platform-Sources identifier
+        source_id (UUID) - Platform-Sources uid
         name (String) - Source name
         source_type (String) - Source type. i.e. AWS, OCP, Azure
 
@@ -309,6 +310,7 @@ def add_provider_sources_network_info(source_id, name, source_type, endpoint_id)
     try:
         query = Sources.objects.get(source_id=source_id)
         query.name = name
+        query.source_uuid = source_uuid
         query.source_type = source_type
         query.endpoint_id = endpoint_id
         query.save()

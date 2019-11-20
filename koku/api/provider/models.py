@@ -205,6 +205,9 @@ class Sources(models.Model):
     # Source ID is unique identifier
     source_id = models.IntegerField(primary_key=True)
 
+    # Source UID
+    source_uuid = models.UUIDField(unique=True, null=True)
+
     # Source name.
     name = models.CharField(max_length=256, null=True)
 
