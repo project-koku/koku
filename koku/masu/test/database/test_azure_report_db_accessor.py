@@ -502,3 +502,51 @@ class AzureReportDBAccessorTest(MasuTestCase):
         self.assertNotEqual(initial_project_markup, project_markup)
         self.assertAlmostEqual(markup, expected_markup, places=9)
         self.assertAlmostEqual(project_markup, expected_project_markup, places=9)
+
+    @patch('masu.database.azure_report_db_accessor.AzureReportDBAccessor.vacuum_table')
+    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
+    def test_populate_ocp_on_azure_markup_cost_no_bills(self, mock_ocp_vacuum, mock_azure_vaccum):
+        """Test that markup is populated on OCP on Azure tables."""
+        self.generate_ocp_on_azure_data()
+        markup_value = decimal.Decimal(0.1)
+
+        ocp_azure_table_name = AZURE_REPORT_TABLE_MAP['ocp_on_azure_daily_summary']
+        project_table_name = AZURE_REPORT_TABLE_MAP['ocp_on_azure_project_daily_summary']
+        with schema_context(self.schema):
+            ocp_azure_table = getattr(self.accessor.report_schema, ocp_azure_table_name)
+            initial_markup = ocp_azure_table.objects.all().aggregate(Sum('markup_cost'))[
+                'markup_cost__sum'
+            ]
+            project_table = getattr(self.accessor.report_schema, project_table_name)
+            initial_project_markup = project_table.objects.all().aggregate(Sum('project_markup_cost'))[
+                'project_markup_cost__sum'
+            ]
+
+        self.assertIsNone(initial_markup)
+        self.assertIsNone(initial_project_markup)
+
+        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+            accessor.populate_ocp_on_azure_markup_cost(markup_value)
+
+        with schema_context(self.schema):
+            ocp_azure_table = getattr(self.accessor.report_schema, ocp_azure_table_name)
+            markup = ocp_azure_table.objects.all().aggregate(Sum('markup_cost'))[
+                'markup_cost__sum'
+            ]
+            expected_markup = ocp_azure_table.objects.all().aggregate(Sum('pretax_cost'))[
+                'pretax_cost__sum'
+            ]
+            expected_markup = expected_markup * markup_value
+            project_table = getattr(self.accessor.report_schema, project_table_name)
+            project_markup = project_table.objects.all().aggregate(Sum('project_markup_cost'))[
+                'project_markup_cost__sum'
+            ]
+            expected_project_markup = ocp_azure_table.objects.all().aggregate(Sum('pretax_cost'))[
+                'pretax_cost__sum'
+            ]
+            expected_project_markup = expected_project_markup * markup_value
+
+        self.assertNotEqual(initial_markup, markup)
+        self.assertNotEqual(initial_project_markup, project_markup)
+        self.assertAlmostEqual(markup, expected_markup, places=9)
+        self.assertAlmostEqual(project_markup, expected_project_markup, places=9)
