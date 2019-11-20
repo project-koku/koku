@@ -18,6 +18,7 @@
 # pylint: skip-file
 import datetime
 import logging
+from decimal import Decimal
 
 from tenant_schemas.utils import schema_context
 
@@ -91,7 +92,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
         with CostModelDBAccessor(self._schema, aws_provider_uuid,
                                  self._column_map) as cost_model_accessor:
             markup = cost_model_accessor.get_markup()
-            markup_value = float(markup.get('value', 0)) / 100
+            markup_value = Decimal(markup.get('value', 0)) / 100
 
         # OpenShift on AWS
         with AWSReportDBAccessor(self._schema, self._column_map) as accessor:
@@ -129,7 +130,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
         with CostModelDBAccessor(self._schema, azure_provider_uuid,
                                  self._column_map) as cost_model_accessor:
             markup = cost_model_accessor.get_markup()
-            markup_value = float(markup.get('value', 0)) / 100
+            markup_value = Decimal(markup.get('value', 0)) / 100
 
         # OpenShift on AWS
         with AzureReportDBAccessor(self._schema, self._column_map) as accessor:
