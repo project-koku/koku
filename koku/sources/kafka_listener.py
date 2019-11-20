@@ -105,7 +105,6 @@ def storage_callback(sender, instance, **kwargs):
             PROCESS_QUEUE.put_nowait({'operation': 'update', 'provider': instance})
 
     if instance.pending_delete:
-        LOG.info(f'PROCESS QUEUE ENQUEUING DELETE FOR {str(instance)}')
         PROCESS_QUEUE.put_nowait({'operation': 'destroy', 'provider': instance})
 
     process_event = storage.screen_and_build_provider_sync_create_event(instance)
@@ -401,7 +400,6 @@ def execute_koku_provider_op(msg, cost_management_type_id):
             LOG.info(f'Koku Provider UUID {koku_details.get("uuid")} assigned to Source ID {str(provider.source_id)}.')
             storage.add_provider_koku_uuid(provider.source_id, koku_details.get('uuid'))
         elif operation == 'destroy':
-            LOG.info(f'In DESTROY for provider {str(provider.koku_uuid)}')
             if provider.koku_uuid:
                 response = koku_client.destroy_provider(provider.koku_uuid)
                 LOG.info(f'Koku Provider UUID ({provider.koku_uuid}) Removal Status Code: {str(response.status_code)}')
