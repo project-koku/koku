@@ -210,7 +210,7 @@ BILLING_SOURCE_SERIALIZERS = {'AWS': AWSBillingSourceSerializer,
 class ProviderSerializer(serializers.ModelSerializer):
     """Serializer for the Provider model."""
 
-    uuid = serializers.UUIDField(read_only=True)
+    uuid = serializers.UUIDField(allow_null=True, required=False)
     name = serializers.CharField(max_length=256, required=True,
                                  allow_null=False, allow_blank=False)
     type = serializers.ChoiceField(choices=Provider.PROVIDER_CHOICES)

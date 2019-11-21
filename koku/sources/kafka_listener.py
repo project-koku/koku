@@ -259,6 +259,7 @@ def sources_network_info(source_id, auth_header):
         return
     source_name = source_details.get('name')
     source_type_id = int(source_details.get('source_type_id'))
+    source_uuid = source_details.get('uid')
     source_type_name = sources_network.get_source_type_name(source_type_id)
     endpoint_id = sources_network.get_endpoint_id()
 
@@ -276,7 +277,8 @@ def sources_network_info(source_id, auth_header):
         LOG.error(f'Unexpected source type ID: {source_type_id}')
         return
 
-    storage.add_provider_sources_network_info(source_id, source_name, source_type, endpoint_id)
+    storage.add_provider_sources_network_info(source_id, source_uuid, source_name,
+                                              source_type, endpoint_id)
     save_auth_info(auth_header, source_id)
 
 
@@ -396,7 +398,7 @@ def execute_koku_provider_op(msg, cost_management_type_id):
         if operation == 'create':
             LOG.info(f'Creating Koku Provider for Source ID: {str(provider.source_id)}')
             koku_details = koku_client.create_provider(provider.name, provider.source_type, provider.authentication,
-                                                       provider.billing_source)
+                                                       provider.billing_source, provider.source_uuid)
             LOG.info(f'Koku Provider UUID {koku_details.get("uuid")} assigned to Source ID {str(provider.source_id)}.')
             storage.add_provider_koku_uuid(provider.source_id, koku_details.get('uuid'))
         elif operation == 'destroy':
