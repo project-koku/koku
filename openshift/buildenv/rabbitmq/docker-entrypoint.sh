@@ -1,11 +1,7 @@
 #!/bin/bash
 set -eu
 
-# show who we're running as for debugging purposes
-/usr/bin/id
-
-# show directory permissions for debugging purposes
-ls -al /var/lib/rabbitmq
+PREFIX=${RABBITMQ_HOME:-/opt/rabbitmq}
 
 # usage: file_env VAR [DEFAULT]
 #    ie: file_env 'XYZ_DB_PASSWORD' 'example'
@@ -352,7 +348,7 @@ if [ "$1" = 'rabbitmq-server' ] && [ "$shouldWriteConfig" ]; then
 
 	# if management plugin is installed, generate config for it
 	# https://www.rabbitmq.com/management.html#configuration
-	if [ "$(rabbitmq-plugins list -m -e rabbitmq_management)" ]; then
+	if [ "$(${PREFIX}/sbin/rabbitmq-plugins list -m -e rabbitmq_management)" ]; then
 		rabbitManagementConfig=()
 
 		if [ "$haveManagementSslConfig" ]; then
