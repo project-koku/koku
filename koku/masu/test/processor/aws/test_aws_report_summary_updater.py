@@ -78,7 +78,6 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         )
 
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
-        self.manifest_accessor.commit()
 
         with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
             self.provider = provider_accessor.get_provider()
@@ -96,7 +95,6 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
     def test_update_summary_tables_with_manifest(self, mock_daily, mock_summary):
         """Test that summary tables are properly run."""
         self.manifest.num_processed_files = self.manifest.num_total_files
-        self.manifest_accessor.commit()
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
@@ -142,7 +140,6 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
 
         self.manifest.num_processed_files = self.manifest.num_total_files
         manifest_id = self.manifest.id
-        self.manifest_accessor.commit()
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date
@@ -195,13 +192,10 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
             'provider_uuid': self.aws_provider_uuid,
         }
         self.manifest_accessor.delete(self.manifest)
-        self.manifest_accessor.commit()
 
         self.manifest = self.manifest_accessor.add(**manifest_dict)
-        self.manifest_accessor.commit()
 
         self.manifest.num_processed_files = self.manifest.num_total_files
-        self.manifest_accessor.commit()
 
         self.updater = AWSReportSummaryUpdater(
             'acct10001', self.provider, self.manifest
@@ -297,7 +291,6 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         """Test that summary tables are run for a full month."""
         self.manifest.num_processed_files = self.manifest.num_total_files
         manifest_id = self.manifest.id
-        self.manifest_accessor.commit()
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date

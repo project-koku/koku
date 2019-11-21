@@ -125,7 +125,6 @@ class AWSReportProcessorTest(MasuTestCase):
         self.accessor = AWSReportDBAccessor(self.schema, self.column_map)
         self.report_schema = self.accessor.report_schema
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
-        self.manifest_accessor.commit()
 
     def tearDown(self):
         """Return the database to a pre-test state."""
@@ -647,7 +646,6 @@ class AWSReportProcessorTest(MasuTestCase):
         cost_entry_id = self.processor._create_cost_entry(
             self.row, bill_id, self.accessor
         )
-        self.accessor.commit()
 
         self.assertIsNotNone(cost_entry_id)
 
@@ -662,7 +660,6 @@ class AWSReportProcessorTest(MasuTestCase):
         table = getattr(self.report_schema, table_name)
 
         bill_id = self.processor._create_cost_entry_bill(self.row, self.accessor)
-        self.accessor.commit()
 
         interval = self.row.get('identity/TimeInterval')
         start, _ = self.processor._get_cost_entry_time_interval(interval)
@@ -687,7 +684,6 @@ class AWSReportProcessorTest(MasuTestCase):
             self.row, self.accessor
         )
 
-        self.accessor.commit()
 
         self.processor._create_cost_entry_line_item(
             self.row,
@@ -721,7 +717,6 @@ class AWSReportProcessorTest(MasuTestCase):
 
         product_id = self.processor._create_cost_entry_product(self.row, self.accessor)
 
-        self.accessor.commit()
 
         self.assertIsNotNone(product_id)
 
@@ -764,7 +759,6 @@ class AWSReportProcessorTest(MasuTestCase):
 
         pricing_id = self.processor._create_cost_entry_pricing(self.row, self.accessor)
 
-        self.accessor.commit()
 
         self.assertIsNotNone(pricing_id)
 
@@ -814,7 +808,6 @@ class AWSReportProcessorTest(MasuTestCase):
             row, self.accessor
         )
 
-        self.accessor.commit()
 
         self.assertIsNotNone(reservation_id)
 
@@ -838,7 +831,6 @@ class AWSReportProcessorTest(MasuTestCase):
             row, self.accessor
         )
 
-        self.accessor.commit()
 
         self.assertIsNotNone(reservation_id)
 
@@ -854,7 +846,6 @@ class AWSReportProcessorTest(MasuTestCase):
         reservation_id = self.processor._create_cost_entry_reservation(
             row, self.accessor
         )
-        self.accessor.commit()
 
         self.assertEqual(reservation_id, id_in_db)
 

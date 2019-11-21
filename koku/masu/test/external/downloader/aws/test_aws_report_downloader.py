@@ -204,7 +204,6 @@ class AWSReportDownloaderTest(MasuTestCase):
         manifests = self.manifest_accessor._get_db_obj_query().all()
         for manifest in manifests:
             self.manifest_accessor.delete(manifest)
-        self.manifest_accessor.commit()
 
     @patch('masu.external.downloader.aws.aws_report_downloader.boto3.resource')
     @patch(

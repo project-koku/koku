@@ -106,7 +106,6 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         manifests = self.manifest_accessor._get_db_obj_query().all()
         for manifest in manifests:
             self.manifest_accessor.delete(manifest)
-        self.manifest_accessor.commit()
 
     def test_download_bucket(self):
         """Test to verify that basic report downloading works."""
