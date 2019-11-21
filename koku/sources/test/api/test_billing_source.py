@@ -52,12 +52,14 @@ class BillingSourceTests(TestCase):
         test_name = 'AWS Test'
         test_source_type = 'AWS'
         test_source_id = 1
+        test_source_uuid = faker.uuid4()
         test_resource_id = 1
 
         test_matrix = [{'source_id': test_source_id, 'billing_source': billing_source},
                        {'source_name': test_name, 'billing_source': billing_source}]
         for params in test_matrix:
-            add_provider_sources_network_info(self.test_source_id, test_name, test_source_type, test_resource_id)
+            add_provider_sources_network_info(self.test_source_id, test_source_uuid, test_name,
+                                              test_source_type, test_resource_id)
             response = self.client.post(reverse('billing-source'), json.dumps(params), content_type='application/json')
             body = response.json()
 
@@ -75,7 +77,10 @@ class BillingSourceTests(TestCase):
         test_name = 'OCP Test'
         test_source_type = 'OCP'
         test_resource_id = 1
-        add_provider_sources_network_info(self.test_source_id, test_name, test_source_type, test_resource_id)
+        test_source_uuid = faker.uuid4()
+
+        add_provider_sources_network_info(self.test_source_id, test_source_uuid, test_name,
+                                          test_source_type, test_resource_id)
         response = self.client.post(reverse('billing-source'), params)
         body = response.json()
 
