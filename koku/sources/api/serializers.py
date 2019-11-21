@@ -1,5 +1,5 @@
 #
-# Copyright 2018 Red Hat, Inc.
+# Copyright 2019 Red Hat, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -60,6 +60,9 @@ class SourcesSerializer(serializers.ModelSerializer):
     koku_uuid = serializers.CharField(max_length=512, required=False,
                                       allow_null=False, allow_blank=False,
                                       read_only=True)
+    source_uuid = serializers.CharField(max_length=512, required=False,
+                                        allow_null=False, allow_blank=False,
+                                        read_only=True)
 
     # pylint: disable=too-few-public-methods
     class Meta:
@@ -67,7 +70,7 @@ class SourcesSerializer(serializers.ModelSerializer):
 
         model = Sources
         fields = ('source_id', 'name', 'source_type', 'authentication', 'billing_source',
-                  'koku_uuid')
+                  'koku_uuid', 'source_uuid')
 
     def _validate_billing_source(self, provider_type, billing_source):
         """Validate billing source parameters."""

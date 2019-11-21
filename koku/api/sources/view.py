@@ -17,6 +17,10 @@
 
 """View for Sources Proxy."""
 import requests
+from json.decoder import JSONDecodeError
+
+from base64 import b64decode
+from json import loads as json_loads
 
 import logging
 
@@ -24,13 +28,10 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.cache import never_cache
 
-
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, viewsets
 from rest_framework.permissions import AllowAny
 
-from api.iam.models import Customer
-from sources.api.serializers import SourcesSerializer
 from api.provider.models import Sources
 
 
@@ -50,10 +51,17 @@ class SourcesProxyViewSet(mixins.ListModelMixin,
     queryset = Sources.objects.all()
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
+    url = f'{settings.SOURCES_CLIENT_BASE_URL}/sources/'
 
-    def get_serializer_class(self):
-        """Return the appropriate serializer depending on user."""
-        return SourcesSerializer
+    @property
+    def allowed_methods(self):
+        """
+        Return the list of allowed HTTP methods, uppercased.
+        """
+        if 'put' in self.http_method_names:
+            self.http_method_names.remove("put")
+        return [method.upper() for method in self.http_method_names
+                if hasattr(self, method)]
 
     def get_queryset(self):
         """Get a queryset.
@@ -62,20 +70,26 @@ class SourcesProxyViewSet(mixins.ListModelMixin,
         by filtering against a `user` object in the request.
         """
         queryset = Sources.objects.none()
-        user = self.request.user
-        if user:
+        auth_header = self.request.headers.get('X-Rh-Identity')
+        if auth_header:
             try:
-                # queryset = Sources.objects.filter(customer=user.customer)
-                queryset = Sources.objects.all()
-            except Customer.DoesNotExist:
-                LOG.error('No customer found for user %s.', user)
+                decoded_rh_auth = b64decode(auth_header)
+                json_rh_auth = json_loads(decoded_rh_auth)
+                account_id = json_rh_auth.get('identity', {}).get('account_number')
+                queryset = Sources.objects.filter(account_id=account_id)
+            except Sources.DoesNotExist:
+                LOG.error('No sources found for account id %s.', account_id)
+            except JSONDecodeError as error:
+                LOG.error(str(error))
+                return
+
         return queryset
 
     @never_cache
     def update(self, request, *args, **kwargs):
         """Update a Source."""
         source_id = kwargs.get('source_id')
-        url = f'{settings.SOURCES_CLIENT_BASE_URL}/sources/{source_id}/'
+        url = f'{self.url}{source_id}/'
         r = requests.patch(url)
         response = HttpResponse(
             content=r.content,
@@ -88,8 +102,7 @@ class SourcesProxyViewSet(mixins.ListModelMixin,
     @never_cache
     def list(self, request, *args, **kwargs):
         """Obtain the list of sources."""
-        url = f'{settings.SOURCES_CLIENT_BASE_URL}/sources/'
-        r = requests.get(url)
+        r = requests.get(self.url)
         response = HttpResponse(
             content=r.content,
             status=r.status_code,
@@ -102,7 +115,7 @@ class SourcesProxyViewSet(mixins.ListModelMixin,
     def retrieve(self, request, *args, **kwargs):
         """Get a source."""
         source_id = kwargs.get('source_id')
-        url = f'{settings.SOURCES_CLIENT_BASE_URL}/sources/{source_id}/'
+        url = f'{self.url}{source_id}/'
         r = requests.get(url)
         response = HttpResponse(
             content=r.content,
