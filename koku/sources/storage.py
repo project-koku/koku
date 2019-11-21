@@ -16,8 +16,13 @@
 #
 """Database accessors for Sources database table."""
 import logging
+from json.decoder import JSONDecodeError
+
+from base64 import b64decode
+from json import loads as json_loads
 
 from api.provider.models import Sources
+
 
 LOG = logging.getLogger(__name__)
 
@@ -216,12 +221,22 @@ def create_provider_event(source_id, auth_header, offset):
 
     """
     try:
+        decoded_rh_auth = b64decode(auth_header)
+        json_rh_auth = json_loads(decoded_rh_auth)
+        account_id = json_rh_auth.get('identity', {}).get('account_number')
+    except JSONDecodeError as error:
+        LOG.error(str(error))
+        return
+
+    try:
         query = Sources.objects.get(source_id=source_id)
         query.auth_header = auth_header
         query.offset = offset
+        query.account_id = account_id
         query.save()
     except Sources.DoesNotExist:
-        new_event = Sources(source_id=source_id, auth_header=auth_header, offset=offset)
+        new_event = Sources(source_id=source_id, auth_header=auth_header,
+                            offset=offset, account_id=account_id)
         new_event.save()
 
 

@@ -17,62 +17,22 @@
 
 """View for Sources."""
 import logging
-from functools import reduce
-from operator import and_
+from json.decoder import JSONDecodeError
 
-from django.db.models import Q
-from django.shortcuts import get_object_or_404
-from django.utils.encoding import force_text
+from base64 import b64decode
+from json import loads as json_loads
+
 from django.views.decorators.cache import never_cache
-from django_filters import CharFilter, FilterSet
-from django_filters.filters import BaseCSVFilter
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import mixins, status, viewsets
-from rest_framework.exceptions import APIException
-from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
-from rest_framework.serializers import UUIDField
 
-from api.iam.models import Customer
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import mixins, viewsets
+from rest_framework.permissions import AllowAny
+
 from sources.api.serializers import SourcesSerializer
 from api.provider.models import Sources
-from api.query_params import get_tenant
 
 
 LOG = logging.getLogger(__name__)
-
-
-class CharListFilter(BaseCSVFilter, CharFilter):
-    """Add query filter capability to provide an anded list of filter values."""
-
-    def filter(self, qs, value):
-        """Filter to create a composite and filter of the value list."""
-        if not value:
-            return qs
-        value_list = ','.join(value).split(',')
-        queries = [Q(**{self.lookup_expr: val}) for val in value_list]
-        return qs.filter(reduce(and_, queries))
-
-
-class SourceDeleteException(APIException):
-    """Source deletion custom internal error exception."""
-
-    default_detail = 'Error removing source'
-
-    def __init__(self):
-        """Initialize with status code 500."""
-        super().__init__()
-        self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        self.detail = {'detail': force_text(self.default_detail)}
-
-
-class SourceMethodException(APIException):
-    """General Exception class for Provider errors."""
-
-    def __init__(self, message):
-        """Set custom error message for Provider errors."""
-        self.status_code = status.HTTP_405_METHOD_NOT_ALLOWED
-        self.detail = {'detail': force_text(message)}
 
 
 class SourcesViewSet(mixins.ListModelMixin,
@@ -81,7 +41,7 @@ class SourcesViewSet(mixins.ListModelMixin,
                      viewsets.GenericViewSet):
     """Sources View.
 
-    A viewset that provides default `create()`, `retrieve()`,
+    A viewset that provides default `retrieve()`,
     `update()`, and `list()` actions.
     """
 
@@ -91,24 +51,36 @@ class SourcesViewSet(mixins.ListModelMixin,
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
 
-    def get_serializer_class(self):
-        """Return the appropriate serializer depending on user."""
-        return SourcesSerializer
+    @property
+    def allowed_methods(self):
+        """
+        Return the list of allowed HTTP methods, uppercased.
+        """
+        if 'put' in self.http_method_names:
+            self.http_method_names.remove("put")
+        return [method.upper() for method in self.http_method_names
+                if hasattr(self, method)]
 
     def get_queryset(self):
         """Get a queryset.
 
-        Restricts the returned Providers to the associated account,
-        by filtering against a `user` object in the request.
+        Restricts the returned Sources to the associated account,
+        by filtering against a `account_id` in the request.
         """
         queryset = Sources.objects.none()
-        user = self.request.user
-        if user:
+        auth_header = self.request.headers.get('X-Rh-Identity')
+        if auth_header:
             try:
-                # queryset = Sources.objects.filter(customer=user.customer)
-                queryset = Sources.objects.all()
-            except Customer.DoesNotExist:
-                LOG.error('No customer found for user %s.', user)
+                decoded_rh_auth = b64decode(auth_header)
+                json_rh_auth = json_loads(decoded_rh_auth)
+                account_id = json_rh_auth.get('identity', {}).get('account_number')
+                queryset = Sources.objects.filter(account_id=account_id)
+            except Sources.DoesNotExist:
+                LOG.error('No sources found for account id %s.', account_id)
+            except JSONDecodeError as error:
+                LOG.error(str(error))
+                return
+
         return queryset
 
     @never_cache
@@ -130,4 +102,3 @@ class SourcesViewSet(mixins.ListModelMixin,
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
 
         return response
-
