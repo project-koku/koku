@@ -75,13 +75,11 @@ class SourceMethodException(APIException):
         self.detail = {'detail': force_text(message)}
 
 
-class SourcesViewSet(mixins.CreateModelMixin,
-                      mixins.DestroyModelMixin,
-                      mixins.ListModelMixin,
-                      mixins.RetrieveModelMixin,
-                      mixins.UpdateModelMixin,
-                      viewsets.GenericViewSet):
-    """Provider View.
+class SourcesViewSet(mixins.ListModelMixin,
+                     mixins.RetrieveModelMixin,
+                     mixins.UpdateModelMixin,
+                     viewsets.GenericViewSet):
+    """Sources View.
 
     A viewset that provides default `create()`, `retrieve()`,
     `update()`, and `list()` actions.
@@ -92,7 +90,6 @@ class SourcesViewSet(mixins.CreateModelMixin,
     queryset = Sources.objects.all()
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
-    # filterset_class = SourceFilter
 
     def get_serializer_class(self):
         """Return the appropriate serializer depending on user."""
@@ -115,21 +112,8 @@ class SourcesViewSet(mixins.CreateModelMixin,
         return queryset
 
     @never_cache
-    def create(self, request, *args, **kwargs):
-        """Create a Source."""
-        return super().create(request=request, args=args, kwargs=kwargs)
-
-    @never_cache
-    def patch(self, request, *args, **kwargs):
-        import pdb; pdb.set_trace()
-        return self.update_partial(request, *args, **kwargs)
-
-    @never_cache
     def update(self, request, *args, **kwargs):
         """Update a Source."""
-        #user = request.user
-        #uuid = UUIDField().to_internal_value(data=kwargs.get('uuid'))
-        #get_object_or_404(Sources, uuid=uuid, customer=user.customer)
 
         return super().update(request=request, args=args, kwargs=kwargs)
 
@@ -147,12 +131,3 @@ class SourcesViewSet(mixins.CreateModelMixin,
 
         return response
 
-    @never_cache
-    def destroy(self, request, *args, **kwargs):
-        """Delete a source."""
-        # throws ValidationError if pk is not a valid UUID
-        user = request.user
-        uuid = UUIDField().to_internal_value(data=kwargs.get('uuid'))
-        get_object_or_404(Sources, uuid=uuid, customer=user.customer)
-
-        return Response(status=status.HTTP_204_NO_CONTENT)
