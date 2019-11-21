@@ -17,22 +17,20 @@
 
 """View for Sources."""
 import logging
-from json.decoder import JSONDecodeError
-
 from base64 import b64decode
 from json import loads as json_loads
+from json.decoder import JSONDecodeError
 
 from django.views.decorators.cache import never_cache
-
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.response import Response
+from rest_framework import mixins, viewsets
 from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework import mixins, viewsets
 from rest_framework.permissions import AllowAny
-
+from rest_framework.response import Response
 from sources.api.serializers import SourcesSerializer
 from sources.api.source_status import SourceStatus
+
 from api.provider.models import Sources
 
 
@@ -57,11 +55,9 @@ class SourcesViewSet(mixins.ListModelMixin,
 
     @property
     def allowed_methods(self):
-        """
-        Return the list of allowed HTTP methods, uppercased.
-        """
+        """Return the list of allowed HTTP methods, uppercased."""
         if 'put' in self.http_method_names:
-            self.http_method_names.remove("put")
+            self.http_method_names.remove('put')
         return [method.upper() for method in self.http_method_names
                 if hasattr(self, method)]
 
@@ -90,7 +86,6 @@ class SourcesViewSet(mixins.ListModelMixin,
     @never_cache
     def update(self, request, *args, **kwargs):
         """Update a Source."""
-
         return super().update(request=request, args=args, kwargs=kwargs)
 
     @never_cache
@@ -109,6 +104,7 @@ class SourcesViewSet(mixins.ListModelMixin,
 
     @action(detail=True, methods=['get'])
     def status(self, request, *args, **kwargs):
+        """Get source availability status."""
         source_id = kwargs.get('source_id')
         source_status_obj = SourceStatus(source_id)
         availability_status = source_status_obj.status()

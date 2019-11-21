@@ -16,9 +16,8 @@
 """Describes the urls and patterns for the API application."""
 from django.conf.urls import include, url
 from rest_framework.routers import DefaultRouter
-
 from sources.api.status import get_status
-from sources.api.views import authentication, billing_source, source_status, SourcesViewSet
+from sources.api.views import SourcesViewSet, authentication, billing_source, source_status
 
 ROUTER = DefaultRouter()
 ROUTER.register(r'sources', SourcesViewSet)

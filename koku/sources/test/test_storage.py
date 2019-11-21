@@ -16,6 +16,8 @@
 #
 
 """Test the Sources Storage access layer."""
+from base64 import b64decode
+from json import loads as json_loads
 
 from django.test import TestCase
 from faker import Faker
@@ -54,6 +56,10 @@ class SourcesStorageTest(TestCase):
         self.test_obj = Sources(source_id=self.test_source_id,
                                 auth_header=self.test_header,
                                 offset=self.test_offset)
+        decoded_rh_auth = b64decode(self.test_header)
+        json_rh_auth = json_loads(decoded_rh_auth)
+        self.account_id = json_rh_auth.get('identity', {}).get('account_number')
+
         self.test_obj.save()
 
     def test_create_provider_event(self):
@@ -65,6 +71,15 @@ class SourcesStorageTest(TestCase):
         self.assertEqual(db_obj.source_id, test_source_id)
         self.assertEqual(db_obj.auth_header, Config.SOURCES_FAKE_HEADER)
         self.assertEqual(db_obj.offset, test_offset)
+        self.assertEqual(db_obj.account_id, self.account_id)
+
+    def test_create_provider_event_invalid_auth_header(self):
+        """Tests creating a source db record with invalid auth_header."""
+        test_source_id = 2
+        test_offset = 3
+        storage.create_provider_event(test_source_id, 'bad', test_offset)
+        with self.assertRaises(Sources.DoesNotExist):
+            Sources.objects.get(source_id=test_source_id)
 
     def test_destroy_provider_event(self):
         """Tests that a source can be destroyed."""

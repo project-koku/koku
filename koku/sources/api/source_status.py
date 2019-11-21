@@ -30,10 +30,14 @@ from providers.provider_access import ProviderAccessor
 
 
 class SourceStatus:
+    """Source Status."""
+
     def __init__(self, source_id):
+        """Initialize source id."""
         self.source = Sources.objects.get(source_id=source_id)
 
     def status(self):
+        """Find the source's availability status."""
         # Get the source billing_source, whether it's named bucket
         if self.source.billing_source.get('bucket'):
             source_billing_source = self.source.billing_source.get('bucket')

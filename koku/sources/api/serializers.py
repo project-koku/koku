@@ -18,13 +18,9 @@
 
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
+from sources.storage import SourcesStorageError
 
-from api.provider.models import (Provider,
-                                 ProviderAuthentication,
-                                 ProviderBillingSource,
-                                 Sources)
-
-from sources.storage import SourcesStorageError, add_provider_billing_source
+from api.provider.models import Sources
 
 
 def error_obj(key, message):
@@ -86,41 +82,47 @@ class SourcesSerializer(serializers.ModelSerializer):
             if not data_source.get('storage_account'):
                 raise SourcesStorageError('Missing AZURE storage_account')
 
+    def _update_billing_source(self, instance, billing_source):
+        try:
+            if instance.source_type not in ('AWS', 'AZURE'):
+                raise SourcesStorageError('Source is not AWS nor AZURE.')
+            self._validate_billing_source(instance.source_type, billing_source)
+            instance.billing_source = billing_source
+            if instance.koku_uuid:
+                instance.pending_update = True
+                instance.save(update_fields=['billing_source', 'pending_update'])
+            else:
+                instance.save()
+        except Sources.DoesNotExist:
+            raise SourcesStorageError('Source does not exist')
+
+    def _update_authentication(self, instance, authentication):
+        try:
+            if instance.source_type not in ('AZURE',):
+                raise SourcesStorageError('Source is not AZURE.')
+            auth_dict = instance.authentication
+            if not auth_dict.get('credentials'):
+                raise SourcesStorageError('Missing credentials key')
+            subscription_id = authentication.get('credentials', {}).get('subscription_id')
+            auth_dict['credentials']['subscription_id'] = subscription_id
+            instance.authentication = auth_dict
+            if instance.koku_uuid:
+                instance.pending_update = True
+                instance.save(update_fields=['authentication', 'pending_update'])
+            else:
+                instance.save()
+        except Sources.DoesNotExist:
+            raise SourcesStorageError('Source does not exist')
+
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
-
         billing_source = validated_data.get('billing_source')
         authentication = validated_data.get('authentication')
 
         if billing_source:
-            try:
-                if instance.source_type not in ('AWS', 'AZURE'):
-                    raise SourcesStorageError('Source is not AWS nor AZURE.')
-                self._validate_billing_source(instance.source_type, billing_source)
-                instance.billing_source = billing_source
-                if instance.koku_uuid:
-                    instance.pending_update = True
-                    instance.save(update_fields=['billing_source', 'pending_update'])
-                else:
-                    instance.save()
-            except Sources.DoesNotExist:
-                raise SourcesStorageError('Source does not exist')
+            self._update_billing_source(instance, billing_source)
 
         if authentication:
-            try:
-                if instance.source_type not in ('AZURE',):
-                    raise SourcesStorageError('Source is not AZURE.')
-                auth_dict = instance.authentication
-                if not auth_dict.get('credentials'):
-                    raise SourcesStorageError('Missing credentials key')
-                subscription_id = authentication.get('credentials', {}).get('subscription_id')
-                auth_dict['credentials']['subscription_id'] = subscription_id
-                instance.authentication = auth_dict
-                if instance.koku_uuid:
-                    instance.pending_update = True
-                    instance.save(update_fields=['authentication', 'pending_update'])
-                else:
-                    instance.save()
-            except Sources.DoesNotExist:
-                raise SourcesStorageError('Source does not exist')
+            self._update_authentication(instance, authentication)
+
         return instance

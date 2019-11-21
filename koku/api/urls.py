@@ -43,12 +43,12 @@ from api.views import (
     OCPTagView,
     OCPVolumeView,
     ProviderViewSet,
+    SourcesProxyViewSet,
     StatusView,
     UserPreferenceViewSet,
     authentication,
     billing_source,
     openapi,
-    SourcesProxyViewSet
 )
 
 

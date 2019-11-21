@@ -16,18 +16,15 @@
 #
 
 """View for Sources Proxy."""
-import requests
-from json.decoder import JSONDecodeError
-
+import logging
 from base64 import b64decode
 from json import loads as json_loads
+from json.decoder import JSONDecodeError
 
-import logging
-
+import requests
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.cache import never_cache
-
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, viewsets
 from rest_framework.permissions import AllowAny
@@ -39,14 +36,16 @@ LOG = logging.getLogger(__name__)
 
 
 class SourcesProxyViewSet(mixins.ListModelMixin,
-                     mixins.RetrieveModelMixin,
-                     mixins.UpdateModelMixin,
-                     viewsets.GenericViewSet):
+                          mixins.RetrieveModelMixin,
+                          mixins.UpdateModelMixin,
+                          viewsets.GenericViewSet):
     """Sources View.
 
     A viewset that provides default `create()`, `retrieve()`,
     `update()`, and `list()` actions.
+
     """
+
     lookup_field = 'source_id'
     queryset = Sources.objects.all()
     permission_classes = (AllowAny,)
@@ -55,11 +54,9 @@ class SourcesProxyViewSet(mixins.ListModelMixin,
 
     @property
     def allowed_methods(self):
-        """
-        Return the list of allowed HTTP methods, uppercased.
-        """
+        """Return the list of allowed HTTP methods, uppercased."""
         if 'put' in self.http_method_names:
-            self.http_method_names.remove("put")
+            self.http_method_names.remove('put')
         return [method.upper() for method in self.http_method_names
                 if hasattr(self, method)]
 
@@ -124,4 +121,3 @@ class SourcesProxyViewSet(mixins.ListModelMixin,
         )
 
         return response
-

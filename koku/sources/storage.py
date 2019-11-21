@@ -15,11 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Database accessors for Sources database table."""
+import binascii
 import logging
-from json.decoder import JSONDecodeError
-
 from base64 import b64decode
 from json import loads as json_loads
+from json.decoder import JSONDecodeError
+
 
 from api.provider.models import Sources
 
@@ -224,7 +225,7 @@ def create_provider_event(source_id, auth_header, offset):
         decoded_rh_auth = b64decode(auth_header)
         json_rh_auth = json_loads(decoded_rh_auth)
         account_id = json_rh_auth.get('identity', {}).get('account_number')
-    except JSONDecodeError as error:
+    except (binascii.Error, JSONDecodeError) as error:
         LOG.error(str(error))
         return
 
