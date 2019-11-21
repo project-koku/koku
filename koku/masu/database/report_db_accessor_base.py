@@ -151,17 +151,6 @@ class ReportDBAccessorBase(KokuDBAccess):
             delete_sql = f'DELETE FROM {temp_table_name}'
             cursor.execute(delete_sql)
 
-    def vacuum_table(self, table_name):
-        """Vacuum a table outside of a transaction."""
-        with schema_context(self.schema):
-            old_isolation_level = connection.connection.isolation_level
-            connection.connection.set_isolation_level(0)
-            vacuum = f'VACUUM {table_name}'
-            with connection.cursor() as cursor:
-                cursor.db.set_schema(self.schema)
-                cursor.execute(vacuum)
-            connection.connection.set_isolation_level(old_isolation_level)
-
     # pylint: disable=too-many-arguments
     def bulk_insert_rows(self, file_obj, table, columns, sep='\t', null=''):
         r"""Insert many rows using Postgres copy functionality.
@@ -389,7 +378,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         return value
 
     def _execute_raw_sql_query(self, table, sql, start=None, end=None, bind_params=None):
-        """Commit query to a table and vacuum."""
+        """Run a SQL statement via a cursor."""
         if start and end:
             LOG.info('Updating %s from %s to %s.',
                      table, start, end)

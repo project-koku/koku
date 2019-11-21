@@ -42,7 +42,6 @@ class KokuDBAccess:
 
         """
         self.schema = schema
-        self._savepoints = []
 
     def __enter__(self):
         """Enter context manager."""
