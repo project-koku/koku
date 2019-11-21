@@ -253,9 +253,6 @@ class AzureReportProcessorTest(MasuTestCase):
         except InternalError:
             self.fail('failed to call process twice.')
 
-
-
-
     def test_azure_process_no_such_savepoint(self):
         """This test shows that 'no such savepoint' is not raised when processor called twice."""
         queue = Queue()
