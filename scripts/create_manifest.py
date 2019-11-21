@@ -18,10 +18,9 @@
 
 import json
 import os
-import sys
 
 lockfile = {}
-python_version = ".".join(sys.version.split(".", 2)[:2])
+python_version = "3.6"
 
 
 with open("Pipfile.lock") as json_file:
