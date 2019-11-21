@@ -47,7 +47,8 @@ from api.views import (
     UserPreferenceViewSet,
     authentication,
     billing_source,
-    openapi
+    openapi,
+    SourcesProxyViewSet
 )
 
 
@@ -55,6 +56,7 @@ ROUTER = DefaultRouter()
 ROUTER.register(r'dataexportrequests', DataExportRequestViewSet, base_name='dataexportrequests')
 ROUTER.register(r'metrics', CostModelMetricsMapViewSet, base_name='metrics')
 ROUTER.register(r'providers', ProviderViewSet)
+ROUTER.register(r'sources', SourcesProxyViewSet)
 ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
 ROUTER.register(r'cloud-accounts', CloudAccountViewSet, base_name='cloud_accounts')
 # pylint: disable=invalid-name
