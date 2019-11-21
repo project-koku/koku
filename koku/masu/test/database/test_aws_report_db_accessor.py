@@ -747,7 +747,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
             self.assertNotEqual(getattr(entry, 'tags'), {})
 
-    def test_populate_line_item_daily_summary_table(self:
+    def test_populate_line_item_daily_summary_table(self):
         """Test that the daily summary table is populated."""
         ce_table_name = AWS_CUR_TABLE_MAP['cost_entry']
         summary_table_name = AWS_CUR_TABLE_MAP['line_item_daily_summary']
