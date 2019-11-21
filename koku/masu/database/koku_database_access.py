@@ -43,6 +43,7 @@ class KokuDBAccess:
 
         """
         self.schema = schema
+        self._savepoints = []
 
     def __enter__(self):
         """Enter context manager."""
@@ -54,8 +55,6 @@ class KokuDBAccess:
         """Context manager close session."""
         connection = transaction.get_connection()
         connection.set_schema_to_public()
-
-
 
     def _get_db_obj_query(self, **filter_args):
         """
@@ -101,7 +100,6 @@ class KokuDBAccess:
             new_entry = self._table.objects.create(**kwargs)
             new_entry.save()
             return new_entry
-
 
     def delete(self, obj=None):
         """

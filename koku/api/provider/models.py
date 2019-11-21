@@ -205,6 +205,9 @@ class Sources(models.Model):
     # Source ID is unique identifier
     source_id = models.IntegerField(primary_key=True)
 
+    # Source UID
+    source_uuid = models.UUIDField(unique=True, null=True)
+
     # Source name.
     name = models.CharField(max_length=256, null=True)
 
@@ -228,7 +231,7 @@ class Sources(models.Model):
     billing_source = JSONField(null=True, default=dict)
 
     # Unique identifier for koku Provider
-    koku_uuid = models.CharField(max_length=512, null=True)
+    koku_uuid = models.CharField(max_length=512, null=True, unique=True)
 
     # When source has been deleted on Platform-Sources this is True indicating it hasn't been
     # removed on the Koku side yet.  Entry is removed entirely once Koku-Provider was successfully

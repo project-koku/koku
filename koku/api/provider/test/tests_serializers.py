@@ -235,6 +235,14 @@ class ProviderSerializerTest(IamTestCase):
                 source_obj = Sources.objects.get(source_id=1)
                 self.assertEqual(source_obj.koku_uuid, str(instance.uuid))
 
+        # Verify ValidationError is raised when another source is added with an existing
+        # provider.
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                with self.assertRaises(serializers.ValidationError):
+                    serializer.save()
+
     def test_create_provider_with_exception(self):
         """Test creating a provider with a provider exception."""
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
