@@ -174,8 +174,8 @@ class ReportDBAccessorBase(KokuDBAccess):
             null (str): How null is represented in the CSV. Default: ''
 
         """
-        if KokuDBAccess._savepoints:
-            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
+        if self._savepoints:
+            transaction.savepoint_commit(self._savepoints.pop())
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             cursor.copy_from(
@@ -273,8 +273,8 @@ class ReportDBAccessorBase(KokuDBAccess):
             insert_sql = insert_sql + f' ON CONFLICT ({conflict_columns_formatted}) DO NOTHING;'
         else:
             insert_sql = insert_sql + ' ON CONFLICT DO NOTHING;'
-        if KokuDBAccess._savepoints:
-            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
+        if self._savepoints:
+            transaction.savepoint_commit(self._savepoints.pop())
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             cursor.execute(insert_sql, values)
@@ -321,8 +321,8 @@ class ReportDBAccessorBase(KokuDBAccess):
          ON CONFLICT ({conflict_columns_formatted}) DO UPDATE SET
          {set_clause}
         """
-        if KokuDBAccess._savepoints:
-            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
+        if self._savepoints:
+            transaction.savepoint_commit(self._savepoints.pop())
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             cursor.execute(insert_sql, values)
@@ -405,8 +405,8 @@ class ReportDBAccessorBase(KokuDBAccess):
         else:
             LOG.info('Updating %s', table)
 
-        if KokuDBAccess._savepoints:
-            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
+        if self._savepoints:
+            transaction.savepoint_commit(self._savepoints.pop())
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             cursor.execute(sql, params=bind_params)
