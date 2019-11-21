@@ -90,14 +90,15 @@ class SourcesStorageTest(TestCase):
         test_name = 'My Source Name'
         source_type = 'AWS'
         endpoint_id = 1
-
-        storage.add_provider_sources_network_info(self.test_source_id, test_name, source_type,
-                                                  endpoint_id)
+        source_uuid = faker.uuid4()
+        storage.add_provider_sources_network_info(self.test_source_id, source_uuid,
+                                                  test_name, source_type, endpoint_id)
 
         test_source = Sources.objects.get(source_id=self.test_source_id)
         self.assertEqual(test_source.name, test_name)
         self.assertEqual(test_source.source_type, source_type)
         self.assertEqual(test_source.endpoint_id, endpoint_id)
+        self.assertEqual(str(test_source.source_uuid), source_uuid)
 
     def test_add_provider_network_info_not_found(self):
         """Tests that adding information retrieved from the sources network API is not successful."""
@@ -105,7 +106,7 @@ class SourcesStorageTest(TestCase):
             test_name = 'My Source Name'
             source_type = 'AWS'
             authentication = 'testauth'
-            storage.add_provider_sources_network_info(self.test_source_id + 1,
+            storage.add_provider_sources_network_info(self.test_source_id + 1, faker.uuid4(),
                                                       test_name, source_type, authentication)
         except Exception as error:
             self.fail(str(error))
@@ -113,21 +114,24 @@ class SourcesStorageTest(TestCase):
     def test_add_provider_billing_source(self):
         """Tests that add an AWS billing source to a Source."""
         s3_bucket = {'bucket': 'test-bucket'}
-        storage.add_provider_sources_network_info(self.test_source_id, 'AWS Account', 'AWS', 1)
+        storage.add_provider_sources_network_info(self.test_source_id, faker.uuid4(),
+                                                  'AWS Account', 'AWS', 1)
         storage.add_provider_billing_source({'source_id': self.test_source_id}, s3_bucket)
         self.assertEqual(Sources.objects.get(source_id=self.test_source_id).billing_source, s3_bucket)
 
     def test_add_provider_billing_source_non_aws(self):
         """Tests that add a non-AWS billing source to a Source."""
         s3_bucket = {'bucket': 'test-bucket'}
-        storage.add_provider_sources_network_info(self.test_source_id, 'OCP Account', 'OCP', 1)
+        storage.add_provider_sources_network_info(self.test_source_id, faker.uuid4(),
+                                                  'OCP Account', 'OCP', 1)
         with self.assertRaises(SourcesStorageError):
             storage.add_provider_billing_source({'source_id': self.test_source_id}, s3_bucket)
 
     def test_add_provider_billing_source_non_existent(self):
         """Tests that add a billing source to a non-existent Source."""
         s3_bucket = {'bucket': 'test-bucket'}
-        storage.add_provider_sources_network_info(self.test_source_id + 1, 'AWS Account', 'AWS', 1)
+        storage.add_provider_sources_network_info(self.test_source_id + 1, faker.uuid4(),
+                                                  'AWS Account', 'AWS', 1)
         with self.assertRaises(SourcesStorageError):
             storage.add_provider_billing_source({'source_id': self.test_source_id}, s3_bucket)
 
