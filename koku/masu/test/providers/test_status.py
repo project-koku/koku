@@ -40,7 +40,6 @@ class ProviderStatusTest(MasuTestCase):
         provider_accessor = ProviderDBAccessor(self.aws_provider_uuid)
         provider = provider_accessor.get_provider()
         self.provider_uuid = provider.uuid
-        provider_accessor.close_session()
 
     def _setup_random_status(self):
         """Set up a randomized status for testing.
@@ -91,7 +90,6 @@ class ProviderStatusTest(MasuTestCase):
         accessor = ProviderStatus(self.aws_provider_uuid)
         err = Exception(self.FAKE.word())
         accessor.set_error(error=err)
-        accessor.close_session()
 
         # test that state moved from READY to WARNING
         with ProviderStatus(self.aws_provider_uuid) as new_accessor:
@@ -131,7 +129,6 @@ class ProviderStatusTest(MasuTestCase):
 
         with ProviderStatus(self.aws_provider_uuid) as accessor:
             self.assertTrue(accessor.is_valid())
-            accessor.close_session()
 
     def test_is_valid_warn(self):
         """Test is_valid() should be True when status is WARNING."""
@@ -147,7 +144,6 @@ class ProviderStatusTest(MasuTestCase):
 
         accessor = ProviderStatus(self.aws_provider_uuid)
         self.assertTrue(accessor.is_valid())
-        accessor.close_session()
 
     def test_is_valid_disabled(self):
         """Test when is_valid() should be False when status is DISABLED."""
@@ -163,7 +159,6 @@ class ProviderStatusTest(MasuTestCase):
 
         accessor = ProviderStatus(self.aws_provider_uuid)
         self.assertFalse(accessor.is_valid())
-        accessor.close_session()
 
     def test_is_valid_new(self):
         """Test when is_valid() should be False when status is NEW."""
@@ -179,7 +174,6 @@ class ProviderStatusTest(MasuTestCase):
 
         with ProviderStatus(self.aws_provider_uuid) as accessor:
             self.assertFalse(accessor.is_valid())
-            accessor.close_session()
 
     def test_is_backing_off_true(self):
         """Test is_backing_off() is true within the appropriate time window."""
@@ -213,4 +207,3 @@ class ProviderStatusTest(MasuTestCase):
 
         with ProviderStatus(self.aws_provider_uuid) as accessor:
             self.assertFalse(accessor.is_backing_off())
-            accessor.close_session()

@@ -21,7 +21,7 @@ import uuid
 from decimal import Decimal, InvalidOperation
 
 import django.apps
-from django.db import connection, transaction
+from django.db import connection
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
@@ -388,7 +388,7 @@ class ReportDBAccessorBase(KokuDBAccess):
                 value = None
         return value
 
-    def _commit_and_vacuum(self, table, sql, start=None, end=None, bind_params=None):
+    def _execute_raw_sql_query(self, table, sql, start=None, end=None, bind_params=None):
         """Commit query to a table and vacuum."""
         if start and end:
             LOG.info('Updating %s from %s to %s.',

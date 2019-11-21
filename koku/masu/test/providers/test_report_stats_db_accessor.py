@@ -41,16 +41,7 @@ class ReportStatsDBAccessorTest(MasuTestCase):
         self.manifest_accessor = ReportManifestDBAccessor()
 
         manifest = self.manifest_accessor.add(**manifest_dict)
-        self.manifest_accessor.commit()
         self.manifest_id = manifest.id
-
-    def tearDown(self):
-        """Tear down the test class."""
-        manifests = self.manifest_accessor._get_db_obj_query().all()
-        for manifest in manifests:
-            self.manifest_accessor.delete(manifest)
-        self.manifest_accessor.commit()
-        self.manifest_accessor.close_session()
 
     def test_initializer(self):
         """Test Initializer"""
@@ -66,7 +57,7 @@ class ReportStatsDBAccessorTest(MasuTestCase):
             last_started_datetime='2022-2-2 22:22:22',
             etag='myetag',
         )
-        saver.commit()
+
 
         self.assertIsNotNone(saver._obj)
 
@@ -87,22 +78,18 @@ class ReportStatsDBAccessorTest(MasuTestCase):
     def test_add_remove(self):
         """Test basic add/remove logic."""
         saver = ReportStatsDBAccessor('myreport', self.manifest_id)
-        saver.commit()
 
         self.assertTrue(saver.does_db_entry_exist())
         returned_obj = saver._get_db_obj_query()
         self.assertEqual(returned_obj.first().report_name, 'myreport')
 
         saver.delete()
-        saver.commit()
         returned_obj = saver._get_db_obj_query()
         self.assertIsNone(returned_obj.first())
-        saver.close_session()
 
     def test_update(self):
         """Test updating an existing row."""
         saver = ReportStatsDBAccessor('myreport', self.manifest_id)
-        saver.commit()
 
         returned_obj = saver._get_db_obj_query()
         self.assertEqual(returned_obj.first().report_name, 'myreport')
@@ -113,7 +100,6 @@ class ReportStatsDBAccessorTest(MasuTestCase):
             last_started_datetime=parser.parse('2022-2-2 22:22:22'),
             etag='myetag',
         )
-        saver.commit()
 
         last_completed = saver.get_last_completed_datetime()
         self.assertEqual(last_completed.year, 2011)
@@ -134,29 +120,21 @@ class ReportStatsDBAccessorTest(MasuTestCase):
         self.assertEqual(saver.get_etag(), 'myetag')
 
         saver.delete()
-        saver.commit()
         returned_obj = saver._get_db_obj_query()
         self.assertIsNone(returned_obj.first())
-        saver.close_session()
 
     def test_log_last_started_datetime(self):
         """Test convience function for last started processing time."""
         saver = ReportStatsDBAccessor('myreport', self.manifest_id)
         saver.log_last_started_datetime()
-        saver.commit()
 
         # FIXME: missing asserts
         saver.delete()
-        saver.commit()
-        saver.close_session()
 
     def test_log_last_completed_datetime(self):
         """Test convience function for last completed processing time."""
         saver = ReportStatsDBAccessor('myreport', self.manifest_id)
         saver.log_last_completed_datetime()
-        saver.commit()
 
         # FIXME: missing asserts
         saver.delete()
-        saver.commit()
-        saver.close_session()

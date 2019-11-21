@@ -339,7 +339,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(
             daily_sql, daily_sql_params
         )
-        self._commit_and_vacuum(
+        self._execute_raw_sql_query(
             table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
     def get_ocp_infrastructure_map(self, start_date, end_date, **kwargs):
@@ -427,7 +427,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(
             daily_sql, daily_sql_params
         )
-        self._commit_and_vacuum(
+        self._execute_raw_sql_query(
             table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
     def populate_pod_charge(self, cpu_temp_table, mem_temp_table):
@@ -456,7 +456,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         charge_line_sql, charge_line_sql_params = self.jinja_sql.prepare_query(
             charge_line_sql, charge_line_sql_params
         )
-        self._commit_and_vacuum(
+        self._execute_raw_sql_query(
             table_name, charge_line_sql, bind_params=list(charge_line_sql_params))
 
     def populate_storage_charge(self, temp_table_name):
@@ -483,7 +483,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         charge_line_sql, charge_line_sql_params = self.jinja_sql.prepare_query(
             charge_line_sql, charge_line_sql_params
         )
-        self._commit_and_vacuum(
+        self._execute_raw_sql_query(
             table_name, charge_line_sql, bind_params=list(charge_line_sql_params))
 
     def populate_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
@@ -522,7 +522,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
             summary_sql, summary_sql_params
         )
-        self._commit_and_vacuum(
+        self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
     def populate_storage_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
@@ -560,7 +560,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
             summary_sql, summary_sql_params
         )
-        self._commit_and_vacuum(
+        self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, list(summary_sql_params))
 
     def update_summary_infrastructure_cost(self, cluster_id, start_date, end_date):
@@ -604,7 +604,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             }
             summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
                 summary_sql, summary_sql_params)
-            self._commit_and_vacuum(
+            self._execute_raw_sql_query(
                 table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
     def get_cost_summary_for_clusterid(self, cluster_identifier):
@@ -628,7 +628,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(
             agg_sql, agg_sql_params
         )
-        self._commit_and_vacuum(table_name, agg_sql, bind_params=list(agg_sql_params))
+        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     # pylint: disable=invalid-name
     def populate_volume_claim_label_summary_table(self):
@@ -644,7 +644,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(
             agg_sql, agg_sql_params
         )
-        self._commit_and_vacuum(table_name, agg_sql, bind_params=list(agg_sql_params))
+        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     # pylint: disable=invalid-name
     def populate_volume_label_summary_table(self):
@@ -660,7 +660,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(
             agg_sql, agg_sql_params
         )
-        self._commit_and_vacuum(table_name, agg_sql, bind_params=list(agg_sql_params))
+        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def populate_markup_cost(self, infra_provider_markup, ocp_markup, cluster_id):
         """Set markup cost for OCP including infrastructure cost markup."""

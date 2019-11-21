@@ -18,7 +18,6 @@
 
 import logging
 
-from django.db import IntegrityError
 from django.db import transaction
 from tenant_schemas.utils import schema_context
 

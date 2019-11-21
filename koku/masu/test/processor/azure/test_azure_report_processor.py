@@ -344,8 +344,6 @@ class AzureReportProcessorTest(MasuTestCase):
         product_id = self.processor._create_cost_entry_product(self.row, self.accessor)
         meter_id = self.processor._create_meter(self.row, self.accessor)
 
-        self.accessor.commit()
-
         self.processor._create_cost_entry_line_item(
             self.row,
             bill_id,

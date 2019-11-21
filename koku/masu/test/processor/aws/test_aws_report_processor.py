@@ -947,7 +947,6 @@ class AWSReportProcessorTest(MasuTestCase):
         """Test that data is not deleted once a file has been processed."""
         self.manifest.num_processed_files = 1
         self.manifest.save()
-        self.manifest_accessor.commit()
         processor = AWSReportProcessor(
             schema_name=self.schema,
             report_path=self.test_report,

@@ -65,6 +65,7 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
     file_name = report_path.split('/')[-1]
     with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
         stats_recorder.log_last_started_datetime()
+
     processor = ReportProcessor(schema_name=schema_name,
                                 report_path=report_path,
                                 compression=compression,
@@ -72,6 +73,7 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
                                 provider_uuid=provider_uuid,
                                 manifest_id=manifest_id)
     processor.process()
+
     with transaction.atomic():
         with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
             stats_recorder.log_last_completed_datetime()

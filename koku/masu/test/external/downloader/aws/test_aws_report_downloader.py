@@ -168,10 +168,6 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         cls.manifest_accessor = ReportManifestDBAccessor()
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.manifest_accessor.close_session()
-
     @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def setUp(self, fake_session):
         super().setUp()
@@ -200,10 +196,6 @@ class AWSReportDownloaderTest(MasuTestCase):
 
     def tearDown(self):
         shutil.rmtree(DATA_DIR, ignore_errors=True)
-
-        manifests = self.manifest_accessor._get_db_obj_query().all()
-        for manifest in manifests:
-            self.manifest_accessor.delete(manifest)
 
     @patch('masu.external.downloader.aws.aws_report_downloader.boto3.resource')
     @patch(
