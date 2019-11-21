@@ -33,8 +33,6 @@ class KokuDBAccess:
     with a schema/tenant context.
     """
 
-    _savepoints = []
-
     # pylint: disable=no-member
     def __init__(self, schema):
         """
@@ -45,13 +43,14 @@ class KokuDBAccess:
 
         """
         self.schema = schema
+        self._savepoints = []
 
     def __enter__(self):
         """Enter context manager."""
         connection = transaction.get_connection()
         if connection.get_autocommit():
             connection.set_autocommit(False)
-        KokuDBAccess._savepoints.append(transaction.savepoint())
+        self._savepoints.append(transaction.savepoint())
         connection.set_schema(self.schema)
         return self
 
@@ -59,11 +58,11 @@ class KokuDBAccess:
         """Context manager close session."""
         connection = transaction.get_connection()
         with schema_context(self.schema):
-            if KokuDBAccess._savepoints:
+            if self._savepoints:
                 if exception_type:
-                    transaction.savepoint_rollback(KokuDBAccess._savepoints.pop())
+                    transaction.savepoint_rollback(self._savepoints.pop())
                 else:
-                    transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
+                    transaction.savepoint_commit(self._savepoints.pop())
             if not connection.in_atomic_block:
                 transaction.commit()
                 connection.set_autocommit(True)
@@ -151,6 +150,8 @@ class KokuDBAccess:
 
         """
         with schema_context(self.schema):
+            if self._savepoints:
+                transaction.savepoint_commit(self._savepoints.pop())
             transaction.commit()
 
     def delete(self, obj=None):
