@@ -235,6 +235,27 @@ class AzureReportProcessorTest(MasuTestCase):
                 count = table.objects.count()
             self.assertTrue(count == counts[table_name])
 
+    def test_azure_process_duplicates_without_savepoints_error(self):
+        """Test that row duplicates are inserted into the DB when process called twice."""
+        counts = {}
+        processor = AzureReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.azure_provider_uuid,
+        )
+
+        # Process for the first time
+        processor.process()
+        shutil.copy2(self.test_report_path, self.test_report)
+        try:
+            processor.process()
+        except InternalError:
+            self.fail('failed to call process twice.')
+
+
+
+
     def test_azure_process_no_such_savepoint(self):
         """This test shows that 'no such savepoint' is not raised when processor called twice."""
         queue = Queue()
