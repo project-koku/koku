@@ -50,7 +50,9 @@ Please use \`make <target>' where <target> is one of:
   create-test-customer     create a test customer and tenant in the database
   collect-static           collect static files to host
   make-migrations          make migrations for the database
-  requirements             generate Pipfile.lock and RTD requirements
+  requirements             generate Pipfile.lock, RTD requirements and manifest for product security
+  manifest                 create/update manifest for product security
+  check-manifest           check that the manifest is up to date
   remove-db                remove local directory: $(TOPDIR)/pg_data
   run-migrations           run migrations against database
   serve                    run the Django app on localhost
@@ -145,6 +147,13 @@ remove-db:
 requirements:
 	pipenv lock
 	pipenv lock -r > docs/rtd_requirements.txt
+	python scripts/create_manifest.py
+
+manifest:
+	python scripts/create_manifest.py
+
+check-manifest:
+	./.travis/check_manifest.sh
 
 run-migrations:
 	$(DJANGO_MANAGE) migrate_schemas
