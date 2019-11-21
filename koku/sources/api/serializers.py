@@ -124,4 +124,3 @@ class SourcesSerializer(serializers.ModelSerializer):
             except Sources.DoesNotExist:
                 raise SourcesStorageError('Source does not exist')
         return instance
-

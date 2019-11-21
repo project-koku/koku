@@ -29,6 +29,33 @@ from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
 
 
+class SourceStatus:
+    def __init__(self, source_id):
+        self.source = Sources.objects.get(source_id=source_id)
+
+    def status(self):
+        # Get the source billing_source, whether it's named bucket
+        if self.source.billing_source.get('bucket'):
+            source_billing_source = self.source.billing_source.get('bucket')
+        elif self.source.billing_source.get('data_source'):
+            source_billing_source = self.source.billing_source.get('data_source')
+        else:
+            source_billing_source = {}
+        # Get the source authentication
+        if self.source.authentication.get('resource_name'):
+            source_authentication = self.source.authentication.get('resource_name')
+        elif self.source.authentication.get('credentials'):
+            source_authentication = self.source.authentication.get('credentials')
+        else:
+            source_authentication = {}
+        provider = self.source.source_type
+
+        interface = ProviderAccessor(provider)
+
+        availability_status = interface.availability_status(source_authentication, source_billing_source)
+        return availability_status
+
+
 @never_cache  # noqa: C901
 @api_view(http_method_names=['GET'])
 @permission_classes((AllowAny,))
@@ -54,27 +81,11 @@ def source_status(request):
         # source_id must be an integer
         return Response(data='source_id must be an integer', status=status.HTTP_400_BAD_REQUEST)
     try:
-        source = Sources.objects.get(source_id=source_id)
+        source_status_obj = SourceStatus(source_id)
     except ObjectDoesNotExist:
         # Source isn't in our database, return 404.
         return Response(status=status.HTTP_404_NOT_FOUND)
-    # Get the source billing_source, whether it's named bucket
-    if source.billing_source.get('bucket'):
-        source_billing_source = source.billing_source.get('bucket')
-    elif source.billing_source.get('data_source'):
-        source_billing_source = source.billing_source.get('data_source')
-    else:
-        source_billing_source = {}
-    # Get the source authentication
-    if source.authentication.get('resource_name'):
-        source_authentication = source.authentication.get('resource_name')
-    elif source.authentication.get('credentials'):
-        source_authentication = source.authentication.get('credentials')
-    else:
-        source_authentication = {}
-    provider = source.source_type
 
-    interface = ProviderAccessor(provider)
+    availability_status = source_status_obj.status()
 
-    availability_status = interface.availability_status(source_authentication, source_billing_source)
     return Response(availability_status, status=status.HTTP_200_OK)

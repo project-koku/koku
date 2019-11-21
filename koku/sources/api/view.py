@@ -25,10 +25,14 @@ from json import loads as json_loads
 from django.views.decorators.cache import never_cache
 
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework import mixins, viewsets
 from rest_framework.permissions import AllowAny
 
 from sources.api.serializers import SourcesSerializer
+from sources.api.source_status import SourceStatus
 from api.provider.models import Sources
 
 
@@ -102,3 +106,11 @@ class SourcesViewSet(mixins.ListModelMixin,
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
 
         return response
+
+    @action(detail=True, methods=['get'])
+    def status(self, request, *args, **kwargs):
+        source_id = kwargs.get('source_id')
+        source_status_obj = SourceStatus(source_id)
+        availability_status = source_status_obj.status()
+
+        return Response(availability_status, status=status.HTTP_200_OK)

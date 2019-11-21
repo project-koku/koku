@@ -90,7 +90,7 @@ class SourcesProxyViewSet(mixins.ListModelMixin,
         """Update a Source."""
         source_id = kwargs.get('source_id')
         url = f'{self.url}{source_id}/'
-        r = requests.patch(url)
+        r = requests.patch(url, json=request.data)
         response = HttpResponse(
             content=r.content,
             status=r.status_code,
