@@ -33,6 +33,8 @@ class KokuDBAccess:
     with a schema/tenant context.
     """
 
+    # _savepoints = []
+
     # pylint: disable=no-member
     def __init__(self, schema):
         """
@@ -150,6 +152,8 @@ class KokuDBAccess:
 
         """
         with schema_context(self.schema):
+            if self._savepoints:
+                transaction.savepoint_commit(self._savepoints.pop())
             transaction.commit()
 
     def delete(self, obj=None):
