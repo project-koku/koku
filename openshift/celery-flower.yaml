@@ -100,7 +100,7 @@ objects:
                 key: app-module
         from:
           kind: ImageStreamTag
-          name: python-36-centos7:latest
+          name: ubi7-python36:latest
           namespace: ${NAMESPACE}
     triggers:
     - type: ConfigChange
