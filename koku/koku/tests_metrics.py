@@ -73,7 +73,7 @@ class DatabaseStatusTest(IamTestCase):
 
     @patch('koku.metrics.connection')
     def test_schema_size_valid(self, mock_connection):
-        """ Test that schema_size() parses rows correctly."""
+        """Test that schema_size() parses rows correctly."""
         fake_rows = [(FAKE.word(), FAKE.pyint())
                      for _ in range(0, random.randint(2, 20))]
 
@@ -92,7 +92,7 @@ class DatabaseStatusTest(IamTestCase):
 
     @patch('koku.metrics.connection')
     def test_schema_size_null(self, mock_connection):
-        """ Test that schema_size() parses rows with null values correctly."""
+        """Test that schema_size() parses rows with null values correctly."""
         fake_rows = [(random.choice([FAKE.word(), '', None]),
                       random.choice([FAKE.pyint(), '', None]))
                      for _ in range(0, random.randint(2, 20))]

@@ -213,7 +213,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'schema': self.schema
         }
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
-        self._commit_and_vacuum(
+        self._execute_raw_sql_query(
             table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
     # pylint: disable=invalid-name
@@ -243,7 +243,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
             summary_sql, summary_sql_params)
-        self._commit_and_vacuum(
+        self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
     def mark_bill_as_finalized(self, bill_id):
@@ -271,7 +271,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'schema': self.schema
         }
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
-        self._commit_and_vacuum(table_name, agg_sql, bind_params=list(agg_sql_params))
+        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def populate_ocp_on_aws_cost_daily_summary(self, start_date, end_date,
                                                cluster_id, bill_ids):
@@ -302,7 +302,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
             summary_sql, summary_sql_params)
 
-        self._commit_and_vacuum(
+        self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
     def populate_markup_cost(self, markup, bill_ids=None):
