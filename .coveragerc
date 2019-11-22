@@ -8,6 +8,7 @@ omit =
   *manage.py
   *database.py
   *settings.py
+  *sentry.py
   *urls.py
   *wsgi.py
   *migrations/*
