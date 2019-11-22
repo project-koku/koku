@@ -3110,6 +3110,24 @@
                             "active": {
                                 "type": "boolean",
                                 "description": "Flag to indicate when the provider is configured correctly"
+                            },
+                            "cost_models": {
+                                "type": "array",
+                                "description": "List of cost model name and UUIDs associated with this provider.",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "uuid": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "example": "D823A725-DC10-496A-AF08-12533E4F8FE4"
+                                        },
+                                        "name": {
+                                            "type": "string",
+                                            "example": "My Great Cost Model"
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
