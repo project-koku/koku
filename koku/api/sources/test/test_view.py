@@ -16,6 +16,10 @@
 #
 
 """Test the sources proxy view."""
+from unittest.mock import Mock, PropertyMock
+from unittest.mock import patch
+from unittest import mock
+
 import json
 
 import requests
@@ -24,47 +28,57 @@ from django.test import TestCase
 from django.urls import reverse
 from faker import Faker
 
+from api.sources.view import SourcesProxyViewSet
 
 faker = Faker()
 
 
 class SourcesViewProxyTests(TestCase):
     """Test Cases for the sources proxy endpoint."""
+    def setUp(self):
+        """Setup tests."""
+        super().setUp()
+        mock_url = PropertyMock(return_value='http://www.sourcesclient.com/api/v1/sources/')
+        SourcesProxyViewSet.url = mock_url
 
     def test_post_authentication_proxy(self):
         """Test the POST authentication proxy endpoint."""
         test_source_id = 1
         credentials = {'subscription_id': 'subscription-uuid'}
-        with self.settings(SOURCES_CLIENT_BASE_URL='http://www.sourcesclient.com/api/v1'):
-            with requests_mock.mock() as m:
-                m.patch(f'http://www.sourcesclient.com/api/v1/sources/{test_source_id}',
-                        status_code=200, json={'credentials': credentials})
 
-                params = {'credentials': credentials}
-                url = reverse('sources-proxy-detail', kwargs={'source_id': test_source_id})
-                import pdb; pdb.set_trace()
-                response = self.client.patch(url, json.dumps(params),
-                                             content_type='application/json')
+        with requests_mock.mock() as m:
+            m.patch(f'http://www.sourcesclient.com/api/v1/sources/{test_source_id}/',
+                    status_code=200, json={'credentials': credentials},
+                    headers={'Content-Type': 'application/json'})
 
-                body = response.json()
+            params = {'credentials': credentials}
+            url = reverse('sources-proxy-detail', kwargs={'source_id': test_source_id})
 
-                self.assertEqual(response.status_code, 200)
-                self.assertIn(str(credentials), str(body))
+            response = self.client.patch(url, json.dumps(params),
+                                        content_type='application/json')
+
+            body = response.json()
+
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(str(credentials), str(body))
 
     def test_post_authentication_proxy_error(self):
         """Test the POST authentication proxy endpoint with connection error."""
         test_source_id = 1
         credentials = {'subscription_id': 'subscription-uuid'}
-        with self.settings(SOURCES_CLIENT_BASE_URL='http://www.sourcesclient.com/api/v1'):
-            with requests_mock.mock() as m:
-                m.patch(f'http://www.sourcesclient.com/api/v1/sources/{test_source_id}',
-                        exc=requests.exceptions.RequestException)
 
-                params = {'credentials': credentials}
-                response = self.client.patch(reverse('sources-proxy-update'), json.dumps(params),
-                                             content_type='application/json')
+        with requests_mock.mock() as m:
+            m.patch(f'http://www.sourcesclient.com/api/v1/sources/{test_source_id}/',
+                    status_code=400, json={'credentials': credentials},
+                    headers={'Content-Type': 'application/json'})
 
-                self.assertEqual(response.status_code, 400)
+            params = {'credentials': credentials}
+            url = reverse('sources-proxy-detail', kwargs={'source_id': test_source_id})
+
+            response = self.client.patch(url, json.dumps(params),
+                                        content_type='application/json')
+
+            self.assertEqual(response.status_code, 400)
 
     def test_post_authentication_proxy_server_error(self):
         """Test the POST authentication proxy endpoint with an server error."""
