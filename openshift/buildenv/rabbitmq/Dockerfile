@@ -37,6 +37,7 @@ RUN set -xe && \
     chmod -R g=u /var/lib/rabbitmq /etc/rabbitmq && \
     rm -rf /var/lib/rabbitmq/.erlang.cookie && \
     ln -sf "$RABBITMQ_HOME/plugins" /plugins && \
+    ln -sf "$RABBITMQ_HOME/sbin/*" /usr/local/sbin && \
     ${RABBITMQ_HOME}/sbin/rabbitmq-plugins --offline enable rabbitmq_peer_discovery_k8s
 
 COPY docker-entrypoint.sh /usr/local/bin
@@ -44,4 +45,4 @@ COPY rabbitmq.conf /etc/rabbitmq
 USER 1001
 EXPOSE 4369 5671 5672 25672
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["/opt/rabbitmq/sbin/rabbitmq-server"]
+CMD ["rabbitmq-server"]

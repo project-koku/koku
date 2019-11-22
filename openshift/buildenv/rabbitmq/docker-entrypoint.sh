@@ -1,8 +1,6 @@
 #!/bin/bash
 set -eu
 
-PREFIX=${RABBITMQ_HOME:-/opt/rabbitmq}
-
 # usage: file_env VAR [DEFAULT]
 #    ie: file_env 'XYZ_DB_PASSWORD' 'example'
 # (will allow for "$XYZ_DB_PASSWORD_FILE" to fill in the value of
@@ -348,7 +346,7 @@ if [ "$1" = 'rabbitmq-server' ] && [ "$shouldWriteConfig" ]; then
 
 	# if management plugin is installed, generate config for it
 	# https://www.rabbitmq.com/management.html#configuration
-	if [ "$(${PREFIX}/sbin/rabbitmq-plugins list -m -e rabbitmq_management)" ]; then
+	if [ "rabbitmq-plugins list -m -e rabbitmq_management)" ]; then
 		rabbitManagementConfig=()
 
 		if [ "$haveManagementSslConfig" ]; then
