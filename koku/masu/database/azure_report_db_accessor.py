@@ -220,7 +220,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
             summary_sql, summary_sql_params)
 
-        self._commit_and_vacuum(
+        self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
     def populate_ocp_on_azure_markup_cost(self, markup, bill_ids=None):
