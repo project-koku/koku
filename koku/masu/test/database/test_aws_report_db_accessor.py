@@ -589,8 +589,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.assertEqual(len(reservations.keys()), count)
             self.assertIn(first_entry.reservation_arn, reservations)
 
-    @patch('masu.database.aws_report_db_accessor.AWSReportDBAccessor.vacuum_table')
-    def test_populate_line_item_daily_table(self, mock_vacuum):
+    def test_populate_line_item_daily_table(self):
         """Test that the daily table is populated."""
         ce_table_name = AWS_CUR_TABLE_MAP['cost_entry']
         daily_table_name = AWS_CUR_TABLE_MAP['line_item_daily']
@@ -671,8 +670,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
             self.assertNotEqual(getattr(entry, 'tags'), {})
 
-    @patch('masu.database.aws_report_db_accessor.AWSReportDBAccessor.vacuum_table')
-    def test_populate_line_item_daily_table_no_bill_ids(self, mock_vacuum):
+    def test_populate_line_item_daily_table_no_bill_ids(self):
         """Test that the daily table is populated."""
         ce_table_name = AWS_CUR_TABLE_MAP['cost_entry']
         daily_table_name = AWS_CUR_TABLE_MAP['line_item_daily']
@@ -749,8 +747,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
             self.assertNotEqual(getattr(entry, 'tags'), {})
 
-    @patch('masu.database.aws_report_db_accessor.AWSReportDBAccessor.vacuum_table')
-    def test_populate_line_item_daily_summary_table(self, mock_vaccum):
+    def test_populate_line_item_daily_summary_table(self):
         """Test that the daily summary table is populated."""
         ce_table_name = AWS_CUR_TABLE_MAP['cost_entry']
         summary_table_name = AWS_CUR_TABLE_MAP['line_item_daily_summary']
@@ -850,8 +847,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.assertEqual(set(sorted(possible_keys)), set(sorted(found_keys)))
             self.assertEqual(set(sorted(possible_values)), set(sorted(found_values)))
 
-    @patch('masu.database.aws_report_db_accessor.AWSReportDBAccessor.vacuum_table')
-    def test_populate_line_item_daily_summary_table_no_bill_ids(self, mock_vaccum):
+    def test_populate_line_item_daily_summary_table_no_bill_ids(self):
         """Test that the daily summary table is populated."""
         ce_table_name = AWS_CUR_TABLE_MAP['cost_entry']
         summary_table_name = AWS_CUR_TABLE_MAP['line_item_daily_summary']
@@ -946,8 +942,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.assertEqual(set(sorted(possible_keys)), set(sorted(found_keys)))
             self.assertEqual(set(sorted(possible_values)), set(sorted(found_values)))
 
-    @patch('masu.database.aws_report_db_accessor.AWSReportDBAccessor.vacuum_table')
-    def test_populate_awstags_summary_table(self, mock_vacuum):
+    def test_populate_awstags_summary_table(self):
         """Test that the AWS tags summary table is populated."""
         bill_ids = []
         ce_table_name = AWS_CUR_TABLE_MAP['cost_entry']
@@ -1008,11 +1003,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
             self.assertEqual(sorted(tag_keys), sorted(expected_tag_keys))
 
-    @patch('masu.database.aws_report_db_accessor.AWSReportDBAccessor.vacuum_table')
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_populate_ocp_on_aws_cost_daily_summary(
-        self, mock_ocp_vacuum, mock_aws_vacuum
-    ):
+    def test_populate_ocp_on_aws_cost_daily_summary(self):
         """Test that the OCP on AWS cost summary table is populated."""
         summary_table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_daily_summary']
         project_summary_table_name = AWS_CUR_TABLE_MAP[
@@ -1134,8 +1125,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             bill.refresh_from_db()
             self.assertIsNotNone(bill.finalized_datetime)
 
-    @patch('masu.database.aws_report_db_accessor.AWSReportDBAccessor.vacuum_table')
-    def test_populate_markup_cost(self, mock_vaccum):
+    def test_populate_markup_cost(self):
         """Test that the daily summary table is populated."""
         ce_table_name = AWS_CUR_TABLE_MAP['cost_entry']
         summary_table_name = AWS_CUR_TABLE_MAP['line_item_daily_summary']
@@ -1175,8 +1165,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
             self.assertAlmostEqual(found_value, possible_value, 6)
 
-    @patch('masu.database.aws_report_db_accessor.AWSReportDBAccessor.vacuum_table')
-    def test_populate_markup_cost_no_billsids(self, mock_vaccum):
+    def test_populate_markup_cost_no_billsids(self):
         """Test that the daily summary table is populated."""
         ce_table_name = AWS_CUR_TABLE_MAP['cost_entry']
         summary_table_name = AWS_CUR_TABLE_MAP['line_item_daily_summary']
