@@ -32,12 +32,12 @@ RUN set -xe && \
     grep -qE '^SYS_PREFIX=$' "$RABBITMQ_HOME/sbin/rabbitmq-defaults" && \
     groupadd --system rabbitmq && \
     adduser -o -u 1001 -r -c "RabbitMQ User" -d /var/lib/rabbitmq -g rabbitmq rabbitmq && \
-    mkdir -p /var/lib/rabbitmq /etc/rabbitmq && \
-    chown -R 1001:0 /var/lib/rabbitmq /etc/rabbitmq ${RABBITMQ_HOME}/plugins && \
-    chmod -R g=u /var/lib/rabbitmq /etc/rabbitmq && \
+    mkdir -p /var/lib/rabbitmq /etc/rabbitmq /var/log/rabbitmq/log && \
+    chown -R 1001:0 /var/lib/rabbitmq /etc/rabbitmq ${RABBITMQ_HOME}/plugins /var/log/rabbitmq && \
+    chmod -R g=u /var/lib/rabbitmq /etc/rabbitmq /var/log/rabbitmq && \
     rm -rf /var/lib/rabbitmq/.erlang.cookie && \
     ln -sf "$RABBITMQ_HOME/plugins" /plugins && \
-    ln -sf "$RABBITMQ_HOME/sbin/*" /usr/local/sbin && \
+    ln -sf "$RABBITMQ_HOME/sbin/"* /usr/local/sbin && \
     ${RABBITMQ_HOME}/sbin/rabbitmq-plugins --offline enable rabbitmq_peer_discovery_k8s
 
 COPY docker-entrypoint.sh /usr/local/bin

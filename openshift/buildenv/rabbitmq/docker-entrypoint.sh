@@ -242,7 +242,7 @@ rabbit_env_config() {
 }
 
 shouldWriteConfig="$haveConfig"
-if [ ! -f /etc/rabbitmq/rabbitmq.config ]; then
+if [ ! -f /etc/rabbitmq/rabbitmq.conf ]; then
 	shouldWriteConfig=1
 fi
 
@@ -384,7 +384,7 @@ if [ "$1" = 'rabbitmq-server' ] && [ "$shouldWriteConfig" ]; then
 		)
 	fi
 
-	echo "$(rabbit_array "${fullConfig[@]}")." > /etc/rabbitmq/rabbitmq.config
+	echo "$(rabbit_array "${fullConfig[@]}")." > /etc/rabbitmq/rabbitmq.conf
 fi
 
 combinedSsl='/tmp/combined.pem'
