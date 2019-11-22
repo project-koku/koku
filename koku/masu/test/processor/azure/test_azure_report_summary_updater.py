@@ -73,7 +73,6 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         self.creator.create_azure_cost_entry_line_item(bill, product, meter)
 
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
-        self.manifest_accessor.commit()
 
         with ProviderDBAccessor(self.azure_test_provider_uuid) as provider_accessor:
             self.provider = provider_accessor.get_provider()
@@ -88,7 +87,6 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
     def test_azure_update_summary_tables_with_manifest(self, mock_summary):
         """Test that summary tables are properly run."""
         self.manifest.num_processed_files = self.manifest.num_total_files
-        self.manifest_accessor.commit()
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
@@ -128,7 +126,6 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
 
         self.manifest.num_processed_files = self.manifest.num_total_files
         manifest_id = self.manifest.id
-        self.manifest_accessor.commit()
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date

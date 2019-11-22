@@ -2,6 +2,8 @@
 .. _`minishift`: https://github.com/minishift/minishift
 .. _`Kubernetes`: https://kubernetes.io/docs/home/
 .. _`Docker`: https://docs.docker.com/
+.. _`crc`: https://github.com/code-ready/crc
+.. _`Red Hat Registry Authentication`: https://access.redhat.com/RegistryAuthentication
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 Developing using OpenShift
@@ -23,12 +25,48 @@ When ready, your workstation should be able to run containers and deploy `OpenSh
 Local Development
 =================
 
-Minishift
----------
+Minishift (OKD 3.11)
+--------------------
 
 The recommended way to deploy a local OpenShift 3.x installation on Linux for Koku development is to use `minishift`_. This runs an OpenShift cluster inside of a VM.
 
 Installing and configuring `minishift`_ is outside the scope of this document.  Please refer to the `minishift`_ documentation for details.
+
+In order to access RHEL images for building Koku, you must configure `Red Hat Registry Authentication`_:
+
+For username/password, you can use the minishift's ``redhat-registry-login``
+addon:
+
+::
+    minishift addons enable redhat-registry-login
+    minishift addons apply redhat-registry-login --addon-env REGISTRY_USERNAME=${USERNAME} --addon-env REGISTRY_PASSWORD=${PASSWORD}
+
+
+For token-based authentication, you will need to configure the secret manually
+in your project:
+
+::
+    # this extracts the nested object from the file distributed by https://access.redhat.com/terms-based-registry
+    cat /path/to/registry-pull-secret.yaml | \
+             python -c 'import yaml, sys; print(yaml.safe_load(sys.stdin).get("data").get(".dockerconfigjson"))' | \
+             base64 -d | \
+             oc create secret generic registry-redhat-io-secret \
+                                    --from-file=.dockerconfigjson=/dev/stdin \
+                                    -n myproject \
+                                    --type=kubernetes.io/dockerconfigjson
+    oc secrets link default registry-redhat-io-secret -n myproject --for=pull
+    oc secrets link builder registry-redhat-io-secret -n myproject
+
+CodeReady Containers (OKD 4.x)
+------------------------------
+The recommended way to deploy a local OpenShift 4.x installation on Linux for Koku development is to use `crc`_. This runs an OpenShift cluster inside of a VM.
+
+Installing and configuring `crc`_ is outside the scope of this document.  Please refer to the `crc`_ documentation for details.
+
+In order to access RHEL images for building Koku, you must configure `Red Hat Registry Authentication`_.
+
+The script ``scripts/e2e-deploy.sh`` handles setup and configuration of `crc`_, including `Red Hat Registry Authentication`_.
+
 
 Deploying Services
 ------------------

@@ -18,7 +18,6 @@
 
 import logging
 
-from django.db import IntegrityError
 from django.db import transaction
 from tenant_schemas.utils import schema_context
 
@@ -32,8 +31,6 @@ class KokuDBAccess:
     Subclass of Django Atomic class to make use of atomic transactions
     with a schema/tenant context.
     """
-
-    _savepoints = []
 
     # pylint: disable=no-member
     def __init__(self, schema):
@@ -49,51 +46,13 @@ class KokuDBAccess:
     def __enter__(self):
         """Enter context manager."""
         connection = transaction.get_connection()
-        if connection.get_autocommit():
-            connection.set_autocommit(False)
-        KokuDBAccess._savepoints.append(transaction.savepoint())
         connection.set_schema(self.schema)
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
         """Context manager close session."""
         connection = transaction.get_connection()
-        with schema_context(self.schema):
-            if KokuDBAccess._savepoints:
-                if exception_type:
-                    transaction.savepoint_rollback(KokuDBAccess._savepoints.pop())
-                else:
-                    transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
-            if not connection.in_atomic_block:
-                transaction.commit()
-                connection.set_autocommit(True)
         connection.set_schema_to_public()
-
-    # pylint: disable=no-self-use
-    def close_session(self):
-        """Close the database session (DEPRECATED)."""
-        # pylint: disable=unnecessary-pass
-        pass
-
-    # pylint: disable=no-self-use
-    def get_base(self):
-        """Return the base classes (DEPRECATED)."""
-        return None
-
-    # pylint: disable=no-self-use
-    def get_session(self):
-        """Return Koku database connection session (DEPRECATED)."""
-        return None
-
-    # pylint: disable=no-self-use
-    def get_engine(self):
-        """Return Koku database connection engine (DEPRECATED)."""
-        return None
-
-    # pylint: disable=no-self-use
-    def get_meta(self):
-        """Return Koku database metadata connection (DEPRECATED)."""
-        return None
 
     def _get_db_obj_query(self, **filter_args):
         """
@@ -140,19 +99,6 @@ class KokuDBAccess:
             new_entry.save()
             return new_entry
 
-    def commit(self):
-        """
-        Commit pending database changes.
-
-        Args:
-            None
-        Returns:
-            None
-
-        """
-        with schema_context(self.schema):
-            transaction.commit()
-
     def delete(self, obj=None):
         """
         Delete our object from the database.
@@ -169,24 +115,3 @@ class KokuDBAccess:
             deleteme = self._obj
         with schema_context(self.schema):
             deleteme.delete()
-
-    def savepoint(self, func, *args, **kwargs):
-        """Wrap a db access function in a savepoint block.
-
-        Args:
-            func (bound method) a function reference.
-            args (object) function's positional arguments
-            kwargs (object) function's keyword arguments
-        Returns:
-            None
-
-        """
-        with schema_context(self.schema):
-            try:
-                sid = transaction.savepoint()
-                func(*args, **kwargs)
-                transaction.savepoint_commit(sid)
-
-            except IntegrityError as exc:
-                LOG.warning('query transaction failed: %s', exc)
-                transaction.savepoint_rollback(sid)

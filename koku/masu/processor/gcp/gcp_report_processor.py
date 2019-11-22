@@ -110,7 +110,6 @@ class GCPReportProcessor(ReportProcessorBase):
             data,
             conflict_columns=['billing_period_start', 'provider_id']
         )
-        report_db_accessor.commit()
         self.processed_report.bills[key] = bill_id
 
         return bill_id
@@ -141,7 +140,6 @@ class GCPReportProcessor(ReportProcessorBase):
             data,
             conflict_columns=['project_id']
         )
-        report_db_accessor.commit()
 
         self.processed_report.projects[key] = project_id
         return project_id

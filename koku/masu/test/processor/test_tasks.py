@@ -35,6 +35,8 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.provider_status_accessor import ProviderStatusCode
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader, ReportDownloaderError
@@ -416,6 +418,55 @@ class ProcessReportFileTests(MasuTestCase):
 
         summarize_reports(reports_to_summarize)
         mock_update_summary.delay.assert_called()
+
+    @patch('masu.processor._tasks.process.ProviderDBAccessor.setup_complete')
+    @patch('masu.processor._tasks.process.ReportProcessor')
+    def test_process_report_files_with_transaction_atomic_error(
+        self, mock_processor, mock_setup_complete
+    ):
+        """Test than an exception rolls back the atomic transaction."""
+        path = '{}/{}'.format('test', 'file1.csv')
+        schema_name = self.schema
+        provider = 'AWS'
+        provider_uuid = self.aws_provider_uuid
+        manifest_dict = {
+            'assembly_id': '12345',
+            'billing_period_start_datetime': DateAccessor().today_with_timezone('UTC'),
+            'num_total_files': 2,
+            'provider_uuid': self.aws_provider_uuid,
+            'task': '170653c0-3e66-4b7e-a764-336496d7ca5a'
+        }
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.add(**manifest_dict)
+            manifest.save()
+            manifest_id = manifest.id
+            initial_update_time = manifest.manifest_updated_datetime
+
+        with ReportStatsDBAccessor(path, manifest_id) as report_file_accessor:
+            report_file_accessor.get_last_started_datetime()
+
+        report_dict = {
+            'file': path,
+            'compression': 'gzip',
+            'start_date': str(DateAccessor().today()),
+            'manifest_id': manifest_id
+        }
+
+        mock_setup_complete.side_effect = Exception
+
+        with self.assertRaises(Exception):
+            _process_report_file(schema_name, provider, provider_uuid, report_dict)
+
+        with ReportStatsDBAccessor(path, manifest_id) as report_file_accessor:
+            self.assertIsNone(report_file_accessor.get_last_completed_datetime())
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+            self.assertEqual(manifest.num_processed_files, 0)
+            self.assertEqual(manifest.manifest_updated_datetime, initial_update_time)
+
+        with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
+            self.assertFalse(provider_accessor.get_setup_complete())
 
 
 class TestProcessorTasks(MasuTestCase):

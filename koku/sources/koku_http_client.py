@@ -126,7 +126,7 @@ class KokuHTTPClient:
                 detail_msg = errors[0].get('detail')
             raise KokuHTTPClientNonRecoverableError(detail_msg)
 
-    def create_provider(self, name, provider_type, authentication, billing_source):
+    def create_provider(self, name, provider_type, authentication, billing_source, source_uuid=None):
         """Koku HTTP call to create provider."""
         url = '{}/{}/'.format(self._base_url, 'providers')
         json_data = {'name': name, 'type': provider_type,
@@ -134,6 +134,8 @@ class KokuHTTPClient:
                                                                             authentication),
                      'billing_source': self.get_billing_source_for_provider(provider_type,
                                                                             billing_source)}
+        if source_uuid:
+            json_data['uuid'] = str(source_uuid)
         try:
             r = requests.post(url, headers=self._identity_header, json=json_data)
         except RequestException as conn_err:

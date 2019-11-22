@@ -37,6 +37,7 @@ before_script:
   - ./cc-test-reporter before-build
 
 script:
+  - .travis/check_manifest.sh
   - tox
 
 after_success:
