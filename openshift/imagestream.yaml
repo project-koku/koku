@@ -18,25 +18,6 @@ labels:
   template: koku-imagestream
 objects:
 
-# Koku and Masu are built on python-36-centos7
-- apiVersion: v1
-  kind: ImageStream
-  metadata:
-    name: python-36-centos7
-    namespace: ${NAMESPACE}
-  spec:
-    dockerImageRepository: registry.centos.org/centos/python-36-centos7
-    lookupPolicy:
-      local: false
-    tags:
-    - annotations: null
-      from:
-        kind: DockerImage
-        name: centos/python-36-centos7
-      name: latest
-      referencePolicy:
-        type: Source
-
 # Koku database runs on postgresql-96-centos7
 - apiVersion: v1
   kind: ImageStream
@@ -75,11 +56,10 @@ objects:
       referencePolicy:
         type: Source
 
-# RabbitMQ builds on RHEL 7, if available
 - apiVersion: v1
   kind: ImageStream
   metadata:
-    name: rhel
+    name: rhel7
     namespace: ${NAMESPACE}
   spec:
     dockerImageRepository: registry.redhat.io/rhel7/rhel
@@ -94,7 +74,7 @@ objects:
       referencePolicy:
         type: Source
 
-# RabbitMQ builds on centos 7 when RHEL 7 isn't available
+# RabbitMQ builds on centos 7, for now.
 - apiVersion: v1
   kind: ImageStream
   metadata:
@@ -109,6 +89,25 @@ objects:
       from:
         kind: DockerImage
         name: registry.centos.org/centos/centos:latest
+      name: latest
+      referencePolicy:
+        type: Source
+
+# Most koku components use the python-36 image.
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: ubi7-python36
+    namespace: ${NAMESPACE}
+  spec:
+    dockerImageRepository: registry.redhat.io/ubi7/python-36
+    lookupPolicy:
+      local: false
+    tags:
+    - annotations: null
+      from:
+        kind: DockerImage
+        name: registry.redhat.io/ubi7/python-36:latest
       name: latest
       referencePolicy:
         type: Source
