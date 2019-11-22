@@ -78,7 +78,6 @@ class AzureReportChargeUpdaterTest(MasuTestCase):
         self.creator.create_azure_cost_entry_line_item(bill, product, meter)
 
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
-        self.manifest_accessor.commit()
 
     def test_azure_update_summary_charge_info(self):
         """Test to verify Azure derived cost summary is calculated."""

@@ -97,7 +97,6 @@ class AzureReportProcessorTest(MasuTestCase):
         self.accessor = AzureReportDBAccessor(self.schema, self.column_map)
         self.report_schema = self.accessor.report_schema
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
-        self.manifest_accessor.commit()
 
     def tearDown(self):
         """Tear down test case."""
@@ -235,7 +234,7 @@ class AzureReportProcessorTest(MasuTestCase):
                 count = table.objects.count()
             self.assertTrue(count == counts[table_name])
 
-    def test_azure_process_duplicates_without_savepoints_error(self):
+    def test_azure_process_can_run_twice(self):
         """Test that row duplicates are inserted into the DB when process called twice."""
         counts = {}
         processor = AzureReportProcessor(
@@ -252,51 +251,6 @@ class AzureReportProcessorTest(MasuTestCase):
             processor.process()
         except InternalError:
             self.fail('failed to call process twice.')
-
-    def test_azure_process_no_such_savepoint(self):
-        """This test shows that 'no such savepoint' is not raised when processor called twice."""
-        queue = Queue()
-        counts = {}
-
-        class TestThread(threading.Thread):
-            """TestThread which closes db connection."""
-
-            def run(self):
-                """Override run function to close db connection."""
-                super().run()
-                connection.close()
-
-        def worker(i, queue):
-            """Worker function."""
-            try:
-                processor = AzureReportProcessor(
-                    schema_name=self.schema,
-                    report_path=self.test_report,
-                    compression=UNCOMPRESSED,
-                    provider_uuid=self.azure_provider_uuid,
-                )
-                if i == 0:
-                    time.sleep(0.0002)
-                shutil.copy2(self.test_report_path, self.test_report)
-                processor.process()
-            except:
-                queue.put(sys.exc_info())
-
-        jobs = []
-        for i in [0, 1]:
-            p = TestThread(target=worker, args=(i, queue))
-            jobs.append(p)
-            p.start()
-        for job in jobs:
-            job.join()
-
-        try:
-            typ, value, traceback = queue.get()
-        except Queue.Empty:
-            pass
-        else:
-            if typ == InternalError:
-                self.fail(value)
 
     def test_azure_create_cost_entry_bill(self):
         """Test that a cost entry bill id is returned."""
@@ -344,8 +298,6 @@ class AzureReportProcessorTest(MasuTestCase):
         bill_id = self.processor._create_cost_entry_bill(self.row, self.accessor)
         product_id = self.processor._create_cost_entry_product(self.row, self.accessor)
         meter_id = self.processor._create_meter(self.row, self.accessor)
-
-        self.accessor.commit()
 
         self.processor._create_cost_entry_line_item(
             self.row,

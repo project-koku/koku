@@ -146,8 +146,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.assertEquals(len(bills), 1)
             self.assertEquals(bills[0].id, bill2.id)
 
-    @patch('masu.database.azure_report_db_accessor.AzureReportDBAccessor.vacuum_table')
-    def test_populate_line_item_daily_summary_table(self, mock_vaccum):
+    def test_populate_line_item_daily_summary_table(self):
         """Test that the daily summary table is populated."""
         summary_table_name = AZURE_REPORT_TABLE_MAP['line_item_daily_summary']
         summary_table = getattr(self.accessor.report_schema, summary_table_name)
@@ -242,8 +241,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             bills = self.accessor.get_cost_entry_bills_by_date(bill_start)
             self.assertEqual(bill_id, bills[0].id)
 
-    @patch('masu.database.azure_report_db_accessor.AzureReportDBAccessor.vacuum_table')
-    def test_populate_markup_cost(self, mock_vaccum):
+    def test_populate_markup_cost(self):
         """Test that the daily summary table is populated."""
         summary_table_name = AZURE_REPORT_TABLE_MAP['line_item_daily_summary']
 
@@ -289,8 +287,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
             self.assertAlmostEqual(found_value, possible_value, 6)
 
-    @patch('masu.database.azure_report_db_accessor.AzureReportDBAccessor.vacuum_table')
-    def test_populate_markup_cost_no_billsids(self, mock_vaccum):
+    def test_populate_markup_cost_no_billsids(self):
         """Test that the daily summary table is populated."""
         summary_table_name = AZURE_REPORT_TABLE_MAP['line_item_daily_summary']
 
