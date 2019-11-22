@@ -131,7 +131,6 @@ class AzureReportSummaryUpdater:
                     self._date_accessor.today_with_timezone('UTC')
                 bill.save()
 
-            accessor.commit()
         return start_date, end_date
 
     def _determine_if_full_summary_update_needed(self, bill):

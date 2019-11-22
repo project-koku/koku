@@ -85,7 +85,6 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
         )
 
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
-        self.manifest_accessor.commit()
 
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
     def test_update_summary_charge_info(self, mock_markup):

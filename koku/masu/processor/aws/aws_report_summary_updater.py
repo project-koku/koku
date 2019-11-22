@@ -115,7 +115,6 @@ class AWSReportSummaryUpdater:
                     self._date_accessor.today_with_timezone('UTC')
                 bill.save()
 
-            accessor.commit()
         return start_date, end_date
 
     def _get_sql_inputs(self, start_date, end_date):

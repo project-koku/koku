@@ -67,10 +67,6 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
 
         cls.manifest_accessor = ReportManifestDBAccessor()
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.manifest_accessor.close_session()
-
     def setUp(self):
         """Set up each test."""
         super().setUp()
@@ -102,11 +98,6 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
     def tearDown(self):
         shutil.rmtree(DATA_DIR, ignore_errors=True)
         shutil.rmtree(self.fake_bucket_name)
-
-        manifests = self.manifest_accessor._get_db_obj_query().all()
-        for manifest in manifests:
-            self.manifest_accessor.delete(manifest)
-        self.manifest_accessor.commit()
 
     def test_download_bucket(self):
         """Test to verify that basic report downloading works."""
