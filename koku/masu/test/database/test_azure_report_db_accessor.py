@@ -410,11 +410,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         for k, v in found_values.items():
             self.assertAlmostEqual(v, possible_values[k], 6)
 
-    @patch('masu.database.azure_report_db_accessor.AzureReportDBAccessor.vacuum_table')
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_populate_ocp_on_azure_cost_daily_summary(
-        self, mock_ocp_vacuum, mock_azure_vaccum
-    ):
+    def test_populate_ocp_on_azure_cost_daily_summary(self):
         """Test the method to run OpenShift on Azure SQL."""
         summary_table_name = AZURE_REPORT_TABLE_MAP['ocp_on_azure_daily_summary']
         project_summary_table_name = AZURE_REPORT_TABLE_MAP[
@@ -450,9 +446,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.assertEqual(sum_cost, sum_project_cost)
             self.assertLessEqual(sum_cost, sum_azure_cost)
 
-    @patch('masu.database.azure_report_db_accessor.AzureReportDBAccessor.vacuum_table')
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_populate_ocp_on_azure_markup_cost(self, mock_ocp_vacuum, mock_azure_vaccum):
+    def test_populate_ocp_on_azure_markup_cost(self):
         """Test that markup is populated on OCP on Azure tables."""
         bill_ids = self.generate_ocp_on_azure_data()
         markup_value = decimal.Decimal(0.1)
@@ -500,9 +494,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         self.assertAlmostEqual(markup, expected_markup, places=9)
         self.assertAlmostEqual(project_markup, expected_project_markup, places=9)
 
-    @patch('masu.database.azure_report_db_accessor.AzureReportDBAccessor.vacuum_table')
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_populate_ocp_on_azure_markup_cost_no_bills(self, mock_ocp_vacuum, mock_azure_vaccum):
+    def test_populate_ocp_on_azure_markup_cost_no_bills(self):
         """Test that markup is populated on OCP on Azure tables."""
         self.generate_ocp_on_azure_data()
         markup_value = decimal.Decimal(0.1)
