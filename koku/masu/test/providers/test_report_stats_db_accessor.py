@@ -23,6 +23,7 @@ from dateutil import parser
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.test import MasuTestCase
+from reporting_common.models import CostUsageReportStatus
 
 
 class ReportStatsDBAccessorTest(MasuTestCase):
@@ -127,14 +128,14 @@ class ReportStatsDBAccessorTest(MasuTestCase):
         """Test convience function for last started processing time."""
         saver = ReportStatsDBAccessor('myreport', self.manifest_id)
         saver.log_last_started_datetime()
-
-        # FIXME: missing asserts
+        self.assertIsNotNone(saver.get_last_started_datetime())
         saver.delete()
+        self.assertEqual(CostUsageReportStatus.objects.count(), 0)
 
     def test_log_last_completed_datetime(self):
         """Test convience function for last completed processing time."""
         saver = ReportStatsDBAccessor('myreport', self.manifest_id)
         saver.log_last_completed_datetime()
-
-        # FIXME: missing asserts
+        self.assertIsNotNone(saver.get_last_completed_datetime())
         saver.delete()
+        self.assertEqual(CostUsageReportStatus.objects.count(), 0)
