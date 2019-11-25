@@ -353,11 +353,11 @@ class OCPUsageLineItemDailySummary(models.Model):
     data_source = models.CharField(max_length=64, null=True)
 
     # Kubernetes objects by convention have a max name length of 253 chars
-    namespace = models.CharField(max_length=253, null=False)
+    namespace = models.CharField(max_length=253, null=True)
 
-    pod = models.CharField(max_length=253, null=False)
+    pod = models.CharField(max_length=253, null=True)
 
-    node = models.CharField(max_length=253, null=False)
+    node = models.CharField(max_length=253, null=True)
 
     # Another node identifier used to tie the node to an EC2 instance
     resource_id = models.CharField(max_length=253, null=True)
@@ -529,6 +529,13 @@ class OCPUsageLineItemDailySummary(models.Model):
     project_markup_cost = models.DecimalField(
         max_digits=27,
         decimal_places=9,
+        null=True
+    )
+
+    # This is the one time monthly costs for a given user.
+    monthly_cost = models.DecimalField(
+        max_digits=33,
+        decimal_places=15,
         null=True
     )
 
