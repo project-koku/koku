@@ -20,7 +20,6 @@ import json
 import os
 
 lockfile = {}
-python_version = "3.6"
 
 
 with open("Pipfile.lock") as json_file:
@@ -30,9 +29,9 @@ with open("koku-manifest", "w") as manifest:
     for name, value in sorted(lockfile["default"].items()):
         if "version" in value:
             version = value["version"].replace("=", "")
-            manifest.write("koku/python:%s=%s:%s\n" % (python_version, name, version))
+            manifest.write("mgmt_services/cost-mgmt:koku/python-%s:%s.pipfile\n" % (name, version))
         elif "ref" in value:
             ref = value["ref"]
-            manifest.write("koku/python:%s=%s:%s\n" % (python_version, name, ref))
+            manifest.write("mgmt_services/cost-mgmt:koku/python-%s:%s.pipfile\n" % (name, ref))
         else:
             raise "unable to parse %s" % value
