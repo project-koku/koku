@@ -51,6 +51,19 @@ class KokuHTTPClientTest(TestCase):
             self.assertEqual(response.get('uuid'), expected_uuid)
 
     @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    def test_create_provider_with_source_uid(self):
+        """Test to create a provider with source uid ."""
+        client = KokuHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
+        source_uuid = faker.uuid4()
+        with requests_mock.mock() as m:
+            m.post('http://www.koku.com/api/cost-management/v1/providers/',
+                   status_code=201,
+                   json={'uuid': source_uuid})
+            response = client.create_provider(self.name, self.provider_type,
+                                              self.authentication, self.billing_source, source_uuid)
+            self.assertEqual(response.get('uuid'), source_uuid)
+
+    @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
     def test_create_provider_exceptions(self):
         """Test to create a provider with a non-recoverable error."""
         client = KokuHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)

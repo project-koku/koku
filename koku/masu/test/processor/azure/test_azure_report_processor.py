@@ -16,15 +16,21 @@
 #
 
 """Test the AzureReportProcessor object."""
-import os
-import logging
 import copy
 import csv
-import tempfile
+import logging
+import os
 import shutil
+import sys
+import tempfile
+import threading
+import time
+from queue import Queue
 from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
+from django.db import connection
+from django.db.utils import InternalError
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
@@ -91,7 +97,6 @@ class AzureReportProcessorTest(MasuTestCase):
         self.accessor = AzureReportDBAccessor(self.schema, self.column_map)
         self.report_schema = self.accessor.report_schema
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
-        self.manifest_accessor.commit()
 
     def tearDown(self):
         """Tear down test case."""
@@ -229,6 +234,24 @@ class AzureReportProcessorTest(MasuTestCase):
                 count = table.objects.count()
             self.assertTrue(count == counts[table_name])
 
+    def test_azure_process_can_run_twice(self):
+        """Test that row duplicates are inserted into the DB when process called twice."""
+        counts = {}
+        processor = AzureReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.azure_provider_uuid,
+        )
+
+        # Process for the first time
+        processor.process()
+        shutil.copy2(self.test_report_path, self.test_report)
+        try:
+            processor.process()
+        except InternalError:
+            self.fail('failed to call process twice.')
+
     def test_azure_create_cost_entry_bill(self):
         """Test that a cost entry bill id is returned."""
         table_name = AZURE_REPORT_TABLE_MAP['bill']
@@ -275,8 +298,6 @@ class AzureReportProcessorTest(MasuTestCase):
         bill_id = self.processor._create_cost_entry_bill(self.row, self.accessor)
         product_id = self.processor._create_cost_entry_product(self.row, self.accessor)
         meter_id = self.processor._create_meter(self.row, self.accessor)
-
-        self.accessor.commit()
 
         self.processor._create_cost_entry_line_item(
             self.row,

@@ -21,7 +21,7 @@ import uuid
 from decimal import Decimal, InvalidOperation
 
 import django.apps
-from django.db import connection, transaction
+from django.db import connection
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
@@ -151,17 +151,6 @@ class ReportDBAccessorBase(KokuDBAccess):
             delete_sql = f'DELETE FROM {temp_table_name}'
             cursor.execute(delete_sql)
 
-    def vacuum_table(self, table_name):
-        """Vacuum a table outside of a transaction."""
-        with schema_context(self.schema):
-            old_isolation_level = connection.connection.isolation_level
-            connection.connection.set_isolation_level(0)
-            vacuum = f'VACUUM {table_name}'
-            with connection.cursor() as cursor:
-                cursor.db.set_schema(self.schema)
-                cursor.execute(vacuum)
-            connection.connection.set_isolation_level(old_isolation_level)
-
     # pylint: disable=too-many-arguments
     def bulk_insert_rows(self, file_obj, table, columns, sep='\t', null=''):
         r"""Insert many rows using Postgres copy functionality.
@@ -174,8 +163,6 @@ class ReportDBAccessorBase(KokuDBAccess):
             null (str): How null is represented in the CSV. Default: ''
 
         """
-        if KokuDBAccess._savepoints:
-            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             cursor.copy_from(
@@ -185,7 +172,6 @@ class ReportDBAccessorBase(KokuDBAccess):
                 columns=columns,
                 null=null
             )
-            cursor.db.commit()
 
     def close_connections(self, conn=None):
         """Close the low level database connection.
@@ -273,12 +259,9 @@ class ReportDBAccessorBase(KokuDBAccess):
             insert_sql = insert_sql + f' ON CONFLICT ({conflict_columns_formatted}) DO NOTHING;'
         else:
             insert_sql = insert_sql + ' ON CONFLICT DO NOTHING;'
-        if KokuDBAccess._savepoints:
-            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             cursor.execute(insert_sql, values)
-            cursor.db.commit()
         if conflict_columns:
             data = {key: value for key, value in data.items()
                     if key in conflict_columns}
@@ -321,12 +304,9 @@ class ReportDBAccessorBase(KokuDBAccess):
          ON CONFLICT ({conflict_columns_formatted}) DO UPDATE SET
          {set_clause}
         """
-        if KokuDBAccess._savepoints:
-            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             cursor.execute(insert_sql, values)
-            cursor.db.commit()
 
         data = {key: value for key, value in data.items()
                 if key in conflict_columns}
@@ -397,19 +377,15 @@ class ReportDBAccessorBase(KokuDBAccess):
                 value = None
         return value
 
-    def _commit_and_vacuum(self, table, sql, start=None, end=None, bind_params=None):
-        """Commit query to a table and vacuum."""
+    def _execute_raw_sql_query(self, table, sql, start=None, end=None, bind_params=None):
+        """Run a SQL statement via a cursor."""
         if start and end:
             LOG.info('Updating %s from %s to %s.',
                      table, start, end)
         else:
             LOG.info('Updating %s', table)
 
-        if KokuDBAccess._savepoints:
-            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             cursor.execute(sql, params=bind_params)
-            cursor.db.commit()
-            self.vacuum_table(table)
         LOG.info('Finished updating %s.', table)

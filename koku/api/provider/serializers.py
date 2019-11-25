@@ -210,7 +210,7 @@ BILLING_SOURCE_SERIALIZERS = {'AWS': AWSBillingSourceSerializer,
 class ProviderSerializer(serializers.ModelSerializer):
     """Serializer for the Provider model."""
 
-    uuid = serializers.UUIDField(read_only=True)
+    uuid = serializers.UUIDField(allow_null=True, required=False)
     name = serializers.CharField(max_length=256, required=True,
                                  allow_null=False, allow_blank=False)
     type = serializers.ChoiceField(choices=Provider.PROVIDER_CHOICES)
@@ -312,9 +312,10 @@ class ProviderSerializer(serializers.ModelSerializer):
             source_query = Sources.objects.filter(authentication=sources_auth)
             if source_query.exists():
                 source_obj = source_query.first()
-                source_obj.koku_uuid = existing_provider.uuid
-                source_obj.save()
-                return existing_provider
+                if not source_obj.koku_uuid:
+                    source_obj.koku_uuid = existing_provider.uuid
+                    source_obj.save()
+                    return existing_provider
             error = {'Error': 'A Provider already exists with that Authentication and Billing Source'}
             raise serializers.ValidationError(error)
 

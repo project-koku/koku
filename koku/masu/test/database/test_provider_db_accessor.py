@@ -126,16 +126,6 @@ class ProviderDBAccessorTest(MasuTestCase):
             accessor.setup_complete()
             self.assertEqual(True, accessor.get_setup_complete())
 
-    def test_setup_complete_with_exception(self):
-        """Test provider setup_complete method when an exception occurs in context manager."""
-        uuid = self.aws_provider_uuid
-        with self.assertRaises(Exception):
-            with ProviderDBAccessor(uuid) as accessor:
-                accessor.setup_complete()
-                raise Exception('Dont save me!')
-        with ProviderDBAccessor(uuid) as accessor:
-            self.assertEqual(False, accessor.get_setup_complete())
-
     def test_get_infrastructure_type(self):
         """Test that infrastructure type is returned."""
         infrastructure_type = 'AWS'
