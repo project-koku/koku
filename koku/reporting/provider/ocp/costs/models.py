@@ -38,7 +38,7 @@ class CostSummary(models.Model):
     cluster_alias = models.CharField(max_length=256, null=True)
 
     # Kubernetes objects by convention have a max name length of 253 chars
-    namespace = models.CharField(max_length=253, null=False)
+    namespace = models.CharField(max_length=253, null=True)
 
     pod = models.CharField(max_length=253, null=True)
 
@@ -94,3 +94,9 @@ class CostSummary(models.Model):
     )
 
     pod_labels = JSONField(null=True)
+
+    monthly_cost = models.DecimalField(
+        max_digits=33,
+        decimal_places=15,
+        null=True
+    )
