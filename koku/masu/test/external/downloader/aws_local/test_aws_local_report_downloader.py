@@ -19,23 +19,20 @@
 import os.path
 import random
 import shutil
-import tarfile
 import tempfile
+from datetime import datetime
 from tarfile import TarFile
 from unittest.mock import Mock
+from unittest.mock import patch
 
 from faker import Faker
 
-from datetime import datetime
-from unittest.mock import patch
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.date_accessor import DateAccessor
-from masu.external.downloader.aws_local.aws_local_report_downloader import (
-    AWSLocalReportDownloader,
-)
-from masu.external.report_downloader import ReportDownloader
 from masu.external import AWS_REGIONS
+from masu.external.date_accessor import DateAccessor
+from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
+from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
 
@@ -57,6 +54,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
 
     @classmethod
     def setUpClass(cls):
+        """Set up class variables."""
         super().setUpClass()
         cls.fake_customer_name = CUSTOMER_NAME
         cls.fake_report_name = 'koku-local'
@@ -74,8 +72,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         mytar = TarFile.open('./koku/masu/test/data/test_local_bucket.tar.gz')
         mytar.extractall(path=self.fake_bucket_name)
         os.makedirs(DATA_DIR, exist_ok=True)
-        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()),
-                                           return_value={}))
+        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()), return_value={}))
         self.report_downloader = ReportDownloader(
             task=self.mock_task,
             customer_name=self.fake_customer_name,
@@ -96,6 +93,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         )
 
     def tearDown(self):
+        """Remove test generated data."""
         shutil.rmtree(DATA_DIR, ignore_errors=True)
         shutil.rmtree(self.fake_bucket_name)
 
@@ -104,9 +102,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         test_report_date = datetime(year=2018, month=8, day=7)
         with patch.object(DateAccessor, 'today', return_value=test_report_date):
             self.report_downloader.download_report(test_report_date)
-        expected_path = '{}/{}/{}'.format(
-            DATA_DIR, self.fake_customer_name, 'aws-local'
-        )
+        expected_path = '{}/{}/{}'.format(DATA_DIR, self.fake_customer_name, 'aws-local')
         self.assertTrue(os.path.isdir(expected_path))
 
     def test_report_name_provided(self):
@@ -152,9 +148,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
             )
             # Names from test report .gz file
             report_downloader.download_report(test_report_date)
-        expected_path = '{}/{}/{}'.format(
-            DATA_DIR, self.fake_customer_name, 'aws-local'
-        )
+        expected_path = '{}/{}/{}'.format(DATA_DIR, self.fake_customer_name, 'aws-local')
         self.assertTrue(os.path.isdir(expected_path))
 
         shutil.rmtree(fake_bucket)
@@ -164,9 +158,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         bucket = tempfile.mkdtemp()
         report_name = 'report-name'
         prefix_name = 'prefix-name'
-        full_path = '{}/{}/{}/20180801-20180901/'.format(
-            bucket, prefix_name, report_name
-        )
+        full_path = '{}/{}/{}/20180801-20180901/'.format(bucket, prefix_name, report_name)
         os.makedirs(full_path)
         report_downloader = AWSLocalReportDownloader(
             **{
@@ -185,9 +177,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         bucket = tempfile.mkdtemp()
         report_name = 'report-name'
         prefix_name = 'prefix-name'
-        full_path = '{}/{}/{}/20180801-aaaaaaa/'.format(
-            bucket, prefix_name, report_name
-        )
+        full_path = '{}/{}/{}/20180801-aaaaaaa/'.format(bucket, prefix_name, report_name)
         os.makedirs(full_path)
 
         report_downloader = AWSLocalReportDownloader(
@@ -236,7 +226,5 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
             )
             # Names from test report .gz file
             report_downloader.download_report(test_report_date)
-        expected_path = '{}/{}/{}'.format(
-            DATA_DIR, self.fake_customer_name, 'aws-local'
-        )
+        expected_path = '{}/{}/{}'.format(DATA_DIR, self.fake_customer_name, 'aws-local')
         self.assertFalse(os.path.isdir(expected_path))

@@ -35,6 +35,7 @@ class GCPReportDownloaderTest(MasuTestCase):
     """Test Cases for the GCPReportDownloader object."""
 
     def tearDown(self):
+        """Remove files and directories created during the test run."""
         super().tearDown()
         shutil.rmtree(DATA_DIR, ignore_errors=True)
 
@@ -69,14 +70,13 @@ class GCPReportDownloaderTest(MasuTestCase):
             provider_uuid = uuid4()
         with patch(
             'masu.external.downloader.gcp.gcp_report_downloader.GCPProvider'
-        ) as mock_provider, patch(
+        ), patch(
             'masu.external.downloader.gcp.gcp_report_downloader.storage'
-        ) as mock_storage:
+        ):
             # mock_storage_client = mock_storage.Client.return_value
             # mock_storage_client.lookup_bucket.return_value = {}
             downloader = GCPReportDownloader(
-                task=Mock(request=Mock(id=str(FAKE.uuid4()),
-                                       return_value={})),
+                task=Mock(request=Mock(id=str(FAKE.uuid4()), return_value={})),
                 customer_name=customer_name,
                 billing_source=billing_source,
                 provider_uuid=provider_uuid,
@@ -86,13 +86,13 @@ class GCPReportDownloaderTest(MasuTestCase):
     @patch('masu.external.downloader.gcp.gcp_report_downloader.GCPProvider')
     def test_init_unreachable_bucket_raises_error(self, mock_provider):
         """Assert GCPReportDownloader raises error when bucket is not reachable."""
-        mock_provider.return_value.cost_usage_source_is_reachable.side_effect = (
-            ValidationError
-        )
+        mock_provider.return_value.cost_usage_source_is_reachable.side_effect = ValidationError
         with self.assertRaises(GCPReportDownloaderError):
-            GCPReportDownloader(Mock(request=Mock(id=str(FAKE.uuid4()),
-                                                  return_value={})),
-                                FAKE.name(), {'bucket': FAKE.slug()})
+            GCPReportDownloader(
+                Mock(request=Mock(id=str(FAKE.uuid4()), return_value={})),
+                FAKE.name(),
+                {'bucket': FAKE.slug()},
+            )
 
     def test_init_reachable_bucket_is_okay(self):
         """Assert GCPReportDownloader initializes with expected values."""
@@ -101,15 +101,15 @@ class GCPReportDownloaderTest(MasuTestCase):
         billing_source = {'bucket': bucket_name}
         with patch(
             'masu.external.downloader.gcp.gcp_report_downloader.GCPProvider'
-        ) as mock_provider, patch(
+        ), patch(
             'masu.external.downloader.gcp.gcp_report_downloader.storage'
         ) as mock_storage:
-            downloader = GCPReportDownloader(Mock(request=Mock(id=str(FAKE.uuid4()),
-                                                               return_value={})),
-                                             customer_name, billing_source)
-            mock_storage.Client.return_value.lookup_bucket.assert_called_with(
-                bucket_name
+            downloader = GCPReportDownloader(
+                Mock(request=Mock(id=str(FAKE.uuid4()), return_value={})),
+                customer_name,
+                billing_source,
             )
+            mock_storage.Client.return_value.lookup_bucket.assert_called_with(bucket_name)
         self.assertEqual(downloader.customer_name, customer_name.replace(' ', '_'))
         self.assertEqual(downloader.bucket_name, bucket_name)
 
@@ -221,9 +221,7 @@ class GCPReportDownloaderTest(MasuTestCase):
             mock_generate_assembly_id.return_value = fake_assembly_id
             mock_get_names.return_value = fake_file_names
             manifest = downloader._generate_monthly_pseudo_manifest(start_date)
-            mock_generate_assembly_id.assert_called_with(
-                start_date, expected_end_date, file_count
-            )
+            mock_generate_assembly_id.assert_called_with(start_date, expected_end_date, file_count)
         self.assertEqual(manifest['assembly_id'], fake_assembly_id)
         self.assertEqual(manifest['start_date'], start_date)
         self.assertEqual(manifest['end_date'], expected_end_date)
@@ -237,9 +235,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         file_count = 15
         expected_assembly_id = f'{provider_uuid}:2019-02-01:2019-02-28:15'
 
-        downloader = self.create_gcp_downloader_with_mock_gcp_storage(
-            provider_uuid=provider_uuid
-        )
+        downloader = self.create_gcp_downloader_with_mock_gcp_storage(provider_uuid=provider_uuid)
         assembly_id = downloader._generate_assembly_id(start_date, end_date, file_count)
         self.assertEqual(assembly_id, expected_assembly_id)
 
@@ -314,9 +310,7 @@ class GCPReportDownloaderTest(MasuTestCase):
 
     def test_get_bucket_file_names(self):
         """Assert _get_bucket_file_names gets all blob names from the bucket."""
-        expected_names = [
-            FAKE.file_path() for _ in range(10)
-        ]  # arbitrary number of names
+        expected_names = [FAKE.file_path() for _ in range(10)]  # arbitrary number of names
         mock_blobs = [MockBlob(name=name) for name in expected_names]
 
         downloader = self.create_gcp_downloader_with_mock_gcp_storage()
@@ -398,9 +392,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         downloader = self.create_gcp_downloader_with_mock_gcp_storage(
             customer_name=customer_name, bucket_name=bucket_name
         )
-        with patch(
-            'masu.external.downloader.gcp.gcp_report_downloader.DATA_DIR', new=data_dir
-        ):
+        with patch('masu.external.downloader.gcp.gcp_report_downloader.DATA_DIR', new=data_dir):
             actual_directory_path = downloader._get_local_directory_path()
         self.assertEqual(actual_directory_path, expected_directory_path)
 

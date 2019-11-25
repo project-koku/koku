@@ -30,20 +30,20 @@ from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 
-
 from masu.api import API_VERSION
 from masu.api.status import (
     ApplicationStatus,
     BROKER_CONNECTION_ERROR,
     CELERY_WORKER_NOT_FOUND,
-    get_status,
 )
+
 
 @override_settings(ROOT_URLCONF='masu.urls')
 class StatusAPITest(TestCase):
     """Test Cases for the Status API."""
 
     def setUp(self):
+        """Set up shared configuration."""
         super().setUp()
         logging.disable(logging.NOTSET)
 
@@ -103,7 +103,6 @@ class StatusAPITest(TestCase):
     @patch('masu.api.status.os.environ.get', return_value=dict())
     def test_commit_with_subprocess_nostdout(self, mock_os, mock_subprocess):
         """Test the commit method via subprocess when stdout is none."""
-
         args = {
             'args': ['git', 'describe', '--always'],
             'returncode': 0,
@@ -167,9 +166,7 @@ class StatusAPITest(TestCase):
         mock_date_string = '2018-07-25 10:41:59.993536'
         mock_date_obj = datetime.strptime(mock_date_string, '%Y-%m-%d %H:%M:%S.%f')
         mock_date.return_value = mock_date_obj
-        expected = 'INFO:masu.api.status:Current Date: {}'.format(
-            mock_date.return_value
-        )
+        expected = 'INFO:masu.api.status:Current Date: {}'.format(mock_date.return_value)
         with self.assertLogs('masu.api.status', level='INFO') as logger:
             ApplicationStatus().startup()
             self.assertIn(str(expected), logger.output)
@@ -183,7 +180,7 @@ class StatusAPITest(TestCase):
 
     @patch('masu.api.status.celery_app')
     def test_startup_has_celery_status(self, mock_celery):
-        """test celery status is in startup() output."""
+        """Test celery status is in startup() output."""
         expected_status = {'Status': 'OK'}
         expected = f'INFO:masu.api.status:Celery Status: {expected_status}'
 
@@ -239,7 +236,7 @@ class StatusAPITest(TestCase):
         # celery_app.control.inspect
 
     def test_database_status(self):
-        """test that fetching database status works."""
+        """Test that fetching database status works."""
         expected = re.compile(r'INFO:masu.api.status:Database: \[{.*postgres.*}\]')
         with self.assertLogs('masu.api.status', level='INFO') as logger:
             ApplicationStatus().startup()
@@ -250,7 +247,7 @@ class StatusAPITest(TestCase):
             self.assertIsNotNone(results)
 
     def test_database_status_fail(self):
-        """test that fetching database handles errors."""
+        """Test that fetching database handles errors."""
         expected = 'WARNING:masu.api.status:Unable to connect to DB: '
         with patch('django.db.backends.utils.CursorWrapper') as mock_cursor:
             mock_cursor = mock_cursor.return_value.__enter__.return_value
@@ -258,14 +255,3 @@ class StatusAPITest(TestCase):
             with self.assertLogs('masu.api.status', level='INFO') as logger:
                 ApplicationStatus().startup()
                 self.assertIn(expected, logger.output)
-
-    def disablefornowtest_liveness(self):
-        """Test the liveness response."""
-        expected = {'alive': True}
-        app = create_app(test_config=dict())
-
-        with app.test_request_context('/?liveness'):
-            response = get_status()
-
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.json, expected)

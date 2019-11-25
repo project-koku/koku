@@ -17,26 +17,24 @@
 
 """Test the ReportDownloader object."""
 
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 from faker import Faker
 
 from masu.external import (
-    AWS_LOCAL_SERVICE_PROVIDER,
     AMAZON_WEB_SERVICES,
+    AWS_LOCAL_SERVICE_PROVIDER,
     AZURE,
     AZURE_LOCAL_SERVICE_PROVIDER,
-    OPENSHIFT_CONTAINER_PLATFORM,
     GCP,
+    OPENSHIFT_CONTAINER_PLATFORM,
 )
 from masu.external.downloader.aws.aws_report_downloader import (
     AWSReportDownloader,
     AWSReportDownloaderError,
 )
-from masu.external.downloader.aws_local.aws_local_report_downloader import (
-    AWSLocalReportDownloader,
-)
+from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure_local.azure_local_report_downloader import (
     AzureLocalReportDownloader,
@@ -44,10 +42,8 @@ from masu.external.downloader.azure_local.azure_local_report_downloader import (
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.report_downloader import ReportDownloader, ReportDownloaderError
-
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
-
 
 FAKE = Faker()
 
@@ -56,14 +52,14 @@ class ReportDownloaderTest(MasuTestCase):
     """Test Cases for the ReportDownloader object."""
 
     def setUp(self):
+        """Set up each test case."""
         super().setUp()
         self.fake_creds = fake_arn(service='iam', generate_account_id=True)
-        self.mock_task = Mock(request=Mock(id=str(FAKE.uuid4()),
-                                           return_value={}))
+        self.mock_task = Mock(request=Mock(id=str(FAKE.uuid4()), return_value={}))
 
     def create_downloader(self, provider_type):
         """
-        Helper function to create a ReportDownloader with some faked inputs.
+        Create a ReportDownloader with some faked inputs.
 
         Args:
             provider_type (str): the provider type (e.g. AMAZON_WEB_SERVICES)
@@ -102,9 +98,7 @@ class ReportDownloaderTest(MasuTestCase):
     )
     def test_init_with_aws(self, mock_downloader_init):
         """Assert ReportDownloader creation sets the AWS downloader."""
-        self.assertDownloaderSetsProviderDownloader(
-            AMAZON_WEB_SERVICES, AWSReportDownloader
-        )
+        self.assertDownloaderSetsProviderDownloader(AMAZON_WEB_SERVICES, AWSReportDownloader)
         mock_downloader_init.assert_called()
 
     @patch(
@@ -182,9 +176,7 @@ class ReportDownloaderTest(MasuTestCase):
         downloader = self.create_downloader(AMAZON_WEB_SERVICES)
         mock_downloader_init.assert_called()
         with patch.object(
-            AWSReportDownloader,
-            'get_report_context_for_date',
-            side_effect=Exception('some error'),
+            AWSReportDownloader, 'get_report_context_for_date', side_effect=Exception('some error'),
         ):
             with self.assertRaises(ReportDownloaderError):
                 downloader.get_reports()

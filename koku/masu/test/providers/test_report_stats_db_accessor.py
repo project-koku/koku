@@ -18,6 +18,7 @@
 """Test the ReportStatsDBAccessor utility object."""
 
 from datetime import datetime
+
 from dateutil import parser
 
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -45,7 +46,7 @@ class ReportStatsDBAccessorTest(MasuTestCase):
         self.manifest_id = manifest.id
 
     def test_initializer(self):
-        """Test Initializer"""
+        """Test Initializer."""
         saver = ReportStatsDBAccessor('myreport', self.manifest_id)
         self.assertIsNotNone(saver._obj)
 
@@ -58,7 +59,6 @@ class ReportStatsDBAccessorTest(MasuTestCase):
             last_started_datetime='2022-2-2 22:22:22',
             etag='myetag',
         )
-
 
         self.assertIsNotNone(saver._obj)
 
@@ -74,7 +74,6 @@ class ReportStatsDBAccessorTest(MasuTestCase):
         self.assertEqual(last_completed.second, 11)
 
         self.assertEqual(saver.get_etag(), 'myetag')
-
 
     def test_add_remove(self):
         """Test basic add/remove logic."""

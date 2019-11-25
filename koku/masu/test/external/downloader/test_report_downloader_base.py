@@ -18,7 +18,7 @@
 
 import datetime
 import os.path
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 from faker import Faker
 
@@ -37,7 +37,7 @@ class ReportDownloaderBaseTest(MasuTestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Setup the test class."""
+        """Set up the test class."""
         super().setUpClass()
         cls.fake = Faker()
         cls.patch_path = True
@@ -46,12 +46,12 @@ class ReportDownloaderBaseTest(MasuTestCase):
         cls.report_name = f'{cls.assembly_id}_file_1.csv.gz'
 
     def setUp(self):
-        """Setup each test case."""
+        """Set up each test case."""
         super().setUp()
-        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()),
-                                           return_value={}))
-        self.downloader = ReportDownloaderBase(task=self.mock_task,
-                                               provider_uuid=self.aws_provider_uuid)
+        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()), return_value={}))
+        self.downloader = ReportDownloaderBase(
+            task=self.mock_task, provider_uuid=self.aws_provider_uuid
+        )
         billing_start = self.date_accessor.today_with_timezone('UTC').replace(day=1)
         self.task_id = str(self.fake.uuid4())
         self.manifest_dict = {
@@ -59,7 +59,7 @@ class ReportDownloaderBaseTest(MasuTestCase):
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
             'provider_uuid': self.aws_provider_uuid,
-            'task': self.task_id
+            'task': self.task_id,
         }
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.add(**self.manifest_dict)
@@ -81,6 +81,7 @@ class ReportDownloaderBaseTest(MasuTestCase):
 
     @patch('masu.external.downloader.report_downloader_base.app')
     def test_report_downloader_base_no_path(self, _):
+        """Test report downloader download_path."""
         downloader = ReportDownloaderBase(self.mock_task)
         self.assertIsInstance(downloader, ReportDownloaderBase)
         self.assertIsNotNone(downloader.download_path)
@@ -88,6 +89,7 @@ class ReportDownloaderBaseTest(MasuTestCase):
 
     @patch('masu.external.downloader.report_downloader_base.app')
     def test_report_downloader_base(self, _):
+        """Test download path matches expected."""
         dl_path = '/{}/{}/{}'.format(
             self.fake.word().lower(), self.fake.word().lower(), self.fake.word().lower()
         )
@@ -97,7 +99,6 @@ class ReportDownloaderBaseTest(MasuTestCase):
     @patch('masu.external.downloader.report_downloader_base.app')
     def test_get_existing_manifest_db_id(self, _):
         """Test that a manifest ID is returned."""
-
         manifest_id = self.downloader._get_existing_manifest_db_id(self.assembly_id)
         self.assertEqual(manifest_id, self.manifest_id)
 
@@ -135,7 +136,9 @@ class ReportDownloaderBaseTest(MasuTestCase):
         with ReportStatsDBAccessor(self.report_name, self.manifest_id) as file_accessor:
             file_accessor.log_last_started_datetime()
             file_accessor.log_last_completed_datetime()
-            completed_datetime = self.date_accessor.today_with_timezone('UTC') - datetime.timedelta(hours=1)
+            completed_datetime = self.date_accessor.today_with_timezone('UTC') - datetime.timedelta(
+                hours=1
+            )
             file_accessor.update(last_completed_datetime=completed_datetime)
         result = self.downloader.check_if_manifest_should_be_downloaded(self.assembly_id)
         self.assertTrue(result)
@@ -156,9 +159,15 @@ class ReportDownloaderBaseTest(MasuTestCase):
     def test_check_task_queues_false(self, mock_celery):
         """Test that check_task_queues() returns false when task_id is absent."""
         # app.control.inspect()
-        mock_celery.control = Mock(inspect=Mock(return_value=Mock(active=Mock(return_value={}),
-                                                                  reserved=Mock(return_value={}),
-                                                                  scheduled=Mock(return_value={}))))
+        mock_celery.control = Mock(
+            inspect=Mock(
+                return_value=Mock(
+                    active=Mock(return_value={}),
+                    reserved=Mock(return_value={}),
+                    scheduled=Mock(return_value={}),
+                )
+            )
+        )
         result = self.downloader.check_task_queues(self.manifest_id)
         self.assertFalse(result)
 
@@ -167,9 +176,13 @@ class ReportDownloaderBaseTest(MasuTestCase):
         """Test that check_task_queues() returns true when task_id is found."""
         # app.control.inspect()
         active = Mock(return_value={self.fake.word(): [{'id': self.task_id}]})
-        mock_celery.control = Mock(inspect=Mock(return_value=Mock(active=active,
-                                                                  reserved=Mock(return_value={}),
-                                                                  scheduled=Mock(return_value={}))))
+        mock_celery.control = Mock(
+            inspect=Mock(
+                return_value=Mock(
+                    active=active, reserved=Mock(return_value={}), scheduled=Mock(return_value={})
+                )
+            )
+        )
         result = self.downloader.check_task_queues(self.task_id)
         self.assertTrue(result)
 

@@ -69,9 +69,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
         self.assertEqual(added_manifest, manifest)
         self.assertEqual(manifest.assembly_id, assembly_id)
         self.assertEqual(manifest.provider_id, provider_uuid)
-        self.assertEqual(
-            manifest.num_total_files, self.manifest_dict.get('num_total_files')
-        )
+        self.assertEqual(manifest.num_total_files, self.manifest_dict.get('num_total_files'))
 
     def test_get_manifest_by_id(self):
         """Test that the right manifest is returned by id."""
@@ -93,26 +91,23 @@ class ReportManifestDBAccessorTest(IamTestCase):
         """Test that all manifests are returned for a provider and bill."""
         bill_date = self.manifest_dict['billing_period_start_datetime'].date()
         manifest_dict = copy.deepcopy(self.manifest_dict)
-        manifest_one = self.manifest_accessor.add(**manifest_dict)
+        self.manifest_accessor.add(**manifest_dict)
         result = self.manifest_accessor.get_manifest_list_for_provider_and_bill_date(
-            self.provider_uuid,
-            bill_date
+            self.provider_uuid, bill_date
         )
         self.assertEqual(len(result), 1)
 
         manifest_dict['assembly_id'] = '2345'
-        manifest_two = self.manifest_accessor.add(**manifest_dict)
+        self.manifest_accessor.add(**manifest_dict)
         result = self.manifest_accessor.get_manifest_list_for_provider_and_bill_date(
-            self.provider_uuid,
-            bill_date
+            self.provider_uuid, bill_date
         )
         self.assertEqual(len(result), 2)
 
         manifest_dict['assembly_id'] = '3456'
-        manifest_two = self.manifest_accessor.add(**manifest_dict)
+        self.manifest_accessor.add(**manifest_dict)
         result = self.manifest_accessor.get_manifest_list_for_provider_and_bill_date(
-            self.provider_uuid,
-            bill_date
+            self.provider_uuid, bill_date
         )
         self.assertEqual(len(result), 3)
 

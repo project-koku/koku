@@ -21,12 +21,12 @@ import random
 from datetime import timedelta
 
 from faker import Faker
-from masu.test import MasuTestCase
 
-from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.external.date_accessor import DateAccessor
 from masu.providers.status import ProviderStatus
+from masu.test import MasuTestCase
 
 
 class ProviderStatusTest(MasuTestCase):
@@ -59,7 +59,7 @@ class ProviderStatusTest(MasuTestCase):
             accessor.add(**self.test_status)
 
     def _setup_ready_status(self):
-        """set status to READY state. """
+        """Set status to READY state."""
         ready_status = {
             'provider_id': self.provider_uuid,
             'status': ProviderStatusCode.READY,
@@ -111,16 +111,12 @@ class ProviderStatusTest(MasuTestCase):
             # status should stay in WARNING until MAX_RETRIES is exceeded.
             if idx < ProviderStatus.MAX_RETRIES:
                 with ProviderStatus(self.aws_provider_uuid) as new_accessor:
-                    self.assertEqual(
-                        new_accessor.get_status(), ProviderStatusCode.WARNING
-                    )
+                    self.assertEqual(new_accessor.get_status(), ProviderStatusCode.WARNING)
                     self.assertEqual(new_accessor.get_retries(), idx)
 
         # status should be DISABLED after MAX_RETRIES is reached.
         with ProviderStatus(self.aws_provider_uuid) as other_accessor:
-            self.assertEqual(
-                other_accessor.get_status(), ProviderStatusCode.DISABLED_ERROR
-            )
+            self.assertEqual(other_accessor.get_status(), ProviderStatusCode.DISABLED_ERROR)
             self.assertEqual(other_accessor.get_retries(), ProviderStatus.MAX_RETRIES)
 
     def test_is_valid_ready(self):
