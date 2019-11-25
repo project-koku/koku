@@ -150,10 +150,17 @@ class ProviderManager:
 
         return provider_stats
 
+    def get_cost_models(self, tenant):
+        """Get the cost models associated with this provider."""
+        with tenant_context(tenant):
+            cost_models_map = CostModelMap.objects.filter(provider_uuid=self._uuid)
+        cost_models = [m.cost_model for m in cost_models_map]
+        return cost_models
+
     def update(self, request):
         """Check if provider is a sources model."""
         if self.sources_model and not request.headers.get('Sources-Client'):
-            err_msg = f'Provider {self._uuid} must be deleted via Sources Integration Service'
+            err_msg = f'Provider {self._uuid} must be updated via Sources Integration Service'
             raise ProviderManagerError(err_msg)
 
     @transaction.atomic
