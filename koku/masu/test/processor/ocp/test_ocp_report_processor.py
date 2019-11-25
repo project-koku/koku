@@ -16,23 +16,21 @@
 #
 
 """Test the OCPReportProcessor."""
-import csv
 import copy
-import datetime
-import os
+import csv
 import gzip
 import json
+import os
 import shutil
 import tempfile
+from unittest.mock import patch
 
-from dateutil import parser
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
@@ -44,11 +42,11 @@ from masu.processor.ocp.ocp_report_processor import (
     ProcessedOCPReport,
 )
 from masu.test import MasuTestCase
-from unittest.mock import patch
-from masu.util.ocp.common import month_date_range
 
 
 class ProcessedOCPReportTest(MasuTestCase):
+    """Test Cases for Processed OCP Reports."""
+
     @classmethod
     def setUpClass(cls):
         """Set up the test class with required objects."""
@@ -56,6 +54,7 @@ class ProcessedOCPReportTest(MasuTestCase):
         cls.report = ProcessedOCPReport()
 
     def test_remove_processed_rows(self):
+        """Test that we can remove rows from the processed ocp report."""
         test_entry = {'test': 'entry'}
         self.report.report_periods.update(test_entry)
         self.report.line_items.append(test_entry)
@@ -75,8 +74,9 @@ class OCPReportProcessorTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        # These test reports should be replaced with OCP reports once processor is impelmented.
-        cls.test_report_path = './koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'
+        # These test reports should be replaced with OCP reports once processor is implemented.
+        cls.test_report_path = \
+            './koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'
         cls.storage_report_path = (
             './koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_storage.csv'
         )
@@ -85,12 +85,7 @@ class OCPReportProcessorTest(MasuTestCase):
 
         cls.date_accessor = DateAccessor()
         cls.billing_start = cls.date_accessor.today_with_timezone('UTC').replace(
-            year=2018,
-            month=6,
-            day=1,
-            hour=0,
-            minute=0,
-            second=0
+            year=2018, month=6, day=1, hour=0, minute=0, second=0
         )
         cls.assembly_id = '1234'
 
@@ -111,9 +106,11 @@ class OCPReportProcessorTest(MasuTestCase):
             cls.row = next(reader)
 
     def setUp(self):
+        """Set up the test class."""
         super().setUp()
         self.temp_dir = tempfile.mkdtemp()
-        self.test_report = f'{self.temp_dir}/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'
+        self.test_report = \
+            f'{self.temp_dir}/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'
         self.storage_report = f'{self.temp_dir}/e6b3701e-1e91-433b-b238-a31e49937558_storage.csv'
         self.test_report_gzip = f'{self.temp_dir}/test_cur.csv.gz'
         shutil.copy2(self.test_report_path, self.test_report)
@@ -124,7 +121,7 @@ class OCPReportProcessorTest(MasuTestCase):
             'assembly_id': self.assembly_id,
             'billing_period_start_datetime': self.billing_start,
             'num_total_files': 2,
-            'provider_uuid': self.ocp_provider_uuid
+            'provider_uuid': self.ocp_provider_uuid,
         }
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 
@@ -159,6 +156,7 @@ class OCPReportProcessorTest(MasuTestCase):
             )
 
     def test_detect_report_type(self):
+        """Test report type detection."""
         usage_processor = OCPReportProcessor(
             schema_name='acct10001',
             report_path=self.test_report,
@@ -365,9 +363,7 @@ class OCPReportProcessorTest(MasuTestCase):
         file_obj = self.ocp_processor._processor._write_processed_rows_to_csv()
         line_item_data = self.ocp_processor._processor.processed_report.line_items.pop()
         # Convert data to CSV format
-        expected_values = [
-            str(value) if value else None for value in line_item_data.values()
-        ]
+        expected_values = [str(value) if value else None for value in line_item_data.values()]
 
         reader = csv.reader(file_obj, delimiter='\t')
         new_row = next(reader)
@@ -399,13 +395,10 @@ class OCPReportProcessorTest(MasuTestCase):
     def test_create_report(self):
         """Test that a report id is returned."""
         table_name = OCP_REPORT_TABLE_MAP['report']
-        table = getattr(self.report_schema, table_name)
-        id_column = getattr(table, 'id')
         cluster_id = '12345'
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             report_period_id = self.ocp_processor._processor._create_report_period(
                 self.row, cluster_id, accessor
-
             )
 
             report_id = self.ocp_processor._processor._create_report(

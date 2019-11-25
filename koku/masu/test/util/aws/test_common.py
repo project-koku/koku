@@ -1,3 +1,4 @@
+"""Masu AWS common module tests."""
 #
 # Copyright 2018 Red Hat, Inc.
 #
@@ -16,32 +17,26 @@
 #
 
 import random
-import string
+from datetime import datetime
 from unittest import TestCase
-from datetime import datetime, timedelta
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 import boto3
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
 from faker import Faker
+from tenant_schemas.utils import schema_context
 
-from masu.database import AWS_CUR_TABLE_MAP
-from masu.database.report_db_accessor_base import ReportSchema
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import AWS_REGIONS
 from masu.external.date_accessor import DateAccessor
-from masu.util.aws.common import get_bills_from_provider
-from masu.util.aws import common as utils
-
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.test.external.downloader.aws import fake_arn, fake_aws_account_id
 from masu.test.external.downloader.aws.test_aws_report_downloader import FakeSession
-
-from tenant_schemas.utils import schema_context
+from masu.util.aws import common as utils
 
 # the cn endpoints aren't supported by moto, so filter them out
 AWS_REGIONS = list(filter(lambda reg: not reg.startswith('cn-'), AWS_REGIONS))
@@ -75,10 +70,12 @@ MOCK_BOTO_CLIENT.assume_role.return_value = response
 
 
 class TestAWSUtils(MasuTestCase):
+    """Tests for AWS utilities."""
+
     fake = Faker()
 
     def setUp(self):
-        """Setup the test."""
+        """Set up the test."""
         super().setUp()
         self.account_id = fake_aws_account_id()
         self.arn = fake_arn(account_id=self.account_id, region=REGION, service='iam')
@@ -87,10 +84,12 @@ class TestAWSUtils(MasuTestCase):
 
     @patch('masu.util.aws.common.boto3.client', return_value=MOCK_BOTO_CLIENT)
     def test_get_assume_role_session(self, mock_boto_client):
+        """Test get_assume_role_session is successful."""
         session = utils.get_assume_role_session(self.arn)
         self.assertIsInstance(session, boto3.Session)
 
     def test_month_date_range(self):
+        """Test month_date_range returns correct month range."""
         today = datetime.now()
         out = utils.month_date_range(today)
 
@@ -105,14 +104,14 @@ class TestAWSUtils(MasuTestCase):
 
     @patch('masu.util.aws.common.get_cur_report_definitions', return_value=REPORT_DEFS)
     def test_cur_report_names_in_bucket(self, fake_report_defs):
+        """Test get_cur_report_names_in_bucket is successful."""
         session = Mock()
-        report_names = utils.get_cur_report_names_in_bucket(
-            self.account_id, BUCKET, session
-        )
+        report_names = utils.get_cur_report_names_in_bucket(self.account_id, BUCKET, session)
         self.assertIn(NAME, report_names)
 
     @patch('masu.util.aws.common.get_cur_report_definitions', return_value=REPORT_DEFS)
     def test_cur_report_names_in_bucket_malformed(self, fake_report_defs):
+        """Test get_cur_report_names_in_bucket fails for bad bucket name."""
         session = Mock()
         report_names = utils.get_cur_report_names_in_bucket(
             self.account_id, 'wrong-bucket', session
@@ -120,16 +119,19 @@ class TestAWSUtils(MasuTestCase):
         self.assertNotIn(NAME, report_names)
 
     def test_get_cur_report_definitions(self):
+        """Test get_cur_report_definitions is successful."""
         session = FakeSession()
         defs = utils.get_cur_report_definitions(self.arn, session)
         self.assertEqual(len(defs), 1)
 
     @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_get_cur_report_definitions_no_session(self, fake_session):
+        """Test get_cur_report_definitions for no sessions."""
         defs = utils.get_cur_report_definitions(self.arn)
         self.assertEqual(len(defs), 1)
 
     def test_get_account_alias_from_role_arn(self):
+        """Test get_account_alias_from_role_arn is functional."""
         mock_account_id = '111111111111'
         role_arn = 'arn:aws:iam::{}:role/CostManagement'.format(mock_account_id)
         mock_alias = 'test-alias'
@@ -138,36 +140,30 @@ class TestAWSUtils(MasuTestCase):
         mock_client = Mock()
         mock_client.list_account_aliases.return_value = {'AccountAliases': [mock_alias]}
         session.client.return_value = mock_client
-        account_id, account_alias = utils.get_account_alias_from_role_arn(
-            role_arn, session
-        )
+        account_id, account_alias = utils.get_account_alias_from_role_arn(role_arn, session)
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_alias, account_alias)
 
     @patch('masu.util.aws.common.get_assume_role_session')
     def test_get_account_alias_from_role_arn_no_policy(self, mock_get_role_session):
+        """Test get_account_alias_from_role_arn is functional when there are no policies."""
         mock_session = mock_get_role_session.return_value
         mock_client = mock_session.client
-        mock_client.return_value.list_account_aliases.side_effect = ClientError(
-            {}, 'Error'
-        )
+        mock_client.return_value.list_account_aliases.side_effect = ClientError({}, 'Error')
 
         mock_account_id = '111111111111'
         role_arn = 'arn:aws:iam::{}:role/CostManagement'.format(mock_account_id)
 
-        account_id, account_alias = utils.get_account_alias_from_role_arn(
-            role_arn, mock_session
-        )
+        account_id, account_alias = utils.get_account_alias_from_role_arn(role_arn, mock_session)
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_account_id, account_alias)
 
     @patch('masu.util.aws.common.get_assume_role_session')
     def test_get_account_alias_from_role_arn_no_session(self, mock_get_role_session):
+        """Test get_account_alias_from_role_arn is functional."""
         mock_session = mock_get_role_session.return_value
         mock_client = mock_session.client
-        mock_client.return_value.list_account_aliases.side_effect = ClientError(
-            {}, 'Error'
-        )
+        mock_client.return_value.list_account_aliases.side_effect = ClientError({}, 'Error')
 
         mock_account_id = '111111111111'
         role_arn = 'arn:aws:iam::{}:role/CostManagement'.format(mock_account_id)
@@ -177,6 +173,7 @@ class TestAWSUtils(MasuTestCase):
         self.assertEqual(mock_account_id, account_alias)
 
     def test_get_account_names_by_organization(self):
+        """Test get_account_names_by_organization is functional."""
         mock_account_id = '111111111111'
         role_arn = 'arn:aws:iam::{}:role/CostManagement'.format(mock_account_id)
         mock_alias = 'test-alias'
@@ -194,6 +191,7 @@ class TestAWSUtils(MasuTestCase):
 
     @patch('masu.util.aws.common.get_assume_role_session')
     def test_get_account_names_by_organization_no_policy(self, mock_get_role_session):
+        """Test get_account_names_by_organization gets nothing if there are no policies."""
         mock_session = mock_get_role_session.return_value
         mock_client = mock_session.client
         mock_client.return_value.get_paginator.side_effect = ClientError({}, 'Error')
@@ -205,8 +203,8 @@ class TestAWSUtils(MasuTestCase):
         self.assertEqual(accounts, [])
 
     @patch('masu.util.aws.common.get_assume_role_session')
-    def test_get_account_names_by_organization_no_session(self,
-                                                        mock_get_role_session):
+    def test_get_account_names_by_organization_no_session(self, mock_get_role_session):
+        """Test get_account_names_by_organization gets nothing if there are no sessions."""
         mock_session = mock_get_role_session.return_value
         mock_client = mock_session.client
         mock_client.return_value.get_paginator.side_effect = ClientError({}, 'Error')
@@ -225,7 +223,7 @@ class TestAWSUtils(MasuTestCase):
         self.assertEqual(expected_assembly_id, assembly_id)
 
     def test_get_local_file_name_with_assembly(self):
-        """ Test get_local_file_name is successful with assembly ID."""
+        """Test get_local_file_name is successful with assembly ID."""
         expected_assembly_id = '882083b7-ea62-4aab-aa6a-f0d08d65ee2b'
         input_key = f'/koku/20180701-20180801/{expected_assembly_id}/koku-1.csv.gz'
         expected_local_file = f'{expected_assembly_id}-koku-1.csv.gz'
@@ -233,7 +231,7 @@ class TestAWSUtils(MasuTestCase):
         self.assertEqual(expected_local_file, local_file)
 
     def test_get_local_file_name_no_assembly(self):
-        """ Test get_local_file_name is successful with no assembly ID."""
+        """Test get_local_file_name is successful with no assembly ID."""
         input_key = '/koku/20180701-20180801/koku-Manifest.json'
         expected_local_file = 'koku-Manifest.json'
         local_file = utils.get_local_file_name(input_key)
@@ -257,9 +255,7 @@ class TestAWSUtils(MasuTestCase):
             with schema_context(self.schema):
                 expected_bill_ids.append(str(bill.id))
 
-        bills = utils.get_bills_from_provider(
-            self.aws_provider_uuid, self.schema
-        )
+        bills = utils.get_bills_from_provider(self.aws_provider_uuid, self.schema)
 
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills]
@@ -273,29 +269,19 @@ class TestAWSUtils(MasuTestCase):
         with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
         with AWSReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
-            report_schema = accessor.report_schema
-            creator = ReportObjectCreator(
-                self.schema,
-                self.column_map
-            )
 
             end_date = date_accessor.today_with_timezone('utc').replace(day=1)
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
-                bill = creator.create_cost_entry_bill(self.aws_provider_uuid, bill_date=start_date)
 
-            bill_table_name = AWS_CUR_TABLE_MAP['bill']
-            bill_obj = getattr(accessor.report_schema, bill_table_name)
             bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
             with schema_context(self.schema):
                 bills = bills.filter(billing_period_start__gte=end_date.date()).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
         bills = utils.get_bills_from_provider(
-            self.aws_provider_uuid,
-            self.schema,
-            start_date=end_date
+            self.aws_provider_uuid, self.schema, start_date=end_date
         )
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills]
@@ -309,30 +295,19 @@ class TestAWSUtils(MasuTestCase):
         with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
         with AWSReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
-            report_schema = accessor.report_schema
-            creator = ReportObjectCreator(
-                self.schema,
-                self.column_map
-            )
 
             end_date = date_accessor.today_with_timezone('utc').replace(day=1)
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
-                bill = creator.create_cost_entry_bill(self.aws_provider_uuid, bill_date=start_date)
 
-            bill_table_name = AWS_CUR_TABLE_MAP['bill']
-            bill_obj = getattr(accessor.report_schema, bill_table_name)
             bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
             with schema_context(self.schema):
                 bills = bills.filter(billing_period_start__lte=start_date.date()).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
-
         bills = utils.get_bills_from_provider(
-            self.aws_provider_uuid,
-            self.schema,
-            end_date=start_date
+            self.aws_provider_uuid, self.schema, end_date=start_date
         )
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills]
@@ -346,38 +321,28 @@ class TestAWSUtils(MasuTestCase):
         with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
         with AWSReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
-            report_schema = accessor.report_schema
-            creator = ReportObjectCreator(
-                self.schema,
-                self.column_map
-            )
 
             end_date = date_accessor.today_with_timezone('utc').replace(day=1)
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
-                print(start_date)
-                bill = creator.create_cost_entry_bill(self.aws_provider_uuid, bill_date=start_date)
 
-            bill_table_name = AWS_CUR_TABLE_MAP['bill']
-            bill_obj = getattr(accessor.report_schema, bill_table_name)
             bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
             with schema_context(self.schema):
-                bills = bills.filter(billing_period_start__gte=start_date.date())\
-                    .filter(billing_period_start__lte=end_date.date()).all()
+                bills = (
+                    bills.filter(billing_period_start__gte=start_date.date())
+                    .filter(billing_period_start__lte=end_date.date())
+                    .all()
+                )
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
         bills = utils.get_bills_from_provider(
-            self.aws_provider_uuid,
-            self.schema,
-            start_date=start_date,
-            end_date=end_date
+            self.aws_provider_uuid, self.schema, start_date=start_date, end_date=end_date
         )
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills]
 
         self.assertEqual(bill_ids, expected_bill_ids)
-
 
 
 class AwsArnTest(TestCase):

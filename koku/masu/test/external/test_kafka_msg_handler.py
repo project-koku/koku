@@ -17,25 +17,28 @@
 
 """Test the Kafka msg handler."""
 
-from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
-from unittest.mock import patch
-import os
 import json
-import tempfile
+import os
 import shutil
-import requests
-from requests.exceptions import HTTPError
+import tempfile
+from unittest.mock import patch
+
 import requests_mock
+from requests.exceptions import HTTPError
+
+import masu.external.kafka_msg_handler as msg_handler
 from masu.config import Config
 from masu.external import OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.accounts_accessor import AccountsAccessor, AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
-import masu.external.kafka_msg_handler as msg_handler
 from masu.test import MasuTestCase
 
 
 class KafkaMsg:
+    """A Kafka Message."""
+
     def __init__(self, topic, url):
+        """Initialize a Kafka Message."""
         self.topic = topic
         value_dict = {'url': url}
         value_str = json.dumps(value_dict)
@@ -46,6 +49,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
     """Test Cases for the Kafka msg handler."""
 
     def setUp(self):
+        """Set up each test case."""
         super().setUp()
         payload_file = open('./koku/masu/test/data/ocp/payload.tar.gz', 'rb')
         bad_payload_file = open('./koku/masu/test/data/ocp/bad_payload.tar.gz', 'rb')
@@ -70,9 +74,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 with patch.object(Config, 'TMP_DIR', fake_dir):
                     msg_handler.extract_payload(payload_url)
                     expected_path = '{}/{}/{}/'.format(
-                        Config.INSIGHTS_LOCAL_REPORT_DIR,
-                        self.cluster_id,
-                        self.date_range,
+                        Config.INSIGHTS_LOCAL_REPORT_DIR, self.cluster_id, self.date_range,
                     )
                     self.assertTrue(os.path.isdir(expected_path))
                     shutil.rmtree(fake_dir)
@@ -131,21 +133,16 @@ class KafkaMsgHandlerTest(MasuTestCase):
     def test_handle_messages(self):
         """Test to ensure that kafka messages are handled."""
         hccm_msg = KafkaMsg(
-            msg_handler.HCCM_TOPIC,
-            'http://insights-upload.com/quarnantine/file_to_validate',
+            msg_handler.HCCM_TOPIC, 'http://insights-upload.com/quarnantine/file_to_validate',
         )
         advisor_msg = KafkaMsg(
-            'platform.upload.advisor',
-            'http://insights-upload.com/quarnantine/file_to_validate',
+            'platform.upload.advisor', 'http://insights-upload.com/quarnantine/file_to_validate',
         )
 
         # Verify that when extract_payload is successful with 'hccm' message that SUCCESS_CONFIRM_STATUS is returned
-        with patch(
-            'masu.external.kafka_msg_handler.extract_payload', return_value=None
-        ):
+        with patch('masu.external.kafka_msg_handler.extract_payload', return_value=None):
             self.assertEqual(
-                msg_handler.handle_message(hccm_msg),
-                (msg_handler.SUCCESS_CONFIRM_STATUS, None),
+                msg_handler.handle_message(hccm_msg), (msg_handler.SUCCESS_CONFIRM_STATUS, None),
             )
 
         # Verify that when extract_payload is not successful with 'hccm' message that FAILURE_CONFIRM_STATUS is returned
@@ -154,8 +151,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             side_effect=msg_handler.KafkaMsgHandlerError,
         ):
             self.assertEqual(
-                msg_handler.handle_message(hccm_msg),
-                (msg_handler.FAILURE_CONFIRM_STATUS, None),
+                msg_handler.handle_message(hccm_msg), (msg_handler.FAILURE_CONFIRM_STATUS, None),
             )
 
         # Verify that when None status is returned for non-hccm messages (we don't confirm these)

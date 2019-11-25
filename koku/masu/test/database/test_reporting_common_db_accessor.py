@@ -38,9 +38,7 @@ class ReportingCommonDBAccessorTest(MasuTestCase):
         """Test initializer."""
         report_common_schema = self.accessor.report_common_schema
         self.assertIsInstance(self.accessor.column_map, dict)
-        self.assertTrue(
-            hasattr(report_common_schema, 'reporting_common_reportcolumnmap')
-        )
+        self.assertTrue(hasattr(report_common_schema, 'reporting_common_reportcolumnmap'))
 
     def test_generate_column_map(self):
         """Assert all tables are in the column map."""

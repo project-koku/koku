@@ -17,20 +17,20 @@
 
 """Test the AWSAccountAlias object."""
 
-import boto3
 from unittest.mock import patch
+
+from tenant_schemas.utils import schema_context
+
 from masu.database.account_alias_accessor import AccountAliasAccessor
 from masu.external.accounts.labels.aws.aws_account_alias import AWSAccountAlias
 from masu.test import MasuTestCase
-
-from tenant_schemas.utils import schema_context
 
 
 class AWSAccountAliasTest(MasuTestCase):
     """Test Cases for the AWSAccountAlias object."""
 
     def setUp(self):
-        """Setup test case."""
+        """Set up test case."""
         super().setUp()
         self.account_id = '111111111111'
 
@@ -48,11 +48,11 @@ class AWSAccountAliasTest(MasuTestCase):
         self.assertEqual(accessor._role_arn, arn)
         self.assertEqual(accessor._schema, schema)
 
-    @patch('masu.external.accounts.labels.aws.aws_account_alias.get_account_names_by_organization',
-           return_value=[])
     @patch(
-        'masu.external.accounts.labels.aws.aws_account_alias.get_account_alias_from_role_arn'
+        'masu.external.accounts.labels.aws.aws_account_alias.get_account_names_by_organization',
+        return_value=[],
     )
+    @patch('masu.external.accounts.labels.aws.aws_account_alias.get_account_alias_from_role_arn')
     def test_update_account_alias_no_alias(self, mock_get_alias, mock_get_account_names):
         """Test updating alias when none is set."""
         mock_get_alias.return_value = (self.account_id, None)
@@ -64,11 +64,11 @@ class AWSAccountAliasTest(MasuTestCase):
         self.assertEqual(db_access._obj.account_id, self.account_id)
         self.assertIsNone(db_access._obj.account_alias)
 
-    @patch('masu.external.accounts.labels.aws.aws_account_alias.get_account_names_by_organization',
-           return_value=[])
     @patch(
-        'masu.external.accounts.labels.aws.aws_account_alias.get_account_alias_from_role_arn'
+        'masu.external.accounts.labels.aws.aws_account_alias.get_account_names_by_organization',
+        return_value=[],
     )
+    @patch('masu.external.accounts.labels.aws.aws_account_alias.get_account_alias_from_role_arn')
     def test_update_account_alias_with_alias(self, mock_get_alias, mock_get_account_names):
         """Test updating alias."""
         alias = 'hccm-alias'
@@ -94,8 +94,10 @@ class AWSAccountAliasTest(MasuTestCase):
         mock_get_alias.return_value = (self.account_id, alias)
         member_account_id = '1234598760'
         member_account_name = 'hccm-member'
-        account_names = [{'id': self.account_id, 'name': alias},
-                         {'id': member_account_id, 'name': member_account_name}]
+        account_names = [
+            {'id': self.account_id, 'name': alias},
+            {'id': member_account_id, 'name': member_account_name},
+        ]
         mock_get_account_names.return_value = account_names
         role_arn = 'arn:aws:iam::{}:role/CostManagement'.format(self.account_id)
         accessor = AWSAccountAlias(role_arn, 'acct10001')
@@ -116,8 +118,7 @@ class AWSAccountAliasTest(MasuTestCase):
         alias = 'hccm-alias'
         mock_get_alias.return_value = (self.account_id, alias)
         member_account_id = '1234596750'
-        account_names = [{'id': self.account_id, 'name': alias},
-                         {'id': member_account_id}]
+        account_names = [{'id': self.account_id, 'name': alias}, {'id': member_account_id}]
         mock_get_account_names.return_value = account_names
         role_arn = 'arn:aws:iam::{}:role/CostManagement'.format(self.account_id)
         accessor = AWSAccountAlias(role_arn, 'acct10001')

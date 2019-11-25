@@ -18,24 +18,18 @@
 """Test the AWS S3 utility functions."""
 
 import io
-import json
 import os.path
 import random
 import shutil
-import tempfile
-import uuid
-from datetime import datetime
-from unittest.mock import ANY, Mock, patch, PropertyMock
+from unittest.mock import Mock, patch
 
-import boto3
 from botocore.exceptions import ClientError
-from dateutil.relativedelta import relativedelta
 from faker import Faker
 
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-
 from masu.exceptions import MasuProviderError
+from masu.external import AWS_REGIONS
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import (
     AWSReportDownloader,
@@ -43,8 +37,6 @@ from masu.external.downloader.aws.aws_report_downloader import (
     AWSReportDownloaderNoFileError,
 )
 from masu.external.report_downloader import ReportDownloader
-from masu.util.aws import common as utils
-from masu.external import AWS_REGIONS
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
 
@@ -80,6 +72,7 @@ class FakeSession:
 
     @staticmethod
     def client(service):
+        """Return a fake AWS Client with a report."""
         fake_report = {
             'ReportDefinitions': [
                 {
@@ -110,6 +103,7 @@ class FakeSessionNoReport:
 
     @staticmethod
     def client(service):
+        """Return a fake AWS Client with no report."""
         fake_report = {'ReportDefinitions': []}
 
         # only mock the 'cur' boto client.
@@ -129,6 +123,7 @@ class FakeSessionDownloadError:
 
     @staticmethod
     def client(service):
+        """Return a fake AWS Client with an error."""
         fake_report = {
             'ReportDefinitions': [
                 {
@@ -158,6 +153,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
     @classmethod
     def setUpClass(cls):
+        """Set up shared class variables."""
         super().setUpClass()
         cls.fake_customer_name = CUSTOMER_NAME
         cls.fake_report_name = REPORT
@@ -170,10 +166,10 @@ class AWSReportDownloaderTest(MasuTestCase):
 
     @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def setUp(self, fake_session):
+        """Set up shared variables."""
         super().setUp()
         os.makedirs(DATA_DIR, exist_ok=True)
-        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()),
-                                           return_value={}))
+        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()), return_value={}))
 
         self.report_downloader = ReportDownloader(
             task=self.mock_task,
@@ -195,6 +191,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         )
 
     def tearDown(self):
+        """Remove test generated data."""
         shutil.rmtree(DATA_DIR, ignore_errors=True)
 
     @patch('masu.external.downloader.aws.aws_report_downloader.boto3.resource')
@@ -208,7 +205,6 @@ class AWSReportDownloaderTest(MasuTestCase):
         mock_bucket = Mock()
         mock_bucket.objects.all.return_value = []
         mock_resource.Bucket.return_value = mock_bucket
-        mock_boto_resource = mock_resource
         out = self.aws_report_downloader.download_bucket()
         expected_files = []
         self.assertEqual(out, expected_files)
@@ -218,16 +214,17 @@ class AWSReportDownloaderTest(MasuTestCase):
         side_effect=mock_download_file_error,
     )
     def test_download_report_missing_manifest(self, mock_download_file):
+        """Test download fails when manifest is missing."""
         fake_report_date = self.fake.date_time().replace(day=1)
         out = self.report_downloader.download_report(fake_report_date)
         self.assertEqual(out, [])
 
     @patch('masu.external.report_downloader.ReportStatsDBAccessor')
     @patch(
-        'masu.util.aws.common.get_assume_role_session',
-        return_value=FakeSessionDownloadError,
+        'masu.util.aws.common.get_assume_role_session', return_value=FakeSessionDownloadError,
     )
     def test_download_report_missing_bucket(self, mock_stats, fake_session):
+        """Test download fails when bucket is missing."""
         mock_stats.return_value.__enter__ = Mock()
         fake_report_date = self.fake.date_time().replace(day=1)
         fake_report_date_str = fake_report_date.strftime('%Y%m%dT000000.000Z')
@@ -239,9 +236,7 @@ class AWSReportDownloaderTest(MasuTestCase):
             'reportKeys': [input_key],
         }
 
-        with patch.object(
-            AWSReportDownloader, '_get_manifest', return_value=('', mock_manifest)
-        ):
+        with patch.object(AWSReportDownloader, '_get_manifest', return_value=('', mock_manifest)):
             with self.assertRaises(AWSReportDownloaderError):
                 report_downloader = ReportDownloader(
                     task=self.mock_task,
@@ -275,6 +270,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
     @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_download_default_report(self, fake_session):
+        """Test assume aws role works."""
         # actual test
         auth_credential = fake_arn(service='iam', generate_account_id=True)
         downloader = AWSReportDownloader(
@@ -282,13 +278,10 @@ class AWSReportDownloaderTest(MasuTestCase):
         )
         self.assertEqual(downloader.report_name, self.fake_report_name)
 
-    @patch(
-        'masu.util.aws.common.get_assume_role_session', return_value=FakeSessionNoReport
-    )
+    @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSessionNoReport)
     @patch('masu.util.aws.common.get_cur_report_definitions', return_value=[])
-    def test_download_default_report_no_report_found(
-        self, fake_session, fake_report_list
-    ):
+    def test_download_default_report_no_report_found(self, fake_session, fake_report_list):
+        """Test download fails when no reports are found."""
         auth_credential = fake_arn(service='iam', generate_account_id=True)
 
         with self.assertRaises(MasuProviderError):
@@ -299,6 +292,7 @@ class AWSReportDownloaderTest(MasuTestCase):
     @patch('masu.external.downloader.aws.aws_report_downloader.shutil')
     @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_check_size_success(self, fake_session, fake_shutil):
+        """Test _check_size is successful."""
         fake_client = Mock()
         fake_client.get_object.return_value = {'ContentLength': 123456, 'Body': Mock()}
         fake_shutil.disk_usage.return_value = (10, 10, 4096 * 1024 * 1024)
@@ -318,6 +312,7 @@ class AWSReportDownloaderTest(MasuTestCase):
     @patch('masu.external.downloader.aws.aws_report_downloader.shutil')
     @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_check_size_fail_nospace(self, fake_session, fake_shutil):
+        """Test _check_size fails if there is no more space."""
         fake_client = Mock()
         fake_client.get_object.return_value = {'ContentLength': 123456, 'Body': Mock()}
         fake_shutil.disk_usage.return_value = (10, 10, 10)
@@ -336,6 +331,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
     @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_check_size_fail_nosize(self, fake_session):
+        """Test _check_size fails if there report has no size."""
         fake_client = Mock()
         fake_client.get_object.return_value = {}
 
@@ -354,6 +350,7 @@ class AWSReportDownloaderTest(MasuTestCase):
     @patch('masu.external.downloader.aws.aws_report_downloader.shutil')
     @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_check_size_inflate_success(self, fake_session, fake_shutil):
+        """Test _check_size inflation succeeds."""
         fake_client = Mock()
         fake_client.get_object.return_value = {
             'ContentLength': 123456,
@@ -374,6 +371,7 @@ class AWSReportDownloaderTest(MasuTestCase):
     @patch('masu.external.downloader.aws.aws_report_downloader.shutil')
     @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_check_size_inflate_fail(self, fake_session, fake_shutil):
+        """Test _check_size fails when inflation fails."""
         fake_client = Mock()
         fake_client.get_object.return_value = {
             'ContentLength': 123456,
@@ -394,6 +392,7 @@ class AWSReportDownloaderTest(MasuTestCase):
     @patch('masu.external.downloader.aws.aws_report_downloader.shutil')
     @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_download_file_check_size_fail(self, fake_session, fake_shutil):
+        """Test _check_size fails when key is fake."""
         fake_client = Mock()
         fake_client.get_object.return_value = {
             'ContentLength': 123456,
@@ -413,6 +412,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
     @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_download_file_raise_downloader_err(self, fake_session):
+        """Test _check_size fails when there is a downloader error."""
         fake_response = {'Error': {'Code': self.fake.word()}}
         fake_client = Mock()
         fake_client.get_object.side_effect = ClientError(fake_response, 'masu-test')
@@ -428,6 +428,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
     @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_download_file_raise_nofile_err(self, fake_session):
+        """Test that downloading a nonexistent file fails with AWSReportDownloaderNoFileError."""
         fake_response = {'Error': {'Code': 'NoSuchKey'}}
         fake_client = Mock()
         fake_client.get_object.side_effect = ClientError(fake_response, 'masu-test')
@@ -441,19 +442,27 @@ class AWSReportDownloaderTest(MasuTestCase):
         with self.assertRaises(AWSReportDownloaderNoFileError):
             downloader.download_file(self.fake.file_path())
 
-    @patch('masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.check_if_manifest_should_be_downloaded')
-    @patch('masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._remove_manifest_file')
+    @patch(
+        'masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.check_if_manifest_should_be_downloaded'
+    )
+    @patch(
+        'masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._remove_manifest_file'
+    )
     @patch('masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._get_manifest')
     @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
-    def test_get_report_context_for_date_should_download(self, mock_session, mock_manifest, mock_delete, mock_check):
+    def test_get_report_context_for_date_should_download(
+        self, mock_session, mock_manifest, mock_delete, mock_check
+    ):
         """Test that data is returned on the reports to process."""
         current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
         auth_credential = fake_arn(service='iam', generate_account_id=True)
-        downloader = AWSReportDownloader(self.mock_task,
-                                         self.fake_customer_name,
-                                         auth_credential,
-                                         self.fake_bucket_name,
-                                         provider_uuid=self.aws_provider_uuid)
+        downloader = AWSReportDownloader(
+            self.mock_task,
+            self.fake_customer_name,
+            auth_credential,
+            self.fake_bucket_name,
+            provider_uuid=self.aws_provider_uuid,
+        )
 
         start_str = current_month.strftime(downloader.manifest_date_format)
         assembly_id = '1234'
@@ -465,8 +474,8 @@ class AWSReportDownloaderTest(MasuTestCase):
                 'assemblyId': assembly_id,
                 'Compression': compression,
                 'reportKeys': report_keys,
-                'billingPeriod': {'start': start_str}
-            }
+                'billingPeriod': {'start': start_str},
+            },
         )
         mock_check.return_value = True
 
@@ -474,15 +483,12 @@ class AWSReportDownloaderTest(MasuTestCase):
             'manifest_id': None,
             'assembly_id': assembly_id,
             'compression': compression,
-            'files': report_keys
+            'files': report_keys,
         }
 
         result = downloader.get_report_context_for_date(current_month)
         with ReportManifestDBAccessor() as manifest_accessor:
-            manifest_entry = manifest_accessor.get_manifest(
-                assembly_id,
-                self.aws_provider_uuid
-            )
+            manifest_entry = manifest_accessor.get_manifest(assembly_id, self.aws_provider_uuid)
             expected['manifest_id'] = manifest_entry.id
 
         self.assertIsInstance(result, dict)
@@ -490,18 +496,23 @@ class AWSReportDownloaderTest(MasuTestCase):
             self.assertIn(key, expected)
             self.assertEqual(value, expected.get(key))
 
-    @patch('masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.check_if_manifest_should_be_downloaded')
-    @patch('masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._remove_manifest_file')
+    @patch(
+        'masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.check_if_manifest_should_be_downloaded'
+    )
+    @patch(
+        'masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._remove_manifest_file'
+    )
     @patch('masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._get_manifest')
     @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
-    def test_get_report_context_for_date_should_not_download(self, mock_session, mock_manifest, mock_delete, mock_check):
+    def test_get_report_context_for_date_should_not_download(
+        self, mock_session, mock_manifest, mock_delete, mock_check
+    ):
         """Test that no data is returned when we don't want to process."""
         current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
         auth_credential = fake_arn(service='iam', generate_account_id=True)
-        downloader = AWSReportDownloader(self.mock_task,
-                                         self.fake_customer_name,
-                                         auth_credential,
-                                         self.fake_bucket_name)
+        downloader = AWSReportDownloader(
+            self.mock_task, self.fake_customer_name, auth_credential, self.fake_bucket_name
+        )
 
         start_str = current_month.strftime(downloader.manifest_date_format)
         assembly_id = '1234'
@@ -513,8 +524,8 @@ class AWSReportDownloaderTest(MasuTestCase):
                 'assemblyId': assembly_id,
                 'Compression': compression,
                 'reportKeys': report_keys,
-                'billingPeriod': {'start': start_str}
-            }
+                'billingPeriod': {'start': start_str},
+            },
         )
         mock_check.return_value = False
 
@@ -524,6 +535,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         self.assertEqual(result, expected)
 
     def test_remove_manifest_file(self):
+        """Test that we remove the manifest file."""
         manifest_file = f'{DATA_DIR}/test_manifest.json'
 
         with open(manifest_file, 'w') as f:
