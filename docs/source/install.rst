@@ -26,7 +26,8 @@ The Koku application contains two components - a web service and database.
 A basic deployment configuration is contained within the application's `openshift template file <https://github.com/project-koku/koku/blob/master/openshift/koku-template.yaml>`__. This template should be acceptable for most use cases. It provides parameterized values for most configuration options.
 
 To deploy the Koku API application using the provided templates, you can use
-the provided ``Makefile``:
+the provided ``Makefile``: 
+(the openshift CLI is required to be installed to run the following command)
 
     ``make oc-create-all``
 
