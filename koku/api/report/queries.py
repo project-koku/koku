@@ -461,6 +461,8 @@ class ReportQueryHandler(QueryHandler):
                     for group_item in group_value:
                         if group_item.get(group_type) is None:
                             group_item[group_type] = group_label
+                if isinstance(group_value, dict) and group_type in group_value:
+                    group_value.update({group_type: group_label})
             cur = {group_type: group_label,
                    label: self._transform_data(groups, next_group_index,
                                                group_value)}
