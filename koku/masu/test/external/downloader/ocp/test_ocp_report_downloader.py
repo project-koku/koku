@@ -20,17 +20,15 @@
 import os
 import os.path
 import shutil
-from shutil import copyfile
-import tempfile
+from datetime import datetime
+from unittest.mock import Mock, patch
 
 from faker import Faker
 
-from datetime import datetime
-from unittest.mock import patch, Mock
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
-from masu.external.report_downloader import ReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
+from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
 
 DATA_DIR = Config.TMP_DIR
@@ -46,32 +44,25 @@ class OCPReportDownloaderTest(MasuTestCase):
     fake = Faker()
 
     def setUp(self):
+        """Set up each test."""
         super().setUp()
         self.fake_customer_name = CUSTOMER_NAME
         self.fake_report_name = 'ocp-report'
         self.cluster_id = 'my-ocp-cluster-1'
 
-        report_path = '{}/{}/{}'.format(
-            REPORTS_DIR, self.cluster_id, '20180901-20181001'
-        )
+        report_path = '{}/{}/{}'.format(REPORTS_DIR, self.cluster_id, '20180901-20181001')
         os.makedirs(report_path, exist_ok=True)
 
-        test_file_path = './koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'
-        self.test_file_path = os.path.join(
-            report_path, os.path.basename(test_file_path)
-        )
+        test_file_path = './koku/masu/test/data/ocp/e6b3701e-1e91' \
+                         '-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'
+        self.test_file_path = os.path.join(report_path, os.path.basename(test_file_path))
         shutil.copyfile(test_file_path, os.path.join(report_path, self.test_file_path))
 
         test_manifest_path = './koku/masu/test/data/ocp/manifest.json'
-        self.test_manifest_path = os.path.join(
-            report_path, os.path.basename(test_manifest_path)
-        )
-        shutil.copyfile(
-            test_manifest_path, os.path.join(report_path, self.test_manifest_path)
-        )
+        self.test_manifest_path = os.path.join(report_path, os.path.basename(test_manifest_path))
+        shutil.copyfile(test_manifest_path, os.path.join(report_path, self.test_manifest_path))
 
-        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()),
-                                           return_value={}))
+        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()), return_value={}))
         self.report_downloader = ReportDownloader(
             task=self.mock_task,
             customer_name=self.fake_customer_name,
@@ -92,6 +83,7 @@ class OCPReportDownloaderTest(MasuTestCase):
         )
 
     def tearDown(self):
+        """Remove created test data."""
         super().tearDown()
         shutil.rmtree(REPORTS_DIR, ignore_errors=True)
 
@@ -100,14 +92,11 @@ class OCPReportDownloaderTest(MasuTestCase):
         test_report_date = datetime(year=2018, month=9, day=7)
         with patch.object(DateAccessor, 'today', return_value=test_report_date):
             self.report_downloader.download_report(test_report_date)
-        expected_path = '{}/{}/{}'.format(
-            Config.TMP_DIR, self.fake_customer_name, 'ocp'
-        )
+        expected_path = '{}/{}/{}'.format(Config.TMP_DIR, self.fake_customer_name, 'ocp')
         self.assertTrue(os.path.isdir(expected_path))
 
     def test_download_bucket_no_csv_found(self):
         """Test to verify that basic report downloading with no .csv file in source directory."""
-        reports = []
         test_report_date = datetime(year=2018, month=9, day=7)
         with patch.object(DateAccessor, 'today', return_value=test_report_date):
             os.remove(self.test_file_path)
@@ -116,16 +105,13 @@ class OCPReportDownloaderTest(MasuTestCase):
 
     def test_download_bucket_non_csv_found(self):
         """Test to verify that basic report downloading with non .csv file in source directory."""
-        reports = []
         test_report_date = datetime(year=2018, month=9, day=7)
         with patch.object(DateAccessor, 'today', return_value=test_report_date):
             # Remove .csv
             os.remove(self.test_file_path)
 
             # Create .txt file
-            txt_file_path = '{}/{}'.format(
-                os.path.dirname(self.test_file_path), 'report.txt'
-            )
+            txt_file_path = '{}/{}'.format(os.path.dirname(self.test_file_path), 'report.txt')
             open(txt_file_path, 'a').close()
 
             reports = self.report_downloader.download_report(test_report_date)

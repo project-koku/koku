@@ -31,6 +31,7 @@ class MockResponse:
     text = None
 
     def __init__(self, data, status):
+        """Initialize a mock response."""
         self.status_code = status
         self.text = str(data)
 
@@ -46,8 +47,7 @@ class RegionMapAPIViewTest(TestCase):
             cls.test_data = page.read()
 
     @patch(
-        'masu.database.reporting_common_db_accessor.ReportingCommonDBAccessor',
-        autospec=True,
+        'masu.database.reporting_common_db_accessor.ReportingCommonDBAccessor', autospec=True,
     )
     @patch('masu.util.aws.region_map.requests.get')
     def skip_test_update_region_map(self, mock_response, mock_accessor):

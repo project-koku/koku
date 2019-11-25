@@ -1,10 +1,10 @@
 """Shared Class for masu tests."""
-import os
 import json
+import os
 import pkgutil
 
-from django.db import connection, connections
 from django.core.management import call_command
+from django.db import connection, connections
 from django.test import TransactionTestCase
 
 from api.models import CostModelMetricsMap, Customer, Tenant
@@ -14,6 +14,7 @@ from reporting_common.models import ReportColumnMap
 
 
 def load_db_map_data():
+    """Load column mapping of database."""
     if ReportColumnMap.objects.count() == 0:
         json_dir = '{}/{}'.format(package_directory, 'data')
         for filename in os.listdir(json_dir):
@@ -25,8 +26,7 @@ def load_db_map_data():
                     map.save()
 
     if CostModelMetricsMap.objects.count() == 0:
-        data = pkgutil.get_data('api',
-                                'metrics/data/cost_models_metric_map.json')
+        data = pkgutil.get_data('api', 'metrics/data/cost_models_metric_map.json')
         data = json.loads(data)
         for entry in data:
             map = CostModelMetricsMap(**entry)
@@ -47,10 +47,7 @@ class MasuTestCase(TransactionTestCase):
         #     account_id=cls.acct, schema_name=cls.schema
         # )
         cursor = connection.cursor()
-        cursor.execute(
-            """SELECT tablename FROM pg_tables WHERE schemaname = %s""",
-            [cls.schema]
-        )
+        cursor.execute("""SELECT tablename FROM pg_tables WHERE schemaname = %s""", [cls.schema])
         result = cursor.fetchall()
         if not result:
             cls.tenant = Tenant(schema_name=cls.schema)
@@ -69,12 +66,15 @@ class MasuTestCase(TransactionTestCase):
         cls.ocp_test_billing_source = None
         cls.aws_auth_provider_uuid = '7e4ec31b-7ced-4a17-9f7e-f77e9efa8fd6'
         cls.azure_credentials = {
-            "subscription_id": "e03f27e2-f248-4ad7-bfb1-9a4cff600e1d",
-            "tenant_id": "67b2fcf4-228a-4aee-a215-3a768cdd0105",
-            "client_id": "fac9449a-0f78-42bb-b8e5-90144a025191",
-            "client_secret": "secretcode"
+            'subscription_id': 'e03f27e2-f248-4ad7-bfb1-9a4cff600e1d',
+            'tenant_id': '67b2fcf4-228a-4aee-a215-3a768cdd0105',
+            'client_id': 'fac9449a-0f78-42bb-b8e5-90144a025191',
+            'client_secret': 'secretcode',
         }
-        cls.azure_data_source = {"resource_group": "resourcegroup1", "storage_account": "storageaccount1"}
+        cls.azure_data_source = {
+            'resource_group': 'resourcegroup1',
+            'storage_account': 'storageaccount1',
+        }
 
     @classmethod
     def tearDownClass(cls):
@@ -84,9 +84,7 @@ class MasuTestCase(TransactionTestCase):
 
     def setUp(self):
         """Set up each test case."""
-        self.customer = Customer.objects.create(
-            account_id=self.acct, schema_name=self.schema
-        )
+        self.customer = Customer.objects.create(account_id=self.acct, schema_name=self.schema)
 
         self.aws_auth = ProviderAuthentication.objects.create(
             uuid=self.aws_auth_provider_uuid,
@@ -108,7 +106,7 @@ class MasuTestCase(TransactionTestCase):
             billing_source=self.aws_billing_source,
             customer=self.customer,
             setup_complete=False,
-            active=True
+            active=True,
         )
         self.aws_provider.save()
 
@@ -126,13 +124,11 @@ class MasuTestCase(TransactionTestCase):
             authentication=self.ocp_auth,
             customer=self.customer,
             setup_complete=False,
-            active=True
+            active=True,
         )
         self.ocp_provider.save()
 
-        self.azure_auth = ProviderAuthentication.objects.create(
-            credentials=self.azure_credentials
-        )
+        self.azure_auth = ProviderAuthentication.objects.create(credentials=self.azure_credentials)
         self.azure_auth.save()
 
         self.azure_billing_source = ProviderBillingSource.objects.create(
@@ -151,7 +147,7 @@ class MasuTestCase(TransactionTestCase):
             billing_source=self.azure_billing_source,
             customer=self.customer,
             setup_complete=False,
-            active=True
+            active=True,
         )
         self.azure_provider.save()
         self.azure_provider_uuid = self.azure_provider.uuid
@@ -162,14 +158,18 @@ class MasuTestCase(TransactionTestCase):
 
     def tearDown(self):
         """Tear down and restore database on the tenant schema."""
-
         connection.set_schema(self.schema)
         for db_name in self._databases_names(include_mirrors=False):
             # Flush the tenant schema's data
-            call_command('flush', verbosity=0, interactive=False,
-                         database=db_name, reset_sequences=False,
-                         allow_cascade=True,
-                         inhibit_post_migrate=False)
+            call_command(
+                'flush',
+                verbosity=0,
+                interactive=False,
+                database=db_name,
+                reset_sequences=False,
+                allow_cascade=True,
+                inhibit_post_migrate=False,
+            )
         connection.set_schema_to_public()
 
     def _fixture_teardown(self):
@@ -179,15 +179,20 @@ class MasuTestCase(TransactionTestCase):
         for db_name in self._databases_names(include_mirrors=False):
             # Flush the database
             inhibit_post_migrate = (
-                self.available_apps is not None or
-                (   # Inhibit the post_migrate signal when using serialized
+                self.available_apps is not None
+                or (  # Inhibit the post_migrate signal when using serialized
                     # rollback to avoid trying to recreate the serialized data.
-                    self.serialized_rollback and
-                    hasattr(connections[db_name], '_test_serialized_contents')
+                    self.serialized_rollback
+                    and hasattr(connections[db_name], '_test_serialized_contents')
                 )
             )
 
-            call_command('flush', verbosity=0, interactive=False,
-                         database=db_name, reset_sequences=False,
-                         allow_cascade=True,
-                         inhibit_post_migrate=inhibit_post_migrate)
+            call_command(
+                'flush',
+                verbosity=0,
+                interactive=False,
+                database=db_name,
+                reset_sequences=False,
+                allow_cascade=True,
+                inhibit_post_migrate=inhibit_post_migrate,
+            )

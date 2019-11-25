@@ -16,9 +16,7 @@
 #
 
 """Test the ProviderBillingSourceDBAccessor utility object."""
-from masu.database.provider_billing_source_db_accessor import (
-    ProviderBillingSourceDBAccessor,
-)
+from masu.database.provider_billing_source_db_accessor import ProviderBillingSourceDBAccessor
 from masu.test import MasuTestCase
 
 

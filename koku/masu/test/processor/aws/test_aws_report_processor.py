@@ -16,8 +16,8 @@
 #
 
 """Test the AWSReportProcessor."""
-import csv
 import copy
+import csv
 import datetime
 import gzip
 import json
@@ -45,6 +45,8 @@ from masu.test import MasuTestCase
 
 
 class ProcessedReportTest(MasuTestCase):
+    """Test cases for Processed Reports."""
+
     @classmethod
     def setUpClass(cls):
         """Set up the test class with required objects."""
@@ -52,6 +54,7 @@ class ProcessedReportTest(MasuTestCase):
         cls.report = ProcessedReport()
 
     def test_remove_processed_rows(self):
+        """Test that remove_processed_rows removes rows."""
         test_entry = {'test': 'entry'}
         self.report.cost_entries.update(test_entry)
         self.report.line_items.append(test_entry)
@@ -95,6 +98,7 @@ class AWSReportProcessorTest(MasuTestCase):
             cls.row = next(reader)
 
     def setUp(self):
+        """Set up shared variables."""
         super().setUp()
 
         self.temp_dir = tempfile.mkdtemp()
@@ -141,12 +145,8 @@ class AWSReportProcessorTest(MasuTestCase):
         self.assertIsNotNone(self.processor._report_path)
         self.assertIsNotNone(self.processor._report_name)
         self.assertIsNotNone(self.processor._compression)
-        self.assertEqual(
-            self.processor._datetime_format, Config.AWS_DATETIME_STR_FORMAT
-        )
-        self.assertEqual(
-            self.processor._batch_size, Config.REPORT_PROCESSING_BATCH_SIZE
-        )
+        self.assertEqual(self.processor._datetime_format, Config.AWS_DATETIME_STR_FORMAT)
+        self.assertEqual(self.processor._batch_size, Config.REPORT_PROCESSING_BATCH_SIZE)
 
     def test_initializer_unsupported_compression(self):
         """Assert that an error is raised for an invalid compression."""
@@ -188,9 +188,7 @@ class AWSReportProcessorTest(MasuTestCase):
         logging.disable(
             logging.NOTSET
         )  # We are currently disabling all logging below CRITICAL in masu/__init__.py
-        with self.assertLogs(
-            'masu.processor.report_processor_base', level='INFO'
-        ) as logger:
+        with self.assertLogs('masu.processor.report_processor_base', level='INFO') as logger:
             processor.process()
             self.assertIn(expected, logger.output)
 
@@ -524,31 +522,19 @@ class AWSReportProcessorTest(MasuTestCase):
     def test_write_processed_rows_to_csv(self):
         """Test that the CSV bulk upload file contains proper data."""
         bill_id = self.processor._create_cost_entry_bill(self.row, self.accessor)
-        cost_entry_id = self.processor._create_cost_entry(
-            self.row, bill_id, self.accessor
-        )
+        cost_entry_id = self.processor._create_cost_entry(self.row, bill_id, self.accessor)
         product_id = self.processor._create_cost_entry_product(self.row, self.accessor)
         pricing_id = self.processor._create_cost_entry_pricing(self.row, self.accessor)
-        reservation_id = self.processor._create_cost_entry_reservation(
-            self.row, self.accessor
-        )
+        reservation_id = self.processor._create_cost_entry_reservation(self.row, self.accessor)
         self.processor._create_cost_entry_line_item(
-            self.row,
-            cost_entry_id,
-            bill_id,
-            product_id,
-            pricing_id,
-            reservation_id,
-            self.accessor,
+            self.row, cost_entry_id, bill_id, product_id, pricing_id, reservation_id, self.accessor,
         )
 
         file_obj = self.processor._write_processed_rows_to_csv()
 
         line_item_data = self.processor.processed_report.line_items.pop()
         # Convert data to CSV format
-        expected_values = [
-            str(value) if value else None for value in line_item_data.values()
-        ]
+        expected_values = [str(value) if value else None for value in line_item_data.values()]
 
         reader = csv.reader(file_obj)
         new_row = next(reader)
@@ -594,9 +580,7 @@ class AWSReportProcessorTest(MasuTestCase):
         expected_end = end.strftime(fmt)
         interval = expected_start + '/' + expected_end
 
-        actual_start, actual_end = self.processor._get_cost_entry_time_interval(
-            interval
-        )
+        actual_start, actual_end = self.processor._get_cost_entry_time_interval(interval)
 
         self.assertEqual(expected_start, actual_start)
         self.assertEqual(expected_end, actual_end)
@@ -604,7 +588,6 @@ class AWSReportProcessorTest(MasuTestCase):
     def test_create_cost_entry_bill(self):
         """Test that a cost entry bill id is returned."""
         table_name = AWS_CUR_TABLE_MAP['bill']
-        table = getattr(self.report_schema, table_name)
 
         bill_id = self.processor._create_cost_entry_bill(self.row, self.accessor)
 
@@ -620,7 +603,6 @@ class AWSReportProcessorTest(MasuTestCase):
     def test_create_cost_entry_bill_existing(self):
         """Test that a cost entry bill id is returned from an existing bill."""
         table_name = AWS_CUR_TABLE_MAP['bill']
-        table = getattr(self.report_schema, table_name)
 
         bill_id = self.processor._create_cost_entry_bill(self.row, self.accessor)
 
@@ -638,14 +620,10 @@ class AWSReportProcessorTest(MasuTestCase):
     def test_create_cost_entry(self):
         """Test that a cost entry id is returned."""
         table_name = AWS_CUR_TABLE_MAP['cost_entry']
-        table = getattr(self.report_schema, table_name)
-
 
         bill_id = self.processor._create_cost_entry_bill(self.row, self.accessor)
 
-        cost_entry_id = self.processor._create_cost_entry(
-            self.row, bill_id, self.accessor
-        )
+        cost_entry_id = self.processor._create_cost_entry(self.row, bill_id, self.accessor)
 
         self.assertIsNotNone(cost_entry_id)
 
@@ -656,9 +634,6 @@ class AWSReportProcessorTest(MasuTestCase):
 
     def test_create_cost_entry_existing(self):
         """Test that a cost entry id is returned from an existing entry."""
-        table_name = AWS_CUR_TABLE_MAP['cost_entry']
-        table = getattr(self.report_schema, table_name)
-
         bill_id = self.processor._create_cost_entry_bill(self.row, self.accessor)
 
         interval = self.row.get('identity/TimeInterval')
@@ -667,32 +642,19 @@ class AWSReportProcessorTest(MasuTestCase):
         expected_id = random.randint(1, 9)
         self.processor.existing_cost_entry_map[key] = expected_id
 
-        cost_entry_id = self.processor._create_cost_entry(
-            self.row, bill_id, self.accessor
-        )
+        cost_entry_id = self.processor._create_cost_entry(self.row, bill_id, self.accessor)
         self.assertEqual(cost_entry_id, expected_id)
 
     def test_create_cost_entry_line_item(self):
         """Test that line item data is returned properly."""
         bill_id = self.processor._create_cost_entry_bill(self.row, self.accessor)
-        cost_entry_id = self.processor._create_cost_entry(
-            self.row, bill_id, self.accessor
-        )
+        cost_entry_id = self.processor._create_cost_entry(self.row, bill_id, self.accessor)
         product_id = self.processor._create_cost_entry_product(self.row, self.accessor)
         pricing_id = self.processor._create_cost_entry_pricing(self.row, self.accessor)
-        reservation_id = self.processor._create_cost_entry_reservation(
-            self.row, self.accessor
-        )
-
+        reservation_id = self.processor._create_cost_entry_reservation(self.row, self.accessor)
 
         self.processor._create_cost_entry_line_item(
-            self.row,
-            cost_entry_id,
-            bill_id,
-            product_id,
-            pricing_id,
-            reservation_id,
-            self.accessor,
+            self.row, cost_entry_id, bill_id, product_id, pricing_id, reservation_id, self.accessor,
         )
 
         line_item = None
@@ -712,11 +674,8 @@ class AWSReportProcessorTest(MasuTestCase):
     def test_create_cost_entry_product(self):
         """Test that a cost entry product id is returned."""
         table_name = AWS_CUR_TABLE_MAP['product']
-        table = getattr(self.report_schema, table_name)
-
 
         product_id = self.processor._create_cost_entry_product(self.row, self.accessor)
-
 
         self.assertIsNotNone(product_id)
 
@@ -754,11 +713,8 @@ class AWSReportProcessorTest(MasuTestCase):
     def test_create_cost_entry_pricing(self):
         """Test that a cost entry pricing id is returned."""
         table_name = AWS_CUR_TABLE_MAP['pricing']
-        table = getattr(self.report_schema, table_name)
-
 
         pricing_id = self.processor._create_cost_entry_pricing(self.row, self.accessor)
-
 
         self.assertIsNotNone(pricing_id)
 
@@ -771,9 +727,7 @@ class AWSReportProcessorTest(MasuTestCase):
         """Test that an already processed pricing id is returned."""
         expected_id = random.randint(1, 9)
 
-        key = '{term}-{unit}'.format(
-            term=self.row['pricing/term'], unit=self.row['pricing/unit']
-        )
+        key = '{term}-{unit}'.format(term=self.row['pricing/term'], unit=self.row['pricing/unit'])
         self.processor.processed_report.pricing.update({key: expected_id})
 
         pricing_id = self.processor._create_cost_entry_pricing(self.row, self.accessor)
@@ -784,9 +738,7 @@ class AWSReportProcessorTest(MasuTestCase):
         """Test that a previously existing pricing id is returned."""
         expected_id = random.randint(1, 9)
 
-        key = '{term}-{unit}'.format(
-            term=self.row['pricing/term'], unit=self.row['pricing/unit']
-        )
+        key = '{term}-{unit}'.format(term=self.row['pricing/term'], unit=self.row['pricing/unit'])
         self.processor.existing_pricing_map.update({key: expected_id})
 
         pricing_id = self.processor._create_cost_entry_pricing(self.row, self.accessor)
@@ -801,13 +753,8 @@ class AWSReportProcessorTest(MasuTestCase):
         row['reservation/ReservationARN'] = arn
 
         table_name = AWS_CUR_TABLE_MAP['reservation']
-        table = getattr(self.report_schema, table_name)
 
-
-        reservation_id = self.processor._create_cost_entry_reservation(
-            row, self.accessor
-        )
-
+        reservation_id = self.processor._create_cost_entry_reservation(row, self.accessor)
 
         self.assertIsNotNone(reservation_id)
 
@@ -825,12 +772,8 @@ class AWSReportProcessorTest(MasuTestCase):
         row['reservation/NumberOfReservations'] = 1
 
         table_name = AWS_CUR_TABLE_MAP['reservation']
-        table = getattr(self.report_schema, table_name)
 
-        reservation_id = self.processor._create_cost_entry_reservation(
-            row, self.accessor
-        )
-
+        reservation_id = self.processor._create_cost_entry_reservation(row, self.accessor)
 
         self.assertIsNotNone(reservation_id)
 
@@ -843,16 +786,12 @@ class AWSReportProcessorTest(MasuTestCase):
         row['lineItem/LineItemType'] = 'RIFee'
         res_count = row['reservation/NumberOfReservations']
         row['reservation/NumberOfReservations'] = res_count + 1
-        reservation_id = self.processor._create_cost_entry_reservation(
-            row, self.accessor
-        )
+        reservation_id = self.processor._create_cost_entry_reservation(row, self.accessor)
 
         self.assertEqual(reservation_id, id_in_db)
 
         db_row = query.filter(id=id_in_db).first()
-        self.assertEqual(
-            db_row.number_of_reservations, row['reservation/NumberOfReservations']
-        )
+        self.assertEqual(db_row.number_of_reservations, row['reservation/NumberOfReservations'])
 
     def test_create_cost_entry_reservation_already_processed(self):
         """Test that an already processed reservation id is returned."""
@@ -860,9 +799,7 @@ class AWSReportProcessorTest(MasuTestCase):
         arn = self.row.get('reservation/ReservationARN')
         self.processor.processed_report.reservations.update({arn: expected_id})
 
-        reservation_id = self.processor._create_cost_entry_reservation(
-            self.row, self.accessor
-        )
+        reservation_id = self.processor._create_cost_entry_reservation(self.row, self.accessor)
 
         self.assertEqual(reservation_id, expected_id)
 
@@ -872,16 +809,13 @@ class AWSReportProcessorTest(MasuTestCase):
         arn = self.row.get('reservation/ReservationARN')
         self.processor.existing_reservation_map.update({arn: expected_id})
 
-        product_id = self.processor._create_cost_entry_reservation(
-            self.row, self.accessor
-        )
+        product_id = self.processor._create_cost_entry_reservation(self.row, self.accessor)
 
         self.assertEqual(product_id, expected_id)
 
     def test_check_for_finalized_bill_bill_is_finalized(self):
         """Verify that a file with invoice_id is marked as finalzed."""
         data = []
-        table_name = AWS_CUR_TABLE_MAP['line_item']
 
         with open(self.test_report, 'r') as f:
             reader = csv.DictReader(f)
@@ -912,7 +846,6 @@ class AWSReportProcessorTest(MasuTestCase):
 
     def test_check_for_finalized_bill_bill_not_finalized(self):
         """Verify that a file without invoice_id is not marked as finalzed."""
-
         processor = AWSReportProcessor(
             schema_name=self.schema,
             report_path=self.test_report,
@@ -986,20 +919,16 @@ class AWSReportProcessorTest(MasuTestCase):
         mock_should_process.return_value = True
 
         today = self.date_accessor.today_with_timezone('UTC').replace(
-            hour=0,
-            minute=0,
-            second=0,
-            microsecond=0
+            hour=0, minute=0, second=0, microsecond=0
         )
         first_of_month = today.replace(day=1)
-        first_of_next_month =first_of_month + relativedelta(months=1)
+        first_of_next_month = first_of_month + relativedelta(months=1)
         days_in_month = [today - relativedelta(days=i) for i in range(today.day)]
 
         self.manifest.billing_period_start_datetime = first_of_month
         self.manifest.save()
 
         data = []
-        table_name = AWS_CUR_TABLE_MAP['line_item']
 
         with open(self.test_report, 'r') as f:
             reader = csv.DictReader(f)
@@ -1036,11 +965,7 @@ class AWSReportProcessorTest(MasuTestCase):
                 undeleted_max_date = line_item_query.aggregate(max_date=Max('usage_start'))
 
         mock_should_process.return_value = False
-        processor._delete_line_items(
-            AWSReportDBAccessor,
-            self.column_map,
-            is_finalized=False
-        )
+        processor._delete_line_items(AWSReportDBAccessor, self.column_map, is_finalized=False)
 
         with schema_context(self.schema):
             bills = self.accessor.get_cost_entry_bills()
@@ -1051,8 +976,9 @@ class AWSReportProcessorTest(MasuTestCase):
                 else:
                     max_date = line_item_query.aggregate(max_date=Max('usage_start'))
                     self.assertLess(max_date.get('max_date').date(), processor.data_cutoff_date)
-                    self.assertLess(max_date.get('max_date').date(),
-                                    undeleted_max_date.get('max_date').date())
+                    self.assertLess(
+                        max_date.get('max_date').date(), undeleted_max_date.get('max_date').date()
+                    )
                     self.assertNotEqual(line_item_query.count(), 0)
 
     @patch('masu.processor.report_processor_base.DateAccessor')
@@ -1097,8 +1023,13 @@ class AWSReportProcessorTest(MasuTestCase):
         mock_manifest.billing_period_start_datetime = today
         mock_manifest.num_processed_files = 1
         mock_manifest.num_total_files = 2
-        mock_manifest_accessor.return_value.__enter__.return_value.get_manifest_by_id.return_value = mock_manifest
-        mock_manifest_accessor.return_value.__enter__.return_value.get_manifest_list_for_provider_and_bill_date.return_value = [mock_manifest]
+        mock_manifest_accessor.return_value.__enter__.return_value.get_manifest_by_id.return_value = (
+            mock_manifest
+        )
+        mock_manifest_accessor.return_value.__enter__.return_value.\
+            get_manifest_list_for_provider_and_bill_date.return_value = [
+                mock_manifest
+            ]
         processor = AWSReportProcessor(
             schema_name=self.schema,
             report_path=self.test_report,
@@ -1117,8 +1048,14 @@ class AWSReportProcessorTest(MasuTestCase):
         mock_manifest.billing_period_start_datetime = today
         mock_manifest.num_processed_files = 1
         mock_manifest.num_total_files = 1
-        mock_manifest_accessor.return_value.__enter__.return_value.get_manifest_by_id.return_value = mock_manifest
-        mock_manifest_accessor.return_value.__enter__.return_value.get_manifest_list_for_provider_and_bill_date.return_value = [mock_manifest, mock_manifest]
+        mock_manifest_accessor.return_value.__enter__.return_value.get_manifest_by_id.return_value = (
+            mock_manifest
+        )
+        mock_manifest_accessor.return_value.__enter__.return_value.\
+            get_manifest_list_for_provider_and_bill_date.return_value = [
+                mock_manifest,
+                mock_manifest,
+            ]
         processor = AWSReportProcessor(
             schema_name=self.schema,
             report_path=self.test_report,
@@ -1135,7 +1072,9 @@ class AWSReportProcessorTest(MasuTestCase):
         mock_manifest = Mock()
         last_month = self.date_accessor.today_with_timezone('UTC') - relativedelta(months=1)
         mock_manifest.billing_period_start_datetime = last_month
-        mock_manifest_accessor.return_value.__enter__.return_value.get_manifest_by_id.return_value = mock_manifest
+        mock_manifest_accessor.return_value.__enter__.return_value.get_manifest_by_id.return_value = (
+            mock_manifest
+        )
         processor = AWSReportProcessor(
             schema_name=self.schema,
             report_path=self.test_report,
@@ -1152,7 +1091,7 @@ class AWSReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_uuid=self.aws_provider_uuid
+            provider_uuid=self.aws_provider_uuid,
         )
 
         self.assertTrue(processor._should_process_full_month())
@@ -1170,11 +1109,7 @@ class AWSReportProcessorTest(MasuTestCase):
             manifest_id=self.manifest.id,
         )
 
-        should_process = processor._should_process_row(
-            row,
-            'lineItem/UsageStartDate',
-            False
-        )
+        should_process = processor._should_process_row(row, 'lineItem/UsageStartDate', False)
 
         self.assertTrue(should_process)
 
@@ -1192,11 +1127,7 @@ class AWSReportProcessorTest(MasuTestCase):
             manifest_id=self.manifest.id,
         )
 
-        should_process = processor._should_process_row(
-            row,
-            'lineItem/UsageStartDate',
-            False
-        )
+        should_process = processor._should_process_row(row, 'lineItem/UsageStartDate', False)
 
         self.assertFalse(should_process)
 
@@ -1214,11 +1145,7 @@ class AWSReportProcessorTest(MasuTestCase):
             manifest_id=self.manifest.id,
         )
 
-        should_process = processor._should_process_row(
-            row,
-            'lineItem/UsageStartDate',
-            True
-        )
+        should_process = processor._should_process_row(row, 'lineItem/UsageStartDate', True)
 
         self.assertTrue(should_process)
 
@@ -1237,10 +1164,7 @@ class AWSReportProcessorTest(MasuTestCase):
         )
 
         should_process = processor._should_process_row(
-            row,
-            'lineItem/UsageStartDate',
-            False,
-            is_finalized=True
+            row, 'lineItem/UsageStartDate', False, is_finalized=True
         )
 
         self.assertTrue(should_process)
