@@ -16,14 +16,12 @@
 #
 
 """Test the AWSReportProcessor."""
-import time
 
 import calendar
 import datetime
-from dateutil.relativedelta import relativedelta
-import logging
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 
+from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
 
 from masu.database import AWS_CUR_TABLE_MAP
@@ -68,23 +66,21 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         }
 
         today = DateAccessor().today_with_timezone('UTC')
-        bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider_uuid, bill_date=today)
+        bill = self.creator.create_cost_entry_bill(
+            provider_uuid=self.aws_provider_uuid, bill_date=today
+        )
         cost_entry = self.creator.create_cost_entry(bill, today)
         product = self.creator.create_cost_entry_product()
         pricing = self.creator.create_cost_entry_pricing()
         reservation = self.creator.create_cost_entry_reservation()
-        self.creator.create_cost_entry_line_item(
-            bill, cost_entry, product, pricing, reservation
-        )
+        self.creator.create_cost_entry_line_item(bill, cost_entry, product, pricing, reservation)
 
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 
         with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
             self.provider = provider_accessor.get_provider()
 
-        self.updater = AWSReportSummaryUpdater(
-            'acct10001', self.provider, self.manifest
-        )
+        self.updater = AWSReportSummaryUpdater('acct10001', self.provider, self.manifest)
 
     @patch(
         'masu.processor.aws.aws_report_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table'
@@ -114,15 +110,11 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         self.assertIsNone(bill.summary_data_updated_datetime)
 
         self.updater.update_daily_tables(start_date_str, end_date_str)
-        mock_daily.assert_called_with(
-            expected_start_date, expected_end_date, [str(bill.id)]
-        )
+        mock_daily.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
         mock_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_summary.assert_called_with(
-            expected_start_date, expected_end_date, [str(bill.id)]
-        )
+        mock_summary.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
 
         with AWSReportDBAccessor('acct10001', self.column_map) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
@@ -137,9 +129,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
     )
     def test_update_summary_tables_new_bill(self, mock_daily, mock_summary):
         """Test that summary tables are run for a full month."""
-
         self.manifest.num_processed_files = self.manifest.num_total_files
-        manifest_id = self.manifest.id
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date
@@ -159,15 +149,11 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         self.assertIsNone(bill.summary_data_updated_datetime)
 
         self.updater.update_daily_tables(start_date_str, end_date_str)
-        mock_daily.assert_called_with(
-            expected_start_date, expected_end_date, [str(bill.id)]
-        )
+        mock_daily.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
         mock_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_summary.assert_called_with(
-            expected_start_date, expected_end_date, [str(bill.id)]
-        )
+        mock_summary.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
 
         with AWSReportDBAccessor('acct10001', self.column_map) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
@@ -197,9 +183,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
 
         self.manifest.num_processed_files = self.manifest.num_total_files
 
-        self.updater = AWSReportSummaryUpdater(
-            'acct10001', self.provider, self.manifest
-        )
+        self.updater = AWSReportSummaryUpdater('acct10001', self.provider, self.manifest)
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
@@ -216,23 +200,17 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         end_date_str = end_date.strftime('%Y-%m-%d')
 
         expected_start_date = bill_date.strftime('%Y-%m-%d')
-        expected_end_date = bill_date.replace(day=last_day_of_month).strftime(
-            '%Y-%m-%d'
-        )
+        expected_end_date = bill_date.replace(day=last_day_of_month).strftime('%Y-%m-%d')
 
         self.assertIsNone(bill.summary_data_creation_datetime)
         self.assertIsNone(bill.summary_data_updated_datetime)
 
         self.updater.update_daily_tables(start_date_str, end_date_str)
-        mock_daily.assert_called_with(
-            expected_start_date, expected_end_date, [str(bill.id)]
-        )
+        mock_daily.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
         mock_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_summary.assert_called_with(
-            expected_start_date, expected_end_date, [str(bill.id)]
-        )
+        mock_summary.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
 
         with AWSReportDBAccessor('acct10001', self.column_map) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
@@ -245,11 +223,8 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         'masu.processor.aws.aws_report_summary_updater.AWSReportDBAccessor.populate_line_item_daily_table'
     )
-    def test_update_summary_tables_new_bill_not_done_processing(
-        self, mock_daily, mock_summary
-    ):
+    def test_update_summary_tables_new_bill_not_done_processing(self, mock_daily, mock_summary):
         """Test that summary tables are not run for a full month."""
-
         report_updater_base = ReportSummaryUpdater(
             'acct10001', self.aws_provider_uuid, self.manifest.id
         )
@@ -290,7 +265,6 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
     def test_update_summary_tables_finalized_bill(self, mock_daily, mock_summary):
         """Test that summary tables are run for a full month."""
         self.manifest.num_processed_files = self.manifest.num_total_files
-        manifest_id = self.manifest.id
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date
@@ -313,15 +287,11 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         self.assertIsNone(bill.summary_data_updated_datetime)
 
         self.updater.update_daily_tables(start_date_str, end_date_str)
-        mock_daily.assert_called_with(
-            expected_start_date, expected_end_date, [str(bill.id)]
-        )
+        mock_daily.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
         mock_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_summary.assert_called_with(
-            expected_start_date, expected_end_date, [str(bill.id)]
-        )
+        mock_summary.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
 
         with AWSReportDBAccessor('acct10001', self.column_map) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
@@ -334,9 +304,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         'masu.processor.aws.aws_report_summary_updater.AWSReportDBAccessor.populate_line_item_daily_table'
     )
-    def test_update_summary_tables_finalized_bill_not_done_proc(
-        self, mock_daily, mock_summary
-    ):
+    def test_update_summary_tables_finalized_bill_not_done_proc(self, mock_daily, mock_summary):
         """Test that summary tables are run for a full month."""
         report_updater_base = ReportSummaryUpdater(
             'acct10001', self.aws_provider_uuid, self.manifest.id
@@ -383,7 +351,6 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
 
-
         with schema_context(self.schema):
             bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
             bill.summary_data_updated_datetime = start_date
@@ -395,15 +362,11 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         expected_start_date = start_date.strftime('%Y-%m-%d')
         expected_end_date = end_date.strftime('%Y-%m-%d')
         self.updater.update_daily_tables(start_date_str, end_date_str)
-        mock_daily.assert_called_with(
-            expected_start_date, expected_end_date, [str(bill.id)]
-        )
+        mock_daily.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
         mock_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_summary.assert_called_with(
-            expected_start_date, expected_end_date, [str(bill.id)]
-        )
+        mock_summary.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
 
         with AWSReportDBAccessor('acct10001', self.column_map) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]

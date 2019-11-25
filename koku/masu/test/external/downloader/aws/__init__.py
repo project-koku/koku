@@ -1,5 +1,7 @@
+"""AWS downloader tests."""
 import random
 import string
+
 import faker
 
 
@@ -17,6 +19,7 @@ def fake_arn(
 ):
     """
     Generate a dummy AWS ARN for testing purposes.
+
     account_id argument is optional, and will be randomly generated if None.
     Args:
         account_id (str): Optional account ID.
@@ -27,6 +30,7 @@ def fake_arn(
                         This will override any account_id that is passed in
     Returns:
         str: A well-formed, randomized ARN.
+
     """
     if generate_account_id:
         account_id = fake_aws_account_id()

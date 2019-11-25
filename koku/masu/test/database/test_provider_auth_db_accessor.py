@@ -63,6 +63,4 @@ class ProviderDBAuthAccessorTest(MasuTestCase):
         """Test provider name getter."""
         auth_id = self.aws_db_auth_id
         accessor = ProviderAuthDBAccessor(auth_id)
-        self.assertEqual(
-            self.aws_provider_resource_name, accessor.get_provider_resource_name()
-        )
+        self.assertEqual(self.aws_provider_resource_name, accessor.get_provider_resource_name())

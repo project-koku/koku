@@ -18,8 +18,8 @@
 """Test the AzureReportChargeUpdater object."""
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.azure.azure_report_charge_updater import AzureReportChargeUpdater
@@ -63,17 +63,13 @@ class AzureReportChargeUpdaterTest(MasuTestCase):
         with ProviderDBAccessor(self.azure_test_provider_uuid) as provider_accessor:
             self.provider = provider_accessor.get_provider()
 
-        self.updater = AzureReportChargeUpdater(
-            schema=self.schema, provider=self.provider
-        )
+        self.updater = AzureReportChargeUpdater(schema=self.schema, provider=self.provider)
 
         today = DateAccessor().today_with_timezone('UTC')
         bill = self.creator.create_azure_cost_entry_bill(
             provider_uuid=self.provider.uuid, bill_date=today
         )
-        product = self.creator.create_azure_cost_entry_product(
-            provider_uuid=self.provider.uuid
-        )
+        product = self.creator.create_azure_cost_entry_product(provider_uuid=self.provider.uuid)
         meter = self.creator.create_azure_meter(provider_uuid=self.provider.uuid)
         self.creator.create_azure_cost_entry_line_item(bill, product, meter)
 

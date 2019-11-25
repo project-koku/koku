@@ -18,26 +18,25 @@
 """Helper class for database test classes."""
 import csv
 import datetime
-from dateutil import parser
 import io
 import random
 import uuid
 from decimal import Decimal
 
 import django.apps
+from dateutil import parser
 from dateutil import relativedelta
 from django.utils import timezone
 from faker import Faker
-from tenant_schemas.utils import schema_context
 
 from masu.config import Config
-from masu.database.report_db_accessor_base import ReportSchema
 from masu.database import AWS_CUR_TABLE_MAP, AZURE_REPORT_TABLE_MAP, OCP_REPORT_TABLE_MAP
+from masu.database.account_alias_accessor import AccountAliasAccessor
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
-from masu.database.account_alias_accessor import AccountAliasAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.database.report_db_accessor_base import ReportSchema
 from masu.external.date_accessor import DateAccessor
 from masu.util import common as azure_utils
 
@@ -60,10 +59,8 @@ class ReportObjectCreator:
         self.schema = schema
         self.column_map = column_map
 
-        self.report_schema = ReportSchema(django.apps.apps.get_models(),
-                                          self.column_map)
+        self.report_schema = ReportSchema(django.apps.apps.get_models(), self.column_map)
         self.column_types = self.report_schema.column_types
-
 
     def create_cost_entry(self, bill, entry_datetime=None):
         """Create a cost entry database object for test."""
@@ -71,15 +68,9 @@ class ReportObjectCreator:
         if entry_datetime:
             start_datetime = entry_datetime
         else:
-            start_datetime = self.fake.past_datetime(
-                start_date='-60d'
-            )  # pylint: ignore=no-member
+            start_datetime = self.fake.past_datetime(start_date='-60d')  # pylint: ignore=no-member
         end_datetime = start_datetime + datetime.timedelta(hours=1)
-        data = {
-            'bill_id': bill.id,
-            'interval_start': start_datetime,
-            'interval_end': end_datetime
-        }
+        data = {'bill_id': bill.id, 'interval_start': start_datetime, 'interval_end': end_datetime}
         with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
@@ -110,7 +101,9 @@ class ReportObjectCreator:
         table_name = AWS_CUR_TABLE_MAP['product']
         data = self.create_columns_for_table(table_name)
         prod_fam = {
-            'product_family': product_family if product_family else random.choice(AWS_PRODUCT_FAMILY)
+            'product_family': product_family
+            if product_family
+            else random.choice(AWS_PRODUCT_FAMILY)
         }
         data.update(prod_fam)
         with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
@@ -141,23 +134,19 @@ class ReportObjectCreator:
             'tags': {
                 'environment': random.choice(['dev', 'qa', 'prod']),
                 self.fake.pystr()[:8]: self.fake.pystr()[:8],
-            }
+            },
         }
 
         data.update(extra_data)
         with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
-    def create_ocp_report_period(
-        self, provider_uuid, period_date=None, cluster_id=None
-    ):
+    def create_ocp_report_period(self, provider_uuid, period_date=None, cluster_id=None):
         """Create an OCP report database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
 
         period_start = self.make_datetime_aware(self.fake.past_datetime()).date().replace(day=1)
-        period_end = period_start + relativedelta.relativedelta(
-            days=random.randint(1, 15)
-        )
+        period_end = period_start + relativedelta.relativedelta(days=random.randint(1, 15))
         data = {
             'cluster_id': cluster_id if cluster_id else self.fake.pystr()[:8],
             'provider_id': provider_uuid,
@@ -271,9 +260,7 @@ class ReportObjectCreator:
     def create_csv_file_stream(self, row):
         """Create a CSV file object for bulk upload testing."""
         file_obj = io.StringIO()
-        writer = csv.writer(
-            file_obj, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar=''
-        )
+        writer = csv.writer(file_obj, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar='')
         writer.writerow(row)
         file_obj.seek(0)
 
@@ -306,9 +293,8 @@ class ReportObjectCreator:
             'description': self.fake.pystr(),
             'source_type': source_type,
             'rates': rates,
-            'markup': markup
+            'markup': markup,
         }
-
 
         with ProviderDBAccessor(provider_uuid) as accessor:
             provider_obj = accessor.get_provider()
@@ -335,7 +321,7 @@ class ReportObjectCreator:
                 'usage_start': self.make_datetime_aware(self.fake.past_datetime()),
                 'usage_end': self.make_datetime_aware(self.fake.past_datetime()),
                 'product_code': self.fake.pystr()[:8],
-                'usage_account_id': self.fake.pystr()[:8]
+                'usage_account_id': self.fake.pystr()[:8],
             }
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
@@ -356,7 +342,7 @@ class ReportObjectCreator:
                 'cost_entry_bill': cost_entry_bill,
                 'usage_start': self.make_datetime_aware(usage_date),
                 'product_code': self.fake.pystr()[:8],
-                'usage_account_id': self.fake.pystr()[:8]
+                'usage_account_id': self.fake.pystr()[:8],
             }
 
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
@@ -402,14 +388,14 @@ class ReportObjectCreator:
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
-    def create_azure_cost_entry_line_item(
-        self, bill, product, meter, usage_date_time=None
-    ):
+    def create_azure_cost_entry_line_item(self, bill, product, meter, usage_date_time=None):
         """Create an Azure cost entry line item database object for test."""
         table_name = AZURE_REPORT_TABLE_MAP['line_item']
         data = self.create_columns_for_table(table_name)
 
-        random_usage_date_time = bill.billing_period_start + relativedelta.relativedelta(days=random.randint(1, 15))
+        random_usage_date_time = bill.billing_period_start + relativedelta.relativedelta(
+            days=random.randint(1, 15)
+        )
         extra_data = {
             'cost_entry_bill_id': bill.id,
             'cost_entry_product_id': product.id,
@@ -418,16 +404,17 @@ class ReportObjectCreator:
             'tags': {
                 'environment': random.choice(['dev', 'qa', 'prod']),
                 self.fake.pystr()[:8]: self.fake.pystr()[:8],
-            }
+            },
         }
 
         data.update(extra_data)
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
+
 def map_django_field_type_to_python_type(field):
     """Map a Django field to its corresponding python type."""
-    # This catches serveral different types of IntegerFields such as:
+    # This catches several different types of IntegerFields such as:
     # PositiveIntegerField, BigIntegerField,
     if 'IntegerField' in field:
         field_type = int

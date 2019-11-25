@@ -25,23 +25,23 @@ from os.path import exists
 
 from django.test import TestCase
 
+import masu.util.common as common_utils
 from masu.external import (
     AMAZON_WEB_SERVICES,
     AWS_LOCAL_SERVICE_PROVIDER,
-    LISTEN_INGEST,
     AZURE_LOCAL_SERVICE_PROVIDER,
+    LISTEN_INGEST,
     OPENSHIFT_CONTAINER_PLATFORM,
     POLL_INGEST,
 )
-import masu.util.common as common_utils
-
 from masu.test import MasuTestCase
 
 
 class CommonUtilTests(MasuTestCase):
+    """Test Common Masu functions."""
+
     def test_extract_uuids_from_string(self):
         """Test that a uuid is extracted from a string."""
-
         assembly_id = '882083b7-ea62-4aab-aa6a-f0d08d65ee2b'
         cur_key = '/koku/20180701-20180801/{}/koku-1.csv.gz'.format(assembly_id)
 
@@ -51,7 +51,6 @@ class CommonUtilTests(MasuTestCase):
 
     def test_extract_uuids_from_string_capitals(self):
         """Test that a uuid is extracted from a string with capital letters."""
-
         assembly_id = '882083B7-EA62-4AAB-aA6a-f0d08d65Ee2b'
         cur_key = '/koku/20180701-20180801/{}/koku-1.csv.gz'.format(assembly_id)
 
@@ -102,25 +101,14 @@ class CommonUtilTests(MasuTestCase):
         """Test that the correct ingest method is returned for provider type."""
         test_matrix = [
             {'provider_type': AMAZON_WEB_SERVICES, 'expected_ingest': POLL_INGEST},
-            {
-                'provider_type': AWS_LOCAL_SERVICE_PROVIDER,
-                'expected_ingest': POLL_INGEST,
-            },
-            {
-                'provider_type': OPENSHIFT_CONTAINER_PLATFORM,
-                'expected_ingest': LISTEN_INGEST,
-            },
-            {
-                'provider_type': AZURE_LOCAL_SERVICE_PROVIDER,
-                'expected_ingest': POLL_INGEST,
-            },
-            {'provider_type': 'NEW_TYPE', 'expected_ingest': None},
+            {'provider_type': AWS_LOCAL_SERVICE_PROVIDER, 'expected_ingest': POLL_INGEST},
+            {'provider_type': OPENSHIFT_CONTAINER_PLATFORM, 'expected_ingest': LISTEN_INGEST},
+            {'provider_type': AZURE_LOCAL_SERVICE_PROVIDER, 'expected_ingest': POLL_INGEST},
+            {'provider_type': 'NEW_TYPE', 'expected_ingest': None}
         ]
 
         for test in test_matrix:
-            ingest_method = common_utils.ingest_method_for_provider(
-                test.get('provider_type')
-            )
+            ingest_method = common_utils.ingest_method_for_provider(test.get('provider_type'))
             self.assertEqual(ingest_method, test.get('expected_ingest'))
 
     def test_month_date_range_tuple(self):
@@ -148,7 +136,7 @@ class NamedTemporaryGZipTests(TestCase):
 
     def test_gzip_is_readable(self):
         """Test the the written gzip file is readable."""
-        test_data = "Test Read Gzip"
+        test_data = 'Test Read Gzip'
         with common_utils.NamedTemporaryGZip() as temp_gzip:
 
             temp_gzip.write(test_data)

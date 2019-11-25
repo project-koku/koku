@@ -47,12 +47,8 @@ class ReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         'masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables'
     )
-    @patch(
-        'masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_summary_tables'
-    )
-    @patch(
-        'masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_daily_tables'
-    )
+    @patch('masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_summary_tables')
+    @patch('masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_daily_tables')
     def test_aws_route(self, mock_daily, mock_update, mock_cloud):
         """Test that AWS report updating works as expected."""
         mock_start = 1
@@ -75,12 +71,8 @@ class ReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         'masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables'
     )
-    @patch(
-        'masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_summary_tables'
-    )
-    @patch(
-        'masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_daily_tables'
-    )
+    @patch('masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_summary_tables')
+    @patch('masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_daily_tables')
     def test_azure_route(self, mock_daily, mock_update, mock_cloud):
         """Test that Azure report updating works as expected."""
         mock_start = 1
@@ -103,12 +95,8 @@ class ReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         'masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables'
     )
-    @patch(
-        'masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_summary_tables'
-    )
-    @patch(
-        'masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_daily_tables'
-    )
+    @patch('masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_summary_tables')
+    @patch('masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_daily_tables')
     def test_aws_local_route(self, mock_daily, mock_update, mock_cloud):
         """Test that AWS Local report updating works as expected."""
         mock_start = 1
@@ -130,12 +118,8 @@ class ReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         'masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables'
     )
-    @patch(
-        'masu.processor.report_summary_updater.OCPReportSummaryUpdater.update_summary_tables'
-    )
-    @patch(
-        'masu.processor.report_summary_updater.OCPReportSummaryUpdater.update_daily_tables'
-    )
+    @patch('masu.processor.report_summary_updater.OCPReportSummaryUpdater.update_summary_tables')
+    @patch('masu.processor.report_summary_updater.OCPReportSummaryUpdater.update_daily_tables')
     def test_ocp_route(self, mock_daily, mock_update, mock_cloud):
         """Test that OCP report updating works as expected."""
         mock_start = 1
@@ -154,16 +138,11 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_update.assert_called_with(self.today, self.tomorrow)
         mock_cloud.assert_called_with(mock_start, mock_end)
 
-
     @patch(
         'masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables'
     )
-    @patch(
-        'masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_summary_tables'
-    )
-    @patch(
-        'masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_daily_tables'
-    )
+    @patch('masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_summary_tables')
+    @patch('masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_daily_tables')
     def test_azure_local_route(self, mock_daily, mock_update, mock_cloud):
         """Test that AZURE Local report updating works as expected."""
         mock_start = 1
@@ -201,9 +180,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         with ReportManifestDBAccessor() as accessor:
             manifest = accessor.add(**manifest_dict)
         manifest_id = manifest.id
-        updater = ReportSummaryUpdater(
-            self.schema, self.ocp_test_provider_uuid, manifest_id
-        )
+        updater = ReportSummaryUpdater(self.schema, self.ocp_test_provider_uuid, manifest_id)
         self.assertTrue(updater.manifest_is_ready())
 
     def test_manifest_is_ready_is_not_ready(self):
@@ -219,9 +196,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         with ReportManifestDBAccessor() as accessor:
             manifest = accessor.add(**manifest_dict)
         manifest_id = manifest.id
-        updater = ReportSummaryUpdater(
-            self.schema, self.ocp_test_provider_uuid, manifest_id
-        )
+        updater = ReportSummaryUpdater(self.schema, self.ocp_test_provider_uuid, manifest_id)
 
         # manifest_is_ready is now unconditionally returning True, so summary is expected.
         self.assertTrue(updater.manifest_is_ready())
