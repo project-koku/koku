@@ -24,8 +24,8 @@ from tenant_schemas.utils import schema_context
 
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.azure.azure_report_summary_updater import AzureReportSummaryUpdater
@@ -77,9 +77,7 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         with ProviderDBAccessor(self.azure_test_provider_uuid) as provider_accessor:
             self.provider = provider_accessor.get_provider()
 
-        self.updater = AzureReportSummaryUpdater(
-            self.schema, self.azure_provider, self.manifest
-        )
+        self.updater = AzureReportSummaryUpdater(self.schema, self.azure_provider, self.manifest)
 
     @patch(
         'masu.processor.azure.azure_report_summary_updater.AzureReportDBAccessor.populate_line_item_daily_summary_table'
@@ -109,9 +107,7 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         mock_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_summary.assert_called_with(
-            expected_start_date, expected_end_date, [str(bill.id)]
-        )
+        mock_summary.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
 
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
@@ -123,9 +119,7 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
     )
     def test_azure_update_summary_tables_new_bill(self, mock_summary):
         """Test that summary tables are run for a full month."""
-
         self.manifest.num_processed_files = self.manifest.num_total_files
-        manifest_id = self.manifest.id
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date
@@ -148,9 +142,7 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         mock_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_summary.assert_called_with(
-            expected_start_date, expected_end_date, [str(bill.id)]
-        )
+        mock_summary.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
 
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]

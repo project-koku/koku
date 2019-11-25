@@ -17,47 +17,37 @@
 
 """Test the OCP util."""
 import os
+import shutil
+import tempfile
+from unittest.mock import patch
 from uuid import UUID
 
-from unittest.mock import patch
-
-import tempfile
-import shutil
-
-from masu.util.ocp import common as utils
-from masu.exceptions import MasuProviderError
 from masu.config import Config
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.test.database.helpers import ReportObjectCreator
-from masu.exceptions import MasuConfigurationError, MasuProviderError
-
 from masu.test import MasuTestCase
+from masu.test.database.helpers import ReportObjectCreator
+from masu.util.ocp import common as utils
 
 
 class OCPUtilTests(MasuTestCase):
     """Test the OCP utility functions."""
 
     def setUp(self):
+        """Shared variables used by ocp common tests."""
         super().setUp()
         self.common_accessor = ReportingCommonDBAccessor()
         self.column_map = self.common_accessor.column_map
-        self.accessor = OCPReportDBAccessor(
-            schema=self.schema, column_map=self.column_map
-        )
-        self.provider_accessor = ProviderDBAccessor(
-            provider_uuid=self.ocp_test_provider_uuid
-        )
+        self.accessor = OCPReportDBAccessor(schema=self.schema, column_map=self.column_map)
+        self.provider_accessor = ProviderDBAccessor(provider_uuid=self.ocp_test_provider_uuid)
         self.report_schema = self.accessor.report_schema
         self.creator = ReportObjectCreator(self.schema, self.column_map)
         self.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
         self.provider_uuid = self.provider_accessor.get_provider().uuid
-        reporting_period = self.creator.create_ocp_report_period(
-            provider_uuid=self.provider_uuid
-        )
+        reporting_period = self.creator.create_ocp_report_period(provider_uuid=self.provider_uuid)
         report = self.creator.create_ocp_report(
             reporting_period, reporting_period.report_period_start
         )
@@ -94,11 +84,7 @@ class OCPUtilTests(MasuTestCase):
         fake_dir = tempfile.mkdtemp()
         with patch.object(Config, 'INSIGHTS_LOCAL_REPORT_DIR', fake_dir):
             cluster_id = utils.get_cluster_id_from_provider(self.ocp_test_provider_uuid)
-            expected_path = '{}/{}/'.format(
-                Config.INSIGHTS_LOCAL_REPORT_DIR, cluster_id
-            )
+            expected_path = '{}/{}/'.format(Config.INSIGHTS_LOCAL_REPORT_DIR, cluster_id)
             os.makedirs(expected_path, exist_ok=True)
-            self.assertTrue(
-                utils.poll_ingest_override_for_provider(self.ocp_test_provider_uuid)
-            )
+            self.assertTrue(utils.poll_ingest_override_for_provider(self.ocp_test_provider_uuid))
         shutil.rmtree(fake_dir)

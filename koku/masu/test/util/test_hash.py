@@ -18,26 +18,22 @@
 """Test the hash util."""
 
 import hashlib
-import json
 import random
 import string
-from datetime import datetime
-from decimal import Decimal
 
 from masu.exceptions import HasherError
-from masu.util.hash import Hasher
-
 from masu.test import MasuTestCase
+from masu.util.hash import Hasher
 
 
 class HasherUtilTests(MasuTestCase):
     """Test the hashing utility class."""
 
     def setUp(self):
+        """Shared variables for hasher tests."""
         super().setUp()
         self.encoding = 'utf-8'
         self.hash_function = random.choice(list(hashlib.algorithms_guaranteed))
-        # self.hash_function = 'sha3_224'
         if 'shake' in self.hash_function:
             self.hasher = Hasher(
                 hash_function=self.hash_function,
@@ -45,17 +41,11 @@ class HasherUtilTests(MasuTestCase):
                 encoding=self.encoding,
             )
         else:
-            self.hasher = Hasher(
-                hash_function=self.hash_function, encoding=self.encoding
-            )
-        self.string_to_hash = ''.join(
-            [random.choice(string.ascii_letters) for _ in range(16)]
-        )
+            self.hasher = Hasher(hash_function=self.hash_function, encoding=self.encoding)
+        self.string_to_hash = ''.join([random.choice(string.ascii_letters) for _ in range(16)])
 
     def test_initializer(self):
         """Test that the proper variables are initialized."""
-        # encoding = 'ascii'
-        # hasher = Hasher(hash_function=self.hash_function, encoding=encoding)
         hash_function = getattr(hashlib, self.hash_function)
         self.assertEqual(self.hasher.hash_function, hash_function)
         self.assertEqual(self.hasher.encoding, self.encoding)
@@ -78,12 +68,13 @@ class HasherUtilTests(MasuTestCase):
         """Test that shake algorithms require a length."""
         hash_function = 'shake_128'
         with self.assertRaises(HasherError):
-            hasher = Hasher(hash_function=hash_function)
+            Hasher(hash_function=hash_function)
 
-        hasher = Hasher(hash_function=hash_function, length=16)
+        Hasher(hash_function=hash_function, length=16)
 
     def test_unsupported_algorithm(self):
+        """Test that an exception is raised for unsupported algorithms."""
         bad_algorithm = 'zuul'
 
         with self.assertRaises(HasherError):
-            hasher = Hasher(hash_function=bad_algorithm)
+            Hasher(hash_function=bad_algorithm)

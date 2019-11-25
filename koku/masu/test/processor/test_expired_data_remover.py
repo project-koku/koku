@@ -17,16 +17,12 @@
 
 """Test the ExpiredDataRemover object."""
 
-from unittest.mock import patch
 from datetime import datetime
+from unittest.mock import patch
+
 import pytz
 
-from masu.external import (
-    AMAZON_WEB_SERVICES,
-    AZURE,
-    OPENSHIFT_CONTAINER_PLATFORM
-)
-
+from masu.external import AMAZON_WEB_SERVICES, AZURE, OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.date_accessor import DateAccessor
 from masu.processor.expired_data_remover import (
     ExpiredDataRemover,
@@ -39,25 +35,25 @@ class ExpiredDataRemoverTest(MasuTestCase):
     """Test Cases for the ExpiredDataRemover object."""
 
     def test_initializer(self):
-        """Test to init"""
+        """Test to init."""
         remover = ExpiredDataRemover(self.schema, AMAZON_WEB_SERVICES)
         self.assertEqual(remover._months_to_keep, 3)
         self.assertIsInstance(remover._expiration_date, datetime)
 
     def test_initializer_ocp(self):
-        """Test to init for OCP"""
+        """Test to init for OCP."""
         remover = ExpiredDataRemover(self.schema, OPENSHIFT_CONTAINER_PLATFORM)
         self.assertEqual(remover._months_to_keep, 3)
         self.assertIsInstance(remover._expiration_date, datetime)
 
     def test_initializer_azure(self):
-        """Test to init for Azure"""
+        """Test to init for Azure."""
         remover = ExpiredDataRemover(self.schema, AZURE)
         self.assertEqual(remover._months_to_keep, 3)
         self.assertIsInstance(remover._expiration_date, datetime)
 
     def test_initializer_invalid_provider(self):
-        """Test to init with unknown provider"""
+        """Test to init with unknown provider."""
         with self.assertRaises(ExpiredDataRemoverError):
             ExpiredDataRemover(self.schema, 'BAD')
 
@@ -66,7 +62,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
         side_effect=Exception,
     )
     def test_initializer_provider_exception(self, mock_aws_cleaner):
-        """Test to init"""
+        """Test to init."""
         with self.assertRaises(ExpiredDataRemoverError):
             ExpiredDataRemover(self.schema, AMAZON_WEB_SERVICES)
 
@@ -85,9 +81,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
             },
             {
                 'current_date': datetime(year=2018, month=3, day=20),
-                'expected_expire': datetime(
-                    year=2017, month=12, day=1, tzinfo=pytz.UTC
-                ),
+                'expected_expire': datetime(year=2017, month=12, day=1, tzinfo=pytz.UTC),
                 'months_to_keep': None,
             },
             {
@@ -107,9 +101,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
             },
         ]
         for test_case in date_matrix:
-            with patch.object(
-                DateAccessor, 'today', return_value=test_case.get('current_date')
-            ):
+            with patch.object(DateAccessor, 'today', return_value=test_case.get('current_date')):
                 retention_policy = test_case.get('months_to_keep')
                 if retention_policy:
                     remover = ExpiredDataRemover(self.schema, 'AWS', retention_policy)
@@ -124,9 +116,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
         removed_data = remover.remove()
         self.assertEqual(len(removed_data), 0)
 
-    @patch(
-        'masu.processor.expired_data_remover.AWSReportDBCleaner.purge_expired_report_data'
-    )
+    @patch('masu.processor.expired_data_remover.AWSReportDBCleaner.purge_expired_report_data')
     def test_remove_provider(self, mock_purge):
         """Test that remove is called with provider_uuid."""
         provider_uuid = self.aws_provider_uuid
