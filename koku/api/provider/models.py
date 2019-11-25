@@ -171,6 +171,7 @@ def provider_post_delete_callback(*args, **kwargs):
 
     Note: Signal receivers must accept keyword arguments (**kwargs).
     """
+    return
     provider = kwargs['instance']
     if not provider.customer:
         LOG.warning(

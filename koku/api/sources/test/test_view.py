@@ -28,6 +28,7 @@ from django.test import TestCase
 from django.urls import reverse
 from faker import Faker
 
+from api.provider.models import Sources
 from api.sources.view import SourcesProxyViewSet
 
 faker = Faker()
@@ -41,8 +42,8 @@ class SourcesViewProxyTests(TestCase):
         mock_url = PropertyMock(return_value='http://www.sourcesclient.com/api/v1/sources/')
         SourcesProxyViewSet.url = mock_url
 
-    def test_post_authentication_proxy(self):
-        """Test the POST authentication proxy endpoint."""
+    def test_update_authentication_proxy(self):
+        """Test the PATCH authentication proxy endpoint."""
         test_source_id = 1
         credentials = {'subscription_id': 'subscription-uuid'}
 
@@ -62,8 +63,8 @@ class SourcesViewProxyTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertIn(str(credentials), str(body))
 
-    def test_post_authentication_proxy_error(self):
-        """Test the POST authentication proxy endpoint with connection error."""
+    def test_patch_authentication_proxy_error(self):
+        """Test the PATCH authentication proxy endpoint with connection error."""
         test_source_id = 1
         credentials = {'subscription_id': 'subscription-uuid'}
 
@@ -79,23 +80,3 @@ class SourcesViewProxyTests(TestCase):
                                         content_type='application/json')
 
             self.assertEqual(response.status_code, 400)
-
-    def test_post_authentication_proxy_server_error(self):
-        """Test the POST authentication proxy endpoint with an server error."""
-        test_source_id = 1
-        credentials = {'subscription_id': 'subscription-uuid'}
-
-        error_msg = 'Subscription ID not found'
-        with self.settings(SOURCES_CLIENT_BASE_URL='http://www.sourcesclient.com/api/v1'):
-            with requests_mock.mock() as m:
-                m.patch(f'http://www.sourcesclient.com/api/v1/sources/{test_source_id}',
-                        status_code=400,
-                        json=error_msg)
-
-                params = {'credentials': credentials}
-                response = self.client.patch(reverse('sources-proxy-update'), json.dumps(params),
-                                             content_type='application/json')
-                self.assertEqual(response.status_code, 400)
-                self.assertTrue(response.data.get('errors'))
-                self.assertEqual(response.data.get('errors')[0].get('detail'), error_msg)
-                self.assertEqual(response.data.get('errors')[0].get('status'), 400)
