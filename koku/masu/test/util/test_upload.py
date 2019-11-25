@@ -19,7 +19,6 @@ class TestUploadUtils(TestCase):
 
     def test_get_upload_path(self):
         """Assert get_upload_path produces an appropriate S3 path for the month."""
-
         report_date = date(2018, 4, 1)
         schema_name = 'test_acct'
         provider_type = 'test_type'
@@ -36,7 +35,6 @@ class TestUploadUtils(TestCase):
 
     def test_get_upload_path_daily(self):
         """Assert get_upload_path produces an appropriate S3 path including day of month."""
-
         report_date = date(2018, 4, 1)
         schema_name = 'test_acct'
         provider_type = 'test_type'
@@ -44,12 +42,7 @@ class TestUploadUtils(TestCase):
         table_name = 'test_table'
         with self.settings(S3_BUCKET_PATH='bucket'):
             path = get_upload_path(
-                schema_name,
-                provider_type,
-                provider_uuid,
-                report_date,
-                table_name,
-                daily=True,
+                schema_name, provider_type, provider_uuid, report_date, table_name, daily=True,
             )
             self.assertEquals(
                 'bucket/test_acct/test_type/de4db3ef-a185-4bad-b33f-d15ea5edc0de/2018/04/01/test_table.csv.gz',
@@ -72,9 +65,7 @@ class TestUploadUtilsWithData(MasuTestCase):
         # Arbitrary date as "today" so we don't drift around with `now`.
         self.today = datetime(2019, 11, 5, 0, 0, 0, tzinfo=timezone)
 
-        self.today_date = date(
-            year=self.today.year, month=self.today.month, day=self.today.day
-        )
+        self.today_date = date(year=self.today.year, month=self.today.month, day=self.today.day)
         self.create_some_data_for_date(self.today)
 
         self.yesterday = self.today - timedelta(days=1)
@@ -84,9 +75,7 @@ class TestUploadUtilsWithData(MasuTestCase):
         self.create_some_data_for_date(self.yesterday)
 
         self.future = self.today + timedelta(days=900)
-        self.future_date = date(
-            year=self.future.year, month=self.future.month, day=self.future.day
-        )
+        self.future_date = date(year=self.future.year, month=self.future.month, day=self.future.day)
 
     def create_some_data_for_date(self, the_datetime):
         """Create some dummy data for the given datetime."""
@@ -98,9 +87,7 @@ class TestUploadUtilsWithData(MasuTestCase):
             provider_uuid=self.aws_provider_uuid, bill_date=the_datetime
         )
         cost_entry = self.creator.create_cost_entry(bill, entry_datetime=the_datetime)
-        self.creator.create_cost_entry_line_item(
-            bill, cost_entry, product, pricing, reservation
-        )
+        self.creator.create_cost_entry_line_item(bill, cost_entry, product, pricing, reservation)
 
         # The daily summary lines are aligned with midnight of each day.
         the_date = the_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -109,7 +96,7 @@ class TestUploadUtilsWithData(MasuTestCase):
         )
 
     def get_table_export_setting_by_name(self, name):
-        """Helper to get specific TableExportSetting for testing."""
+        """Get specific TableExportSetting for testing."""
         return [s for s in table_export_settings if s.output_name == name].pop()
 
     @patch('masu.util.upload.AwsS3Uploader')
@@ -124,9 +111,7 @@ class TestUploadUtilsWithData(MasuTestCase):
         today = self.today
         _, last_day_of_month = calendar.monthrange(today.year, today.month)
         curr_month_first_day = date(year=today.year, month=today.month, day=1)
-        curr_month_last_day = date(
-            year=today.year, month=today.month, day=last_day_of_month
-        )
+        curr_month_last_day = date(year=today.year, month=today.month, day=last_day_of_month)
 
         date_range = (curr_month_first_day, curr_month_last_day)
         for table_export_setting in table_export_settings:
@@ -145,7 +130,6 @@ class TestUploadUtilsWithData(MasuTestCase):
             else:
                 # We ONLY have test data currently for AWS.
                 mock_uploader.return_value.upload_file.assert_not_called()
-
 
     @patch('masu.util.upload.AwsS3Uploader')
     def test_query_and_upload_skips_if_no_data(self, mock_uploader):

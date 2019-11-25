@@ -21,7 +21,7 @@ import string
 
 from dateutil import relativedelta
 from django.db import connection
-from django.db.models import Max, Min, Sum
+from django.db.models import Max, Min
 from django.db.models.query import QuerySet
 from tenant_schemas.utils import schema_context
 
@@ -57,9 +57,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         self.cluster_id = 'testcluster'
 
-        with ProviderDBAccessor(
-            provider_uuid=self.ocp_test_provider_uuid
-        ) as provider_accessor:
+        with ProviderDBAccessor(provider_uuid=self.ocp_test_provider_uuid) as provider_accessor:
             self.ocp_provider_uuid = provider_accessor.get_provider().uuid
 
         self.reporting_period = self.creator.create_ocp_report_period(
@@ -69,16 +67,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
         pod = ''.join(random.choice(string.ascii_lowercase) for _ in range(10))
         namespace = ''.join(random.choice(string.ascii_lowercase) for _ in range(10))
         self.creator.create_ocp_usage_line_item(
-            self.reporting_period,
-            self.report,
-            pod=pod,
-            namespace=namespace
+            self.reporting_period, self.report, pod=pod, namespace=namespace
         )
         self.creator.create_ocp_storage_line_item(
-            self.reporting_period,
-            self.report,
-            pod=pod,
-            namespace=namespace
+            self.reporting_period, self.report, pod=pod, namespace=namespace
         )
 
     def _populate_storage_summary(self):
@@ -106,13 +98,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
         start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        self.accessor.populate_line_item_daily_table(
-            start_date, end_date, cluster_id
-        )
+        self.accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
 
-        self.accessor.populate_storage_line_item_daily_table(
-            start_date, end_date, cluster_id
-        )
+        self.accessor.populate_storage_line_item_daily_table(start_date, end_date, cluster_id)
         self.accessor.populate_storage_line_item_daily_summary_table(
             start_date, end_date, cluster_id
         )
@@ -137,9 +125,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
         self.accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
-        self.accessor.populate_line_item_daily_summary_table(
-            start_date, end_date, cluster_id
-        )
+        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id)
 
     def test_initializer(self):
         """Test initializer."""
@@ -190,12 +176,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
         period_start = DateAccessor().today_with_timezone('UTC').replace(day=1)
         prev_period_start = period_start - relativedelta.relativedelta(months=1)
         reporting_period = self.creator.create_ocp_report_period(
-            self.ocp_provider_uuid,
-            period_date=period_start
+            self.ocp_provider_uuid, period_date=period_start
         )
         prev_reporting_period = self.creator.create_ocp_report_period(
-            self.ocp_provider_uuid,
-            period_date=prev_period_start
+            self.ocp_provider_uuid, period_date=prev_period_start
         )
 
         with schema_context(self.schema):
@@ -279,9 +263,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             initial_count = query.count()
 
-        self.accessor.populate_line_item_daily_table(
-            start_date, end_date, self.cluster_id
-        )
+        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
 
         self.assertNotEqual(query.count(), initial_count)
 
@@ -350,9 +332,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             query = self.accessor._get_db_obj_query(summary_table_name)
             initial_count = query.count()
 
-            self.accessor.populate_line_item_daily_table(
-                start_date, end_date, self.cluster_id
-            )
+            self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
             self.accessor.populate_line_item_daily_summary_table(
                 start_date, end_date, self.cluster_id
             )
@@ -405,13 +385,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         for start_date in (today, last_month):
             period = self.creator.create_ocp_report_period(
-                self.ocp_provider_uuid,
-                period_date=start_date
+                self.ocp_provider_uuid, period_date=start_date
             )
             period = self.creator.create_ocp_report_period(
-            self.ocp_provider_uuid,
-            period_date=start_date
-        )
+                self.ocp_provider_uuid, period_date=start_date
+            )
             report = self.creator.create_ocp_report(period, start_date)
             self.creator.create_ocp_usage_line_item(period, report)
 
@@ -426,9 +404,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             initial_count = query.count()
 
-        self.accessor.populate_line_item_daily_table(
-            start_date, end_date, self.cluster_id
-        )
+        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_pod_label_summary_table()
 
         self.assertNotEqual(query.count(), initial_count)
@@ -460,8 +436,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         for start_date in (today, last_month):
             period = self.creator.create_ocp_report_period(
-                self.ocp_provider_uuid,
-                period_date=start_date
+                self.ocp_provider_uuid, period_date=start_date
             )
             report = self.creator.create_ocp_report(period, start_date)
             self.creator.create_ocp_storage_line_item(period, report)
@@ -477,9 +452,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             initial_count = query.count()
 
-        self.accessor.populate_storage_line_item_daily_table(
-            start_date, end_date, self.cluster_id
-        )
+        self.accessor.populate_storage_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_volume_claim_label_summary_table()
 
         self.assertNotEqual(query.count(), initial_count)
@@ -490,7 +463,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         with connection.cursor() as cursor:
             cursor.execute(
-            """SELECT DISTINCT jsonb_object_keys(persistentvolumeclaim_labels)
+                """SELECT DISTINCT jsonb_object_keys(persistentvolumeclaim_labels)
                 FROM reporting_ocpstoragelineitem_daily"""
             )
             expected_tag_keys = cursor.fetchall()
@@ -510,9 +483,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         for start_date in (today, last_month):
             period = self.creator.create_ocp_report_period(
-            self.ocp_provider_uuid,
-            period_date=start_date
-        )
+                self.ocp_provider_uuid, period_date=start_date
+            )
             report = self.creator.create_ocp_report(period, start_date)
             self.creator.create_ocp_storage_line_item(period, report)
         with schema_context(self.schema):
@@ -526,9 +498,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             initial_count = query.count()
 
-        self.accessor.populate_storage_line_item_daily_table(
-            start_date, end_date, self.cluster_id
-        )
+        self.accessor.populate_storage_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_volume_label_summary_table()
 
         self.assertNotEqual(query.count(), initial_count)
@@ -581,18 +551,14 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             # Verify that the line items for the test report_period_id are returned
             report_period_id = self.accessor._get_db_obj_query(table_name).first().id
-        line_item_query = self.accessor.get_item_query_report_period_id(
-            report_period_id
-        )
+        line_item_query = self.accessor.get_item_query_report_period_id(report_period_id)
         with schema_context(self.schema):
             self.assertEqual(line_item_query.count(), 1)
             self.assertEqual(line_item_query.first().report_period_id, report_period_id)
 
             # Verify that no line items are returned for a missing report_period_id
             wrong_report_period_id = report_period_id + 1
-        line_item_query = self.accessor.get_item_query_report_period_id(
-            wrong_report_period_id
-        )
+        line_item_query = self.accessor.get_item_query_report_period_id(wrong_report_period_id)
         with schema_context(self.schema):
             self.assertEqual(line_item_query.count(), 0)
 
@@ -603,18 +569,14 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             # Verify that the line items for the test report_period_id are returned
             report_period_id = self.accessor._get_db_obj_query(table_name).first().id
-        usage_report_query = self.accessor.get_report_query_report_period_id(
-            report_period_id
-        )
+        usage_report_query = self.accessor.get_report_query_report_period_id(report_period_id)
         with schema_context(self.schema):
             self.assertEqual(usage_report_query.count(), 1)
             self.assertEqual(usage_report_query.first().report_period_id, report_period_id)
 
             # Verify that no line items are returned for a missing report_period_id
             wrong_report_period_id = report_period_id + 1
-        usage_report_query = self.accessor.get_report_query_report_period_id(
-            wrong_report_period_id
-        )
+        usage_report_query = self.accessor.get_report_query_report_period_id(wrong_report_period_id)
         with schema_context(self.schema):
             self.assertEqual(usage_report_query.count(), 0)
 
@@ -625,35 +587,22 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         # Verify that the line items for the test cluster_id are returned
         cluster_id = self.accessor._get_db_obj_query(table_name).first().cluster_id
-        reports = self.accessor._get_db_obj_query(table_name).filter(
-            cluster_id=cluster_id
-        )
+        reports = self.accessor._get_db_obj_query(table_name).filter(cluster_id=cluster_id)
 
-        expected_usage_reports = {
-            entry.id: entry.pod_usage_cpu_core_hours for entry in reports
-        }
-        expected_request_reports = {
-            entry.id: entry.pod_usage_cpu_core_hours for entry in reports
-        }
+        expected_usage_reports = {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
+        expected_request_reports = {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
         cpu_usage_query = self.accessor.get_pod_usage_cpu_core_hours(cluster_id)
         cpu_request_query = self.accessor.get_pod_request_cpu_core_hours(cluster_id)
 
-        self.assertEqual(
-            len(cpu_usage_query.keys()), len(expected_usage_reports.keys())
-        )
-        self.assertEqual(
-            len(cpu_request_query.keys()), len(expected_request_reports.keys())
-        )
+        self.assertEqual(len(cpu_usage_query.keys()), len(expected_usage_reports.keys()))
+        self.assertEqual(len(cpu_request_query.keys()), len(expected_request_reports.keys()))
 
         # Verify that no line items are returned for an incorrect cluster_id
         wrong_cluster_id = cluster_id + 'bad'
         cpu_usage_query = self.accessor.get_pod_usage_cpu_core_hours(wrong_cluster_id)
         self.assertEqual(len(cpu_usage_query.keys()), 0)
-        cpu_request_query = self.accessor.get_pod_request_cpu_core_hours(
-            wrong_cluster_id
-        )
+        cpu_request_query = self.accessor.get_pod_request_cpu_core_hours(wrong_cluster_id)
         self.assertEqual(len(cpu_request_query.keys()), 0)
-
 
     def test_get_pod_cpu_core_hours_no_cluster_id(self):
         """Test that gets pod cpu usage/request without cluster id."""
@@ -663,21 +612,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
         # Verify that the line items for the test cluster_id are returned
         reports = self.accessor._get_db_obj_query(table_name).filter(data_source='Pod').all()
 
-        expected_usage_reports = {
-            entry.id: entry.pod_usage_cpu_core_hours for entry in reports
-        }
-        expected_request_reports = {
-            entry.id: entry.pod_usage_cpu_core_hours for entry in reports
-        }
+        expected_usage_reports = {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
+        expected_request_reports = {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
         cpu_usage_query = self.accessor.get_pod_usage_cpu_core_hours()
         cpu_request_query = self.accessor.get_pod_request_cpu_core_hours()
 
-        self.assertEqual(
-            len(cpu_usage_query.keys()), len(expected_usage_reports.keys())
-        )
-        self.assertEqual(
-            len(cpu_request_query.keys()), len(expected_request_reports.keys())
-        )
+        self.assertEqual(len(cpu_usage_query.keys()), len(expected_usage_reports.keys()))
+        self.assertEqual(len(cpu_request_query.keys()), len(expected_request_reports.keys()))
 
     def test_get_pod_memory_gigabyte_hours(self):
         """Test that gets pod memory usage/request."""
@@ -686,9 +627,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         # Verify that the line items for the test cluster_id are returned
         cluster_id = self.accessor._get_db_obj_query(table_name).first().cluster_id
-        reports = self.accessor._get_db_obj_query(table_name).filter(
-            cluster_id=cluster_id
-        )
+        reports = self.accessor._get_db_obj_query(table_name).filter(cluster_id=cluster_id)
 
         expected_usage_reports = {
             entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports
@@ -697,16 +636,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
             entry.id: entry.pod_request_memory_gigabyte_hours for entry in reports
         }
         mem_usage_query = self.accessor.get_pod_usage_memory_gigabyte_hours(cluster_id)
-        mem_request_query = self.accessor.get_pod_request_memory_gigabyte_hours(
-            cluster_id
-        )
+        mem_request_query = self.accessor.get_pod_request_memory_gigabyte_hours(cluster_id)
 
-        self.assertEqual(
-            len(mem_usage_query.keys()), len(expected_usage_reports.keys())
-        )
-        self.assertEqual(
-            len(mem_request_query.keys()), len(expected_request_reports.keys())
-        )
+        self.assertEqual(len(mem_usage_query.keys()), len(expected_usage_reports.keys()))
+        self.assertEqual(len(mem_request_query.keys()), len(expected_request_reports.keys()))
 
         # Verify that no line items are returned for an incorrect cluster_id
         wrong_cluster_id = cluster_id + 'bad'
@@ -732,12 +665,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         mem_usage_query = self.accessor.get_pod_usage_memory_gigabyte_hours()
         mem_request_query = self.accessor.get_pod_request_memory_gigabyte_hours()
 
-        self.assertEqual(
-            len(mem_usage_query.keys()), len(expected_usage_reports.keys())
-        )
-        self.assertEqual(
-            len(mem_request_query.keys()), len(expected_request_reports.keys())
-        )
+        self.assertEqual(len(mem_usage_query.keys()), len(expected_usage_reports.keys()))
+        self.assertEqual(len(mem_request_query.keys()), len(expected_request_reports.keys()))
 
     def test_get_volume_gigabyte_months(self):
         """Test that gets pod volume usage/request."""
@@ -746,13 +675,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         # Verify that the line items for the test cluster_id are returned
         reports = self.accessor._get_db_obj_query(table_name).filter(
-            cluster_id=self.cluster_id,
-            data_source='Storage'
+            cluster_id=self.cluster_id, data_source='Storage'
         )
 
         expected_usage_reports = {
-            entry.id: entry.persistentvolumeclaim_usage_gigabyte_months
-            for entry in reports
+            entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports
         }
         expected_request_reports = {
             entry.id: entry.volume_request_storage_gigabyte_months for entry in reports
@@ -764,12 +691,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
             self.cluster_id
         )
 
-        self.assertEqual(
-            len(vol_usage_query.keys()), len(expected_usage_reports.keys())
-        )
-        self.assertEqual(
-            len(vol_request_query.keys()), len(expected_request_reports.keys())
-        )
+        self.assertEqual(len(vol_usage_query.keys()), len(expected_usage_reports.keys()))
+        self.assertEqual(len(vol_request_query.keys()), len(expected_request_reports.keys()))
 
         # Verify that no line items are returned for an incorrect cluster_id
         wrong_cluster_id = self.cluster_id + 'bad'
@@ -791,23 +714,16 @@ class OCPReportDBAccessorTest(MasuTestCase):
         reports = self.accessor._get_db_obj_query(table_name).filter(data_source='Storage').all()
 
         expected_usage_reports = {
-            entry.id: entry.persistentvolumeclaim_usage_gigabyte_months
-            for entry in reports
+            entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports
         }
         expected_request_reports = {
             entry.id: entry.volume_request_storage_gigabyte_months for entry in reports
         }
-        vol_usage_query = (
-            self.accessor.get_persistentvolumeclaim_usage_gigabyte_months()
-        )
+        vol_usage_query = self.accessor.get_persistentvolumeclaim_usage_gigabyte_months()
         vol_request_query = self.accessor.get_volume_request_storage_gigabyte_months()
 
-        self.assertEqual(
-            len(vol_usage_query.keys()), len(expected_usage_reports.keys())
-        )
-        self.assertEqual(
-            len(vol_request_query.keys()), len(expected_request_reports.keys())
-        )
+        self.assertEqual(len(vol_usage_query.keys()), len(expected_usage_reports.keys()))
+        self.assertEqual(len(vol_request_query.keys()), len(expected_request_reports.keys()))
 
     def test_get_daily_usage_query_for_clusterid(self):
         """Test that daily usage getter is correct."""
@@ -817,9 +733,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     def test_get_summary_usage_query_for_clusterid(self):
         """Test that daily usage summary getter is correct."""
-        daily_usage_summary = self.accessor.get_summary_usage_query_for_clusterid(
-            self.cluster_id
-        )
+        daily_usage_summary = self.accessor.get_summary_usage_query_for_clusterid(self.cluster_id)
         with schema_context(self.schema):
             self.assertEquals(daily_usage_summary.count(), 0)
         self._populate_pod_summary()
@@ -850,9 +764,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     def test_get_storage_summary_query_cluster_id(self):
         """Test that get_storage_summary_query_cluster_id is correct."""
-        storage_summary = self.accessor.get_storage_summary_query_cluster_id(
-            self.cluster_id
-        )
+        storage_summary = self.accessor.get_storage_summary_query_cluster_id(self.cluster_id)
         with schema_context(self.schema):
             self.assertEquals(storage_summary.count(), 0)
         self._populate_storage_summary()
@@ -904,4 +816,4 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 monthly_cost__isnull=False
             ).first()
 
-            self.assertEquals(monthly_cost_row.monthly_cost, 6*node_cost)
+            self.assertEquals(monthly_cost_row.monthly_cost, 6 * node_cost)

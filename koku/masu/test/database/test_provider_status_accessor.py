@@ -58,7 +58,7 @@ class ProviderStatusAccessorTest(MasuTestCase):
             'status': random.choice(list(ProviderStatusCode)),
             'last_message': self.FAKE.word(),
             'retries': random.randint(0, 10),
-            'timestamp': self.date_accessor.today_with_timezone('UTC')
+            'timestamp': self.date_accessor.today_with_timezone('UTC'),
         }
 
         with ProviderStatusAccessor(self.aws_provider_uuid) as accessor:

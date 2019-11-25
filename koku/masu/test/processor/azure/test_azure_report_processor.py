@@ -21,15 +21,10 @@ import csv
 import logging
 import os
 import shutil
-import sys
 import tempfile
-import threading
-import time
-from queue import Queue
 from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
-from django.db import connection
 from django.db.utils import InternalError
 from tenant_schemas.utils import schema_context
 
@@ -51,7 +46,9 @@ class AzureReportProcessorTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        cls.test_report_path = './koku/masu/test/data/azure/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv'
+        cls.test_report_path = (
+            './koku/masu/test/data/azure/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv'
+        )
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
 
@@ -111,12 +108,8 @@ class AzureReportProcessorTest(MasuTestCase):
         self.assertIsNotNone(self.processor._report_path)
         self.assertIsNotNone(self.processor._report_name)
         self.assertIsNotNone(self.processor._compression)
-        self.assertEqual(
-            self.processor._datetime_format, Config.AZURE_DATETIME_STR_FORMAT
-        )
-        self.assertEqual(
-            self.processor._batch_size, Config.REPORT_PROCESSING_BATCH_SIZE
-        )
+        self.assertEqual(self.processor._datetime_format, Config.AZURE_DATETIME_STR_FORMAT)
+        self.assertEqual(self.processor._batch_size, Config.REPORT_PROCESSING_BATCH_SIZE)
 
     def test_azure_process(self):
         """Test the processing of an uncompressed Azure file."""
@@ -132,9 +125,7 @@ class AzureReportProcessorTest(MasuTestCase):
         logging.disable(
             logging.NOTSET
         )  # We are currently disabling all logging below CRITICAL in masu/__init__.py
-        with self.assertLogs(
-            'masu.processor.azure.azure_report_processor', level='INFO'
-        ) as logger:
+        with self.assertLogs('masu.processor.azure.azure_report_processor', level='INFO') as logger:
             self.processor.process()
             self.assertIn('INFO:masu.processor.azure.azure_report_processor', logger.output[0])
             self.assertIn('costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv', logger.output[0])
@@ -186,7 +177,9 @@ class AzureReportProcessorTest(MasuTestCase):
             ) as logger:
                 processor.process()
                 self.assertIn('INFO:masu.processor.azure.azure_report_processor', logger.output[0])
-                self.assertIn('costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv', logger.output[0])
+                self.assertIn(
+                    'costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv', logger.output[0]
+                )
 
             for table_name in self.report_tables:
                 table = getattr(report_schema, table_name)
@@ -238,7 +231,6 @@ class AzureReportProcessorTest(MasuTestCase):
 
     def test_azure_process_can_run_twice(self):
         """Test that row duplicates are inserted into the DB when process called twice."""
-        counts = {}
         processor = AzureReportProcessor(
             schema_name=self.schema,
             report_path=self.test_report,
@@ -257,7 +249,6 @@ class AzureReportProcessorTest(MasuTestCase):
     def test_azure_create_cost_entry_bill(self):
         """Test that a cost entry bill id is returned."""
         table_name = AZURE_REPORT_TABLE_MAP['bill']
-        table = getattr(self.report_schema, table_name)
         bill_id = self.processor._create_cost_entry_bill(self.row, self.accessor)
 
         self.assertIsNotNone(bill_id)
@@ -272,7 +263,6 @@ class AzureReportProcessorTest(MasuTestCase):
     def test_azure_create_product(self):
         """Test that a product id is returned."""
         table_name = AZURE_REPORT_TABLE_MAP['product']
-        table = getattr(self.report_schema, table_name)
         product_id = self.processor._create_cost_entry_product(self.row, self.accessor)
 
         self.assertIsNotNone(product_id)
@@ -285,7 +275,6 @@ class AzureReportProcessorTest(MasuTestCase):
     def test_azure_create_meter(self):
         """Test that a meter id is returned."""
         table_name = AZURE_REPORT_TABLE_MAP['meter']
-        table = getattr(self.report_schema, table_name)
         meter_id = self.processor._create_meter(self.row, self.accessor)
 
         self.assertIsNotNone(meter_id)
@@ -302,11 +291,7 @@ class AzureReportProcessorTest(MasuTestCase):
         meter_id = self.processor._create_meter(self.row, self.accessor)
 
         self.processor._create_cost_entry_line_item(
-            self.row,
-            bill_id,
-            product_id,
-            meter_id,
-            self.accessor,
+            self.row, bill_id, product_id, meter_id, self.accessor,
         )
 
         line_item = None
@@ -333,11 +318,7 @@ class AzureReportProcessorTest(MasuTestCase):
             provider_uuid=self.azure_provider_uuid,
         )
 
-        should_process = processor._should_process_row(
-            row,
-            'UsageDateTime',
-            False
-        )
+        should_process = processor._should_process_row(row, 'UsageDateTime', False)
 
         self.assertTrue(should_process)
 
@@ -354,11 +335,7 @@ class AzureReportProcessorTest(MasuTestCase):
             provider_uuid=self.azure_provider_uuid,
         )
 
-        should_process = processor._should_process_row(
-            row,
-            'UsageDateTime',
-            False
-        )
+        should_process = processor._should_process_row(row, 'UsageDateTime', False)
 
         self.assertFalse(should_process)
 
