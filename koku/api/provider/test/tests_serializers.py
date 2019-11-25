@@ -228,13 +228,6 @@ class ProviderSerializerTest(IamTestCase):
                                          offset=1,
                                          authentication={'resource_name': cluster_id})
         sources.save()
-        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
-            serializer = ProviderSerializer(data=provider, context=self.request_context)
-            if serializer.is_valid(raise_exception=True):
-                instance = serializer.save()
-                source_obj = Sources.objects.get(source_id=1)
-                self.assertEqual(source_obj.koku_uuid, str(instance.uuid))
-
         # Verify ValidationError is raised when another source is added with an existing
         # provider.
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
