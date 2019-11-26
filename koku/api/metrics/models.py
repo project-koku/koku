@@ -37,6 +37,7 @@ class CostModelMetricsMap(models.Model):
     OCP_METRIC_MEM_GB_REQUEST_HOUR = 'memory_gb_request_per_hour'
     OCP_METRIC_STORAGE_GB_USAGE_MONTH = 'storage_gb_usage_per_month'
     OCP_METRIC_STORAGE_GB_REQUEST_MONTH = 'storage_gb_request_per_month'
+    OCP_NODE_MONTH = 'node_cost_per_month'
 
     METRIC_CHOICES = (
         (OCP_METRIC_CPU_CORE_USAGE_HOUR, OCP_METRIC_CPU_CORE_USAGE_HOUR),
@@ -45,6 +46,7 @@ class CostModelMetricsMap(models.Model):
         (OCP_METRIC_MEM_GB_REQUEST_HOUR, OCP_METRIC_MEM_GB_REQUEST_HOUR),
         (OCP_METRIC_STORAGE_GB_USAGE_MONTH, OCP_METRIC_STORAGE_GB_USAGE_MONTH),
         (OCP_METRIC_STORAGE_GB_REQUEST_MONTH, OCP_METRIC_STORAGE_GB_REQUEST_MONTH),
+        (OCP_NODE_MONTH, OCP_NODE_MONTH),
     )
 
     source_type = models.CharField(

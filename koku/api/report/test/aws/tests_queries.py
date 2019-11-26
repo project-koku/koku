@@ -73,7 +73,7 @@ class AWSReportQueryTest(IamTestCase):
         self.assertEqual(expected, out_data)
 
         data = {None: {'region': None, 'units': 'USD'}}
-        expected = [{'region': 'no-region', 'values': {'region': None, 'units': 'USD'}}]
+        expected = [{'region': 'no-region', 'values': {'region': 'no-region', 'units': 'USD'}}]
         out_data = handler._transform_data(groups, group_index, data)
         self.assertEqual(expected, out_data)
 

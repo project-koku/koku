@@ -20,6 +20,7 @@ import calendar
 import gzip
 import logging
 import re
+from datetime import timedelta
 from os import remove
 from tempfile import gettempdir
 from uuid import uuid4
@@ -77,6 +78,29 @@ def ingest_method_for_provider(provider):
         OPENSHIFT_CONTAINER_PLATFORM: LISTEN_INGEST
     }
     return ingest_map.get(provider)
+
+
+def month_date_range_tuple(for_date_time):
+    """
+    Get a date range tuple for the given date.
+
+    Date range is aligned on the first day of the current
+    month and ends on the first day of the next month from the
+    specified date.
+
+    Args:
+        for_date_time (DateTime): The starting datetime object
+
+    Returns:
+        (DateTime, DateTime): Tuple of first day of month,
+            and first day of next month.
+
+    """
+    start_month = for_date_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    _, num_days = calendar.monthrange(for_date_time.year, for_date_time.month)
+    first_next_month = start_month + timedelta(days=num_days)
+
+    return start_month, first_next_month
 
 
 def month_date_range(for_date_time):
