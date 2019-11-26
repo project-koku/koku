@@ -35,7 +35,6 @@ from masu.test.database.helpers import ReportObjectCreator
 from masu.util.common import month_date_range_tuple
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
-
 class OCPReportDBAccessorTest(MasuTestCase):
     """Test Cases for the OCPReportDBAccessor object."""
 
