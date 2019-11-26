@@ -307,20 +307,32 @@ async def process_messages(msg_pending_queue):  # pragma: no cover
 
         LOG.info(f'Processing Event: {str(msg_data)}')
         try:
-            if msg_data.get('event_type') in (KAFKA_APPLICATION_CREATE, KAFKA_SOURCE_UPDATE):
+            if msg_data.get('event_type') in (KAFKA_APPLICATION_CREATE, ):
                 storage.create_provider_event(msg_data.get('source_id'),
                                               msg_data.get('auth_header'),
                                               msg_data.get('offset'))
+
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     await EVENT_LOOP.run_in_executor(pool, sources_network_info,
                                                      msg_data.get('source_id'),
                                                      msg_data.get('auth_header'))
+
+            elif msg_data.get('event_type') in (KAFKA_SOURCE_UPDATE, ):
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    if storage.is_known_source(msg_data.get('source_id')) is False:
+                        LOG.info(f'Update event for unknown source id, skipping...')
+                        continue
+                    await EVENT_LOOP.run_in_executor(pool, sources_network_info,
+                                                     msg_data.get('source_id'),
+                                                     msg_data.get('auth_header'))
+
             elif msg_data.get('event_type') in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     await EVENT_LOOP.run_in_executor(pool, sources_network_auth_info,
                                                      msg_data.get('resource_id'),
                                                      msg_data.get('auth_header'))
                     msg_data['source_id'] = storage.get_source_from_endpoint(msg_data.get('resource_id'))
+
             elif msg_data.get('event_type') in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
                 storage.enqueue_source_delete(msg_data.get('source_id'))
 
