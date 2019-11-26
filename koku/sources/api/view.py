@@ -91,9 +91,7 @@ class SourcesViewSet(mixins.ListModelMixin,
     @never_cache
     def list(self, request, *args, **kwargs):
         """Obtain the list of sources."""
-        response = super().list(request=request, args=args, kwargs=kwargs)
-
-        return response
+        return super().list(request=request, args=args, kwargs=kwargs)
 
     @never_cache
     def retrieve(self, request, *args, **kwargs):

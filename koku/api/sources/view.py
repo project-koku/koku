@@ -52,42 +52,12 @@ class SourcesProxyViewSet(mixins.ListModelMixin,
     filter_backends = (DjangoFilterBackend,)
     url = f'{settings.SOURCES_CLIENT_BASE_URL}/sources/'
 
-    @property
-    def allowed_methods(self):
-        """Return the list of allowed HTTP methods, uppercased."""
-        if 'put' in self.http_method_names:
-            self.http_method_names.remove('put')
-        return [method.upper() for method in self.http_method_names
-                if hasattr(self, method)]
-
-    def get_queryset(self):
-        """Get a queryset.
-
-        Restricts the returned Providers to the associated account,
-        by filtering against a `user` object in the request.
-        """
-        queryset = Sources.objects.none()
-        auth_header = self.request.headers.get('X-Rh-Identity')
-        if auth_header:
-            try:
-                decoded_rh_auth = b64decode(auth_header)
-                json_rh_auth = json_loads(decoded_rh_auth)
-                account_id = json_rh_auth.get('identity', {}).get('account_number')
-                queryset = Sources.objects.filter(account_id=account_id)
-            except Sources.DoesNotExist:
-                LOG.error('No sources found for account id %s.', account_id)
-            except JSONDecodeError as error:
-                LOG.error(str(error))
-                return
-
-        return queryset
-
     @never_cache
     def update(self, request, *args, **kwargs):
         """Update a Source."""
         source_id = kwargs.get('source_id')
         url = f'{self.url}{source_id}/'
-        r = requests.patch(url, json=request.data)
+        r = requests.patch(url, json=request.data, headers=self.request.headers)
         response = HttpResponse(
             content=r.content,
             status=r.status_code,
@@ -99,7 +69,7 @@ class SourcesProxyViewSet(mixins.ListModelMixin,
     @never_cache
     def list(self, request, *args, **kwargs):
         """Obtain the list of sources."""
-        r = requests.get(self.url)
+        r = requests.get(self.url, headers=self.request.headers)
         response = HttpResponse(
             content=r.content,
             status=r.status_code,
@@ -113,7 +83,7 @@ class SourcesProxyViewSet(mixins.ListModelMixin,
         """Get a source."""
         source_id = kwargs.get('source_id')
         url = f'{self.url}{source_id}/'
-        r = requests.get(url)
+        r = requests.get(url, headers=self.request.headers)
         response = HttpResponse(
             content=r.content,
             status=r.status_code,
