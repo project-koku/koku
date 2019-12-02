@@ -56,7 +56,7 @@ WITH cte_infrastructure_uuid_temp AS (
         ocp_infra_temp.cost_entry_bill_id,
         ocp_infra_temp.report_period_id
     FROM {{schema | sqlsafe}}.reporting_awscostentrybill as awsbill
-    JOIN ocp_infrastructure_temp as ocp_infra_temp
+    JOIN ocp_infrastructure_{{uuid | sqlsafe}} as ocp_infra_temp
         ON awsbill.id = ocp_infra_temp.cost_entry_bill_id
     JOIN public.api_provider as provider
         ON provider.uuid = awsbill.provider_id
@@ -68,7 +68,7 @@ WITH cte_infrastructure_uuid_temp AS (
         ocp_infra_temp.cost_entry_bill_id,
         ocp_infra_temp.report_period_id
     FROM {{schema | sqlsafe}}.reporting_azurecostentrybill as azurebill
-    JOIN ocp_infrastructure_temp as ocp_infra_temp
+    JOIN ocp_infrastructure_{{uuid | sqlsafe}} as ocp_infra_temp
         ON azurebill.id = ocp_infra_temp.cost_entry_bill_id
     JOIN public.api_provider as provider
         ON provider.uuid = azurebill.provider_id
@@ -78,7 +78,7 @@ cte_ocp_uuid_temp AS (
         ocp_infra_temp.cost_entry_bill_id,
         ocp_infra_temp.report_period_id
     FROM {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ocprp
-    JOIN ocp_infrastructure_temp as ocp_infra_temp
+    JOIN ocp_infrastructure_{{uuid | sqlsafe}} as ocp_infra_temp
         ON ocprp.id = ocp_infra_temp.report_period_id
     JOIN public.api_provider as provider
         ON provider.uuid = ocprp.provider_id

@@ -169,7 +169,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
     def test_create_temp_table(self):
         """Test that a temporary table is created."""
         table_name = 'test_table'
-        with connection.cursor() as cursor::
+        with connection.cursor() as cursor:
             drop_table = f'DROP TABLE IF EXISTS {table_name}'
             cursor.execute(drop_table)
 
@@ -983,7 +983,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         tag_keys = [tag.key for tag in tags]
 
         with schema_context(self.schema):
-            with connection.cursor() as cursor::
+            with connection.cursor() as cursor:
                 cursor.execute(
                     """SELECT DISTINCT jsonb_object_keys(tags)
                         FROM reporting_awscostentrylineitem_daily"""

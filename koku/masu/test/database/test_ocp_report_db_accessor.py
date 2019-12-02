@@ -436,7 +436,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             tags = query.all()
             tag_keys = [tag.key for tag in tags]
 
-            with connection.cursor() as cursor::
+            with connection.cursor() as cursor:
                 cursor.execute(
                     """SELECT DISTINCT jsonb_object_keys(pod_labels)
                         FROM reporting_ocpusagelineitem_daily"""
@@ -487,7 +487,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             tags = query.all()
             tag_keys = [tag.key for tag in tags]
 
-        with connection.cursor() as cursor::
+        with connection.cursor() as cursor:
             cursor.execute(
             """SELECT DISTINCT jsonb_object_keys(persistentvolumeclaim_labels)
                 FROM reporting_ocpstoragelineitem_daily"""
@@ -536,7 +536,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             tags = query.all()
             tag_keys = [tag.key for tag in tags]
 
-        with connection.cursor() as cursor::
+        with connection.cursor() as cursor:
             cursor.execute(
                 """SELECT DISTINCT jsonb_object_keys(persistentvolume_labels)
                     FROM reporting_ocpstoragelineitem_daily"""
