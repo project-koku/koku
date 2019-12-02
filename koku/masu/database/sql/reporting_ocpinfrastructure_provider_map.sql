@@ -1,5 +1,5 @@
 
-CREATE TEMPORARY TABLE ocp_infrastructure_temp AS (
+CREATE TEMPORARY TABLE ocp_infrastructure_{{uuid | sqlsafe}} AS (
     SELECT aws.cost_entry_bill_id,
         ocp.report_period_id
     FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily as aws
