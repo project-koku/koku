@@ -406,7 +406,7 @@ class ProviderViewTest(IamTestCase):
             response = client.delete(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def test_remove_invalid_provider(self, ):
+    def test_remove_invalid_provider(self):
         """Test removing an invalid provider with the user."""
         # Create a Provider
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
@@ -420,7 +420,7 @@ class ProviderViewTest(IamTestCase):
         response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_remove_invalid_provider_non_uuid(self, ):
+    def test_remove_invalid_provider_non_uuid(self):
         """Test removing an invalid provider with the non_uuid."""
         # Create a Provider
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
@@ -511,6 +511,21 @@ class ProviderViewTest(IamTestCase):
 
         put_json_result = put_response.json()
         self.assertEqual(put_json_result.get('name'), name)
+
+    @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
+    def test_put_for_provider_type_change(self, mock_access):
+        """Test that provider_type change thru PUT request results in error."""
+        response, provider = create_generic_provider('AWS', self.headers)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+
+        provider = copy.deepcopy(PROVIDERS['AWS'])
+        provider['type'] = 'OCP'
+
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        put_response = client.put(url, data=provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_400_OK)
 
     def test_patch_not_supported(self):
         """Test that PATCH request returns 405."""
