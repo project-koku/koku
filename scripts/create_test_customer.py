@@ -210,7 +210,7 @@ class KokuCustomerOnboarder:
 
     def create_providers_db(self):
         """Create a Koku Provider by inserting into the Koku DB."""
-        for provider_type in ['AWS', 'OCP', 'Azure']:
+        for provider_type in ['AWS', 'OCP', 'AZURE']:
             self.create_provider_db(provider_type)
             print(f'Created {provider_type} provider.')
 
