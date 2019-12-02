@@ -36,7 +36,10 @@ from corsheaders.defaults import default_headers
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
 from . import database
-
+# We disable pylint here because we wanted to avoid duplicate code
+# in settings and celery config files, therefore we import a single
+# file, since we don't actually call anything in it, pylint gets angry.
+from . import sentry  # pylint: disable=unused-import
 from .env import ENVIRONMENT
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
