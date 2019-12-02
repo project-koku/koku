@@ -27,7 +27,7 @@ from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
-from api.provider.provider_manager import ProviderManager
+from api.provider.provider_manager import ProviderManager, ProviderManagerError
 from api.provider.test import PROVIDERS, create_generic_provider
 from providers.provider_access import ProviderAccessor
 
@@ -604,3 +604,19 @@ class ProviderViewTest(IamTestCase):
         client = APIClient()
         put_response = client.put(url, data=provider, format='json', **self.headers)
         self.assertEqual(put_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_update_provider_with_update_exception(self):
+        """Test updating a provider with a database error."""
+        # Create Provider with customer owner token
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+
+        # Update Provider with customer token
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        with patch.object(ProviderManager, 'update', side_effect=ProviderManagerError('Update Error.')):
+            response = client.put(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
