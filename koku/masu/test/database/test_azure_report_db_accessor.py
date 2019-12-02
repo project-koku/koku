@@ -80,11 +80,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
         self.creator.create_azure_cost_entry_line_item(bill, product, meter)
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 
-    def tearDown(self):
-        """Close the DB session."""
-        super().tearDown()
-        self.accessor.close_connections()
-
     def test_get_cost_entry_bills(self):
         """Test that Azure bills are returned in a dict."""
         table_name = AZURE_REPORT_TABLE_MAP['bill']

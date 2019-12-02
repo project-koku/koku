@@ -68,11 +68,6 @@ class ReportSchemaTest(MasuTestCase):
             AWS_CUR_TABLE_MAP['reservation'],
         ]
 
-    def tearDown(self):
-        """Close the DB session."""
-        super().tearDown()
-        # self.accessor.close_connections()
-
     def test_init(self):
         """Test the initializer."""
         tables = django.apps.apps.get_models()
@@ -166,11 +161,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             bill, cost_entry, product, pricing, reservation
         )
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
-
-    def tearDown(self):
-        """Close the DB session."""
-        super().tearDown()
-        self.accessor.close_connections()
 
     def test_initializer(self):
         """Test initializer."""
@@ -1078,8 +1068,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             query = self.accessor._get_db_obj_query(summary_table_name)
             initial_count = query.count()
 
-        # Reconnect as the OCP accessor closed the connection.
-        self.accessor._conn.connect()
         self.accessor.populate_ocp_on_aws_cost_daily_summary(last_month,
                                                             today,
                                                             cluster_id, bill_ids)
