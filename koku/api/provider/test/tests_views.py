@@ -525,7 +525,7 @@ class ProviderViewTest(IamTestCase):
         url = reverse('provider-detail', args=[json_result.get('uuid')])
         client = APIClient()
         put_response = client.put(url, data=provider, format='json', **self.headers)
-        self.assertEqual(put_response.status_code, status.HTTP_400_OK)
+        self.assertEqual(put_response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_patch_not_supported(self):
         """Test that PATCH request returns 405."""
