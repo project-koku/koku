@@ -194,6 +194,7 @@ class ReportObjectCreator:
                                    resource_id=None,
                                    pod=None,
                                    namespace=None,
+                                   node=None,
                                    null_cpu_usage=False):
         """Create an OCP usage line item database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['line_item']
@@ -214,6 +215,8 @@ class ReportObjectCreator:
             data['pod'] = pod
         if namespace:
             data['namespace'] = namespace
+        if node:
+            data['node'] = node
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
@@ -379,11 +382,13 @@ class ReportObjectCreator:
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
-    def create_azure_cost_entry_product(self, provider_uuid):
+    def create_azure_cost_entry_product(self, provider_uuid, instance_id=None):
         """Create an Azure cost entry product database object for test."""
         table_name = AZURE_REPORT_TABLE_MAP['product']
         data = self.create_columns_for_table(table_name)
         data['provider_id'] = provider_uuid
+        if instance_id:
+            data['instance_id'] = instance_id
 
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
@@ -419,7 +424,6 @@ class ReportObjectCreator:
         data.update(extra_data)
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
-
 
 def map_django_field_type_to_python_type(field):
     """Map a Django field to its corresponding python type."""

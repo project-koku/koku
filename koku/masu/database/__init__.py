@@ -52,5 +52,7 @@ AZURE_REPORT_TABLE_MAP = {
     'meter': 'reporting_azuremeter',
     'line_item': 'reporting_azurecostentrylineitem_daily',
     'line_item_daily_summary': 'reporting_azurecostentrylineitem_daily_summary',
-    'tags_summary': 'reporting_azuretags_summary'
+    'tags_summary': 'reporting_azuretags_summary',
+    'ocp_on_azure_daily_summary': 'reporting_ocpazurecostlineitem_daily_summary',
+    'ocp_on_azure_project_daily_summary': 'reporting_ocpazurecostlineitem_project_daily_summary'
 }
