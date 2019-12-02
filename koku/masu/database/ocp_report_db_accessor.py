@@ -21,8 +21,9 @@ import pkgutil
 import uuid
 
 from dateutil.parser import parse
+from dateutil.rrule import MONTHLY, rrule
 from django.db import connection
-from django.db.models import DecimalField, F, Value
+from django.db.models import DecimalField, F, Max, Min, Value
 from django.db.models.functions import Coalesce
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
@@ -30,6 +31,7 @@ from tenant_schemas.utils import schema_context
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.util.common import month_date_range_tuple
 from reporting.provider.ocp.models import (OCPUsageLineItemDailySummary,
                                            OCPUsageReport,
                                            OCPUsageReportPeriod)
@@ -714,3 +716,61 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     ) * infra_provider_markup
                 )
             )
+
+    def populate_monthly_cost(self, node_cost, start_date=None, end_date=None):
+        """
+        Populate the monthly cost of a customer.
+
+        Right now this is just the node/month cost. Calculated from
+        node_cost * number_unique_nodes.
+
+        args:
+            node_cost (Decimal): The node cost per month
+            start_date (datetime, str): The start_date to calculate monthly_cost.
+            end_date (datetime, str): The end_date to calculate monthly_cost.
+
+        """
+        if isinstance(start_date, str):
+            start_date = parse(start_date)
+        if isinstance(end_date, str):
+            end_date = parse(end_date)
+        if not start_date:
+            # If start_date is not provided, recalculate from the first month
+            start_date = OCPUsageLineItemDailySummary.objects.aggregate(
+                Min('usage_start')
+            )['usage_start__min']
+        if not end_date:
+            # If end_date is not provided, recalculate till the latest month
+            end_date = OCPUsageLineItemDailySummary.objects.aggregate(
+                Max('usage_end')
+            )['usage_end__max']
+
+        LOG.info('Populating Monthly cost from %s to %s.', start_date, end_date)
+
+        first_month = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        with schema_context(self.schema):
+            # Calculate monthly cost for every month
+            for curr_month in rrule(freq=MONTHLY, until=end_date, dtstart=first_month):
+                first_curr_month, first_next_month = month_date_range_tuple(curr_month)
+
+                unique_nodes = OCPUsageLineItemDailySummary.objects.\
+                    filter(usage_start__gte=first_curr_month,
+                           usage_start__lt=first_next_month,
+                           node__isnull=False
+                           ).values_list('node').distinct().count()
+                total_cost = node_cost * unique_nodes
+                LOG.info('Total Cost is %s for %s nodes.', total_cost, unique_nodes)
+
+                # Remove existing monthly costs
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start=first_curr_month,
+                    monthly_cost__isnull=False
+                ).delete()
+
+                # Create new monthly cost
+                OCPUsageLineItemDailySummary.objects.create(
+                    usage_start=first_curr_month,
+                    usage_end=first_curr_month,
+                    monthly_cost=total_cost
+                )

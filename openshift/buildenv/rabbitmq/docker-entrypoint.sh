@@ -1,12 +1,6 @@
 #!/bin/bash
 set -eu
 
-# show who we're running as for debugging purposes
-/usr/bin/id
-
-# show directory permissions for debugging purposes
-ls -al /var/lib/rabbitmq
-
 # usage: file_env VAR [DEFAULT]
 #    ie: file_env 'XYZ_DB_PASSWORD' 'example'
 # (will allow for "$XYZ_DB_PASSWORD_FILE" to fill in the value of
@@ -248,7 +242,7 @@ rabbit_env_config() {
 }
 
 shouldWriteConfig="$haveConfig"
-if [ ! -f /etc/rabbitmq/rabbitmq.config ]; then
+if [ ! -f /etc/rabbitmq/rabbitmq.conf ]; then
 	shouldWriteConfig=1
 fi
 
@@ -352,7 +346,7 @@ if [ "$1" = 'rabbitmq-server' ] && [ "$shouldWriteConfig" ]; then
 
 	# if management plugin is installed, generate config for it
 	# https://www.rabbitmq.com/management.html#configuration
-	if [ "$(rabbitmq-plugins list -m -e rabbitmq_management)" ]; then
+	if [ "rabbitmq-plugins list -m -e rabbitmq_management)" ]; then
 		rabbitManagementConfig=()
 
 		if [ "$haveManagementSslConfig" ]; then
@@ -390,7 +384,7 @@ if [ "$1" = 'rabbitmq-server' ] && [ "$shouldWriteConfig" ]; then
 		)
 	fi
 
-	echo "$(rabbit_array "${fullConfig[@]}")." > /etc/rabbitmq/rabbitmq.config
+	echo "$(rabbit_array "${fullConfig[@]}")." > /etc/rabbitmq/rabbitmq.conf
 fi
 
 combinedSsl='/tmp/combined.pem'

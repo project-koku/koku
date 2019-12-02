@@ -8,6 +8,10 @@ from celery.schedules import crontab
 from django.conf import settings
 
 from . import database
+# We disable pylint here because we wanted to avoid duplicate code
+# in settings and celery config files, therefore we import a single
+# file, since we don't actually call anything in it, pylint gets angry.
+from . import sentry  # pylint: disable=unused-import # noqa: F401
 from .env import ENVIRONMENT
 
 LOGGER = logging.getLogger(__name__)

@@ -77,6 +77,14 @@ def _collect_pending_items():
     return pending_events
 
 
+def _log_process_queue_event(queue, event):
+    """Log process queue event."""
+    operation = event.get('operation', 'unknown')
+    provider = event.get('provider')
+    name = provider.name if provider else 'unknown'
+    LOG.info(f'Adding operation {operation} for {name} to process queue (size: {queue.qsize()})')
+
+
 def load_process_queue():
     """
     Re-populate the process queue for any Source events that need synchronization.
@@ -93,6 +101,7 @@ def load_process_queue():
     """
     pending_events = _collect_pending_items()
     for event in pending_events:
+        _log_process_queue_event(PROCESS_QUEUE, event)
         PROCESS_QUEUE.put_nowait(event)
 
 
@@ -102,13 +111,18 @@ def storage_callback(sender, instance, **kwargs):
     update_fields = kwargs.get('update_fields', ())
     if update_fields and 'pending_update' in update_fields:
         if instance.koku_uuid and instance.pending_update and not instance.pending_delete:
-            PROCESS_QUEUE.put_nowait({'operation': 'update', 'provider': instance})
+            update_event = {'operation': 'update', 'provider': instance}
+            _log_process_queue_event(PROCESS_QUEUE, update_event)
+            PROCESS_QUEUE.put_nowait(update_event)
 
     if instance.pending_delete:
-        PROCESS_QUEUE.put_nowait({'operation': 'destroy', 'provider': instance})
+        delete_event = {'operation': 'destroy', 'provider': instance}
+        _log_process_queue_event(PROCESS_QUEUE, delete_event)
+        PROCESS_QUEUE.put_nowait(delete_event)
 
     process_event = storage.screen_and_build_provider_sync_create_event(instance)
     if process_event:
+        _log_process_queue_event(PROCESS_QUEUE, process_event)
         PROCESS_QUEUE.put_nowait(process_event)
 
 
@@ -263,7 +277,7 @@ def sources_network_info(source_id, auth_header):
     source_type_name = sources_network.get_source_type_name(source_type_id)
     endpoint_id = sources_network.get_endpoint_id()
 
-    if not endpoint_id:
+    if not endpoint_id and not source_type_name == SOURCES_OCP_SOURCE_NAME:
         LOG.error(f'Unable to find endpoint for Source ID: {source_id}')
         return
 
@@ -307,20 +321,32 @@ async def process_messages(msg_pending_queue):  # pragma: no cover
 
         LOG.info(f'Processing Event: {str(msg_data)}')
         try:
-            if msg_data.get('event_type') in (KAFKA_APPLICATION_CREATE, KAFKA_SOURCE_UPDATE):
+            if msg_data.get('event_type') in (KAFKA_APPLICATION_CREATE, ):
                 storage.create_provider_event(msg_data.get('source_id'),
                                               msg_data.get('auth_header'),
                                               msg_data.get('offset'))
+
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     await EVENT_LOOP.run_in_executor(pool, sources_network_info,
                                                      msg_data.get('source_id'),
                                                      msg_data.get('auth_header'))
+
+            elif msg_data.get('event_type') in (KAFKA_SOURCE_UPDATE, ):
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    if storage.is_known_source(msg_data.get('source_id')) is False:
+                        LOG.info(f'Update event for unknown source id, skipping...')
+                        continue
+                    await EVENT_LOOP.run_in_executor(pool, sources_network_info,
+                                                     msg_data.get('source_id'),
+                                                     msg_data.get('auth_header'))
+
             elif msg_data.get('event_type') in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     await EVENT_LOOP.run_in_executor(pool, sources_network_auth_info,
                                                      msg_data.get('resource_id'),
                                                      msg_data.get('auth_header'))
                     msg_data['source_id'] = storage.get_source_from_endpoint(msg_data.get('resource_id'))
+
             elif msg_data.get('event_type') in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
                 storage.enqueue_source_delete(msg_data.get('source_id'))
 
@@ -445,13 +471,17 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
     LOG.info('Processing koku provider events...')
     while True:
         msg = await process_queue.get()
+        LOG.info(f'koku provider operation to execute: {str(msg)}')
         try:
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 await EVENT_LOOP.run_in_executor(pool, execute_koku_provider_op, msg, cost_management_type_id)
+                LOG.info(f'koku operation {str(msg)} complete.')
         except SourcesIntegrationError as error:
             LOG.error('Re-queueing failed operation. Error: %s', str(error))
             await asyncio.sleep(Config.RETRY_SECONDS)
+            _log_process_queue_event(process_queue, msg)
             await process_queue.put(msg)
+            LOG.error(f'Requeue of {str(msg)} complete.')
         except Exception as error:
             # The reason for catching all exceptions is to ensure that the event
             # loop remains active in the event that provider synchronization fails unexpectedly.
