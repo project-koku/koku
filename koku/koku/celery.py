@@ -16,14 +16,25 @@ from .env import ENVIRONMENT
 
 LOGGER = logging.getLogger(__name__)
 
+
+# pylint: disable=abstract-method
 class LogErrorsTask(Task):
-    def on_failure(self, exc, task_id, args, kwargs, einfo):
-        LOGGER.exception('Task failed: %s' % exc, exc_info=exc)
+    """Log Celery task exceptions."""
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):  # pylint: disable=too-many-arguments
+        """Log exceptions when a celery task fails."""
+        LOGGER.exception('Task failed: %s', exc, exc_info=exc)
         super().on_failure(exc, task_id, args, kwargs, einfo)
 
 
 class LoggingCelery(Celery):
+    """Log Celery task exceptions."""
+
     def task(self, *args, **kwargs):
+        """Set the default base logger for the celery app.
+
+        Let's us avoid typing `base=LogErrorsTask` for every app.task.
+        """
         kwargs.setdefault('base', LogErrorsTask)
         return super().task(*args, **kwargs)
 
