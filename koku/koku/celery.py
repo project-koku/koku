@@ -3,7 +3,7 @@ import datetime
 import logging
 import os
 
-from celery import Celery
+from celery import Celery, Task
 from celery.schedules import crontab
 from django.conf import settings
 
@@ -16,6 +16,18 @@ from .env import ENVIRONMENT
 
 LOGGER = logging.getLogger(__name__)
 
+class LogErrorsTask(Task):
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        LOGGER.exception('Task failed: %s' % exc, exc_info=exc)
+        super().on_failure(exc, task_id, args, kwargs, einfo)
+
+
+class LoggingCelery(Celery):
+    def task(self, *args, **kwargs):
+        kwargs.setdefault('base', LogErrorsTask)
+        return super().task(*args, **kwargs)
+
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'koku.settings')
 
 LOGGER.info('Starting celery.')
@@ -26,7 +38,7 @@ LOGGER.info('Database configured.')
 # 'app' is the recommended convention from celery docs
 # following this for ease of comparison to reference implementation
 # pylint: disable=invalid-name
-app = Celery('koku', broker=settings.CELERY_BROKER_URL)
+app = LoggingCelery('koku', broker=settings.CELERY_BROKER_URL)
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
 LOGGER.info('Celery autodiscover tasks.')

@@ -142,6 +142,7 @@ def get_report_files(self,
             provider_type=provider_type
         ).inc()
         LOG.error(str(processing_error))
+        raise processing_error
 
     return reports_to_summarize
 
