@@ -316,6 +316,9 @@ class ProviderSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
         provider_type = validated_data['type']
+        if instance.type != provider_type:
+            error = {'Error': 'The Provider Type cannot be changed with a PUT request.'}
+            raise serializers.ValidationError(error)
         interface = ProviderAccessor(provider_type)
 
         authentication = validated_data.pop('authentication')

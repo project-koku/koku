@@ -18,15 +18,18 @@
 # pylint: skip-file
 import datetime
 import logging
+from decimal import Decimal
 
 from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
-from masu.util.aws.common import get_bills_from_provider
+from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
+from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
 from masu.util.ocp.common import get_cluster_id_from_provider
 
 LOG = logging.getLogger(__name__)
@@ -66,12 +69,17 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
             infra_provider_type = infra_tuple[1]
             if infra_provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
                 self.update_aws_summary_tables(
-                    ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
+                    ocp_provider_uuid, infra_provider_uuid, start_date, end_date
+                )
+            elif infra_provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+                self.update_azure_summary_tables(
+                    ocp_provider_uuid, infra_provider_uuid, start_date, end_date
+                )
 
     def update_aws_summary_tables(self, openshift_provider_uuid, aws_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on AWS."""
         cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
-        aws_bills = get_bills_from_provider(
+        aws_bills = aws_get_bills_from_provider(
             aws_provider_uuid,
             self._schema,
             datetime.datetime.strptime(start_date, '%Y-%m-%d'),
@@ -84,7 +92,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
         with CostModelDBAccessor(self._schema, aws_provider_uuid,
                                  self._column_map) as cost_model_accessor:
             markup = cost_model_accessor.get_markup()
-            markup_value = float(markup.get('value', 0)) / 100
+            markup_value = Decimal(markup.get('value', 0)) / 100
 
         # OpenShift on AWS
         with AWSReportDBAccessor(self._schema, self._column_map) as accessor:
@@ -100,6 +108,44 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                 aws_bill_ids
             )
             accessor.populate_ocp_on_aws_markup_cost(markup_value, aws_bill_ids)
+
+        with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+            # This call just sends the infrastructure cost to the
+            # OCP usage daily summary table
+            accessor.update_summary_infrastructure_cost(cluster_id, start_date, end_date)
+
+    def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
+        """Update operations specifically for OpenShift on Azure."""
+        cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
+        azure_bills = azure_get_bills_from_provider(
+            azure_provider_uuid,
+            self._schema,
+            datetime.datetime.strptime(start_date, '%Y-%m-%d'),
+            datetime.datetime.strptime(end_date, '%Y-%m-%d')
+        )
+        azure_bill_ids = []
+        with schema_context(self._schema):
+            azure_bill_ids = [str(bill.id) for bill in azure_bills]
+
+        with CostModelDBAccessor(self._schema, azure_provider_uuid,
+                                 self._column_map) as cost_model_accessor:
+            markup = cost_model_accessor.get_markup()
+            markup_value = Decimal(markup.get('value', 0)) / 100
+
+        # OpenShift on Azure
+        with AzureReportDBAccessor(self._schema, self._column_map) as accessor:
+            LOG.info('Updating OpenShift on Azure summary table for '
+                     '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s'
+                     '\n\tCluster ID: %s, Azure Bill IDs: %s',
+                     self._schema, self._provider.uuid,
+                     start_date, end_date, cluster_id, str(azure_bill_ids))
+            accessor.populate_ocp_on_azure_cost_daily_summary(
+                start_date,
+                end_date,
+                cluster_id,
+                azure_bill_ids
+            )
+            accessor.populate_ocp_on_azure_markup_cost(markup_value, azure_bill_ids)
 
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             # This call just sends the infrastructure cost to the

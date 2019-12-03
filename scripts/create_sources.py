@@ -257,11 +257,7 @@ def main(args):
         source_id = generator.create_source(name, 'ocp', cluster_id)
         print(f'Creating OCP Source. Source ID: {source_id}')
 
-        endpoint_id = generator.create_endpoint(source_id)
-        authentication_id = generator.create_ocp_authentication(endpoint_id)
-
-        print(
-            f'OCP Provider Setup Successfully\n\tSource ID: {source_id}\n\tEndpoint ID: {endpoint_id}\n\tAuthentication ID: {authentication_id}')
+        print(f'OCP Provider Setup Successfully\n\tSource ID: {source_id}')
         if create_application:
             application_id = generator.create_application(source_id, 'cost_management')
             print(f'Attached Cost Management Application ID {application_id} to Source ID {source_id}')
