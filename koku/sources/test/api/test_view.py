@@ -15,22 +15,27 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""Test the sources proxy view."""
-import json
-from unittest.mock import PropertyMock
+"""Test the sources view."""
+from unittest.mock import Mock, PropertyMock
+from unittest.mock import patch
+from unittest import mock
 
+import json
+
+import requests
 import requests_mock
 from django.test import TestCase
 from django.urls import reverse
 from faker import Faker
 
+from api.provider.models import Sources
 from api.sources.view import SourcesProxyViewSet
 
 faker = Faker()
 
 
-class SourcesViewProxyTests(TestCase):
-    """Test Cases for the sources proxy endpoint."""
+class SourcesViewTests(TestCase):
+    """Test Cases for the sources endpoint."""
     def setUp(self):
         """Setup tests."""
         super().setUp()
@@ -51,36 +56,20 @@ class SourcesViewProxyTests(TestCase):
             url = reverse('sources-proxy-detail', kwargs={'source_id': test_source_id})
 
             response = self.client.patch(url, json.dumps(params),
-                                         content_type='application/json')
+                                        content_type='application/json')
 
             body = response.json()
 
             self.assertEqual(response.status_code, 200)
             self.assertIn(str(credentials), str(body))
 
-    def test_update_put_proxy(self):
-        """Test the PUT proxy endpoint."""
-        test_source_id = 1
-        credentials = {'subscription_id': 'subscription-uuid'}
-
-        with requests_mock.mock() as m:
-            m.patch(f'http://www.sourcesclient.com/api/v1/sources/{test_source_id}/',
-                    status_code=200, json={'credentials': credentials},
-                    headers={'Content-Type': 'application/json'})
-
-            params = {'credentials': credentials}
-            url = reverse('sources-proxy-detail', kwargs={'source_id': test_source_id})
-
-            response = self.client.put(url, json.dumps(params), content_type='application/json')
-            self.assertEqual(response.status_code, 405)
-
     def test_list_proxy(self):
         """Test the LIST proxy endpoint."""
 
         with requests_mock.mock() as m:
             m.get(f'http://www.sourcesclient.com/api/v1/sources/',
-                  status_code=200,
-                  headers={'Content-Type': 'application/json'})
+                    status_code=200,
+                    headers={'Content-Type': 'application/json'})
 
             url = reverse('sources-proxy-list')
 
@@ -94,8 +83,8 @@ class SourcesViewProxyTests(TestCase):
 
         with requests_mock.mock() as m:
             m.get(f'http://www.sourcesclient.com/api/v1/sources/{test_source_id}/',
-                  status_code=200,
-                  headers={'Content-Type': 'application/json'})
+                    status_code=200,
+                    headers={'Content-Type': 'application/json'})
 
             url = reverse('sources-proxy-detail', kwargs={'source_id': test_source_id})
 

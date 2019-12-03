@@ -147,7 +147,6 @@ class ProviderViewSet(mixins.CreateModelMixin,
     def update(self, request, *args, **kwargs):
         """Update a Provider."""
         if request.method == 'PATCH':
-            import pdb; pdb.set_trace()
             raise ProviderMethodException('PATCH not supported')
         user = request.user
         uuid = UUIDField().to_internal_value(data=kwargs.get('uuid'))
