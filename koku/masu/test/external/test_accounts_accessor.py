@@ -18,7 +18,7 @@
 """Test the CostUsageReportAccount object."""
 
 from unittest.mock import patch
-from masu.exceptions import CURAccountsInterfaceError
+
 from masu.external import AMAZON_WEB_SERVICES, AZURE, OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.accounts_accessor import AccountsAccessor, AccountsAccessorError
 from masu.test import MasuTestCase
@@ -28,7 +28,7 @@ class AccountsAccessorTest(MasuTestCase):
     """Test Cases for the AccountsAccessor object."""
 
     def test_get_accounts(self):
-        """Test to get_access_credential"""
+        """Test to get_access_credential."""
         account_objects = AccountsAccessor().get_accounts()
 
         if len(account_objects) != 3:
@@ -36,28 +36,16 @@ class AccountsAccessorTest(MasuTestCase):
 
         for account in account_objects:
             if account.get('provider_type') == AMAZON_WEB_SERVICES:
-                self.assertEqual(
-                    account.get('authentication'), self.aws_provider_resource_name
-                )
-                self.assertEqual(
-                    account.get('billing_source'), self.aws_test_billing_source
-                )
+                self.assertEqual(account.get('authentication'), self.aws_provider_resource_name)
+                self.assertEqual(account.get('billing_source'), self.aws_test_billing_source)
                 self.assertEqual(account.get('customer_name'), self.schema)
             elif account.get('provider_type') == OPENSHIFT_CONTAINER_PLATFORM:
-                self.assertEqual(
-                    account.get('authentication'), self.ocp_provider_resource_name
-                )
-                self.assertEqual(
-                    account.get('billing_source'), self.ocp_test_billing_source
-                )
+                self.assertEqual(account.get('authentication'), self.ocp_provider_resource_name)
+                self.assertEqual(account.get('billing_source'), self.ocp_test_billing_source)
                 self.assertEqual(account.get('customer_name'), self.schema)
             elif account.get('provider_type') == AZURE:
-                self.assertEqual(
-                    account.get('authentication'), self.azure_credentials
-                )
-                self.assertEqual(
-                    account.get('billing_source'), self.azure_data_source
-                )
+                self.assertEqual(account.get('authentication'), self.azure_credentials)
+                self.assertEqual(account.get('billing_source'), self.azure_data_source)
                 self.assertEqual(account.get('customer_name'), self.schema)
             else:
                 self.fail('Unexpected provider')
@@ -92,6 +80,5 @@ class AccountsAccessorTest(MasuTestCase):
 
     def test_invalid_source_specification(self):
         """Test that error is thrown with invalid account source."""
-
         with self.assertRaises(AccountsAccessorError):
             AccountsAccessor('bad')

@@ -32,9 +32,7 @@ from masu.test import MasuTestCase
 class ReportChargeUpdaterTest(MasuTestCase):
     """Test class for the report summary updater."""
 
-    @patch(
-        'masu.processor.report_charge_updater.OCPReportChargeUpdater.update_summary_charge_info'
-    )
+    @patch('masu.processor.report_charge_updater.OCPReportChargeUpdater.update_summary_charge_info')
     def test_ocp_route(self, mock_update):
         """Test that OCP charge updating works as expected."""
         updater = ReportChargeUpdater(self.schema, self.ocp_test_provider_uuid)
@@ -52,9 +50,7 @@ class ReportChargeUpdaterTest(MasuTestCase):
         updater.update_charge_info()
         mock_update.assert_called()
 
-    @patch(
-        'masu.processor.report_charge_updater.AWSReportChargeUpdater.update_summary_charge_info'
-    )
+    @patch('masu.processor.report_charge_updater.AWSReportChargeUpdater.update_summary_charge_info')
     def test_aws_route(self, mock_update):
         """Test that AWS charge updating works as expected."""
         updater = ReportChargeUpdater(self.schema, self.aws_provider_uuid)

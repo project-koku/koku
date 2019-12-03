@@ -18,7 +18,6 @@
 """Test the AzureReportDBAccessor utility object."""
 import datetime
 import decimal
-from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from django.db.models import Max, Min, Sum
@@ -44,9 +43,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
         cls.common_accessor = ReportingCommonDBAccessor()
         cls.column_map = cls.common_accessor.column_map
-        cls.accessor = AzureReportDBAccessor(
-            schema=cls.schema, column_map=cls.column_map
-        )
+        cls.accessor = AzureReportDBAccessor(schema=cls.schema, column_map=cls.column_map)
         cls.report_schema = cls.accessor.report_schema
         cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
 
@@ -81,11 +78,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
         self.creator.create_azure_cost_entry_line_item(bill, product, meter)
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 
-    def tearDown(self):
-        """Close the DB session."""
-        super().tearDown()
-        self.accessor.close_connections()
-
     def generate_ocp_on_azure_data(self):
         """Generate OpenShift and Azure data sufficient for matching."""
         bill_table_name = AZURE_REPORT_TABLE_MAP['bill']
@@ -96,7 +88,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         last_month = today - relativedelta(months=1)
 
         instance_id = '/subscriptions/99999999-9999-9999-9999-999999999999'\
-            +'/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/'\
+            + '/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/'\
             + 'virtualMachines/koku-99hqd-worker-eastus1-jngbr'
         node = instance_id.split('/')[8]
 
@@ -149,11 +141,9 @@ class AzureReportDBAccessorTest(MasuTestCase):
                 start_date, end_date, cluster_id
             )
 
-        # Reconnect as the OCP accessor closed the connection.
-        self.accessor._conn.connect()
         self.accessor.populate_ocp_on_azure_cost_daily_summary(last_month,
-                                                            today,
-                                                            cluster_id, bill_ids)
+                                                               today,
+                                                               cluster_id, bill_ids)
         return bill_ids
 
     def test_get_cost_entry_bills(self):
@@ -223,20 +213,14 @@ class AzureReportDBAccessorTest(MasuTestCase):
         summary_table = getattr(self.accessor.report_schema, summary_table_name)
 
         for _ in range(10):
-            bill = self.creator.create_azure_cost_entry_bill(
-                provider_uuid=self.azure_provider_uuid
-            )
+            bill = self.creator.create_azure_cost_entry_bill(provider_uuid=self.azure_provider_uuid)
             product = self.creator.create_azure_cost_entry_product(
                 provider_uuid=self.azure_provider_uuid
             )
-            meter = self.creator.create_azure_meter(
-                provider_uuid=self.azure_provider_uuid
-            )
+            meter = self.creator.create_azure_meter(provider_uuid=self.azure_provider_uuid)
             self.creator.create_azure_cost_entry_line_item(bill, product, meter)
 
-        bills = self.accessor.get_cost_entry_bills_query_by_provider(
-            self.azure_provider_uuid
-        )
+        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.azure_provider_uuid)
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]
 
@@ -263,9 +247,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             initial_count = query.count()
 
-        self.accessor.populate_line_item_daily_summary_table(
-            start_date, end_date, bill_ids
-        )
+        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
         with schema_context(self.schema):
             self.assertNotEqual(query.count(), initial_count)
 
@@ -316,18 +298,14 @@ class AzureReportDBAccessorTest(MasuTestCase):
         """Test that the daily summary table is populated."""
         summary_table_name = AZURE_REPORT_TABLE_MAP['line_item_daily_summary']
 
-        bill = self.creator.create_azure_cost_entry_bill(
-            provider_uuid=self.azure_provider_uuid
-        )
+        bill = self.creator.create_azure_cost_entry_bill(provider_uuid=self.azure_provider_uuid)
         product = self.creator.create_azure_cost_entry_product(
             provider_uuid=self.azure_provider_uuid
         )
         meter = self.creator.create_azure_meter(provider_uuid=self.azure_provider_uuid)
         self.creator.create_azure_cost_entry_line_item(bill, product, meter)
 
-        bills = self.accessor.get_cost_entry_bills_query_by_provider(
-            self.azure_provider_uuid
-        )
+        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.azure_provider_uuid)
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]
 
@@ -348,9 +326,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
         query = self.accessor._get_db_obj_query(summary_table_name)
 
-        self.accessor.populate_line_item_daily_summary_table(
-            start_date, end_date, bill_ids
-        )
+        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
         self.accessor.populate_markup_cost(0.1, bill_ids)
         with schema_context(self.schema):
 
@@ -362,18 +338,14 @@ class AzureReportDBAccessorTest(MasuTestCase):
         """Test that the daily summary table is populated."""
         summary_table_name = AZURE_REPORT_TABLE_MAP['line_item_daily_summary']
 
-        bill = self.creator.create_azure_cost_entry_bill(
-            provider_uuid=self.azure_provider_uuid
-        )
+        bill = self.creator.create_azure_cost_entry_bill(provider_uuid=self.azure_provider_uuid)
         product = self.creator.create_azure_cost_entry_product(
             provider_uuid=self.azure_provider_uuid
         )
         meter = self.creator.create_azure_meter(provider_uuid=self.azure_provider_uuid)
         self.creator.create_azure_cost_entry_line_item(bill, product, meter)
 
-        bills = self.accessor.get_cost_entry_bills_query_by_provider(
-            self.azure_provider_uuid
-        )
+        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.azure_provider_uuid)
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]
 
@@ -398,9 +370,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
         query = self.accessor._get_db_obj_query(summary_table_name)
 
-        self.accessor.populate_line_item_daily_summary_table(
-            start_date, end_date, bill_ids
-        )
+        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
         self.accessor.populate_markup_cost(0.1, None)
         with schema_context(self.schema):
             found_values = {}

@@ -16,21 +16,20 @@
 #
 
 """Test the download endpoint view."""
-import os
 from unittest.mock import patch
 
-from django.urls import reverse
+from celery.result import AsyncResult
 from django.test import TestCase
 from django.test.utils import override_settings
+from django.urls import reverse
 
-from celery.result import AsyncResult
 from api.iam.models import Tenant
 
-from masu.test import MasuTestCase
 
 @override_settings(ROOT_URLCONF='masu.urls')
 class DownloadAPIViewTest(TestCase):
     """Test Cases for the Download API."""
+
     def setUp(self):
         """Create test case setup."""
         super().setUp()

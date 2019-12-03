@@ -18,6 +18,7 @@
 """Test the AccountLabel object."""
 
 from unittest.mock import patch
+
 from masu.external.account_label import AccountLabel
 from masu.external.accounts.labels.aws.aws_account_alias import AWSAccountAlias
 from masu.test import MasuTestCase

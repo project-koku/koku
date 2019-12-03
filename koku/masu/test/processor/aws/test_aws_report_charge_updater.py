@@ -18,17 +18,14 @@
 """Test the AWSReportDBAccessor utility object."""
 from unittest.mock import patch
 
-import psycopg2
-
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_charge_updater import (
     AWSReportChargeUpdater,
-    AWSReportChargeUpdaterError,
 )
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
@@ -70,19 +67,16 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
         with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
             self.provider = provider_accessor.get_provider()
 
-        self.updater = AWSReportChargeUpdater(
-            schema=self.schema,
-            provider=self.provider,
-        )
+        self.updater = AWSReportChargeUpdater(schema=self.schema, provider=self.provider,)
         today = DateAccessor().today_with_timezone('UTC')
-        bill = self.creator.create_cost_entry_bill(provider_uuid=self.provider.uuid, bill_date=today)
+        bill = self.creator.create_cost_entry_bill(
+            provider_uuid=self.provider.uuid, bill_date=today
+        )
         cost_entry = self.creator.create_cost_entry(bill, today)
         product = self.creator.create_cost_entry_product()
         pricing = self.creator.create_cost_entry_pricing()
         reservation = self.creator.create_cost_entry_reservation()
-        self.creator.create_cost_entry_line_item(
-            bill, cost_entry, product, pricing, reservation
-        )
+        self.creator.create_cost_entry_line_item(bill, cost_entry, product, pricing, reservation)
 
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 
