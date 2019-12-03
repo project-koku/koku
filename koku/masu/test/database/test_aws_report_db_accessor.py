@@ -68,11 +68,6 @@ class ReportSchemaTest(MasuTestCase):
             AWS_CUR_TABLE_MAP['reservation'],
         ]
 
-    def tearDown(self):
-        """Close the DB session."""
-        super().tearDown()
-        # self.accessor.close_connections()
-
     def test_init(self):
         """Test the initializer."""
         tables = django.apps.apps.get_models()
@@ -167,11 +162,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         )
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 
-    def tearDown(self):
-        """Close the DB session."""
-        super().tearDown()
-        self.accessor.close_connections()
-
     def test_initializer(self):
         """Test initializer."""
         self.assertIsNotNone(self.report_schema)
@@ -179,7 +169,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
     def test_create_temp_table(self):
         """Test that a temporary table is created."""
         table_name = 'test_table'
-        with self.accessor._conn.cursor() as cursor:
+        with connection.cursor() as cursor:
             drop_table = f'DROP TABLE IF EXISTS {table_name}'
             cursor.execute(drop_table)
 
@@ -993,7 +983,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         tag_keys = [tag.key for tag in tags]
 
         with schema_context(self.schema):
-            with self.accessor._conn.cursor() as cursor:
+            with connection.cursor() as cursor:
                 cursor.execute(
                     """SELECT DISTINCT jsonb_object_keys(tags)
                         FROM reporting_awscostentrylineitem_daily"""
@@ -1078,8 +1068,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             query = self.accessor._get_db_obj_query(summary_table_name)
             initial_count = query.count()
 
-        # Reconnect as the OCP accessor closed the connection.
-        self.accessor._conn.connect()
         self.accessor.populate_ocp_on_aws_cost_daily_summary(last_month,
                                                             today,
                                                             cluster_id, bill_ids)
