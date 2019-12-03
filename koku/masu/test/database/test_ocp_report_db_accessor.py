@@ -20,6 +20,7 @@ import random
 import string
 
 from dateutil import relativedelta
+from django.db import connection
 from django.db.models import Max, Min, Sum
 from django.db.models.query import QuerySet
 from tenant_schemas.utils import schema_context
@@ -435,7 +436,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             tags = query.all()
             tag_keys = [tag.key for tag in tags]
 
-            with self.accessor._conn.cursor() as cursor:
+            with connection.cursor() as cursor:
                 cursor.execute(
                     """SELECT DISTINCT jsonb_object_keys(pod_labels)
                         FROM reporting_ocpusagelineitem_daily"""
@@ -486,7 +487,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             tags = query.all()
             tag_keys = [tag.key for tag in tags]
 
-        with self.accessor._conn.cursor() as cursor:
+        with connection.cursor() as cursor:
             cursor.execute(
             """SELECT DISTINCT jsonb_object_keys(persistentvolumeclaim_labels)
                 FROM reporting_ocpstoragelineitem_daily"""
@@ -535,7 +536,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             tags = query.all()
             tag_keys = [tag.key for tag in tags]
 
-        with self.accessor._conn.cursor() as cursor:
+        with connection.cursor() as cursor:
             cursor.execute(
                 """SELECT DISTINCT jsonb_object_keys(persistentvolume_labels)
                     FROM reporting_ocpstoragelineitem_daily"""

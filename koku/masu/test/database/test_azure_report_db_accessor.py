@@ -81,11 +81,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
         self.creator.create_azure_cost_entry_line_item(bill, product, meter)
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 
-    def tearDown(self):
-        """Close the DB session."""
-        super().tearDown()
-        self.accessor.close_connections()
-
     def generate_ocp_on_azure_data(self):
         """Generate OpenShift and Azure data sufficient for matching."""
         bill_table_name = AZURE_REPORT_TABLE_MAP['bill']
@@ -149,8 +144,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
                 start_date, end_date, cluster_id
             )
 
-        # Reconnect as the OCP accessor closed the connection.
-        self.accessor._conn.connect()
         self.accessor.populate_ocp_on_azure_cost_daily_summary(last_month,
                                                             today,
                                                             cluster_id, bill_ids)

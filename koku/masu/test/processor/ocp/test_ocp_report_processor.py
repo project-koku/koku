@@ -110,11 +110,6 @@ class OCPReportProcessorTest(MasuTestCase):
             reader = csv.DictReader(f)
             cls.row = next(reader)
 
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
-        cls.accessor.close_connections()
-
     def setUp(self):
         super().setUp()
         self.temp_dir = tempfile.mkdtemp()

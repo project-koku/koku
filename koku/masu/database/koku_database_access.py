@@ -50,7 +50,7 @@ class KokuDBAccess:
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
-        """Context manager close session."""
+        """Context manager reset schema to public and exit."""
         connection = transaction.get_connection()
         connection.set_schema_to_public()
 
