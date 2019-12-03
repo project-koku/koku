@@ -144,8 +144,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
                 start_date, end_date, cluster_id
             )
 
-        # Reconnect as the OCP accessor closed the connection.
-        self.accessor._conn.connect()
         self.accessor.populate_ocp_on_azure_cost_daily_summary(last_month,
                                                             today,
                                                             cluster_id, bill_ids)
