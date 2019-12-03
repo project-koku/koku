@@ -42,8 +42,8 @@ class SourcesViewProxyTests(TestCase):
         mock_url = PropertyMock(return_value='http://www.sourcesclient.com/api/v1/sources/')
         SourcesProxyViewSet.url = mock_url
 
-    def test_update_authentication_proxy(self):
-        """Test the PATCH authentication proxy endpoint."""
+    def test_update_proxy(self):
+        """Test the PATCH proxy endpoint."""
         test_source_id = 1
         credentials = {'subscription_id': 'subscription-uuid'}
 
@@ -63,20 +63,31 @@ class SourcesViewProxyTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertIn(str(credentials), str(body))
 
-    def test_patch_authentication_proxy_error(self):
-        """Test the PATCH authentication proxy endpoint with connection error."""
-        test_source_id = 1
-        credentials = {'subscription_id': 'subscription-uuid'}
+    def test_list_proxy(self):
+        """Test the LIST proxy endpoint."""
 
         with requests_mock.mock() as m:
-            m.patch(f'http://www.sourcesclient.com/api/v1/sources/{test_source_id}/',
-                    status_code=400, json={'credentials': credentials},
+            m.get(f'http://www.sourcesclient.com/api/v1/sources/',
+                    status_code=200,
                     headers={'Content-Type': 'application/json'})
 
-            params = {'credentials': credentials}
+            url = reverse('sources-proxy-list')
+
+            response = self.client.get(url, content_type='application/json')
+
+            self.assertEqual(response.status_code, 200)
+
+    def test_get_proxy(self):
+        """Test the GET proxy endpoint."""
+        test_source_id = 1
+
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sourcesclient.com/api/v1/sources/{test_source_id}/',
+                    status_code=200,
+                    headers={'Content-Type': 'application/json'})
+
             url = reverse('sources-proxy-detail', kwargs={'source_id': test_source_id})
 
-            response = self.client.patch(url, json.dumps(params),
-                                        content_type='application/json')
+            response = self.client.get(url, content_type='application/json')
 
-            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.status_code, 200)
