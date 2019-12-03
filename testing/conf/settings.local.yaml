@@ -11,7 +11,11 @@ local:
   main:
     hostname: localhost:8000
     scheme: http
-    username: user_dev@foo.com
-    password: password
+    default_user: default
+    api_path: api/cost-management/v1
   http:
     default_auth_type: basic
+  users:
+    default:
+      username: user_dev@foo.com
+      password: password
