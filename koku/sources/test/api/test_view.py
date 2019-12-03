@@ -39,7 +39,6 @@ class SourcesViewTests(IamTestCase):
         customer = self._create_customer_data(account=self.test_account)
         self.request_context = self._create_request_context(customer, user_data, create_customer=True,
                                                             is_admin=False)
-        self.test_other_account = 10002
         self.test_source_id = 1
 
         self.azure_obj = Sources(source_id=self.test_source_id,

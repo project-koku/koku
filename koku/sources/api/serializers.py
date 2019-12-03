@@ -83,36 +83,30 @@ class SourcesSerializer(serializers.ModelSerializer):
                 raise SourcesStorageError('Missing AZURE storage_account')
 
     def _update_billing_source(self, instance, billing_source):
-        try:
-            if instance.source_type not in ('AWS', 'AZURE'):
-                raise SourcesStorageError('Source is not AWS nor AZURE.')
-            self._validate_billing_source(instance.source_type, billing_source)
-            instance.billing_source = billing_source
-            if instance.koku_uuid:
-                instance.pending_update = True
-                instance.save(update_fields=['billing_source', 'pending_update'])
-            else:
-                instance.save()
-        except Sources.DoesNotExist:
-            raise SourcesStorageError('Source does not exist')
+        if instance.source_type not in ('AWS', 'AZURE'):
+            raise SourcesStorageError('Source is not AWS nor AZURE.')
+        self._validate_billing_source(instance.source_type, billing_source)
+        instance.billing_source = billing_source
+        if instance.koku_uuid:
+            instance.pending_update = True
+            instance.save(update_fields=['billing_source', 'pending_update'])
+        else:
+            instance.save()
 
     def _update_authentication(self, instance, authentication):
-        try:
-            if instance.source_type not in ('AZURE',):
-                raise SourcesStorageError('Source is not AZURE.')
-            auth_dict = instance.authentication
-            if not auth_dict.get('credentials'):
-                raise SourcesStorageError('Missing credentials key')
-            subscription_id = authentication.get('credentials', {}).get('subscription_id')
-            auth_dict['credentials']['subscription_id'] = subscription_id
-            instance.authentication = auth_dict
-            if instance.koku_uuid:
-                instance.pending_update = True
-                instance.save(update_fields=['authentication', 'pending_update'])
-            else:
-                instance.save()
-        except Sources.DoesNotExist:
-            raise SourcesStorageError('Source does not exist')
+        if instance.source_type not in ('AZURE',):
+            raise SourcesStorageError('Source is not AZURE.')
+        auth_dict = instance.authentication
+        if not auth_dict.get('credentials'):
+            raise SourcesStorageError('Missing credentials key')
+        subscription_id = authentication.get('credentials', {}).get('subscription_id')
+        auth_dict['credentials']['subscription_id'] = subscription_id
+        instance.authentication = auth_dict
+        if instance.koku_uuid:
+            instance.pending_update = True
+            instance.save(update_fields=['authentication', 'pending_update'])
+        else:
+            instance.save()
 
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
