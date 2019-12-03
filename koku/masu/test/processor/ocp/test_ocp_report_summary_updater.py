@@ -57,18 +57,10 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
 
         cls.manifest_accessor = ReportManifestDBAccessor()
 
-    @classmethod
-    def tearDownClass(cls):
-        """Tear down the test class."""
-        super().tearDownClass()
-        cls.accessor.close_connections()
-
     def setUp(self):
         """Set up each test."""
         super().setUp()
 
-        # with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
-        #     self.provider = provider_accessor.get_provider()
         self.provider = self.ocp_provider
         billing_start = self.date_accessor.today_with_timezone('UTC').replace(day=1)
         self.manifest_dict = {
@@ -93,26 +85,6 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
             self.schema, self.provider, self.manifest
         )
 
-    def tearDown(self):
-        """Return the database to a pre-test state."""
-        super().tearDown()
-
-    # def run(self, result=None):
-    #     """Run the tests with the correct schema context."""
-    #     with schema_context(self.schema):
-    #         super().run(result)
-
-        # for table_name in self.all_tables:
-        #     tables = self.accessor._get_db_obj_query(table_name).all()
-        #     for table in tables:
-        #         self.accessor.delete(table)
-        # self.accessor.commit()
-
-        # manifests = self.manifest_accessor._get_db_obj_query().all()
-        # for manifest in manifests:
-        #     self.manifest_accessor.delete(manifest)
-        # self.manifest_accessor.commit()
-
     @patch(
         'masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor.populate_storage_line_item_daily_summary_table'
     )
@@ -131,7 +103,6 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         """Test that summary tables are properly run."""
         self.manifest.num_processed_files = self.manifest.num_total_files
         self.manifest.save()
-        # self.manifest_accessor.commit()
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
@@ -192,7 +163,6 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
 
         self.manifest.num_processed_files = self.manifest.num_total_files
         self.manifest.save()
-        # self.manifest_accessor.commit()
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date
@@ -262,7 +232,6 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         }
 
         self.manifest_accessor.delete(self.manifest)
-        # self.manifest_accessor.commit()
         self.manifest = self.manifest_accessor.add(**manifest_dict)
 
         self.manifest.num_processed_files = self.manifest.num_total_files
