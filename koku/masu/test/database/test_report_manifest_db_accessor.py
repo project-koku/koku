@@ -17,11 +17,13 @@
 
 """Test the ReportManifestDBAccessor."""
 import copy
+import datetime
 
 from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
 
 
@@ -113,3 +115,16 @@ class ReportManifestDBAccessorTest(IamTestCase):
             bill_date
         )
         self.assertEqual(len(result), 3)
+
+    def test_get_last_report_completed_datetime(self):
+        """Test that the last completed report datetime is returned."""
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
+        earlier_time = DateAccessor().today_with_timezone('UTC')
+        later_time = earlier_time + datetime.timedelta(hours=1)
+
+        ReportStatsDBAccessor('earlier_report', manifest.id).update(last_completed_datetime=earlier_time)
+        ReportStatsDBAccessor('later_report', manifest.id).update(last_completed_datetime=later_time)
+
+        result = self.manifest_accessor.get_last_report_completed_datetime(manifest.id)
+
+        self.assertEqual(result, later_time)

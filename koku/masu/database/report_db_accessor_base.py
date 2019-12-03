@@ -76,12 +76,6 @@ class ReportDBAccessorBase(KokuDBAccess):
         self.column_map = column_map
         self.report_schema = ReportSchema(django.apps.apps.get_models(),
                                           self.column_map)
-        self._conn = connection
-
-    def __exit__(self, exception_type, exception_value, traceback):
-        """Context manager close connections."""
-        super().__exit__(exception_type, exception_value, traceback)
-        self.close_connections()
 
     @property
     def decimal_precision(self):
@@ -172,19 +166,6 @@ class ReportDBAccessorBase(KokuDBAccess):
                 columns=columns,
                 null=null
             )
-
-    def close_connections(self, conn=None):
-        """Close the low level database connection.
-
-        Args:
-            conn (psycopg2.extensions.connection) An optional connection.
-                If none is supplied the class's connections are used.
-
-        """
-        if conn:
-            conn.close()
-        else:
-            self._conn.close()
 
     # pylint: disable=arguments-differ
     def _get_db_obj_query(self, table, columns=None):
