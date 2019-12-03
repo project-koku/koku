@@ -24,6 +24,7 @@ from os import remove
 
 import pytz
 from dateutil import parser
+from django.conf import settings
 
 from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
@@ -321,13 +322,11 @@ class AzureReportProcessor(ReportProcessorBase):
                     self._save_to_db(AZURE_REPORT_TABLE_MAP['line_item'], report_db)
                     row_count += len(self.processed_report.line_items)
 
-                report_db.vacuum_table(AZURE_REPORT_TABLE_MAP['line_item'])
-                report_db.commit()
-
                 LOG.info('Completed report processing for file: %s and schema: %s',
                          self._report_name, self._schema)
-            LOG.info('Removing processed file: %s', self._report_path)
-            remove(self._report_path)
+            if not settings.DEVELOPMENT:
+                LOG.info('Removing processed file: %s', self._report_path)
+                remove(self._report_path)
 
             return True
 

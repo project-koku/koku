@@ -19,12 +19,14 @@
 import datetime
 import decimal
 from unittest.mock import patch, Mock
-from dateutil import relativedelta
 
+from dateutil.relativedelta import relativedelta
+from django.db.models import Max, Min, Sum
 from tenant_schemas.utils import schema_context
 
-from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
+from masu.database import AWS_CUR_TABLE_MAP, AZURE_REPORT_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -55,13 +57,13 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         # self.manifest_accessor = ReportManifestDBAccessor()
 
     def _generate_ocp_on_aws_data(self):
-        """Test that the OCP on AWS cost summary table is populated."""
+        """Generate OCP and AWS data."""
         creator = ReportObjectCreator(self.schema, self.column_map)
 
         bill_ids = []
 
         today = DateAccessor().today_with_timezone('UTC')
-        last_month = today - relativedelta.relativedelta(months=1)
+        last_month = today - relativedelta(months=1)
         resource_id = 'i-12345'
 
         for cost_entry_date in (today, last_month):
@@ -102,6 +104,72 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         with OCPReportDBAccessor(self.schema, self.column_map) as ocp_accessor:
             ocp_accessor.populate_line_item_daily_table(last_month.date(), today.date(), cluster_id)
 
+    def _generate_ocp_on_azure_data(self):
+        """Generate OpenShift and Azure data sufficient for matching."""
+        creator = ReportObjectCreator(self.schema, self.column_map)
+        bill_table_name = AZURE_REPORT_TABLE_MAP['bill']
+        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+            accessor._get_db_obj_query(bill_table_name).all().delete()
+        bill_ids = []
+        today = DateAccessor().today_with_timezone('UTC')
+        last_month = today - relativedelta(months=1)
+
+        instance_id = '/subscriptions/99999999-9999-9999-9999-999999999999'\
+            +'/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/'\
+            + 'virtualMachines/koku-99hqd-worker-eastus1-jngbr'
+        node = instance_id.split('/')[8]
+
+        with schema_context(self.schema):
+            for cost_entry_date in (today, last_month):
+                bill = creator.create_azure_cost_entry_bill(
+                    provider_uuid=self.azure_provider.uuid,
+                    bill_date=cost_entry_date
+                )
+                bill_ids.append(str(bill.id))
+                product = creator.create_azure_cost_entry_product(
+                    provider_uuid=self.azure_provider.uuid,
+                    instance_id=instance_id
+                )
+                meter = creator.create_azure_meter(
+                    provider_uuid=self.azure_provider.uuid
+                )
+                creator.create_azure_cost_entry_line_item(
+                    bill, product, meter, usage_date_time=cost_entry_date
+                )
+        with OCPReportDBAccessor(self.schema, self.column_map) as ocp_accessor:
+            cluster_id = 'my-ocp-cluster-1'
+            for cost_entry_date in (today, last_month):
+                period = creator.create_ocp_report_period(
+                    self.ocp_test_provider_uuid,
+                    period_date=cost_entry_date,
+                    cluster_id=cluster_id
+                )
+                report = creator.create_ocp_report(period, cost_entry_date)
+                creator.create_ocp_usage_line_item(
+                    period, report, node=node
+                )
+            ocp_report_table_name = OCP_REPORT_TABLE_MAP['report']
+            with schema_context(self.schema):
+                report_table = getattr(ocp_accessor.report_schema, ocp_report_table_name)
+
+                report_entry = report_table.objects.all().aggregate(
+                    Min('interval_start'), Max('interval_start')
+                )
+                start_date = report_entry['interval_start__min']
+                end_date = report_entry['interval_start__max']
+
+                start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+            ocp_accessor.populate_line_item_daily_table(
+                start_date, end_date, cluster_id
+            )
+            ocp_accessor.populate_line_item_daily_summary_table(
+                start_date, end_date, cluster_id
+            )
+
+        return bill_ids
+
     @patch('masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map')
     @patch('masu.processor.ocp.ocp_cloud_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary')
     @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.update_summary_infrastructure_cost')
@@ -130,7 +198,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
     @patch('masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map')
     @patch('masu.processor.ocp.ocp_cloud_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary')
     @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.update_summary_infrastructure_cost')
-    @patch('masu.processor.ocp.ocp_cloud_summary_updater.get_bills_from_provider')
+    @patch('masu.processor.ocp.ocp_cloud_summary_updater.aws_get_bills_from_provider')
     def test_update_summary_tables_with_aws_provider(
         self, mock_utility, mock_ocp, mock_ocp_on_aws, mock_map
     ):
@@ -188,7 +256,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
-        start_date = start_date - relativedelta.relativedelta(months=1)
+        start_date = start_date - relativedelta(months=1)
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
         with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
@@ -219,7 +287,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
-        start_date = start_date - relativedelta.relativedelta(months=1)
+        start_date = start_date - relativedelta(months=1)
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
         with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
@@ -261,7 +329,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
-        start_date = start_date - relativedelta.relativedelta(months=1)
+        start_date = start_date - relativedelta(months=1)
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
         with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
@@ -328,3 +396,60 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(len(infra_map.keys()), 1)
         self.assertIn(self.ocp_provider_uuid, infra_map)
         self.assertEqual(infra_map.get(self.ocp_provider_uuid), expected_mapping)
+
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
+    def test_update_summary_tables_azure(self, mock_markup):
+        """Test that summary tables are updated correctly."""
+        markup = {'value': 10, 'unit': 'percent'}
+        mock_markup.return_value = markup
+        with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
+            accessor.set_infrastructure(self.azure_provider_uuid, 'AZURE')
+        self._generate_ocp_on_azure_data()
+
+        start_date = self.date_accessor.today_with_timezone('UTC')
+        end_date = start_date + datetime.timedelta(days=1)
+        start_date = start_date - relativedelta(months=1)
+        start_date_str = start_date.strftime('%Y-%m-%d')
+        end_date_str = end_date.strftime('%Y-%m-%d')
+
+        with ProviderDBAccessor(self.azure_test_provider_uuid) as provider_accessor:
+            provider = provider_accessor.get_provider()
+
+        updater = OCPCloudReportSummaryUpdater(
+            schema='acct10001',
+            provider=provider,
+            manifest=None
+        )
+
+        with AzureReportDBAccessor(self.schema, self.column_map) as azure_accessor:
+            summary_table_name = AZURE_REPORT_TABLE_MAP['ocp_on_azure_daily_summary']
+            query = azure_accessor._get_db_obj_query(summary_table_name)
+            initial_count = query.count()
+
+        updater.update_summary_tables(start_date_str, end_date_str)
+
+        with AzureReportDBAccessor(self.schema, self.column_map) as azure_accessor:
+            query = azure_accessor._get_db_obj_query(summary_table_name)
+            self.assertNotEqual(query.count(), initial_count)
+            markup_cost = query.aggregate(Sum('markup_cost'))['markup_cost__sum']
+            pretax_cost = query.aggregate(Sum('pretax_cost'))['pretax_cost__sum']
+
+        self.assertAlmostEqual(
+            markup_cost,
+            pretax_cost * decimal.Decimal(markup.get('value') / 100),
+            places=9
+        )
+
+
+        daily_summary_table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
+        with OCPReportDBAccessor(self.schema, self.column_map) as ocp_accessor:
+            query = ocp_accessor._get_db_obj_query(daily_summary_table_name)
+            infra_cost = query.aggregate(Sum('infra_cost'))['infra_cost__sum']
+            project_infra_cost = query.aggregate(
+                Sum('project_infra_cost')
+            )['project_infra_cost__sum']
+
+        self.assertIsNotNone(infra_cost)
+        self.assertIsNotNone(project_infra_cost)
+        self.assertNotEqual(infra_cost, decimal.Decimal(0))
+        self.assertNotEqual(project_infra_cost, decimal.Decimal(0))

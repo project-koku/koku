@@ -78,7 +78,6 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         )
 
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
-        self.manifest_accessor.commit()
 
         with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
             self.provider = provider_accessor.get_provider()
@@ -96,7 +95,6 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
     def test_update_summary_tables_with_manifest(self, mock_daily, mock_summary):
         """Test that summary tables are properly run."""
         self.manifest.num_processed_files = self.manifest.num_total_files
-        self.manifest_accessor.commit()
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
@@ -142,7 +140,6 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
 
         self.manifest.num_processed_files = self.manifest.num_total_files
         manifest_id = self.manifest.id
-        self.manifest_accessor.commit()
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date
@@ -195,13 +192,10 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
             'provider_uuid': self.aws_provider_uuid,
         }
         self.manifest_accessor.delete(self.manifest)
-        self.manifest_accessor.commit()
 
         self.manifest = self.manifest_accessor.add(**manifest_dict)
-        self.manifest_accessor.commit()
 
         self.manifest.num_processed_files = self.manifest.num_total_files
-        self.manifest_accessor.commit()
 
         self.updater = AWSReportSummaryUpdater(
             'acct10001', self.provider, self.manifest
@@ -297,7 +291,6 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         """Test that summary tables are run for a full month."""
         self.manifest.num_processed_files = self.manifest.num_total_files
         manifest_id = self.manifest.id
-        self.manifest_accessor.commit()
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date
@@ -306,7 +299,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         with schema_context(self.schema):
             bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
             bill.finalized_datetime = start_date
-            self.accessor.commit()
+            bill.save()
 
         last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
 
@@ -355,7 +348,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         with schema_context(self.schema):
             bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
             bill.finalized_datetime = start_date
-            self.accessor.commit()
+            bill.save()
 
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
@@ -394,7 +387,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         with schema_context(self.schema):
             bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
             bill.summary_data_updated_datetime = start_date
-            self.accessor.commit()
+            bill.save()
 
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')

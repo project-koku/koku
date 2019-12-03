@@ -39,7 +39,7 @@ google-cloud-storage = "~=1.19.1"
 jinjasql = "*"
 ciso8601 = "==2.1.2"
 pandas = "~=0.25.1"
-psycopg2 = "*"
+sentry-sdk = "~=0.13.2"
 
 [dev-packages]
 astroid = "==2.3.2"

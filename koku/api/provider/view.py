@@ -37,7 +37,7 @@ from api.iam.models import Customer
 from api.provider import serializers
 from api.provider.models import Provider
 from api.query_params import get_tenant
-from .provider_manager import ProviderManager
+from .provider_manager import ProviderManager, ProviderManagerError
 
 
 LOG = logging.getLogger(__name__)
@@ -69,6 +69,18 @@ class ProviderDeleteException(APIException):
     """Provider deletion custom internal error exception."""
 
     default_detail = 'Error removing provider'
+
+    def __init__(self):
+        """Initialize with status code 500."""
+        super().__init__()
+        self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        self.detail = {'detail': force_text(self.default_detail)}
+
+
+class ProviderUpdateException(APIException):
+    """Provider update custom internal error exception."""
+
+    default_detail = 'Error updating provider'
 
     def __init__(self):
         """Initialize with status code 500."""
@@ -142,7 +154,11 @@ class ProviderViewSet(mixins.CreateModelMixin,
         get_object_or_404(Provider, uuid=uuid, customer=user.customer)
 
         manager = ProviderManager(kwargs['uuid'])
-        manager.update(request)
+        try:
+            manager.update(request)
+        except ProviderManagerError as error:
+            LOG.error(f'{request.user} failed to update provider uuid: {uuid}. Error: {str(error)}')
+            raise ProviderUpdateException
 
         return super().update(request=request, args=args, kwargs=kwargs)
 
@@ -155,6 +171,10 @@ class ProviderViewSet(mixins.CreateModelMixin,
             tenant = get_tenant(request.user)
             provider['stats'] = manager.provider_statistics(tenant)
             provider['infrastructure'] = manager.get_infrastructure_name(tenant)
+            provider['cost_models'] = [
+                {'name': model.name, 'uuid': model.uuid}
+                for model in manager.get_cost_models(tenant)
+            ]
         return response
 
     @never_cache
@@ -165,6 +185,10 @@ class ProviderViewSet(mixins.CreateModelMixin,
         manager = ProviderManager(kwargs['uuid'])
         response.data['infrastructure'] = manager.get_infrastructure_name(tenant)
         response.data['stats'] = manager.provider_statistics(tenant)
+        response.data['cost_models'] = [
+            {'name': model.name, 'uuid': model.uuid}
+            for model in manager.get_cost_models(tenant)
+        ]
         return response
 
     @never_cache

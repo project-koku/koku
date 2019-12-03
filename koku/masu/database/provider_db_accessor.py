@@ -15,6 +15,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Accessor for Provider information from koku database."""
+from django.db import transaction
 
 from api.provider.models import Provider, ProviderInfrastructureMap
 from masu.database.koku_database_access import KokuDBAccess
@@ -213,6 +214,7 @@ class ProviderDBAccessor(KokuDBAccess):
             return str(infra_uuid) if infra_uuid else None
         return None
 
+    @transaction.atomic()
     def set_infrastructure(self, infrastructure_provider_uuid, infrastructure_type):
         """Create an infrastructure mapping for an OpenShift provider.
 

@@ -21,8 +21,9 @@ import pkgutil
 import uuid
 
 from dateutil.parser import parse
+from dateutil.rrule import MONTHLY, rrule
 from django.db import connection
-from django.db.models import DecimalField, F, Value
+from django.db.models import DecimalField, F, Max, Min, Value
 from django.db.models.functions import Coalesce
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
@@ -30,6 +31,7 @@ from tenant_schemas.utils import schema_context
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.util.common import month_date_range_tuple
 from reporting.provider.ocp.models import (OCPUsageLineItemDailySummary,
                                            OCPUsageReport,
                                            OCPUsageReportPeriod)
@@ -339,7 +341,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(
             daily_sql, daily_sql_params
         )
-        self._commit_and_vacuum(
+        self._execute_raw_sql_query(
             table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
     def get_ocp_infrastructure_map(self, start_date, end_date, **kwargs):
@@ -357,6 +359,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         # the provider type this is run for
         ocp_provider_uuid = kwargs.get('ocp_provider_uuid')
         aws_provider_uuid = kwargs.get('aws_provider_uuid')
+        azure_provider_uuid = kwargs.get('azure_provider_uuid')
         # In case someone passes this function a string instead of the date object like we asked...
         # Cast the string into a date object, end_date into date object instead of string
         if isinstance(start_date, str):
@@ -373,7 +376,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'end_date': end_date,
             'schema': self.schema,
             'aws_provider_uuid': aws_provider_uuid,
-            'ocp_provider_uuid': ocp_provider_uuid
+            'ocp_provider_uuid': ocp_provider_uuid,
+            'azure_provider_uuid': azure_provider_uuid
         }
         infra_sql, infra_sql_params = self.jinja_sql.prepare_query(
             infra_sql, infra_sql_params)
@@ -427,7 +431,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(
             daily_sql, daily_sql_params
         )
-        self._commit_and_vacuum(
+        self._execute_raw_sql_query(
             table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
     def populate_pod_charge(self, cpu_temp_table, mem_temp_table):
@@ -456,7 +460,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         charge_line_sql, charge_line_sql_params = self.jinja_sql.prepare_query(
             charge_line_sql, charge_line_sql_params
         )
-        self._commit_and_vacuum(
+        self._execute_raw_sql_query(
             table_name, charge_line_sql, bind_params=list(charge_line_sql_params))
 
     def populate_storage_charge(self, temp_table_name):
@@ -483,7 +487,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         charge_line_sql, charge_line_sql_params = self.jinja_sql.prepare_query(
             charge_line_sql, charge_line_sql_params
         )
-        self._commit_and_vacuum(
+        self._execute_raw_sql_query(
             table_name, charge_line_sql, bind_params=list(charge_line_sql_params))
 
     def populate_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
@@ -522,7 +526,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
             summary_sql, summary_sql_params
         )
-        self._commit_and_vacuum(
+        self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
     def populate_storage_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
@@ -560,7 +564,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
             summary_sql, summary_sql_params
         )
-        self._commit_and_vacuum(
+        self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, list(summary_sql_params))
 
     def update_summary_infrastructure_cost(self, cluster_id, start_date, end_date):
@@ -604,7 +608,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             }
             summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
                 summary_sql, summary_sql_params)
-            self._commit_and_vacuum(
+            self._execute_raw_sql_query(
                 table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
     def get_cost_summary_for_clusterid(self, cluster_identifier):
@@ -628,7 +632,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(
             agg_sql, agg_sql_params
         )
-        self._commit_and_vacuum(table_name, agg_sql, bind_params=list(agg_sql_params))
+        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     # pylint: disable=invalid-name
     def populate_volume_claim_label_summary_table(self):
@@ -644,7 +648,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(
             agg_sql, agg_sql_params
         )
-        self._commit_and_vacuum(table_name, agg_sql, bind_params=list(agg_sql_params))
+        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     # pylint: disable=invalid-name
     def populate_volume_label_summary_table(self):
@@ -660,7 +664,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(
             agg_sql, agg_sql_params
         )
-        self._commit_and_vacuum(table_name, agg_sql, bind_params=list(agg_sql_params))
+        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def populate_markup_cost(self, infra_provider_markup, ocp_markup, cluster_id):
         """Set markup cost for OCP including infrastructure cost markup."""
@@ -712,3 +716,61 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     ) * infra_provider_markup
                 )
             )
+
+    def populate_monthly_cost(self, node_cost, start_date=None, end_date=None):
+        """
+        Populate the monthly cost of a customer.
+
+        Right now this is just the node/month cost. Calculated from
+        node_cost * number_unique_nodes.
+
+        args:
+            node_cost (Decimal): The node cost per month
+            start_date (datetime, str): The start_date to calculate monthly_cost.
+            end_date (datetime, str): The end_date to calculate monthly_cost.
+
+        """
+        if isinstance(start_date, str):
+            start_date = parse(start_date)
+        if isinstance(end_date, str):
+            end_date = parse(end_date)
+        if not start_date:
+            # If start_date is not provided, recalculate from the first month
+            start_date = OCPUsageLineItemDailySummary.objects.aggregate(
+                Min('usage_start')
+            )['usage_start__min']
+        if not end_date:
+            # If end_date is not provided, recalculate till the latest month
+            end_date = OCPUsageLineItemDailySummary.objects.aggregate(
+                Max('usage_end')
+            )['usage_end__max']
+
+        LOG.info('Populating Monthly cost from %s to %s.', start_date, end_date)
+
+        first_month = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        with schema_context(self.schema):
+            # Calculate monthly cost for every month
+            for curr_month in rrule(freq=MONTHLY, until=end_date, dtstart=first_month):
+                first_curr_month, first_next_month = month_date_range_tuple(curr_month)
+
+                unique_nodes = OCPUsageLineItemDailySummary.objects.\
+                    filter(usage_start__gte=first_curr_month,
+                           usage_start__lt=first_next_month,
+                           node__isnull=False
+                           ).values_list('node').distinct().count()
+                total_cost = node_cost * unique_nodes
+                LOG.info('Total Cost is %s for %s nodes.', total_cost, unique_nodes)
+
+                # Remove existing monthly costs
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start=first_curr_month,
+                    monthly_cost__isnull=False
+                ).delete()
+
+                # Create new monthly cost
+                OCPUsageLineItemDailySummary.objects.create(
+                    usage_start=first_curr_month,
+                    usage_end=first_curr_month,
+                    monthly_cost=total_cost
+                )

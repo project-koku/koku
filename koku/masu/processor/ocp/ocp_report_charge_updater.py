@@ -187,16 +187,16 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
             None
 
         """
-        aws_markup_value = Decimal(0.0)
+        infra_markup_value = Decimal(0.0)
         infra_map = self.get_infra_map()
         infra_tuple = infra_map.get(self._provider_uuid)
         cluster_id = get_cluster_id_from_provider(self._provider_uuid)
         if infra_tuple:
-            aws_uuid = infra_tuple[0]
-            with CostModelDBAccessor(self._schema, aws_uuid,
+            infra_uuid = infra_tuple[0]
+            with CostModelDBAccessor(self._schema, infra_uuid,
                                      self._column_map) as cost_model_accessor:
                 markup = cost_model_accessor.get_markup()
-                aws_markup_value = Decimal(markup.get('value', 0)) / 100
+                infra_markup_value = Decimal(markup.get('value', 0)) / 100
         with CostModelDBAccessor(self._schema, self._provider_uuid,
                                  self._column_map) as cost_model_accessor:
             markup = cost_model_accessor.get_markup()
@@ -205,7 +205,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
             LOG.info('Updating OpenShift markup for'
                      '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s',
                      self._schema, self._provider_uuid, start_date, end_date)
-            accessor.populate_markup_cost(aws_markup_value, ocp_markup_value, cluster_id)
+            accessor.populate_markup_cost(infra_markup_value, ocp_markup_value, cluster_id)
         LOG.info('Finished updating markup.')
 
     # pylint: disable=too-many-locals
@@ -284,6 +284,22 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         except OCPReportChargeUpdaterError as error:
             LOG.error('Unable to calculate storage usage charge. Error: %s', str(error))
 
+    def _update_monthly_cost(self, start_date=None, end_date=None):
+        """Update the monthly cost for a period of time."""
+        try:
+            with CostModelDBAccessor(self._schema, self._provider_uuid,
+                                     self._column_map) as cost_model_accessor, \
+                    OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
+                rates = cost_model_accessor.get_node_per_month_rates()
+                if rates:
+                    tiers = self._normalize_tier(rates.get('tiered_rates', []))
+                    for tier in tiers:
+                        node_rate = Decimal(tier.get('value'))
+                        report_accessor.populate_monthly_cost(node_rate, start_date, end_date)
+
+        except OCPReportChargeUpdaterError as error:
+            LOG.error('Unable to update monthly costs. Error: %s', str(error))
+
     def update_summary_charge_info(self, start_date=None, end_date=None):
         """Update the OCP summary table with the charge information.
 
@@ -302,6 +318,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         self._update_pod_charge()
         self._update_storage_charge()
         self._update_markup_cost(start_date, end_date)
+        self._update_monthly_cost(start_date, end_date)
 
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             report_periods = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)

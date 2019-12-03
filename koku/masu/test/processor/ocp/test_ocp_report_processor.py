@@ -132,7 +132,6 @@ class OCPReportProcessorTest(MasuTestCase):
             'provider_uuid': self.ocp_provider_uuid
         }
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
-        self.manifest_accessor.commit()
 
         self.ocp_processor = OCPReportProcessor(
             schema_name=self.schema,

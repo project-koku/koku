@@ -28,6 +28,8 @@ from datetime import datetime
 from enum import Enum
 from os import path, remove
 
+from django.conf import settings
+
 from masu.config import Config
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
@@ -322,8 +324,9 @@ class OCPReportProcessorBase(ReportProcessorBase):
         LOG.info('Completed report processing for file: %s and schema: %s',
                  self._report_path, self._schema)
 
-        LOG.info('Removing processed file: %s', self._report_path)
-        remove(self._report_path)
+        if not settings.DEVELOPMENT:
+            LOG.info('Removing processed file: %s', self._report_path)
+            remove(self._report_path)
 
 
 class OCPCpuMemReportProcessor(OCPReportProcessorBase):

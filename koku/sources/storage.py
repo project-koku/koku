@@ -440,3 +440,22 @@ def add_provider_koku_uuid(source_id, koku_uuid):
         query.save()
     except Sources.DoesNotExist:
         LOG.error('%s does not exist', str(source_id))
+
+
+def is_known_source(source_id):
+    """
+    Check if source exists in database.
+
+    Args:
+        source_id (Integer) - Platform-Sources identifier
+
+    Returns:
+        source_exists (Boolean) - True if source is known
+
+    """
+    try:
+        Sources.objects.get(source_id=source_id)
+        source_exists = True
+    except Sources.DoesNotExist:
+        source_exists = False
+    return source_exists

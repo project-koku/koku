@@ -17,8 +17,9 @@
 """Test the Provider views."""
 import copy
 from unittest.mock import patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
+import faker
 from django.urls import reverse
 from rest_framework import serializers
 from rest_framework import status
@@ -26,11 +27,12 @@ from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
-from api.provider.provider_manager import ProviderManager
+from api.provider.provider_manager import ProviderManager, ProviderManagerError
 from api.provider.test import PROVIDERS, create_generic_provider
 from providers.provider_access import ProviderAccessor
 
 fields = ['name', 'type', 'authentication', 'billing_source']
+FAKE = faker.Faker()
 
 
 class ProviderViewTest(IamTestCase):
@@ -60,6 +62,27 @@ class ProviderViewTest(IamTestCase):
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
             client = APIClient()
             return client.post(url, data=provider, format='json', **req_headers)
+
+    def create_cost_model(self, provider_uuids, headers=None):
+        """Create a cost model and return response."""
+        req_headers = self.headers
+        if headers:
+            req_headers = headers
+        cost_model_data = {
+            'name': FAKE.catch_phrase(),
+            'source_type': Provider.PROVIDER_AWS,
+            'description': FAKE.paragraph(),
+            'rates': [],
+            'markup': {
+                'value': FAKE.pyint() % 100, 'unit': 'percent'
+            },
+            'provider_uuids': [UUID(p) for p in provider_uuids]
+        }
+        url = reverse('costmodels-list')
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            client = APIClient()
+            result = client.post(url, data=cost_model_data, format='json', **req_headers)
+        return result
 
     def test_create_aws_with_no_provider_resource_name(self):
         """Test missing provider_resource_name returns 400."""
@@ -186,17 +209,47 @@ class ProviderViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_list_provider(self):
-        """Test list providers."""
-        request_context = self._create_request_context(self.create_mock_customer_data(),
-                                                       self._create_user_data(),
-                                                       create_tenant=True)
-        headers = request_context['request'].META
+        """
+        Test list providers.
+
+        This test asserts a combination of factors. We create two providers,
+        but each provider belongs to a different user. The first provider has
+        a cost model, but the second does not. We assert that each provider is
+        listed only for its respective user's request context.
+        """
+        # Define the context for the second user; this must happen FIRST for reasons
+        # currently unknown. If you call this after creating the first provider, DB
+        # exceptions are raised (django.db.utils.OperationalError: cannot ALTER TABLE)
+        request_context = self._create_request_context(
+            self.create_mock_customer_data(),
+            self._create_user_data(),
+            create_tenant=True)
+        alternate_headers = request_context['request'].META
+
+        # Create a provider with a cost model.
         iam_arn1 = 'arn:aws:s3:::my_s3_bucket'
         bucket_name1 = 'my_s3_bucket'
+        first_create_response = self.create_provider(bucket_name1, iam_arn1)
+        first_provider_result = first_create_response.json()
+        first_provider_uuid = first_provider_result.get('uuid')
+        create_cost_model_response = self.create_cost_model([first_provider_uuid])
+        cost_model_result = create_cost_model_response.json()
+        self.assertIsNotNone(cost_model_result['uuid'])
+        self.assertIsNotNone(cost_model_result['name'])
+        expected_cost_model_info = {
+            'name': cost_model_result['name'], 'uuid': cost_model_result['uuid']
+        }
+
+        # Create a second provider but for a different user.
         iam_arn2 = 'arn:aws:s3:::a_s3_bucket'
         bucket_name2 = 'a_s3_bucket'
-        self.create_provider(bucket_name1, iam_arn1)
-        self.create_provider(bucket_name2, iam_arn2, headers)
+        second_create_response = self.create_provider(
+            bucket_name2, iam_arn2, alternate_headers
+        )
+        second_provider_result = second_create_response.json()
+        second_provider_uuid = second_provider_result.get('uuid')
+
+        # List and expect it to contain only the first provider with cost model.
         url = reverse('provider-list')
         client = APIClient()
         response = client.get(url, **self.headers)
@@ -205,17 +258,40 @@ class ProviderViewTest(IamTestCase):
         results = json_result.get('data')
         self.assertIsNotNone(results)
         self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['uuid'], first_provider_uuid)
         self.assertEqual(results[0].get('infrastructure'), 'Unknown')
         self.assertEqual(results[0].get('stats'), {})
+        self.assertEqual(len(results[0]['cost_models']), 1)
+        self.assertEqual(results[0]['cost_models'][0], expected_cost_model_info)
+
+        # List as the different user and expect the second provider with no cost model.
+        response = client.get(url, **alternate_headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        results = json_result.get('data')
+        self.assertIsNotNone(results)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['uuid'], second_provider_uuid)
+        self.assertEqual(len(results[0]['cost_models']), 0)
 
     def test_get_provider(self):
         """Test get a provider."""
+        # Set up all the data for this test.
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = 'my_s3_bucket'
         create_response = self.create_provider(bucket_name, iam_arn, )
         provider_result = create_response.json()
         provider_uuid = provider_result.get('uuid')
         self.assertIsNotNone(provider_uuid)
+        create_cost_model_response = self.create_cost_model([provider_uuid])
+        cost_model_result = create_cost_model_response.json()
+        self.assertIsNotNone(cost_model_result['uuid'])
+        self.assertIsNotNone(cost_model_result['name'])
+        expected_cost_model_info = {
+            'name': cost_model_result['name'], 'uuid': cost_model_result['uuid']
+        }
+
+        # Call the API for testing the results.
         url = reverse('provider-detail', args=[provider_uuid])
         client = APIClient()
         response = client.get(url, **self.headers)
@@ -226,6 +302,9 @@ class ProviderViewTest(IamTestCase):
         self.assertEqual(uuid, provider_uuid)
         self.assertEqual(json_result.get('stats'), {})
         self.assertEqual(json_result.get('infrastructure'), 'Unknown')
+        cost_models = json_result.get('cost_models')
+        self.assertEqual(len(cost_models), 1)
+        self.assertEqual(cost_models[0], expected_cost_model_info)
 
     def test_filter_providers_by_name_contains(self):
         """Test that providers that contain name appear."""
@@ -327,7 +406,7 @@ class ProviderViewTest(IamTestCase):
             response = client.delete(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def test_remove_invalid_provider(self, ):
+    def test_remove_invalid_provider(self):
         """Test removing an invalid provider with the user."""
         # Create a Provider
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
@@ -341,7 +420,7 @@ class ProviderViewTest(IamTestCase):
         response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_remove_invalid_provider_non_uuid(self, ):
+    def test_remove_invalid_provider_non_uuid(self):
         """Test removing an invalid provider with the non_uuid."""
         # Create a Provider
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
@@ -432,6 +511,21 @@ class ProviderViewTest(IamTestCase):
 
         put_json_result = put_response.json()
         self.assertEqual(put_json_result.get('name'), name)
+
+    @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
+    def test_put_for_provider_type_change(self, mock_access):
+        """Test that provider_type change thru PUT request results in error."""
+        response, provider = create_generic_provider('AWS', self.headers)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+
+        provider = copy.deepcopy(PROVIDERS['AWS'])
+        provider['type'] = 'OCP'
+
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        put_response = client.put(url, data=provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_patch_not_supported(self):
         """Test that PATCH request returns 405."""
@@ -525,3 +619,19 @@ class ProviderViewTest(IamTestCase):
         client = APIClient()
         put_response = client.put(url, data=provider, format='json', **self.headers)
         self.assertEqual(put_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_update_provider_with_update_exception(self):
+        """Test updating a provider with a database error."""
+        # Create Provider with customer owner token
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+
+        # Update Provider with customer token
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        with patch.object(ProviderManager, 'update', side_effect=ProviderManagerError('Update Error.')):
+            response = client.put(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)

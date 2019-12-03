@@ -163,6 +163,9 @@ services:
         - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
         - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
         - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+        - KOKU_CELERY_ENABLE_SENTRY
+        - KOKU_CELERY_SENTRY_DSN
+        - KOKU_SENTRY_ENVIRONMENT
       privileged: true
       volumes:
         - '.:/koku'

@@ -8,6 +8,7 @@ from os import remove
 import pandas
 import pytz
 from dateutil import parser
+from django.conf import settings
 
 from masu.config import Config
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
@@ -109,7 +110,6 @@ class GCPReportProcessor(ReportProcessorBase):
             data,
             conflict_columns=['billing_period_start', 'provider_id']
         )
-        report_db_accessor.commit()
         self.processed_report.bills[key] = bill_id
 
         return bill_id
@@ -140,7 +140,6 @@ class GCPReportProcessor(ReportProcessorBase):
             data,
             conflict_columns=['project_id']
         )
-        report_db_accessor.commit()
 
         self.processed_report.projects[key] = project_id
         return project_id
@@ -250,5 +249,6 @@ class GCPReportProcessor(ReportProcessorBase):
             LOG.info('Completed report processing for file: %s and schema: %s',
                      self._report_name, self._schema)
 
-            LOG.info('Removing processed file: %s', self._report_path)
-            remove(self._report_path)
+            if not settings.DEVELOPMENT:
+                LOG.info('Removing processed file: %s', self._report_path)
+                remove(self._report_path)

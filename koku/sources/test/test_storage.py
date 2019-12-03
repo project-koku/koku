@@ -62,6 +62,11 @@ class SourcesStorageTest(TestCase):
 
         self.test_obj.save()
 
+    def test_is_known_source(self):
+        """Tests is_known_source method."""
+        self.assertTrue(storage.is_known_source(self.test_source_id))
+        self.assertFalse(storage.is_known_source(self.test_source_id + 1))
+
     def test_create_provider_event(self):
         """Tests that a source can be created."""
         test_source_id = 2

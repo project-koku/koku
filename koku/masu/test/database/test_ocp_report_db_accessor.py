@@ -16,13 +16,11 @@
 #
 
 """Test the OCPReportDBAccessor utility object."""
-import decimal
 import random
 import string
-from unittest.mock import patch
 
 from dateutil import relativedelta
-from django.db.models import Max, Min
+from django.db.models import Max, Min, Sum
 from django.db.models.query import QuerySet
 from tenant_schemas.utils import schema_context
 
@@ -33,7 +31,8 @@ from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-
+from masu.util.common import month_date_range_tuple
+from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
 class OCPReportDBAccessorTest(MasuTestCase):
     """Test Cases for the OCPReportDBAccessor object."""
@@ -230,8 +229,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
             self.assertEqual(period.provider_id, provider_uuid)
 
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_get_lineitem_query_for_reportid(self, mock_vacuum):
+    def test_get_lineitem_query_for_reportid(self):
         """Test that the line item data is returned given a report_id."""
         current_report = self.accessor.get_current_usage_report()
         with schema_context(self.schema):
@@ -254,8 +252,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             self.assertIsNotNone(query_report.pod_request_memory_byte_seconds)
             self.assertIsNotNone(query_report.pod_limit_memory_byte_seconds)
 
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_populate_line_item_daily_table(self, mock_vaccum):
+    def test_populate_line_item_daily_table(self):
         """Test that the line item daily table populates."""
         report_table_name = OCP_REPORT_TABLE_MAP['report']
         daily_table_name = OCP_REPORT_TABLE_MAP['line_item_daily']
@@ -323,8 +320,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             for column in summary_columns:
                 self.assertIsNotNone(getattr(entry, column))
 
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_populate_line_item_daily_summary_table(self, mock_vacuum):
+    def test_populate_line_item_daily_summary_table(self):
         """Test that the line item daily summary table populates."""
         self.tearDown()
         self.reporting_period = self.creator.create_ocp_report_period(
@@ -395,8 +391,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         for column in summary_columns:
             self.assertIsNotNone(getattr(entry, column))
 
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_populate_pod_label_summary_table(self, mock_vacuum):
+    def test_populate_pod_label_summary_table(self):
         """Test that the pod label summary table is populated."""
         report_table_name = OCP_REPORT_TABLE_MAP['report']
         agg_table_name = OCP_REPORT_TABLE_MAP['pod_label_summary']
@@ -451,8 +446,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
             self.assertEqual(sorted(tag_keys), sorted(expected_tag_keys))
 
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_populate_volume_claim_label_summary_table(self, mock_vacuum):
+    def test_populate_volume_claim_label_summary_table(self):
         """Test that the volume claim summary table is populated."""
         report_table_name = OCP_REPORT_TABLE_MAP['report']
         agg_table_name = OCP_REPORT_TABLE_MAP['volume_claim_label_summary']
@@ -502,8 +496,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         self.assertEqual(sorted(tag_keys), sorted(expected_tag_keys))
 
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_populate_volume_label_summary_table(self, mock_vacuum):
+    def test_populate_volume_label_summary_table(self):
         """Test that the volume label summary table is populated."""
         report_table_name = OCP_REPORT_TABLE_MAP['report']
         agg_table_name = OCP_REPORT_TABLE_MAP['volume_label_summary']
@@ -623,8 +616,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             self.assertEqual(usage_report_query.count(), 0)
 
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_get_pod_cpu_core_hours(self, mock_vacuum):
+    def test_get_pod_cpu_core_hours(self):
         """Test that gets pod cpu usage/request."""
         self._populate_pod_summary()
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
@@ -660,8 +652,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         )
         self.assertEqual(len(cpu_request_query.keys()), 0)
 
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_get_pod_cpu_core_hours_no_cluster_id(self, mock_vacuum):
+
+    def test_get_pod_cpu_core_hours_no_cluster_id(self):
         """Test that gets pod cpu usage/request without cluster id."""
         self._populate_pod_summary()
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
@@ -685,8 +677,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             len(cpu_request_query.keys()), len(expected_request_reports.keys())
         )
 
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_get_pod_memory_gigabyte_hours(self, mock_vacuum):
+    def test_get_pod_memory_gigabyte_hours(self):
         """Test that gets pod memory usage/request."""
         self._populate_pod_summary()
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
@@ -722,8 +713,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         mem_request_query = self.accessor.get_pod_usage_cpu_core_hours(wrong_cluster_id)
         self.assertEqual(len(mem_request_query.keys()), 0)
 
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_get_pod_memory_gigabyte_hours_no_cluster_id(self, mock_vacuum):
+    def test_get_pod_memory_gigabyte_hours_no_cluster_id(self):
         """Test that gets pod memory usage/request without cluster id."""
         self._populate_pod_summary()
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
@@ -747,8 +737,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             len(mem_request_query.keys()), len(expected_request_reports.keys())
         )
 
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_get_volume_gigabyte_months(self, mock_vacuum):
+    def test_get_volume_gigabyte_months(self):
         """Test that gets pod volume usage/request."""
         self._populate_storage_summary()
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
@@ -791,8 +780,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         )
         self.assertEqual(len(vol_request_query.keys()), 0)
 
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_get_volume_gigabyte_months_no_cluster_id(self, mock_vacuum):
+    def test_get_volume_gigabyte_months_no_cluster_id(self):
         """Test that gets pod volume usage/request without cluster id."""
         self._populate_storage_summary()
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
@@ -819,15 +807,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
             len(vol_request_query.keys()), len(expected_request_reports.keys())
         )
 
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_get_daily_usage_query_for_clusterid(self, mock_vacuum):
+    def test_get_daily_usage_query_for_clusterid(self):
         """Test that daily usage getter is correct."""
         self._populate_pod_summary()
         daily_usage = self.accessor.get_daily_usage_query_for_clusterid(self.cluster_id)
         self.assertEquals(daily_usage.count(), 26)
 
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_get_summary_usage_query_for_clusterid(self, mock_vacuum):
+    def test_get_summary_usage_query_for_clusterid(self):
         """Test that daily usage summary getter is correct."""
         daily_usage_summary = self.accessor.get_summary_usage_query_for_clusterid(
             self.cluster_id
@@ -838,8 +824,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             self.assertEquals(daily_usage_summary.count(), 26)
 
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_get_storage_item_query_report_period_id(self, mock_vacuum):
+    def test_get_storage_item_query_report_period_id(self):
         """Test that get_storage_item_query_report_period_id is correct."""
         storage_line_item = self.accessor.get_storage_item_query_report_period_id(
             self.reporting_period.id
@@ -850,8 +835,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             self.assertEquals(storage_line_item.count(), 26)
 
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_get_daily_storage_item_query_cluster_id(self, mock_vacuum):
+    def test_get_daily_storage_item_query_cluster_id(self):
         """Test that get_daily_storage_item_query_cluster_id is correct."""
         with schema_context(self.schema):
             storage_line_item = self.accessor.get_daily_storage_item_query_cluster_id(
@@ -862,8 +846,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             self.assertEquals(storage_line_item.count(), 26)
 
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_get_storage_summary_query_cluster_id(self, mock_vacuum):
+    def test_get_storage_summary_query_cluster_id(self):
         """Test that get_storage_summary_query_cluster_id is correct."""
         storage_summary = self.accessor.get_storage_summary_query_cluster_id(
             self.cluster_id
@@ -874,58 +857,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             self.assertEquals(storage_summary.count(), 26)
 
-    # @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    # def test_populate_cost_summary_table(self, mock_vacuum):
-    #     """Test that populate_cost_summary_table populates cost summary table."""
-    #     cost_summary = self.accessor.get_cost_summary_for_clusterid(self.cluster_id)
-    #     with schema_context(self.schema):
-    #         self.assertEquals(cost_summary.count(), 0)
-
-    #     report_table_name = OCP_REPORT_TABLE_MAP['report']
-    #     report_table = getattr(self.accessor.report_schema, report_table_name)
-    #     cluster_id = 'testcluster'
-    #     for _ in range(25):
-    #         pod = ''.join(random.choice(string.ascii_lowercase) for _ in range(10))
-    #         namespace = ''.join(random.choice(string.ascii_lowercase) for _ in range(10))
-    #         self.creator.create_ocp_usage_line_item(
-    #             self.reporting_period,
-    #             self.report,
-    #             pod=pod,
-    #             namespace=namespace
-    #         )
-    #         self.creator.create_ocp_storage_line_item(
-    #             self.reporting_period,
-    #             self.report,
-    #             pod=pod,
-    #             namespace=namespace
-    #         )
-
-    #     with schema_context(self.schema):
-    #         report_entry = report_table.objects.all().aggregate(
-    #             Min('interval_start'), Max('interval_start')
-    #         )
-    #         start_date = report_entry['interval_start__min']
-    #         end_date = report_entry['interval_start__max']
-
-    #     start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-    #     end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-    #     self.accessor.populate_line_item_daily_table(
-    #         start_date, end_date, cluster_id
-    #     )
-    #     self.accessor.populate_storage_line_item_daily_table(
-    #         start_date, end_date, cluster_id
-    #     )
-    #     self.accessor.populate_storage_line_item_daily_summary_table(
-    #         start_date, end_date, cluster_id
-    #     )
-
-    #     self.accessor.populate_cost_summary_table(
-    #         self.cluster_id, start_date=start_date, end_date=end_date
-    #     )
-    #     with schema_context(self.schema):
-    #         self.assertEquals(cost_summary.count(), 26)
-
     def test_get_report_periods(self):
         """Test that report_periods getter is correct."""
         periods = self.accessor.get_report_periods()
@@ -935,3 +866,40 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """Test that the report getter is correct."""
         periods = self.accessor.get_reports()
         self.assertEquals(len(periods), 1)
+
+    def test_populate_monthly_cost(self):
+        """Test that the monthly cost row in the summary table is populated."""
+        report_table_name = OCP_REPORT_TABLE_MAP['report']
+
+        report_table = getattr(self.accessor.report_schema, report_table_name)
+
+        node_cost = random.randrange(1, 100)
+        for _ in range(5):
+            self.creator.create_ocp_usage_line_item(self.reporting_period, self.report)
+
+        with schema_context(self.schema):
+            report_entry = report_table.objects.all().aggregate(
+                Min('interval_start'), Max('interval_start')
+            )
+            start_date = report_entry['interval_start__min']
+            end_date = report_entry['interval_start__max']
+
+            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+            self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
+
+            self.accessor.populate_line_item_daily_summary_table(
+                start_date, end_date, self.cluster_id
+            )
+
+            self.accessor.populate_monthly_cost(node_cost=node_cost, start_date=str(start_date))
+
+            first_month, first_next_month = month_date_range_tuple(start_date)
+
+            monthly_cost_row = OCPUsageLineItemDailySummary.objects.filter(
+                usage_start=first_month,
+                monthly_cost__isnull=False
+            ).first()
+
+            self.assertEquals(monthly_cost_row.monthly_cost, 6*node_cost)
