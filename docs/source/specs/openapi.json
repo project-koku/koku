@@ -15,7 +15,7 @@
         },
         {
             "name": "Sources",
-            "description": "Operations about source interactions"
+            "description": "Operations about platform sources interactions"
         },
         {
             "name": "Cost Model",
@@ -2172,7 +2172,7 @@
                             }
                         }
                     }
-                },
+                }
             }
         },
         "/sources/authentication/": {
