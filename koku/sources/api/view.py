@@ -73,7 +73,6 @@ class SourcesViewSet(mixins.ListModelMixin,
             try:
                 decoded_rh_auth = b64decode(auth_header)
                 json_rh_auth = json_loads(decoded_rh_auth)
-                import pdb; pdb.set_trace()
                 account_id = json_rh_auth.get('identity', {}).get('account_number')
                 queryset = Sources.objects.filter(account_id=account_id)
             except Sources.DoesNotExist:
@@ -105,7 +104,9 @@ class SourcesViewSet(mixins.ListModelMixin,
     def status(self, request, *args, **kwargs):
         """Get source availability status."""
         source_id = kwargs.get('source_id')
-        source_status_obj = SourceStatus(source_id)
-        availability_status = source_status_obj.status()
-
-        return Response(availability_status, status=status.HTTP_200_OK)
+        try:
+            source_status_obj = SourceStatus(source_id)
+            availability_status = source_status_obj.status()
+            return Response(availability_status, status=status.HTTP_200_OK)
+        except Sources.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)

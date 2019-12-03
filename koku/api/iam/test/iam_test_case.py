@@ -61,9 +61,8 @@ class IamTestCase(TestCase):
         super().tearDownClass()
 
     @classmethod
-    def _create_customer_data(cls):
+    def _create_customer_data(cls, account=KokuTestRunner.account):
         """Create customer data."""
-        account = KokuTestRunner.account
         schema = KokuTestRunner.schema
         customer = {'account_id': account,
                     'schema_name': schema}
