@@ -73,6 +73,7 @@ class SourcesViewSet(mixins.ListModelMixin,
             try:
                 decoded_rh_auth = b64decode(auth_header)
                 json_rh_auth = json_loads(decoded_rh_auth)
+                import pdb; pdb.set_trace()
                 account_id = json_rh_auth.get('identity', {}).get('account_number')
                 queryset = Sources.objects.filter(account_id=account_id)
             except Sources.DoesNotExist:
