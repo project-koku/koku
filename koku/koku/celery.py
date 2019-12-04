@@ -18,7 +18,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 # pylint: disable=abstract-method
-class LogErrorsTask(Task):
+class LogErrorsTask(Task):  # pragma: no cover
     """Log Celery task exceptions."""
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):  # pylint: disable=too-many-arguments
