@@ -155,7 +155,6 @@ class KokuHTTPClient:
                      'billing_source': self.get_billing_source_for_provider(provider_type,
                                                                             billing_source)}
         try:
-            print(f'UPDATE JSON_DATA: {str(json_data)}')
             r = requests.put(url, headers=self._identity_header, json=json_data)
         except RequestException as conn_err:
             raise KokuHTTPClientError('Failed to create provider. Connection Error: ', str(conn_err))
