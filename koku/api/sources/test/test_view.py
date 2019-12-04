@@ -19,6 +19,7 @@
 import json
 from unittest.mock import PropertyMock
 
+import requests
 import requests_mock
 from django.test import TestCase
 from django.urls import reverse
@@ -58,6 +59,23 @@ class SourcesViewProxyTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertIn(str(credentials), str(body))
 
+    def test_update_proxy_connection_error(self):
+        """Test the PATCH proxy endpoint with connection error."""
+        test_source_id = 1
+        credentials = {'subscription_id': 'subscription-uuid'}
+
+        with requests_mock.mock() as m:
+            m.patch(f'http://www.sourcesclient.com/api/v1/sources/{test_source_id}/',
+                    exc=requests.exceptions.ConnectionError)
+
+            params = {'credentials': credentials}
+            url = reverse('sources-proxy-detail', kwargs={'source_id': test_source_id})
+
+            response = self.client.patch(url, json.dumps(params),
+                                         content_type='application/json')
+
+            self.assertEqual(response.status_code, 500)
+
     def test_update_put_proxy(self):
         """Test the PUT proxy endpoint."""
         test_source_id = 1
@@ -88,6 +106,19 @@ class SourcesViewProxyTests(TestCase):
 
             self.assertEqual(response.status_code, 200)
 
+    def test_list_proxy_connection_error(self):
+        """Test the LIST proxy endpoint with connection error."""
+
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sourcesclient.com/api/v1/sources/',
+                  exc=requests.exceptions.ConnectionError)
+
+            url = reverse('sources-proxy-list')
+
+            response = self.client.get(url, content_type='application/json')
+
+            self.assertEqual(response.status_code, 500)
+
     def test_get_proxy(self):
         """Test the GET proxy endpoint."""
         test_source_id = 1
@@ -102,3 +133,17 @@ class SourcesViewProxyTests(TestCase):
             response = self.client.get(url, content_type='application/json')
 
             self.assertEqual(response.status_code, 200)
+
+    def test_get_proxy_connection_error(self):
+        """Test the GET proxy endpoint with connection error."""
+        test_source_id = 1
+
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sourcesclient.com/api/v1/sources/{test_source_id}/',
+                  exc=requests.exceptions.ConnectionError)
+
+            url = reverse('sources-proxy-detail', kwargs={'source_id': test_source_id})
+
+            response = self.client.get(url, content_type='application/json')
+
+            self.assertEqual(response.status_code, 500)

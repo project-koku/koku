@@ -34,6 +34,18 @@ from api.provider.models import Sources
 LOG = logging.getLogger(__name__)
 
 
+class SourcesProxyException(APIException):
+    """Provider update custom internal error exception."""
+
+    default_detail = 'Error updating provider'
+
+    def __init__(self, message):
+        """Initialize with status code 500."""
+        super().__init__()
+        self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        self.detail = {'detail': force_text(message)}
+
+
 class SourcesMethodException(APIException):
     """General Exception class for Sources errors."""
 
@@ -68,7 +80,10 @@ class SourcesProxyViewSet(mixins.ListModelMixin,
 
         source_id = kwargs.get('source_id')
         url = f'{self.url}{source_id}/'
-        r = requests.patch(url, json=request.data, headers=self.request.headers)
+        try:
+            r = requests.patch(url, json=request.data, headers=self.request.headers)
+        except requests.exceptions.ConnectionError as error:
+            raise SourcesProxyException(str(error))
         response = HttpResponse(
             content=r.content,
             status=r.status_code,
@@ -80,7 +95,10 @@ class SourcesProxyViewSet(mixins.ListModelMixin,
     @never_cache
     def list(self, request, *args, **kwargs):
         """Obtain the list of sources."""
-        r = requests.get(self.url, headers=self.request.headers)
+        try:
+            r = requests.get(self.url, headers=self.request.headers)
+        except requests.exceptions.ConnectionError as error:
+            raise SourcesProxyException(str(error))
         response = HttpResponse(
             content=r.content,
             status=r.status_code,
@@ -94,7 +112,10 @@ class SourcesProxyViewSet(mixins.ListModelMixin,
         """Get a source."""
         source_id = kwargs.get('source_id')
         url = f'{self.url}{source_id}/'
-        r = requests.get(url, headers=self.request.headers)
+        try:
+            r = requests.get(url, headers=self.request.headers)
+        except requests.exceptions.ConnectionError as error:
+            raise SourcesProxyException(str(error))
         response = HttpResponse(
             content=r.content,
             status=r.status_code,
