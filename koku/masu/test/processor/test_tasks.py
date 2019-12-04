@@ -43,7 +43,7 @@ from masu.external.report_downloader import ReportDownloader, ReportDownloaderEr
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
-from masu.processor.report_processor import ReportProcessorError
+from masu.processor.report_processor import ReportProcessor, ReportProcessorError
 from masu.processor.tasks import (
     get_report_files,
     remove_expired_data,
@@ -490,6 +490,26 @@ class TestProcessorTasks(MasuTestCase):
             'billing_source': self.fake.word(),
             'provider_uuid': self.aws_provider_uuid,
         }
+
+    @patch('masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime')
+    @patch('masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime')
+    @patch('masu.processor.tasks._get_report_files')
+    @patch(
+        'masu.processor.tasks._process_report_file',
+        side_effect=ReportProcessorError('Mocked Error!')
+    )
+    def test_get_report_exception(
+        self, mock_process_files, mock_get_files, mock_started, mock_completed
+    ):
+        """Test raising processor exception is handled."""
+        mock_get_files.return_value = self.fake_reports
+        mock_started.return_value = None
+
+        # Check that exception is raised
+        with self.assertRaises(ReportProcessorError):
+            # Check that the exception logs an ERROR
+            with self.assertLogs('masu.processor.tasks.get_report_files', level='ERROR'):
+                reports = get_report_files(**self.fake_get_report_args)
 
     @patch('masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime')
     @patch('masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime')
