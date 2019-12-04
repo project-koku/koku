@@ -28,26 +28,7 @@ from api.query_filter import QueryFilter, QueryFilterCollection
 class TestQueryHandlerGroupBy(TestCase):
     """Test when a group_by[X]=* is used, where X is a valid group_by option"""
 
-    fake = Faker()
-
-    def test_compilationError(self):
-        self.assertEquals(1, 0)
-    def test_filter_parameters_turn_into_group_by_parameters_when_group_by_is_star(self):
-        
-        actualValue = params._parameters.serializer.filter.parent._data['group_by']['service'][0]
-        #assert that we started out with group_by[service]=*
-        self.assertEqual(groupBy, '*')
-        #assert that we started out with filter[service]=AmazonS3
-        self.assertEqual(filter, 'AmazonS3')
-        #ensure it's not a star anymore, or is empty..
-        
-        #TODO: call the method that fixes all that...
-
-        #assert that groupBy isn't a star anymore
-        self.assertNotEqual(groupBy, '*')
-        #assert that group_by=AmazonS3
-        self.assertEqual(groupBy, 'AmazonS3')
-def test_response_structure(self):
+    def test_response_structure(self):
         """
         Test that two requests (one using star, the other using no star) return the same response.
         
@@ -71,3 +52,19 @@ def test_response_structure(self):
         """
 
         self.assertEqual(firstResponse, secondResponse)
+
+    def test_filter_parameters_turn_into_group_by_parameters_when_group_by_is_star(self):
+        
+        actualValue = params._parameters.serializer.filter.parent._data['group_by']['service'][0]
+        #assert that we started out with group_by[service]=*
+        self.assertEqual(groupBy, '*')
+        #assert that we started out with filter[service]=AmazonS3
+        self.assertEqual(filter_clause, 'AmazonS3')
+        #ensure it's not a star anymore, or is empty..
+        
+        #TODO: call the method that fixes all that...
+
+        #assert that groupBy isn't a star anymore
+        self.assertNotEqual(groupBy, '*')
+        #assert that group_by=AmazonS3
+        self.assertEqual(groupBy, 'AmazonS3')
