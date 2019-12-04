@@ -494,6 +494,26 @@ class TestProcessorTasks(MasuTestCase):
     @patch('masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime')
     @patch('masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime')
     @patch('masu.processor.tasks._get_report_files')
+    @patch(
+        'masu.processor.tasks._process_report_file',
+        side_effect=ReportProcessorError('Mocked Error!')
+    )
+    def test_get_report_exception(
+        self, mock_process_files, mock_get_files, mock_started, mock_completed
+    ):
+        """Test raising processor exception is handled."""
+        mock_get_files.return_value = self.fake_reports
+        mock_started.return_value = None
+
+        # Check that exception is raised
+        with self.assertRaises(ReportProcessorError):
+            # Check that the exception logs an ERROR
+            with self.assertLogs('masu.processor.tasks.get_report_files', level='ERROR'):
+                get_report_files(**self.fake_get_report_args)
+
+    @patch('masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime')
+    @patch('masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime')
+    @patch('masu.processor.tasks._get_report_files')
     def test_get_report_files_timestamps_aligned(
         self, mock_get_files, mock_started, mock_completed
     ):
