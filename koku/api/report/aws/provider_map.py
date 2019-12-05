@@ -236,7 +236,8 @@ class AWSProviderMap(ProviderMap):
                 'account': AWSComputeSummaryByAccount,
                 'region': AWSComputeSummaryByRegion,
                 'service': AWSComputeSummaryByService,
-                'product_family': AWSComputeSummaryByService
+                'product_family': AWSComputeSummaryByService,
+                'instance_type': AWSComputeSummary
             },
             'storage': {
                 'default': AWSStorageSummary,
