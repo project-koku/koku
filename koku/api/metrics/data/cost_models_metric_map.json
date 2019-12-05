@@ -1,0 +1,51 @@
+[
+    {
+        "source_type": "OCP",
+        "metric": "cpu_core_usage_per_hour",
+        "label_metric": "CPU",
+        "label_measurement": "Usage",
+        "label_measurement_unit": "core-hours"
+    },
+    {
+        "source_type": "OCP",
+        "metric": "cpu_core_request_per_hour",
+        "label_metric": "CPU",
+        "label_measurement": "Request",
+        "label_measurement_unit": "core-hours"
+    },
+    {
+        "source_type": "OCP",
+        "metric": "memory_gb_usage_per_hour",
+        "label_metric": "Memory",
+        "label_measurement": "Usage",
+        "label_measurement_unit": "GB-hours"
+    },
+    {
+        "source_type": "OCP",
+        "metric": "memory_gb_request_per_hour",
+        "label_metric": "Memory",
+        "label_measurement": "Request",
+        "label_measurement_unit": "GB-hours"
+    },
+    {
+        "source_type": "OCP",
+        "metric": "storage_gb_usage_per_month",
+        "label_metric": "Storage",
+        "label_measurement": "Usage",
+        "label_measurement_unit": "GB-month"
+    },
+    {
+        "source_type": "OCP",
+        "metric": "storage_gb_request_per_month",
+        "label_metric": "Storage",
+        "label_measurement": "Request",
+        "label_measurement_unit": "GB-month"
+    },
+    {
+        "source_type": "OCP",
+        "metric": "node_cost_per_month",
+        "label_metric": "Node",
+        "label_measurement": "Currency",
+        "label_measurement_unit": "node-month"
+    }
+]

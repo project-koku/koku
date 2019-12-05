@@ -1,0 +1,361 @@
+#
+# This template defines resources used to deploy Flower for monitoring Koku's
+# Celery deployment.
+#
+kind: Template
+apiVersion: v1
+metadata:
+  name: celery-flower-template
+  annotations:
+    openshift.io/display-name: "Masu"
+    description: "Monitoring for Koku's Celery deployment."
+    tags: "python,flask"
+    iconClass: "icon-python"
+    openshift.io/long-description: "This template defines resources needed to deploy Flower for monitoring Celery."
+    openshift.io/provider-display-name: "Red Hat, Inc."
+    openshift.io/documentation-url: "https://koku.readthedocs.io/en/latest/"
+labels:
+  app: koku
+  template: koku-celery-flower
+objects:
+- kind: Service
+  apiVersion: v1
+  metadata:
+    annotations:
+      description: Exposes flower
+    name: ${NAME}-flower
+  spec:
+    ports:
+    - name: ${FLOWER_PORT}-tcp
+      port: ${{FLOWER_PORT}}
+      protocol: TCP
+      targetPort: ${{FLOWER_PORT}}
+    selector:
+      name: ${NAME}-flower
+
+- kind: Route
+  apiVersion: v1
+  metadata:
+    name: ${NAME}-flower
+  spec:
+    host: ${APPLICATION_DOMAIN}
+    to:
+      kind: Service
+      name: ${NAME}-flower
+
+- kind: BuildConfig
+  apiVersion: v1
+  metadata:
+    annotations:
+      description: Defines how to build the application
+      template.alpha.openshift.io/wait-for-ready: "true"
+    name: ${NAME}-flower
+    labels:
+      app: ${NAME}
+      name: ${NAME}-flower
+  spec:
+    failedBuildsHistoryLimit: 1
+    successfulBuildsHistoryLimit: 2
+    output:
+      to:
+        kind: ImageStreamTag
+        name: ${NAME}-flower:latest
+    resources:
+      requests:
+        memory: ${BUILD_MEMORY_REQUEST}
+      limits:
+        memory: ${BUILD_MEMORY_LIMIT}
+    source:
+      contextDir: ${CONTEXT_DIR}
+      git:
+        ref: ${SOURCE_REPOSITORY_REF}
+        uri: ${SOURCE_REPOSITORY_URL}
+      type: Git
+    strategy:
+      dockerStrategy:
+        env:
+          - name: PIP_INDEX_URL
+            value: ${PIP_INDEX_URL}
+          - name: PIPENV_PYPI_MIRROR
+            value: ${PIPENV_PYPI_MIRROR}
+          - name: ENABLE_PIPENV
+            value: "true"
+          - name: UPGRADE_PIP_TO_LATEST
+            value: ""
+          - name: APP_CONFIG
+            valueFrom:
+              configMapKeyRef:
+                name: masu-app
+                key: app-config
+                optional: false
+          - name: APP_HOME
+            valueFrom:
+              configMapKeyRef:
+                name: masu-app
+                key: app-home
+          - name: APP_MODULE
+            valueFrom:
+              configMapKeyRef:
+                name: masu-app
+                key: app-module
+        from:
+          kind: ImageStreamTag
+          name: ubi7-python36:latest
+          namespace: ${NAMESPACE}
+    triggers:
+    - type: ConfigChange
+    - imageChange: {}
+      type: ImageChange
+    - github:
+        secret: ${GITHUB_WEBHOOK_SECRET}
+      type: GitHub
+
+- kind: DeploymentConfig
+  apiVersion: v1
+  metadata:
+    annotations:
+      description: Defines how to deploy the celery monitoring app
+      template.alpha.openshift.io/wait-for-ready: "true"
+    name: ${NAME}-flower
+    labels:
+      app: ${NAME}
+  spec:
+    replicas: ${{REPLICAS}}
+    selector:
+      name: ${NAME}-flower
+    resources:
+      requests:
+        cpu: ${CPU_REQUEST}
+        memory: ${MEMORY_REQUEST}
+      limits:
+        cpu: ${CPU_LIMIT}
+        memory: ${MEMORY_LIMIT}
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          app: ${NAME}
+          name: ${NAME}-flower
+        name: ${NAME}-flower
+      spec:
+        containers:
+        - name: ${NAME}-flower
+          image: ${NAME}-flower
+          command:
+            - /opt/app-root/src/run-flower.sh
+          env:
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  key: database-user
+                  name: ${NAME}-db
+                  optional: false
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: database-password
+                  name: ${NAME}-db
+                  optional: false
+            - name: MASU_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: masu-secret-key
+                  name: ${NAME}-masu
+                  optional: false
+            - name: FLOWER_AUTH_SCHEME
+              valueFrom:
+                secretKeyRef:
+                  key: flower-auth-scheme
+                  name: ${NAME}-flower
+                  optional: true
+            - name: FLOWER_BASIC_AUTH_PARAMS
+              valueFrom:
+                secretKeyRef:
+                  key: flower-basic-auth-params
+                  name: ${NAME}-flower
+                  optional: true
+            - name: FLOWER_OAUTH2_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: flower-oauth2-key
+                  name: ${NAME}-flower
+                  optional: true
+            - name: FLOWER_OAUTH2_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: flower-oauth2-secret
+                  name: ${NAME}-flower
+                  optional: true
+            - name: FLOWER_OAUTH2_REDIRECT_URI
+              valueFrom:
+                secretKeyRef:
+                  key: flower-oauth2-redirect-uri
+                  name: ${NAME}-flower
+                  optional: true
+            - name: FLOWER_OAUTH2_DOMAINS
+              valueFrom:
+                secretKeyRef:
+                  key: flower-oauth2-domains
+                  name: ${NAME}-flower
+                  optional: true
+            - name: DATABASE_ENGINE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-engine
+                  optional: false
+            - name: DATABASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-name
+                  optional: false
+            - name: DATABASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-host
+                  optional: false
+            - name: DATABASE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-port
+                  optional: false
+            - name: RABBITMQ_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: rabbitmq-host
+                  optional: false
+          livenessProbe:
+            failureThreshold: 3
+            tcpSocket:
+              port: ${{FLOWER_PORT}}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3
+          readinessProbe:
+            tcpSocket:
+              port: ${{FLOWER_PORT}}
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            successThreshold: 1
+            failureThreshold: 3
+            timeoutSeconds: 10
+          resources:
+            requests:
+              cpu: ${CPU_REQUEST}
+              memory: ${MEMORY_REQUEST}
+            limits:
+              cpu: ${CPU_LIMIT}
+              memory: ${MEMORY_LIMIT}
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - ${NAME}-flower
+        from:
+          kind: ImageStreamTag
+          name: ${NAME}-flower:latest
+      type: ImageChange
+
+- kind: ImageStream
+  apiVersion: v1
+  metadata:
+    name: ${NAME}-flower
+    annotations:
+      description: "Keeps track of changes in the application image"
+    labels:
+      app: ${NAME}
+
+parameters:
+- description: The name assigned to all frontend objects defined in this template.
+  displayName: Name
+  name: NAME
+  required: true
+  value: koku
+- description: The OpenShift Namespace where the ImageStream resides.
+  displayName: Namespace
+  name: NAMESPACE
+  required: true
+  value: koku
+- description: Number of Celery Flower replicas
+  displayName: Celery Flower Replica count
+  name: REPLICAS
+  required: true
+  value: '1'
+- description: Initial amount of memory the Flower container will request.
+  displayName: Celery Flower Memory Resource Request
+  name: MEMORY_REQUEST
+  required: true
+  value: 512Mi
+- description: Maximum amount of memory the Flower container can use.
+  displayName: Celery Flower Memory Resource Limit
+  name: MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- description: Initial amount of CPU the Flower container will request.
+  displayName: Celery Flower CPU Resource Request
+  name: CPU_REQUEST
+  required: true
+  value: 500m
+- description: Maximum amount of CPU the Flower container can use.
+  displayName: Celery Flower CPU Resource Limit
+  name: CPU_LIMIT
+  required: true
+  value: '1'
+- description: Initial amount of memory the build container will request.
+  displayName: Build Memory Resource Request
+  name: BUILD_MEMORY_REQUEST
+  required: true
+  value: 512Mi
+- description: Maximum amount of memory the build container can use.
+  displayName: Build Memory Resource Limit
+  name: BUILD_MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- description: The custom PyPi index URL
+  displayName: Custom PyPi Index URL
+  name: PIP_INDEX_URL
+  required: false
+- description: The custom PipEnv PyPi index URL
+  displayName: Custom PipEnv PyPi Index URL
+  name: PIPENV_PYPI_MIRROR
+  required: false
+- description: Github trigger secret.  A difficult to guess string encoded as part
+    of the webhook URL.  Not encrypted.
+  displayName: GitHub Webhook Secret
+  from: '[a-zA-Z0-9]{40}'
+  generate: expression
+  name: GITHUB_WEBHOOK_SECRET
+  required: false
+- description: The URL of the repository with your application source code.
+  displayName: Git Repository URL
+  name: SOURCE_REPOSITORY_URL
+  required: true
+  value: https://github.com/project-koku/koku.git
+- description: Set this to a branch name, tag or other ref of your repository if you
+    are not using the default branch.
+  displayName: Git Reference
+  name: SOURCE_REPOSITORY_REF
+  required: false
+- description: Set this to the relative path to your project if it is not in the root
+    of your repository.
+  displayName: Context Directory
+  name: CONTEXT_DIR
+  required: false
+  value: openshift/buildenv/flower
+- description: The exposed hostname that will route to the app service, if left
+    blank a value will be defaulted.
+  displayName: Application Hostname
+  name: APPLICATION_DOMAIN
+  required: false
+- description: Celery Flower Port Number
+  displayName: Celery Flower Port Number
+  name: FLOWER_PORT
+  required: true
+  value: "5555"

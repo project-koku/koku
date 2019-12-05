@@ -15,35 +15,93 @@
 #
 """Describes the urls and patterns for the API application."""
 from django.conf.urls import include, url
-from rest_framework.authtoken import views
 from rest_framework.routers import DefaultRouter
-from rest_framework_nested.routers import NestedSimpleRouter
 
-from api.views import (CustomerViewSet,
-                       ProviderViewSet,
-                       UserPreferenceViewSet,
-                       UserViewSet,
-                       costs,
-                       instance_type,
-                       status,
-                       storage)
+from api.views import (
+    AWSCostView,
+    AWSInstanceTypeView,
+    AWSStorageView,
+    AWSTagView,
+    AzureCostView,
+    AzureInstanceTypeView,
+    AzureStorageView,
+    AzureTagView,
+    CloudAccountViewSet,
+    CostModelMetricsMapViewSet,
+    DataExportRequestViewSet,
+    OCPAWSCostView,
+    OCPAWSInstanceTypeView,
+    OCPAWSStorageView,
+    OCPAWSTagView,
+    OCPAzureCostView,
+    OCPAzureInstanceTypeView,
+    OCPAzureStorageView,
+    OCPAzureTagView,
+    OCPCostView,
+    OCPCpuView,
+    OCPMemoryView,
+    OCPTagView,
+    OCPVolumeView,
+    ProviderViewSet,
+    StatusView,
+    UserPreferenceViewSet,
+    authentication,
+    billing_source,
+    openapi
+)
+
 
 ROUTER = DefaultRouter()
-ROUTER.register(r'customers', CustomerViewSet)
+ROUTER.register(r'dataexportrequests', DataExportRequestViewSet, base_name='dataexportrequests')
+ROUTER.register(r'metrics', CostModelMetricsMapViewSet, base_name='metrics')
 ROUTER.register(r'providers', ProviderViewSet)
-ROUTER.register(r'users', UserViewSet)
-
-USER_ROUTER = NestedSimpleRouter(ROUTER, r'users', lookup='user')
-USER_ROUTER.register(r'preferences', UserPreferenceViewSet,
-                     base_name='preferences')
-
+ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
+ROUTER.register(r'cloud-accounts', CloudAccountViewSet, base_name='cloud_accounts')
 # pylint: disable=invalid-name
 urlpatterns = [
-    url(r'^token-auth/', views.obtain_auth_token, name='token-auth'),
-    url(r'^status/$', status, name='server-status'),
-    url(r'^reports/costs/$', costs, name='reports-costs'),
-    url(r'^reports/inventory/instance-type/$', instance_type, name='reports-instance-type'),
-    url(r'^reports/inventory/storage/$', storage, name='reports-storage'),
+
+    url(r'^status/$', StatusView.as_view(), name='server-status'),
+    url(r'^openapi.json', openapi, name='openapi'),
+    url(r'^tags/aws/$', AWSTagView.as_view(), name='aws-tags'),
+    url(r'^tags/azure/$', AzureTagView.as_view(), name='azure-tags'),
+    url(r'^tags/openshift/$', OCPTagView.as_view(), name='openshift-tags'),
+    url(r'^tags/openshift/infrastructures/aws/$', OCPAWSTagView.as_view(),
+        name='openshift-aws-tags'),
+    url(r'^tags/openshift/infrastructures/azure/$', OCPAzureTagView.as_view(),
+        name='openshift-azure-tags'),
+    url(r'^reports/aws/costs/$', AWSCostView.as_view(), name='reports-aws-costs'),
+    url(r'^reports/aws/instance-types/$', AWSInstanceTypeView.as_view(),
+        name='reports-aws-instance-type'),
+    url(r'^reports/aws/storage/$', AWSStorageView.as_view(),
+        name='reports-aws-storage'),
+    url(r'^reports/azure/costs/$', AzureCostView.as_view(), name='reports-azure-costs'),
+    url(r'^reports/azure/instance-types/$', AzureInstanceTypeView.as_view(),
+        name='reports-azure-instance-type'),
+    url(r'^reports/azure/storage/$', AzureStorageView.as_view(),
+        name='reports-azure-storage'),
+    url(r'^reports/openshift/costs/$', OCPCostView.as_view(),
+        name='reports-openshift-costs'),
+    url(r'^reports/openshift/memory/$', OCPMemoryView.as_view(),
+        name='reports-openshift-memory'),
+    url(r'^reports/openshift/compute/$', OCPCpuView.as_view(),
+        name='reports-openshift-cpu'),
+    url(r'^reports/openshift/volumes/$', OCPVolumeView.as_view(),
+        name='reports-openshift-volume'),
+    url(r'^reports/openshift/infrastructures/aws/costs/$', OCPAWSCostView.as_view(),
+        name='reports-openshift-aws-costs'),
+    url(r'^reports/openshift/infrastructures/aws/storage/$', OCPAWSStorageView.as_view(),
+        name='reports-openshift-aws-storage'),
+    url(r'^reports/openshift/infrastructures/aws/instance-types/$',
+        OCPAWSInstanceTypeView.as_view(),
+        name='reports-openshift-aws-instance-type'),
+    url(r'^reports/openshift/infrastructures/azure/costs/$', OCPAzureCostView.as_view(),
+        name='reports-openshift-azure-costs'),
+    url(r'^reports/openshift/infrastructures/azure/storage/$', OCPAzureStorageView.as_view(),
+        name='reports-openshift-azure-storage'),
+    url(r'^reports/openshift/infrastructures/azure/instance-types/$',
+        OCPAzureInstanceTypeView.as_view(),
+        name='reports-openshift-azure-instance-type'),
+    url(r'^sources/authentication/$', authentication, name='authentication'),
+    url(r'^sources/billing_source/$', billing_source, name='billing-source'),
     url(r'^', include(ROUTER.urls)),
-    url(r'^', include(USER_ROUTER.urls))
 ]

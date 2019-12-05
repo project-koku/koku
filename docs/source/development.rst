@@ -8,3 +8,4 @@ Development Information
    README
    CONTRIBUTING
    openshift
+   testing

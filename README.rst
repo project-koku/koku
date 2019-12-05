@@ -8,7 +8,7 @@ Koku README
 About
 ~~~~~
 
-Koku's goal is to provide an open source solution for cost management of cloud and hybrid cloud environments. This is offered via a web interface that exposes resource consumption and cost data in easily digestible and filterable views. The project also aims to provide insight into this data and ultimately provide suggested optimizations for reducing cost and eliminating unnecessary resource usage.
+Koku's goal is to provide an open source solution for cost management of cloud and hybrid cloud environments. This solution is offered via a web interface that exposes resource consumption and cost data in easily digestible and filterable views. The project also aims to provide insight into this data and ultimately provide suggested optimizations for reducing cost and eliminating unnecessary resource usage.
 
 Full documentation is available through readthedocs_.
 
@@ -16,7 +16,25 @@ Full documentation is available through readthedocs_.
 Getting Started
 ===============
 
-This is a Python project developed using Python 3.6. Make sure you have at least this version installed.
+This project is developed using Python 3.6. Make sure you have at least this version installed.
+
+Prerequisites
+-------------
+
+* Docker
+* PostgreSQL
+
+For Mac OSX
+^^^^^^^^^^^
+
+    `Install Docker for Mac`_
+
+    `Install brew`_
+
+    Install PostgreSQL: ::
+
+        brew install postgresql
+
 
 Development
 ===========
@@ -32,6 +50,29 @@ Developing inside a virtual environment is recommended. A Pipfile is provided. P
 Then project dependencies and a virtual environment can be created using ::
 
     pipenv install --dev
+
+**Note for Mac OSX users**
+
+psycopg2 is a dependency of Django and installing the psycopg2 wheel will likely fail. The following steps should be taken to allow installation to succeed: ::
+
+
+    brew install openssl
+    brew unlink openssl && brew link openssl --force
+
+    `/usr/local/opt/openssl/bin` should be appended to the PATH environment variable
+
+    The following environment variables can be set in the koku repo's .env file
+        LDFLAGS="-L/usr/local/opt/openssl/lib"
+        CPPFLAGS="-I/usr/local/opt/openssl/include"
+    These environment variables will then be available next time you activate your virtualenv. For immediate use running `source .env` will load the environment variables into your existing terminal environment. 
+    
+    Alternatively, run the following commands:
+        `export LDFLAGS="-L/usr/local/opt/openssl/lib"`
+        `export CPPFLAGS="-I/usr/local/opt/openssl/include"`
+        
+If dependency installation still fails, try using ::
+
+    pipenv install --dev --sequential
 
 To activate the virtual environment run ::
 
@@ -61,18 +102,21 @@ Database
 
 PostgreSQL is used as the database backend for Koku. A docker-compose file is provided for creating a local database container. If modifications were made to the .env file the docker-compose file will need to be modified to ensure matching database credentials. Several commands are available for interacting with the database. ::
 
+    # Initialize the docker network for koku services if it doesn't already exist
+    docker network create koku-network
+
     # This will launch a Postgres container
-    make start-db
+    make docker-up-db
 
     # This will run Django's migrations against the database
     make run-migrations
 
     # This will stop and remove a currently running database and run the above commands
-    make reinitdb
+    make docker-reinitdb
 
 Assuming the default .env file values are used, to access the database directly using psql run ::
 
-    psql koku -U koku -h localhost -p 15432
+    PGPASSWORD=postgres psql postgres -U postgres -h localhost -p 15432
 
 There is a known limitation with docker-compose and Linux environments with SELinux enabled. You may see the following error during the postgres container deployment::
 
@@ -81,28 +125,6 @@ There is a known limitation with docker-compose and Linux environments with SELi
 If a docker container running Postgres is not feasible, it is possible to run Postgres locally as documented in the Postgres tutorial_. The default port for local Postgres installations is `5432`. Make sure to modify the `.env` file accordingly. To initialize the database run ::
 
     make run-migrations
-
-Server
-^^^^^^
-
-To run a local dev Django server you can use ::
-
-    make serve
-
-API Documentation Generation
-----------------------------
-
-To generate and host the API documentation locally you need to `Install APIDoc`_.
-
-Generate the project API documenttion by running the following command ::
-
-  make gen-apidoc
-
-In order to host the docs locally you need to collect the static files ::
-
-  make collect-static
-
-Now start the server with as described above and point your browser to **http://127.0.0.1:8000/apidoc/index.html**.
 
 Testing and Linting
 -------------------
@@ -121,14 +143,32 @@ To lint the code base ::
 
     tox -e lint
 
+To run IQE Smoke or API tests, while on the Red Hat network and koku deployed via docker-compose run::
+
+    make docker-iqe-smokes-tests
+    make docker-iqe-api-tests
+
+
+pgAdmin
+-------------------
+
+If you want to interact with the Postgres database from a GUI:
+
+ 1. Copy the `pgadmin_servers.json.example` into a `pgadmin_servers.json` file and if necessary, change any variables to match your database.
+ 2. `docker-compose up` causes pgAdmin to run on http://localhost:8432
+ 3. In the login screen, the default login email is `postgres`
+
+Side note: The `pgadmin_servers.json` file uses [pgadmin servers.json syntax](https://www.pgadmin.org/docs/pgadmin4/development/import_export_servers.html#json-format)
+
 Contributing
 =============
 
 Please refer to Contributing_.
 
 .. _readthedocs: http://koku.readthedocs.io/en/latest/
+.. _`Install Docker for Mac`: https://docs.docker.com/v17.12/docker-for-mac/install/
+.. _`Install brew`: https://brew.sh/
 .. _tutorial: https://www.postgresql.org/docs/10/static/tutorial-start.html
-.. _`Install APIDoc`: http://apidocjs.com/#install
 .. _`Working with Openshift`: https://koku.readthedocs.io/en/latest/openshift.html
 .. _Contributing: https://koku.readthedocs.io/en/latest/CONTRIBUTING.html
 

@@ -1,78 +1,112 @@
-Working with OpenShift
-======================
+.. _`OpenShift`: https://docs.okd.io/
+.. _`minishift`: https://github.com/minishift/minishift
+.. _`Kubernetes`: https://kubernetes.io/docs/home/
+.. _`Docker`: https://docs.docker.com/
+.. _`crc`: https://github.com/code-ready/crc
+.. _`Red Hat Registry Authentication`: https://access.redhat.com/RegistryAuthentication
 
-We are currently developing using OpenShift version 3.7. There are different setup requirements for Mac OS and Linux (instructions are provided for Fedora).
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+Developing using OpenShift
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Run `oc cluster up` once before running the make commands to generate the referenced config file.
+The recommend development workflow is to develop using the same tools the application uses as its target environment. In this case, Koku is intended for use inside an OpenShift deployment. Therefore, it is recommended that Koku development also use an OpenShift deployment. Developing using OpenShift will align not only the software architecture, but also ensures the developer builds familiarity with the toolchain.
 
-Openshift does offer shell/tab completion. It can be generated for either bash/zsh and is available by running `oc completion bash|zsh` The following example generates a shell script for completion and sources the file.  ::
+Prerequistes
+============
+
+Developing Koku using OpenShift requires prerequisite knowledge and workstation configuration. Please ensure that you are familiar with the following software and have configured your workstation accordingly.
+
+- `OpenShift`_
+- `Kubernetes`_
+- `Docker`_
+
+When ready, your workstation should be able to run containers and deploy `OpenShift`_, either using `minishift`_ or an alternative installer.
+
+Local Development
+=================
+
+Minishift (OKD 3.11)
+--------------------
+
+The recommended way to deploy a local OpenShift 3.x installation on Linux for Koku development is to use `minishift`_. This runs an OpenShift cluster inside of a VM.
+
+Installing and configuring `minishift`_ is outside the scope of this document.  Please refer to the `minishift`_ documentation for details.
+
+In order to access RHEL images for building Koku, you must configure `Red Hat Registry Authentication`_:
+
+For username/password, you can use the minishift's ``redhat-registry-login``
+addon:
+
+::
+    minishift addons enable redhat-registry-login
+    minishift addons apply redhat-registry-login --addon-env REGISTRY_USERNAME=${USERNAME} --addon-env REGISTRY_PASSWORD=${PASSWORD}
+
+
+For token-based authentication, you will need to configure the secret manually
+in your project:
+
+::
+    # this extracts the nested object from the file distributed by https://access.redhat.com/terms-based-registry
+    cat /path/to/registry-pull-secret.yaml | \
+             python -c 'import yaml, sys; print(yaml.safe_load(sys.stdin).get("data").get(".dockerconfigjson"))' | \
+             base64 -d | \
+             oc create secret generic registry-redhat-io-secret \
+                                    --from-file=.dockerconfigjson=/dev/stdin \
+                                    -n myproject \
+                                    --type=kubernetes.io/dockerconfigjson
+    oc secrets link default registry-redhat-io-secret -n myproject --for=pull
+    oc secrets link builder registry-redhat-io-secret -n myproject
+
+CodeReady Containers (OKD 4.x)
+------------------------------
+The recommended way to deploy a local OpenShift 4.x installation on Linux for Koku development is to use `crc`_. This runs an OpenShift cluster inside of a VM.
+
+Installing and configuring `crc`_ is outside the scope of this document.  Please refer to the `crc`_ documentation for details.
+
+In order to access RHEL images for building Koku, you must configure `Red Hat Registry Authentication`_.
+
+The script ``scripts/e2e-deploy.sh`` handles setup and configuration of `crc`_, including `Red Hat Registry Authentication`_.
+
+
+Deploying Services
+------------------
+
+Koku is implemented as a collection of services. During development, it is not required to deploy all services. It is possible to deploy subsets of services based on the focus of the development effort.
+
+The ``Makefile`` in the Koku git repository provides targets intended to assist with development by enabling deployment and management of Koku's services within a local OpenShift installation. See ``make help`` for more information about the available targets.
+
+Service Dependencies
+^^^^^^^^^^^^^^^^^^^^
+
+- PostgreSQL: the database is required for most Koku services.
+
+- RabbitMQ: the message bus is required for report polling and processing.
+
+- Redis: the key-value store is required for caching credentials from an external authentication service.
+
+OpenShift Templates
+^^^^^^^^^^^^^^^^^^^
+
+OpenShift templates are provided for all service resources. Each template includes parameters to enable customization to the target environment.
+
+The ``Makefile`` targets include scripting to dynamically pass parameter values into the OpenShift templates. A developer may define parameter values by placing a parameter file into the ``koku.git/openshift/parameters`` directory.
+
+Examples of parameter files are provided in the ``koku.git/openshift/parameters/examples`` directory.
+
+The ``Makefile`` scripting applies parameter values only to matching templates based on matching the filenames of each file. For example, parameters defined in ``koku-api.env`` are applied *only* to the ``koku-api.yaml`` template. As a result, common parameters like ``NAMESPACE`` must be defined consistently within *each* parameter file.
+
+
+General Platform information
+============================
+
+When developing using OpenShift, there are different setup requirements for Linux and Mac OS. Linux instructions are provided for Fedora/RHEL/CentOS.
+
+CLI Tab Completion
+------------------
+The Openshift client (``oc``) does offer shell/tab completion. It can be generated for either bash/zsh and is available by running `oc completion bash|zsh` The following example generates a shell script for completion and sources the file.  ::
 
     oc completion zsh > $HOME/.oc/oc_completion.sh
     source $HOME/.oc/oc_completion.sh
-
-Local Development Cluster
--------------------------
-The following commands can be used to manually create an OpenShift cluster with the necessary components to run koku. ::
-
-  # bring up a new dev cluster
-  oc cluster up \
-        --image=$(OC_SOURCE) \
-        --version=$(OC_VERSION) \
-        --host-data-dir=$(OC_DATA_DIR)
-
-  # log in as cluster admin
-  oc login -u system:admin
-
-  # import postgresql-9.6 imagestream
-  oc create -n openshift istag postgresql:9.6 --from-image=centos/postgresql-96-centos7
-
-  # import python-3.6 imagestream
-  oc create -n openshift istag python:3.6 --from-image=centos/python-36-centos7
-
-  # create the app
-  oc new-app openshift/templates/django-postgresql-persistent.json
-
-Alternatively, make commands are provided as a convenience. ::
-
-  # Start the OpenShift cluster
-  make oc-up
-
-  # Terminate the OpenShift cluster
-  make oc-down
-
-  # Clean out local data
-  make oc-clean
-
-There are a few ways to use OpenShift while developing Koku. It is possible to spin up the entire application and its dependent services, or just the dependent services can be spun up while using the local Django dev server. ::
-
-  # Run everything through OpenShift
-  make oc-up-all
-
-  # Run *just* a database in Openshift, while running the server locally
-  make oc-up-db
-  # Run Django migrations to initialize the database
-  make oc-run-migrations
-  # Run the Django server locally with access to the OpenShift database
-  make oc-serve
-
-To gain temporary access to the database within OpenShift, port forwarding is used. ::
-
-  # Port forward to 15432
-  make oc-forward-ports
-
-  psql koku -U kokuadmin -p 15432 -h localhost
-
-  # Stop port forwarding
-  make oc-stop-forwarding-ports
-
-Fedora
-------
-
-The setup process for Fedora is well outlined in two articles.
-First, get Docker up and running. `Getting Started with Docker on Fedora`_.
-
-Then follow these instructions to get OpenShift setup `OpenShift — Fedora Developer Portal`_.
-
 
 Mac OS
 -------
@@ -85,8 +119,6 @@ Add `172.30.0.0/16` to the Docker insecure registries which can be accomplished 
 
 Add `172.30.1.1` to the list of proxies to bypass. This can be found at Docker -> Preferences -> Proxies
 
-.. _`Getting Started with Docker on Fedora`: https://developer.fedoraproject.org/tools/docker/docker-installation.html
-.. _`OpenShift — Fedora Developer Portal`: https://developer.fedoraproject.org/deployment/openshift/about.html
 .. _`docker-community-edition-17091-ce-mac42-2017-12-11`: https://docs.docker.com/docker-for-mac/release-notes/#docker-community-edition-17091-ce-mac42-2017-12-11
 .. _`Test an insecure registry | Docker Documentation`: https://docs.docker.com/registry/insecure/
 
@@ -94,13 +126,6 @@ Add `172.30.1.1` to the list of proxies to bypass. This can be found at Docker -
 Troubleshooting
 ---------------
 
-OpenShift uses Docker to run containers. When running a cluster locally for developement, deployment can be strained by low resource allowances in Docker. For development it is recommended that Docker have at least 4 GB of memory available for use.
+- When running a cluster locally for developement, it is recommended that your workstation can allocate at least 4 GB of memory available for use.
 
-Also, if Openshift services misbehave or do not deploy properly, it can be useful to spin the cluster down, restart the Docker service and retry.
-
-Generating the Template
-=======================
-
-To generate a new template from a running configuration, use this command. ::
-
-    oc export all -o yaml --as-template=my-new-template > openshift/my-new-template.yaml
+- Accessing the database when it is running inside an OpenShift deployment will require either a remote shell or port forwarding. The ``Makefile`` provides targets for managing port forwarding.

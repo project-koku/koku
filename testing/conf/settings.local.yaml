@@ -1,0 +1,21 @@
+local:
+  hccm:
+    ocp_dir: /var/tmp/masu/insights_local
+    aws_dir: /tmp/local_bucket
+    azure_dir: /tmp/local_container
+    masu:
+      path: api/cost-management/v1
+      port: 5000
+      hostname: localhost
+      scheme: http
+  main:
+    hostname: localhost:8000
+    scheme: http
+    default_user: default
+    api_path: api/cost-management/v1
+  http:
+    default_auth_type: basic
+  users:
+    default:
+      username: user_dev@foo.com
+      password: password

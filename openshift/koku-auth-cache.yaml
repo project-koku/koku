@@ -1,0 +1,150 @@
+#
+# This template defines objects related to deploying the Koku auth caching service.
+#
+apiVersion: v1
+kind: Template
+metadata:
+  name: koku-api-template
+  annotations:
+    openshift.io/display-name: "Koku"
+    description: "Cloud Cost Management powered by Django+PostgreSQL"
+    tags: "quickstart,python,django,postgresql"
+    iconClass: "icon-python"
+    openshift.io/long-description: "This template defines resources needed to deploy and run the Koku application."
+    openshift.io/provider-display-name: "Red Hat, Inc."
+    openshift.io/documentation-url: "https://koku.readthedocs.io/en/latest/"
+labels:
+  app: koku
+  template: koku-auth-cache
+objects:
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      description: Defines how to deploy the redis service
+      template.alpha.openshift.io/wait-for-ready: "true"
+    name: ${NAME}-redis
+  spec:
+    replicas: ${{REPLICAS}}
+    selector:
+      name: ${NAME}-redis
+    resources:
+      limits:
+        memory: ${MEMORY_REQUEST}
+      limits:
+        memory: ${MEMORY_LIMIT}
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          app: ${NAME}
+          name: ${NAME}-redis
+        name: ${NAME}-redis
+      spec:
+        containers:
+        - env:
+          image: redis:latest
+          command:
+            - "redis-server"
+          args:
+            - "/etc/redis/redis.conf"
+          imagePullPolicy: IfNotPresent
+          name: ${NAME}-redis
+          ports:
+          - containerPort: ${{REDIS_PORT}}
+            protocol: TCP
+          volumeMounts:
+          - mountPath: /var/lib/redis/data
+            name: ${NAME}-redis-data
+          - mountPath: /etc/redis/
+            name: ${NAME}-redis-config
+        volumes:
+          - name: ${NAME}-redis-data
+            persistentVolumeClaim:
+              claimName: ${NAME}-redis
+          - name: ${NAME}-redis-config
+            configMap:
+              name: ${NAME}-redis-config
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - ${NAME}-redis
+        from:
+          kind: ImageStreamTag
+          name: redis:latest
+          namespace: ${NAMESPACE}
+      type: ImageChange
+
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: ${NAME}-redis-config
+    namespace: ${NAMESPACE}
+  data:
+    redis.conf: |
+      dir /var/lib/redis/data
+
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: ${NAME}-redis
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: ${VOLUME_CAPACITY}
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      description: Exposes the redis service
+    name: ${NAME}-redis
+  spec:
+    ports:
+    - name: ${NAME}-redis
+      port: ${{REDIS_PORT}}
+      protocol: TCP
+      targetPort: ${{REDIS_PORT}}
+    selector:
+      name: ${NAME}-redis
+
+parameters:
+- description: The name assigned to all frontend objects defined in this template.
+  displayName: Name
+  name: NAME
+  required: true
+  value: koku
+- description: The OpenShift Namespace where the ImageStream resides.
+  displayName: Namespace
+  name: NAMESPACE
+  required: true
+  value: koku
+- description: Volume space available for data, e.g. 512Mi, 2Gi
+  displayName: Volume Capacity
+  name: VOLUME_CAPACITY
+  required: true
+  value: 1Gi
+- description: Initial amount of memory the Django container will request.
+  displayName: Memory Request
+  name: MEMORY_REQUEST
+  required: true
+  value: 1Gi
+- description: Maximum amount of memory the Django container can use.
+  displayName: Memory Limit
+  name: MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- description: Number of pod replicas
+  displayName: Redis Pod Replicas
+  name: REPLICAS
+  required: true
+  value: '1'
+- description: Redis Port Number
+  displayName: Redis Port Number
+  name: REDIS_PORT
+  required: true
+  value: "6379"

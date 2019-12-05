@@ -15,17 +15,24 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Provider views."""
+import copy
 from unittest.mock import patch
+from uuid import UUID, uuid4
 
+import faker
 from django.urls import reverse
-from providers.provider_access import ProviderAccessor
+from rest_framework import serializers
+from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Customer, User
 from api.provider.models import Provider
-from api.provider.provider_manager import ProviderManager
+from api.provider.provider_manager import ProviderManager, ProviderManagerError
+from api.provider.test import PROVIDERS, create_generic_provider
+from providers.provider_access import ProviderAccessor
+
+fields = ['name', 'type', 'authentication', 'billing_source']
+FAKE = faker.Faker()
 
 
 class ProviderViewTest(IamTestCase):
@@ -34,19 +41,15 @@ class ProviderViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        self.create_service_admin()
-        for customer in self.customer_data:
-            response = self.create_customer(customer)
-            self.assertEqual(response.status_code, 201)
+        # serializer = UserSerializer(data=self.user_data, context=self.request_context)
+        # if serializer.is_valid(raise_exception=True):
+        #     serializer.save()
 
-    def tearDown(self):
-        """Tear down user tests."""
-        super().tearDown()
-        Customer.objects.all().delete()
-        User.objects.all().delete()
-
-    def create_provider(self, bucket_name, iam_arn, token):
+    def create_provider(self, bucket_name, iam_arn, headers=None):
         """Create a provider and return response."""
+        req_headers = self.headers
+        if headers:
+            req_headers = headers
         provider = {'name': 'test_provider',
                     'type': Provider.PROVIDER_AWS,
                     'authentication': {
@@ -58,360 +61,577 @@ class ProviderViewTest(IamTestCase):
         url = reverse('provider-list')
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
             client = APIClient()
-            client.credentials(HTTP_AUTHORIZATION=token)
-            return client.post(url, data=provider, format='json')
+            return client.post(url, data=provider, format='json', **req_headers)
 
-    def test_create_provider(self):
-        """Test create a provider."""
-        iam_arn = 'arn:aws:s3:::my_s3_bucket'
-        bucket_name = 'my_s3_bucket'
-        token = self.get_customer_owner_token(self.customer_data[0])
-        response = self.create_provider(bucket_name, iam_arn, token)
-        self.assertEqual(response.status_code, 201)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get('uuid'))
-        self.assertIsNotNone(json_result.get('customer'))
-        self.assertEqual(json_result.get('customer').get('name'),
-                         self.customer_data[0].get('name'))
-        self.assertIsNotNone(json_result.get('created_by'))
-        self.assertEqual(json_result.get('created_by').get('username'),
-                         self.customer_data[0].get('owner').get('username'))
+    def create_cost_model(self, provider_uuids, headers=None):
+        """Create a cost model and return response."""
+        req_headers = self.headers
+        if headers:
+            req_headers = headers
+        cost_model_data = {
+            'name': FAKE.catch_phrase(),
+            'source_type': Provider.PROVIDER_AWS,
+            'description': FAKE.paragraph(),
+            'rates': [],
+            'markup': {
+                'value': FAKE.pyint() % 100, 'unit': 'percent'
+            },
+            'provider_uuids': [UUID(p) for p in provider_uuids]
+        }
+        url = reverse('costmodels-list')
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            client = APIClient()
+            result = client.post(url, data=cost_model_data, format='json', **req_headers)
+        return result
 
-    def test_create_provider_no_duplicate(self):
-        """Test create a provider should catch duplicate PRN."""
-        iam_arn = 'arn:aws:s3:::my_s3_bucket'
-        bucket_name = 'my_s3_bucket'
-        token = self.get_customer_owner_token(self.customer_data[0])
-        response = self.create_provider(bucket_name, iam_arn, token)
-        self.assertEqual(response.status_code, 201)
-        response = self.create_provider(bucket_name, iam_arn, token)
-        self.assertEqual(response.status_code, 400)
-
-    def test_create_provider_anon(self):
-        """Test create a provider with an anonymous user."""
+    def test_create_aws_with_no_provider_resource_name(self):
+        """Test missing provider_resource_name returns 400."""
+        req_headers = self.headers
+        provider = {'name': 'test_provider',
+                    'type': Provider.PROVIDER_AWS,
+                    'authentication': {
+                        'provider_resource_name': ''
+                    },
+                    'billing_source': {
+                        'bucket': ''
+                    }}
         url = reverse('provider-list')
         client = APIClient()
+        response = client.post(url, data=provider, format='json', **req_headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch('providers.aws.provider._get_sts_access', return_value={'empty': 'dict'})
+    def test_create_aws_with_no_bucket_name(self, mock_sts_return):
+        """Test missing bucket returns 400."""
+        req_headers = self.headers
         provider = {'name': 'test_provider',
                     'type': Provider.PROVIDER_AWS,
                     'authentication': {
                         'provider_resource_name': 'arn:aws:s3:::my_s3_bucket'
                     },
                     'billing_source': {
-                        'bucket': 'my_s3_bucket'
+                        'bucket': ''
                     }}
-        response = client.post(url, data=provider, format='json')
-        self.assertEqual(response.status_code, 401)
+        url = reverse('provider-list')
+        client = APIClient()
+        response = client.post(url, data=provider, format='json', **req_headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_provider(self):
+        """Test create a provider."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get('uuid'))
+        self.assertIsNotNone(json_result.get('customer'))
+        self.assertEqual(json_result.get('customer').get('account_id'),
+                         self.customer_data.get('account_id'))
+        self.assertIsNotNone(json_result.get('created_by'))
+        self.assertEqual(json_result.get('created_by').get('username'),
+                         self.user_data.get('username'))
+
+    def test_create_provider_shared_arn(self):
+        """Test that a provider can reuse an arn."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get('uuid'))
+        self.assertIsNotNone(json_result.get('customer'))
+        self.assertEqual(json_result.get('customer').get('account_id'),
+                         self.customer_data.get('account_id'))
+        self.assertIsNotNone(json_result.get('created_by'))
+        self.assertEqual(json_result.get('created_by').get('username'),
+                         self.user_data.get('username'))
+
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_different_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get('uuid'))
+        self.assertIsNotNone(json_result.get('customer'))
+        self.assertEqual(json_result.get('customer').get('account_id'),
+                         self.customer_data.get('account_id'))
+        self.assertIsNotNone(json_result.get('created_by'))
+        self.assertEqual(json_result.get('created_by').get('username'),
+                         self.user_data.get('username'))
+
+    def test_create_provider_shared_bucket(self):
+        """Test that a provider can reuse a bucket."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get('uuid'))
+        self.assertIsNotNone(json_result.get('customer'))
+        self.assertEqual(json_result.get('customer').get('account_id'),
+                         self.customer_data.get('account_id'))
+        self.assertIsNotNone(json_result.get('created_by'))
+        self.assertEqual(json_result.get('created_by').get('username'),
+                         self.user_data.get('username'))
+
+        iam_arn = 'arn:aws:s3:::my_s3_bucket_different'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get('uuid'))
+        self.assertIsNotNone(json_result.get('customer'))
+        self.assertEqual(json_result.get('customer').get('account_id'),
+                         self.customer_data.get('account_id'))
+        self.assertIsNotNone(json_result.get('created_by'))
+        self.assertEqual(json_result.get('created_by').get('username'),
+                         self.user_data.get('username'))
+
+    def test_create_provider_shared_arn_bucket_fails(self):
+        """Test that a provider can not reuse bucket AND arn."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get('uuid'))
+        self.assertIsNotNone(json_result.get('customer'))
+        self.assertEqual(json_result.get('customer').get('account_id'),
+                         self.customer_data.get('account_id'))
+        self.assertIsNotNone(json_result.get('created_by'))
+        self.assertEqual(json_result.get('created_by').get('username'),
+                         self.user_data.get('username'))
+
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_list_provider(self):
-        """Test list providers."""
+        """
+        Test list providers.
+
+        This test asserts a combination of factors. We create two providers,
+        but each provider belongs to a different user. The first provider has
+        a cost model, but the second does not. We assert that each provider is
+        listed only for its respective user's request context.
+        """
+        # Define the context for the second user; this must happen FIRST for reasons
+        # currently unknown. If you call this after creating the first provider, DB
+        # exceptions are raised (django.db.utils.OperationalError: cannot ALTER TABLE)
+        request_context = self._create_request_context(
+            self.create_mock_customer_data(),
+            self._create_user_data(),
+            create_tenant=True)
+        alternate_headers = request_context['request'].META
+
+        # Create a provider with a cost model.
         iam_arn1 = 'arn:aws:s3:::my_s3_bucket'
         bucket_name1 = 'my_s3_bucket'
+        first_create_response = self.create_provider(bucket_name1, iam_arn1)
+        first_provider_result = first_create_response.json()
+        first_provider_uuid = first_provider_result.get('uuid')
+        create_cost_model_response = self.create_cost_model([first_provider_uuid])
+        cost_model_result = create_cost_model_response.json()
+        self.assertIsNotNone(cost_model_result['uuid'])
+        self.assertIsNotNone(cost_model_result['name'])
+        expected_cost_model_info = {
+            'name': cost_model_result['name'], 'uuid': cost_model_result['uuid']
+        }
+
+        # Create a second provider but for a different user.
         iam_arn2 = 'arn:aws:s3:::a_s3_bucket'
         bucket_name2 = 'a_s3_bucket'
-        token1 = self.get_customer_owner_token(self.customer_data[0])
-        self.create_provider(bucket_name1, iam_arn1, token1)
-        token2 = self.get_customer_owner_token(self.customer_data[1])
-        self.create_provider(bucket_name2, iam_arn2, token2)
+        second_create_response = self.create_provider(
+            bucket_name2, iam_arn2, alternate_headers
+        )
+        second_provider_result = second_create_response.json()
+        second_provider_uuid = second_provider_result.get('uuid')
+
+        # List and expect it to contain only the first provider with cost model.
         url = reverse('provider-list')
         client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=token1)
-        response = client.get(url)
-        self.assertEqual(response.status_code, 200)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
-        results = json_result.get('results')
+        results = json_result.get('data')
         self.assertIsNotNone(results)
         self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['uuid'], first_provider_uuid)
+        self.assertEqual(results[0].get('infrastructure'), 'Unknown')
+        self.assertEqual(results[0].get('stats'), {})
+        self.assertEqual(len(results[0]['cost_models']), 1)
+        self.assertEqual(results[0]['cost_models'][0], expected_cost_model_info)
 
-    def test_list_provider_service_admin(self):
-        """Test list providers as admin."""
-        # Setup a provider
-        iam_arn = 'arn:aws:s3:::my_s3_bucket'
-        token = self.get_customer_owner_token(self.customer_data[0])
-        bucket_name = 'my_s3_bucket'
-        self.create_provider(bucket_name, iam_arn, token)
-
-        url = reverse('provider-list')
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=self.service_admin_token)
-        response = client.get(url)
-        self.assertEqual(response.status_code, 200)
+        # List as the different user and expect the second provider with no cost model.
+        response = client.get(url, **alternate_headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
-        results = json_result.get('results')
+        results = json_result.get('data')
         self.assertIsNotNone(results)
         self.assertEqual(len(results), 1)
-
-    def test_list_provider_anon(self):
-        """Test list providers with an anonymous user."""
-        iam_arn = 'arn:aws:s3:::my_s3_bucket'
-        bucket_name = 'my_s3_bucket'
-        token1 = self.get_customer_owner_token(self.customer_data[0])
-        self.create_provider(bucket_name, iam_arn, token1)
-        url = reverse('provider-list')
-        client = APIClient()
-        response = client.get(url)
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(results[0]['uuid'], second_provider_uuid)
+        self.assertEqual(len(results[0]['cost_models']), 0)
 
     def test_get_provider(self):
         """Test get a provider."""
+        # Set up all the data for this test.
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = 'my_s3_bucket'
-        token1 = self.get_customer_owner_token(self.customer_data[0])
-        create_response = self.create_provider(bucket_name, iam_arn, token1)
+        create_response = self.create_provider(bucket_name, iam_arn, )
         provider_result = create_response.json()
         provider_uuid = provider_result.get('uuid')
         self.assertIsNotNone(provider_uuid)
+        create_cost_model_response = self.create_cost_model([provider_uuid])
+        cost_model_result = create_cost_model_response.json()
+        self.assertIsNotNone(cost_model_result['uuid'])
+        self.assertIsNotNone(cost_model_result['name'])
+        expected_cost_model_info = {
+            'name': cost_model_result['name'], 'uuid': cost_model_result['uuid']
+        }
+
+        # Call the API for testing the results.
         url = reverse('provider-detail', args=[provider_uuid])
         client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=token1)
-        response = client.get(url)
-        self.assertEqual(response.status_code, 200)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
         uuid = json_result.get('uuid')
         self.assertIsNotNone(uuid)
         self.assertEqual(uuid, provider_uuid)
+        self.assertEqual(json_result.get('stats'), {})
+        self.assertEqual(json_result.get('infrastructure'), 'Unknown')
+        cost_models = json_result.get('cost_models')
+        self.assertEqual(len(cost_models), 1)
+        self.assertEqual(cost_models[0], expected_cost_model_info)
+
+    def test_filter_providers_by_name_contains(self):
+        """Test that providers that contain name appear."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        create_response = self.create_provider(bucket_name, iam_arn, )
+        provider_result = create_response.json()
+        provider_uuid = provider_result.get('uuid')
+        self.assertIsNotNone(provider_uuid)
+        url = '%s?mame=provider' % reverse('provider-list')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        results = json_result.get('data')
+        self.assertIsNotNone(results)
+        self.assertEqual(len(results), 1)
+
+    def test_filter_providers_by_name_not_contain(self):
+        """Test that all providers that do not contain name will not appear."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        create_response = self.create_provider(bucket_name, iam_arn, )
+        provider_result = create_response.json()
+        provider_uuid = provider_result.get('uuid')
+        self.assertIsNotNone(provider_uuid)
+        url = '%s?name=blabla' % reverse('provider-list')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        results = json_result.get('data')
+        self.assertIsNotNone(results)
+        self.assertEqual(len(results), 0)
 
     def test_get_provider_other_customer(self):
         """Test get a provider for another customer should fail."""
+        request_context = self._create_request_context(self.create_mock_customer_data(),
+                                                       self._create_user_data(),
+                                                       create_tenant=True)
+        headers = request_context['request'].META
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = 'my_s3_bucket'
-        token1 = self.get_customer_owner_token(self.customer_data[0])
-        token2 = self.get_customer_owner_token(self.customer_data[1])
-        create_response = self.create_provider(bucket_name, iam_arn, token1)
+        create_response = self.create_provider(bucket_name, iam_arn)
         provider_result = create_response.json()
         provider_uuid = provider_result.get('uuid')
         self.assertIsNotNone(provider_uuid)
         url = reverse('provider-detail', args=[provider_uuid])
         client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=token2)
-        response = client.get(url)
-        self.assertEqual(response.status_code, 404)
-
-    def test_get_provider_with_no_group(self):
-        """Test get a provider with user no group."""
-        iam_arn = 'arn:aws:s3:::my_s3_bucket'
-        bucket_name = 'my_s3_bucket'
-        token1 = self.get_customer_owner_token(self.customer_data[0])
-        create_response = self.create_provider(bucket_name, iam_arn, token1)
-        provider_result = create_response.json()
-        provider_uuid = provider_result.get('uuid')
-        self.assertIsNotNone(provider_uuid)
-        user_data = self.gen_user_data()
-        serializer = UserSerializer(data=user_data)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
-        token = self.get_token(user_data.get('username'),
-                               user_data.get('password'))
-        url = reverse('provider-detail', args=[provider_uuid])
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=token)
-        response = client.get(url)
-        self.assertEqual(response.status_code, 404)
-
-    def test_get_provider_with_anon(self):
-        """Test get a provider with anonymous user."""
-        iam_arn = 'arn:aws:s3:::my_s3_bucket'
-        bucket_name = 'my_s3_bucket'
-        token1 = self.get_customer_owner_token(self.customer_data[0])
-        create_response = self.create_provider(bucket_name, iam_arn, token1)
-        provider_result = create_response.json()
-        provider_uuid = provider_result.get('uuid')
-        self.assertIsNotNone(provider_uuid)
-        url = reverse('provider-detail', args=[provider_uuid])
-        client = APIClient()
-        response = client.get(url)
-        self.assertEqual(response.status_code, 401)
-
-    def test_create_provider_as_service_admin(self):
-        """Test create a provider as service admin."""
-        iam_arn = 'arn:aws:s3:::my_s3_bucket'
-        bucket_name = 'my_s3_bucket'
-        token = self.service_admin_token
-        response = self.create_provider(bucket_name, iam_arn, token)
-        self.assertEqual(response.status_code, 403)
-
-    def test_remove_provider_with_customer_owner(self):
-        """Test removing a provider as the customer owner."""
-        # Create Provider with customer owner token
-        iam_arn = 'arn:aws:s3:::my_s3_bucket'
-        bucket_name = 'my_s3_bucket'
-        customer_owner_token = self.get_token(self.customer_data[0]['owner']['username'],
-                                              self.customer_data[0]['owner']['password'])
-        response = self.create_provider(bucket_name, iam_arn, customer_owner_token)
-        self.assertEqual(response.status_code, 201)
-
-        # Verify that the Provider creation was successful
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get('uuid'))
-        self.assertIsNotNone(json_result.get('customer'))
-        self.assertEqual(json_result.get('customer').get('name'),
-                         self.customer_data[0].get('name'))
-        self.assertIsNotNone(json_result.get('created_by'))
-        self.assertEqual(json_result.get('created_by').get('username'),
-                         self.customer_data[0].get('owner').get('username'))
-
-        # Remove Provider with customer token
-        url = reverse('provider-detail', args=[json_result.get('uuid')])
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=customer_owner_token)
-        response = client.delete(url)
-        self.assertEqual(response.status_code, 204)
+        response = client.get(url, **headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_remove_provider_with_regular_user(self):
-        """
-        Test removing a provider with the user account that created it.
-
-        This user is not a customer owner.
-        """
-        # Get the customer owner token so a regular user can be created
-        user_name = self.customer_data[0]['owner']['username']
-        user_pass = self.customer_data[0]['owner']['password']
-        customer_owner_token = self.get_token(user_name, user_pass)
-
-        # Create a regular user and get the user's token
-        user_data = {'username': 'joe', 'password': 'joespassword', 'email': 'joe@me.com'}
-        user = self.create_user(customer_owner_token, user_data)
-        self.assertEquals(user.status_code, 201)
-        user_token = self.get_token(user_data['username'], user_data['password'])
-
+        """Test removing a provider with the user account that created it."""
         # Create a Provider as a regular user
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = 'my_s3_bucket'
-        response = self.create_provider(bucket_name, iam_arn, user_token)
-        self.assertEqual(response.status_code, 201)
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Verify that the Provider creation was successful
         json_result = response.json()
         self.assertIsNotNone(json_result.get('uuid'))
         self.assertIsNotNone(json_result.get('customer'))
-        self.assertEqual(json_result.get('customer').get('name'),
-                         self.customer_data[0].get('name'))
+        self.assertEqual(json_result.get('customer').get('account_id'),
+                         self.customer_data.get('account_id'))
         self.assertIsNotNone(json_result.get('created_by'))
-        self.assertEqual(json_result.get('created_by').get('username'), user_data['username'])
+        self.assertEqual(json_result.get('created_by').get('username'),
+                         self.user_data['username'])
 
         # Remove Provider as the regular user that created the Provider
         url = reverse('provider-detail', args=[json_result.get('uuid')])
         client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=user_token)
-        response = client.delete(url)
-        self.assertEqual(response.status_code, 204)
-
-    def test_remove_provider_with_non_customer_user(self):
-        """
-        Test removing a provider with the user account that does not belong to the customer group.
-
-        PermissionDenied is expected.
-        """
-        # Get the customer owner token so a regular user can be created
-        user_name = self.customer_data[0]['owner']['username']
-        user_pass = self.customer_data[0]['owner']['password']
-        owner_token = self.get_token(user_name, user_pass)
-
-        # Create a regular user and get the user's token
-        user_data = {'username': 'james', 'password': 'jamespassword', 'email': 'james@me.com'}
-        user = self.create_user(owner_token, user_data)
-        self.assertEquals(user.status_code, 201)
-        user_token = self.get_token(user_data['username'], user_data['password'])
-
-        # Create a Provider as a regular user
-        iam_arn = 'arn:aws:s3:::my_s3_bucket'
-        bucket_name = 'my_s3_bucket'
-        response = self.create_provider(bucket_name, iam_arn, user_token)
-        self.assertEqual(response.status_code, 201)
-
-        # Verify that the Provider creation was successful
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get('uuid'))
-        self.assertIsNotNone(json_result.get('customer'))
-        self.assertEqual(json_result.get('customer').get('name'),
-                         self.customer_data[0].get('name'))
-        self.assertIsNotNone(json_result.get('created_by'))
-        self.assertEqual(json_result.get('created_by').get('username'), user_data['username'])
-
-        # Create a regular user that belongs to a different customer
-        other_owner_token = self.get_token(self.customer_data[1]['owner']['username'],
-                                           self.customer_data[1]['owner']['password'])
-
-        other_user_data = {'username': 'sally', 'password': 'sallypassword', 'email': 'sally@me.com'}
-        other_user = self.create_user(other_owner_token, other_user_data)
-        self.assertEquals(other_user.status_code, 201)
-        other_user_token = self.get_token(other_user_data['username'], other_user_data['password'])
-
-        # Remove Provider as the regular user that belongs to the other company
-        url = reverse('provider-detail', args=[json_result.get('uuid')])
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=other_user_token)
-        response = client.delete(url)
-        self.assertEqual(response.status_code, 403)
-
-    def test_remove_provider_with_reg_user_same_company_didnt_create(self):
-        """
-        Test removing a provider by a regular user of the same company but did not create the provider.
-
-        PermissionDenied is expected.
-        """
-        # Get the customer owner token so a regular user can be created
-        user_name = self.customer_data[0]['owner']['username']
-        user_pass = self.customer_data[0]['owner']['password']
-        owner_token = self.get_token(user_name, user_pass)
-
-        # Create a regular user and get the user's token
-        user_data = {'username': 'james', 'password': 'jamespassword', 'email': 'james@me.com'}
-        user = self.create_user(owner_token, user_data)
-        self.assertEquals(user.status_code, 201)
-        user_token = self.get_token(user_data['username'], user_data['password'])
-
-        # Create a Provider as a regular user
-        iam_arn = 'arn:aws:s3:::my_s3_bucket'
-        bucket_name = 'my_s3_bucket'
-        response = self.create_provider(bucket_name, iam_arn, user_token)
-        self.assertEqual(response.status_code, 201)
-
-        # Verify that the Provider creation was successful
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get('uuid'))
-        self.assertIsNotNone(json_result.get('customer'))
-        self.assertEqual(json_result.get('customer').get('name'),
-                         self.customer_data[0].get('name'))
-        self.assertIsNotNone(json_result.get('created_by'))
-        self.assertEqual(json_result.get('created_by').get('username'), user_data['username'])
-
-        # Create another regular user and get the user's token
-        other_user_data = {'username': 'sally', 'password': 'sallypassword', 'email': 'sally@me.com'}
-        other_user = self.create_user(owner_token, other_user_data)
-        self.assertEquals(other_user.status_code, 201)
-        other_user_token = self.get_token(other_user_data['username'], other_user_data['password'])
-
-        # Remove Provider as a regular user that belongs to the same company but did not create the Provider
-        url = reverse('provider-detail', args=[json_result.get('uuid')])
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=other_user_token)
-        response = client.delete(url)
-        self.assertEqual(response.status_code, 403)
+        response = client.delete(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_remove_provider_with_remove_exception(self):
         """Test removing a provider with a database error."""
         # Create Provider with customer owner token
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = 'my_s3_bucket'
-        customer_owner_token = self.get_token(self.customer_data[0]['owner']['username'],
-                                              self.customer_data[0]['owner']['password'])
-        response = self.create_provider(bucket_name, iam_arn, customer_owner_token)
-        self.assertEqual(response.status_code, 201)
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Verify that the Provider creation was successful
         json_result = response.json()
         self.assertIsNotNone(json_result.get('uuid'))
         self.assertIsNotNone(json_result.get('customer'))
-        self.assertEqual(json_result.get('customer').get('name'),
-                         self.customer_data[0].get('name'))
+        self.assertEqual(json_result.get('customer').get('account_id'),
+                         self.customer_data.get('account_id'))
         self.assertIsNotNone(json_result.get('created_by'))
         self.assertEqual(json_result.get('created_by').get('username'),
-                         self.customer_data[0].get('owner').get('username'))
+                         self.user_data.get('username'))
 
         # Remove Provider with customer token
         url = reverse('provider-detail', args=[json_result.get('uuid')])
         client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=customer_owner_token)
         with patch.object(ProviderManager, 'remove', side_effect=Exception):
-            response = client.delete(url)
-            self.assertEqual(response.status_code, 500)
+            response = client.delete(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def test_remove_invalid_provider(self):
+        """Test removing an invalid provider with the user."""
+        # Create a Provider
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Remove invalid Provider as the regular user
+        url = reverse('provider-detail', args=[uuid4()])
+        client = APIClient()
+        response = client.delete(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_remove_invalid_provider_non_uuid(self):
+        """Test removing an invalid provider with the non_uuid."""
+        # Create a Provider
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Remove invalid Provider as the regular user
+        url = reverse('provider-detail', args=['23333223223'])
+        client = APIClient()
+        response = client.delete(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_put_for_ocp_provider(self):
+        """Test PUT update for OCP provider."""
+        response, provider = create_generic_provider('OCP', self.headers)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+
+        name = 'new_name'
+        auth = {'provider_resource_name': 'testing_123'}
+        provider = copy.deepcopy(PROVIDERS['OCP'])
+        provider['name'] = name
+        provider['authentication'] = auth
+
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        put_response = client.put(url, data=provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_200_OK)
+
+        put_json_result = put_response.json()
+        self.assertEqual(put_json_result.get('name'), name)
+        self.assertEqual(put_json_result.get('authentication').get('credentials'), auth)
+
+    @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
+    def test_put_for_aws_provider(self, mock_access):
+        """Test PUT update for AWS provider."""
+        response, provider = create_generic_provider('AWS', self.headers)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+
+        name = 'new_name'
+        provider = copy.deepcopy(PROVIDERS['AWS'])
+        provider['name'] = name
+
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        put_response = client.put(url, data=provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_200_OK)
+
+        put_json_result = put_response.json()
+        self.assertEqual(put_json_result.get('name'), name)
+
+    def test_put_for_aws_provider_error(self):
+        """Test PUT update for AWS provider with error."""
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            response, provider = create_generic_provider('AWS', self.headers)
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready',
+                          side_effect=serializers.ValidationError):
+            json_result = response.json()
+            name = 'new_name'
+            provider = copy.deepcopy(PROVIDERS['AWS'])
+            provider['name'] = name
+
+            url = reverse('provider-detail', args=[json_result.get('uuid')])
+            client = APIClient()
+            put_response = client.put(url, data=provider, format='json', **self.headers)
+            self.assertEqual(put_response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertFalse(Provider.objects.get(uuid=json_result.get('uuid')).active)
+
+    @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
+    def test_put_for_azure_provider(self, mock_access):
+        """Test PUT update for AZURE provider."""
+        response, provider = create_generic_provider('AZURE', self.headers)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+
+        name = 'new_name'
+        provider = copy.deepcopy(PROVIDERS['AZURE'])
+        provider['name'] = name
+
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        put_response = client.put(url, data=provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_200_OK)
+
+        put_json_result = put_response.json()
+        self.assertEqual(put_json_result.get('name'), name)
+
+    @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
+    def test_put_for_provider_type_change(self, mock_access):
+        """Test that provider_type change thru PUT request results in error."""
+        response, provider = create_generic_provider('AWS', self.headers)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+
+        provider = copy.deepcopy(PROVIDERS['AWS'])
+        provider['type'] = 'OCP'
+
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        put_response = client.put(url, data=provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_patch_not_supported(self):
+        """Test that PATCH request returns 405."""
+        response, provider = create_generic_provider('AZURE', self.headers)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+
+        name = 'new_name'
+        provider = copy.deepcopy(PROVIDERS['AZURE'])
+        provider['name'] = name
+
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        put_response = client.patch(url, data=provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_deleted_before_put_returns_400(self):
+        """Test if 400 is raised when a PUT is called on deleted provider."""
+        response, provider = create_generic_provider('AZURE', self.headers)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+
+        name = 'new_name'
+        provider = copy.deepcopy(PROVIDERS['AZURE'])
+        provider['name'] = name
+
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        response = client.delete(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        put_response = client.put(url, data=provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_404_NOT_FOUND)
+
+    @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
+    def test_put_for_integrity_check(self, mock_access):
+        """Test PUT update: Make 2 providers match should give integrity error."""
+        iam_arn1 = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name1 = 'my_s3_bucket'
+        response = self.create_provider(bucket_name1, iam_arn1)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        provider = response.json()
+        provider_uuid = provider.get('uuid')
+        put_provider_resource_name = 'arn:aws:s3:::my_s3_bucket_PUT'
+        put_bucket = 'my_s3_bucket_PUT'
+        provider['authentication']['credentials']['provider_resource_name'] = put_provider_resource_name
+        provider['billing_source']['data_source']['bucket'] = put_bucket
+        provider['name'] = 'PUT-test'
+        url = reverse('provider-detail', args=[provider_uuid])
+        client = APIClient()
+        put_response = client.put(url, data=provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_200_OK)
+
+        response = self.create_provider(bucket_name1, iam_arn1)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        provider = response.json()
+        provider_uuid = provider.get('uuid')
+        put_provider_resource_name = 'arn:aws:s3:::my_s3_bucket_PUT'
+        put_bucket = 'my_s3_bucket_PUT'
+        provider['authentication']['credentials']['provider_resource_name'] = put_provider_resource_name
+        provider['billing_source']['data_source']['bucket'] = put_bucket
+        provider['name'] = 'PUT-test'
+        url = reverse('provider-detail', args=[provider_uuid])
+        client = APIClient()
+        put_response = client.put(url, data=provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
+    def test_put_with_existing_auth_and_bill(self, mock_access):
+        """Test PUT when update matches existing authentication and billing_source."""
+        iam_arn1 = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name1 = 'my_s3_bucket'
+        response1 = self.create_provider(bucket_name1, iam_arn1)
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+        response1 = self.create_provider(bucket_name1, iam_arn1)
+        self.assertEqual(response1.status_code, status.HTTP_400_BAD_REQUEST)
+
+        iam_arn2 = 'arn:aws:s3:::my_s3_bucket_two'
+        bucket_name2 = 'my_s3_bucket_two'
+        response2 = self.create_provider(bucket_name2, iam_arn2)
+        self.assertEqual(response2.status_code, status.HTTP_201_CREATED)
+
+        provider = response2.json()
+        provider_uuid = provider.get('uuid')
+        provider['authentication']['credentials']['provider_resource_name'] = iam_arn1
+        provider['billing_source']['data_source']['bucket'] = bucket_name1
+        url = reverse('provider-detail', args=[provider_uuid])
+        client = APIClient()
+        put_response = client.put(url, data=provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_update_provider_with_update_exception(self):
+        """Test updating a provider with a database error."""
+        # Create Provider with customer owner token
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+
+        # Update Provider with customer token
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        with patch.object(ProviderManager, 'update', side_effect=ProviderManagerError('Update Error.')):
+            response = client.put(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)

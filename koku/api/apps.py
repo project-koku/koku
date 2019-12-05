@@ -22,9 +22,17 @@ import sys
 from django.apps import AppConfig
 from django.db.utils import OperationalError, ProgrammingError
 
-from koku.env import ENVIRONMENT
-
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+
+
+def _collect_db_metrics():
+    """Collect metrics and sleep."""
+    # noqa: E402 pylint: disable=C0413
+    import time
+    from koku.metrics import DBSTATUS
+    while True:
+        DBSTATUS.collect()
+        time.sleep(120)
 
 
 class ApiConfig(AppConfig):
@@ -38,8 +46,7 @@ class ApiConfig(AppConfig):
         if 'manage.py' in sys.argv[0] and 'runserver' not in sys.argv:
             return
         try:
-            self.startup_status()
-            self.check_and_create_service_admin()
+            self.db_metrics()
         except (OperationalError, ProgrammingError) as op_error:
             if 'no such table' in str(op_error) or \
                     'does not exist' in str(op_error):
@@ -48,37 +55,10 @@ class ApiConfig(AppConfig):
             else:
                 logger.error('Error: %s.', op_error)
 
-    def startup_status(self):  # pylint: disable=R0201
-        """Log the status of the server at startup."""
+    def db_metrics(self):  # pylint: disable=R0201
+        """Create thread loop for collecting db metrics."""
         # noqa: E402 pylint: disable=C0413
-        from api.status.models import Status
-        status_info = Status()
-
-        status_info.startup()
-
-    def create_service_admin(self, service_email):  # pylint: disable=R0201
-        """Create the Service Admin."""
-        # noqa: E402 pylint: disable=C0413
-        from django.contrib.auth.models import User
-        service_user = ENVIRONMENT.get_value('SERVICE_ADMIN_USER',
-                                             default='admin')
-        service_pass = ENVIRONMENT.get_value('SERVICE_ADMIN_PASSWORD',
-                                             default='pass')
-
-        User.objects.create_superuser(service_user,
-                                      service_email,
-                                      service_pass)
-        logger.info('Created Service Admin: %s.', service_email)
-
-    def check_and_create_service_admin(self):  # pylint: disable=R0201
-        """Check for the service admin and create it if necessary."""
-        # noqa: E402 pylint: disable=C0413
-        from django.contrib.auth.models import User
-        service_email = ENVIRONMENT.get_value('SERVICE_ADMIN_EMAIL',
-                                              default='admin@example.com')
-        admin_not_present = User.objects.filter(
-            email=service_email).count() == 0
-        if admin_not_present:
-            self.create_service_admin(service_email)
-        else:
-            logger.info('Service Admin: %s.', service_email)
+        import threading
+        t = threading.Thread(target=_collect_db_metrics, args=(), kwargs={})
+        t.setDaemon(True)
+        t.start()

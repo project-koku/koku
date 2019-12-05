@@ -18,9 +18,33 @@
 """API views for import organization"""
 # flake8: noqa
 # pylint: disable=unused-import
-from api.status.views import status
-from api.iam.view.customer import CustomerViewSet
-from api.iam.view.user import UserViewSet
+from api.dataexport.views import DataExportRequestViewSet
 from api.iam.view.user_preference import UserPreferenceViewSet
+from api.metrics.views import CostModelMetricsMapViewSet
+from api.openapi.view import openapi
 from api.provider.view import ProviderViewSet
-from api.report.view import costs, instance_type, storage
+from api.report.azure.view import (AzureCostView,
+                                   AzureInstanceTypeView,
+                                   AzureStorageView)
+from api.report.azure.openshift.view import (OCPAzureCostView,
+                                             OCPAzureInstanceTypeView,
+                                             OCPAzureStorageView)
+from api.report.aws.view import (AWSCostView,
+                                 AWSInstanceTypeView,
+                                 AWSStorageView)
+from api.report.ocp.view import (OCPCostView,
+                                 OCPCpuView,
+                                 OCPMemoryView,
+                                 OCPVolumeView)
+from api.report.ocp_aws.view import (OCPAWSCostView,
+                                     OCPAWSInstanceTypeView,
+                                     OCPAWSStorageView)
+from api.status.views import StatusView
+from api.tags.aws.view import AWSTagView
+from api.tags.azure.view import AzureTagView
+from api.tags.azure.openshift.view import OCPAzureTagView
+from api.tags.ocp.view import OCPTagView
+from api.tags.ocp_aws.view import OCPAWSTagView
+from api.sources.billing_source import billing_source
+from api.sources.authentication import authentication
+from api.cloud_accounts.views import CloudAccountViewSet

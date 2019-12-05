@@ -3,282 +3,329 @@
         "database_column":"billing_resource",
         "database_table":"reporting_awscostentrybill",
         "provider_column_name":"bill/BillingEntity",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"bill_type",
         "database_table":"reporting_awscostentrybill",
         "provider_column_name":"bill/BillType",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"payer_account_id",
         "database_table":"reporting_awscostentrybill",
         "provider_column_name":"bill/PayerAccountId",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"billing_period_start",
         "database_table":"reporting_awscostentrybill",
         "provider_column_name":"bill/BillingPeriodStartDate",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"billing_period_end",
         "database_table":"reporting_awscostentrybill",
         "provider_column_name":"bill/BillingPeriodEndDate",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"invoice_id",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"bill/InvoiceId",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"line_item_type",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"lineItem/LineItemType",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"usage_account_id",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"lineItem/UsageAccountId",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"usage_start",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"lineItem/UsageStartDate",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"usage_end",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"lineItem/UsageEndDate",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"product_code",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"lineItem/ProductCode",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"usage_type",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"lineItem/UsageType",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"operation",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"lineItem/Operation",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"availability_zone",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"lineItem/AvailabilityZone",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"resource_id",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"lineItem/ResourceId",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"usage_amount",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"lineItem/UsageAmount",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"normalization_factor",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"lineItem/NormalizationFactor",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"normalized_usage_amount",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"lineItem/NormalizedUsageAmount",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"currency_code",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"lineItem/CurrencyCode",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"unblended_rate",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"lineItem/UnblendedRate",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"unblended_cost",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"lineItem/UnblendedCost",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"blended_rate",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"lineItem/BlendedRate",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"blended_cost",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"lineItem/BlendedCost",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"tax_type",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"lineItem/TaxType",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"public_on_demand_cost",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"pricing/publicOnDemandCost",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"public_on_demand_rate",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"pricing/publicOnDemandRate",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"term",
         "database_table":"reporting_awscostentrypricing",
         "provider_column_name":"pricing/term",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"unit",
         "database_table":"reporting_awscostentrypricing",
         "provider_column_name":"pricing/unit",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"sku",
         "database_table":"reporting_awscostentryproduct",
         "provider_column_name":"product/sku",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"product_name",
         "database_table":"reporting_awscostentryproduct",
         "provider_column_name":"product/ProductName",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"product_family",
         "database_table":"reporting_awscostentryproduct",
         "provider_column_name":"product/productFamily",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"service_code",
         "database_table":"reporting_awscostentryproduct",
         "provider_column_name":"product/servicecode",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"region",
         "database_table":"reporting_awscostentryproduct",
         "provider_column_name":"product/region",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"instance_type",
         "database_table":"reporting_awscostentryproduct",
         "provider_column_name":"product/instanceType",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"memory",
         "database_table":"reporting_awscostentryproduct",
         "provider_column_name":"product/memory",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"memory_unit",
         "database_table":"reporting_awscostentryproduct",
         "provider_column_name":"product/memory_unit",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"vcpu",
         "database_table":"reporting_awscostentryproduct",
         "provider_column_name":"product/vcpu",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"reservation_arn",
         "database_table":"reporting_awscostentryreservation",
         "provider_column_name":"reservation/ReservationARN",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"number_of_reservations",
         "database_table":"reporting_awscostentryreservation",
         "provider_column_name":"reservation/NumberOfReservations",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"units_per_reservation",
         "database_table":"reporting_awscostentryreservation",
         "provider_column_name":"reservation/UnitsPerReservation",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"start_time",
         "database_table":"reporting_awscostentryreservation",
         "provider_column_name":"reservation/StartTime",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"end_time",
         "database_table":"reporting_awscostentryreservation",
         "provider_column_name":"reservation/EndTime",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"reservation_amortized_upfront_fee",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"reservation/AmortizedUpfrontFeeForBillingPeriod",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"reservation_amortized_upfront_cost_for_usage",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"reservation/AmortizedUpfrontCostForUsage",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"reservation_recurring_fee_for_usage",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"reservation/RecurringFeeForUsage",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"reservation_unused_quantity",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"reservation/UnusedQuantity",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     },
     {
         "database_column":"reservation_unused_recurring_fee",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"reservation/UnusedRecurringFee",
+        "report_type":"AWS-CUR",
         "provider_type":"AWS"
     }
 ]

@@ -1,1 +1,4 @@
 # noqa
+
+
+RH_IDENTITY_HEADER = 'HTTP_X_RH_IDENTITY'

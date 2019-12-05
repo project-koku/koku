@@ -19,19 +19,21 @@
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/2.0/topics/http/urls/
 """
+
+from django.conf import settings
 from django.conf.urls import include, url
-from django.contrib import admin
 from django.urls import path
-from django.views.generic import RedirectView
+
+API_PATH_PREFIX = settings.API_PATH_PREFIX
+if API_PATH_PREFIX != '':
+    if API_PATH_PREFIX.startswith('/'):
+        API_PATH_PREFIX = API_PATH_PREFIX[1:]
+    if not API_PATH_PREFIX.endswith('/'):
+        API_PATH_PREFIX = API_PATH_PREFIX + '/'
 
 # pylint: disable=invalid-name
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    url(r'^api-auth/', include('rest_framework.urls')),
-    url(r'^api/v1/', include('api.urls')),
-
-    # static files (*.css, *.js, *.jpg etc.)
-    url(r'^(?!/?apidoc/)(?P<path>.*\..*)$',
-        RedirectView.as_view(url='/apidoc/%(path)s', permanent=False),
-        name='apidoc'),
+    url(r'^{}v1/'.format(API_PATH_PREFIX), include('api.urls')),
+    url(r'^{}v1/'.format(API_PATH_PREFIX), include('cost_models.urls')),
+    path('', include('django_prometheus.urls')),
 ]

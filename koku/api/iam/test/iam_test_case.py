@@ -15,106 +15,137 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test Case extension to collect common test data."""
-from random import randint
-from unittest.mock import patch
+from base64 import b64encode
+from json import dumps as json_dumps
+from unittest.mock import Mock
+from uuid import UUID
 
-from django.test import TestCase
-from django.urls import reverse
+from django.db import connection
+from django.test import RequestFactory, TestCase
 from faker import Faker
-from rest_framework.test import APIClient
 
-from ..models import Tenant, User
+from api.common import RH_IDENTITY_HEADER
+from api.iam.serializers import create_schema_name
+from api.models import Customer, Tenant
+from api.query_params import QueryParameters
+from koku.koku_test_runner import KokuTestRunner
 
 
 class IamTestCase(TestCase):
     """Parent Class for IAM test cases."""
 
-    service_admin_token = None
     fake = Faker()
 
-    def setUp(self):
-        """Create test case objects."""
-        Tenant.objects.get_or_create(schema_name='public')
+    @classmethod
+    def setUpClass(cls):
+        """Set up each test class."""
+        super().setUpClass()
 
-        self.customer_data = [{'name': 'test_customer_1',
-                               'owner': self.gen_user_data()},
-                              {'name': 'test_customer_2',
-                               'owner': self.gen_user_data()}]
+        cls.customer_data = cls._create_customer_data()
+        cls.user_data = cls._create_user_data()
+        cls.request_context = cls._create_request_context(
+            cls.customer_data,
+            cls.user_data
+        )
+        cls.schema_name = cls.customer_data.get('schema_name')
+        cls.tenant = Tenant.objects.get_or_create(schema_name=cls.schema_name)[0]
+        cls.tenant.save()
+        cls.headers = cls.request_context['request'].META
+        cls.provider_uuid = UUID('00000000-0000-0000-0000-000000000001')
+        cls.factory = RequestFactory()
 
-    def tearDown(self):
-        """Tear down test case objects."""
-        User.objects.filter(username='service_user').all().delete()
+    @classmethod
+    def tearDownClass(cls):
+        """Tear down the class."""
+        connection.set_schema_to_public()
+        super().tearDownClass()
 
-    def get_token(self, username, password):  # pylint: disable=R0201
-        """Get the token for the user."""
-        url = reverse('token-auth')
-        body = {'username': username,
-                'password': password}
-        response = APIClient().post(url, body, format='json')
-        json_result = response.json()
-        token = json_result.get('token')
-        return 'Token {}'.format(token)
+    @classmethod
+    def _create_customer_data(cls):
+        """Create customer data."""
+        account = KokuTestRunner.account
+        schema = KokuTestRunner.schema
+        customer = {'account_id': account,
+                    'schema_name': schema}
+        return customer
 
-    def create_service_admin(self):
-        """Create a service admin."""
-        User.objects.create_superuser(username='service_user',
-                                      email='service_user@foo.com',
-                                      password='service_pass')
-        self.service_admin_token = self.get_token('service_user',
-                                                  'service_pass')
-
-    @patch('api.iam.view.customer.models.Tenant')
-    def create_customer(self, customer_data, mock_tenant):
-        """Create a customer."""
-        # Mock the tenant so a customer schema is not created for every test
-        mock_tenant.return_value.save.return_value = None
-        url = reverse('customer-list')
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=self.service_admin_token)
-        response = client.post(url, data=customer_data, format='json')
-        return response
-
-    def create_customer_with_tenant(self, customer_data):
-        """Create a customer with a tenant."""
-        url = reverse('customer-list')
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=self.service_admin_token)
-        response = client.post(url, data=customer_data, format='json')
-        return response
-
-    def get_customer_owner_token(self, customer):
-        """Get the token for the customer owner."""
-        token = None
-        owner = customer.get('owner')
-        if owner is None:
-            return token
-        username = owner.get('username')
-        password = owner.get('password')
-        if username and password:
-            token = self.get_token(username, password)
-        return token
-
-    def create_user(self, customer_owner_token, user_data):
-        """Create a user."""
-        url = reverse('user-list')
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=customer_owner_token)
-        response = client.post(url, data=user_data, format='json')
-        return response
-
-    def gen_password(self):
-        """Generate a password."""
-        return self.fake.password(length=randint(8, 12),
-                                  special_chars=True,
-                                  digits=True,
-                                  upper_case=True,
-                                  lower_case=True)
-
-    def gen_user_data(self):
-        """Generate user data."""
-        user_data = {'username': self.fake.user_name(),
-                     'password': self.gen_password(),
-                     'first_name': self.fake.first_name(),
-                     'last_name': self.fake.last_name(),
-                     'email': self.fake.email()}
+    @classmethod
+    def _create_user_data(cls):
+        """Create user data."""
+        user_data = {'username': cls.fake.user_name(),
+                     'email': cls.fake.email()}
         return user_data
+
+    @classmethod
+    def _create_customer(cls, account, create_tenant=False):
+        """Create a customer.
+
+        Args:
+            account (str): The account identifier
+
+        Returns:
+            (Customer) The created customer
+
+        """
+        connection.set_schema_to_public()
+        schema_name = create_schema_name(account)
+        customer = Customer.objects.get_or_create(account_id=account, schema_name=schema_name)[0]
+        customer.save()
+        if create_tenant:
+            tenant = Tenant.objects.get_or_create(schema_name=schema_name)[0]
+            tenant.save()
+        return customer
+
+    @classmethod
+    def _create_request_context(cls, customer_data, user_data,
+                                create_customer=True, create_tenant=False,
+                                is_admin=True, is_cost_management=True):
+        """Create the request context for a user."""
+        customer = customer_data
+        account = customer.get('account_id')
+        if create_customer:
+            cls.customer = cls._create_customer(
+                account,
+                create_tenant=create_tenant
+            )
+        identity = {
+            'identity': {
+                'account_number': account,
+                'type': 'User',
+                'user': {
+                    'username': user_data['username'],
+                    'email': user_data['email'],
+                    'is_org_admin': is_admin
+                }
+            },
+            'entitlements': {
+                'cost_management': {'is_entitled': is_cost_management}
+            }
+        }
+        json_identity = json_dumps(identity)
+        mock_header = b64encode(json_identity.encode('utf-8'))
+        request = Mock()
+        request.META = {RH_IDENTITY_HEADER: mock_header}
+        request.user = user_data['username']
+        request_context = {'request': request}
+        return request_context
+
+    def create_mock_customer_data(self):
+        """Create randomized data for a customer test."""
+        account = self.fake.ean8()
+        schema = f'acct{account}'
+        customer = {'account_id': account,
+                    'schema_name': schema}
+        return customer
+
+    def mocked_query_params(self, url, view, path=None):
+        """Create QueryParameters using a mocked Request."""
+        m_request = self.factory.get(url)
+        user = Mock()
+        user.access = None
+        user.customer.schema_name = self.tenant.schema_name
+        m_request.user = user
+        if path:
+            m_request.path = path
+        query_params = QueryParameters(m_request, view)
+        return query_params

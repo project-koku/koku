@@ -18,15 +18,28 @@
 
 import logging
 
-from providers.aws.aws_provider import AWSProvider
-from providers.aws_local.aws_local_provider import AWSLocalProvider
-from providers.ocp.ocp_provider import OCPProvider
-from providers.ocp_local.ocp_local_provider import OCPLocalProvider
+from rest_framework.serializers import ValidationError
 
 from api.provider.models import Provider
+from providers.aws.provider import AWSProvider
+from providers.aws_local.provider import AWSLocalProvider
+from providers.azure.provider import AzureProvider
+from providers.azure_local.provider import AzureLocalProvider
+from providers.gcp.provider import GCPProvider
+from providers.gcp_local.provider import GCPLocalProvider
+from providers.ocp.provider import OCPProvider
 
 
 LOG = logging.getLogger(__name__)
+
+
+class ProviderAccessorError(Exception):
+    """General Exception class for ProviderAccessor errors."""
+
+    def __init__(self, message):
+        """Set custom error message for ProviderAccessor errors."""
+        super().__init__()
+        self.message = message
 
 
 class ProviderAccessor:
@@ -35,33 +48,21 @@ class ProviderAccessor:
     def __init__(self, service_name):
         """Set the backend serve."""
         valid_services = Provider.PROVIDER_CHOICES
+
         if not [service for service in valid_services if service_name in service]:
-            LOG.error('{} is not a valid provider'.format(service_name))
+            LOG.error('%s is not a valid provider', service_name)
 
-        self.service = self._create_service(service_name)
+        services = {'AWS': AWSProvider,
+                    'AWS-local': AWSLocalProvider,
+                    'AZURE-local': AzureLocalProvider,
+                    'OCP': OCPProvider,
+                    'AZURE': AzureProvider,
+                    'GCP': GCPProvider,
+                    'GCP-local': GCPLocalProvider}
 
-    def _create_service(self, service_name):
-        """
-        Create the provider service object.
-
-        This will establish what service (AWS, etc) ProviderAccessor should use
-        when interacting with Koku core.
-
-        Args:
-            service_name (String): Provider Type
-
-        Returns:
-            (Object) : Some object that is a child of ProviderInterface
-
-        """
-        if service_name == 'AWS':
-            return AWSProvider()
-        elif service_name == 'AWS-local':
-            return AWSLocalProvider()
-        elif service_name == 'OCP-local':
-            return OCPLocalProvider()
-        elif service_name == 'OCP':
-            return OCPProvider()
+        self.service = None
+        if callable(services.get(service_name)):
+            self.service = services.get(service_name)()
 
     def service_name(self):
         """
@@ -88,11 +89,11 @@ class ProviderAccessor:
         ensure that Koku can access a cost usage report from the provider.
 
         Args:
-            credential (String): Provider Resource Name
+            credential (Object): Provider Authorization Credentials
                                  example: AWS - RoleARN
                                           arn:aws:iam::589175555555:role/CostManagement
-            source_name (String): Identifier of the cost usage report source
-                                  example: AWS - S3 Bucket
+            source_name (List): Identifier of the cost usage report source
+                                example: AWS - S3 Bucket
 
         Returns:
             None
@@ -102,3 +103,78 @@ class ProviderAccessor:
 
         """
         return self.service.cost_usage_source_is_reachable(credential, source_name)
+
+    def availability_status(self, credential, source_name):
+        """
+        Return the availability status for a provider.
+
+        Connectivity and account validation checks are performed to
+        ensure that Koku can access a cost usage report from the provider.
+
+        This method will return the detailed error message in the event that
+        the provider fails the service provider checks.
+
+        Args:
+            credential (Object): Provider Authorization Credentials
+                                 example: AWS - RoleARN
+                                          arn:aws:iam::589175555555:role/CostManagement
+            source_name (List): Identifier of the cost usage report source
+                                example: AWS - S3 Bucket
+
+        Returns:
+            status (Dict): {'availability_status': 'unavailable/available',
+                            'availability_status_error': ValidationError-detail}
+
+        """
+        error_msg = ''
+        try:
+            self.cost_usage_source_ready(credential, source_name)
+        except ValidationError as validation_error:
+            for error_key in validation_error.detail.keys():
+                error_msg = str(validation_error.detail.get(error_key)[0])
+        if error_msg:
+            status = 'unavailable'
+        else:
+            status = 'available'
+        return {'availability_status': status, 'availability_status_error': str(error_msg)}
+
+    def infrastructure_type(self, provider_uuid, schema_name):
+        """
+        Return the name of the infrastructure that the provider is running on.
+
+        Args:
+            provider_uuid (String): Provider UUID
+            schema_name (String): Database schema name
+
+        Returns:
+            (String) : Name of Service
+                       example: "AWS"
+
+        """
+        try:
+            infrastructure_type = self.service.infra_type_implementation(provider_uuid, schema_name)
+        except Exception as error:
+            raise ProviderAccessorError(str(error))
+
+        return infrastructure_type if infrastructure_type else 'Unknown'
+
+    def infrastructure_key_list(self, infrastructure_type, schema_name):
+        """
+        Return a list of keys identifying the provider running on specified infrastructure type.
+
+        Args:
+            infrastructure_type (String): Provider type
+            schema_name (String): Database schema name
+
+        Returns:
+            (List) : List of strings
+                       example: ['ocp-cluster-on-aws-1', 'ocp-cluster-on-aws-2']
+
+        """
+        keys = []
+        try:
+            keys = self.service.infra_key_list_implementation(infrastructure_type, schema_name)
+        except Exception as error:
+            raise ProviderAccessorError(str(error))
+
+        return keys

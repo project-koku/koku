@@ -18,6 +18,8 @@
 
 from abc import ABC, abstractmethod
 
+from django.utils.translation import ugettext as _
+
 
 class ProviderInterface(ABC):
     """Koku interface definition to access backend provider services."""
@@ -62,3 +64,47 @@ class ProviderInterface(ABC):
 
         """
         pass
+
+    @abstractmethod
+    def infra_type_implementation(self, provider_uuid, schema_name):
+        """
+        Return the type of infrastructure the provider is running on.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            ProviderAccessorError: Error string
+
+        """
+        pass
+
+    @abstractmethod
+    def infra_key_list_implementation(self, infrastructure_type, schema_name):
+        """
+        Return a list of key values to identify resources running on provided infrastructure type.
+
+        Args:
+            infrastructure_type (String): Provider type
+            schema_name (String): Database schema name
+
+        Returns:
+            (List) : List of strings
+                       example: ['ocp-cluster-on-aws-1', 'ocp-cluster-on-aws-2']
+
+        Raises:
+            ProviderAccessorError: Error string
+
+        """
+        pass
+
+
+def error_obj(key, message):
+    """Create an error object."""
+    error = {
+        key: [_(message)]
+    }
+    return error

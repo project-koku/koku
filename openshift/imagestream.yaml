@@ -1,0 +1,120 @@
+#
+# This template defines upstream image dependencies.
+#
+apiVersion: v1
+kind: Template
+metadata:
+  name: koku-imagestream-template
+  annotations:
+    openshift.io/display-name: "Koku"
+    description: "Cloud Cost Management powered by Django+PostgreSQL"
+    tags: "quickstart,python,django,postgresql"
+    iconClass: "icon-python"
+    openshift.io/long-description: "This template defines upstream image dependencies required to build Koku containers."
+    openshift.io/provider-display-name: "Red Hat, Inc."
+    openshift.io/documentation-url: "https://koku.readthedocs.io/en/latest/"
+labels:
+  app: koku
+  template: koku-imagestream
+objects:
+
+# Koku database runs on postgresql-96-centos7
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: postgresql
+    namespace: ${NAMESPACE}
+  spec:
+    dockerImageRepository: registry.redhat.io/rhscl/postgresql-10-rhel7
+    lookupPolicy:
+      local: false
+    tags:
+    - from:
+        kind: DockerImage
+        name: rhscl/postgresql-10-rhel7
+        resourceVersion: latest
+      name: latest
+      referencePolicy:
+        type: Source
+
+# Koku RBAC auth caching uses Redis-5.x
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: redis
+    namespace: ${NAMESPACE}
+  spec:
+    dockerImageRepository: registry.redhat.io/rhscl/redis-5-rhel7
+    lookupPolicy:
+      local: false
+    tags:
+    - from:
+        kind: DockerImage
+        name: redis
+        resourceVersion: latest
+      name: latest
+      referencePolicy:
+        type: Source
+
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: rhel7
+    namespace: ${NAMESPACE}
+  spec:
+    dockerImageRepository: registry.redhat.io/rhel7/rhel
+    lookupPolicy:
+      local: false
+    tags:
+    - annotations: null
+      from:
+        kind: DockerImage
+        name: registry.redhat.io/rhel7/rhel:latest
+      name: latest
+      referencePolicy:
+        type: Source
+
+# RabbitMQ builds on centos 7, for now.
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: centos
+    namespace: ${NAMESPACE}
+  spec:
+    dockerImageRepository: registry.centos.org/centos/centos
+    lookupPolicy:
+      local: false
+    tags:
+    - annotations: null
+      from:
+        kind: DockerImage
+        name: registry.centos.org/centos/centos:latest
+      name: latest
+      referencePolicy:
+        type: Source
+
+# Most koku components use the python-36 image.
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: ubi7-python36
+    namespace: ${NAMESPACE}
+  spec:
+    dockerImageRepository: registry.redhat.io/ubi7/python-36
+    lookupPolicy:
+      local: false
+    tags:
+    - annotations: null
+      from:
+        kind: DockerImage
+        name: registry.redhat.io/ubi7/python-36:latest
+      name: latest
+      referencePolicy:
+        type: Source
+
+parameters:
+- description: The OpenShift Namespace where the ImageStream resides.
+  displayName: Namespace
+  name: NAMESPACE
+  required: true
+  value: koku

@@ -18,17 +18,42 @@
 """Models for shared reporting tables."""
 
 from django.db import models
+from django.utils import timezone
 
 from api.provider.models import Provider
+
+
+class CostUsageReportManifest(models.Model):
+    """Information gathered from a cost usage report manifest file."""
+
+    class Meta:
+        """Meta for CostUsageReportManifest."""
+
+        unique_together = ('provider', 'assembly_id')
+
+    assembly_id = models.TextField()
+    manifest_creation_datetime = models.DateTimeField(null=True,
+                                                      default=timezone.now)
+    manifest_updated_datetime = models.DateTimeField(null=True,
+                                                     default=timezone.now)
+    billing_period_start_datetime = models.DateTimeField()
+    num_processed_files = models.IntegerField(default=0)
+    num_total_files = models.IntegerField()
+    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE)
+    task = models.UUIDField(null=True)
 
 
 class CostUsageReportStatus(models.Model):
     """Information on the state of the cost usage report."""
 
-    provider = models.ForeignKey('api.Provider', null=True,
+    class Meta:
+        """Meta for CostUsageReportStatus."""
+
+        unique_together = ('manifest', 'report_name')
+
+    manifest = models.ForeignKey('CostUsageReportManifest', null=True,
                                  on_delete=models.CASCADE)
-    report_name = models.CharField(max_length=128, null=False, unique=True)
-    cursor_position = models.PositiveIntegerField()
+    report_name = models.CharField(max_length=128, null=False)
     last_completed_datetime = models.DateTimeField(null=True)
     last_started_datetime = models.DateTimeField(null=True)
     etag = models.CharField(max_length=64, null=True)
@@ -42,6 +67,13 @@ class ReportColumnMap(models.Model):
 
     """
 
+    class Meta:
+        """Meta for ReportColumnMap."""
+
+        unique_together = ('report_type', 'provider_column_name',)
+
+    report_type = models.CharField(max_length=50, null=True)
+
     provider_type = models.CharField(
         max_length=50,
         null=False,
@@ -52,7 +84,7 @@ class ReportColumnMap(models.Model):
     provider_column_name = models.CharField(
         max_length=128,
         null=False,
-        unique=True
+        unique=False
     )
 
     database_table = models.CharField(max_length=50, null=False)
@@ -79,6 +111,7 @@ class RegionMapping(models.Model):
     example:
       "Region Name": "EU (London)"
       "Region": "eu-west-2"
+
     """
 
     class Meta:

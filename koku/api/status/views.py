@@ -16,21 +16,19 @@
 #
 
 """View for server status."""
-
+from django.views.decorators.cache import never_cache
 from rest_framework import permissions
-from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from api.status.models import Status
 from api.status.serializers import StatusSerializer
 
 
-@api_view(['GET', 'HEAD'])
-@permission_classes((permissions.AllowAny,))
-def status(request):
+class StatusView(APIView):
     """Provide the server status information.
 
-    @api {get} /api/v1/status/ Request server status
+    @api {get} /cost-management/v1/status/ Request server status
     @apiName GetStatus
     @apiGroup Status
     @apiVersion 1.0.0
@@ -72,8 +70,15 @@ def status(request):
                 }
         }
     """
-    status_info = Status()
-    serializer = StatusSerializer(status_info)
-    server_info = serializer.data
-    server_info['server_address'] = request.META.get('HTTP_HOST', 'localhost')
-    return Response(server_info)
+
+    permission_classes = [permissions.AllowAny]
+    serializer_class = StatusSerializer
+
+    @never_cache
+    def get(self, request):
+        """Return the server status."""
+        status_info = Status()
+        serializer = StatusSerializer(status_info)
+        server_info = serializer.data
+        server_info['server_address'] = request.META.get('HTTP_HOST', 'localhost')
+        return Response(server_info)

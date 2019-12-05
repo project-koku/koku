@@ -1,0 +1,272 @@
+#
+# This template defines resources used to deploy RabbitMQ.
+#
+apiVersion: v1
+kind: Template
+labels:
+  app: koku
+  template: rabbitmq
+metadata:
+  annotations:
+    description: RabbitMQ Deployment and Runtime Components
+    iconClass: icon-erlang
+    tags: erlang,rabbitmq
+  creationTimestamp: null
+  name: rabbitmq
+objects:
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    labels:
+      application: ${APPLICATION_NAME}
+    name: view
+  roleRef:
+    name: view
+  subjects:
+  - kind: ServiceAccount
+    name: default
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      application: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}
+  spec:
+    clusterIP: None
+    ports:
+    - name: ${RABBITMQ_EPMD_PORT}-tcp
+      port: ${{RABBITMQ_EPMD_PORT}}
+      protocol: TCP
+      targetPort: ${{RABBITMQ_EPMD_PORT}}
+    - name: ${RABBITMQ_AMQPS_PORT}-tcp
+      port: ${{RABBITMQ_AMQPS_PORT}}
+      protocol: TCP
+      targetPort: ${{RABBITMQ_AMQPS_PORT}}
+    - name: ${RABBITMQ_AMQP_PORT}-tcp
+      port: ${{RABBITMQ_AMQP_PORT}}
+      protocol: TCP
+      targetPort: ${{RABBITMQ_AMQP_PORT}}
+    - name: ${RABBITMQ_INTERNODE_PORT}-tcp
+      port: ${{RABBITMQ_INTERNODE_PORT}}
+      protocol: TCP
+      targetPort: ${{RABBITMQ_INTERNODE_PORT}}
+    selector:
+      application: ${APPLICATION_NAME}
+    sessionAffinity: None
+    type: ClusterIP
+- apiVersion: apps/v1beta1
+  kind: StatefulSet
+  metadata:
+    labels:
+      application: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}
+    annotations:
+      image.openshift.io/triggers: >-
+        [{"from": {"kind": "ImageStreamTag", "name": "${APPLICATION_NAME}:${RABBITMQ_VERSION}", "namespace":
+        "${NAMESPACE}"}, "fieldPath":
+        "spec.template.spec.containers[?(@.name==\"${APPLICATION_NAME}\")].image"}]
+  spec:
+    replicas: ${{REPLICAS}}
+    selector:
+      matchLabels:
+        application: ${APPLICATION_NAME}
+    serviceName: ${APPLICATION_NAME}
+    template:
+      metadata:
+        labels:
+          application: ${APPLICATION_NAME}
+          name: ${APPLICATION_NAME}
+      spec:
+        containers:
+        - env:
+          - name: AUTOCLUSTER_DELAY
+            value: "10"
+          - name: AUTOCLUSTER_TYPE
+            value: k8s
+          - name: MY_POD_IP
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: status.podIP
+          - name: RABBITMQ_ERLANG_COOKIE
+            value: ${RABBITMQ_ERLANG_COOKIE}
+          - name: RABBITMQ_NODENAME
+            value: rabbit@$(MY_POD_IP)
+          - name: RABBITMQ_USE_LONGNAME
+            value: "true"
+          image: ${APPLICATION_NAME}:${RABBITMQ_VERSION}
+          imagePullPolicy: Always
+          name: ${APPLICATION_NAME}
+          ports:
+          - containerPort: ${{RABBITMQ_INTERNODE_PORT}}
+            protocol: TCP
+          - containerPort: ${{RABBITMQ_EPMD_PORT}}
+            protocol: TCP
+          - containerPort: ${{RABBITMQ_AMQPS_PORT}}
+            protocol: TCP
+          - containerPort: ${{RABBITMQ_AMQP_PORT}}
+            protocol: TCP
+          resources:
+            requests:
+              cpu: ${CPU_REQUEST}
+              memory: ${MEMORY_REQUEST}
+            limits:
+              cpu: ${CPU_LIMIT}
+              memory: ${MEMORY_LIMIT}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /var/lib/rabbitmq/mnesia
+            name: mnesia
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext:
+          runAsUser: 999
+        terminationGracePeriodSeconds: 10
+    volumeClaimTemplates:
+    - metadata:
+        name: mnesia
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: ${VOLUME_CAPACITY}
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      application: rabbitmq
+    name: rabbitmq
+  spec:
+    lookupPolicy:
+      local: true
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      application: ${APPLICATION_NAME}
+      name: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}
+  spec:
+    failedBuildsHistoryLimit: 1
+    successfulBuildsHistoryLimit: 2
+    output:
+      to:
+        kind: ImageStreamTag
+        name: rabbitmq:${RABBITMQ_VERSION}
+    source:
+      contextDir: ${CONTEXT_DIR}
+      git:
+        ref: ${SOURCE_REPOSITORY_REF}
+        uri: ${SOURCE_REPOSITORY_URL}
+      type: Git
+    strategy:
+      dockerStrategy:
+        env:
+        - name: ERLANG_VERSION
+          value: ${ERLANG_VERSION}
+        - name: RABBITMQ_AUTOCLUSTER_VERSION
+          value: ${RABBITMQ_AUTOCLUSTER_VERSION}
+        - name: RABBITMQ_VERSION
+          value: ${RABBITMQ_VERSION}
+        forcePull: true
+        from:
+          kind: ImageStreamTag
+          name: ${FROM_IMAGE}
+      type: Docker
+    triggers:
+    - imageChange: {}
+      type: ImageChange
+    - type: ConfigChange
+parameters:
+- description: The name for the application.
+  name: APPLICATION_NAME
+  required: true
+  value: rabbitmq
+- description: The OpenShift Namespace where the ImageStream resides.
+  displayName: Namespace
+  name: NAMESPACE
+  required: true
+  value: koku
+- description: Path within Git repository to build; empty for root of repository
+  name: CONTEXT_DIR
+  value: openshift/rabbitmq
+- description: Erlang version to use
+  name: ERLANG_VERSION
+  required: true
+  value: "22.1.2"
+- description: Image stream tag for the image you'd like to use to build the application
+  name: FROM_IMAGE
+  required: true
+  value: ubi7-python36:latest
+- description: RabbitMQ Autocluster version to use
+  name: RABBITMQ_AUTOCLUSTER_VERSION
+  required: true
+  value: 0.10.0
+- description: RabbitMQ version to build
+  name: RABBITMQ_VERSION
+  required: true
+  value: 3.8.0
+- description: Git branch/tag reference
+  name: SOURCE_REPOSITORY_REF
+  value: master
+- description: Git source URL for application
+  name: SOURCE_REPOSITORY_URL
+  required: true
+  value: https://github.com/project-koku/masu
+- description: RabbitMQ Erlang Cookie
+  name: RABBITMQ_ERLANG_COOKIE
+  from: '[a-zA-Z0-9]{16}'
+  generate: expression
+- description: Number of RabbitMQ Replicas to create
+  displayName: RabbitMQ Replicas
+  name: REPLICAS
+  required: true
+  value: '3'
+- description: Initial amount of memory the app container will request.
+  displayName: Memory Request
+  name: MEMORY_REQUEST
+  required: true
+  value: 512Mi
+- description: Maximum amount of memory the app container can use.
+  displayName: Memory Limit
+  name: MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- description: Initial amount of CPU the app container will request.
+  displayName: CPU Request
+  name: CPU_REQUEST
+  required: true
+  value: '500m'
+- description: Maximum amount of CPU the app container can use.
+  displayName: CPU Limit
+  name: CPU_LIMIT
+  required: true
+  value: '1'
+- displayName: Volume Capacity
+  description: Volume space available for shared files, e.g. 512Mi, 2Gi
+  name: VOLUME_CAPACITY
+  required: true
+  value: 1Gi
+- description: RabbitMQ Inter-Node Communications Port Number
+  displayName: RabbitMQ Inter-Node Port
+  name: RABBITMQ_INTERNODE_PORT
+  required: true
+  value: "25672"
+- description: RabbitMQ EPMD Port Number
+  displayName: RabbitMQ EPMD Port
+  name: RABBITMQ_EPMD_PORT
+  required: true
+  value: "4369"
+- description: RabbitMQ AMQP Port Number
+  displayName: RabbitMQ AMQP Port
+  name: RABBITMQ_AMQP_PORT
+  required: true
+  value: "5672"
+- description: RabbitMQ AMQP (TLS) Port Number
+  displayName: RabbitMQ AMQPS Port
+  name: RABBITMQ_AMQPS_PORT
+  required: true
+  value: "5671"

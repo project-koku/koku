@@ -29,6 +29,20 @@ engines = {
 }
 
 
+def _cert_config(db_config, database_cert):
+    """Add certificate configuration as needed."""
+    if database_cert:
+        cert_file = '/etc/ssl/certs/server.pem'
+        db_options = {
+            'OPTIONS': {
+                'sslmode': 'verify-full',
+                'sslrootcert': cert_file
+            }
+        }
+        db_config.update(db_options)
+    return db_config
+
+
 def config():
     """Database config."""
     service_name = ENVIRONMENT.get_value('DATABASE_SERVICE_NAME',
@@ -39,18 +53,21 @@ def config():
     else:
         engine = engines['postgresql']
 
-    name = ENVIRONMENT.get_value('DATABASE_NAME', default=None)
+    name = ENVIRONMENT.get_value('DATABASE_NAME', default='postgres')
 
     if not name and engine == engines['sqlite']:
         name = os.path.join(settings.BASE_DIR, 'db.sqlite3')
 
-    return {
+    db_config = {
         'ENGINE': engine,
         'NAME': name,
-        'USER': ENVIRONMENT.get_value('DATABASE_USER', default=None),
-        'PASSWORD': ENVIRONMENT.get_value('DATABASE_PASSWORD', default=None),
+        'USER': ENVIRONMENT.get_value('DATABASE_USER', default='postgres'),
+        'PASSWORD': ENVIRONMENT.get_value('DATABASE_PASSWORD', default='postgres'),
         'HOST': ENVIRONMENT.get_value('{}_SERVICE_HOST'.format(service_name),
-                                      default=None),
+                                      default='localhost'),
         'PORT': ENVIRONMENT.get_value('{}_SERVICE_PORT'.format(service_name),
-                                      default=None),
+                                      default=15432),
     }
+
+    database_cert = ENVIRONMENT.get_value('DATABASE_SERVICE_CERT', default=None)
+    return _cert_config(db_config, database_cert)

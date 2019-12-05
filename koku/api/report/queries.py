@@ -16,543 +16,335 @@
 #
 """Query Handling for Reports."""
 import copy
-import datetime
 import logging
-import re
-from collections import OrderedDict, UserDict
+import random
+import string
+from collections import OrderedDict, defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
+from urllib.parse import quote_plus
 
-from dateutil import relativedelta
-from django.db.models import (F,
-                              Max,
-                              Sum,
-                              Value,
-                              Window)
-from django.db.models.functions import (Concat,
-                                        DenseRank,
-                                        TruncDay,
-                                        TruncMonth)
-from tenant_schemas.utils import tenant_context
+from django.db.models import Q
+from django.db.models.expressions import OrderBy, RawSQL
 
-from api.utils import DateHelper
-from reporting.models import (AWSAccountAlias,
-                              AWSCostEntryLineItem,
-                              AWSCostEntryLineItemAggregates,
-                              AWSCostEntryLineItemDailySummary)
-
+from api.query_filter import QueryFilter, QueryFilterCollection
+from api.query_handler import QueryHandler
 
 LOG = logging.getLogger(__name__)
-WILDCARD = '*'
-OPERATION_SUM = 'sum'
-OPERATION_NONE = 'none'
-EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
-                  'cost_entry_product_id', 'cost_entry_pricing_id',
-                  'cost_entry_reservation_id', 'tags',
-                  'invoice_id', 'line_item_type', 'usage_account_id',
-                  'usage_start', 'usage_end', 'product_code',
-                  'usage_type', 'operation', 'availability_zone',
-                  'usage_amount', 'normalization_factor',
-                  'normalized_usage_amount', 'currency_code',
-                  'unblended_rate', 'unblended_cost', 'blended_rate',
-                  'blended_cost', 'tax_type']
 
 
-class TruncDayString(TruncDay):
-    """Class to handle string formated day truncation."""
-
-    def convert_value(self, value, expression, connection):
-        """Convert value to a string after super."""
-        value = super().convert_value(value, expression, connection)
-        return value.strftime('%Y-%m-%d')
+def strip_tag_prefix(tag):
+    """Remove the query tag prefix from a tag key."""
+    return tag.replace('tag:', '').replace('and:', '').replace('or:', '')
 
 
-class TruncMonthString(TruncMonth):
-    """Class to handle string formated day truncation."""
-
-    def convert_value(self, value, expression, connection):
-        """Convert value to a string after super."""
-        value = super().convert_value(value, expression, connection)
-        return value.strftime('%Y-%m')
-
-
-class QueryFilter(UserDict):
-    """Dict-like object representing a single query filter."""
-
-    SEP = '__'    # separator
-    table = None
-    field = None
-    operation = None
-    parameter = None
-
-    def __init__(self, table=None, field=None, operation=None, parameter=None):
-        """Constructor.
-
-        Args:
-            table (str) - The name of a DB table
-            field (str) - The name of a DB field
-            operation (str) - The name of a DB operation, e.g. 'in' or 'gte'
-            parameter (object) - A valid query target, e.g. a list or datetime
-        """
-        super().__init__(table=table, field=field, operation=operation,
-                         parameter=parameter)
-        self.table = table
-        self.field = field
-        self.operation = operation
-        self.parameter = parameter
-
-    def composed_query_string(self):
-        """Return compiled query string."""
-        fields = [entry for entry in [self.table, self.field, self.operation]
-                  if entry is not None]
-        return self.SEP.join(fields)
-
-    def composed_dict(self):
-        """Return a dict formatted for Django's ORM."""
-        return {self.composed_query_string(): self.parameter}
-
-    def from_string(self, query_string):
-        """Parse a string representing a filter.
-
-        Returns:
-            QueryFilter instance.
-
-        Args:
-            query_string (str) A string representing a query filter.
-
-        Example:
-            QueryFilter().from_string('mytable__myfield__contains')
-
-        """
-        parts = query_string.split(self.SEP)
-        if len(parts) == 3:
-            self.table, self.field, self.operation = parts
-        elif len(parts) == 2:
-            self.table, self.operation = parts
-        else:
-            message = 'Incorrect number of parts in query string. ' + \
-                'Need at least two of [table, field, operation].'
-            raise TypeError(message)
-        return self
-
-    def __repr__(self):
-        """Return string representation."""
-        return str(self.composed_dict())
-
-
-class QueryFilterCollection(object):
-    """Object representing a set of filters for a query."""
-
-    def __init__(self, filters=None):
-        """Constructor."""
-        if filters is None:
-            self._filters = list()    # a list of QueryFilter objects
-        else:
-            for item in filters:
-                if not isinstance(item, QueryFilter):
-                    message = 'Filters list must be instances of QueryFilter.'
-                    raise TypeError(message)
-            self._filters = filters
-
-    def add(self, query_filter=None, table=None, field=None, operation=None, parameter=None):
-        """Add a query filter to the collection.
-
-        Args:
-            query_filter (QueryFilter) a QueryFilter object
-
-            - or -
-
-            table (str)  db table name
-            field (str)  db field/row name
-            operation (str) db operation
-            parameter (object) query object
-
-        """
-        error_message = 'query_filter can not be defined with other parameters'
-        if query_filter and (table or field or operation or parameter):
-            raise AttributeError(error_message)
-
-        if query_filter:
-            self._filters.append(query_filter)
-
-        if (table or field or operation or parameter):
-            qf = QueryFilter(table=table, field=field, operation=operation,
-                             parameter=parameter)
-            self._filters.append(qf)
-
-    def compose(self):
-        """Compose filters into a dict for submitting to Django's ORM."""
-        out = {}
-        for filt in self._filters:
-            if filt.parameter is not None:
-                out.update(filt.composed_dict())
-        return out
-
-    def __repr__(self):
-        """Return string representation."""
-        out = f'{self.__class__}: '
-        for filt in self._filters:
-            out += filt.__repr__() + ', '
-        return out
-
-
-class ReportQueryHandler(object):
+class ReportQueryHandler(QueryHandler):
     """Handles report queries and responses."""
 
-    default_ordering = {'total': 'desc'}
-
-    def __init__(self, query_parameters, url_data,
-                 tenant, aggregate_key, units_key, **kwargs):
+    def __init__(self, parameters):
         """Establish report query handler.
 
         Args:
-            query_parameters    (Dict): parameters for query
-            url_data        (String): URL string to provide order information
-            tenant    (String): the tenant to use to access CUR data
-            aggregate_key   (String): the key to aggregate on
-            units_key   (String): the key defining the units
-            kwargs    (Dict): A dictionary for internal query alteration based on path
+            parameters    (QueryParameters): parameter object for query
+
         """
-        LOG.debug(f'Query Params: {query_parameters}')
+        LOG.debug(f'Query Params: {parameters}')
+        super().__init__(parameters)
 
-        self._accept_type = None
-        self._annotations = None
-        self._count = None
-        self._group_by = None
-        self.end_datetime = None
-        self.resolution = None
-        self.start_datetime = None
-        self.time_interval = []
-        self.time_scope_units = None
-        self.time_scope_value = None
+        self._tag_keys = parameters.tag_keys
 
-        self.aggregate_key = aggregate_key
-        self.query_parameters = query_parameters
-        self.tenant = tenant
-        self.url_data = url_data
-
-        self.operation = self.query_parameters.get('operation', OPERATION_SUM)
-        self._delta = self.query_parameters.get('delta')
-        self._limit = self.get_query_param_data('filter', 'limit')
-        self._get_timeframe()
-        self.units_key = units_key
+        self._delta = parameters.delta
+        self._offset = parameters.get_filter('offset', default=0)
         self.query_delta = {'value': None, 'percent': None}
 
-        self.account_aliases = {}
-
-        if kwargs:
-            elements = ['accept_type', 'annotations', 'delta',
-                        'group_by', 'report_type']
-            for key, value in kwargs.items():
-                if key in elements:
-                    setattr(self, f'_{key}', value)
-
-            # don't override the property by using setattr
-            if 'count' in kwargs:
-                self.count = kwargs['count']
-
         self.query_filter = self._get_filter()
+        self.query_exclusions = self._get_exclusions()
 
-        assert getattr(self, '_report_type'), \
-            'kwargs["report_type"] is missing!'
+    def initialize_totals(self):
+        """Initialize the total response column values."""
+        query_sum = {}
+        for value in self._mapper.report_type_map.get('aggregates').keys():
+            query_sum[value] = 0
+        return query_sum
 
-    @property
-    def is_sum(self):
-        """Determine the type of API call this is.
+    def get_tag_filter_keys(self):
+        """Get tag keys from filter arguments."""
+        tag_filters = []
+        filters = self.parameters.get('filter', {})
+        for filt in filters:
+            if filt in self._tag_keys:
+                tag_filters.append(filt)
+        return tag_filters
 
-        is_sum == True -> API Summary data
-        is_sum == False -> Full data download
+    def get_tag_group_by_keys(self):
+        """Get tag keys from group by arguments."""
+        tag_groups = []
+        filters = self.parameters.get('group_by', {})
+        for filt in filters:
+            if filt in self._tag_keys:
+                tag_groups.append(filt)
+        return tag_groups
 
-        """
-        return self.operation == OPERATION_SUM
+    def _build_custom_filter_list(self, filter_type, method, filter_list):
+        """Replace filter list items from custom method."""
+        if filter_type == 'infrastructures' and method:
+            for item in filter_list:
+                custom_list = method(item, self.tenant)
+                if not custom_list:
+                    random_name = ''.join(random.choices(string.ascii_lowercase + string.digits,
+                                          k=5))
+                    custom_list = [random_name]
+                filter_list.remove(item)
+                filter_list = list(set(filter_list + custom_list))
+        return filter_list
 
-    @property
-    def units_key(self):
-        """Return the unit used in this query."""
-        return self._units_key
-
-    @units_key.setter
-    def units_key(self, value):
-        """Set the units_key."""
-        self._units_key = value
-        if self.is_sum:
-            self._units_key = value.replace('cost_entry_pricing__', '')
-
-    @property
-    def count(self):
-        """Return the count property."""
-        return self._count
-
-    @count.setter
-    def count(self, value):
-        """Set the count property."""
-        self._count = value
-        if self.is_sum:
-            self._count = 'resource_count'
-
-    @staticmethod
-    def has_wildcard(in_list):
-        """Check if list has wildcard.
-
-        Args:
-            in_list (List[String]): List of strings to check for wildcard
-        Return:
-            (Boolean): if wildcard is present in list
-        """
-        if not in_list:
-            return False
-        return any(WILDCARD == item for item in in_list)
-
-    def check_query_params(self, key, in_key):
-        """Test if query parameters has a given key and key within it.
+    def _get_search_filter(self, filters):
+        """Populate the query filter collection for search filters.
 
         Args:
-        key     (String): key to check in query parameters
-        in_key  (String): key to check if key is found in query parameters
-
+            filters (QueryFilterCollection): collection of query filters
         Returns:
-            (Boolean): True if they keys given appear in given query parameters.
+            (QueryFilterCollection): populated collection of query filters
 
         """
-        return (self.query_parameters and key in self.query_parameters and
-                in_key in self.query_parameters.get(key))
+        # define filter parameters using API query params.
+        fields = self._mapper._provider_map.get('filters')
+        for q_param, filt in fields.items():
+            group_by = self.parameters.get_group_by(q_param, list())
+            filter_ = self.parameters.get_filter(q_param, list())
+            list_ = list(set(group_by + filter_))    # uniquify the list
+            if list_ and not ReportQueryHandler.has_wildcard(list_):
+                if isinstance(filt, list):
+                    for _filt in filt:
+                        for item in list_:
+                            q_filter = QueryFilter(parameter=item, **_filt)
+                            filters.add(q_filter)
+                else:
+                    list_ = self._build_custom_filter_list(q_param, filt.get('custom'), list_)
+                    for item in list_:
+                        q_filter = QueryFilter(parameter=item, **filt)
+                        filters.add(q_filter)
 
-    def get_query_param_data(self, dictkey, key, default=None):
-        """Extract the value from a query parameter dictionary or return None.
+        # Update filters with tag filters
+        filters = self._set_tag_filters(filters)
+        filters = self._set_operator_specified_tag_filters(filters, 'and')
+        filters = self._set_operator_specified_tag_filters(filters, 'or')
 
-        Args:
-            dictkey (String): the key to access a query parameter dictionary
-            key     (String): the key to obtain from the dictionar data
-        Returns:
-            (Object): The value found with the given key or the default value
-        """
-        value = default
-        if self.check_query_params(dictkey, key):
-            value = self.query_parameters.get(dictkey).get(key)
-        return value
+        # Update filters that specifiy and or or in the query parameter
+        and_composed_filters = self._set_operator_specified_filters('and')
+        or_composed_filters = self._set_operator_specified_filters('or')
+        composed_filters = filters.compose()
+        composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        LOG.debug(f'_get_search_filter: {composed_filters}')
+        return composed_filters
 
-    @property
-    def order_field(self):
-        """Order-by field name.
+    def _set_tag_filters(self, filters):
+        """Create tag_filters."""
+        tag_column = self._mapper.tag_column
+        tag_filters = self.get_tag_filter_keys()
+        tag_group_by = self.get_tag_group_by_keys()
+        tag_filters.extend(tag_group_by)
+        tag_filters = [tag for tag in tag_filters
+                       if 'and:' not in tag and 'or:' not in tag]
+        for tag in tag_filters:
+            # Update the filter to use the label column name
+            tag_db_name = tag_column + '__' + strip_tag_prefix(tag)
+            filt = {
+                'field': tag_db_name,
+                'operation': 'icontains'
+            }
+            group_by = self.parameters.get_group_by(tag, list())
+            filter_ = self.parameters.get_filter(tag, list())
+            list_ = list(set(group_by + filter_))  # uniquify the list
+            if list_ and not ReportQueryHandler.has_wildcard(list_):
+                for item in list_:
+                    q_filter = QueryFilter(parameter=item, **filt)
+                    filters.add(q_filter)
+            elif list_ and ReportQueryHandler.has_wildcard(list_):
+                wild_card_filt = {
+                    'field': tag_column,
+                    'operation': 'has_key'
+                }
+                q_filter = QueryFilter(parameter=strip_tag_prefix(tag),
+                                       **wild_card_filt)
+                filters.add(q_filter)
+        return filters
 
-        The default is 'total'
-        """
-        order_by = self.query_parameters.get('order_by', self.default_ordering)
-        return list(order_by.keys()).pop()
+    def _set_operator_specified_tag_filters(self, filters, operator):
+        """Create tag_filters."""
+        tag_column = self._mapper.tag_column
+        tag_filters = self.get_tag_filter_keys()
+        tag_group_by = self.get_tag_group_by_keys()
+        tag_filters.extend(tag_group_by)
+        tag_filters = [tag for tag in tag_filters if operator + ':' in tag]
+        for tag in tag_filters:
+            # Update the filter to use the label column name
+            tag_db_name = tag_column + '__' + strip_tag_prefix(tag)
+            filt = {
+                'field': tag_db_name,
+                'operation': 'icontains'
+            }
+            group_by = self.parameters.get_group_by(tag, list())
+            filter_ = self.parameters.get_filter(tag, list())
+            list_ = list(set(group_by + filter_))  # uniquify the list
+            if list_ and not ReportQueryHandler.has_wildcard(list_):
+                for item in list_:
+                    q_filter = QueryFilter(
+                        parameter=item,
+                        logical_operator=operator,
+                        **filt
+                    )
+                    filters.add(q_filter)
+        return filters
 
-    @property
-    def order_direction(self):
-        """Order-by orientation value.
+    def _set_operator_specified_filters(self, operator):
+        """Set any filters using AND instead of OR."""
+        fields = self._mapper._provider_map.get('filters')
+        filters = QueryFilterCollection()
+        composed_filter = Q()
 
-        Returns:
-            (str) 'asc' or 'desc'; default is 'desc'
+        for q_param, filt in fields.items():
+            q_param = operator + ':' + q_param
+            group_by = self.parameters.get_group_by(q_param, list())
+            filter_ = self.parameters.get_filter(q_param, list())
+            list_ = list(set(group_by + filter_))    # uniquify the list
+            logical_operator = operator
+            # This is a flexibilty feature allowing a user to set
+            # a single and: value and still get a result instead
+            # of erroring on validation
+            if len(list_) < 2:
+                logical_operator = 'or'
+            if list_ and not ReportQueryHandler.has_wildcard(list_):
+                if isinstance(filt, list):
+                    for _filt in filt:
+                        filt_filters = QueryFilterCollection()
+                        for item in list_:
+                            q_filter = QueryFilter(
+                                parameter=item,
+                                logical_operator=logical_operator,
+                                **_filt
+                            )
+                            filt_filters.add(q_filter)
+                        # List filter are a complex mix of and/or logic
+                        # Each filter in the list must be ORed together
+                        # regardless of the operator on the item in the filter
+                        # Ex:
+                        # (OR:
+                        #     (AND:
+                        #         ('cluster_alias__icontains', 'ni'),
+                        #         ('cluster_alias__icontains', 'se')
+                        #     ),
+                        #     (AND:
+                        #         ('cluster_id__icontains', 'ni'),
+                        #         ('cluster_id__icontains', 'se')
+                        #     )
+                        # )
+                        composed_filter = composed_filter | filt_filters.compose()
+                else:
+                    list_ = self._build_custom_filter_list(q_param, filt.get('custom'), list_)
+                    for item in list_:
+                        q_filter = QueryFilter(
+                            parameter=item,
+                            logical_operator=logical_operator,
+                            **filt
+                        )
+                        filters.add(q_filter)
+        if filters:
+            composed_filter = composed_filter & filters.compose()
+        return composed_filter
 
-        """
-        order_by = self.query_parameters.get('order_by', self.default_ordering)
-        return list(order_by.values()).pop()
-
-    @property
-    def order(self):
-        """Extract order_by parameter and apply ordering to the appropriate field.
-
-        Returns:
-            (String): Ordering value. Default is '-total'
-
-        Example:
-            `order_by[total]=asc` returns `total`
-            `order_by[total]=desc` returns `-total`
-
-        """
-        order_map = {'asc': '', 'desc': '-'}
-        return f'{order_map[self.order_direction]}{self.order_field}'
-
-    def get_resolution(self):
-        """Extract resolution or provide default.
-
-        Returns:
-            (String): The value of how data will be sliced.
-
-        """
-        if self.resolution:
-            return self.resolution
-
-        self.resolution = self.get_query_param_data('filter', 'resolution')
-        time_scope_value = self.get_time_scope_value()
-        if not self.resolution:
-            self.resolution = 'daily'
-            if int(time_scope_value) in [-1, -2]:
-                self.resolution = 'monthly'
-
-        if self.resolution == 'monthly':
-            self.date_to_string = lambda dt: dt.strftime('%Y-%m')
-            self.string_to_date = lambda dt: datetime.datetime.strptime(dt, '%Y-%m').date()
-            self.date_trunc = TruncMonthString
-            self.gen_time_interval = DateHelper().list_months
-        else:
-            self.date_to_string = lambda dt: dt.strftime('%Y-%m-%d')
-            self.string_to_date = lambda dt: datetime.datetime.strptime(dt, '%Y-%m-%d').date()
-            self.date_trunc = TruncDayString
-            self.gen_time_interval = DateHelper().list_days
-
-        return self.resolution
-
-    def get_time_scope_units(self):
-        """Extract time scope units or provide default.
-
-        Returns:
-            (String): The value of how data will be sliced.
-
-        """
-        if self.time_scope_units:
-            return self.time_scope_units
-
-        time_scope_units = self.get_query_param_data('filter', 'time_scope_units')
-        time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
-        if not time_scope_units:
-            time_scope_units = 'day'
-            if time_scope_value and int(time_scope_value) in [-1, -2]:
-                time_scope_units = 'month'
-
-        self.time_scope_units = time_scope_units
-        return self.time_scope_units
-
-    def get_time_scope_value(self):
-        """Extract time scope value or provide default.
-
-        Returns:
-            (Integer): time relative value providing query scope
-
-        """
-        if self.time_scope_value:
-            return self.time_scope_value
-
-        time_scope_units = self.get_query_param_data('filter', 'time_scope_units')
-        time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
-
-        if not time_scope_value:
-            time_scope_value = -10
-            if time_scope_units == 'month':
-                time_scope_value = -1
-
-        self.time_scope_value = int(time_scope_value)
-        return self.time_scope_value
-
-    def _create_time_interval(self):
-        """Create list of date times in interval.
-
-        Returns:
-            (List[DateTime]): List of all interval slices by resolution
-
-        """
-        self.time_interval = sorted(self.gen_time_interval(
-            self.start_datetime,
-            self.end_datetime))
-        return self.time_interval
-
-    def _get_timeframe(self):
-        """Obtain timeframe start and end dates.
-
-        Returns:
-            (DateTime): start datetime for query filter
-            (DateTime): end datetime for query filter
-
-        """
-        self.get_resolution()
-        time_scope_value = self.get_time_scope_value()
-        time_scope_units = self.get_time_scope_units()
-        start = None
-        end = None
-        dh = DateHelper()
-        if time_scope_units == 'month':
-            if time_scope_value == -1:
-                # get current month
-                start = dh.this_month_start
-                end = dh.this_month_end
-            else:
-                # get previous month
-                start = dh.last_month_start
-                end = dh.last_month_end
-        else:
-            if time_scope_value == -10:
-                # get last 10 days
-                start = dh.n_days_ago(dh.this_hour, 10)
-                end = dh.this_hour
-            else:
-                # get last 30 days
-                start = dh.n_days_ago(dh.this_hour, 30)
-                end = dh.this_hour
-
-        self.start_datetime = start
-        self.end_datetime = end
-        self._create_time_interval()
-        return (self.start_datetime, self.end_datetime, self.time_interval)
-
-    def _get_filter(self):
+    def _get_filter(self, delta=False):
         """Create dictionary for filter parameters.
+
+        Args:
+            delta (Boolean): Construct timeframe for delta
+        Returns:
+            (Dict): query filter dictionary
+
+        """
+        filters = super()._get_filter(delta)
+
+        # set up filters for instance-type and storage queries.
+        for filter_map in self._mapper._report_type_map.get('filter'):
+            filters.add(**filter_map)
+
+        # define filter parameters using API query params.
+        composed_filters = self._get_search_filter(filters)
+
+        LOG.debug(f'_get_filter: {composed_filters}')
+        return composed_filters
+
+    def _get_exclusions(self, delta=False):
+        """Create dictionary for filter parameters for exclude clause.
 
         Returns:
             (Dict): query filter dictionary
 
         """
-        filters = QueryFilterCollection()
+        exclusions = QueryFilterCollection()
+        tag_column = self._mapper.tag_column
+        tag_group_by = self.get_tag_group_by_keys()
+        if tag_group_by:
+            for tag in tag_group_by:
+                tag_db_name = tag_column + '__' + strip_tag_prefix(tag)
+                filt = {
+                    'field': tag_db_name,
+                    'operation': 'isnull',
+                    'parameter': True
+                }
+                q_filter = QueryFilter(**filt)
+                exclusions.add(q_filter)
 
-        # the summary table mirrors many of the fields in the cost_entry_product table.
-        cep_table = 'cost_entry_product'
-        if self.is_sum:
-            cep_table = None
+        composed_exclusions = exclusions.compose()
 
-        # set up filters for instance-type and storage queries.
-        if self._report_type == 'instance_type':
-            filters.add(table=cep_table, field='instance_type',
-                        operation='isnull', parameter=False)
-        elif self._report_type == 'storage':
-            filters.add(table=cep_table, field='product_family',
-                        operation='contains', parameter='Storage')
-
-        region_filter = QueryFilter(table=cep_table, field='region', operation='in')
-
-        start_filter = QueryFilter(table='usage_start', operation='gte',
-                                   parameter=self.start_datetime)
-        end_filter = QueryFilter(table='usage_end', operation='lte',
-                                 parameter=self.end_datetime)
-        filters.add(query_filter=start_filter)
-        filters.add(query_filter=end_filter)
-
-        # define filter parameters using API query params.
-        fields = {'account': QueryFilter(field='usage_account_id',
-                                         operation='in'),
-                  'service': QueryFilter(field='product_code', operation='in'),
-                  'region': region_filter,
-                  'avail_zone': QueryFilter(field='availability_zone',
-                                            operation='in')}
-        for q_param, filt in fields.items():
-            group_by = self.get_query_param_data('group_by', q_param, list())
-            filter_ = self.get_query_param_data('filter', q_param, list())
-            list_ = list(set(group_by + filter_))    # uniquify the list
-            if list_ and not ReportQueryHandler.has_wildcard(list_):
-                filt.parameter = list_
-            filters.add(filt)
-
-        LOG.debug(f'Filters: {filters.compose()}')
-        return filters.compose()
+        LOG.debug(f'_get_exclusions: {composed_exclusions}')
+        return composed_exclusions
 
     def _get_group_by(self):
         """Create list for group_by parameters."""
         group_by = []
-        group_by_options = ['service', 'account', 'region', 'avail_zone']
-        for item in group_by_options:
-            group_data = self.get_query_param_data('group_by', item)
+        for item in self.group_by_options:
+            group_data = self.parameters.get_group_by(item)
+            if not group_data:
+                group_data = self.parameters.get_group_by('and:' + item)
+            if not group_data:
+                group_data = self.parameters.get_group_by('or:' + item)
             if group_data:
-                group_pos = self.url_data.index(item)
-                group_by.append((item, group_pos))
+                group_pos = self.parameters.url_data.index(item)
+                if (item, group_pos) not in group_by:
+                    group_by.append((item, group_pos))
 
+        tag_group_by = self._get_tag_group_by()
+        group_by.extend(tag_group_by)
         group_by = sorted(group_by, key=lambda g_item: g_item[1])
         group_by = [item[0] for item in group_by]
-        if self._group_by:
-            group_by += self._group_by
+
+        # This is a current workaround for AWS instance-types reports
+        # It is implied that limiting is performed by account/region and
+        # not by instance type when those group by params are used.
+        # For that ranking to work we can't also group by instance_type.
+        inherent_group_by = self._mapper._report_type_map.get('group_by')
+        if (inherent_group_by and not (group_by and self._limit)):
+            group_by = group_by + list(set(inherent_group_by) - set(group_by))
+
         return group_by
 
-    def _get_annotations(self, fields=None):
+    def _get_tag_group_by(self):
+        """Create list of tag based group by parameters."""
+        group_by = []
+        tag_column = self._mapper.tag_column
+        tag_groups = self.get_tag_group_by_keys()
+        for tag in tag_groups:
+            tag_db_name = tag_column + '__' + strip_tag_prefix(tag)
+            group_data = self.parameters.get_group_by(tag)
+            if group_data:
+                tag = quote_plus(tag)
+                group_pos = self.parameters.url_data.index(tag)
+                group_by.append((tag_db_name, group_pos))
+        return group_by
+
+    @property
+    def annotations(self):
         """Create dictionary for query annotations.
 
         Args:
@@ -562,26 +354,7 @@ class ReportQueryHandler(object):
             (Dict): query annotations dictionary
 
         """
-        annotations = {
-            'date': self.date_trunc('usage_start'),
-            'units': Concat(self.units_key, Value(''))
-        }
-        if self._annotations and not self.is_sum:
-            annotations.update(self._annotations)
-
-        # { query_param: database_field_name }
-        if not fields:
-            fields = {'account': 'usage_account_id',
-                      'service': 'product_code',
-                      'region': 'cost_entry_product__region',
-                      'avail_zone': 'availability_zone'}
-            if self.is_sum:
-                # The summary table has region built in
-                fields.pop('region', None)
-        for q_param, db_field in fields.items():
-            annotations[q_param] = Concat(db_field, Value(''))
-
-        return annotations
+        raise NotImplementedError('Annotations must be defined by sub-classes.')
 
     @staticmethod
     def _group_data_by_list(group_by_list, group_index, data):
@@ -592,6 +365,7 @@ class ReportQueryHandler(object):
             data    (List): list of query results
         Returns:
             (Dict): dictionary of grouped query results or the original data
+
         """
         group_by_list_len = len(group_by_list)
         if group_index >= group_by_list_len:
@@ -614,46 +388,12 @@ class ReportQueryHandler(object):
                 out_data[key] = grouped
         return out_data
 
-    def _ranked_list(self, data_list):
-        """Get list of ranked items less than top.
-
-        Args:
-            data_list (List(Dict)): List of ranked data points from the same bucket
-        Returns:
-            List(Dict): List of data points meeting the rank criteria
-        """
-        ranked_list = []
-        others_list = []
-        other = None
-        other_sum = 0
-        for data in data_list:
-            if other is None:
-                other = copy.deepcopy(data)
-            rank = data.get('rank')
-            if rank <= self._limit:
-                del data['rank']
-                ranked_list.append(data)
-            else:
-                others_list.append(data)
-                total = data.get('total')
-                if total:
-                    other_sum += total
-
-        if other is not None and others_list:
-            other['total'] = other_sum
-            del other['rank']
-            group_by = self._get_group_by()
-            for group in group_by:
-                other[group] = 'Other'
-            ranked_list.append(other)
-
-        return ranked_list
-
-    def _apply_group_by(self, query_data):
+    def _apply_group_by(self, query_data, group_by=None):
         """Group data by date for given time interval then group by list.
 
         Args:
             query_data  (List(Dict)): Queried data
+            group_by (list): An optional list of groups
         Returns:
             (Dict): Dictionary of grouped dictionaries
 
@@ -664,6 +404,8 @@ class ReportQueryHandler(object):
             bucket_by_date[date_string] = []
 
         for result in query_data:
+            if self._limit and result.get('rank'):
+                del result['rank']
             date_string = result.get('date')
             date_bucket = bucket_by_date.get(date_string)
             if date_bucket is not None:
@@ -671,34 +413,36 @@ class ReportQueryHandler(object):
 
         for date, data_list in bucket_by_date.items():
             data = data_list
-            if self._limit:
-                data = self._ranked_list(data_list)
-            group_by = self._get_group_by()
+            if group_by is None:
+                group_by = self._get_group_by()
             grouped = ReportQueryHandler._group_data_by_list(group_by, 0,
                                                              data)
             bucket_by_date[date] = grouped
         return bucket_by_date
 
-    def _format_query_response(self):
-        """Format the query response with data.
-
-        Returns:
-            (Dict): Dictionary response of query params, data, and total
-
-        """
-        output = copy.deepcopy(self.query_parameters)
-        output['data'] = self.query_data
-        output['total'] = self.query_sum
-
-        if self._delta:
-            output['delta'] = self.query_delta
-
-        return output
+    def _pack_data_object(self, data, **kwargs):
+        """Pack data into object format."""
+        if not isinstance(data, dict):
+            return data
+        for pack_def in kwargs.values():
+            key_items = pack_def.get('keys')
+            key_units = pack_def.get('units')
+            units = data.get(key_units)
+            for key in key_items:
+                value = data.get(key)
+                if value is not None and units is not None:
+                    data[key] = {'value': value, 'units': units}
+            if units is not None:
+                del data[key_units]
+        return data
 
     def _transform_data(self, groups, group_index, data):
         """Transform dictionary data points to lists."""
         groups_len = len(groups)
         if not groups or group_index >= groups_len:
+            pack = self._mapper.PACK_DEFINITIONS
+            for item in data:
+                self._pack_data_object(item, **pack)
             return data
 
         out_data = []
@@ -710,123 +454,81 @@ class ReportQueryHandler(object):
             label = groups[next_group_index] + 's'
 
         for group, group_value in data.items():
-            cur = {group_type: group,
+            group_label = group
+            if group is None:
+                group_label = 'no-{}'.format(group_type)
+                if isinstance(group_value, list):
+                    for group_item in group_value:
+                        if group_item.get(group_type) is None:
+                            group_item[group_type] = group_label
+                if isinstance(group_value, dict) and group_type in group_value:
+                    group_value.update({group_type: group_label})
+            cur = {group_type: group_label,
                    label: self._transform_data(groups, next_group_index,
                                                group_value)}
-            if group_type == 'account':
-                for value in group_value:
-                    if isinstance(value, dict):
-                        account_id = value.get('account')
-                        alias = self.account_aliases.get(str(account_id))
-                        if alias:
-                            value['account_alias'] = alias
-
             out_data.append(cur)
 
         return out_data
 
-    def execute_sum_query(self):
-        """Execute query and return provided data when self.is_sum == True.
+    def order_by(self, data, order_fields):
+        """Order a list of dictionaries by dictionary keys.
 
-        Returns:
-            (Dict): Dictionary response of query params, data, and total
+        Args:
+            data (list): Query data that has been converted from QuerySet to list.
+            order_fields (list): The list of dictionary keys to order by.
+
+        Returns
+            (list): The sorted/ordered list
 
         """
-        query_sum = {'value': 0}
-        data = []
-
-        with tenant_context(self.tenant):
-            query = AWSCostEntryLineItemDailySummary.objects.filter(**self.query_filter)
-
-            query_annotations = self._get_annotations()
-            query_data = query.annotate(**query_annotations)
-
-            query_group_by = ['date'] + self._get_group_by()
-
-            query_order_by = ('-date', )
-            if self.order_field != 'delta':
-                query_order_by += (self.order,)
-
-            query_data = query_data.values(*query_group_by)\
-                .annotate(total=Sum(self.aggregate_key))\
-                .annotate(units=Max(self.units_key))
-
-            if self.count:
-                # This is a sum because the summary table already
-                # has already performed counts
-                query_data = query_data.annotate(count=Sum(self.count))
-
-            if self._limit:
-                rank_order = getattr(F(self.order_field), self.order_direction)()
-                dense_rank_by_total = Window(
-                    expression=DenseRank(),
-                    partition_by=F('date'),
-                    order_by=rank_order
-                )
-                query_data = query_data.annotate(rank=dense_rank_by_total)
-                query_order_by = query_order_by + ('rank',)
-
-            for alias in AWSAccountAlias.objects.all():
-                self.account_aliases[alias.account_id] = alias.account_alias
-
-            if self.order_field != 'delta':
-                query_data = query_data.order_by(*query_order_by)
-
-            if query.exists():
-                units_value = query.values(self.units_key).first().get(self.units_key)
-                query_sum = self.calculate_total(units_value)
-
-            if self._delta:
-                query_data = self.add_deltas(query_data, query_sum)
-
-            is_csv_output = self._accept_type and 'text/csv' in self._accept_type
-            if is_csv_output:
-                if self._limit:
-                    data = self._ranked_list(list(query_data))
-                else:
-                    data = list(query_data)
+        numeric_ordering = ['date', 'rank', 'delta', 'delta_percent',
+                            'total', 'usage', 'request', 'limit',
+                            'cost', 'infrastructure_cost', 'derived_cost']
+        sorted_data = data
+        for field in reversed(order_fields):
+            reverse = False
+            field = field.replace('delta', 'delta_percent')
+            if '-' in field:
+                reverse = True
+                field = field.replace('-', '')
+            if field in numeric_ordering:
+                sorted_data = sorted(sorted_data, key=lambda entry: (entry[field] is None, entry[field]),
+                                     reverse=reverse)
+            elif 'tag:' in field:
+                tag = field[4:]
+                sorted_data = sorted(sorted_data, key=lambda entry: (entry[tag] is None, entry[tag]),
+                                     reverse=reverse)
             else:
-                data = self._apply_group_by(list(query_data))
-                data = self._transform_data(query_group_by, 0, data)
+                for line_data in sorted_data:
+                    if not line_data.get(field):
+                        line_data[field] = 'no-{}'.format(field)
+                sorted_data = sorted(sorted_data, key=lambda entry: entry[field].lower(),
+                                     reverse=reverse)
+        return sorted_data
 
-        self.query_sum = query_sum
-        self.query_data = data
-        return self._format_query_response()
+    def get_tag_order_by(self, tag):
+        """Generate an OrderBy clause forcing JSON column->key to be used.
 
-    def execute_query(self):
-        """Execute query and return provided data.
+        This is only for helping to create a Window() for purposes of grouping
+        by tag.
+
+        Args:
+            tag (str): The Django formatted tag string
+                       Ex. pod_labels__key
 
         Returns:
-            (Dict): Dictionary response of query params, data, and total
+            OrderBy: A Django OrderBy clause using raw SQL
 
         """
-        if self.is_sum:
-            return self.execute_sum_query()
-
-        query_sum = {'value': 0}
-        data = []
-
-        with tenant_context(self.tenant):
-            query = AWSCostEntryLineItem.objects.filter(**self.query_filter)
-
-            query_annotations = self._get_annotations()
-            query_data = query.annotate(**query_annotations)
-
-            query_group_by = ['date'] + self._get_group_by()
-            query_group_by_with_units = query_group_by + ['units']
-
-            query_order_by = ('-date',)
-            query_data = query_data.order_by(*query_order_by)
-            values_out = query_group_by_with_units + EXPORT_COLUMNS
-            data = list(query_data.values(*values_out))
-
-            if query.exists():
-                units_value = query.values(self.units_key).first().get(self.units_key)
-                query_sum = self.calculate_total(units_value)
-
-        self.query_sum = query_sum
-        self.query_data = data
-        return self._format_query_response()
+        descending = True if self.order_direction == 'desc' else False
+        tag_column, tag_value = tag.split('__')
+        return OrderBy(
+            RawSQL(
+                f'{tag_column} -> %s',
+                (tag_value,)
+            ),
+            descending=descending
+        )
 
     def _percent_delta(self, a, b):
         """Calculate a percent delta.
@@ -844,7 +546,155 @@ class ReportQueryHandler(object):
         try:
             return Decimal((a - b) / b * 100)
         except (DivisionByZero, ZeroDivisionError, InvalidOperation):
-            return Decimal(0)
+            return None
+
+    def _ranked_list(self, data_list):
+        """Get list of ranked items less than top.
+
+        Args:
+            data_list (List(Dict)): List of ranked data points from the same bucket
+        Returns:
+            List(Dict): List of data points meeting the rank criteria
+
+        """
+        rank_limited_data = OrderedDict()
+        date_grouped_data = self.date_group_data(data_list)
+        if data_list:
+            self.max_rank = max(entry.get('rank') for entry in data_list)
+        is_offset = 'offset' in self.parameters.get('filter', {})
+
+        for date in date_grouped_data:
+            ranked_list = self._perform_rank_summation(
+                date_grouped_data[date],
+                is_offset)
+            rank_limited_data[date] = ranked_list
+
+        return self.unpack_date_grouped_data(rank_limited_data)
+
+    # needs refactoring, but disabling pylint's complexity check for now.
+    def _perform_rank_summation(self, entry, is_offset):    # noqa: C901
+        """Do the actual rank limiting for rank_list."""
+        other = None
+        ranked_list = []
+        others_list = []
+        other_sums = {column: 0 for column in self._mapper.sum_columns}
+        for data in entry:
+            if other is None:
+                other = copy.deepcopy(data)
+            rank = data.get('rank')
+            if rank > self._offset and rank <= self._limit + self._offset:
+                ranked_list.append(data)
+            else:
+                others_list.append(data)
+                for column in self._mapper.sum_columns:
+                    other_sums[column] += data.get(column) if data.get(column) else 0
+
+        if other is not None and others_list and not is_offset:
+            num_others = len(others_list)
+            others_label = '{} Others'.format(num_others)
+
+            if num_others == 1:
+                others_label = '{} Other'.format(num_others)
+
+            other.update(other_sums)
+            other['rank'] = self._limit + 1
+            group_by = self._get_group_by()
+
+            for group in group_by:
+                other[group] = others_label
+
+            if 'account' in group_by:
+                other['account_alias'] = others_label
+
+            if 'cluster' in group_by:
+                other['cluster_alias'] = others_label
+                exclusions = []
+            else:
+                # delete these labels from the Others category if we're not
+                # grouping by cluster.
+                exclusions = ['cluster', 'cluster_alias']
+
+            for exclude in exclusions:
+                if exclude in other:
+                    del other[exclude]
+
+            ranked_list.append(other)
+
+        return ranked_list
+
+    def date_group_data(self, data_list):
+        """Group data by date."""
+        date_grouped_data = defaultdict(list)
+
+        for data in data_list:
+            key = data.get('date')
+            date_grouped_data[key].append(data)
+        return date_grouped_data
+
+    def unpack_date_grouped_data(self, date_grouped_data):
+        """Return date grouped data to a flatter form."""
+        return_data = []
+        for date, values in date_grouped_data.items():
+            for value in values:
+                return_data.append(value)
+        return return_data
+
+    def _create_previous_totals(self, previous_query, query_group_by):
+        """Get totals from the time period previous to the current report.
+
+        Args:
+            previous_query (Query): A Django ORM query
+            query_group_by (dict): The group by dict for the current report
+        Returns:
+            (dict) A dictionary keyed off the grouped values for the report
+
+        """
+        date_delta = self._get_date_delta()
+        # Added deltas for each grouping
+        # e.g. date, account, region, availability zone, et cetera
+        previous_sums = previous_query.annotate(**self.annotations)
+        delta_field = self._mapper._report_type_map.get('delta_key').get(self._delta)
+        delta_annotation = {self._delta: delta_field}
+        previous_sums = previous_sums\
+            .values(*query_group_by)\
+            .annotate(**delta_annotation)
+        previous_dict = OrderedDict()
+        for row in previous_sums:
+            date = self.string_to_date(row['date'])
+            date = date + date_delta
+            row['date'] = self.date_to_string(date)
+            key = tuple((row[key] for key in query_group_by))
+            previous_dict[key] = row[self._delta]
+
+        return previous_dict
+
+    def _get_previous_totals_filter(self, filter_dates):
+        """Filter previous time range to exlude days from the current range.
+
+        Specifically this covers days in the current range that have not yet
+        happened, but that data exists for in the previous range.
+
+        Args:
+            filter_dates (list) A list of date strings of dates to filter
+
+        Returns:
+            (django.db.models.query_utils.Q) The OR date filter
+
+        """
+        date_delta = self._get_date_delta()
+        prev_total_filters = None
+
+        for i in range(len(filter_dates)):
+            date = self.string_to_date(filter_dates[i])
+            date = date - date_delta
+            filter_dates[i] = self.date_to_string(date)
+
+        for date in filter_dates:
+            if prev_total_filters:
+                prev_total_filters = prev_total_filters | Q(usage_start=date)
+            else:
+                prev_total_filters = Q(usage_start=date)
+        return prev_total_filters
 
     def add_deltas(self, query_data, query_sum):
         """Calculate and add cost deltas to a result set.
@@ -857,24 +707,39 @@ class ReportQueryHandler(object):
             (dict) query data with new with keys "value" and "percent"
 
         """
-        delta_filter = copy.deepcopy(self.query_filter)
         delta_group_by = ['date'] + self._get_group_by()
-        previous_query = self._create_previous_query(delta_filter)
-        previous_dict = self._create_previous_totals(
-            previous_query,
-            delta_group_by
-        )
-
+        delta_filter = self._get_filter(delta=True)
+        q_table = self._mapper.query_table
+        previous_query = q_table.objects.filter(delta_filter)
+        previous_dict = self._create_previous_totals(previous_query,
+                                                     delta_group_by)
         for row in query_data:
             key = tuple((row[key] for key in delta_group_by))
-            previous_total = previous_dict.get(key, 0)
-            current_total = row.get('total', 0)
+            previous_total = previous_dict.get(key) or 0
+            current_total = row.get(self._delta) or 0
             row['delta_value'] = current_total - previous_total
             row['delta_percent'] = self._percent_delta(current_total, previous_total)
-
         # Calculate the delta on the total aggregate
-        current_total_sum = Decimal(query_sum.get('value') or 0)
-        prev_total_sum = previous_query.aggregate(value=Sum(self.aggregate_key))
+        if self._delta in query_sum:
+            if isinstance(query_sum.get(self._delta), dict):
+                current_total_sum = Decimal(query_sum.get(self._delta, {}).get('value') or 0)
+            else:
+                current_total_sum = Decimal(query_sum.get(self._delta) or 0)
+        else:
+            if isinstance(query_sum.get('cost'), dict):
+                current_total_sum = Decimal(query_sum.get('cost', {}).get('value') or 0)
+            else:
+                current_total_sum = Decimal(query_sum.get('cost') or 0)
+        delta_field = self._mapper._report_type_map.get('delta_key').get(self._delta)
+        prev_total_sum = previous_query.aggregate(value=delta_field)
+        if self.resolution == 'daily':
+            dates = [entry.get('date') for entry in query_data]
+            prev_total_filters = self._get_previous_totals_filter(dates)
+            if prev_total_filters:
+                prev_total_sum = previous_query\
+                    .filter(prev_total_filters)\
+                    .aggregate(value=delta_field)
+
         prev_total_sum = Decimal(prev_total_sum.get('value') or 0)
 
         total_delta = current_total_sum - prev_total_sum
@@ -889,117 +754,24 @@ class ReportQueryHandler(object):
         if self.order_field == 'delta':
             reverse = True if self.order_direction == 'desc' else False
             query_data = sorted(list(query_data),
-                                key=lambda x: x['delta_percent'],
+                                key=lambda x: (x['delta_percent'] is None, x['delta_percent']),
                                 reverse=reverse)
         return query_data
 
-    def _create_previous_query(self, delta_filter):
-        """Get totals from the time period previous to the current report.
+    def strip_label_column_name(self, data, group_by):
+        """Remove the column name from tags."""
+        tag_column = self._mapper.tag_column
+        val_to_strip = tag_column + '__'
+        new_data = []
+        for entry in data:
+            new_entry = {}
+            for key, value in entry.items():
+                key = key.replace(val_to_strip, '')
+                new_entry[key] = value
 
-        Args:
-            delta_filter (dict): A copy of the report filters
-        Returns:
-            (dict) A dictionary keyed off the grouped values for the report
+            new_data.append(new_entry)
 
-        """
-        if self.time_scope_value in [-1, -2]:
-            date_delta = relativedelta.relativedelta(months=1)
-        elif self.time_scope_value == -30:
-            date_delta = datetime.timedelta(days=30)
-        else:
-            date_delta = datetime.timedelta(days=10)
+        for i, group in enumerate(group_by):
+            group_by[i] = group.replace(val_to_strip, '')
 
-        _start = delta_filter.get('usage_start__gte')
-        _end = delta_filter.get('usage_end__lte')
-
-        delta_filter['usage_start__gte'] = _start - date_delta
-        delta_filter['usage_end__lte'] = _end - date_delta
-
-        if self.is_sum:
-            previous_query = AWSCostEntryLineItemDailySummary.objects.filter(
-                **delta_filter
-            )
-        else:
-            previous_query = AWSCostEntryLineItem.objects.filter(**delta_filter)
-
-        return previous_query
-
-    def _create_previous_totals(self, previous_query, query_group_by):
-        """Get totals from the time period previous to the current report.
-
-        Args:
-            previous_query (Query): A Django ORM query
-            query_group_by (dict): The group by dict for the current report
-        Returns:
-            (dict) A dictionary keyed off the grouped values for the report
-
-        """
-        if self.time_scope_value in [-1, -2]:
-            date_delta = relativedelta.relativedelta(months=1)
-        elif self.time_scope_value == -30:
-            date_delta = datetime.timedelta(days=30)
-        else:
-            date_delta = datetime.timedelta(days=10)
-        # Added deltas for each grouping
-        # e.g. date, account, region, availability zone, et cetera
-        query_annotations = self._get_annotations()
-        previous_sums = previous_query.annotate(**query_annotations)
-        previous_sums = previous_sums\
-            .values(*query_group_by)\
-            .annotate(total=Sum(self.aggregate_key))
-
-        previous_dict = OrderedDict()
-        for row in previous_sums:
-            date = self.string_to_date(row['date'])
-            date = date + date_delta
-            row['date'] = self.date_to_string(date)
-            key = tuple((row[key] for key in query_group_by))
-            previous_dict[key] = row['total']
-
-        return previous_dict
-
-    def calculate_total(self, units_value):
-        """Calculate aggregated totals for the query.
-
-        Args:
-            units_value (str): The unit of the reported total
-
-        Returns:
-            (dict) The aggregated totals for the query
-
-        """
-        filter_fields = [
-            'availability_zone',
-            'region',
-            'usage_account_id',
-            'product_code'
-        ]
-        total_filter = {}
-
-        for field in filter_fields:
-            total_filter.update(
-                {key: value for key, value in self.query_filter.items()
-                 if re.match(field, key)}
-            )
-
-        total_filter['time_scope_value'] = self.get_query_param_data(
-            'filter',
-            'time_scope_value',
-            0
-        )
-        total_filter['report_type'] = self._report_type
-        total_query = AWSCostEntryLineItemAggregates.objects.filter(
-            **total_filter
-        )
-        if self.count:
-            query_sum = total_query.aggregate(
-                value=Sum(self.aggregate_key),
-                # This is a sum because the summary table already
-                # has already performed counts
-                count=Sum(self.count)
-            )
-        else:
-            query_sum = total_query.aggregate(value=Sum(self.aggregate_key))
-        query_sum['units'] = units_value
-
-        return query_sum
+        return new_data, group_by

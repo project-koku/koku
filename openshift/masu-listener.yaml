@@ -1,0 +1,343 @@
+#
+# (deprecated) This template defines resources used to deploy Masu listener.
+#
+# This file will be removed after the koku/masu merge is completed.
+#
+kind: Template
+apiVersion: v1
+metadata:
+  name: masu-listener-template
+  annotations:
+    openshift.io/display-name: "Masu"
+    description: "Listener for Koku data ingestion engine"
+    tags: "python,flask"
+    iconClass: "icon-python"
+    openshift.io/long-description: "This template defines resources needed to run the Masu application, including a build configuration and an application deployment configuration."
+    openshift.io/provider-display-name: "Red Hat, Inc."
+    openshift.io/documentation-url: "https://koku.readthedocs.io/en/latest/"
+labels:
+  app: koku
+  template: koku-masu-listener
+objects:
+- kind: Service
+  apiVersion: v1
+  metadata:
+    annotations:
+      description: Masu listener statistics
+      prometheus.io/scrape: 'true'
+      prometheus.io/path: /metrics
+      prometheus.io/port: ${LISTENER_PORT}
+    name: ${NAME}-listener-stats
+  spec:
+    ports:
+    - port: ${{LISTENER_PORT}}
+      name: stats
+    selector:
+      name: ${NAME}-listener
+
+- kind: StatefulSet
+  apiVersion: apps/v1
+  metadata:
+    annotations:
+      description: Defines how to deploy the listener
+      template.alpha.openshift.io/wait-for-ready: "true"
+    name: ${NAME}-listener
+  spec:
+    replicas: ${{REPLICAS}}
+    selector:
+      matchLabels:
+        name: ${NAME}-listener
+    resources:
+      requests:
+        cpu: ${CPU_REQUEST}
+        memory: ${MEMORY_REQUEST}
+      limits:
+        cpu: ${CPU_LIMIT}
+        memory: ${MEMORY_LIMIT}
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          app: ${NAME}
+          name: ${NAME}-listener
+        name: ${NAME}-listener
+        annotations:
+          alpha.image.policy.openshift.io/resolve-names: '*'
+      spec:
+        containers:
+        - name: ${NAME}-listener
+          image: ${IMAGE}
+          imagePullPolicy: Always
+          ports:
+          - containerPort: ${{LISTENER_PORT}}
+            name: stats
+          command:
+            - /bin/bash
+            - -c
+            - >
+              PYTHONPATH=. scl enable rh-python36 --
+              python koku/manage.py listener
+          env:
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  key: database-user
+                  name: ${NAME}-db
+                  optional: false
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: database-password
+                  name: ${NAME}-db
+                  optional: false
+            - name: DATABASE_SERVICE_CERT
+              valueFrom:
+                secretKeyRef:
+                  key: database-client-cert
+                  name: ${NAME}-db
+                  optional: true
+            - name: DATABASE_ENGINE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-engine
+                  optional: false
+            - name: DATABASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-name
+                  optional: false
+            - name: RABBITMQ_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: rabbitmq-host
+                  optional: false
+            - name: INSIGHTS_KAFKA_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: kafka-host
+                  optional: false
+            - name: INSIGHTS_KAFKA_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: kafka-port
+                  optional: false
+            - name: INSIGHTS_KAFKA_CONN_RETRY_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: kafka-retry-interval
+                  optional: false
+            - name: KAFKA_CONNECT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: kafka-connect
+                  optional: true
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: masu-log-level
+                  optional: false
+            - name: prometheus_multiproc_dir
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-monitoring
+                  key: prometheus-dir
+                  optional: false
+            - name: MASU_DATE_OVERRIDE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-processor
+                  key: date-override
+                  optional: true
+            - name: DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: debug
+                  optional: true
+            - name: DJANGO_SETTINGS_MODULE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: django_settings_module
+                  optional: false
+            - name: DATABASE_SERVICE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-service-name
+                  optional: false
+            - name: POSTGRES_SQL_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-db
+                  key: database-host
+                  optional: false
+            - name: POSTGRES_SQL_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-db
+                  key: database-port
+                  optional: false
+            - name: DJANGO_DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: django-debug
+                  optional: false
+            - name: API_PATH_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: api-path-prefix
+                  optional: false
+            - name: APP_NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: app-namespace
+                  optional: true
+            - name: APP_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: app-domain
+                  optional: true
+            - name: DEVELOPMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: development
+                  optional: true
+            - name: DJANGO_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-level
+                  optional: true
+            - name: DJANGO_LOG_FORMATTER
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-formatter
+                  optional: true
+            - name: DJANGO_LOG_HANDLERS
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-handlers
+                  optional: true
+            - name: DJANGO_LOG_DIRECTORY
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-directory
+                  optional: true
+            - name: DJANGO_LOGGING_FILE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-logging-file
+                  optional: true
+          resources:
+            requests:
+              cpu: ${CPU_REQUEST}
+              memory: ${MEMORY_REQUEST}
+            limits:
+              cpu: ${CPU_LIMIT}
+              memory: ${MEMORY_LIMIT}
+          volumeMounts:
+          - mountPath: /var/tmp/masu/
+            name: ${NAME}-listener-data
+          - name: ssl-cert
+            mountPath: /etc/ssl/certs
+            readOnly: true
+        volumes:
+        - name: ssl-cert
+          projected:
+            sources:
+            - secret:
+                name: ${NAME}-db
+                items:
+                  - key: database-client-cert
+                    path: server.pem
+    volumeClaimTemplates:
+    - metadata:
+        name: ${NAME}-listener-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: ${VOLUME_CAPACITY}
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - ${NAME}-listener
+        from:
+          kind: ImageStreamTag
+          name: ${NAME}:latest
+          namespace: ${NAMESPACE}
+      type: ImageChange
+
+parameters:
+- description: The name assigned to all frontend objects defined in this template.
+  displayName: Name
+  name: NAME
+  required: true
+  value: koku
+- description: The OpenShift Namespace where the ImageStream resides.
+  displayName: Namespace
+  name: NAMESPACE
+  required: true
+  value: koku
+- description: The image the StatefulSet will use
+  displayName: Image
+  name: IMAGE
+  required: true
+  value: koku
+- description: Number of listeners to create
+  displayName: Masu Listener Replicas
+  name: REPLICAS
+  required: true
+  value: "1"
+- description: Initial amount of memory the listener container will request.
+  displayName: Masu Listener Memory Request
+  name: MEMORY_REQUEST
+  required: true
+  value: 1Gi
+- description: Maximum amount of memory the listener container can use.
+  displayName: Masu Listener Memory Limit
+  name: MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- description: Initial amount of CPU the listener container will request.
+  displayName: Masu Listener CPU Request
+  name: CPU_REQUEST
+  required: true
+  value: '500m'
+- description: Maximum amount of CPU the listener container can use.
+  displayName: Masu Listener CPU Limit
+  name: CPU_LIMIT
+  required: true
+  value: '1'
+- displayName: Volume Capacity
+  description: Volume space available for shared files, e.g. 512Mi, 2Gi
+  name: VOLUME_CAPACITY
+  required: true
+  value: 1Gi
+- description: Listener Port Number
+  displayName: Listener Port Number
+  name: LISTENER_PORT
+  required: true
+  value: "9999"

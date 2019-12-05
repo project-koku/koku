@@ -1,0 +1,425 @@
+#
+# This template defines resources used to deploy Celery workers.
+#
+kind: Template
+apiVersion: v1
+metadata:
+  name: celery-worker-template
+  annotations:
+    openshift.io/display-name: "Masu"
+    description: "Worker for data ingestion engine for Koku"
+    tags: "python,flask"
+    iconClass: "icon-python"
+    openshift.io/long-description: "This template defines resources for deploying Celery workers for Koku."
+    openshift.io/provider-display-name: "Red Hat, Inc."
+    openshift.io/documentation-url: "https://koku.readthedocs.io/en/latest/"
+labels:
+  app: koku
+  template: koku-celery-worker
+objects:
+- kind: Service
+  apiVersion: v1
+  metadata:
+    annotations:
+      description: Masu worker statistics
+      prometheus.io/scrape: 'true'
+      prometheus.io/path: /metrics
+      prometheus.io/port: ${WORKER_PORT}
+    name: ${NAME}-worker-stats
+  spec:
+    ports:
+    - port: ${{WORKER_PORT}}
+      name: stats
+    selector:
+      name: ${NAME}-worker
+
+- kind: StatefulSet
+  apiVersion: apps/v1
+  metadata:
+    annotations:
+      description: Defines how to deploy the celery workers
+      template.alpha.openshift.io/wait-for-ready: "true"
+    name: ${NAME}-worker
+  spec:
+    replicas: ${{REPLICAS}}
+    selector:
+      matchLabels:
+        name: ${NAME}-worker
+    resources:
+      requests:
+        cpu: ${CPU_REQUEST}
+        memory: ${MEMORY_REQUEST}
+      limits:
+        cpu: ${CPU_LIMIT}
+        memory: ${MEMORY_LIMIT}
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          app: ${NAME}
+          name: ${NAME}-worker
+        name: ${NAME}-worker
+        annotations:
+          alpha.image.policy.openshift.io/resolve-names: '*'
+      spec:
+        containers:
+        - name: ${NAME}-worker
+          image: ${IMAGE}
+          imagePullPolicy: Always
+          ports:
+          - containerPort: ${{WORKER_PORT}}
+            name: stats
+          command:
+            - /bin/bash
+            - -c
+            - >
+              PYTHONPATH=./koku scl enable rh-python36 --
+              celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
+          env:
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  key: database-user
+                  name: ${NAME}-db
+                  optional: false
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: database-password
+                  name: ${NAME}-db
+                  optional: false
+            - name: DATABASE_SERVICE_CERT
+              valueFrom:
+                secretKeyRef:
+                  key: database-client-cert
+                  name: ${NAME}-db
+                  optional: true
+            - name: DATABASE_ENGINE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-engine
+                  optional: false
+            - name: DATABASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-name
+                  optional: false
+            - name: RABBITMQ_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: rabbitmq-host
+                  optional: false
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: masu-log-level
+                  optional: false
+            - name: WORKER_QUEUES
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: worker-queues
+                  optional: false
+            - name: SCHEDULE_CHECK_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-processor
+                  key: schedule-check-interval
+                  optional: false
+            - name: UPLOAD_NORMALIZED_DATA_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-upload
+                  key: upload-normalized-data-interval
+                  optional: false
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  key: aws-access-key-id
+                  name: ${NAME}-aws
+                  optional: false
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: aws-secret-access-key
+                  name: ${NAME}-aws
+                  optional: false
+            - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-processor
+                  key: remove-expired-data-on-day
+                  optional: false
+            - name: REMOVE_EXPIRED_REPORT_UTC_TIME
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-processor
+                  key: remove-expired-data-utc-time
+                  optional: false
+            - name: prometheus_multiproc_dir
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-monitoring
+                  key: prometheus-dir
+                  optional: false
+            - name: MASU_DATE_OVERRIDE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-processor
+                  key: date-override
+                  optional: true
+            - name: MASU_RETAIN_NUM_MONTHS
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-processor
+                  key: retain-num-months
+                  optional: true
+            - name: INITIAL_INGEST_NUM_MONTHS
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-processor
+                  key: initial-ingest-num-months
+                  optional: true
+            - name: INITIAL_INGEST_OVERRIDE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-processor
+                  key: initial-ingest-override
+                  optional: true
+            - name: DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: debug
+                  optional: true
+            - name: NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: masu-app
+                  key: app-namespace
+                  optional: true
+            - name: CW_AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  key: cloudwatch-aws-access-key-id
+                  name: ${NAME}-aws
+                  optional: true
+            - name: CW_AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: cloudwatch-aws-secret-access-key
+                  name: ${NAME}-aws
+                  optional: true
+            - name: CW_AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  key: cloudwatch-aws-region
+                  name: ${NAME}-aws
+                  optional: true
+            - name: CW_LOG_GROUP
+              valueFrom:
+                secretKeyRef:
+                  key: cloudwatch-log-group
+                  name: ${NAME}-aws
+                  optional: true
+            - name: DJANGO_SETTINGS_MODULE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: django_settings_module
+                  optional: false
+            - name: DATABASE_SERVICE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-service-name
+                  optional: false
+            - name: POSTGRES_SQL_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-db
+                  key: database-host
+                  optional: false
+            - name: POSTGRES_SQL_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-db
+                  key: database-port
+                  optional: false
+            - name: DJANGO_DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: django-debug
+                  optional: false
+            - name: API_PATH_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: api-path-prefix
+                  optional: false
+            - name: APP_NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: app-namespace
+                  optional: true
+            - name: APP_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: app-domain
+                  optional: true
+            - name: DEVELOPMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: development
+                  optional: true
+            - name: DJANGO_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-level
+                  optional: true
+            - name: DJANGO_LOG_FORMATTER
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-formatter
+                  optional: true
+            - name: DJANGO_LOG_HANDLERS
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-handlers
+                  optional: true
+            - name: DJANGO_LOG_DIRECTORY
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-directory
+                  optional: true
+            - name: DJANGO_LOGGING_FILE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-logging-file
+                  optional: true
+            - name: S3_BUCKET_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: s3-bucket-name
+                  optional: false
+            - name: S3_BUCKET_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: s3-bucket-path
+                  optional: false
+            - name: ENABLE_S3_ARCHIVING
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: enable-s3-archiving
+                  optional: false
+          resources:
+            requests:
+              cpu: ${CPU_REQUEST}
+              memory: ${MEMORY_REQUEST}
+            limits:
+              cpu: ${CPU_LIMIT}
+              memory: ${MEMORY_LIMIT}
+          volumeMounts:
+          - mountPath: /var/tmp/masu/
+            name: ${NAME}-worker-data
+          - name: ssl-cert
+            mountPath: /etc/ssl/certs
+            readOnly: true
+        volumes:
+        - name: ssl-cert
+          projected:
+            sources:
+            - secret:
+                name: ${NAME}-db
+                items:
+                  - key: database-client-cert
+                    path: server.pem
+    volumeClaimTemplates:
+    - metadata:
+        name: ${NAME}-worker-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: ${VOLUME_CAPACITY}
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - ${NAME}-worker
+        from:
+          kind: ImageStreamTag
+          name: ${NAME}:latest
+          namespace: ${NAMESPACE}
+      type: ImageChange
+
+parameters:
+- description: The name assigned to all frontend objects defined in this template.
+  displayName: Name
+  name: NAME
+  required: true
+  value: koku
+- description: The OpenShift Namespace where the ImageStream resides.
+  displayName: Namespace
+  name: NAMESPACE
+  required: true
+  value: koku
+- description: The image the StatefulSet will use
+  displayName: Image
+  name: IMAGE
+  required: true
+  value: koku
+- description: Number of Celery Workers to create
+  displayName: Celery Worker Replicas
+  name: REPLICAS
+  required: true
+  value: '1'
+- description: Initial amount of memory the Flower container will request.
+  displayName: Celery Worker Memory Request
+  name: MEMORY_REQUEST
+  required: true
+  value: 1Gi
+- description: Maximum amount of memory the Flower container can use.
+  displayName: Celery Worker Memory Limit
+  name: MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- description: Initial amount of CPU the Flower container will request.
+  displayName: Celery Worker CPU Request
+  name: CPU_REQUEST
+  required: true
+  value: '500m'
+- description: Maximum amount of CPU the Flower container can use.
+  displayName: Celery Worker CPU Limit
+  name: CPU_LIMIT
+  required: true
+  value: '1'
+- displayName: Volume Capacity
+  description: Volume space available for shared files, e.g. 512Mi, 2Gi
+  name: VOLUME_CAPACITY
+  required: true
+  value: 1Gi
+- description: Celery Worker Port Number
+  displayName: Celery Worker Port Number
+  name: WORKER_PORT
+  required: true
+  value: "9999"

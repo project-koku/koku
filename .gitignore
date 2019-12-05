@@ -79,6 +79,7 @@ target/
 
 # celery beat schedule file
 celerybeat-schedule
+celerybeat.pid
 
 # SageMath parsed files
 *.sage.py
@@ -86,6 +87,7 @@ celerybeat-schedule
 # dotenv
 .env
 .env.test
+openshift/parameters/*.env
 
 # virtualenv
 .venv
@@ -108,13 +110,21 @@ ENV/
 # Local Postgres data
 pg_data/
 
-# apidoc
-apidoc/*
-!apidoc/.apidocignore
-
 # static files
 koku/staticfiles/
+koku/static/
 scripts/aws_cost_usage/
 scripts/aws_pricing/
 
+# Editors
 .vscode/
+.idea/
+*.code-workspace
+
+# Mac OSX
+.DS_Store
+#pgAdmin servers.json
+pgadmin_servers.json
+
+# Testing
+testing/

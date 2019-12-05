@@ -1,8 +1,3 @@
-.. Koku documentation master file, created by
-   sphinx-quickstart on Wed Apr 18 12:04:19 2018.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Welcome to Koku's documentation!
 ======================================
 
@@ -15,6 +10,7 @@ Koku, accessed through the our web user interface or application program interfa
    users
    providers
    development
+   install
 
 Indices and tables
 ==================

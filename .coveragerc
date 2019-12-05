@@ -8,12 +8,14 @@ omit =
   *manage.py
   *database.py
   *settings.py
+  *sentry.py
   *urls.py
   *wsgi.py
   *migrations/*
   *test/*
   */tests_*.py
   *provider_interface.py
+  *dev_middleware.py
 
 [paths]
 source = koku
