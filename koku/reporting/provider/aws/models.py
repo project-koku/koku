@@ -489,6 +489,8 @@ class AWSComputeSummary(models.Model):
 
     instance_type = models.CharField(max_length=50, null=True)
 
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+
     resource_count = models.IntegerField(null=True)
 
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -526,6 +528,8 @@ class AWSComputeSummaryByService(models.Model):
     product_family = models.CharField(max_length=150, null=True)
 
     instance_type = models.CharField(max_length=50, null=True)
+
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
 
     resource_count = models.IntegerField(null=True)
 
@@ -567,6 +571,8 @@ class AWSComputeSummaryByAccount(models.Model):
 
     instance_type = models.CharField(max_length=50, null=True)
 
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+
     resource_count = models.IntegerField(null=True)
 
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -604,6 +610,8 @@ class AWSComputeSummaryByRegion(models.Model):
     availability_zone = models.CharField(max_length=50, null=True)
 
     instance_type = models.CharField(max_length=50, null=True)
+
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
 
     resource_count = models.IntegerField(null=True)
 
