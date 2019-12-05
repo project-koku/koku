@@ -357,13 +357,15 @@ class Migration(migrations.Migration):
                     date(usage_start) as usage_start,
                     date(usage_start) as usage_end,
                     instance_type,
-                    max(resource_count) as resource_count,
+                    array_agg(DISTINCT resource_id) as resource_ids,
+                    count(DISTINCT resource_id) as resource_count,
                     sum(usage_amount) as usage_amount,
                     max(unit) as unit,
                     sum(unblended_cost) as unblended_cost,
                     sum(markup_cost) as markup_cost,
                     max(currency_code) as currency_code
-                FROM reporting_awscostentrylineitem_daily_summary
+                FROM reporting_awscostentrylineitem_daily_summary,
+                    unnest(resource_ids) resource_id
                 -- Get data for this month or last month
                 WHERE instance_type IS NOT NULL
                     AND (
@@ -385,13 +387,16 @@ class Migration(migrations.Migration):
                     product_code,
                     product_family,
                     instance_type,
+                    array_agg(DISTINCT resource_id) as resource_ids,
+                    count(DISTINCT resource_id) as resource_count,
                     max(resource_count) as resource_count,
                     sum(usage_amount) as usage_amount,
                     max(unit) as unit,
                     sum(unblended_cost) as unblended_cost,
                     sum(markup_cost) as markup_cost,
                     max(currency_code) as currency_code
-                FROM reporting_awscostentrylineitem_daily_summary
+                FROM reporting_awscostentrylineitem_daily_summary,
+                    unnest(resource_ids) resource_id
                 -- Get data for this month or last month
                 WHERE instance_type IS NOT NULL
                     AND (
@@ -413,13 +418,16 @@ class Migration(migrations.Migration):
                     usage_account_id,
                     account_alias_id,
                     instance_type,
+                    array_agg(DISTINCT resource_id) as resource_ids,
+                    count(DISTINCT resource_id) as resource_count,
                     max(resource_count) as resource_count,
                     sum(usage_amount) as usage_amount,
                     max(unit) as unit,
                     sum(unblended_cost) as unblended_cost,
                     sum(markup_cost) as markup_cost,
                     max(currency_code) as currency_code
-                FROM reporting_awscostentrylineitem_daily_summary
+                FROM reporting_awscostentrylineitem_daily_summary,
+                    unnest(resource_ids) resource_id
                 -- Get data for this month or last month
                 WHERE instance_type IS NOT NULL
                     AND (
@@ -441,13 +449,16 @@ class Migration(migrations.Migration):
                     region,
                     availability_zone,
                     instance_type,
+                    array_agg(DISTINCT resource_id) as resource_ids,
+                    count(DISTINCT resource_id) as resource_count,
                     max(resource_count) as resource_count,
                     sum(usage_amount) as usage_amount,
                     max(unit) as unit,
                     sum(unblended_cost) as unblended_cost,
                     sum(markup_cost) as markup_cost,
                     max(currency_code) as currency_code
-                FROM reporting_awscostentrylineitem_daily_summary
+                FROM reporting_awscostentrylineitem_daily_summary,
+                    unnest(resource_ids) resource_id
                 -- Get data for this month or last month
                 WHERE instance_type IS NOT NULL
                     AND (
@@ -474,7 +485,7 @@ class Migration(migrations.Migration):
                     max(currency_code) as currency_code
                 FROM reporting_awscostentrylineitem_daily_summary
                 -- Get data for this month or last month
-                WHERE product_family LIKE '&Storage%'
+                WHERE product_family LIKE '%Storage%'
                     AND unit = 'GB-Mo'
                     AND (
                         date_trunc('month', usage_start) = date_trunc('month', now())
@@ -501,7 +512,7 @@ class Migration(migrations.Migration):
                     max(currency_code) as currency_code
                 FROM reporting_awscostentrylineitem_daily_summary
                 -- Get data for this month or last month
-                WHERE product_family LIKE '&Storage%'
+                WHERE product_family LIKE '%Storage%'
                     AND unit = 'GB-Mo'
                     AND (
                         date_trunc('month', usage_start) = date_trunc('month', now())
@@ -529,7 +540,7 @@ class Migration(migrations.Migration):
                     max(currency_code) as currency_code
                 FROM reporting_awscostentrylineitem_daily_summary
                 -- Get data for this month or last month
-                WHERE product_family LIKE '&Storage%'
+                WHERE product_family LIKE '%Storage%'
                     AND unit = 'GB-Mo'
                     AND (
                         date_trunc('month', usage_start) = date_trunc('month', now())
@@ -557,7 +568,7 @@ class Migration(migrations.Migration):
                     max(currency_code) as currency_code
                 FROM reporting_awscostentrylineitem_daily_summary
                 -- Get data for this month or last month
-                WHERE product_family LIKE '&Storage%'
+                WHERE product_family LIKE '%Storage%'
                     AND unit = 'GB-Mo'
                     AND (
                         date_trunc('month', usage_start) = date_trunc('month', now())
