@@ -113,16 +113,19 @@ def storage_callback(sender, instance, **kwargs):
         if instance.koku_uuid and instance.pending_update and not instance.pending_delete:
             update_event = {'operation': 'update', 'provider': instance}
             _log_process_queue_event(PROCESS_QUEUE, update_event)
+            LOG.debug(f'Update Event Queued for:\n{str(instance)}')
             PROCESS_QUEUE.put_nowait(update_event)
 
     if instance.pending_delete:
         delete_event = {'operation': 'destroy', 'provider': instance}
         _log_process_queue_event(PROCESS_QUEUE, delete_event)
+        LOG.debug(f'Delete Event Queued for:\n{str(instance)}')
         PROCESS_QUEUE.put_nowait(delete_event)
 
     process_event = storage.screen_and_build_provider_sync_create_event(instance)
     if process_event:
         _log_process_queue_event(PROCESS_QUEUE, process_event)
+        LOG.debug(f'Create Event Queued for:\n{str(instance)}')
         PROCESS_QUEUE.put_nowait(process_event)
 
 
@@ -429,8 +432,12 @@ def execute_koku_provider_op(msg, cost_management_type_id):
             storage.add_provider_koku_uuid(provider.source_id, koku_details.get('uuid'))
         elif operation == 'destroy':
             if provider.koku_uuid:
-                response = koku_client.destroy_provider(provider.koku_uuid)
-                LOG.info(f'Koku Provider UUID ({provider.koku_uuid}) Removal Status Code: {str(response.status_code)}')
+                try:
+                    response = koku_client.destroy_provider(provider.koku_uuid)
+                    LOG.info(
+                        f'Koku Provider UUID ({provider.koku_uuid}) Removal Status Code: {str(response.status_code)}')
+                except KokuHTTPClientNonRecoverableError:
+                    LOG.info(f'Koku Provider already removed.  Remove Source ID: {str(provider.source_id)}.')
             storage.destroy_provider_event(provider.source_id)
         elif operation == 'update':
             koku_details = koku_client.update_provider(provider.koku_uuid, provider.name, provider.source_type,
@@ -471,17 +478,20 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
     LOG.info('Processing koku provider events...')
     while True:
         msg = await process_queue.get()
-        LOG.info(f'koku provider operation to execute: {str(msg)}')
+        LOG.info(f'Koku provider operation to execute: {msg.get("operation")} '
+                 f'for Source ID: {str(msg.get("provider").source_id)}')
         try:
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 await EVENT_LOOP.run_in_executor(pool, execute_koku_provider_op, msg, cost_management_type_id)
-                LOG.info(f'koku operation {str(msg)} complete.')
+            LOG.info(f'Koku provider operation to execute: {msg.get("operation")} '
+                     f'for Source ID: {str(msg.get("provider").source_id)} complete.')
         except SourcesIntegrationError as error:
             LOG.error('Re-queueing failed operation. Error: %s', str(error))
             await asyncio.sleep(Config.RETRY_SECONDS)
             _log_process_queue_event(process_queue, msg)
             await process_queue.put(msg)
-            LOG.error(f'Requeue of {str(msg)} complete.')
+            LOG.info(f'Requeue of failed operation: {msg.get("operation")} '
+                     f'for Source ID: {str(msg.get("provider").source_id)} complete.')
         except Exception as error:
             # The reason for catching all exceptions is to ensure that the event
             # loop remains active in the event that provider synchronization fails unexpectedly.

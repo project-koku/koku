@@ -171,6 +171,7 @@ def provider_post_delete_callback(*args, **kwargs):
 
     Note: Signal receivers must accept keyword arguments (**kwargs).
     """
+    return
     provider = kwargs['instance']
     if not provider.customer:
         LOG.warning(
@@ -242,6 +243,13 @@ class Sources(models.Model):
     # this flag will indicate that the update needs to be picked up by the Koku-Provider synchronization
     # handler.
     pending_update = models.BooleanField(default=False)
+
+    def __str__(self):
+        """Get the string representation."""
+        return (f'Source ID: {self.source_id}\nName: {self.name}\nSource UUID: {self.source_uuid}\n'
+                f'Source Type: {self.source_type}\nAuthentication: {self.authentication}\n'
+                f'Billing Source: {self.billing_source}\nKoku UUID: {self.koku_uuid}\n'
+                f'Pending Delete: {self.pending_delete}\nPending Update: {self.pending_update}\n')
 
 
 class ProviderStatus(models.Model):
