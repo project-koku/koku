@@ -67,6 +67,10 @@ class AWSReportQueryTest(IamTestCase):
         out_data = handler._apply_group_null_label(data, groups)
         self.assertEqual(expected, out_data)
 
+        groups = []
+        out_data = handler._apply_group_null_label(data, groups)
+        self.assertEqual(expected, out_data)
+
     def test_transform_null_group(self):
         """Test transform data with null group value."""
         url = '?'
