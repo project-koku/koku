@@ -228,19 +228,22 @@ class AWSProviderMap(ProviderMap):
                 'default': AWSCostSummary,
                 'account': AWSCostSummaryByAccount,
                 'region': AWSCostSummaryByRegion,
-                'service': AWSCostSummaryByService
+                'service': AWSCostSummaryByService,
+                'product_family': AWSCostSummaryByService
             },
             'instance_type': {
                 'default': AWSComputeSummary,
                 'account': AWSComputeSummaryByAccount,
                 'region': AWSComputeSummaryByRegion,
-                'service': AWSComputeSummaryByService
+                'service': AWSComputeSummaryByService,
+                'product_family': AWSComputeSummaryByService
             },
             'storage': {
                 'default': AWSStorageSummary,
                 'account': AWSStorageSummaryByAccount,
                 'region':  AWSStorageSummaryByRegion,
-                'service': AWSStorageSummaryByService
+                'service': AWSStorageSummaryByService,
+                'product_family': AWSStorageSummaryByService
             },
             'database': {
                 'default': AWSDatabaseSummary
