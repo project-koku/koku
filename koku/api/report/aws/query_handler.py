@@ -16,6 +16,7 @@
 #
 """AWS Query Handling for Reports."""
 import copy
+import logging
 
 from django.db.models import (F, Value, Window)
 from django.db.models.expressions import Func
@@ -24,6 +25,8 @@ from tenant_schemas.utils import tenant_context
 
 from api.report.aws.provider_map import AWSProviderMap
 from api.report.queries import ReportQueryHandler
+
+LOG = logging.getLogger(__name__)
 
 EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
                   'cost_entry_product_id', 'cost_entry_pricing_id',
@@ -120,7 +123,11 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         if group_by_keys:
             report_group = group_by_keys[0]
-        query_table = self._mapper.views[report_type][report_group]
+        try:
+            query_table = self._mapper.views[report_type][report_group]
+        except KeyError:
+            msg = f'{report_group} for {report_type} has no entry in views. Using the default.'
+            LOG.warning(msg)
         return query_table
 
     def _format_query_response(self):
