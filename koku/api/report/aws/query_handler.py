@@ -113,9 +113,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
             'AmazonRDS','AmazonDynamoDB','AmazonElastiCache','AmazonNeptune',
             'AmazonRedshift','AmazonDocumentDB'
         ]
-        if report_type == 'costs' and not service_filter.difference(network_services):
+        if report_type == 'costs' and service_filter and not service_filter.difference(network_services):
             report_type = 'network'
-        elif report_type == 'costs' and not service_filter.difference(database_services):
+        elif report_type == 'costs' and service_filter and not service_filter.difference(database_services):
             report_type = 'database'
 
         if group_by_keys:
