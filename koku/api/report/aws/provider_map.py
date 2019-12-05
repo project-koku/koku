@@ -22,6 +22,23 @@ from django.db.models.functions import Coalesce
 
 from api.report.provider_map import ProviderMap
 from reporting.models import AWSCostEntryLineItemDailySummary
+from reporting.provider.aws.models import (
+    AWSComputeSummary,
+    AWSComputeSummaryByAccount,
+    AWSComputeSummaryByRegion,
+    AWSComputeSummaryByService,
+    AWSCostEntryLineItemDailySummary,
+    AWSCostSummary,
+    AWSCostSummaryByAccount,
+    AWSCostSummaryByRegion,
+    AWSCostSummaryByService,
+    AWSDatabaseSummary,
+    AWSNetworkSummary,
+    AWSStorageSummary,
+    AWSStorageSummaryByAccount,
+    AWSStorageSummaryByRegion,
+    AWSStorageSummaryByService
+)
 
 
 class AWSProviderMap(ProviderMap):
@@ -205,4 +222,31 @@ class AWSProviderMap(ProviderMap):
                 },
             },
         ]
+
+        self.views = {
+            'costs': {
+                'default': AWSCostSummary,
+                'account': AWSCostSummaryByAccount,
+                'region': AWSCostSummaryByRegion,
+                'service': AWSCostSummaryByService
+            },
+            'instance_type': {
+                'default': AWSComputeSummary,
+                'account': AWSComputeSummaryByAccount,
+                'region': AWSComputeSummaryByRegion,
+                'service': AWSComputeSummaryByService
+            },
+            'storage': {
+                'default': AWSStorageSummary,
+                'account': AWSStorageSummaryByAccount,
+                'region':  AWSStorageSummaryByRegion,
+                'service': AWSStorageSummaryByService
+            },
+            'database': {
+                'default': AWSDatabaseSummary
+            },
+            'network': {
+                'default': AWSNetworkSummary
+            }
+        }
         super().__init__(provider, report_type)
