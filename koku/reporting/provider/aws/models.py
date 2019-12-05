@@ -365,9 +365,9 @@ class AWSCostSummary(models.Model):
 
     id = models.IntegerField(primary_key=True)
 
-    usage_start = models.DateField(null=False)
+    usage_start = models.DateTimeField(null=False)
 
-    usage_end = models.DateField(null=True)
+    usage_end = models.DateTimeField(null=False)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
@@ -391,9 +391,9 @@ class AWSCostSummaryByService(models.Model):
 
     id = models.IntegerField(primary_key=True)
 
-    usage_start = models.DateField(null=False)
+    usage_start = models.DateTimeField(null=False)
 
-    usage_end = models.DateField(null=True)
+    usage_end = models.DateTimeField(null=False)
 
     product_code = models.CharField(max_length=50, null=False)
 
@@ -421,9 +421,9 @@ class AWSCostSummaryByAccount(models.Model):
 
     id = models.IntegerField(primary_key=True)
 
-    usage_start = models.DateField(null=False)
+    usage_start = models.DateTimeField(null=False)
 
-    usage_end = models.DateField(null=True)
+    usage_end = models.DateTimeField(null=False)
 
     usage_account_id = models.CharField(max_length=50, null=False)
 
@@ -453,9 +453,9 @@ class AWSCostSummaryByRegion(models.Model):
 
     id = models.IntegerField(primary_key=True)
 
-    usage_start = models.DateField(null=False)
+    usage_start = models.DateTimeField(null=False)
 
-    usage_end = models.DateField(null=True)
+    usage_end = models.DateTimeField(null=False)
 
     region = models.CharField(max_length=50, null=True)
 
@@ -483,9 +483,9 @@ class AWSComputeSummary(models.Model):
 
     id = models.IntegerField(primary_key=True)
 
-    usage_start = models.DateField(null=False)
+    usage_start = models.DateTimeField(null=False)
 
-    usage_end = models.DateField(null=True)
+    usage_end = models.DateTimeField(null=False)
 
     instance_type = models.CharField(max_length=50, null=True)
 
@@ -519,9 +519,9 @@ class AWSComputeSummaryByService(models.Model):
 
     id = models.IntegerField(primary_key=True)
 
-    usage_start = models.DateField(null=False)
+    usage_start = models.DateTimeField(null=False)
 
-    usage_end = models.DateField(null=True)
+    usage_end = models.DateTimeField(null=False)
 
     product_code = models.CharField(max_length=50, null=False)
 
@@ -559,9 +559,9 @@ class AWSComputeSummaryByAccount(models.Model):
 
     id = models.IntegerField(primary_key=True)
 
-    usage_start = models.DateField(null=False)
+    usage_start = models.DateTimeField(null=False)
 
-    usage_end = models.DateField(null=True)
+    usage_end = models.DateTimeField(null=False)
 
     usage_account_id = models.CharField(max_length=50, null=False)
 
@@ -601,9 +601,9 @@ class AWSComputeSummaryByRegion(models.Model):
 
     id = models.IntegerField(primary_key=True)
 
-    usage_start = models.DateField(null=False)
+    usage_start = models.DateTimeField(null=False)
 
-    usage_end = models.DateField(null=True)
+    usage_end = models.DateTimeField(null=False)
 
     region = models.CharField(max_length=50, null=True)
 
@@ -641,9 +641,9 @@ class AWSStorageSummary(models.Model):
 
     id = models.IntegerField(primary_key=True)
 
-    usage_start = models.DateField(null=False)
+    usage_start = models.DateTimeField(null=False)
 
-    usage_end = models.DateField(null=True)
+    usage_end = models.DateTimeField(null=False)
 
     product_family = models.CharField(max_length=150, null=True)
 
@@ -673,9 +673,9 @@ class AWSStorageSummaryByService(models.Model):
 
     id = models.IntegerField(primary_key=True)
 
-    usage_start = models.DateField(null=False)
+    usage_start = models.DateTimeField(null=False)
 
-    usage_end = models.DateField(null=True)
+    usage_end = models.DateTimeField(null=False)
 
     product_code = models.CharField(max_length=50, null=False)
 
@@ -707,9 +707,9 @@ class AWSStorageSummaryByAccount(models.Model):
 
     id = models.IntegerField(primary_key=True)
 
-    usage_start = models.DateField(null=False)
+    usage_start = models.DateTimeField(null=False)
 
-    usage_end = models.DateField(null=True)
+    usage_end = models.DateTimeField(null=False)
 
     usage_account_id = models.CharField(max_length=50, null=False)
 
@@ -745,9 +745,9 @@ class AWSStorageSummaryByRegion(models.Model):
 
     id = models.IntegerField(primary_key=True)
 
-    usage_start = models.DateField(null=False)
+    usage_start = models.DateTimeField(null=False)
 
-    usage_end = models.DateField(null=True)
+    usage_end = models.DateTimeField(null=False)
 
     region = models.CharField(max_length=50, null=True)
 
@@ -781,9 +781,9 @@ class AWSNetworkSummary(models.Model):
 
     id = models.IntegerField(primary_key=True)
 
-    usage_start = models.DateField(null=False)
+    usage_start = models.DateTimeField(null=False)
 
-    usage_end = models.DateField(null=True)
+    usage_end = models.DateTimeField(null=False)
 
     product_code = models.CharField(max_length=50, null=False)
 
@@ -813,9 +813,9 @@ class AWSDatabaseSummary(models.Model):
 
     id = models.IntegerField(primary_key=True)
 
-    usage_start = models.DateField(null=False)
+    usage_start = models.DateTimeField(null=False)
 
-    usage_end = models.DateField(null=True)
+    usage_end = models.DateTimeField(null=False)
 
     product_code = models.CharField(max_length=50, null=False)
 
