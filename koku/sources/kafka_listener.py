@@ -224,6 +224,7 @@ def save_auth_info(auth_header, source_id):
             LOG.error(f'Unexpected source type: {source_type}')
             return
         storage.add_provider_sources_auth_info(source_id, authentication)
+        storage.clear_update_flag(source_id)
     except SourcesHTTPClientError:
         LOG.info(f'Authentication info not available for Source ID: {source_id}')
 
@@ -485,6 +486,7 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
                 await EVENT_LOOP.run_in_executor(pool, execute_koku_provider_op, msg, cost_management_type_id)
             LOG.info(f'Koku provider operation to execute: {msg.get("operation")} '
                      f'for Source ID: {str(msg.get("provider").source_id)} complete.')
+            storage.clear_update_flag(msg.get("provider").source_id)
         except SourcesIntegrationError as error:
             LOG.error('Re-queueing failed operation. Error: %s', str(error))
             await asyncio.sleep(Config.RETRY_SECONDS)
