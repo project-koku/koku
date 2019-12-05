@@ -51,6 +51,22 @@ class AWSReportQueryTest(IamTestCase):
         self.generator = AWSReportDataGenerator(self.tenant)
         self.generator.add_data_to_tenant(self.fake_aws)
 
+    def test_apply_group_null_label(self):
+        """Test adding group label for null values."""
+        url = '?'
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        groups = ['region']
+        data = {'region': None, 'units': 'USD'}
+        expected = {'region': 'no-region', 'units': 'USD'}
+        out_data = handler._apply_group_null_label(data, groups)
+        self.assertEqual(expected, out_data)
+
+        data = {'region': 'us-east', 'units': 'USD'}
+        expected = {'region': 'us-east', 'units': 'USD'}
+        out_data = handler._apply_group_null_label(data, groups)
+        self.assertEqual(expected, out_data)
+
     def test_transform_null_group(self):
         """Test transform data with null group value."""
         url = '?'
@@ -58,7 +74,7 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         groups = ['region']
         group_index = 0
-        data = {None: [{'region': None, 'units': 'USD'}]}
+        data = {None: [{'region': 'no-region', 'units': 'USD'}]}
         expected = [
             {'region': 'no-region', 'values': [{'region': 'no-region', 'units': 'USD'}]}
         ]
@@ -72,7 +88,7 @@ class AWSReportQueryTest(IamTestCase):
         out_data = handler._transform_data(groups, group_index, data)
         self.assertEqual(expected, out_data)
 
-        data = {None: {'region': None, 'units': 'USD'}}
+        data = {None: {'region': 'no-region', 'units': 'USD'}}
         expected = [{'region': 'no-region', 'values': {'region': 'no-region', 'units': 'USD'}}]
         out_data = handler._transform_data(groups, group_index, data)
         self.assertEqual(expected, out_data)
