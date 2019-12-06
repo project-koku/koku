@@ -2,11 +2,11 @@
 import uuid
 from collections import namedtuple
 from datetime import date, datetime
-from unittest.mock import call, patch, Mock
+from unittest.mock import Mock, call, patch
 
 import faker
 from botocore.exceptions import ClientError
-from celery.exceptions import Retry, MaxRetriesExceededError
+from celery.exceptions import MaxRetriesExceededError, Retry
 from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
 
@@ -51,7 +51,6 @@ class TestCeleryTasks(MasuTestCase):
     @patch('masu.external.date_accessor.DateAccessor.today')
     def test_upload_normalized_data(self, mock_date, mock_upload, mock_orchestrator):
         """Test that the scheduled task uploads the correct normalized data."""
-
         test_export_setting = {
             'provider': 'test',
             'table_name': 'test',
@@ -79,10 +78,7 @@ class TestCeleryTasks(MasuTestCase):
             (current_month_start, current_month_end),
         )
         call_prev_month = call(
-            schema_name,
-            provider_uuid,
-            test_export_setting,
-            (prev_month_start, prev_month_end),
+            schema_name, provider_uuid, test_export_setting, (prev_month_start, prev_month_end),
         )
 
         with patch('masu.celery.tasks.table_export_settings', [test_export_setting]):
@@ -102,10 +98,7 @@ class TestCeleryTasks(MasuTestCase):
             (current_month_start, current_month_end),
         )
         call_prev_month = call(
-            schema_name,
-            provider_uuid,
-            test_export_setting,
-            (prev_month_start, prev_month_end),
+            schema_name, provider_uuid, test_export_setting, (prev_month_start, prev_month_end),
         )
 
         with patch('masu.celery.tasks.table_export_settings', [test_export_setting]):
@@ -137,7 +130,8 @@ class TestCeleryTasks(MasuTestCase):
         mock_data_save = mock_data_get.return_value.save
 
         mock_sync.return_value.sync_bucket.side_effect = ClientError(
-            error_response={'error': fake.word()}, operation_name=fake.word())
+            error_response={'error': fake.word()}, operation_name=fake.word()
+        )
 
         tasks.sync_data_to_customer(mock_data_export_request.uuid)
 
@@ -209,9 +203,7 @@ class TestCeleryTasks(MasuTestCase):
         schema_name = 'acct10001'
         provider_type = 'AWS'
         provider_uuid = '00000000-0000-0000-0000-000000000001'
-        expected_prefix = (
-            'data_archive/acct10001/aws/00000000-0000-0000-0000-000000000001/'
-        )
+        expected_prefix = 'data_archive/acct10001/aws/00000000-0000-0000-0000-000000000001/'
 
         # Generate enough fake objects to expect calling the S3 delete api twice.
         mock_bucket = mock_resource.return_value.Bucket.return_value

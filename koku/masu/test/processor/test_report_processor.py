@@ -24,11 +24,10 @@ from masu.external import (
     AMAZON_WEB_SERVICES,
     AWS_LOCAL_SERVICE_PROVIDER,
     AZURE,
-    OPENSHIFT_CONTAINER_PLATFORM,
     AZURE_LOCAL_SERVICE_PROVIDER,
+    OPENSHIFT_CONTAINER_PLATFORM,
 )
 from masu.processor.report_processor import ReportProcessor, ReportProcessorError
-
 from masu.test import MasuTestCase
 
 
@@ -36,7 +35,7 @@ class ReportProcessorTest(MasuTestCase):
     """Test Cases for the ReportProcessor object."""
 
     def test_initializer_aws(self):
-        """Test to initializer for AWS"""
+        """Test to initializer for AWS."""
         processor = ReportProcessor(
             schema_name=self.schema,
             report_path='/my/report/file',
@@ -48,7 +47,7 @@ class ReportProcessorTest(MasuTestCase):
         self.assertIsNotNone(processor._processor)
 
     def test_initializer_aws_local(self):
-        """Test to initializer for AWS-local"""
+        """Test to initializer for AWS-local."""
         processor = ReportProcessor(
             schema_name=self.schema,
             report_path='/my/report/file',
@@ -60,7 +59,7 @@ class ReportProcessorTest(MasuTestCase):
         self.assertIsNotNone(processor._processor)
 
     def test_initializer_azure(self):
-        """Test to initializer for Azure"""
+        """Test to initializer for Azure."""
         processor = ReportProcessor(
             schema_name=self.schema,
             report_path='/my/report/file',
@@ -72,10 +71,11 @@ class ReportProcessorTest(MasuTestCase):
         self.assertIsNotNone(processor._processor)
 
     def test_initializer_ocp(self):
-        """Test to initializer for OCP"""
+        """Test to initializer for OCP."""
         processor = ReportProcessor(
             schema_name=self.schema,
-            report_path='./koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv',
+            report_path=('./koku/masu/test/data/ocp/'
+                         'e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'),
             compression='PLAIN',
             provider=OPENSHIFT_CONTAINER_PLATFORM,
             provider_uuid=self.aws_provider_uuid,
@@ -84,10 +84,11 @@ class ReportProcessorTest(MasuTestCase):
         self.assertIsNotNone(processor._processor)
 
     def test_initializer_azure_local(self):
-        """Test to initializer for AZURE-local"""
+        """Test to initializer for AZURE-local."""
         processor = ReportProcessor(
             schema_name=self.schema,
-            report_path='./koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv',
+            report_path=('./koku/masu/test/data/ocp/'
+                         'e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'),
             compression='PLAIN',
             provider=AZURE_LOCAL_SERVICE_PROVIDER,
             provider_uuid=self.aws_provider_uuid,
@@ -112,7 +113,7 @@ class ReportProcessorTest(MasuTestCase):
             )
 
     def test_initializer_invalid_provider(self):
-        """Test to initializer with invalid provider"""
+        """Test to initializer with invalid provider."""
         with self.assertRaises(ReportProcessorError):
             ReportProcessor(
                 schema_name=self.schema,
@@ -124,11 +125,10 @@ class ReportProcessorTest(MasuTestCase):
             )
 
     @patch(
-        'masu.processor.aws.aws_report_processor.AWSReportProcessor.process',
-        return_value=None,
+        'masu.processor.aws.aws_report_processor.AWSReportProcessor.process', return_value=None,
     )
     def test_aws_process(self, fake_process):
-        """Test to process for AWS"""
+        """Test to process for AWS."""
         processor = ReportProcessor(
             schema_name=self.schema,
             report_path='/my/report/file',
@@ -147,8 +147,7 @@ class ReportProcessorTest(MasuTestCase):
         side_effect=MasuProcessingError,
     )
     def test_aws_process_error(self, fake_process):
-        """Test to process for AWS with processing error"""
-
+        """Test to process for AWS with processing error."""
         processor = ReportProcessor(
             schema_name=self.schema,
             report_path='/my/report/file',
@@ -165,7 +164,7 @@ class ReportProcessorTest(MasuTestCase):
         return_value=None,
     )
     def test_aws_remove_processed_files(self, fake_process):
-        """Test to remove_processed_files for AWS"""
+        """Test to remove_processed_files for AWS."""
         processor = ReportProcessor(
             schema_name=self.schema,
             report_path='/my/report/file',
@@ -184,8 +183,7 @@ class ReportProcessorTest(MasuTestCase):
         side_effect=MasuProcessingError,
     )
     def test_aws_remove_processed_files_error(self, fake_process):
-        """Test to remove_processed_files for AWS with processing error"""
-
+        """Test to remove_processed_files for AWS with processing error."""
         processor = ReportProcessor(
             schema_name=self.schema,
             report_path='/my/report/file',

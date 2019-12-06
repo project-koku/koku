@@ -19,13 +19,12 @@
 
 from unittest.mock import patch
 
-from django.urls import reverse
 from django.test import TestCase
 from django.test.utils import override_settings
+from django.urls import reverse
 
 from masu.config import Config
 from masu.processor.orchestrator import Orchestrator
-from masu.test import MasuTestCase
 
 
 @override_settings(ROOT_URLCONF='masu.urls')
@@ -36,10 +35,7 @@ class ExpiredDataTest(TestCase):
     def test_get_expired_data(self, mock_orchestrator):
         """Test the GET expired_data endpoint."""
         mock_response = [
-            {
-                'customer': 'acct10001',
-                'async_id': 'f9eb2ce7-4564-4509-aecc-1200958c07cf',
-            }
+            {'customer': 'acct10001', 'async_id': 'f9eb2ce7-4564-4509-aecc-1200958c07cf'}
         ]
         expected_key = 'Async jobs for expired data removal (simulated)'
         mock_orchestrator.return_value = mock_response
@@ -55,10 +51,7 @@ class ExpiredDataTest(TestCase):
     def test_del_expired_data(self, mock_orchestrator, mock_debug):
         """Test the DELETE expired_data endpoint."""
         mock_response = [
-            {
-                'customer': 'acct10001',
-                'async_id': 'f9eb2ce7-4564-4509-aecc-1200958c07cf',
-            }
+            {'customer': 'acct10001', 'async_id': 'f9eb2ce7-4564-4509-aecc-1200958c07cf'}
         ]
         expected_key = 'Async jobs for expired data removal'
         mock_orchestrator.return_value = mock_response

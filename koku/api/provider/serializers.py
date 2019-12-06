@@ -26,8 +26,7 @@ from api.iam.serializers import (AdminCustomerSerializer,
                                  UserSerializer)
 from api.provider.models import (Provider,
                                  ProviderAuthentication,
-                                 ProviderBillingSource,
-                                 Sources)
+                                 ProviderBillingSource)
 from providers.provider_access import ProviderAccessor
 
 PROVIDER_CHOICE_LIST = [provider[0].lower() for provider in Provider.PROVIDER_CHOICES]
@@ -301,21 +300,6 @@ class ProviderSerializer(serializers.ModelSerializer):
         unique_count = Provider.objects.filter(authentication=auth)\
             .filter(billing_source=bill).count()
         if unique_count != 0:
-            existing_provider = Provider.objects.filter(authentication=auth)\
-                .filter(billing_source=bill).first()
-            if existing_provider.type in ('AWS', 'OCP'):
-                sources_auth = {'resource_name': provider_resource_name}
-            elif existing_provider.type in ('AZURE', ):
-                sources_auth = {'credentials': auth.credentials}
-            else:
-                sources_auth = {}
-            source_query = Sources.objects.filter(authentication=sources_auth)
-            if source_query.exists():
-                source_obj = source_query.first()
-                if not source_obj.koku_uuid:
-                    source_obj.koku_uuid = existing_provider.uuid
-                    source_obj.save()
-                    return existing_provider
             error = {'Error': 'A Provider already exists with that Authentication and Billing Source'}
             raise serializers.ValidationError(error)
 
@@ -332,6 +316,9 @@ class ProviderSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
         provider_type = validated_data['type']
+        if instance.type != provider_type:
+            error = {'Error': 'The Provider Type cannot be changed with a PUT request.'}
+            raise serializers.ValidationError(error)
         interface = ProviderAccessor(provider_type)
 
         authentication = validated_data.pop('authentication')

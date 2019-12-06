@@ -3,14 +3,41 @@ import datetime
 import logging
 import os
 
-from celery import Celery
+from celery import Celery, Task
 from celery.schedules import crontab
 from django.conf import settings
 
 from . import database
+# We disable pylint here because we wanted to avoid duplicate code
+# in settings and celery config files, therefore we import a single
+# file, since we don't actually call anything in it, pylint gets angry.
+from . import sentry  # pylint: disable=unused-import # noqa: F401
 from .env import ENVIRONMENT
 
 LOGGER = logging.getLogger(__name__)
+
+
+# pylint: disable=abstract-method
+class LogErrorsTask(Task):  # pragma: no cover
+    """Log Celery task exceptions."""
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):  # pylint: disable=too-many-arguments
+        """Log exceptions when a celery task fails."""
+        LOGGER.exception('Task failed: %s', exc, exc_info=exc)
+        super().on_failure(exc, task_id, args, kwargs, einfo)
+
+
+class LoggingCelery(Celery):
+    """Log Celery task exceptions."""
+
+    def task(self, *args, **kwargs):
+        """Set the default base logger for the celery app.
+
+        Let's us avoid typing `base=LogErrorsTask` for every app.task.
+        """
+        kwargs.setdefault('base', LogErrorsTask)
+        return super().task(*args, **kwargs)
+
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'koku.settings')
 
@@ -22,7 +49,7 @@ LOGGER.info('Database configured.')
 # 'app' is the recommended convention from celery docs
 # following this for ease of comparison to reference implementation
 # pylint: disable=invalid-name
-app = Celery('koku', broker=settings.CELERY_BROKER_URL)
+app = LoggingCelery('koku', broker=settings.CELERY_BROKER_URL)
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
 LOGGER.info('Celery autodiscover tasks.')
@@ -62,6 +89,14 @@ if REMOVE_EXPIRED_REPORT_DATA_ON_DAY != 0:
 app.conf.beat_schedule['daily_upload_normalized_reports_to_s3'] = {
     'task': 'masu.celery.tasks.upload_normalized_data',
     'schedule': int(os.getenv('UPLOAD_NORMALIZED_DATA_INTERVAL', '86400'))
+}
+
+# Celery timeout if broker is unavaiable to avoid blocking indefintely
+app.conf.broker_transport_options = {
+    'max_retries': 4,
+    'interval_start': 0,
+    'interval_step': 0.5,
+    'interval_max': 3,
 }
 
 app.autodiscover_tasks()

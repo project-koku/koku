@@ -2319,6 +2319,56 @@
                 }]
             }
         },
+        "/tags/openshift/infrastructures/azure/": {
+            "get": {
+                "tags": [
+                    "Tags"
+                ],
+                "summary": "Query to obtain OpenShift-on-Azure tags",
+                "operationId": "getOpenShiftAzureTagData",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryKeyOnly"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Tags"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
         "/dataexportrequests/": {
             "get": {
                 "tags": [
@@ -2473,8 +2523,32 @@
         "url": "https://github.com/project-koku/"
     },
     "servers": [{
-        "url": "/api/cost-management/v1"
-    }],
+            "url": "https://{environment}.redhat.com/api/cost-management/v1",
+            "description": "Target Environment",
+            "variables": {
+                "environment": {
+                    "default": "cloud",
+                    "enum": [
+                        "cloud",
+                        "qa.cloud",
+                        "ci.cloud"
+                    ]
+                }
+            }
+        },
+        {
+            "url": "http://localhost:{port}/{basePath}",
+            "description": "Development Server",
+            "variables": {
+                "port": {
+                    "default": "8080"
+                },
+                "basePath": {
+                    "default": "api/cost-management/v1"
+                }
+            }
+        }
+    ],
     "components": {
         "parameters": {
             "QueryDelta": {

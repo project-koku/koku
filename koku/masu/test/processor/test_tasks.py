@@ -17,12 +17,12 @@
 
 """Test the download task."""
 
-import shutil
-import tempfile
 import logging
 import os
-from datetime import date, datetime, timedelta
-from unittest.mock import call, patch, Mock, ANY
+import shutil
+import tempfile
+from datetime import date, timedelta
+from unittest.mock import ANY, Mock, patch
 
 import faker
 from dateutil import relativedelta
@@ -40,16 +40,16 @@ from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader, ReportDownloaderError
-from masu.processor.expired_data_remover import ExpiredDataRemover
-from masu.processor.report_processor import ReportProcessorError
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
+from masu.processor.expired_data_remover import ExpiredDataRemover
+from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import (
     get_report_files,
-    summarize_reports,
     remove_expired_data,
-    update_charge_info,
+    summarize_reports,
     update_all_summary_tables,
+    update_charge_info,
     update_summary_tables,
 )
 from masu.test import MasuTestCase
@@ -58,7 +58,10 @@ from masu.test.external.downloader.aws import fake_arn
 
 
 class FakeDownloader(Mock):
+    """Fake Downloader."""
+
     def get_reports(self):
+        """Get reports for fake downloader."""
         fake_file_list = [
             '/var/tmp/masu/my-report-name/aws/my-report-file.csv',
             '/var/tmp/masu/other-report-name/aws/other-report-file.csv',
@@ -71,11 +74,9 @@ class GetReportFileTests(MasuTestCase):
 
     fake = faker.Faker()
 
-    @patch(
-        'masu.processor._tasks.download.ReportDownloader', return_value=FakeDownloader
-    )
+    @patch('masu.processor._tasks.download.ReportDownloader', return_value=FakeDownloader)
     def test_get_report(self, fake_downloader):
-        """Test task"""
+        """Test task."""
         account = fake_arn(service='iam', generate_account_id=True)
         report = _get_report_files(
             Mock(),
@@ -90,9 +91,7 @@ class GetReportFileTests(MasuTestCase):
         self.assertIsInstance(report, list)
         self.assertGreater(len(report), 0)
 
-    @patch(
-        'masu.processor._tasks.download.ReportDownloader', return_value=FakeDownloader
-    )
+    @patch('masu.processor._tasks.download.ReportDownloader', return_value=FakeDownloader)
     def test_disk_status_logging(self, fake_downloader):
         """Test task for logging when temp directory exists."""
         logging.disable(logging.NOTSET)
@@ -118,9 +117,7 @@ class GetReportFileTests(MasuTestCase):
 
         shutil.rmtree(Config.TMP_DIR, ignore_errors=True)
 
-    @patch(
-        'masu.processor._tasks.download.ReportDownloader', return_value=FakeDownloader
-    )
+    @patch('masu.processor._tasks.download.ReportDownloader', return_value=FakeDownloader)
     def test_disk_status_logging_no_dir(self, fake_downloader):
         """Test task for logging when temp directory does not exist."""
         logging.disable(logging.NOTSET)
@@ -149,7 +146,7 @@ class GetReportFileTests(MasuTestCase):
         side_effect=Exception('only a test'),
     )
     def test_get_report_exception(self, fake_downloader):
-        """Test task"""
+        """Test task."""
         account = fake_arn(service='iam', generate_account_id=True)
 
         with self.assertRaises(Exception):
@@ -219,7 +216,6 @@ class GetReportFileTests(MasuTestCase):
             )
 
             download_call.assert_called_with(initial_month_qty)
-
 
     @patch('masu.processor._tasks.download.ProviderStatus.set_error')
     @patch(
@@ -393,9 +389,7 @@ class ProcessReportFileTests(MasuTestCase):
 
     @patch('masu.processor.tasks.update_summary_tables')
     def test_summarize_reports_empty_list(self, mock_update_summary):
-        """
-        Test that the summarize_reports task is called when empty processing list is provided.
-        """
+        """Test that the summarize_reports task is called when empty processing list is provided."""
         mock_update_summary.delay = Mock()
 
         summarize_reports([])
@@ -403,9 +397,7 @@ class ProcessReportFileTests(MasuTestCase):
 
     @patch('masu.processor.tasks.update_summary_tables')
     def test_summarize_reports_processing_list(self, mock_update_summary):
-        """
-        Test that the summarize_reports task is called when a processing list is provided.
-        """
+        """Test that the summarize_reports task is called when a processing list is provided."""
         mock_update_summary.delay = Mock()
 
         report_meta = {}
@@ -434,7 +426,7 @@ class ProcessReportFileTests(MasuTestCase):
             'billing_period_start_datetime': DateAccessor().today_with_timezone('UTC'),
             'num_total_files': 2,
             'provider_uuid': self.aws_provider_uuid,
-            'task': '170653c0-3e66-4b7e-a764-336496d7ca5a'
+            'task': '170653c0-3e66-4b7e-a764-336496d7ca5a',
         }
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.add(**manifest_dict)
@@ -449,7 +441,7 @@ class ProcessReportFileTests(MasuTestCase):
             'file': path,
             'compression': 'gzip',
             'start_date': str(DateAccessor().today()),
-            'manifest_id': manifest_id
+            'manifest_id': manifest_id,
         }
 
         mock_setup_complete.side_effect = Exception
@@ -487,6 +479,7 @@ class TestProcessorTasks(MasuTestCase):
         cls.yesterday = cls.today - timedelta(days=1)
 
     def setUp(self):
+        """Set up shared test variables."""
         super().setUp()
 
         self.fake_get_report_args = {
@@ -501,12 +494,30 @@ class TestProcessorTasks(MasuTestCase):
     @patch('masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime')
     @patch('masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime')
     @patch('masu.processor.tasks._get_report_files')
+    @patch(
+        'masu.processor.tasks._process_report_file',
+        side_effect=ReportProcessorError('Mocked Error!')
+    )
+    def test_get_report_exception(
+        self, mock_process_files, mock_get_files, mock_started, mock_completed
+    ):
+        """Test raising processor exception is handled."""
+        mock_get_files.return_value = self.fake_reports
+        mock_started.return_value = None
+
+        # Check that exception is raised
+        with self.assertRaises(ReportProcessorError):
+            # Check that the exception logs an ERROR
+            with self.assertLogs('masu.processor.tasks.get_report_files', level='ERROR'):
+                get_report_files(**self.fake_get_report_args)
+
+    @patch('masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime')
+    @patch('masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime')
+    @patch('masu.processor.tasks._get_report_files')
     def test_get_report_files_timestamps_aligned(
         self, mock_get_files, mock_started, mock_completed
     ):
-        """
-        Test to return reports only when they have not been processed.
-        """
+        """Test to return reports only when they have not been processed."""
         mock_get_files.return_value = self.fake_reports
 
         mock_started.return_value = self.yesterday
@@ -521,9 +532,7 @@ class TestProcessorTasks(MasuTestCase):
     def test_get_report_files_timestamps_misaligned(
         self, mock_get_files, mock_started, mock_completed
     ):
-        """
-        Test to return reports with misaligned timestamps.
-        """
+        """Test to return reports with misaligned timestamps."""
         mock_get_files.return_value = self.fake_reports
 
         mock_started.return_value = self.today
@@ -539,9 +548,7 @@ class TestProcessorTasks(MasuTestCase):
     def test_get_report_files_timestamps_empty_start(
         self, mock_process_files, mock_get_files, mock_started, mock_completed
     ):
-        """
-        Test that the chained task is called when no start time is set.
-        """
+        """Test that the chained task is called when no start time is set."""
         mock_process_files.apply_async = Mock()
         mock_get_files.return_value = self.fake_reports
 
@@ -557,10 +564,7 @@ class TestProcessorTasks(MasuTestCase):
     def test_get_report_files_timestamps_empty_end(
         self, mock_date, mock_get_files, mock_started, mock_completed
     ):
-        """
-        Test that the chained task is not called when no end time is set since
-        processing is in progress.
-        """
+        """Chained task is not called when no end time is set since processing is in progress."""
         mock_get_files.return_value = self.fake_reports
 
         mock_started.return_value = self.today
@@ -578,17 +582,9 @@ class TestProcessorTasks(MasuTestCase):
     @patch('masu.processor.tasks._process_report_file')
     @patch('masu.external.date_accessor.DateAccessor.today_with_timezone')
     def test_get_report_files_timestamps_empty_end_timeout(
-        self,
-        mock_date,
-        mock_process_files,
-        mock_get_files,
-        mock_started,
-        mock_completed,
+        self, mock_date, mock_process_files, mock_get_files, mock_started, mock_completed,
     ):
-        """
-        Test that the chained task is called when no end time is set since
-        processing has exceeded the timeout.
-        """
+        """Chained task is called when no end time is set since processing has exceeded the timeout."""
         mock_process_files.apply_async = Mock()
         mock_get_files.return_value = self.fake_reports
 
@@ -605,16 +601,12 @@ class TestProcessorTasks(MasuTestCase):
     @patch('masu.processor.tasks._process_report_file')
     @patch('masu.external.date_accessor.DateAccessor.today_with_timezone')
     def test_get_report_files_timestamps_empty_end_no_timeout(
-        self,
-        mock_date,
-        mock_process_files,
-        mock_get_files,
-        mock_started,
-        mock_completed,
+        self, mock_date, mock_process_files, mock_get_files, mock_started, mock_completed,
     ):
         """
-        Test that the chained task is not called when no end time is set since
-        processing is in progress but completion timeout has not been reached.
+        Chained task is not called when no end time is set.
+
+        Since processing is in progress but completion timeout has not been reached.
         """
         mock_get_files.return_value = self.fake_reports
 
@@ -633,9 +625,7 @@ class TestProcessorTasks(MasuTestCase):
     def test_get_report_files_timestamps_empty_both(
         self, mock_process_file, mock_get_files, mock_started, mock_completed
     ):
-        """
-        Test that the chained task is called when no timestamps are set.
-        """
+        """Test that the chained task is called when no timestamps are set."""
         mock_get_files.return_value = self.fake_reports
         mock_process_file.return_value = None
 
@@ -650,12 +640,9 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
 
     @patch.object(ExpiredDataRemover, 'remove')
     def test_remove_expired_data(self, fake_remover):
-        """Test task"""
+        """Test task."""
         expected_results = [
-            {
-                'account_payer_id': '999999999',
-                'billing_period_start': '2018-06-24 15:47:33.052509',
-            }
+            {'account_payer_id': '999999999', 'billing_period_start': '2018-06-24 15:47:33.052509'}
         ]
         fake_remover.return_value = expected_results
 
@@ -664,9 +651,7 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
         # disable logging override set in masu/__init__.py
         logging.disable(logging.NOTSET)
         with self.assertLogs('masu.processor._tasks.remove_expired') as logger:
-            remove_expired_data(
-                schema_name=self.schema, provider='AWS', simulate=True
-            )
+            remove_expired_data(schema_name=self.schema, provider='AWS', simulate=True)
             self.assertIn(expected.format(str(expected_results)), logger.output)
 
 
@@ -675,13 +660,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Setup for the class."""
+        """Set up for the class."""
         super().setUpClass()
         cls.aws_tables = list(AWS_CUR_TABLE_MAP.values())
         cls.ocp_tables = list(OCP_REPORT_TABLE_MAP.values())
-        cls.all_tables = list(AWS_CUR_TABLE_MAP.values()) + list(
-            OCP_REPORT_TABLE_MAP.values()
-        )
+        cls.all_tables = list(AWS_CUR_TABLE_MAP.values()) + list(OCP_REPORT_TABLE_MAP.values())
         with ReportingCommonDBAccessor() as report_common_db:
             cls.column_map = report_common_db.column_map
 
@@ -690,12 +673,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     def setUp(self):
         """Set up each test."""
         super().setUp()
-        self.aws_accessor = AWSReportDBAccessor(
-            schema=self.schema, column_map=self.column_map
-        )
-        self.ocp_accessor = OCPReportDBAccessor(
-            schema=self.schema, column_map=self.column_map
-        )
+        self.aws_accessor = AWSReportDBAccessor(schema=self.schema, column_map=self.column_map)
+        self.ocp_accessor = OCPReportDBAccessor(schema=self.schema, column_map=self.column_map)
 
         # Populate some line item data so that the summary tables
         # have something to pull from
@@ -741,9 +720,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         daily_table_name = AWS_CUR_TABLE_MAP['line_item_daily']
         summary_table_name = AWS_CUR_TABLE_MAP['line_item_daily_summary']
-        start_date = self.start_date.replace(day=1) + relativedelta.relativedelta(
-            months=-1
-        )
+        start_date = self.start_date.replace(day=1) + relativedelta.relativedelta(months=-1)
 
         with schema_context(self.schema):
             daily_query = self.aws_accessor._get_db_obj_query(daily_table_name)
@@ -784,31 +761,23 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         ce_table = getattr(self.aws_accessor.report_schema, ce_table_name)
 
         with schema_context(self.schema):
-            ce_start_date = ce_table.objects\
-                .filter(interval_start__gte=start_date)\
-                .aggregate(Min('interval_start'))['interval_start__min']
-            ce_end_date = ce_table.objects\
-                .filter(interval_start__lte=end_date)\
-                .aggregate(Max('interval_start'))['interval_start__max']
+            ce_start_date = ce_table.objects.filter(interval_start__gte=start_date).aggregate(
+                Min('interval_start')
+            )['interval_start__min']
+            ce_end_date = ce_table.objects.filter(interval_start__lte=end_date).aggregate(
+                Max('interval_start')
+            )['interval_start__max']
 
         # The summary tables will only include dates where there is data
         expected_start_date = max(start_date, ce_start_date)
-        expected_start_date = expected_start_date.replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        expected_start_date = expected_start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         expected_end_date = min(end_date, ce_end_date)
-        expected_end_date = expected_end_date.replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        expected_end_date = expected_end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        update_summary_tables(
-            self.schema, provider, provider_aws_uuid, start_date, end_date
-        )
+        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, end_date)
 
         with schema_context(self.schema):
-            daily_entry = daily_table.objects.all().aggregate(
-                Min('usage_start'), Max('usage_end')
-            )
+            daily_entry = daily_table.objects.all().aggregate(Min('usage_start'), Max('usage_end'))
             result_start_date = daily_entry['usage_start__min']
             result_end_date = daily_entry['usage_end__max']
 
@@ -828,14 +797,15 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch('masu.processor.tasks.update_charge_info')
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
-    def test_update_summary_tables_ocp(
-        self, mock_markup, mock_rate_map, mock_charge_info
-    ):
+    def test_update_summary_tables_ocp(self, mock_markup, mock_rate_map, mock_charge_info):
         """Test that the summary table task runs."""
         markup = {}
         mem_rate = {'tiered_rates': [{'value': '1.5', 'unit': 'USD'}]}
         cpu_rate = {'tiered_rates': [{'value': '2.5', 'unit': 'USD'}]}
-        rate_metric_map = {'cpu_core_usage_per_hour': cpu_rate, 'memory_gb_usage_per_hour': mem_rate}
+        rate_metric_map = {
+            'cpu_core_usage_per_hour': cpu_rate,
+            'memory_gb_usage_per_hour': mem_rate,
+        }
 
         mock_markup.return_value = markup
         mock_rate_map.return_value = rate_metric_map
@@ -844,9 +814,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         provider_ocp_uuid = self.ocp_test_provider_uuid
 
         daily_table_name = OCP_REPORT_TABLE_MAP['line_item_daily']
-        start_date = self.start_date.replace(day=1) + relativedelta.relativedelta(
-            months=-1
-        )
+        start_date = self.start_date.replace(day=1) + relativedelta.relativedelta(months=-1)
 
         with schema_context(self.schema):
             daily_query = self.ocp_accessor._get_db_obj_query(daily_table_name)
@@ -859,23 +827,17 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with schema_context(self.schema):
             self.assertNotEqual(daily_query.count(), initial_daily_count)
 
-        update_charge_info(
-            schema_name=self.schema, provider_uuid=provider_ocp_uuid
-        )
+        update_charge_info(schema_name=self.schema, provider_uuid=provider_ocp_uuid)
 
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
         with ProviderDBAccessor(provider_ocp_uuid) as provider_accessor:
             provider_obj = provider_accessor.get_provider()
 
-        usage_period_qry = self.ocp_accessor.get_usage_period_query_by_provider(
-            provider_obj.uuid
-        )
+        usage_period_qry = self.ocp_accessor.get_usage_period_query_by_provider(provider_obj.uuid)
         with schema_context(self.schema):
             cluster_id = usage_period_qry.first().cluster_id
 
-            items = self.ocp_accessor._get_db_obj_query(table_name).filter(
-                cluster_id=cluster_id
-            )
+            items = self.ocp_accessor._get_db_obj_query(table_name).filter(cluster_id=cluster_id)
             for item in items:
                 self.assertIsNotNone(item.pod_charge_memory_gigabyte_hours)
                 self.assertIsNotNone(item.pod_charge_cpu_core_hours)
@@ -891,8 +853,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
             storage_summary_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
             items = self.ocp_accessor._get_db_obj_query(storage_summary_name).filter(
-                cluster_id=cluster_id,
-                data_source='Storage'
+                cluster_id=cluster_id, data_source='Storage'
             )
             for item in items:
                 self.assertIsNotNone(item.volume_request_storage_gigabyte_months)
@@ -929,31 +890,23 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         ce_table = getattr(self.ocp_accessor.report_schema, ce_table_name)
 
         with schema_context(self.schema):
-            ce_start_date = ce_table.objects\
-                .filter(interval_start__gte=start_date)\
-                .aggregate(Min('interval_start'))['interval_start__min']
+            ce_start_date = ce_table.objects.filter(interval_start__gte=start_date).aggregate(
+                Min('interval_start')
+            )['interval_start__min']
 
-            ce_end_date = ce_table.objects\
-                .filter(interval_start__lte=end_date)\
-                .aggregate(Max('interval_start'))['interval_start__max']
+            ce_end_date = ce_table.objects.filter(interval_start__lte=end_date).aggregate(
+                Max('interval_start')
+            )['interval_start__max']
 
         # The summary tables will only include dates where there is data
         expected_start_date = max(start_date, ce_start_date)
-        expected_start_date = expected_start_date.replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        expected_start_date = expected_start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         expected_end_date = min(end_date, ce_end_date)
-        expected_end_date = expected_end_date.replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        expected_end_date = expected_end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        update_summary_tables(
-            self.schema, provider, provider_ocp_uuid, start_date, end_date
-        )
+        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date)
         with schema_context(self.schema):
-            daily_entry = daily_table.objects.all().aggregate(
-                Min('usage_start'), Max('usage_end')
-            )
+            daily_entry = daily_table.objects.all().aggregate(Min('usage_start'), Max('usage_end'))
             result_start_date = daily_entry['usage_start__min']
             result_end_date = daily_entry['usage_end__max']
 

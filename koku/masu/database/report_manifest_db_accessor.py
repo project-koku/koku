@@ -84,7 +84,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
     def get_last_report_completed_datetime(self, manifest_id):
         """Get the most recent report processing completion time for a manifest."""
         result = CostUsageReportStatus.objects.\
-            filter(manifest_id=manifest_id).order_by('last_completed_datetime').first()
+            filter(manifest_id=manifest_id).order_by('-last_completed_datetime').first()
         return result.last_completed_datetime
 
     def reset_manifest(self, manifest_id):
