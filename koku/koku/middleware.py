@@ -16,6 +16,7 @@
 #
 
 """Custom Koku Middleware."""
+import binascii
 import logging
 from json.decoder import JSONDecodeError
 
@@ -198,6 +199,9 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         except (KeyError, JSONDecodeError):
             logger.warning('Could not obtain identity on request.')
             return
+        except binascii.Error as error:
+            logger.error(f'Error decoding authentication header: {str(error)}')
+            raise PermissionDenied()
         if (username and email and account):
             # Check for customer creation & user creation
             query_string = ''
