@@ -47,4 +47,5 @@ from api.tags.ocp.view import OCPTagView
 from api.tags.ocp_aws.view import OCPAWSTagView
 from api.sources.billing_source import billing_source
 from api.sources.authentication import authentication
+from api.sources.view import SourcesProxyViewSet
 from api.cloud_accounts.views import CloudAccountViewSet
