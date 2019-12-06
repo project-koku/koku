@@ -2469,6 +2469,56 @@
                 }]
             }
         },
+        "/tags/openshift/infrastructures/azure/": {
+            "get": {
+                "tags": [
+                    "Tags"
+                ],
+                "summary": "Query to obtain OpenShift-on-Azure tags",
+                "operationId": "getOpenShiftAzureTagData",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryKeyOnly"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Tags"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
         "/dataexportrequests/": {
             "get": {
                 "tags": [
