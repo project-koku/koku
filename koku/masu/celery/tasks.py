@@ -20,6 +20,7 @@
 # disabled module-wide due to current state of task signature.
 # we expect this situation to be temporary as we iterate on these details.
 import calendar
+import csv
 import math
 import uuid
 from datetime import date
@@ -28,19 +29,25 @@ import boto3
 from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
+from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
+from dateutil.rrule import DAILY, rrule
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from django.db import connection
 
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer, SyncedFileInColdStorageError
+from api.dataexport.uploader import AwsS3Uploader
 from koku.celery import app
 from masu.celery.export import table_export_settings
 from masu.external.date_accessor import DateAccessor
 from masu.processor.orchestrator import Orchestrator
-from masu.util.upload import query_and_upload_to_s3
+from masu.util.common import NamedTemporaryGZip, dictify_table_export_settings
+from masu.util.upload import get_upload_path
 
 LOG = get_task_logger(__name__)
+_DB_FETCH_BATCH_SIZE = 2000
 
 
 @app.task(name='masu.celery.tasks.check_report_updates')
@@ -85,20 +92,27 @@ def upload_normalized_data():
             account['provider_uuid'],
         )
         for table in table_export_settings:
+
+            # Celery does not serialize named tuples, convert it
+            # to a dict before handing it off to the celery task.
+            table_dict = dictify_table_export_settings(table)
+
             # Upload this month's reports
-            query_and_upload_to_s3(
+            query_and_upload_to_s3.delay(
                 account['schema_name'],
                 account['provider_uuid'],
-                table,
-                (curr_month_first_day, curr_month_last_day),
+                table_dict,
+                curr_month_first_day,
+                curr_month_last_day,
             )
 
             # Upload last month's reports
-            query_and_upload_to_s3(
+            query_and_upload_to_s3.delay(
                 account['schema_name'],
                 account['provider_uuid'],
-                table,
-                (prev_month_first_day, prev_month_last_day),
+                table_dict,
+                prev_month_first_day,
+                prev_month_last_day,
             )
     LOG.info('%s Completed upload_normalized_data', log_uuid)
 
@@ -229,3 +243,68 @@ def sync_data_to_customer(dump_request_uuid):
             return
     dump_request.status = DataExportRequest.COMPLETE
     dump_request.save()
+
+
+@app.task(name='masu.celery.tasks.query_and_upload_to_s3', queue_name='query_upload')
+def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, start_date, end_date):
+    """
+    Query the database and upload the results to s3.
+
+    Args:
+        schema_name (str): Account schema name in which to execute the query.
+        provider_uuid (UUID): Provider UUID for filtering the query.
+        table_export_setting (dict): Settings for the table export.
+        start_date (string): start date (inclusive)
+        end_date (string): end date (inclusive)
+    """
+    LOG.info(
+        'query_and_upload_to_s3: schema %s provider_uuid %s table.output_name %s for %s',
+        schema_name,
+        provider_uuid,
+        table_export_setting['output_name'],
+        (start_date, end_date),
+    )
+    if isinstance(start_date, str):
+        start_date = parse(start_date)
+    if isinstance(end_date, str):
+        end_date = parse(end_date)
+
+    uploader = AwsS3Uploader(settings.S3_BUCKET_NAME)
+    iterate_daily = table_export_setting['iterate_daily']
+    dates_to_iterate = rrule(
+        DAILY, dtstart=start_date, until=end_date if iterate_daily else start_date
+    )
+
+    for the_date in dates_to_iterate:
+        with NamedTemporaryGZip() as temp_file:
+            with connection.cursor() as cursor:
+                cursor.db.set_schema(schema_name)
+                upload_path = get_upload_path(
+                    schema_name,
+                    table_export_setting['provider'],
+                    provider_uuid,
+                    the_date,
+                    table_export_setting['output_name'],
+                    iterate_daily,
+                )
+                cursor.execute(
+                    table_export_setting['sql'].format(schema=schema_name),
+                    {
+                        'start_date': the_date,
+                        'end_date': the_date if iterate_daily else end_date,
+                        'provider_uuid': provider_uuid,
+                    },
+                )
+                # Don't upload if result set is empty
+                if cursor.rowcount == 0:
+                    continue
+                writer = csv.writer(temp_file, quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                writer.writerow([field.name for field in cursor.description])
+                while True:
+                    records = cursor.fetchmany(size=_DB_FETCH_BATCH_SIZE)
+                    if not records:
+                        break
+                    for row in records:
+                        writer.writerow(row)
+            temp_file.close()
+            uploader.upload_file(temp_file.name, upload_path)
