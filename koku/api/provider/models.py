@@ -221,6 +221,9 @@ class Sources(models.Model):
     endpoint_id = models.IntegerField(null=True)
 
     # Koku Specific data.
+    # Customer Account ID
+    account_id = models.CharField(max_length=150, null=True)
+
     # Provider type (i.e. AWS, OCP, AZURE)
     source_type = models.CharField(max_length=50, null=False)
 
