@@ -17,8 +17,13 @@
 """Report Processing Orchestrator."""
 import logging
 
+from dateutil.relativedelta import relativedelta
+
+from masu.config import Config
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.account_label import AccountLabel
 from masu.external.accounts_accessor import (AccountsAccessor, AccountsAccessorError)
+from masu.external.date_accessor import DateAccessor
 from masu.processor.tasks import (get_report_files,
                                   remove_expired_data,
                                   summarize_reports)
@@ -83,6 +88,33 @@ class Orchestrator():
 
         return all_accounts, polling_accounts
 
+    def get_reports(self, provider_uuid, months_list=None):
+        """
+        Download cost usage reports.
+
+        Args:
+            (Int) Number of monthly reports to download.
+
+        Returns:
+            (List) List of filenames downloaded.
+
+        """
+        with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
+            reports_processed = provider_accessor.get_setup_complete()
+
+        if Config.INGEST_OVERRIDE or not reports_processed:
+            number_of_months = Config.INITIAL_INGEST_NUM_MONTHS
+        else:
+            number_of_months = 2
+
+        months = []
+        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        for month in reversed(range(number_of_months)):
+            calculated_month = current_month + relativedelta(months=-month)
+            months.append(calculated_month)
+
+        return months
+
     def prepare(self):
         """
         Prepare a processing request for each account.
@@ -98,27 +130,34 @@ class Orchestrator():
         for account in self._polling_accounts:
             provider_uuid = account.get('provider_uuid')
             provider_status = ProviderStatus(provider_uuid)
-            if provider_status.is_valid() and not provider_status.is_backing_off():
-                LOG.info('Getting report files for account (provider uuid): %s', provider_uuid)
-                async_result = (get_report_files.s(**account) | summarize_reports.s()).\
-                    apply_async()
 
-                LOG.info('Download queued - schema_name: %s, Task ID: %s',
-                         account.get('schema_name'),
-                         str(async_result))
+            report_months = self.get_reports(provider_uuid)
+            LOG.info(f'report_months: {str(report_months)}')
+            for month in report_months:
+                if provider_status.is_valid() and not provider_status.is_backing_off():
+                    LOG.info('Getting report files for account (provider uuid): %s', provider_uuid)
+                    month = {'report_month': month}
+                    arg_dict = account
+                    arg_dict['report_month'] = month
+                    async_result = (get_report_files.s(**arg_dict) | summarize_reports.s()).\
+                        apply_async()
 
-                # update labels
-                labeler = AccountLabel(auth=account.get('authentication'),
-                                       schema=account.get('schema_name'),
-                                       provider_type=account.get('provider_type'))
-                account, label = labeler.get_label_details()
-                if account:
-                    LOG.info('Account: %s Label: %s updated.', account, label)
-            else:
-                LOG.info('Provider skipped: %s Valid: %s Backing off: %s',
-                         account.get('provider_uuid'),
-                         provider_status.is_valid(),
-                         provider_status.is_backing_off())
+                    LOG.info('Download queued - schema_name: %s, Task ID: %s',
+                             account.get('schema_name'),
+                             str(async_result))
+
+                    # update labels
+                    labeler = AccountLabel(auth=account.get('authentication'),
+                                           schema=account.get('schema_name'),
+                                           provider_type=account.get('provider_type'))
+                    account, label = labeler.get_label_details()
+                    if account:
+                        LOG.info('Account: %s Label: %s updated.', account, label)
+                else:
+                    LOG.info('Provider skipped: %s Valid: %s Backing off: %s',
+                             account.get('provider_uuid'),
+                             provider_status.is_valid(),
+                             provider_status.is_backing_off())
         return async_result
 
     def remove_expired_report_data(self, simulate=False):

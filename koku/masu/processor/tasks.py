@@ -48,7 +48,8 @@ def get_report_files(self,
                      billing_source,
                      provider_type,
                      schema_name,
-                     provider_uuid):
+                     provider_uuid,
+                     report_month):
     """
     Task to download a Report and process the report.
 
@@ -74,7 +75,8 @@ def get_report_files(self,
                                 authentication,
                                 billing_source,
                                 provider_type,
-                                provider_uuid)
+                                provider_uuid,
+                                report_month)
 
     try:
         stmt = (
