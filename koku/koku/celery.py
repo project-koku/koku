@@ -91,4 +91,12 @@ app.conf.beat_schedule['daily_upload_normalized_reports_to_s3'] = {
     'schedule': int(os.getenv('UPLOAD_NORMALIZED_DATA_INTERVAL', '86400'))
 }
 
+# Celery timeout if broker is unavaiable to avoid blocking indefintely
+app.conf.broker_transport_options = {
+    'max_retries': 4,
+    'interval_start': 0,
+    'interval_step': 0.5,
+    'interval_max': 3,
+}
+
 app.autodiscover_tasks()
