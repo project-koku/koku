@@ -1,10 +1,12 @@
 """Tests for celery tasks."""
+import calendar
 import uuid
 from collections import namedtuple
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from unittest.mock import Mock, call, patch
 
 import faker
+import pytz
 from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError, Retry
 from django.core.exceptions import ImproperlyConfigured
@@ -13,7 +15,11 @@ from django.test import override_settings
 from api.dataexport.models import DataExportRequest as APIExportRequest
 from api.dataexport.syncer import SyncedFileInColdStorageError
 from masu.celery import tasks
+from masu.celery.export import TableExportSetting
+from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.test import MasuTestCase
+from masu.test.database.helpers import ReportObjectCreator
+from masu.util.common import dictify_table_export_settings
 
 fake = faker.Faker()
 DummyS3Object = namedtuple('DummyS3Object', 'key')
@@ -51,11 +57,12 @@ class TestCeleryTasks(MasuTestCase):
     @patch('masu.external.date_accessor.DateAccessor.today')
     def test_upload_normalized_data(self, mock_date, mock_upload, mock_orchestrator):
         """Test that the scheduled task uploads the correct normalized data."""
-        test_export_setting = {
-            'provider': 'test',
-            'table_name': 'test',
-            'sql': 'test_sql',
-        }
+        test_export_setting = TableExportSetting(
+            provider='test',
+            output_name='test',
+            sql='test_sql',
+            iterate_daily=False
+        )
         schema_name = 'acct10001'
         provider_uuid = uuid.uuid4()
 
@@ -71,14 +78,18 @@ class TestCeleryTasks(MasuTestCase):
         prev_month_start = date(2014, 12, 1)
         prev_month_end = date(2014, 12, 31)
 
-        call_curr_month = call(
+        call_curr_month = call.delay(
             schema_name,
             provider_uuid,
-            test_export_setting,
-            (current_month_start, current_month_end),
+            dictify_table_export_settings(test_export_setting),
+            current_month_start,
+            current_month_end,
         )
-        call_prev_month = call(
-            schema_name, provider_uuid, test_export_setting, (prev_month_start, prev_month_end),
+        call_prev_month = call.delay(
+            schema_name, provider_uuid,
+            dictify_table_export_settings(test_export_setting),
+            prev_month_start,
+            prev_month_end,
         )
 
         with patch('masu.celery.tasks.table_export_settings', [test_export_setting]):
@@ -91,14 +102,16 @@ class TestCeleryTasks(MasuTestCase):
         prev_month_start = date(2012, 2, 1)
         prev_month_end = date(2012, 2, 29)
 
-        call_curr_month = call(
+        call_curr_month = call.delay(
             schema_name,
             provider_uuid,
-            test_export_setting,
-            (current_month_start, current_month_end),
+            dictify_table_export_settings(test_export_setting),
+            current_month_start, current_month_end,
         )
-        call_prev_month = call(
-            schema_name, provider_uuid, test_export_setting, (prev_month_start, prev_month_end),
+        call_prev_month = call.delay(
+            schema_name, provider_uuid,
+            dictify_table_export_settings(test_export_setting),
+            prev_month_start, prev_month_end,
         )
 
         with patch('masu.celery.tasks.table_export_settings', [test_export_setting]):
@@ -226,3 +239,118 @@ class TestCeleryTasks(MasuTestCase):
             [call(Prefix=expected_prefix), call(Prefix=expected_prefix)]
         )
         self.assertIn('Found 1 objects after attempting', captured_logs.output[-1])
+
+
+class TestUploadTaskWithData(MasuTestCase):
+    """Test cases for upload utils that need some data."""
+
+    def setUp(self):
+        """Set up initial data for tests."""
+        super(TestUploadTaskWithData, self).setUp()
+
+        with ReportingCommonDBAccessor(self.schema) as common_accessor:
+            self.column_map = common_accessor.column_map
+        self.creator = ReportObjectCreator(self.schema, self.column_map)
+
+        timezone = pytz.timezone('UTC')
+        # Arbitrary date as "today" so we don't drift around with `now`.
+        self.today = datetime(2019, 11, 5, 0, 0, 0, tzinfo=timezone)
+
+        self.today_date = date(year=self.today.year, month=self.today.month, day=self.today.day)
+        self.create_some_data_for_date(self.today)
+
+        self.yesterday = self.today - timedelta(days=1)
+        self.yesterday_date = date(
+            year=self.yesterday.year, month=self.yesterday.month, day=self.yesterday.day
+        )
+        self.create_some_data_for_date(self.yesterday)
+
+        self.future = self.today + timedelta(days=900)
+        self.future_date = date(year=self.future.year, month=self.future.month, day=self.future.day)
+
+    def create_some_data_for_date(self, the_datetime):
+        """Create some dummy data for the given datetime."""
+        product = self.creator.create_cost_entry_product()
+        pricing = self.creator.create_cost_entry_pricing()
+        reservation = self.creator.create_cost_entry_reservation()
+
+        bill = self.creator.create_cost_entry_bill(
+            provider_uuid=self.aws_provider_uuid, bill_date=the_datetime
+        )
+        cost_entry = self.creator.create_cost_entry(bill, entry_datetime=the_datetime)
+        self.creator.create_cost_entry_line_item(bill, cost_entry, product, pricing, reservation)
+
+        # The daily summary lines are aligned with midnight of each day.
+        the_date = the_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
+        self.creator.create_awscostentrylineitem_daily_summary(
+            self.customer.account_id, self.schema, bill, the_date
+        )
+
+    def get_table_export_setting_by_name(self, name):
+        """Get specific TableExportSetting for testing."""
+        return [s for s in tasks.table_export_settings if s.output_name == name].pop()
+
+    @patch('masu.celery.tasks.AwsS3Uploader')
+    def test_query_and_upload_to_s3(self, mock_uploader):
+        """
+        Assert query_and_upload_to_s3 uploads to S3 for each query.
+
+        We only have test data reliably set for AWS, but this function should
+        still execute *all* of the table_export_settings queries, effectively
+        providing a syntax check on the SQL even if no results are found.
+        """
+        today = self.today
+        _, last_day_of_month = calendar.monthrange(today.year, today.month)
+        curr_month_first_day = date(year=today.year, month=today.month, day=1)
+        curr_month_last_day = date(year=today.year, month=today.month, day=last_day_of_month)
+
+        date_range = (curr_month_first_day, curr_month_last_day)
+        for table_export_setting in tasks.table_export_settings:
+            mock_uploader.reset_mock()
+            tasks.query_and_upload_to_s3(
+                self.schema,
+                self.aws_provider_uuid,
+                dictify_table_export_settings(table_export_setting),
+                date_range[0],
+                date_range[1]
+            )
+            if table_export_setting.provider == 'aws':
+                if table_export_setting.iterate_daily:
+                    # There are always TWO days of AWS test data.
+                    calls = mock_uploader.return_value.upload_file.call_args_list
+                    self.assertEqual(len(calls), 2)
+                else:
+                    # There is always only ONE month of AWS test data.
+                    mock_uploader.return_value.upload_file.assert_called_once()
+            else:
+                # We ONLY have test data currently for AWS.
+                mock_uploader.return_value.upload_file.assert_not_called()
+
+    @patch('masu.celery.tasks.AwsS3Uploader')
+    def test_query_and_upload_skips_if_no_data(self, mock_uploader):
+        """Assert query_and_upload_to_s3 uploads nothing if no data is found."""
+        table_export_setting = self.get_table_export_setting_by_name(
+            'reporting_awscostentrylineitem'
+        )
+        tasks.query_and_upload_to_s3(
+            self.schema, self.aws_provider_uuid,
+            dictify_table_export_settings(table_export_setting),
+            start_date=self.future_date,
+            end_date=self.future_date
+        )
+        mock_uploader.return_value.upload_file.assert_not_called()
+
+    @patch('masu.celery.tasks.AwsS3Uploader')
+    def test_query_and_upload_to_s3_multiple_days_multiple_rows(self, mock_uploader):
+        """Assert query_and_upload_to_s3 for multiple days uploads multiple files."""
+        table_export_setting = self.get_table_export_setting_by_name(
+            'reporting_awscostentrylineitem_daily_summary'
+        )
+        tasks.query_and_upload_to_s3(
+            self.schema, self.aws_provider_uuid,
+            dictify_table_export_settings(table_export_setting),
+            start_date=self.yesterday_date,
+            end_date=self.today_date
+        )
+        # expect one upload call for yesterday and one for today
+        self.assertEqual(mock_uploader.return_value.upload_file.call_count, 2)
