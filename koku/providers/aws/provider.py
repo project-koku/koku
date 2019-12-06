@@ -51,7 +51,9 @@ def _get_sts_access(provider_resource_name):
         )
         credentials = assumed_role.get('Credentials')
     except (ClientError, BotoConnectionError, NoCredentialsError, ParamValidationError) as boto_error:
-        LOG.exception(boto_error)
+        message = 'Unable to assume role ' \
+                  'with ARN {}.'.format(provider_resource_name)
+        LOG.warn(msg=message, exc_info=boto_error)
 
     # return a kwargs-friendly format
     return dict(aws_access_key_id=credentials.get('AccessKeyId'),
@@ -66,7 +68,8 @@ def _check_s3_access(bucket, credentials):
     try:
         s3_resource.meta.client.head_bucket(Bucket=bucket)
     except (ClientError, BotoConnectionError) as boto_error:
-        LOG.exception(boto_error)
+        message = 'Unable to access bucket {} with given credentials.'.format(bucket)
+        LOG.warn(msg=message, exc_info=boto_error)
         s3_exists = False
     return s3_exists
 
@@ -80,7 +83,8 @@ def _check_org_access(credentials):
     try:
         org_client.describe_organization()
     except (ClientError, BotoConnectionError) as boto_error:
-        LOG.exception(boto_error)
+        message = 'Unable to describe organizationwith given credentials.'
+        LOG.warn(msg=message, exc_info=boto_error)
         access_ok = False
     return access_ok
 
@@ -95,10 +99,10 @@ def _check_cost_report_access(credential_name, credentials,
         response = cur_client.describe_report_definitions()
         reports = response.get('ReportDefinitions')
     except (ClientError, BotoConnectionError) as boto_error:
-        LOG.exception(boto_error)
         key = 'authentication.provider_resource_name'
         message = 'Unable to obtain cost and usage report ' \
                   'definition data with {}.'.format(credential_name)
+        LOG.warn(msg=message, exc_info=boto_error)
         raise serializers.ValidationError(error_obj(key, message))
 
     if reports and bucket:
