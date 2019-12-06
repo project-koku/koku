@@ -128,6 +128,7 @@ class Orchestrator():
         """
         async_result = None
         for account in self._polling_accounts:
+            LOG.info(f'account: {str(account)}, type: {type(account)}')
             provider_uuid = account.get('provider_uuid')
             provider_status = ProviderStatus(provider_uuid)
 
@@ -136,10 +137,8 @@ class Orchestrator():
             for month in report_months:
                 if provider_status.is_valid() and not provider_status.is_backing_off():
                     LOG.info('Getting report files for account (provider uuid): %s', provider_uuid)
-                    arg_dict = account.copy()
-                    LOG.info(f'arg_dict: {str(arg_dict)}')
-                    arg_dict['report_month'] = month
-                    async_result = (get_report_files.s(**arg_dict) | summarize_reports.s()).\
+                    account['report_month'] = month
+                    async_result = (get_report_files.s(**account) | summarize_reports.s()).\
                         apply_async()
 
                     LOG.info('Download queued - schema_name: %s, Task ID: %s',
