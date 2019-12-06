@@ -200,7 +200,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             logger.warning('Could not obtain identity on request.')
             return
         except binascii.Error as error:
-            logger.error(f'Error decoding authentication header: {str(error)}')
+            logger.error('Error decoding authentication header: %s', str(error))
             raise PermissionDenied()
         if (username and email and account):
             # Check for customer creation & user creation
