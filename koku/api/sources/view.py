@@ -27,6 +27,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException
 from rest_framework.permissions import AllowAny
+from sources.api.serializers import SourcesSerializer
 
 from api.provider.models import Sources
 
@@ -67,6 +68,7 @@ class SourcesProxyViewSet(mixins.ListModelMixin,
     """
 
     lookup_field = 'source_id'
+    serializer_class = SourcesSerializer
     queryset = Sources.objects.all()
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)

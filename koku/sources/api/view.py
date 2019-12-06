@@ -16,25 +16,40 @@
 #
 
 """View for Sources."""
+import binascii
 import logging
 from base64 import b64decode
 from json import loads as json_loads
 from json.decoder import JSONDecodeError
 
+from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, viewsets
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.exceptions import APIException
+from rest_framework.exceptions import ParseError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from sources.api.serializers import SourcesSerializer
 from sources.api.source_status import SourceStatus
+from sources.storage import SourcesStorageError
 
 from api.provider.models import Sources
 
 
 LOG = logging.getLogger(__name__)
+
+
+class SourcesException(APIException):
+    """Authentication internal error exception."""
+
+    def __init__(self, error_msg):
+        """Initialize with status code 400."""
+        super().__init__()
+        self.status_code = status.HTTP_400_BAD_REQUEST
+        self.detail = {'detail': force_text(error_msg)}
 
 
 class SourcesViewSet(mixins.ListModelMixin,
@@ -77,16 +92,18 @@ class SourcesViewSet(mixins.ListModelMixin,
                 queryset = Sources.objects.filter(account_id=account_id)
             except Sources.DoesNotExist:
                 LOG.error('No sources found for account id %s.', account_id)
-            except JSONDecodeError as error:
-                LOG.error(str(error))
-                return
+            except (binascii.Error, JSONDecodeError) as error:
+                LOG.error(f'Error decoding authentication header: {str(error)}')
 
         return queryset
 
     @never_cache
     def update(self, request, *args, **kwargs):
         """Update a Source."""
-        return super().update(request=request, args=args, kwargs=kwargs)
+        try:
+            return super().update(request=request, args=args, kwargs=kwargs)
+        except (SourcesStorageError, ParseError) as error:
+            raise SourcesException(str(error))
 
     @never_cache
     def list(self, request, *args, **kwargs):

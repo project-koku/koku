@@ -72,6 +72,23 @@ class SourcesViewTests(IamTestCase):
 
             self.assertEqual(response.status_code, 200)
 
+    def test_source_update_exception(self):
+        """Test the PATCH endpoint with error."""
+        credentials = {'subscription_id': 'subscription-uuid'}
+
+        with requests_mock.mock() as m:
+            m.patch(f'http://www.sourcesclient.com/api/v1/sources/{self.test_source_id}/',
+                    status_code=200, json={'credentials': credentials})
+
+            params = '{"credentials: blah}'
+            url = reverse('sources-detail', kwargs={'source_id': self.test_source_id})
+
+            response = self.client.patch(url, params,
+                                         content_type='application/json',
+                                         **self.request_context['request'].META)
+
+            self.assertEqual(response.status_code, 400)
+
     def test_source_put(self):
         """Test the PUT endpoint."""
         credentials = {'subscription_id': 'subscription-uuid'}
