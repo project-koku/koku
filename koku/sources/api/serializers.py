@@ -84,7 +84,8 @@ class SourcesSerializer(serializers.ModelSerializer):
 
     def _update_billing_source(self, instance, billing_source):
         if instance.source_type not in ('AWS', 'AZURE'):
-            raise SourcesStorageError('Source is not AWS nor AZURE.')
+            raise SourcesStorageError(f'Option not supported by '
+                                      f'source type {instance.source_type}.')
         self._validate_billing_source(instance.source_type, billing_source)
         instance.billing_source = billing_source
         if instance.koku_uuid:
@@ -95,7 +96,8 @@ class SourcesSerializer(serializers.ModelSerializer):
 
     def _update_authentication(self, instance, authentication):
         if instance.source_type not in ('AZURE',):
-            raise SourcesStorageError('Source is not AZURE.')
+            raise SourcesStorageError(f'Option not supported by '
+                                      f'source type {instance.source_type}.')
         auth_dict = instance.authentication
         if not auth_dict.get('credentials'):
             raise SourcesStorageError('Missing credentials key')
