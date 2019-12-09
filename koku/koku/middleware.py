@@ -48,7 +48,8 @@ def is_no_auth(request):
     no_auth_list = ['status', 'metrics', 'openapi.json',
                     'download', 'report_data', 'expired_data', 'update_charge',
                     'upload_normalized_data',
-                    'authentication', 'billing_source', 'cloud-accounts']
+                    'authentication', 'billing_source', 'cloud-accounts',
+                    'sources']
     no_auth = any(no_auth_path in request.path for no_auth_path in no_auth_list)
     return no_auth
 
