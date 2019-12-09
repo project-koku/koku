@@ -101,6 +101,32 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
     @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
     @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_execute_koku_provider_op_destroy_provider_not_found(self):
+        """Test to execute Koku Operations to sync with Sources for destruction with provider missing."""
+        source_id = 1
+        app_id = 1
+        application_type_id = 2
+        auth_header = Config.SOURCES_FAKE_HEADER
+        offset = 2
+        mock_koku_uuid = faker.uuid4()
+
+        provider = Sources(source_id=source_id, auth_header=auth_header, offset=offset, koku_uuid=mock_koku_uuid)
+        provider.save()
+
+        with requests_mock.mock() as m:
+            m.delete(f'http://www.koku.com/api/cost-management/v1/providers/{mock_koku_uuid}/',
+                     status_code=404, json={})
+            m.get('http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}'.
+                  format(application_type_id, source_id),
+                  status_code=200, json={'data': [{'id': app_id}]})
+            m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
+                    status_code=204)
+            msg = {'operation': 'destroy', 'provider': provider, 'offset': provider.offset}
+            source_integration.execute_koku_provider_op(msg, application_type_id)
+            self.assertEqual(Sources.objects.filter(source_id=source_id).exists(), False)
+
+    @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_execute_koku_provider_op_update(self):
         """Test to execute Koku Operations to sync with Sources for destruction."""
         source_id = 1
