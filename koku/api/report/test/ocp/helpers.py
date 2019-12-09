@@ -100,6 +100,11 @@ class OCPReportDataGenerator:
         manifest_entry.save()
         return manifest_entry
 
+    def set_manifest_completed(self, manifest):
+        """Update the manifest_completed_datetime column."""
+        manifest.manifest_completed_datetime = self.dh.now
+        manifest.save()
+
     def create_report_status_entry(self, billing_period_start, manifest_id):
         """Populate a report status entry."""
         etag_hasher = hashlib.new('ripemd160')
@@ -156,6 +161,7 @@ class OCPReportDataGenerator:
                     )
                     self.create_line_items(report_period, report, self.resource_id)
                     self.create_storage_line_items(report_period, report)
+                self.set_manifest_completed(manifest_entry)
 
             self._populate_daily_table()
             self._populate_daily_summary_table()
@@ -170,6 +176,8 @@ class OCPReportDataGenerator:
 
             for period in self.period_ranges:
                 self._populate_monthly_charge_info(period[0], self.node_cost, len(self.nodes))
+
+
 
     def remove_data_from_tenant(self):
         """Remove the added data."""
