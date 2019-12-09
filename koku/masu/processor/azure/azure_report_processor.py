@@ -18,6 +18,7 @@
 """Processor for Azure Cost Usage Reports."""
 
 import csv
+import json
 import logging
 from datetime import datetime
 from os import remove
@@ -167,10 +168,12 @@ class AzureReportProcessor(ReportProcessorBase):
         """
         table_name = AzureCostEntryProductService
         instance_id = row.get('InstanceId')
+        additional_info = json.loads(row.get('AdditionalInfo'))
+        instance_type = additional_info.get('ServiceType', None) if additional_info else None
         service_name = row.get('ServiceName')
         service_tier = row.get('ServiceTier')
 
-        key = (instance_id, service_name, service_tier)
+        key = (instance_id, instance_type, service_tier, service_name)
 
         if key in self.processed_report.products:
             return self.processed_report.products[key]
@@ -185,11 +188,12 @@ class AzureReportProcessor(ReportProcessorBase):
         value_set = set(data.values())
         if value_set == {''}:
             return
+        data['instance_type'] = instance_type
         data['provider_id'] = self._provider_uuid
         product_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
             data,
-            conflict_columns=['instance_id', 'service_name', 'service_tier']
+            conflict_columns=['instance_id', 'instance_type', 'service_tier', 'service_name']
         )
         self.processed_report.products[key] = product_id
         return product_id

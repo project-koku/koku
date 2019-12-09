@@ -49,7 +49,7 @@ class AzureCostEntryProductService(models.Model):
     class Meta:
         """Meta for AzureCostEntryProductService."""
 
-        unique_together = ('instance_id', 'service_name', 'service_tier')
+        unique_together = ('instance_id', 'instance_type', 'service_tier', 'service_name')
 
     instance_id = models.CharField(max_length=512, null=False)
     resource_location = models.CharField(max_length=50, null=False)
@@ -61,6 +61,7 @@ class AzureCostEntryProductService(models.Model):
     service_name = models.CharField(max_length=50, null=False)
     service_info1 = models.TextField(null=True)
     service_info2 = models.TextField(null=True)
+    instance_type = models.CharField(max_length=50, null=True)
 
     provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE, null=True)
 
