@@ -88,7 +88,8 @@ class Orchestrator():
 
         return all_accounts, polling_accounts
 
-    def get_reports(self, provider_uuid, months_list=None):
+    @staticmethod
+    def get_reports(provider_uuid):
         """
         Download cost usage reports.
 
@@ -111,7 +112,7 @@ class Orchestrator():
         current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
         for month in reversed(range(number_of_months)):
             calculated_month = current_month + relativedelta(months=-month)
-            months.append(calculated_month)
+            months.append(calculated_month.date())
 
         return months
 
@@ -128,22 +129,14 @@ class Orchestrator():
         """
         async_result = None
         for account in self._polling_accounts:
-            LOG.info(f'1 account: type: {repr(account)}')
             provider_uuid = account.get('provider_uuid')
-            LOG.info(f'2 account: type: {repr(account)}')
-            account['report_month'] = DateAccessor().today()
-            LOG.info(f'3 account: type: {repr(account)}')
-
             report_months = self.get_reports(provider_uuid)
             for month in report_months:
-                LOG.info(f'4 account: type: {repr(account)}')
                 provider_status = ProviderStatus(provider_uuid)
-
-                LOG.info(f'report_months: {str(report_months)}')
                 if provider_status.is_valid() and not provider_status.is_backing_off():
-                    LOG.info('Getting report files for account (provider uuid): %s', provider_uuid)
-                    LOG.info(f'account: {str(account)} month: {str(month)}')
-                    #account['report_month'] = DateAccessor().today()
+                    LOG.info('Getting %s report files for account (provider uuid): %s',
+                             month.strftime("%B %Y"), provider_uuid)
+                    account['report_month'] = month
                     async_result = (get_report_files.s(**account) | summarize_reports.s()).\
                         apply_async()
 
@@ -155,9 +148,9 @@ class Orchestrator():
                     labeler = AccountLabel(auth=account.get('authentication'),
                                            schema=account.get('schema_name'),
                                            provider_type=account.get('provider_type'))
-                    account, label = labeler.get_label_details()
-                    if account:
-                        LOG.info('Account: %s Label: %s updated.', account, label)
+                    account_label, label = labeler.get_label_details()
+                    if account_label:
+                        LOG.info('Account: %s Label: %s updated.', account_label, label)
                 else:
                     LOG.info('Provider skipped: %s Valid: %s Backing off: %s',
                              account.get('provider_uuid'),

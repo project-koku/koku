@@ -21,6 +21,7 @@
 # we expect this situation to be temporary as we iterate on these details.
 import datetime
 import os
+from dateutil import parser
 
 from celery.utils.log import get_task_logger
 
@@ -70,13 +71,14 @@ def get_report_files(self,
 
     """
     worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
+    month = parser.parse(report_month)
     reports = _get_report_files(self,
                                 customer_name,
                                 authentication,
                                 billing_source,
                                 provider_type,
                                 provider_uuid,
-                                report_month)
+                                month)
 
     try:
         stmt = (
