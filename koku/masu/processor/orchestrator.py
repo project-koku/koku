@@ -128,16 +128,22 @@ class Orchestrator():
         """
         async_result = None
         for account in self._polling_accounts:
-            LOG.info(f'account: {str(account)}, type: {type(account)}')
+            LOG.info(f'1 account: type: {repr(account)}')
             provider_uuid = account.get('provider_uuid')
-            provider_status = ProviderStatus(provider_uuid)
+            LOG.info(f'2 account: type: {repr(account)}')
+            account['report_month'] = DateAccessor().today()
+            LOG.info(f'3 account: type: {repr(account)}')
 
             report_months = self.get_reports(provider_uuid)
-            LOG.info(f'report_months: {str(report_months)}')
             for month in report_months:
+                LOG.info(f'4 account: type: {repr(account)}')
+                provider_status = ProviderStatus(provider_uuid)
+
+                LOG.info(f'report_months: {str(report_months)}')
                 if provider_status.is_valid() and not provider_status.is_backing_off():
                     LOG.info('Getting report files for account (provider uuid): %s', provider_uuid)
-                    account['report_month'] = month
+                    LOG.info(f'account: {str(account)} month: {str(month)}')
+                    #account['report_month'] = DateAccessor().today()
                     async_result = (get_report_files.s(**account) | summarize_reports.s()).\
                         apply_async()
 
