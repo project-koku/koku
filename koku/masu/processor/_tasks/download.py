@@ -57,7 +57,6 @@ def _get_report_files(task,
                          '/var/tmp/masu/base/aws/professor-hour-industry-television.csv']
 
     """
-
     log_statement = (f'Downloading report for:\n'
                      f' schema_name: {customer_name}\n'
                      f' provider: {provider_type}\n'

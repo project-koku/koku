@@ -21,9 +21,9 @@
 # we expect this situation to be temporary as we iterate on these details.
 import datetime
 import os
-from dateutil import parser
 
 from celery.utils.log import get_task_logger
+from dateutil import parser
 
 import masu.prometheus_stats as worker_stats
 from koku.celery import app

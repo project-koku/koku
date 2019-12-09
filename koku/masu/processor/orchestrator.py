@@ -135,7 +135,7 @@ class Orchestrator():
                 provider_status = ProviderStatus(provider_uuid)
                 if provider_status.is_valid() and not provider_status.is_backing_off():
                     LOG.info('Getting %s report files for account (provider uuid): %s',
-                             month.strftime("%B %Y"), provider_uuid)
+                             month.strftime('%B %Y'), provider_uuid)
                     account['report_month'] = month
                     async_result = (get_report_files.s(**account) | summarize_reports.s()).\
                         apply_async()
