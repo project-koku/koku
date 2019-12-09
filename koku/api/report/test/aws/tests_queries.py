@@ -265,7 +265,7 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_by_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
-        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=AmazonEC2'  # noqa: E501
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*&filter[service]=AmazonEC2'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -1237,3 +1237,85 @@ class AWSReportQueryTest(IamTestCase):
         for key in totals:
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])
+
+    def test_group_by_star_does_not_override_filters(self):
+        # Assert the first two items are of the service AmazonEC2
+        # response_starless is the response with group_by=AmazonEC2 (does not contain a *)
+        # response_star is the response for group_by=*&filter[service]=AmazonEC2 (contains a *)
+        """
+            Example of expected Response: 
+            Notice that the only region is eu-west-3
+            {'data': [{'date': '2019-11-30', 'regions': []},
+            {'date': '2019-12-01',
+            'regions': [{'region': 'eu-west-3',
+                            'services': [{'instance_types': [{'instance_type': 'r5.2xlarge',
+                                                            'values': [{'cost': {'units': 'USD',
+                                                                                'value': Decimal('2405.158832135')},
+                                                                        'count': {'units': 'instances',
+                                                                                    'value': 1},
+                                                                        'date': '2019-12-01',
+                                                                        'derived_cost': {'units': 'USD',
+                                                                                        'value': Decimal('0')},
+                                                                        'infrastructure_cost': {'units': 'USD',
+                                                                                                'value': Decimal('2186.508029214')},
+                                                                        'instance_type': 'r5.2xlarge',
+                                                                        'markup_cost': {'units': 'USD',
+                                                                                        'value': Decimal('218.650802921')},
+                                                                        'region': 'eu-west-3',
+                                                                        'service': 'AmazonEC2',
+                                                                        'usage': {'units': 'Hrs',
+                                                                                    'value': Decimal('3807.000000000')}}]}],
+                                        'service': 'AmazonEC2'}]}]},
+            {'date': '2019-12-02', 'regions': []},
+            {'date': '2019-12-03', 'regions': []},
+            {'date': '2019-12-04', 'regions': []},
+            {'date': '2019-12-05', 'regions': []},
+            {'date': '2019-12-06', 'regions': []},
+            {'date': '2019-12-07', 'regions': []},
+            {'date': '2019-12-08', 'regions': []},
+            {'date': '2019-12-09', 'regions': []}],
+
+        """
+        self.generator.add_data_to_tenant(FakeAWSCostData(self.provider), product='ec2')
+        self.generator.add_data_to_tenant(FakeAWSCostData(self.provider, region='eu-west-3'), product='ec2')
+        self.generator.add_data_to_tenant(FakeAWSCostData(self.provider, region='us-west-1'), product='ec2')
+
+        # First Request: 
+        url = '?group_by[region]=*&filter[region]=eu-west-3&group_by[service]=AmazonEC2'
+        query_params = self.mocked_query_params(url, AWSInstanceTypeView)
+        handler = AWSReportQueryHandler(query_params)
+        group_by = handler._get_group_by()
+        data = handler.execute_query()
+
+        # Second Request:
+        url2 = '?group_by[region]=eu-west-3&group_by[service]=AmazonEC2'
+        query_params2 = self.mocked_query_params(url2, AWSInstanceTypeView)
+        handler2 = AWSReportQueryHandler(query_params2)
+        group_by2 = handler2._get_group_by()
+        data2 = handler2.execute_query()
+        
+        # Assert the second request contains only eu-west-3 region
+        for region_dict in data2['data']: 
+            # For each date, assert that the region is eu-west-3
+                for list_item in region_dict['regions']:
+                    self.assertEquals('eu-west-3', list_item['region'])
+        # Assert the first request contains only eu-west-3
+        import pdb
+        pdb.set_trace()
+        for region_dict in data['data']: 
+            # For each date, assert that the region is eu-west-3
+                for list_item in region_dict['regions']:
+                    self.assertEquals('eu-west-3', list_item['region'])
+
+        # TODO: self.assertEqual(data2['data'][0], region2)
+
+        #expect ArrayIndexOutOfBounds, there should only be 1 service, AmazonEC2, and no other services should exist:
+        #self.assertRaises(ArrayIndexOutOfBounds, response.data[0].services[1])
+
+        #self.assertEqual(response.data[1].services.service, 'AmazonEC2')
+        # assert that the total cost is the same amount
+        #self.assertEqual(response_starless.meta.total.cost.value, response_star.meta.total.cost.value)
+
+        # assert that the cost for the second day is the same among the two responses
+        #self.assertEqual(response_starless.data[1].services[0].values.cost.value,
+         #   response_star.data[1].services[0].values.cost.value)
