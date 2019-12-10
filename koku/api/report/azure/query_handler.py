@@ -34,7 +34,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
     provider = 'AZURE'
 
     def __init__(self, parameters):
-        """Establish AWS report query handler.
+        """Establish Azure report query handler.
 
         Args:
             parameters    (QueryParameters): parameter object for query
