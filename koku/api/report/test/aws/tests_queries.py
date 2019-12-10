@@ -1239,7 +1239,6 @@ class AWSReportQueryTest(IamTestCase):
             self.assertEqual(result, totals[key])
 
     def test_group_by_star_does_not_override_filters(self):
-        # Assert the first two items are of the service AmazonEC2
         # response_starless is the response with group_by=AmazonEC2 (does not contain a *)
         # response_star is the response for group_by=*&filter[service]=AmazonEC2 (contains a *)
         """
@@ -1280,11 +1279,12 @@ class AWSReportQueryTest(IamTestCase):
         self.generator.add_data_to_tenant(FakeAWSCostData(self.provider, region='eu-west-3'), product='ec2')
         self.generator.add_data_to_tenant(FakeAWSCostData(self.provider, region='us-west-1'), product='ec2')
 
-        # First Request: 
+        # First Request:
         url = '?group_by[region]=*&filter[region]=eu-west-3&group_by[service]=AmazonEC2'
         query_params = self.mocked_query_params(url, AWSInstanceTypeView)
         handler = AWSReportQueryHandler(query_params)
         group_by = handler._get_group_by()
+        
         data = handler.execute_query()
 
         # Second Request:
@@ -1300,22 +1300,19 @@ class AWSReportQueryTest(IamTestCase):
                 for list_item in region_dict['regions']:
                     self.assertEquals('eu-west-3', list_item['region'])
         # Assert the first request contains only eu-west-3
-        import pdb
-        pdb.set_trace()
-        for region_dict in data['data']: 
+        for region_dict in data['data']:
             # For each date, assert that the region is eu-west-3
                 for list_item in region_dict['regions']:
                     self.assertEquals('eu-west-3', list_item['region'])
+    def test_filter_to_group_by(self):
+        """Test the filter_to_group_by method."""
+        url = '?group_by[region]=*&filter[region]=eu-west-3&group_by[service]=AmazonEC2'
+        query_params = self.mocked_query_params(url, AWSInstanceTypeView)
+        handler = AWSReportQueryHandler(query_params)
+        #query_params._parameters['group_by']['region'] = ['*']
+        #query_params._parameters['filter'][0] = ['eu-west-3']
+        query_params = handler.filter_to_order_by(query_params)
 
-        # TODO: self.assertEqual(data2['data'][0], region2)
-
-        #expect ArrayIndexOutOfBounds, there should only be 1 service, AmazonEC2, and no other services should exist:
-        #self.assertRaises(ArrayIndexOutOfBounds, response.data[0].services[1])
-
-        #self.assertEqual(response.data[1].services.service, 'AmazonEC2')
-        # assert that the total cost is the same amount
-        #self.assertEqual(response_starless.meta.total.cost.value, response_star.meta.total.cost.value)
-
-        # assert that the cost for the second day is the same among the two responses
-        #self.assertEqual(response_starless.data[1].services[0].values.cost.value,
-         #   response_star.data[1].services[0].values.cost.value)
+        self.assertEqual(['eu-west-3'], query_params._parameters['group_by']['region'])
+        
+            

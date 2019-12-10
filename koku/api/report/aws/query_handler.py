@@ -55,13 +55,15 @@ class AWSReportQueryHandler(ReportQueryHandler):
         except AttributeError:
             self._mapper = AWSProviderMap(provider=self.provider,
                                           report_type=parameters.report_type)
+        # Replace group_by[X]=* with group_by[X]=Y, only if there exists a filter[X]=Y
+        parameters = self.filter_to_order_by(parameters)
+        # get a list of all the filter[NAME]=X that also have a corresponding group_by[NAME]=*
 
         self.group_by_options = self._mapper.provider_map.get('group_by_options')
         self._limit = parameters.get_filter('limit')
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
-
     @property
     def annotations(self):
         """Create dictionary for query annotations.
@@ -234,3 +236,40 @@ class AWSReportQueryHandler(ReportQueryHandler):
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
 
         return total_query
+
+    def filter_to_order_by(self, parameters):
+        """Remove group_by[NAME]=* and replace it with group_by[NAME]=X.
+        
+        The parameters object contains a list of filters and a list of group_bys.
+        
+        For example, if the parameters object contained the following:
+        group_by[X] = Y
+        group_by[Z] = *     # removes this line
+        filter[Z] = L
+        filter[X] = Y
+
+        The returned parameters object would contain lists that look like this:
+
+        group_by[X] = Y
+        group_by[Z] = L     # adds this line
+        filter[Z] = L
+        filter[X] = Y
+        
+        Thereby removing the star when there is a filter provided.
+        
+        Args:
+            parameters (ReturnDict): The parameters object
+
+        Returns:
+            parameters (ReturnDict): The parameters object
+        """
+        #import pudb
+        # pu.db
+
+        # For every group_by[X]=*
+        # If there is a filter[X]=Y
+        # Set group_by[X]=Y
+        # For example parameters._parameters['group_by']['region'] = ['eu-west-3']
+        
+        return parameters
+
