@@ -91,13 +91,13 @@ class Orchestrator():
     @staticmethod
     def get_reports(provider_uuid):
         """
-        Download cost usage reports.
+        Get months for provider to process.
 
         Args:
-            (Int) Number of monthly reports to download.
+            (String) provider uuid to determine if initial setup is complete.
 
         Returns:
-            (List) List of filenames downloaded.
+            (List) List of datetime objects.
 
         """
         with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:

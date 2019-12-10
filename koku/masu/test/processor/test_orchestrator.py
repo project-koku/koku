@@ -23,6 +23,7 @@ from unittest.mock import patch
 
 import faker
 
+from masu.config import Config
 from masu.external import AMAZON_WEB_SERVICES, AZURE, OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.accounts_accessor import AccountsAccessor, AccountsAccessorError
 from masu.processor.expired_data_remover import ExpiredDataRemover
@@ -221,3 +222,31 @@ class OrchestratorTest(MasuTestCase):
         orchestrator = Orchestrator()
         orchestrator.prepare()
         mock_task.assert_not_called()
+
+    @patch(
+        'masu.database.provider_db_accessor.ProviderDBAccessor.get_setup_complete'
+    )
+    def test_get_reports(self, fake_accessor):
+        """Test get_reports for combinations of setup_complete and ingest override."""
+        initial_month_qty = Config.INITIAL_INGEST_NUM_MONTHS
+        test_matrix = [{'get_setup_complete': True, 'ingest_override': True, 'test_months': 5,
+                        'expected_month_length': 5},
+                       {'get_setup_complete': False, 'ingest_override': True, 'test_months': 5,
+                        'expected_month_length': 5},
+                       {'get_setup_complete': True, 'ingest_override': False, 'test_months': 5,
+                        'expected_month_length': 2},
+                       {'get_setup_complete': False, 'ingest_override': False, 'test_months': 5,
+                        'expected_month_length': 5}
+                       ]
+        for test in test_matrix:
+            test_months = test.get('test_months')
+            fake_accessor.return_value = test.get('get_setup_complete')
+            Config.INGEST_OVERRIDE = test.get('ingest_override')
+            Config.INITIAL_INGEST_NUM_MONTHS = test_months
+
+            orchestrator = Orchestrator()
+            months = orchestrator.get_reports(self.aws_provider_uuid)
+            self.assertEqual(test.get('expected_month_length'), len(months))
+
+        Config.INGEST_OVERRIDE = False
+        Config.INITIAL_INGEST_NUM_MONTHS = initial_month_qty
