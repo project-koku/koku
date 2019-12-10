@@ -6,7 +6,7 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | s
                 subscription_guid, -- account ID
                 p.resource_location AS resource_location, -- region
                 p.service_name AS service_name, -- service
-                p.additional_info->>'ServiceType' as instance_type, -- VM type
+                p.instance_type AS instance_type, -- VM type
                 sum(usage_quantity) AS usage_quantity,
                 m.unit_of_measure,
                 sum(pretax_cost) AS pretax_cost,
@@ -37,7 +37,7 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | s
         li.subscription_guid,
         p.resource_location,
         li.meter_id,
-        p.additional_info->>'ServiceType',
+        p.instance_type,
         p.service_name, -- service
         m.currency,
         m.unit_of_measure

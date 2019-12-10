@@ -40,6 +40,7 @@ jinjasql = "*"
 ciso8601 = "==2.1.2"
 pandas = "~=0.25.1"
 sentry-sdk = "~=0.13.2"
+ujson = "*"
 
 [dev-packages]
 astroid = "==2.3.2"

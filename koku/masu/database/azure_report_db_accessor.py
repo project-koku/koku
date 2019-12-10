@@ -70,11 +70,11 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         """Make a mapping of product objects."""
         table_name = AzureCostEntryProductService
         with schema_context(self.schema):
-            columns = ['id', 'instance_id', 'service_name', 'service_tier']
+            columns = ['id', 'instance_id', 'instance_type', 'service_name', 'service_tier']
             products = self._get_db_obj_query(table_name, columns=columns).all()
 
-            return {(product['instance_id'], product['service_name'],
-                     product['service_tier']): product['id']
+            return {(product['instance_id'], product['instance_type'], product['service_tier'],
+                     product['service_name']): product['id']
                     for product in products}
 
     def get_meters(self):

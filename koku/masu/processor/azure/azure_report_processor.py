@@ -23,6 +23,7 @@ from datetime import datetime
 from os import remove
 
 import pytz
+import ujson as json
 from dateutil import parser
 from django.conf import settings
 
@@ -167,10 +168,18 @@ class AzureReportProcessor(ReportProcessorBase):
         """
         table_name = AzureCostEntryProductService
         instance_id = row.get('InstanceId')
+        additional_info = row.get('AdditionalInfo')
         service_name = row.get('ServiceName')
         service_tier = row.get('ServiceTier')
 
-        key = (instance_id, service_name, service_tier)
+        decoded_info = None
+        if additional_info:
+            decoded_info = json.loads(additional_info)
+        instance_type = None
+        if decoded_info:
+            instance_type = decoded_info.get('ServiceType', None)
+
+        key = (instance_id, instance_type, service_tier, service_name)
 
         if key in self.processed_report.products:
             return self.processed_report.products[key]
@@ -185,11 +194,12 @@ class AzureReportProcessor(ReportProcessorBase):
         value_set = set(data.values())
         if value_set == {''}:
             return
+        data['instance_type'] = instance_type
         data['provider_id'] = self._provider_uuid
         product_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
             data,
-            conflict_columns=['instance_id', 'service_name', 'service_tier']
+            conflict_columns=['instance_id', 'instance_type', 'service_tier', 'service_name']
         )
         self.processed_report.products[key] = product_id
         return product_id
