@@ -186,7 +186,7 @@ def enqueue_source_update(source_id):
             source.pending_update = True
             source.save(update_fields=['pending_update'])
     except Sources.DoesNotExist:
-        LOG.error('Unable to enqueue source delete.  %s not found.', str(source_id))
+        LOG.error('Unable to enqueue source update.  %s not found.', str(source_id))
 
 
 def clear_update_flag(source_id):
@@ -206,7 +206,7 @@ def clear_update_flag(source_id):
             source.pending_update = False
             source.save()
     except Sources.DoesNotExist:
-        LOG.error('Unable to enqueue source delete.  %s not found.', str(source_id))
+        LOG.error('Unable to clear update flag.  %s not found.', str(source_id))
 
 
 def create_provider_event(source_id, auth_header, offset):
