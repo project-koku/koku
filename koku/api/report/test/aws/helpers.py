@@ -26,6 +26,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.report.test import FakeAWSCostData
 from api.utils import DateHelper
+from masu.processor.tasks import refresh_materialized_views
 from reporting.models import (
     AWSAccountAlias,
     AWSCostEntry,
@@ -36,7 +37,6 @@ from reporting.models import (
     AWSCostEntryPricing,
     AWSCostEntryProduct,
 )
-from masu.processor.tasks import refresh_materialized_views
 
 
 class AWSReportDataGenerator(object):

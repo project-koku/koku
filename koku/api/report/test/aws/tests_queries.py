@@ -16,7 +16,7 @@
 #
 """Test the Report Queries."""
 import copy
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
 from unittest.mock import PropertyMock, patch
