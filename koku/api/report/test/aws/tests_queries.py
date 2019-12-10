@@ -16,12 +16,12 @@
 #
 """Test the Report Queries."""
 import copy
-from collections import OrderedDict
+from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
 from decimal import Decimal
 from unittest.mock import PropertyMock, patch
 
-from django.db.models import F, Sum
+from django.db.models import Count, F, Sum
 from django.urls import reverse
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
@@ -36,7 +36,7 @@ from api.report.test.aws.helpers import AWSReportDataGenerator
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
-from reporting.models import AWSCostEntryLineItemDailySummary, AWSCostEntryProduct
+from reporting.models import AWSCostEntryLineItemDaily, AWSCostEntryLineItemDailySummary, AWSCostEntryProduct
 
 
 class AWSReportQueryTest(IamTestCase):
@@ -372,7 +372,7 @@ class AWSReportQueryTest(IamTestCase):
         with tenant_context(self.tenant):
             instance_type = AWSCostEntryProduct.objects.first().instance_type
 
-        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[instance_type]=*'  # noqa: E501
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[instance_type]=*'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSInstanceTypeView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -384,12 +384,23 @@ class AWSReportQueryTest(IamTestCase):
         self.assertIsNotNone(total.get('count'))
         self.assertEqual(total.get('count', {}).get('value'), 24)
 
+        annotations = {
+            'date': F('usage_start'),
+            'count': Count('resource_id', distinct=True)
+        }
+
+        expected_counts = AWSCostEntryLineItemDaily.objects.values(**annotations)
+        count_dict = defaultdict(int)
+        for item in expected_counts:
+            count_dict[str(item['date'].date())] += item['count']
+
         for data_item in data:
             instance_types = data_item.get('instance_types')
+            expected_count = count_dict.get(data_item.get('date'))
             for it in instance_types:
                 if it['instance_type'] == instance_type:
                     actual_count = it['values'][0].get('count', {}).get('value')
-                    self.assertEqual(actual_count, 1)
+                    self.assertEqual(actual_count, expected_count)
 
     def test_execute_query_curr_month_by_account_w_limit(self):
         """Test execute_query for current month on monthly breakdown by account with limit."""

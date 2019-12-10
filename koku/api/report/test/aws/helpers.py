@@ -36,6 +36,7 @@ from reporting.models import (
     AWSCostEntryPricing,
     AWSCostEntryProduct,
 )
+from masu.processor.tasks import refresh_materialized_views
 
 
 class AWSReportDataGenerator(object):
@@ -207,3 +208,4 @@ class AWSReportDataGenerator(object):
             self._populate_daily_table()
             self._populate_daily_summary_table()
             self._populate_tag_summary_table()
+            refresh_materialized_views(self.tenant.schema_name, 'AWS')
