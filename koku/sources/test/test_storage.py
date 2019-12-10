@@ -16,6 +16,8 @@
 #
 
 """Test the Sources Storage access layer."""
+from base64 import b64decode
+from json import loads as json_loads
 
 from django.test import TestCase
 from faker import Faker
@@ -31,7 +33,8 @@ faker = Faker()
 class MockProvider:
     """Mock Provider Class."""
 
-    def __init__(self, source_id, name, source_type, auth, billing_source, auth_header, offset, koku_uuid=None):
+    def __init__(self, source_id, name, source_type, auth, billing_source, auth_header, offset,
+                 pending_delete, koku_uuid=None):
         """Init mock provider."""
         self.source_id = source_id
         self.name = name
@@ -40,6 +43,7 @@ class MockProvider:
         self.billing_source = billing_source
         self.auth_header = auth_header
         self.offset = offset
+        self.pending_delete = pending_delete
         self.koku_uuid = koku_uuid
 
 
@@ -54,6 +58,10 @@ class SourcesStorageTest(TestCase):
         self.test_obj = Sources(source_id=self.test_source_id,
                                 auth_header=self.test_header,
                                 offset=self.test_offset)
+        decoded_rh_auth = b64decode(self.test_header)
+        json_rh_auth = json_loads(decoded_rh_auth)
+        self.account_id = json_rh_auth.get('identity', {}).get('account_number')
+
         self.test_obj.save()
 
     def test_is_known_source(self):
@@ -70,6 +78,15 @@ class SourcesStorageTest(TestCase):
         self.assertEqual(db_obj.source_id, test_source_id)
         self.assertEqual(db_obj.auth_header, Config.SOURCES_FAKE_HEADER)
         self.assertEqual(db_obj.offset, test_offset)
+        self.assertEqual(db_obj.account_id, self.account_id)
+
+    def test_create_provider_event_invalid_auth_header(self):
+        """Tests creating a source db record with invalid auth_header."""
+        test_source_id = 2
+        test_offset = 3
+        storage.create_provider_event(test_source_id, 'bad', test_offset)
+        with self.assertRaises(Sources.DoesNotExist):
+            Sources.objects.get(source_id=test_source_id)
 
     def test_destroy_provider_event(self):
         """Tests that a source can be destroyed."""
@@ -159,22 +176,27 @@ class SourcesStorageTest(TestCase):
         test_matrix = [{'provider': MockProvider(1, 'AWS Provider', 'AWS',
                                                  {'resource_name': 'arn:fake'},
                                                  {'bucket': 'testbucket'},
-                                                 'authheader', 1),
+                                                 'authheader', 1, False),
                         'expected_response': {'operation': 'create', 'offset': 1}},
                        {'provider': MockProvider(1, 'AWS Provider', 'AWS',
                                                  {'resource_name': 'arn:fake'},
                                                  None,
-                                                 'authheader', 1),
+                                                 'authheader', 1, False),
                         'expected_response': {}},
                        {'provider': MockProvider(2, 'OCP Provider', 'OCP',
                                                  {'resource_name': 'my-cluster-id'},
                                                  {'bucket': ''},
-                                                 'authheader', 2),
+                                                 'authheader', 2, False),
                         'expected_response': {'operation': 'create', 'offset': 2}},
+                       {'provider': MockProvider(2, 'OCP Provider', 'OCP',
+                                                 {'resource_name': 'my-cluster-id'},
+                                                 {'bucket': ''},
+                                                 'authheader', 2, True),
+                        'expected_response': {}},
                        {'provider': MockProvider(2, None, 'OCP',
                                                  {'resource_name': 'my-cluster-id'},
                                                  {'bucket': ''},
-                                                 'authheader', 2),
+                                                 'authheader', 2, False),
                         'expected_response': {}},
                        {'provider': MockProvider(3, 'Azure Provider', 'AZURE',
                                                  {'credentials': {'client_id': 'test_client_id',
@@ -183,7 +205,7 @@ class SourcesStorageTest(TestCase):
                                                                   'subscription_id': 'test_subscription_id'}},
                                                  {'data_source': {'resource_group': 'test_resource_group',
                                                                   'storage_account': 'test_storage_account'}},
-                                                 'authheader', 3),
+                                                 'authheader', 3, False),
                         'expected_response': {'operation': 'create', 'offset': 3}}
                        ]
 
@@ -406,18 +428,42 @@ class SourcesStorageTest(TestCase):
         response = Sources.objects.get(source_id=test_source_id)
         self.assertTrue(response.pending_delete)
 
+    def test_enqueue_source_delete_in_pending(self):
+        """Test for enqueuing source delete while pending delete."""
+        test_source_id = 3
+        aws_obj = Sources(source_id=test_source_id,
+                          auth_header=self.test_header,
+                          offset=3,
+                          endpoint_id=4,
+                          source_type='AWS',
+                          name='Test AWS Source',
+                          billing_source={'bucket': 'test-bucket'},
+                          pending_delete=True)
+        aws_obj.save()
+
+        storage.enqueue_source_delete(test_source_id)
+        response = Sources.objects.get(source_id=test_source_id)
+        self.assertTrue(response.pending_delete)
+
     def test_enqueue_source_update(self):
         """Test for enqueuing source updating."""
-        test_matrix = [{'koku_uuid': None, 'pending_delete': False, 'expected_pending_update': False},
-                       {'koku_uuid': None, 'pending_delete': True, 'expected_pending_update': False},
-                       {'koku_uuid': faker.uuid4(), 'pending_delete': True, 'expected_pending_update': False},
-                       {'koku_uuid': faker.uuid4(), 'pending_delete': False, 'expected_pending_update': True}]
+        test_matrix = [{'koku_uuid': None, 'pending_delete': False, 'pending_update': False,
+                        'expected_pending_update': False},
+                       {'koku_uuid': None, 'pending_delete': True, 'pending_update': False,
+                        'expected_pending_update': False},
+                       {'koku_uuid': faker.uuid4(), 'pending_delete': True, 'pending_update': False,
+                        'expected_pending_update': False},
+                       {'koku_uuid': faker.uuid4(), 'pending_delete': False, 'pending_update': False,
+                        'expected_pending_update': True},
+                       {'koku_uuid': faker.uuid4(), 'pending_delete': False, 'pending_update': True,
+                        'expected_pending_update': True}]
         test_source_id = 3
         for test in test_matrix:
             aws_obj = Sources(source_id=test_source_id,
                               auth_header=self.test_header,
                               koku_uuid=test.get('koku_uuid'),
                               pending_delete=test.get('pending_delete'),
+                              pending_update=test.get('pending_update'),
                               offset=3,
                               endpoint_id=4,
                               source_type='AWS',
