@@ -83,7 +83,7 @@ class GetReportFileTests(MasuTestCase):
             customer_name=self.fake.word(),
             authentication=account,
             provider_type='AWS',
-            report_month=str(DateAccessor().today()),
+            report_month=DateAccessor().today(),
             provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
         )
@@ -105,7 +105,7 @@ class GetReportFileTests(MasuTestCase):
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
-                report_month=str(DateAccessor().today()),
+                report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
             )
@@ -135,7 +135,7 @@ class GetReportFileTests(MasuTestCase):
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
-                report_month=str(DateAccessor().today()),
+                report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
             )
@@ -155,7 +155,7 @@ class GetReportFileTests(MasuTestCase):
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
-                report_month=str(DateAccessor().today()),
+                report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
             )
@@ -175,7 +175,7 @@ class GetReportFileTests(MasuTestCase):
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
-                report_month=str(DateAccessor().today()),
+                report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
             )
@@ -194,7 +194,7 @@ class GetReportFileTests(MasuTestCase):
             customer_name=self.fake.word(),
             authentication=account,
             provider_type='AWS',
-            report_month=str(DateAccessor().today()),
+            report_month=DateAccessor().today(),
             provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
         )

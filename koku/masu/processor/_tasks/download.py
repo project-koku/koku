@@ -49,7 +49,7 @@ def _get_report_files(task,
         report_source     (String): Location of the cost usage report in the backend provider.
         provider_type     (String): Koku defined provider type string.  Example: Amazon = 'AWS'
         provider_uuid     (String): Provider uuid.
-        report_month      (String): Month for report to download.
+        report_month      (DateTime): Month for report to download.
 
     Returns:
         files (List) List of filenames with full local path.
