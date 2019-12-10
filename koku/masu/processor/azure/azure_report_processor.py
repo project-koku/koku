@@ -168,8 +168,8 @@ class AzureReportProcessor(ReportProcessorBase):
         """
         table_name = AzureCostEntryProductService
         instance_id = row.get('InstanceId')
-        additional_info = json.loads(row.get('AdditionalInfo'))
-        instance_type = additional_info.get('ServiceType', None) if additional_info else None
+        additional_info = row.get('AdditionalInfo')
+        instance_type = json.loads(additional_info).get('ServiceType', None) if additional_info else None
         service_name = row.get('ServiceName')
         service_tier = row.get('ServiceTier')
 

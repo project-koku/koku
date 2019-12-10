@@ -211,6 +211,7 @@ class AzureReportProcessorTest(MasuTestCase):
         # Wipe stale data
         with schema_context(self.schema):
             self.accessor._get_db_obj_query(AZURE_REPORT_TABLE_MAP['line_item']).delete()
+            # self.accessor._get_db_obj_query(AZURE_REPORT_TABLE_MAP['product']).delete()
 
         shutil.copy2(self.test_report_path, self.test_report)
 
@@ -224,10 +225,11 @@ class AzureReportProcessorTest(MasuTestCase):
         processor.process()
 
         for table_name in self.report_tables:
-            table = getattr(report_schema, table_name)
-            with schema_context(self.schema):
-                count = table.objects.count()
-            self.assertTrue(count == counts[table_name])
+            with self.subTest(table_name=table_name):
+                table = getattr(report_schema, table_name)
+                with schema_context(self.schema):
+                    count = table.objects.count()
+                self.assertTrue(count == counts[table_name])
 
     def test_azure_process_can_run_twice(self):
         """Test that row duplicates are inserted into the DB when process called twice."""
