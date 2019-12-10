@@ -16,6 +16,7 @@
 #
 
 """Custom Koku Middleware."""
+import binascii
 import logging
 from json.decoder import JSONDecodeError
 
@@ -48,7 +49,8 @@ def is_no_auth(request):
     no_auth_list = ['status', 'metrics', 'openapi.json',
                     'download', 'report_data', 'expired_data', 'update_charge',
                     'upload_normalized_data',
-                    'authentication', 'billing_source', 'cloud-accounts']
+                    'authentication', 'billing_source', 'cloud-accounts',
+                    'sources']
     no_auth = any(no_auth_path in request.path for no_auth_path in no_auth_list)
     return no_auth
 
@@ -197,6 +199,9 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         except (KeyError, JSONDecodeError):
             logger.warning('Could not obtain identity on request.')
             return
+        except binascii.Error as error:
+            logger.error('Error decoding authentication header: %s', str(error))
+            raise PermissionDenied()
         if (username and email and account):
             # Check for customer creation & user creation
             query_string = ''

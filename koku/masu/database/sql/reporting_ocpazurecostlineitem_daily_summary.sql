@@ -1,7 +1,7 @@
 -- We use a LATERAL JOIN here to get the JSON tags split out into key, value
 -- columns. We reference this split multiple times so we put it in a
 -- TEMPORARY TABLE for re-use
-CREATE TEMPORARY TABLE reporting_azure_tags AS (
+CREATE TEMPORARY TABLE reporting_azure_tags_{{uuid | sqlsafe}} AS (
     SELECT azure.*,
         LOWER(key) as key,
         LOWER(value) as value
@@ -23,7 +23,7 @@ CREATE TEMPORARY TABLE reporting_azure_tags AS (
 -- We use a LATERAL JOIN here to get the JSON tags split out into key, value
 -- columns. We reference this split multiple times so we put it in a
 -- TEMPORARY TABLE for re-use
-CREATE TEMPORARY TABLE reporting_ocp_storage_tags AS (
+CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
     SELECT ocp.*,
         LOWER(key) as key,
         LOWER(value) as value
@@ -55,7 +55,7 @@ CREATE TEMPORARY TABLE reporting_ocp_storage_tags AS (
 -- We use a LATERAL JOIN here to get the JSON tags split out into key, value
 -- columns. We reference this split multiple times so we put it in a
 -- TEMPORARY TABLE for re-use
-CREATE TEMPORARY TABLE reporting_ocp_pod_tags AS (
+CREATE TEMPORARY TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
     SELECT ocp.*,
         LOWER(key) as key,
         LOWER(value) as value
@@ -72,7 +72,7 @@ CREATE TEMPORARY TABLE reporting_ocp_pod_tags AS (
 
 -- First we match OCP pod data to Azure data using a direct
 -- resource id match. This usually means OCP node -> Azure Virutal Machine.
-CREATE TEMPORARY TABLE reporting_ocp_azure_resource_id_matched AS (
+CREATE TEMPORARY TABLE reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}} AS (
     WITH cte_resource_id_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
@@ -156,7 +156,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_resource_id_matched AS (
 
 -- Next we match where the azure tag is the special openshift_project key
 -- and the value matches an OpenShift project name
-CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_project_tag_matched AS (
+CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_project_tag_matched_{{uuid | sqlsafe}} AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
@@ -187,12 +187,12 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_project_tag_matched AS (
             azure.pretax_cost,
             azure.offer_id,
             azure.tags
-        FROM reporting_azure_tags as azure
-        JOIN reporting_ocp_pod_tags as ocp
+        FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
+        JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
             ON azure.key = 'openshift_project' AND azure.value = lower(ocp.namespace)
                 AND date(azure.usage_date_time) = date(ocp.usage_start)
         -- ANTI JOIN to remove rows that already matched
-        LEFT JOIN reporting_ocp_azure_resource_id_matched AS rm
+        LEFT JOIN reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.azure_id = azure.id
         WHERE date(azure.usage_date_time) >= {{start_date}}
             AND date(azure.usage_date_time) <= {{end_date}}
@@ -224,7 +224,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_project_tag_matched AS (
 
 -- Next we match where the azure tag is the special openshift_node key
 -- and the value matches an OpenShift node name
-CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_node_tag_matched AS (
+CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_node_tag_matched_{{uuid | sqlsafe}} AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
@@ -255,14 +255,14 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_node_tag_matched AS (
             azure.pretax_cost,
             azure.offer_id,
             azure.tags
-        FROM reporting_azure_tags as azure
-        JOIN reporting_ocp_pod_tags as ocp
+        FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
+        JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
             ON azure.key = 'openshift_node' AND azure.value = lower(ocp.node)
                 AND date(azure.usage_date_time) = date(ocp.usage_start)
         -- ANTI JOIN to remove rows that already matched
-        LEFT JOIN reporting_ocp_azure_resource_id_matched AS rm
+        LEFT JOIN reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_openshift_project_tag_matched as ptm
+        LEFT JOIN reporting_ocp_azure_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
             ON ptm.azure_id = azure.id
         WHERE date(azure.usage_date_time) >= {{start_date}}
             AND date(azure.usage_date_time) <= {{end_date}}
@@ -295,7 +295,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_node_tag_matched AS (
 
 -- Next we match where the azure tag is the special openshift_cluster key
 -- and the value matches an OpenShift cluster name
-CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_cluster_tag_matched AS (
+CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_cluster_tag_matched_{{uuid | sqlsafe}} AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
@@ -326,17 +326,17 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_cluster_tag_matched AS (
             azure.pretax_cost,
             azure.offer_id,
             azure.tags
-        FROM reporting_azure_tags as azure
-        JOIN reporting_ocp_pod_tags as ocp
+        FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
+        JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
             ON (azure.key = 'openshift_cluster' AND azure.value = ocp.cluster_id
                 OR azure.key = 'openshift_cluster' AND azure.value = ocp.cluster_alias)
                 AND date(azure.usage_date_time) = date(ocp.usage_start)
         -- ANTI JOIN to remove rows that already matched
-        LEFT JOIN reporting_ocp_azure_resource_id_matched AS rm
+        LEFT JOIN reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_openshift_project_tag_matched as ptm
+        LEFT JOIN reporting_ocp_azure_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
             ON ptm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_openshift_node_tag_matched as ntm
+        LEFT JOIN reporting_ocp_azure_openshift_node_tag_matched_{{uuid | sqlsafe}} as ntm
             ON ntm.azure_id = azure.id
         WHERE date(azure.usage_date_time) >= {{start_date}}
             AND date(azure.usage_date_time) <= {{end_date}}
@@ -370,7 +370,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_cluster_tag_matched AS (
 
 -- Next we match where the pod label key and value
 -- and Azure tag key and value match directly
-CREATE TEMPORARY TABLE reporting_ocp_azure_direct_tag_matched AS (
+CREATE TEMPORARY TABLE reporting_ocp_azure_direct_tag_matched_{{uuid | sqlsafe}} AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
@@ -401,19 +401,19 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_direct_tag_matched AS (
             azure.pretax_cost,
             azure.offer_id,
             azure.tags
-        FROM reporting_azure_tags as azure
-        JOIN reporting_ocp_pod_tags as ocp
+        FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
+        JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
             ON azure.key = ocp.key
                 AND azure.value = ocp.value
                 AND date(azure.usage_date_time) = date(ocp.usage_start)
         -- ANTI JOIN to remove rows that already matched
-        LEFT JOIN reporting_ocp_azure_resource_id_matched AS rm
+        LEFT JOIN reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_openshift_project_tag_matched as ptm
+        LEFT JOIN reporting_ocp_azure_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
             ON ptm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_openshift_node_tag_matched as ntm
+        LEFT JOIN reporting_ocp_azure_openshift_node_tag_matched_{{uuid | sqlsafe}} as ntm
             ON ntm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_openshift_cluster_tag_matched AS ctm
+        LEFT JOIN reporting_ocp_azure_openshift_cluster_tag_matched_{{uuid | sqlsafe}} AS ctm
             ON ctm.azure_id = azure.id
         WHERE date(azure.usage_date_time) >= {{start_date}}
             AND date(azure.usage_date_time) <= {{end_date}}
@@ -450,32 +450,32 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_direct_tag_matched AS (
 -- OpenShift pod data matches for easier use.
 CREATE TEMPORARY TABLE reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS (
     SELECT *
-    FROM reporting_ocp_azure_resource_id_matched
+    FROM reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}}
 
     UNION
 
     SELECT *
-    FROM reporting_ocp_azure_openshift_project_tag_matched
+    FROM reporting_ocp_azure_openshift_project_tag_matched_{{uuid | sqlsafe}}
 
     UNION
 
     SELECT *
-    FROM reporting_ocp_azure_openshift_node_tag_matched
+    FROM reporting_ocp_azure_openshift_node_tag_matched_{{uuid | sqlsafe}}
 
     UNION
 
     SELECT *
-    FROM reporting_ocp_azure_openshift_cluster_tag_matched
+    FROM reporting_ocp_azure_openshift_cluster_tag_matched_{{uuid | sqlsafe}}
 
     UNION
 
     SELECT *
-    FROM reporting_ocp_azure_direct_tag_matched
+    FROM reporting_ocp_azure_direct_tag_matched_{{uuid | sqlsafe}}
 );
 
 -- First we match OCP storage data to Azure data using a direct
 -- resource id match. OCP PVC name -> Azure instance ID.
-CREATE TEMPORARY TABLE reporting_ocp_azure_storage_resource_id_matched AS (
+CREATE TEMPORARY TABLE reporting_ocp_azure_storage_resource_id_matched_{{uuid | sqlsafe}} AS (
     WITH cte_resource_id_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
@@ -552,7 +552,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_resource_id_matched AS (
 
 -- Then we match where the azure tag is the special openshift_project key
 -- and the value matches an OpenShift project name
-CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_project_tag_matched AS (
+CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_project_tag_matched_{{uuid | sqlsafe}} AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
@@ -580,11 +580,11 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_project_tag_matched
             azure.pretax_cost,
             azure.offer_id,
             azure.tags
-        FROM reporting_azure_tags as azure
-        JOIN reporting_ocp_storage_tags as ocp
+        FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
+        JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
             ON azure.key = 'openshift_project' AND azure.value = ocp.namespace
                 AND date(azure.usage_date_time) = date(ocp.usage_start)
-        LEFT JOIN reporting_ocp_azure_storage_resource_id_matched AS rm
+        LEFT JOIN reporting_ocp_azure_storage_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.azure_id = azure.id
         WHERE date(azure.usage_date_time) >= {{start_date}}
             AND date(azure.usage_date_time) <= {{end_date}}
@@ -617,7 +617,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_project_tag_matched
 
 -- Next we match where the azure tag is the special openshift_node key
 -- and the value matches an OpenShift node name
-CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_node_tag_matched AS (
+CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_node_tag_matched_{{uuid | sqlsafe}} AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
@@ -645,14 +645,14 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_node_tag_matched AS
             azure.pretax_cost,
             azure.offer_id,
             azure.tags
-        FROM reporting_azure_tags as azure
-        JOIN reporting_ocp_storage_tags as ocp
+        FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
+        JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
             ON azure.key = 'openshift_node' AND azure.value = ocp.node
                 AND date(azure.usage_date_time) = date(ocp.usage_start)
         -- ANTI JOIN to remove rows that already matched
-        LEFT JOIN reporting_ocp_azure_storage_resource_id_matched AS rm
+        LEFT JOIN reporting_ocp_azure_storage_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_storage_openshift_project_tag_matched as ptm
+        LEFT JOIN reporting_ocp_azure_storage_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
             ON ptm.azure_id = azure.id
         WHERE date(azure.usage_date_time) >= {{start_date}}
             AND date(azure.usage_date_time) <= {{end_date}}
@@ -685,7 +685,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_node_tag_matched AS
 
 -- Next we match where the azure tag is the special openshift_cluster key
 -- and the value matches an OpenShift cluster name
-CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_cluster_tag_matched AS (
+CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_cluster_tag_matched_{{uuid | sqlsafe}} AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
@@ -713,17 +713,17 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_cluster_tag_matched
             azure.pretax_cost,
             azure.offer_id,
             azure.tags
-        FROM reporting_azure_tags as azure
-        JOIN reporting_ocp_storage_tags as ocp
+        FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
+        JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
             ON (azure.key = 'openshift_cluster' AND azure.value = ocp.cluster_id
                 OR azure.key = 'openshift_cluster' AND azure.value = ocp.cluster_alias)
                 AND date(azure.usage_date_time) = date(ocp.usage_start)
         -- ANTI JOIN to remove rows that already matched
-        LEFT JOIN reporting_ocp_azure_storage_resource_id_matched AS rm
+        LEFT JOIN reporting_ocp_azure_storage_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_storage_openshift_project_tag_matched as ptm
+        LEFT JOIN reporting_ocp_azure_storage_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
             ON ptm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_storage_openshift_node_tag_matched as ntm
+        LEFT JOIN reporting_ocp_azure_storage_openshift_node_tag_matched_{{uuid | sqlsafe}} as ntm
             ON ntm.azure_id = azure.id
         WHERE date(azure.usage_date_time) >= {{start_date}}
             AND date(azure.usage_date_time) <= {{end_date}}
@@ -757,7 +757,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_cluster_tag_matched
 
 -- Then we match for OpenShift volume data where the volume label key and value
 -- and azure tag key and value match directly
-CREATE TEMPORARY TABLE reporting_ocp_azure_storage_direct_tag_matched AS (
+CREATE TEMPORARY TABLE reporting_ocp_azure_storage_direct_tag_matched_{{uuid | sqlsafe}} AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
             ocp.report_period_id,
@@ -785,8 +785,8 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_direct_tag_matched AS (
             azure.pretax_cost,
             azure.offer_id,
             azure.tags
-        FROM reporting_azure_tags as azure
-        JOIN reporting_ocp_storage_tags as ocp
+        FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
+        JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
             ON (
                     (
                         azure.key = ocp.key
@@ -800,13 +800,13 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_direct_tag_matched AS (
             )
                 AND date(azure.usage_date_time) = date(ocp.usage_start)
         -- ANTI JOIN to remove rows that already matched
-        LEFT JOIN reporting_ocp_azure_storage_resource_id_matched AS rm
+        LEFT JOIN reporting_ocp_azure_storage_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_storage_openshift_project_tag_matched as ptm
+        LEFT JOIN reporting_ocp_azure_storage_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
             ON ptm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_storage_openshift_node_tag_matched as ntm
+        LEFT JOIN reporting_ocp_azure_storage_openshift_node_tag_matched_{{uuid | sqlsafe}} as ntm
             ON ntm.azure_id = azure.id
-        LEFT JOIN reporting_ocp_azure_storage_openshift_cluster_tag_matched AS ctm
+        LEFT JOIN reporting_ocp_azure_storage_openshift_cluster_tag_matched_{{uuid | sqlsafe}} AS ctm
             ON ctm.azure_id = azure.id
         WHERE date(azure.usage_date_time) >= {{start_date}}
             AND date(azure.usage_date_time) <= {{end_date}}
@@ -843,27 +843,27 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_direct_tag_matched AS (
 -- OpenShift volume data matches for easier use.
 CREATE TEMPORARY TABLE reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS (
     SELECT *
-    FROM reporting_ocp_azure_storage_resource_id_matched
+    FROM reporting_ocp_azure_storage_resource_id_matched_{{uuid | sqlsafe}}
 
     UNION
 
     SELECT *
-    FROM reporting_ocp_azure_storage_openshift_project_tag_matched
+    FROM reporting_ocp_azure_storage_openshift_project_tag_matched_{{uuid | sqlsafe}}
 
     UNION
 
     SELECT *
-    FROM reporting_ocp_azure_storage_openshift_node_tag_matched
+    FROM reporting_ocp_azure_storage_openshift_node_tag_matched_{{uuid | sqlsafe}}
 
     UNION
 
     SELECT *
-    FROM reporting_ocp_azure_storage_openshift_cluster_tag_matched
+    FROM reporting_ocp_azure_storage_openshift_cluster_tag_matched_{{uuid | sqlsafe}}
 
     UNION
 
     SELECT *
-    FROM reporting_ocp_azure_storage_direct_tag_matched
+    FROM reporting_ocp_azure_storage_direct_tag_matched_{{uuid | sqlsafe}}
 );
 
 -- The full summary data for Openshift pod<->azure and
