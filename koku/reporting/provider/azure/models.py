@@ -51,17 +51,17 @@ class AzureCostEntryProductService(models.Model):
 
         unique_together = ('instance_id', 'instance_type', 'service_tier', 'service_name')
 
-    instance_id = models.CharField(max_length=512, null=False)
-    resource_location = models.CharField(max_length=50, null=False)
-    consumed_service = models.CharField(max_length=50, null=False)
-    resource_type = models.CharField(max_length=50, null=False)
-    resource_group = models.CharField(max_length=50, null=False)
+    instance_id = models.TextField(max_length=512, null=False)
+    resource_location = models.TextField(null=False)
+    consumed_service = models.TextField(null=False)
+    resource_type = models.TextField(null=False)
+    resource_group = models.TextField(null=False)
     additional_info = JSONField(null=True)
-    service_tier = models.CharField(max_length=50, null=False)
-    service_name = models.CharField(max_length=50, null=False)
+    service_tier = models.TextField(null=False)
+    service_name = models.TextField(null=False)
     service_info1 = models.TextField(null=True)
     service_info2 = models.TextField(null=True)
-    instance_type = models.CharField(max_length=50, null=True)
+    instance_type = models.TextField(null=True)
 
     provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE, null=True)
 
