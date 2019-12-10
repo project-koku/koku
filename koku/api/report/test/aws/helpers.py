@@ -116,8 +116,9 @@ class AWSReportDataGenerator(object):
         )
         for entry in entries:
             alias = AWSAccountAlias.objects.filter(account_id=entry['usage_account_id'])
+            alias = list(alias).pop() if alias else None
             summary = AWSCostEntryLineItemDailySummary(
-                **entry, account_alias=list(alias).pop()
+                **entry, account_alias=alias
             )
             summary.save()
             self.current_month_total += entry['unblended_cost'] + entry[
