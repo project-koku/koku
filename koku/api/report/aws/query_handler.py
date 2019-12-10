@@ -258,10 +258,10 @@ class AWSReportQueryHandler(ReportQueryHandler):
         Thereby removing the star when there is a filter provided.
         
         Args:
-            parameters (ReturnDict): The parameters object
+            parameters (QueryParameters): The parameters object
 
         Returns:
-            parameters (ReturnDict): The parameters object
+            parameters (QueryParameters): The parameters object
         """
         import pudb
         pu.db
@@ -271,7 +271,16 @@ class AWSReportQueryHandler(ReportQueryHandler):
         # If there is a filter[X]=Y
         # Set group_by[X]=Y
         # For example parameters._parameters['group_by']['region'] = ['eu-west-3']
-        
+
+        group_by_final_list = []
+        for group_by_list in parameters.parameters['group_by']:
+            for group_by_string in group_by_list:
+                if group_by_string == '*'
+                    # find if there is a filter[X]=Y that matches this group_by[X]=*
+                    for filter in parameters.parameters['filter']:
+                        if filter.key == parameters.parameter['group_by']
+
+            
 
         return parameters
 
