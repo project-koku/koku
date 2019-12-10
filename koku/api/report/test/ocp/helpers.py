@@ -177,8 +177,6 @@ class OCPReportDataGenerator:
             for period in self.period_ranges:
                 self._populate_monthly_charge_info(period[0], self.node_cost, len(self.nodes))
 
-
-
     def remove_data_from_tenant(self):
         """Remove the added data."""
         with tenant_context(self.tenant):

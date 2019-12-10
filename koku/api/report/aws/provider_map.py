@@ -21,7 +21,6 @@ from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 
 from api.report.provider_map import ProviderMap
-from reporting.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import (
     AWSComputeSummary,
     AWSComputeSummaryByAccount,
@@ -242,7 +241,7 @@ class AWSProviderMap(ProviderMap):
             'storage': {
                 'default': AWSStorageSummary,
                 'account': AWSStorageSummaryByAccount,
-                'region':  AWSStorageSummaryByRegion,
+                'region': AWSStorageSummaryByRegion,
                 'service': AWSStorageSummaryByService,
                 'product_family': AWSStorageSummaryByService
             },

@@ -18,11 +18,11 @@
 """Models for cost entry tables."""
 
 # pylint: disable=unused-import
-from reporting.provider.aws.models import (AWSComputeSummary,                     # noqa: F401
+from reporting.provider.aws.models import (AWSAccountAlias,                       # noqa: F401
+                                           AWSComputeSummary,                     # noqa: F401
                                            AWSComputeSummaryByAccount,            # noqa: F401
                                            AWSComputeSummaryByRegion,             # noqa: F401
                                            AWSComputeSummaryByService,            # noqa: F401
-                                           AWSAccountAlias,                       # noqa: F401
                                            AWSCostEntry,                          # noqa: F401
                                            AWSCostEntryBill,                      # noqa: F401
                                            AWSCostEntryLineItem,                  # noqa: F401

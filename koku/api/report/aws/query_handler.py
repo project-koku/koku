@@ -113,8 +113,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
             'AmazonVPC', 'AmazonCloudFront', 'AmazonRoute53', 'AmazonAPIGateway'
         ]
         database_services = [
-            'AmazonRDS','AmazonDynamoDB','AmazonElastiCache','AmazonNeptune',
-            'AmazonRedshift','AmazonDocumentDB'
+            'AmazonRDS', 'AmazonDynamoDB', 'AmazonElastiCache', 'AmazonNeptune',
+            'AmazonRedshift', 'AmazonDocumentDB'
         ]
         if report_type == 'costs' and service_filter and not service_filter.difference(network_services):
             report_type = 'network'

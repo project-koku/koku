@@ -343,7 +343,7 @@ class AWSCostSummary(models.Model):
         """Meta for AWSCostSummary."""
 
         db_table = 'reporting_aws_cost_summary'
-        managed=False
+        managed = False
 
     id = models.IntegerField(primary_key=True)
 
@@ -369,7 +369,7 @@ class AWSCostSummaryByService(models.Model):
         """Meta for AWSCostSummaryByService."""
 
         db_table = 'reporting_aws_cost_summary_by_service'
-        managed=False
+        managed = False
 
     id = models.IntegerField(primary_key=True)
 
@@ -399,7 +399,7 @@ class AWSCostSummaryByAccount(models.Model):
         """Meta for AWSCostSummaryByService."""
 
         db_table = 'reporting_aws_cost_summary_by_account'
-        managed=False
+        managed = False
 
     id = models.IntegerField(primary_key=True)
 
@@ -431,7 +431,7 @@ class AWSCostSummaryByRegion(models.Model):
         """Meta for AWSCostSummaryByService."""
 
         db_table = 'reporting_aws_cost_summary_by_region'
-        managed=False
+        managed = False
 
     id = models.IntegerField(primary_key=True)
 
@@ -461,7 +461,7 @@ class AWSComputeSummary(models.Model):
         """Meta for AWSComputeSummary."""
 
         db_table = 'reporting_aws_compute_summary'
-        managed=False
+        managed = False
 
     id = models.IntegerField(primary_key=True)
 
@@ -497,7 +497,7 @@ class AWSComputeSummaryByService(models.Model):
         """Meta for AWSComputeSummaryByService."""
 
         db_table = 'reporting_aws_compute_summary_by_service'
-        managed=False
+        managed = False
 
     id = models.IntegerField(primary_key=True)
 
@@ -537,7 +537,7 @@ class AWSComputeSummaryByAccount(models.Model):
         """Meta for AWSComputeSummaryByAccount."""
 
         db_table = 'reporting_aws_compute_summary_by_account'
-        managed=False
+        managed = False
 
     id = models.IntegerField(primary_key=True)
 
@@ -579,7 +579,7 @@ class AWSComputeSummaryByRegion(models.Model):
         """Meta for AWSComputeSummaryByRegion."""
 
         db_table = 'reporting_aws_compute_summary_by_region'
-        managed=False
+        managed = False
 
     id = models.IntegerField(primary_key=True)
 
@@ -619,7 +619,7 @@ class AWSStorageSummary(models.Model):
         """Meta for AWSStorageSummary."""
 
         db_table = 'reporting_aws_storage_summary'
-        managed=False
+        managed = False
 
     id = models.IntegerField(primary_key=True)
 
@@ -651,7 +651,7 @@ class AWSStorageSummaryByService(models.Model):
         """Meta for AWSStorageSummary."""
 
         db_table = 'reporting_aws_storage_summary_by_service'
-        managed=False
+        managed = False
 
     id = models.IntegerField(primary_key=True)
 
@@ -685,7 +685,7 @@ class AWSStorageSummaryByAccount(models.Model):
         """Meta for AWSStorageSummaryByAccount."""
 
         db_table = 'reporting_aws_storage_summary_by_account'
-        managed=False
+        managed = False
 
     id = models.IntegerField(primary_key=True)
 
@@ -723,7 +723,7 @@ class AWSStorageSummaryByRegion(models.Model):
         """Meta for AWSStorageSummaryByRegion."""
 
         db_table = 'reporting_aws_storage_summary_by_region'
-        managed=False
+        managed = False
 
     id = models.IntegerField(primary_key=True)
 
@@ -759,7 +759,7 @@ class AWSNetworkSummary(models.Model):
         """Meta for AWSNetworkSummary."""
 
         db_table = 'reporting_aws_network_summary'
-        managed=False
+        managed = False
 
     id = models.IntegerField(primary_key=True)
 
@@ -791,7 +791,7 @@ class AWSDatabaseSummary(models.Model):
         """Meta for AWSDatabaseSummary."""
 
         db_table = 'reporting_aws_database_summary'
-        managed=False
+        managed = False
 
     id = models.IntegerField(primary_key=True)
 
