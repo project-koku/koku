@@ -1006,6 +1006,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                     self.assertGreater(
                         value.get('usage', {}).get('value', {}), Decimal(0)
                     )
+                    self.assertIsNone(value.get('count'))
 
     def test_order_by(self):
         """Test that order_by returns properly sorted data."""
