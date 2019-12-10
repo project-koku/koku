@@ -229,6 +229,25 @@ class TagQueryHandler(QueryHandler):
                 return di
         return None
 
+    def _merge_tags(self, source, tag_keys):
+        """Merge the tag results into common key dictionaries."""
+        merged_data = []
+        for item in tag_keys:
+            for key, value in item.items():
+                key_dict = TagQueryHandler._get_dictionary_for_key(merged_data, key)
+                if not key_dict:
+                    new_dict = {}
+                    new_dict['key'] = key
+                    new_dict['values'] = [value]
+                    if source.get('type'):
+                        new_dict['type'] = source.get('type')
+                    merged_data.append(new_dict)
+                else:
+                    if value not in key_dict.get('values'):
+                        key_dict['values'].append(value)
+                        key_dict['values'].sort()
+        return merged_data
+
     def get_tags(self):
         """Get a list of tags and values to validate filters."""
         type_filter = self.parameters.get_filter('type')
@@ -248,20 +267,7 @@ class TagQueryHandler(QueryHandler):
                     .all()
                 tag_keys = [tag.get(source.get('db_column')) for tag in tag_keys]
 
-                for item in tag_keys:
-                    for key, value in item.items():
-                        key_dict = TagQueryHandler._get_dictionary_for_key(merged_data, key)
-                        if not key_dict:
-                            new_dict = {}
-                            new_dict['key'] = key
-                            new_dict['values'] = [value]
-                            if source.get('type'):
-                                new_dict['type'] = source.get('type')
-                            merged_data.append(new_dict)
-                        else:
-                            if value not in key_dict.get('values'):
-                                key_dict['values'].append(value)
-                                key_dict['values'].sort()
+                merged_data = self._merge_tags(source, tag_keys)
         return merged_data
 
     def execute_query(self):
