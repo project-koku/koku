@@ -271,16 +271,13 @@ class AWSReportQueryHandler(ReportQueryHandler):
         # If there is a filter[X]=Y
         # Set group_by[X]=Y
         # For example parameters._parameters['group_by']['region'] = ['eu-west-3']
-
-        group_by_final_list = []
-        for group_by_list in parameters.parameters['group_by']:
-            for group_by_string in group_by_list:
-                if group_by_string == '*'
+        for group_by_key in parameters.parameters['group_by']:
+            for group_by_value in parameters.parameters['group_by'][group_by_key]:
+                if group_by_value == '*': 
                     # find if there is a filter[X]=Y that matches this group_by[X]=*
-                    for filter in parameters.parameters['filter']:
-                        if filter.key == parameters.parameter['group_by']
-
-            
-
+                    for filter_key in parameters.parameters['filter']:
+                        for filter_value in parameters.parameters['filter'][filter_key]: 
+                            if filter_key == group_by_key:
+                                parameters.parameters['group_by'][group_by_key] = [filter_value]
         return parameters
 
