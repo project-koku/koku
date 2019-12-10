@@ -1,5 +1,4 @@
 """Data export syncer."""
-import uuid
 from abc import ABC, abstractmethod
 from datetime import timedelta
 from itertools import product
@@ -108,10 +107,8 @@ class AwsS3Syncer(SyncerInterface):
 
         """
         if settings.ENABLE_S3_ARCHIVING:
-            log_uuid = str(uuid.uuid4())
             LOG.info(
-                '%s Beginning sync_bucket to %s for %s from %s to %s',
-                log_uuid,
+                'Beginning sync_bucket to %s for %s from %s to %s',
                 s3_destination_bucket_name,
                 schema_name,
                 date_range[0],
@@ -156,8 +153,7 @@ class AwsS3Syncer(SyncerInterface):
                     self._copy_object(s3_destination_bucket, source_object)
 
             LOG.info(
-                '%s Completed sync_bucket to %s for %s from %s to %s',
-                log_uuid,
+                'Completed sync_bucket to %s for %s from %s to %s',
                 s3_destination_bucket_name,
                 schema_name,
                 date_range[0],
