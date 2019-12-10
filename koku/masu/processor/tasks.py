@@ -318,7 +318,6 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
 @app.task(name='masu.processor.tasks.refresh_materialized_views', queue_name='reporting')
 def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
     """Refresh the database's materialized views for reporting."""
-
     materialized_views = ()
     if provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
         materialized_views = AWS_MATERIALIZED_VIEWS
