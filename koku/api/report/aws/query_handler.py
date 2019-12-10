@@ -55,15 +55,15 @@ class AWSReportQueryHandler(ReportQueryHandler):
         except AttributeError:
             self._mapper = AWSProviderMap(provider=self.provider,
                                           report_type=parameters.report_type)
-        # Replace group_by[X]=* with group_by[X]=Y, only if there exists a filter[X]=Y
+        # Replace group_by[X]=* with group_by[X]=Y
         parameters = self.filter_to_order_by(parameters)
-        # get a list of all the filter[NAME]=X that also have a corresponding group_by[NAME]=*
 
         self.group_by_options = self._mapper.provider_map.get('group_by_options')
         self._limit = parameters.get_filter('limit')
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
+
     @property
     def annotations(self):
         """Create dictionary for query annotations.
@@ -263,13 +263,15 @@ class AWSReportQueryHandler(ReportQueryHandler):
         Returns:
             parameters (ReturnDict): The parameters object
         """
-        #import pudb
-        # pu.db
-
+        import pudb
+        pu.db
+        # import pdb
+        # pdb.set_trace()
         # For every group_by[X]=*
         # If there is a filter[X]=Y
         # Set group_by[X]=Y
         # For example parameters._parameters['group_by']['region'] = ['eu-west-3']
         
+
         return parameters
 
