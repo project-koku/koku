@@ -60,3 +60,21 @@ from reporting.provider.ocp.models import (OCPStorageLineItem,                  
                                            OCPUsageReportPeriod)                  # noqa: F401
 from reporting.provider.ocp_aws.models import (OCPAWSCostLineItemDailySummary,    # noqa: F401
                                                OCPAWSCostLineItemProjectDailySummary)  # noqa: F401
+
+
+AWS_MATERIALIZED_VIEWS = (
+    AWSComputeSummary,
+    AWSComputeSummaryByAccount,
+    AWSComputeSummaryByRegion,
+    AWSComputeSummaryByService,
+    AWSCostSummary,
+    AWSCostSummaryByAccount,
+    AWSCostSummaryByRegion,
+    AWSCostSummaryByService,
+    AWSDatabaseSummary,
+    AWSNetworkSummary,
+    AWSStorageSummary,
+    AWSStorageSummaryByAccount,
+    AWSStorageSummaryByRegion,
+    AWSStorageSummaryByService
+)

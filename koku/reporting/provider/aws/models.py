@@ -22,24 +22,6 @@ from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
 
-AWS_MATERIALIZED_VIEWS = (
-    'reporting_aws_cost_summary',
-    'reporting_aws_cost_summary_by_service',
-    'reporting_aws_cost_summary_by_account',
-    'reporting_aws_cost_summary_by_region',
-    'reporting_aws_compute_summary',
-    'reporting_aws_compute_summary_by_service',
-    'reporting_aws_compute_summary_by_account',
-    'reporting_aws_compute_summary_by_region',
-    'reporting_aws_storage_summary',
-    'reporting_aws_storage_summary_by_service',
-    'reporting_aws_storage_summary_by_account',
-    'reporting_aws_storage_summary_by_region',
-    'reporting_aws_network_summary',
-    'reporting_aws_database_summary',
-)
-
-
 class AWSCostEntryBill(models.Model):
     """The billing information for a Cost Usage Report.
 
