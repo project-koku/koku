@@ -245,7 +245,6 @@ def update_summary_tables(
     if updater.manifest_is_ready():
         start_date, end_date = updater.update_daily_tables(start_date, end_date)
         updater.update_summary_tables(start_date, end_date)
-
     if provider_uuid:
         chain(
             update_charge_info.s(schema_name, provider_uuid, start_date, end_date),

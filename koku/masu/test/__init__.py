@@ -54,6 +54,14 @@ class MasuTestCase(TransactionTestCase):
             cls.tenant.save()
         else:
             cls.tenant = Tenant.objects.filter(schema_name=cls.schema).first()
+            if not cls.tenant:
+                cursor.execute(
+                    f'INSERT INTO api_tenant (id, schema_name) values (1, \'{cls.schema}\')'
+                )
+            cls.tenant = Tenant.objects.filter(schema_name=cls.schema).first()
+
+
+
         # Load static data into the DB
         # E.g. report column maps
         load_db_map_data()

@@ -208,4 +208,4 @@ class AWSReportDataGenerator(object):
             self._populate_daily_table()
             self._populate_daily_summary_table()
             self._populate_tag_summary_table()
-            refresh_materialized_views(self.tenant.schema_name, 'AWS')
+        refresh_materialized_views(self.tenant.schema_name, 'AWS')

@@ -716,8 +716,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             for _ in range(25):
                 self.creator.create_ocp_usage_line_item(period, report)
 
+    @patch('masu.processor.tasks.chain')
+    @patch('masu.processor.tasks.refresh_materialized_views')
     @patch('masu.processor.tasks.update_charge_info')
-    def test_update_summary_tables_aws(self, mock_charge_info):
+    def test_update_summary_tables_aws(self, mock_charge_info, mock_views, mock_chain):
         """Test that the summary table task runs."""
         provider = 'AWS'
         provider_aws_uuid = self.aws_provider_uuid
@@ -742,7 +744,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             self.assertNotEqual(daily_query.count(), initial_daily_count)
             self.assertNotEqual(summary_query.count(), initial_summary_count)
 
-        mock_charge_info.apply_async.assert_called()
+        mock_chain.return_value.apply_async.assert_called()
 
     @patch('masu.processor.tasks.update_charge_info')
     def test_update_summary_tables_aws_end_date(self, mock_charge_info):
@@ -798,10 +800,13 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self.assertEqual(result_start_date, expected_start_date)
         self.assertEqual(result_end_date, expected_end_date)
 
+    @patch('masu.processor.tasks.chain')
+    @patch('masu.processor.tasks.refresh_materialized_views')
     @patch('masu.processor.tasks.update_charge_info')
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
-    def test_update_summary_tables_ocp(self, mock_markup, mock_rate_map, mock_charge_info):
+    def test_update_summary_tables_ocp(self, mock_markup, mock_rate_map,
+                                       mock_charge_info, mock_view, mock_chain):
         """Test that the summary table task runs."""
         markup = {}
         mem_rate = {'tiered_rates': [{'value': '1.5', 'unit': 'USD'}]}
@@ -863,7 +868,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 self.assertIsNotNone(item.volume_request_storage_gigabyte_months)
                 self.assertIsNotNone(item.persistentvolumeclaim_usage_gigabyte_months)
 
-        mock_charge_info.apply_async.assert_called()
+        mock_chain.return_value.apply_async.assert_called()
 
     @patch('masu.processor.tasks.update_charge_info')
     @patch(
