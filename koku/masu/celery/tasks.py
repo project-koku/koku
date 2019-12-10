@@ -22,7 +22,6 @@
 import calendar
 import csv
 import math
-import uuid
 from datetime import date
 
 import boto3
@@ -69,8 +68,7 @@ def remove_expired_data():
 @app.task(name='masu.celery.tasks.upload_normalized_data', queue_name='upload')
 def upload_normalized_data():
     """Scheduled task to export normalized data to s3."""
-    log_uuid = str(uuid.uuid4())
-    LOG.info('%s Beginning upload_normalized_data', log_uuid)
+    LOG.info('Beginning upload_normalized_data')
     curr_date = DateAccessor().today()
     curr_month_range = calendar.monthrange(curr_date.year, curr_date.month)
     curr_month_first_day = date(year=curr_date.year, month=curr_date.month, day=1)
@@ -86,8 +84,7 @@ def upload_normalized_data():
 
     for account in accounts:
         LOG.info(
-            '%s processing schema %s provider uuid %s',
-            log_uuid,
+            'processing schema %s provider uuid %s',
             account['schema_name'],
             account['provider_uuid'],
         )
@@ -114,7 +111,7 @@ def upload_normalized_data():
                 prev_month_first_day,
                 prev_month_last_day,
             )
-    LOG.info('%s Completed upload_normalized_data', log_uuid)
+    LOG.info('Completed upload_normalized_data')
 
 
 @app.task(
