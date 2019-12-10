@@ -263,8 +263,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
         Returns:
             parameters (QueryParameters): The parameters object
         """
-        import pudb
-        pu.db
+        #import pudb
+        #pu.db
         # import pdb
         # pdb.set_trace()
         # For every group_by[X]=*
@@ -276,7 +276,12 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 if group_by_value == '*': 
                     # find if there is a filter[X]=Y that matches this group_by[X]=*
                     for filter_key in parameters.parameters['filter']:
-                        for filter_value in parameters.parameters['filter'][filter_key]: 
+                        if isinstance(parameters.parameters['filter'][filter_key], list):
+                        # if filter_value is a list
+                            for filter_value in parameters.parameters['filter'][filter_key]: 
+                                if filter_key == group_by_key:
+                                    parameters.parameters['group_by'][group_by_key] = [filter_value]
+                        else:
                             if filter_key == group_by_key:
                                 parameters.parameters['group_by'][group_by_key] = [filter_value]
         return parameters
