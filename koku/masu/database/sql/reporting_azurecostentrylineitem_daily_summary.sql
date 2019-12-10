@@ -37,7 +37,7 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | s
         li.subscription_guid,
         p.resource_location,
         li.meter_id,
-        p.additional_info->>'ServiceType',
+        p.instance_type,
         p.service_name, -- service
         m.currency,
         m.unit_of_measure
