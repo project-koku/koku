@@ -169,8 +169,9 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.assertEqual(len(products.keys()), count)
             expected_key = (
                 first_entry.instance_id,
-                first_entry.service_name,
+                first_entry.instance_type,
                 first_entry.service_tier,
+                first_entry.service_name
             )
             self.assertIn(expected_key, products)
 
