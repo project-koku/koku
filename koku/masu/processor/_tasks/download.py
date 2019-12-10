@@ -57,11 +57,12 @@ def _get_report_files(task,
                          '/var/tmp/masu/base/aws/professor-hour-industry-television.csv']
 
     """
+    month_string = report_month.strftime('%B %Y')
     log_statement = (f'Downloading report for:\n'
                      f' schema_name: {customer_name}\n'
                      f' provider: {provider_type}\n'
                      f' account (provider uuid): {provider_uuid}\n'
-                     f' report_month: {report_month}')
+                     f' report_month: {month_string}')
     LOG.info(log_statement)
     try:
         disk = psutil.disk_usage(Config.PVC_DIR)

@@ -148,9 +148,9 @@ class Orchestrator():
                     labeler = AccountLabel(auth=account.get('authentication'),
                                            schema=account.get('schema_name'),
                                            provider_type=account.get('provider_type'))
-                    account_label, label = labeler.get_label_details()
-                    if account_label:
-                        LOG.info('Account: %s Label: %s updated.', account_label, label)
+                    account_number, label = labeler.get_label_details()
+                    if account_number:
+                        LOG.info('Account: %s Label: %s updated.', account_number, label)
                 else:
                     LOG.info('Provider skipped: %s Valid: %s Backing off: %s',
                              account.get('provider_uuid'),
