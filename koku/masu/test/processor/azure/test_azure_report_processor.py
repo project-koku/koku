@@ -211,7 +211,6 @@ class AzureReportProcessorTest(MasuTestCase):
         # Wipe stale data
         with schema_context(self.schema):
             self.accessor._get_db_obj_query(AZURE_REPORT_TABLE_MAP['line_item']).delete()
-            # self.accessor._get_db_obj_query(AZURE_REPORT_TABLE_MAP['product']).delete()
 
         shutil.copy2(self.test_report_path, self.test_report)
 
