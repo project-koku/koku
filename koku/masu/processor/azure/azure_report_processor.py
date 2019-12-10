@@ -18,12 +18,12 @@
 """Processor for Azure Cost Usage Reports."""
 
 import csv
-import json
 import logging
 from datetime import datetime
 from os import remove
 
 import pytz
+import ujson as json
 from dateutil import parser
 from django.conf import settings
 
