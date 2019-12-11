@@ -1309,10 +1309,16 @@ class AWSReportQueryTest(IamTestCase):
         url = '?group_by[region]=*&filter[region]=eu-west-3&group_by[service]=AmazonEC2'
         query_params = self.mocked_query_params(url, AWSInstanceTypeView)
         handler = AWSReportQueryHandler(query_params)
-        #query_params._parameters['group_by']['region'] = ['*']
-        #query_params._parameters['filter'][0] = ['eu-west-3']
         query_params = handler.filter_to_order_by(query_params)
 
         self.assertEqual(['eu-west-3'], query_params._parameters['group_by']['region'])
-        
+     def test_filter_to_group_by_2(self):
+        """Test the filter_to_group_by method."""
+        url = '?group_by[region]=*&filter[region]=eu-west-3&group_by[service]=AmazonEC2&group_by[service]=*'
+        query_params = self.mocked_query_params(url, AWSInstanceTypeView)
+        handler = AWSReportQueryHandler(query_params)
+        query_params = handler.filter_to_order_by(query_params)
+
+        self.assertEqual(['eu-west-3'], query_params._parameters['group_by']['region'])
+        self.assertEqual(['AmazonEC2'], query_params._parameters['group_by']['service'])   
             
