@@ -164,6 +164,15 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "name": "description",
+                        "required": false,
+                        "in": "query",
+                        "description": "Filter response on cost model description.",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ],
                 "responses": {
