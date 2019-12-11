@@ -29,6 +29,8 @@ from dateutil import relativedelta
 from django.db.models import Max, Min
 from tenant_schemas.utils import schema_context
 
+from api.report.test import FakeAWSCostData
+from api.report.test.aws.helpers import AWSReportDataGenerator
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -46,6 +48,7 @@ from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import (
     get_report_files,
+    refresh_materialized_views,
     remove_expired_data,
     summarize_reports,
     update_all_summary_tables,
@@ -55,6 +58,7 @@ from masu.processor.tasks import (
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.test.external.downloader.aws import fake_arn
+from reporting.models import AWS_MATERIALIZED_VIEWS
 
 
 class FakeDownloader(Mock):
@@ -656,8 +660,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             for _ in range(25):
                 self.creator.create_ocp_usage_line_item(period, report)
 
+    @patch('masu.processor.tasks.chain')
+    @patch('masu.processor.tasks.refresh_materialized_views')
     @patch('masu.processor.tasks.update_charge_info')
-    def test_update_summary_tables_aws(self, mock_charge_info):
+    def test_update_summary_tables_aws(self, mock_charge_info, mock_views, mock_chain):
         """Test that the summary table task runs."""
         provider = 'AWS'
         provider_aws_uuid = self.aws_provider_uuid
@@ -682,7 +688,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             self.assertNotEqual(daily_query.count(), initial_daily_count)
             self.assertNotEqual(summary_query.count(), initial_summary_count)
 
-        mock_charge_info.apply_async.assert_called()
+        mock_chain.return_value.apply_async.assert_called()
 
     @patch('masu.processor.tasks.update_charge_info')
     def test_update_summary_tables_aws_end_date(self, mock_charge_info):
@@ -738,10 +744,13 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self.assertEqual(result_start_date, expected_start_date)
         self.assertEqual(result_end_date, expected_end_date)
 
+    @patch('masu.processor.tasks.chain')
+    @patch('masu.processor.tasks.refresh_materialized_views')
     @patch('masu.processor.tasks.update_charge_info')
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
-    def test_update_summary_tables_ocp(self, mock_markup, mock_rate_map, mock_charge_info):
+    def test_update_summary_tables_ocp(self, mock_markup, mock_rate_map,
+                                       mock_charge_info, mock_view, mock_chain):
         """Test that the summary table task runs."""
         markup = {}
         mem_rate = {'tiered_rates': [{'value': '1.5', 'unit': 'USD'}]}
@@ -803,7 +812,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 self.assertIsNotNone(item.volume_request_storage_gigabyte_months)
                 self.assertIsNotNone(item.persistentvolumeclaim_usage_gigabyte_months)
 
-        mock_charge_info.apply_async.assert_called()
+        mock_chain.return_value.apply_async.assert_called()
 
     @patch('masu.processor.tasks.update_charge_info')
     @patch(
@@ -864,3 +873,35 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         update_all_summary_tables(start_date)
 
         mock_update.delay.assert_called_with(ANY, ANY, ANY, str(start_date), ANY)
+
+    def test_refresh_materialized_views(self):
+        """Test that materialized views are refreshed."""
+        manifest_dict = {
+            'assembly_id': '12345',
+            'billing_period_start_datetime': DateAccessor().today_with_timezone('UTC'),
+            'num_total_files': 2,
+            'provider_uuid': self.aws_provider_uuid,
+            'task': '170653c0-3e66-4b7e-a764-336496d7ca5a',
+        }
+        fake_aws = FakeAWSCostData(self.aws_provider)
+        generator = AWSReportDataGenerator(self.tenant)
+        generator.add_data_to_tenant(fake_aws)
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.add(**manifest_dict)
+            manifest.save()
+
+        refresh_materialized_views(self.schema, 'AWS', manifest_id=manifest.id)
+
+        views_to_check = [
+            view for view in AWS_MATERIALIZED_VIEWS
+            if 'Cost' in view._meta.db_table
+        ]
+
+        with schema_context(self.schema):
+            for view in views_to_check:
+                self.assertNotEqual(view.objects.count(), 0)
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(manifest.id)
+            self.assertIsNotNone(manifest.manifest_completed_datetime)

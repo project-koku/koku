@@ -379,6 +379,7 @@ class ProviderManagerTest(IamTestCase):
             self.assertEqual(value_data.get('billing_period_start'), key_date_obj.date())
             self.assertGreater(parser.parse(value_data.get('last_process_start_date')), key_date_obj)
             self.assertGreater(parser.parse(value_data.get('last_process_complete_date')), key_date_obj)
+            self.assertGreater(parser.parse(value_data.get('last_manifest_complete_date')), key_date_obj)
             self.assertGreater(parser.parse(value_data.get('summary_data_creation_datetime')), key_date_obj)
             self.assertGreater(parser.parse(value_data.get('summary_data_updated_datetime')), key_date_obj)
             self.assertGreater(parser.parse(value_data.get('derived_cost_datetime')), key_date_obj)
