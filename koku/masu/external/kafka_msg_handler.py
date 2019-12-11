@@ -277,7 +277,7 @@ def process_report(report):
         report (Dict) - keys: value
                         file: String,
                         cluster_id: String,
-                        payload_date: DateTime,
+                        date: DateTime,
                         manifest_path: String,
                         uuid: String,
                         manifest_path: String
@@ -291,7 +291,10 @@ def process_report(report):
         LOG.info('Found provider_uuid: %s for cluster_id: %s', str(provider_uuid), str(cluster_id))
         account = get_account(provider_uuid)
         if account:
-            LOG.info('Processing report for account %s', account)
+            payload_date = report.get('date')
+            report_month = payload_date.replace(day=1, second=1, microsecond=1).date()
+            account['report_month'] = str(report_month)
+            LOG.info('Processing %s report for account %s', payload_date.strftime('%B %Y'), account)
             reports_to_summarize = get_report_files(**account)
             LOG.info('Processing complete for account %s', account)
 

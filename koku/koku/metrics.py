@@ -85,7 +85,10 @@ class DatabaseStatus():
         """Collect stats and report using Prometheus objects."""
         stats = self.schema_size()
         for item in stats:
-            PGSQL_GAUGE.labels(schema=item.get('schema')).set(item.get('size'))
+            schema = item.get('schema')
+            size = item.get('size')
+            if schema is not None and size is not None:
+                PGSQL_GAUGE.labels(schema).set(size)
 
     def schema_size(self):
         """Show DB storage consumption.

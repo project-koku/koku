@@ -52,6 +52,15 @@ class DatabaseStatusTest(IamTestCase):
         dbs.collect()
         self.assertTrue(mock_gauge.called)
 
+    @patch('koku.metrics.PGSQL_GAUGE.labels')
+    @patch('koku.metrics.DatabaseStatus.query', return_value=[{'schema': None,
+                                                               'size': None}])
+    def test_collect_bad_schema_size(self, _, mock_gauge):
+        """Test collect with None data types."""
+        dbs = DatabaseStatus()
+        dbs.collect()
+        self.assertFalse(mock_gauge.called)
+
     def test_query_cache(self):
         """Test that query() returns a cached response when available."""
         dbs = DatabaseStatus()
