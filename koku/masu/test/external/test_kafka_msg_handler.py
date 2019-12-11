@@ -203,7 +203,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         ]
         mock_get_reports.return_value = mock_download_process_value
         cluster_id = self.ocp_provider_resource_name
-        sample_report = {'cluster_id': cluster_id}
+        sample_report = {'cluster_id': cluster_id, 'date': DateAccessor().today()}
 
         msg_handler.process_report(sample_report)
 
@@ -226,7 +226,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         ]
         mock_get_reports.return_value = mock_download_process_value
         cluster_id = self.ocp_provider_resource_name
-        sample_report = {'cluster_id': cluster_id}
+        sample_report = {'cluster_id': cluster_id, 'date': DateAccessor().today()}
 
         msg_handler.process_report(sample_report)
 
