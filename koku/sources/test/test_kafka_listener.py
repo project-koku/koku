@@ -381,6 +381,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
     def test_sources_network_info_sync_ocp(self):
         """Test to get additional Source context from Sources API for OCP."""
         test_source_id = 1
+        application_type = 2
+        app_id = 1
         test_auth_header = Config.SOURCES_FAKE_HEADER
         source_name = 'OCP Source'
         source_uid = faker.uuid4()
@@ -396,7 +398,10 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(f'http://www.sources.com/api/v1.0/sources/{test_source_id}',
                   status_code=200, json={'name': source_name, 'source_type_id': source_type_id, 'uid': source_uid})
             m.get(f'http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management',
-                  status_code=200, json={'data': [{'id': self.application_type}]})
+                  status_code=200, json={'data': [{'id': application_type}]})
+            m.get('http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}'.
+                  format(application_type, test_source_id),
+                  status_code=200, json={'data': [{'id': app_id}]})
             m.get(f'http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}',
                   status_code=200, json={'data': [{'name': mock_source_name}]})
             m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}',
@@ -404,12 +409,14 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get((f'http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint'
                   f'&[authtype]=token&[resource_id]={resource_id}'),
                   status_code=200, json={'data': [{'id': authentication_id}]})
+            m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
+                    status_code=204)
             source_integration.sources_network_info(test_source_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEqual(source_obj.name, source_name)
         self.assertEqual(source_obj.source_type, 'OCP')
-        self.assertEqual(source_obj.authentication, {'resource_name': source_uid})
+        self.assertEqual(source_obj.authentication, {})
 
     @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_sources_network_info_sync_azure(self):
@@ -507,7 +514,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         """Test to get authentication information from Sources backend."""
         test_source_id = 2
         test_resource_id = 1
-        application_type = 2
+        application_type_id = 2
+        app_id = 1
         source_uid = faker.uuid4()
         test_auth_header = Config.SOURCES_FAKE_HEADER
         ocp_source = Sources(source_id=test_source_id,
@@ -520,12 +528,17 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with requests_mock.mock() as m:
             m.get(f'http://www.sources.com/api/v1.0/sources/{test_source_id}',
                   status_code=200, json={'uid': source_uid})
+            m.get('http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}'.
+                  format(application_type_id, test_source_id),
+                  status_code=200, json={'data': [{'id': app_id}]})
             m.get(f'http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management',
-                  status_code=200, json={'data': [{'id': application_type}]})
+                  status_code=200, json={'data': [{'id': application_type_id}]})
+            m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
+                    status_code=204)
             source_integration.sources_network_auth_info(test_resource_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)
-        self.assertEquals(source_obj.authentication, {'resource_name': source_uid})
+        self.assertEquals(source_obj.authentication, {})
 
     @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_sources_network_auth_info_ocp_with_cluster_id(self):
@@ -558,7 +571,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         """Test to get authentication information from Sources backend with error."""
         test_source_id = 2
         test_resource_id = 1
-        application_type = 2
+        application_type_id = 2
+        app_id = 1
         test_auth_header = Config.SOURCES_FAKE_HEADER
         ocp_source = Sources(source_id=test_source_id,
                              auth_header=test_auth_header,
@@ -570,8 +584,13 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with requests_mock.mock() as m:
             m.get(f'http://www.sources.com/api/v1.0/sources/{test_source_id}',
                   status_code=400)
+            m.get('http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}'.
+                  format(application_type_id, test_source_id),
+                  status_code=200, json={'data': [{'id': app_id}]})
             m.get(f'http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management',
-                  status_code=200, json={'data': [{'id': application_type}]})
+                  status_code=200, json={'data': [{'id': application_type_id}]})
+            m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
+                    status_code=204)
             source_integration.sources_network_auth_info(test_resource_id, test_auth_header)
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEquals(source_obj.authentication, {})
