@@ -331,7 +331,7 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
             with connection.cursor() as cursor:
                 LOG.info(f'Refreshing {table_name}.')
                 cursor.execute(
-                    'REFRESH MATERIALIZED VIEW CONCURRENTLY {}'.format(table_name)
+                    f'REFRESH MATERIALIZED VIEW CONCURRENTLY {table_name}'
                 )
 
     if manifest_id:
