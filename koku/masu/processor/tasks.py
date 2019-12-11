@@ -22,11 +22,16 @@
 import datetime
 import os
 
+from celery import chain
 from celery.utils.log import get_task_logger
 from dateutil import parser
+from django.db import connection
+from tenant_schemas.utils import schema_context
 
 import masu.prometheus_stats as worker_stats
+from api.provider.models import Provider
 from koku.celery import app
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.accounts_accessor import AccountsAccessor, AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
@@ -36,6 +41,7 @@ from masu.processor._tasks.remove_expired import _remove_expired_data
 from masu.processor.report_charge_updater import ReportChargeUpdater
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
+from reporting.models import AWS_MATERIALIZED_VIEWS
 
 LOG = get_task_logger(__name__)
 
@@ -243,11 +249,13 @@ def update_summary_tables(
     if updater.manifest_is_ready():
         start_date, end_date = updater.update_daily_tables(start_date, end_date)
         updater.update_summary_tables(start_date, end_date)
-
     if provider_uuid:
-        update_charge_info.apply_async(
-            args=(schema_name, provider_uuid, start_date, end_date)
-        )
+        chain(
+            update_charge_info.s(schema_name, provider_uuid, start_date, end_date),
+            refresh_materialized_views.si(schema_name, provider, manifest_id)
+        ).apply_async()
+    else:
+        refresh_materialized_views.delay(schema_name, provider, manifest_id)
 
 
 @app.task(name='masu.processor.tasks.update_all_summary_tables', queue_name='reporting')
@@ -309,3 +317,25 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
 
     updater = ReportChargeUpdater(schema_name, provider_uuid)
     updater.update_charge_info(start_date, end_date)
+
+
+@app.task(name='masu.processor.tasks.refresh_materialized_views', queue_name='reporting')
+def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
+    """Refresh the database's materialized views for reporting."""
+    materialized_views = ()
+    if provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+        materialized_views = AWS_MATERIALIZED_VIEWS
+    with schema_context(schema_name):
+        for view in materialized_views:
+            table_name = view._meta.db_table
+            with connection.cursor() as cursor:
+                LOG.info(f'Refreshing {table_name}.')
+                cursor.execute(
+                    f'REFRESH MATERIALIZED VIEW CONCURRENTLY {table_name}'
+                )
+
+    if manifest_id:
+        # Processing for this monifest should be complete after this step
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+            manifest_accessor.mark_manifest_as_completed(manifest)
