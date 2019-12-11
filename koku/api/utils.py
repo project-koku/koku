@@ -33,6 +33,10 @@ class DateHelper():
         self._now = timezone.now()
 
     @property
+    def now(self):
+        return timezone.now()
+
+    @property
     def one_day(self):
         """Timedelta of one day."""
         return datetime.timedelta(days=1)
