@@ -85,7 +85,9 @@ class OCPProviderMap(ProviderMap):
                                 + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
                                 + Coalesce(F('monthly_cost'), Value(0, output_field=DecimalField()))
                             ),
-                            'infrastructure_cost': Sum(F('infra_cost')),
+                            'infrastructure_cost': Sum(
+                                Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'derived_cost': Sum(
                                 Coalesce(F('pod_charge_cpu_core_hours'),
                                          Value(0, output_field=DecimalField()))
@@ -112,7 +114,9 @@ class OCPProviderMap(ProviderMap):
                                 + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
                                 + Coalesce(F('monthly_cost'), Value(0, output_field=DecimalField()))
                             ),
-                            'infrastructure_cost': Sum(F('infra_cost')),
+                            'infrastructure_cost': Sum(
+                                Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'derived_cost': Sum(
                                 Coalesce(F('pod_charge_cpu_core_hours'),
                                          Value(0, output_field=DecimalField()))
@@ -158,7 +162,9 @@ class OCPProviderMap(ProviderMap):
                                 + Coalesce(F('project_infra_cost'), Value(0, output_field=DecimalField()))
                                 + Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
                             ),
-                            'infrastructure_cost': Sum(F('project_infra_cost')),
+                            'infrastructure_cost': Sum(
+                                Coalesce(F('project_infra_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'derived_cost': Sum(
                                 Coalesce(F('pod_charge_cpu_core_hours'),
                                          Value(0, output_field=DecimalField()))
@@ -181,7 +187,9 @@ class OCPProviderMap(ProviderMap):
                                 + Coalesce(F('project_infra_cost'), Value(0, output_field=DecimalField()))
                                 + Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
                             ),
-                            'infrastructure_cost': Sum(F('project_infra_cost')),
+                            'infrastructure_cost': Sum(
+                                Coalesce(F('project_infra_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'derived_cost': Sum(
                                 Coalesce(F('pod_charge_cpu_core_hours'),
                                          Value(0, output_field=DecimalField()))
