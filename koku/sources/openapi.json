@@ -439,7 +439,6 @@
                     "source_type",
                     "authentication",
                     "billing_source",
-                    "koku_uuid",
                     "source_uuid"
                 ],
                 "properties": {
