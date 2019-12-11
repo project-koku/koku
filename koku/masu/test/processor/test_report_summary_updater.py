@@ -20,6 +20,8 @@
 import datetime
 from unittest.mock import patch
 
+
+from api.provider.models import Provider, ProviderAuthentication, ProviderBillingSource
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
@@ -162,6 +164,27 @@ class ReportSummaryUpdaterTest(MasuTestCase):
 
     def test_bad_provider(self):
         """Test that an unimplemented provider throws an error."""
+        self.unknown_auth = ProviderAuthentication.objects.create(
+            provider_resource_name='unknown',
+        )
+        self.unknown_auth.save()
+        self.unknown_billing_source = ProviderBillingSource.objects.create(
+            bucket='unknown'
+        )
+        self.unknown_billing_source.save()
+
+        self.unknown_provider = Provider.objects.create(
+            uuid=self.unkown_test_provider_uuid,
+            name='Test Provider',
+            type='FOO',
+            authentication=self.unknown_auth,
+            billing_source=self.unknown_billing_source,
+            customer=self.customer,
+            setup_complete=False,
+            active=True,
+        )
+        self.unknown_provider.save()
+
         with self.assertRaises(ReportSummaryUpdaterError):
             _ = ReportSummaryUpdater(self.schema, self.unkown_test_provider_uuid)
 

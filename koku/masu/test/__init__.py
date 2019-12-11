@@ -153,27 +153,6 @@ class MasuTestCase(TransactionTestCase):
         self.azure_provider.save()
         self.azure_provider_uuid = self.azure_provider.uuid
 
-        self.unknonw_auth = ProviderAuthentication.objects.create(
-            provider_resource_name='unknown',
-        )
-        self.unknonw_auth.save()
-        self.unknown_billing_source = ProviderBillingSource.objects.create(
-            bucket='unknown'
-        )
-        self.unknown_billing_source.save()
-
-        self.unknown_provider = Provider.objects.create(
-            uuid=self.unkown_test_provider_uuid,
-            name='Test Provider',
-            type='FOO',
-            authentication=self.unknonw_auth,
-            billing_source=self.unknown_billing_source,
-            customer=self.customer,
-            setup_complete=False,
-            active=True,
-        )
-        self.unknown_provider.save()
-
         # Load static data into the DB
         # E.g. report column maps
         load_db_map_data()
