@@ -18,7 +18,6 @@
 """Test the ReportSummaryUpdater object."""
 
 import datetime
-import uuid
 from unittest.mock import patch
 
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -164,8 +163,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
     def test_bad_provider(self):
         """Test that an unimplemented provider throws an error."""
         with self.assertRaises(ReportSummaryUpdaterError):
-            random_uuid = str(uuid.uuid4())
-            _ = ReportSummaryUpdater(self.schema, random_uuid)
+            _ = ReportSummaryUpdater(self.schema, self.unkown_test_provider_uuid)
 
     def test_manifest_is_ready_is_ready(self):
         """Test that True is returned when a manifest is ready to process."""
