@@ -26,6 +26,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.report.test import FakeAWSCostData
 from api.utils import DateHelper
+from masu.processor.tasks import refresh_materialized_views
 from reporting.models import (
     AWSAccountAlias,
     AWSCostEntry,
@@ -116,8 +117,9 @@ class AWSReportDataGenerator(object):
         )
         for entry in entries:
             alias = AWSAccountAlias.objects.filter(account_id=entry['usage_account_id'])
+            alias = list(alias).pop() if alias else None
             summary = AWSCostEntryLineItemDailySummary(
-                **entry, account_alias=list(alias).pop()
+                **entry, account_alias=alias
             )
             summary.save()
             self.current_month_total += entry['unblended_cost'] + entry[
@@ -206,3 +208,4 @@ class AWSReportDataGenerator(object):
             self._populate_daily_table()
             self._populate_daily_summary_table()
             self._populate_tag_summary_table()
+        refresh_materialized_views(self.tenant.schema_name, 'AWS')
