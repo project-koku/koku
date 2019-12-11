@@ -23,6 +23,7 @@ import datetime
 import os
 
 from celery.utils.log import get_task_logger
+from dateutil import parser
 
 import masu.prometheus_stats as worker_stats
 from koku.celery import app
@@ -48,7 +49,8 @@ def get_report_files(self,
                      billing_source,
                      provider_type,
                      schema_name,
-                     provider_uuid):
+                     provider_uuid,
+                     report_month):
     """
     Task to download a Report and process the report.
 
@@ -69,12 +71,14 @@ def get_report_files(self,
 
     """
     worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
+    month = parser.parse(report_month)
     reports = _get_report_files(self,
                                 customer_name,
                                 authentication,
                                 billing_source,
                                 provider_type,
-                                provider_uuid)
+                                provider_uuid,
+                                month)
 
     try:
         stmt = (

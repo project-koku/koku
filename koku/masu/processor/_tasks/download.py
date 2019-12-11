@@ -21,7 +21,6 @@ from celery.utils.log import get_task_logger
 
 import masu.prometheus_stats as worker_stats
 from masu.config import Config
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.exceptions import MasuProcessingError, MasuProviderError
 from masu.external.report_downloader import ReportDownloader, ReportDownloaderError
@@ -38,12 +37,9 @@ def _get_report_files(task,
                       billing_source,
                       provider_type,
                       provider_uuid,
-                      report_name=None):
+                      report_month):
     """
     Task to download a Report.
-
-    Note that report_name will be not optional once Koku can specify
-    what report we should download.
 
     Args:
         task              (Object): Bound celery task.
@@ -53,7 +49,7 @@ def _get_report_files(task,
         report_source     (String): Location of the cost usage report in the backend provider.
         provider_type     (String): Koku defined provider type string.  Example: Amazon = 'AWS'
         provider_uuid     (String): Provider uuid.
-        report_name       (String): Name of the cost usage report to download.
+        report_month      (DateTime): Month for report to download.
 
     Returns:
         files (List) List of filenames with full local path.
@@ -61,20 +57,12 @@ def _get_report_files(task,
                          '/var/tmp/masu/base/aws/professor-hour-industry-television.csv']
 
     """
-    with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
-        reports_processed = provider_accessor.get_setup_complete()
-        provider_uuid = provider_accessor.get_provider().uuid
-
-    if Config.INGEST_OVERRIDE or not reports_processed:
-        number_of_months = Config.INITIAL_INGEST_NUM_MONTHS
-    else:
-        number_of_months = 2
-
+    month_string = report_month.strftime('%B %Y')
     log_statement = (f'Downloading report for:\n'
                      f' schema_name: {customer_name}\n'
                      f' provider: {provider_type}\n'
                      f' account (provider uuid): {provider_uuid}\n'
-                     f' number_of_months: {number_of_months}')
+                     f' report_month: {month_string}')
     LOG.info(log_statement)
     try:
         disk = psutil.disk_usage(Config.PVC_DIR)
@@ -91,8 +79,8 @@ def _get_report_files(task,
                                       report_source=billing_source,
                                       provider_type=provider_type,
                                       provider_uuid=provider_uuid,
-                                      report_name=report_name)
-        reports = downloader.get_reports(number_of_months)
+                                      report_name=None)
+        reports = downloader.download_report(report_month)
     except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
         worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()
         LOG.error(str(err))
