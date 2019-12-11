@@ -143,11 +143,15 @@ To lint the code base ::
 
     tox -e lint
 
-To run IQE Smoke or API tests, while on the Red Hat network and koku deployed via docker-compose run::
+To run IQE Smoke, Vortex or API tests, while on the Red Hat network and koku deployed via docker-compose run::
 
     make docker-iqe-smokes-tests
+    make docker-iqe-vortex-tests
     make docker-iqe-api-tests
 
+Individual IQE tests can be ran with run_test.sh::
+
+    <koku_topdir>/testing/run_test.sh iqe tests plugin hccm -k test_api_cost_model_markup_calculation_ocp
 
 pgAdmin
 -------------------

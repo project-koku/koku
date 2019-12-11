@@ -41,7 +41,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
-from masu.external.report_downloader import ReportDownloader, ReportDownloaderError
+from masu.external.report_downloader import ReportDownloaderError
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
@@ -64,7 +64,7 @@ from reporting.models import AWS_MATERIALIZED_VIEWS
 class FakeDownloader(Mock):
     """Fake Downloader."""
 
-    def get_reports(self):
+    def download_report(self):
         """Get reports for fake downloader."""
         fake_file_list = [
             '/var/tmp/masu/my-report-name/aws/my-report-file.csv',
@@ -87,7 +87,7 @@ class GetReportFileTests(MasuTestCase):
             customer_name=self.fake.word(),
             authentication=account,
             provider_type='AWS',
-            report_name=self.fake.word(),
+            report_month=DateAccessor().today(),
             provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
         )
@@ -109,7 +109,7 @@ class GetReportFileTests(MasuTestCase):
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
-                report_name=self.fake.word(),
+                report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
             )
@@ -139,7 +139,7 @@ class GetReportFileTests(MasuTestCase):
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
-                report_name=self.fake.word(),
+                report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
             )
@@ -159,67 +159,10 @@ class GetReportFileTests(MasuTestCase):
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
-                report_name=self.fake.word(),
+                report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
             )
-
-    @patch(
-        'masu.processor._tasks.download.ReportDownloader._set_downloader',
-        return_value=FakeDownloader,
-    )
-    @patch(
-        'masu.database.provider_db_accessor.ProviderDBAccessor.get_setup_complete',
-        return_value=True,
-    )
-    def test_get_report_with_override(self, fake_accessor, fake_report_files):
-        """Test _get_report_files on non-initial load with override set."""
-        Config.INGEST_OVERRIDE = True
-        Config.INITIAL_INGEST_NUM_MONTHS = 5
-        initial_month_qty = Config.INITIAL_INGEST_NUM_MONTHS
-
-        account = fake_arn(service='iam', generate_account_id=True)
-        with patch.object(ReportDownloader, 'get_reports') as download_call:
-            _get_report_files(
-                Mock(),
-                customer_name=self.fake.word(),
-                authentication=account,
-                provider_type='AWS',
-                report_name=self.fake.word(),
-                provider_uuid=self.aws_provider_uuid,
-                billing_source=self.fake.word(),
-            )
-
-            download_call.assert_called_with(initial_month_qty)
-
-        Config.INGEST_OVERRIDE = False
-        Config.INITIAL_INGEST_NUM_MONTHS = 2
-
-    @patch(
-        'masu.processor._tasks.download.ReportDownloader._set_downloader',
-        return_value=FakeDownloader,
-    )
-    @patch(
-        'masu.database.provider_db_accessor.ProviderDBAccessor.get_setup_complete',
-        return_value=True,
-    )
-    def test_get_report_without_override(self, fake_accessor, fake_report_files):
-        """Test _get_report_files for two months."""
-        initial_month_qty = 2
-
-        account = fake_arn(service='iam', generate_account_id=True)
-        with patch.object(ReportDownloader, 'get_reports') as download_call:
-            _get_report_files(
-                Mock(),
-                customer_name=self.fake.word(),
-                authentication=account,
-                provider_type='AWS',
-                report_name=self.fake.word(),
-                provider_uuid=self.aws_provider_uuid,
-                billing_source=self.fake.word(),
-            )
-
-            download_call.assert_called_with(initial_month_qty)
 
     @patch('masu.processor._tasks.download.ProviderStatus.set_error')
     @patch(
@@ -236,7 +179,7 @@ class GetReportFileTests(MasuTestCase):
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
-                report_name=self.fake.word(),
+                report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
             )
@@ -255,7 +198,7 @@ class GetReportFileTests(MasuTestCase):
             customer_name=self.fake.word(),
             authentication=account,
             provider_type='AWS',
-            report_name=self.fake.word(),
+            report_month=DateAccessor().today(),
             provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
         )
@@ -493,6 +436,7 @@ class TestProcessorTasks(MasuTestCase):
             'schema_name': self.fake.word(),
             'billing_source': self.fake.word(),
             'provider_uuid': self.aws_provider_uuid,
+            'report_month': str(DateAccessor().today())
         }
 
     @patch('masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime')
