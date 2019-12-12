@@ -257,7 +257,7 @@ class TestCeleryTasks(MasuTestCase):
 
         tasks.vacuum_schemas()
 
-        for schema_name in [self.schema, schema_one, schema_two]:
+        for schema_name in [schema_one, schema_two]:
             mock_vacuum.delay.assert_any_call(schema_name)
 
 
