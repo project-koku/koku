@@ -15,7 +15,8 @@
 #
 
 """View for Source status."""
-import asyncio
+import logging
+import threading
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.views.decorators.cache import never_cache
@@ -26,10 +27,12 @@ from rest_framework.decorators import (api_view,
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
-from sources.sources_http_client import SourcesHTTPClient
+from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientError
 
 from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
+
+LOG = logging.getLogger(__name__)
 
 
 class SourceStatus:
@@ -65,9 +68,13 @@ class SourceStatus:
         availability_status = interface.availability_status(source_authentication, source_billing_source)
         return availability_status
 
-    async def push_status(self, status_msg):
+    def push_status(self, status_msg):
         """Push status_msg to platform sources."""
-        self.sources_client.set_source_status(status_msg)
+        try:
+            self.sources_client.set_source_status(status_msg)
+        except SourcesHTTPClientError as error:
+            err_msg = 'Unable to push source status. Reason: {}'.format(str(error))
+            LOG.error(err_msg)
 
 
 def _get_source_id_from_request(request):
@@ -88,8 +95,10 @@ def _deliver_status(request, status_obj):
     if request.method == 'GET':
         return Response(availability_status, status=status.HTTP_200_OK)
     elif request.method == 'POST':
-        event_loop = asyncio.new_event_loop()
-        event_loop.run_until_complete(status_obj.push_status(availability_status.get('availability_status_error')))
+        status_thread = threading.Thread(target=status_obj.push_status,
+                                         args=(availability_status.get('availability_status_error'),))
+        status_thread.daemon = True
+        status_thread.start()
         return Response(status=status.HTTP_204_NO_CONTENT)
     else:
         raise status.HTTP_405_METHOD_NOT_ALLOWED
