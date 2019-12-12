@@ -35,6 +35,7 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
 
+from api.iam.models import Tenant
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer, SyncedFileInColdStorageError
 from api.dataexport.uploader import AwsS3Uploader
@@ -42,6 +43,7 @@ from koku.celery import app
 from masu.celery.export import table_export_settings
 from masu.external.date_accessor import DateAccessor
 from masu.processor.orchestrator import Orchestrator
+from masu.processor.tasks import vacuum_schema
 from masu.util.common import NamedTemporaryGZip, dictify_table_export_settings
 from masu.util.upload import get_upload_path
 
@@ -305,3 +307,16 @@ def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, sta
                         writer.writerow(row)
             temp_file.close()
             uploader.upload_file(temp_file.name, upload_path)
+
+
+@app.task(name='masu.celery.tasks.vacuum_schemas', queue_name='reporting')
+def vacuum_schemas():
+    tenants = Tenant.objects.values('schema_name')
+    schema_names = [
+        tenant.get('schema_name') for tenant in tenants
+        if (tenant.get('schema_name') and tenant.get('schema_name') != 'public')
+    ]
+
+    for schema_name in schema_names:
+        LOG.info('Scheduling VACUUM task for %s', schema_name)
+        vacuum_schema.delay(schema_name)
