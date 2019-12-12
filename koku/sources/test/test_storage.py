@@ -432,4 +432,3 @@ class SourcesStorageTest(TestCase):
             self.assertEquals(len(response), test.get('expected_list_length'))
             test_source_id += 1
             aws_obj.delete()
-
