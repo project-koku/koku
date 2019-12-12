@@ -54,6 +54,7 @@ from masu.processor.tasks import (
     update_all_summary_tables,
     update_charge_info,
     update_summary_tables,
+    vacuum_schema
 )
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
@@ -905,3 +906,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(manifest.id)
             self.assertIsNotNone(manifest.manifest_completed_datetime)
+
+    def test_vacuum_schema(self):
+        """Test that the vacuum schema task runs."""
+        logging.disable(logging.NOTSET)
+        expected = 'INFO:masu.processor.tasks:VACUUM'
+        with self.assertLogs('masu.processor.tasks', level='INFO') as logger:
+            vacuum_schema(self.schema)
+            self.assertIn(expected, logger.output)
