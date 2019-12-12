@@ -68,23 +68,29 @@ class SourceStatus:
         self.sources_client.set_source_status(status_msg)
 
 
-def get_status_object(request_arg):
-    """Get SourceStatus object otherwise return 404 if status not found."""
-    source_id = request_arg.get('source_id', None)
-    if source_id is None:
-        return Response(data='Missing query parameter source_id', status=status.HTTP_400_BAD_REQUEST)
-    try:
-        int(source_id)
-    except ValueError:
-        # source_id must be an integer
-        return Response(data='source_id must be an integer', status=status.HTTP_400_BAD_REQUEST)
+def _get_source_id_from_request(request):
+    """Helper to get source id from request."""
+    if request.method == "GET":
+        source_id = request.query_params.get('source_id', None)
+    elif request.method == 'POST':
+        source_id = request.data.get('source_id', None)
+    else:
+        raise status.HTTP_405_METHOD_NOT_ALLOWED
+    return source_id
 
-    try:
-        source_status_obj = SourceStatus(source_id)
-    except ObjectDoesNotExist:
-        # Source isn't in our database, return 404.
-        return Response(status=status.HTTP_404_NOT_FOUND)
-    return source_status_obj
+
+def _deliver_status(request, status_obj):
+    """Helper to deliver status depending on request."""
+    availability_status = status_obj.status()
+
+    if request.method == 'GET':
+        return Response(availability_status, status=status.HTTP_200_OK)
+    elif request.method == 'POST':
+        event_loop = asyncio.new_event_loop()
+        event_loop.run_until_complete(status_obj.push_status(availability_status.get('availability_status_error')))
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    else:
+        raise status.HTTP_405_METHOD_NOT_ALLOWED
 
 
 @never_cache  # noqa: C901
@@ -103,15 +109,20 @@ def source_status(request):
                         'availability_status_error': ValidationError-detail}
 
     """
-    if request.method == "GET":
-        source_status_obj = get_status_object(request.query_params)
-        availability_status = source_status_obj.status()
-        return Response(availability_status, status=status.HTTP_200_OK)
+    source_id = _get_source_id_from_request(request)
 
-    if request.method == 'POST':
-        post_data = request.data
-        source_status_obj = get_status_object(post_data)
-        availability_status = source_status_obj.status()
+    if source_id is None:
+        return Response(data='Missing query parameter source_id', status=status.HTTP_400_BAD_REQUEST)
+    try:
+        int(source_id)
+    except ValueError:
+        # source_id must be an integer
+        return Response(data='source_id must be an integer', status=status.HTTP_400_BAD_REQUEST)
 
-        event_loop = asyncio.new_event_loop()
-        event_loop.run_until_complete(source_status_obj.push_status(availability_status.get('availability_status_error')))
+    try:
+        source_status_obj = SourceStatus(source_id)
+    except ObjectDoesNotExist:
+        # Source isn't in our database, return 404.
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    return _deliver_status(request, source_status_obj)
