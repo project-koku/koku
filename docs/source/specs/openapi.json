@@ -173,6 +173,23 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "name": "ordering",
+                        "required": false,
+                        "in": "query",
+                        "description": "Order response on cost model by allowed fields.",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "name",
+                                "-name",
+                                "source_type",
+                                "-source_type",
+                                "updated_timestamp",
+                                "-updated_timestamp"
+                            ]
+                        }
                     }
                 ],
                 "responses": {
@@ -3443,6 +3460,7 @@
                             "source_type",
                             "authentication",
                             "billing_source",
+                            "koku_uuid",
                             "source_uuid"
                         ],
                         "properties": {
