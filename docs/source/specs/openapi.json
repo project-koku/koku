@@ -3490,6 +3490,11 @@
                                     "bucket": "test-bucket"
                                 }
                             },
+                            "koku_uuid": {
+                                "type": "string",
+                                "format": "uuid",
+                                "example": "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
+                            },
                             "source_uuid": {
                                 "type": "string",
                                 "format": "uuid",
