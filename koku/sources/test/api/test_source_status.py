@@ -24,6 +24,7 @@ from django.urls import reverse
 from faker import Faker
 from rest_framework import status
 from rest_framework.test import APIClient
+from sources.sources_http_client import SourcesHTTPClient
 
 from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
@@ -188,3 +189,23 @@ class SourcesStatusTest(TestCase):
             response = client.get(url + '?source_id=1')
             actual_source_status = response.data
             self.assertEquals(mock_status, actual_source_status)
+
+    def test_post_status(self):
+        """Test that the API pushes sources status with POST."""
+        mock_status = {'availability_status': 'available', 'availability_status_error': ''}
+        with patch.object(ProviderAccessor, 'availability_status', return_value=mock_status):
+            url = reverse('source-status')
+            client = APIClient()
+            # Insert a source with ID 1
+            Sources.objects.create(
+                source_id=1,
+                name='New AWS Mock Test Source',
+                source_type='AWS',
+                authentication={},
+                billing_source={'bucket': 'my-bucket'},
+                koku_uuid='',
+                offset=1)
+            json_data = {'source_id': 1}
+            with patch.object(SourcesHTTPClient, 'set_source_status', return_value=True):
+                response = client.post(url, data=json_data)
+            self.assertEquals(response.status_code, 204)
