@@ -87,6 +87,13 @@ class ReportManifestDBAccessorTest(IamTestCase):
             self.manifest_accessor.mark_manifest_as_updated(manifest)
             self.assertGreater(manifest.manifest_updated_datetime, now)
 
+    def test_mark_manifest_as_completed(self):
+        """Test that the manifest is marked updated."""
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
+        now = DateAccessor().today_with_timezone('UTC')
+        self.manifest_accessor.mark_manifest_as_completed(manifest)
+        self.assertGreater(manifest.manifest_completed_datetime, now)
+
     def test_get_manifest_list_for_provider_and_bill_date(self):
         """Test that all manifests are returned for a provider and bill."""
         bill_date = self.manifest_dict['billing_period_start_datetime'].date()

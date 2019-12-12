@@ -132,6 +132,10 @@ class ProviderManager:
                                                            provider_manifest.num_total_files)
                 last_process_start_date = None
                 last_process_complete_date = None
+                last_manifest_complete_datetime = None
+                if provider_manifest.manifest_completed_datetime:
+                    last_manifest_complete_datetime = provider_manifest. \
+                        manifest_completed_datetime.strftime(DATE_TIME_FORMAT)
                 if report_status and report_status.last_started_datetime:
                     last_process_start_date = report_status. \
                         last_started_datetime.strftime(DATE_TIME_FORMAT)
@@ -140,6 +144,7 @@ class ProviderManager:
                         last_completed_datetime.strftime(DATE_TIME_FORMAT)
                 status['last_process_start_date'] = last_process_start_date
                 status['last_process_complete_date'] = last_process_complete_date
+                status['last_manifest_complete_date'] = last_manifest_complete_datetime
                 schema_stats = self._get_tenant_provider_stats(provider_manifest.provider, tenant, month)
                 status['summary_data_creation_datetime'] = schema_stats.get('summary_data_creation_datetime')
                 status['summary_data_updated_datetime'] = schema_stats.get('summary_data_updated_datetime')

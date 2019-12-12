@@ -164,6 +164,15 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "name": "description",
+                        "required": false,
+                        "in": "query",
+                        "description": "Filter response on cost model description.",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ],
                 "responses": {
@@ -3434,7 +3443,6 @@
                             "source_type",
                             "authentication",
                             "billing_source",
-                            "koku_uuid",
                             "source_uuid"
                         ],
                         "properties": {

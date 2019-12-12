@@ -16,6 +16,7 @@
 #
 """AWS Query Handling for Reports."""
 import copy
+import logging
 
 from django.db.models import (F, Value, Window)
 from django.db.models.expressions import Func
@@ -24,6 +25,8 @@ from tenant_schemas.utils import tenant_context
 
 from api.report.aws.provider_map import AWSProviderMap
 from api.report.queries import ReportQueryHandler
+
+LOG = logging.getLogger(__name__)
 
 EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
                   'cost_entry_product_id', 'cost_entry_pricing_id',
@@ -81,8 +84,55 @@ class AWSReportQueryHandler(ReportQueryHandler):
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get('annotations')
         for q_param, db_field in fields.items():
-            annotations[q_param] = Concat(db_field, Value(''))
+            if q_param in self.parameters.get('group_by', {}).keys():
+                annotations[q_param] = Concat(db_field, Value(''))
         return annotations
+
+    @property
+    def query_table(self):
+        """Return the database table to query against."""
+        query_table = self._mapper.query_table
+        report_type = self.parameters.report_type
+        report_group = 'default'
+
+        excluded_filters = set(['time_scope_value', 'time_scope_units', 'resolution'])
+        filter_keys = set(self.parameters.get('filter', {}).keys())
+        filter_keys = filter_keys.difference(excluded_filters)
+        group_by_keys = list(self.parameters.get('group_by', {}).keys())
+
+        # If grouping by more than 1 field, we default to the daily summary table
+        if len(group_by_keys) > 1:
+            return query_table
+        if len(filter_keys) > 1:
+            return query_table
+        # If filtering on a different field than grouping by, we default to the daily summary table
+        if group_by_keys and len(filter_keys.difference(group_by_keys)) != 0:
+            return query_table
+
+        # Special Casess for Network and Database Cards in the UI
+        service_filter = set(self.parameters.get('filter', {}).get('service', []))
+        network_services = [
+            'AmazonVPC', 'AmazonCloudFront', 'AmazonRoute53', 'AmazonAPIGateway'
+        ]
+        database_services = [
+            'AmazonRDS', 'AmazonDynamoDB', 'AmazonElastiCache', 'AmazonNeptune',
+            'AmazonRedshift', 'AmazonDocumentDB'
+        ]
+        if report_type == 'costs' and service_filter and not service_filter.difference(network_services):
+            report_type = 'network'
+        elif report_type == 'costs' and service_filter and not service_filter.difference(database_services):
+            report_type = 'database'
+
+        if group_by_keys:
+            report_group = group_by_keys[0]
+        elif filter_keys and not group_by_keys:
+            report_group = list(filter_keys)[0]
+        try:
+            query_table = self._mapper.views[report_type][report_group]
+        except KeyError:
+            msg = f'{report_group} for {report_type} has no entry in views. Using the default.'
+            LOG.warning(msg)
+        return query_table
 
     def _format_query_response(self):
         """Format the query response with data.
@@ -142,9 +192,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
         """
         data = []
 
-        q_table = self._mapper.query_table
         with tenant_context(self.tenant):
-            query = q_table.objects.filter(self.query_filter)
+            query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_group_by = ['date'] + self._get_group_by()
             query_order_by = ['-date', ]
@@ -211,9 +260,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
             (dict) The aggregated totals for the query
 
         """
-        q_table = self._mapper.query_table
         query_group_by = ['date'] + self._get_group_by()
-        query = q_table.objects.filter(self.query_filter)
+        query = self.query_table.objects.filter(self.query_filter)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
         aggregates = self._mapper.report_type_map.get('aggregates')
