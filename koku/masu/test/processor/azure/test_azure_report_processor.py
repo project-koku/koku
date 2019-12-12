@@ -247,6 +247,23 @@ class AzureReportProcessorTest(MasuTestCase):
         except InternalError:
             self.fail('failed to call process twice.')
 
+    def test_azure_process_can_run_twice(self):
+        """Test that row duplicates are inserted into the DB when process called twice."""
+        processor = AzureReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.azure_provider_uuid,
+        )
+
+        # Process for the first time
+        processor.process()
+        shutil.copy2(self.test_report_path, self.test_report)
+        try:
+            processor.process()
+        except InternalError:
+            self.fail('failed to call process twice.')
+
     def test_azure_create_cost_entry_bill(self):
         """Test that a cost entry bill id is returned."""
         table_name = AZURE_REPORT_TABLE_MAP['bill']

@@ -194,6 +194,84 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
         )
 
 
+@app.task(
+    name='masu.celery.tasks.delete_archived_data',
+    queue_name='delete_archived_data',
+    autoretry_for=(ClientError,),
+    max_retries=10,
+    retry_backoff=10,
+)
+def delete_archived_data(schema_name, provider_type, provider_uuid):
+    """
+    Delete archived data from our S3 bucket for a given provider.
+
+    This function chiefly follows the deletion of a provider.
+
+    This task is defined to attempt up to 10 retries using exponential backoff
+    starting with a 10-second delay. This is intended to allow graceful handling
+    of temporary AWS S3 connectivity issues because it is relatively important
+    for us to delete this archived data.
+
+    Args:
+        schema_name (str): Koku user account (schema) name.
+        provider_type (str): Koku backend provider type identifier.
+        provider_uuid (UUID): Koku backend provider UUID.
+
+    """
+    if not schema_name or not provider_type or not provider_uuid:
+        # Sanity-check all of these inputs in case somehow any receives an
+        # empty value such as None or '' because we need to minimize the risk
+        # of deleting unrelated files from our S3 bucket.
+        messages = []
+        if not schema_name:
+            message = 'missing required argument: schema_name'
+            LOG.error(message)
+            messages.append(message)
+        if not provider_type:
+            message = 'missing required argument: provider_type'
+            LOG.error(message)
+            messages.append(message)
+        if not provider_uuid:
+            message = 'missing required argument: provider_uuid'
+            LOG.error(message)
+            messages.append(message)
+        raise TypeError('delete_archived_data() %s', ', '.join(messages))
+
+    if not settings.ENABLE_S3_ARCHIVING:
+        LOG.info('Skipping delete_archived_data; upload feature is disabled')
+        return
+
+    if not settings.S3_BUCKET_PATH:
+        message = 'settings.S3_BUCKET_PATH must have a not-empty value'
+        LOG.error(message)
+        raise ImproperlyConfigured(message)
+
+    # We need to normalize capitalization and "-local" dev providers.
+    provider_slug = provider_type.lower().split('-')[0]
+    prefix = f'{settings.S3_BUCKET_PATH}/{schema_name}/{provider_slug}/{provider_uuid}/'
+    LOG.info('attempting to delete our archived data in S3 under %s', prefix)
+
+    s3_resource = boto3.resource('s3', settings.S3_REGION)
+    s3_bucket = s3_resource.Bucket(settings.S3_BUCKET_NAME)
+    object_keys = [
+        {'Key': s3_object.key} for s3_object in s3_bucket.objects.filter(Prefix=prefix)
+    ]
+    batch_size = 1000  # AWS S3 delete API limits to 1000 objects per request.
+    for batch_number in range(math.ceil(len(object_keys) / batch_size)):
+        batch_start = batch_size * batch_number
+        batch_end = batch_start + batch_size
+        object_keys_batch = object_keys[batch_start:batch_end]
+        s3_bucket.delete_objects(Delete={'Objects': object_keys_batch})
+
+    remaining_objects = list(s3_bucket.objects.filter(Prefix=prefix))
+    if remaining_objects:
+        LOG.warning(
+            'Found %s objects after attempting to delete all objects with prefix %s',
+            len(remaining_objects),
+            prefix,
+        )
+
+
 @app.task(name='masu.celery.tasks.sync_data_to_customer',
           queue_name='customer_data_sync',
           retry_kwargs={'max_retries': 5,

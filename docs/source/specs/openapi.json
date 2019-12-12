@@ -2297,7 +2297,7 @@
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
                     }
-                ],
+                }],
                 "responses": {
                     "200": {
                         "description": "A paginated report object",
@@ -4103,6 +4103,65 @@
                 "description": "The grouping to apply to the report. No grouping by default. When grouping by account the account_alias will be provided if avaiable."
             },
             "ReportOpenShiftAzureGrouping": {
+                "type": "object",
+                "properties": {
+                    "subscription_guid": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "service_name": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "resource_location": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "instance_type": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "tag": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "cluster": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "project": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "node": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "example": {
+                    "subscription_guid": [
+                        "*"
+                    ]
+                },
+                "description": "The grouping to apply to the report. No grouping by default. When grouping by account the account_alias will be provided if avaiable."
+            },
+            "ReportOrdering": {
                 "type": "object",
                 "properties": {
                     "subscription_guid": {

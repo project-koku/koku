@@ -327,6 +327,9 @@ async def process_messages(msg_pending_queue):  # pragma: no cover
                                               msg_data.get('offset'))
 
                 with concurrent.futures.ThreadPoolExecutor() as pool:
+                    if storage.is_known_source(msg_data.get('source_id')) is False:
+                        LOG.info(f'Update event for unknown source id, skipping...')
+                        continue
                     await EVENT_LOOP.run_in_executor(pool, sources_network_info,
                                                      msg_data.get('source_id'),
                                                      msg_data.get('auth_header'))
