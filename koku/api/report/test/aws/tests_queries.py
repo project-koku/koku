@@ -1293,7 +1293,7 @@ class AWSReportQueryTest(IamTestCase):
         handler2 = AWSReportQueryHandler(query_params2)
         group_by2 = handler2._get_group_by()
         data2 = handler2.execute_query()
-        
+
         # Assert the second request contains only eu-west-3 region
         for region_dict in data2['data']: 
             # For each date, assert that the region is eu-west-3
@@ -1312,13 +1312,12 @@ class AWSReportQueryTest(IamTestCase):
         query_params = handler.filter_to_order_by(query_params)
 
         self.assertEqual(['eu-west-3'], query_params._parameters['group_by']['region'])
-     def test_filter_to_group_by_2(self):
+    def test_filter_to_group_by_2(self):
         """Test the filter_to_group_by method."""
         url = '?group_by[region]=*&filter[region]=eu-west-3&group_by[service]=AmazonEC2&group_by[service]=*'
         query_params = self.mocked_query_params(url, AWSInstanceTypeView)
         handler = AWSReportQueryHandler(query_params)
         query_params = handler.filter_to_order_by(query_params)
 
-        self.assertEqual(['eu-west-3'], query_params._parameters['group_by']['region'])
-        self.assertEqual(['AmazonEC2'], query_params._parameters['group_by']['service'])   
+        self.assertEqual(['eu-west-3'], query_params._parameters['group_by']['region']) 
             
