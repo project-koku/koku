@@ -15,6 +15,7 @@
 #
 
 """View for Source status."""
+import asyncio
 from django.core.exceptions import ObjectDoesNotExist
 from django.views.decorators.cache import never_cache
 from rest_framework import status
@@ -27,6 +28,7 @@ from rest_framework.settings import api_settings
 
 from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
+from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientError
 
 
 class SourceStatus:
@@ -35,6 +37,9 @@ class SourceStatus:
     def __init__(self, source_id):
         """Initialize source id."""
         self.source = Sources.objects.get(source_id=source_id)
+        self.auth_header = self.source.auth_header
+        self.sources_client = SourcesHTTPClient(auth_header=self.auth_header,
+                                                source_id=source_id)
 
     def status(self):
         """Find the source's availability status."""
@@ -59,9 +64,31 @@ class SourceStatus:
         availability_status = interface.availability_status(source_authentication, source_billing_source)
         return availability_status
 
+    async def push_status(self, status_msg):
+        self.sources_client.set_source_status(status_msg)
+
+
+def get_status_object(request_arg):
+    """Get SourceStatus object otherwise return 404 if status not found."""
+    source_id = request_arg.get('source_id', None)
+    if source_id is None:
+        return Response(data='Missing query parameter source_id', status=status.HTTP_400_BAD_REQUEST)
+    try:
+        int(source_id)
+    except ValueError:
+        # source_id must be an integer
+        return Response(data='source_id must be an integer', status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        source_status_obj = SourceStatus(source_id)
+    except ObjectDoesNotExist:
+        # Source isn't in our database, return 404.
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    return source_status_obj
+
 
 @never_cache  # noqa: C901
-@api_view(http_method_names=['GET'])
+@api_view(http_method_names=['GET', 'POST'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def source_status(request):
@@ -76,20 +103,15 @@ def source_status(request):
                         'availability_status_error': ValidationError-detail}
 
     """
-    source_id = request.query_params.get('source_id', None)
-    if source_id is None:
-        return Response(data='Missing query parameter source_id', status=status.HTTP_400_BAD_REQUEST)
-    try:
-        int(source_id)
-    except ValueError:
-        # source_id must be an integer
-        return Response(data='source_id must be an integer', status=status.HTTP_400_BAD_REQUEST)
-    try:
-        source_status_obj = SourceStatus(source_id)
-    except ObjectDoesNotExist:
-        # Source isn't in our database, return 404.
-        return Response(status=status.HTTP_404_NOT_FOUND)
+    if request.method == "GET":
+        source_status_obj = get_status_object(request.query_params)
+        availability_status = source_status_obj.status()
+        return Response(availability_status, status=status.HTTP_200_OK)
 
-    availability_status = source_status_obj.status()
+    if request.method == 'POST':
+        post_data = request.data
+        source_status_obj = get_status_object(post_data)
+        availability_status = source_status_obj.status()
 
-    return Response(availability_status, status=status.HTTP_200_OK)
+        event_loop = asyncio.new_event_loop()
+        event_loop.run_until_complete(source_status_obj.push_status(availability_status.get('availability_status_error')))
