@@ -115,8 +115,7 @@ class SourcesClientDataGenerator:
         return response
 
     def create_azure_storage(self, parameters, resource_group, storage_account):
-        json_data = {'source_id': parameters.get('source_id'),
-                        'billing_source': {'data_source': {'resource_group': resource_group,
+        json_data = {'billing_source': {'data_source': {'resource_group': resource_group,
                                                         'storage_account': storage_account}}}
 
         url = '{}/{}/'.format(self._base_url, parameters.get('source_id'))
