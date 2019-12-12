@@ -28,6 +28,7 @@ from django_filters import CharFilter, FilterSet, UUIDFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException
+from rest_framework.filters import OrderingFilter
 
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
 from cost_models.models import CostModel
@@ -56,7 +57,8 @@ class CostModelsFilter(FilterSet):
         fields = [
             'source_type',
             'name',
-            'provider_uuid'
+            'provider_uuid',
+            'description',
         ]
 
 
@@ -115,13 +117,15 @@ class CostModelViewSet(mixins.CreateModelMixin,
     serializer_class = CostModelSerializer
     permission_classes = (CostModelsAccessPermission,)
     lookup_field = 'uuid'
-    filter_backends = (DjangoFilterBackend,)
+    filter_backends = (DjangoFilterBackend, OrderingFilter)
     filterset_class = CostModelsFilter
+    ordering_fields = ('name', 'source_type', 'updated_timestamp')
+    ordering = ('name',)
 
     @staticmethod
     def check_fields(dict_, model, exception):
         """Check if GET fields are valid."""
-        valid_query_params = ['limit', 'offset', 'provider_uuid']
+        valid_query_params = ['limit', 'offset', 'provider_uuid', 'ordering']
         cost_models_params = {k: dict_.get(k) for k in dict_.keys() if k not in valid_query_params}
         try:
             model.objects.filter(**cost_models_params)
