@@ -59,7 +59,7 @@ class QueryHandler:
 
         """
         LOG.debug(f'Query Params: {parameters}')
-
+        parameters = self.filter_to_order_by(parameters)
         self.tenant = parameters.tenant
         self.access = parameters.access
 
@@ -298,3 +298,44 @@ class QueryHandler:
         filters.add(query_filter=end_filter)
 
         return filters
+
+    def filter_to_order_by(self, parameters):
+        """Remove group_by[NAME]=* and replace it with group_by[NAME]=X.
+
+        The parameters object contains a list of filters and a list of group_bys.
+
+        For example, if the parameters object contained the following:
+        group_by[X] = Y
+        group_by[Z] = *     # removes this line
+        filter[Z] = L
+        filter[X] = Y
+
+        The returned parameters object would contain lists that look like this:
+
+        group_by[X] = Y
+        group_by[Z] = L     # adds this line
+        filter[Z] = L
+        filter[X] = Y
+
+        Thereby removing the star when there is a filter provided.
+
+        Args:
+            parameters (QueryParameters): The parameters object
+
+        Returns:
+            parameters (QueryParameters): The parameters object
+
+        """
+        for group_by_key in parameters.parameters['group_by']:
+            for group_by_value in parameters.parameters['group_by'][group_by_key]:
+                if group_by_value == '*':
+                    # find if there is a filter[X]=Y that matches this group_by[X]=*
+                    for filter_key in parameters.parameters['filter']:
+                        if isinstance(parameters.parameters['filter'][filter_key], list):
+                            for filter_value in parameters.parameters['filter'][filter_key]:
+                                if filter_key == group_by_key:
+                                    parameters.parameters['group_by'][group_by_key] = [filter_value]
+                        else:
+                            if filter_key == group_by_key:
+                                parameters.parameters['group_by'][group_by_key] = [filter_value]
+        return parameters
