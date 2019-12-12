@@ -23,6 +23,8 @@ import datetime
 import os
 
 from celery.utils.log import get_task_logger
+from django.db import connection
+from tenant_schemas.utils import schema_context
 
 import masu.prometheus_stats as worker_stats
 from koku.celery import app
@@ -305,3 +307,26 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
 
     updater = ReportChargeUpdater(schema_name, provider_uuid)
     updater.update_charge_info(start_date, end_date)
+
+@app.task(name='masu.processor.tasks.vacuum_schema', queue_name='reporting')
+def vacuum_schema(schema_name):
+    """Vacuum the reporting tables in the specified schema."""
+
+    table_sql = """
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = %s
+            AND table_name like 'reporting_%%'
+            AND table_type != 'VIEW'
+    """
+
+    with schema_context(schema_name):
+        with connection.cursor() as cursor:
+            cursor.execute(table_sql, [schema_name])
+            tables = cursor.fetchall()
+            tables = [table[0] for table in tables]
+            for table in tables:
+                sql = 'VACUUM ANALYZE {}.{}'.format(schema_name, table)
+                cursor.execute(sql)
+                LOG.info(sql)
+                LOG.info(cursor.statusmessage)
