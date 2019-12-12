@@ -46,8 +46,6 @@ from api.views import (
     SourcesProxyViewSet,
     StatusView,
     UserPreferenceViewSet,
-    authentication,
-    billing_source,
     openapi,
 )
 
