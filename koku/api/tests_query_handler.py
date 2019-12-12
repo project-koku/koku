@@ -15,12 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
+from api.iam.test.iam_test_case import IamTestCase
+from api.provider.test import create_generic_provider
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.aws.view import AWSInstanceTypeView
 from api.report.test import FakeAWSCostData
-from api.iam.test.iam_test_case import IamTestCase
 from api.report.test.aws.helpers import AWSReportDataGenerator
-from api.provider.test import create_generic_provider
 from api.utils import DateHelper
 
 
