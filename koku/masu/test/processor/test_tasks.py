@@ -51,6 +51,7 @@ from masu.processor.tasks import (
     update_all_summary_tables,
     update_charge_info,
     update_summary_tables,
+    vacuum_schema
 )
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
@@ -920,3 +921,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         update_all_summary_tables(start_date)
 
         mock_update.delay.assert_called_with(ANY, ANY, ANY, str(start_date), ANY)
+
+    def test_vacuum_schema(self):
+        """Test that the vacuum schema task runs."""
+        logging.disable(logging.NOTSET)
+        expected = 'INFO:masu.processor.tasks:VACUUM'
+        with self.assertLogs('masu.processor.tasks', level='INFO') as logger:
+            vacuum_schema(self.schema)
+            self.assertIn(expected, logger.output)

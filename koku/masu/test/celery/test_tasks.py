@@ -10,6 +10,7 @@ import pytz
 from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError, Retry
 from django.core.exceptions import ImproperlyConfigured
+from django.db import connection
 from django.test import override_settings
 
 from api.dataexport.models import DataExportRequest as APIExportRequest
@@ -239,6 +240,25 @@ class TestCeleryTasks(MasuTestCase):
             [call(Prefix=expected_prefix), call(Prefix=expected_prefix)]
         )
         self.assertIn('Found 1 objects after attempting', captured_logs.output[-1])
+
+    @patch('masu.celery.tasks.vacuum_schema')
+    def test_vacuum_schemas(self, mock_vacuum):
+        """Test that the vacuum_schemas scheduled task runs for all schemas."""
+        schema_one = 'acct123'
+        schema_two = 'acct456'
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO api_tenant (schema_name)
+                VALUES (%s), (%s)
+                """,
+                [schema_one, schema_two]
+            )
+
+        tasks.vacuum_schemas()
+
+        for schema_name in [self.schema, schema_one, schema_two]:
+            mock_vacuum.delay.assert_any_call(schema_name)
 
 
 class TestUploadTaskWithData(MasuTestCase):
