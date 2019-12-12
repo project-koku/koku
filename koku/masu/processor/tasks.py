@@ -318,7 +318,7 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
     updater = ReportChargeUpdater(schema_name, provider_uuid)
     updater.update_charge_info(start_date, end_date)
 
-    
+
 @app.task(name='masu.processor.tasks.refresh_materialized_views', queue_name='reporting')
 def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
     """Refresh the database's materialized views for reporting."""
@@ -340,7 +340,7 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
             manifest = manifest_accessor.get_manifest_by_id(manifest_id)
             manifest_accessor.mark_manifest_as_completed(manifest)
 
-            
+
 @app.task(name='masu.processor.tasks.vacuum_schema', queue_name='reporting')
 def vacuum_schema(schema_name):
     """Vacuum the reporting tables in the specified schema."""

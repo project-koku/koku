@@ -35,10 +35,10 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
 
-from api.iam.models import Tenant
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer, SyncedFileInColdStorageError
 from api.dataexport.uploader import AwsS3Uploader
+from api.iam.models import Tenant
 from koku.celery import app
 from masu.celery.export import table_export_settings
 from masu.external.date_accessor import DateAccessor
