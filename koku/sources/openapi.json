@@ -13,9 +13,224 @@
     {
       "name": "Source Status",
       "description": "Platform sources cost management availability status"
+    },
+    {
+      "name": "Sources",
+      "description": "Operations about source interactions"
     }
   ],
   "paths": {
+    "/sources/": {
+      "get": {
+          "tags": [
+              "Sources"
+          ],
+          "summary": "List the sources",
+          "operationId": "listSources",
+          "responses": {
+              "200": {
+                  "description": "A paginated list of source objects",
+                  "content": {
+                      "application/json": {
+                          "schema": {
+                              "$ref": "#/components/schemas/SourcePagination"
+                          }
+                      }
+                  }
+              },
+              "500": {
+                  "description": "Unexpected Error",
+                  "content": {
+                      "application/json": {
+                          "schema": {
+                              "$ref": "#/components/schemas/Error"
+                          }
+                      }
+                  }
+              }
+          }
+      }
+  },
+  "/sources/{source_id}/": {
+      "get": {
+          "tags": [
+              "Sources"
+          ],
+          "summary": "Get a source",
+          "operationId": "getSource",
+          "parameters": [{
+              "name": "source_id",
+              "in": "path",
+              "description": "ID of source to get",
+              "required": true,
+              "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "example": 1
+              }
+          }],
+          "responses": {
+              "200": {
+                  "description": "A Source object",
+                  "content": {
+                      "application/json": {
+                          "schema": {
+                              "$ref": "#/components/schemas/SourceOut"
+                          }
+                      }
+                  }
+              },
+              "401": {
+                  "description": "Unauthorized"
+              },
+              "404": {
+                  "description": "Not Found",
+                  "content": {
+                      "application/json": {
+                          "schema": {
+                              "$ref": "#/components/schemas/Error"
+                          }
+                      }
+                  }
+              },
+              "500": {
+                  "description": "Unexpected Error",
+                  "content": {
+                      "application/json": {
+                          "schema": {
+                              "$ref": "#/components/schemas/Error"
+                          }
+                      }
+                  }
+              }
+          }
+      },
+      "patch": {
+          "tags": [
+              "Sources"
+          ],
+          "summary": "Update a source",
+          "operationId": "updateSource",
+          "parameters": [{
+              "name": "source_id",
+              "in": "path",
+              "description": "ID of source to update",
+              "required": true,
+              "schema": {
+                  "type": "integer",
+                  "format": "int64",
+                  "example": 1
+              }
+          }],
+          "requestBody": {
+              "content": {
+                  "application/json": {
+                      "schema": {
+                          "$ref": "#/components/schemas/SourceIn"
+                      }
+                  }
+              },
+              "required": true
+          },
+          "responses": {
+              "200": {
+                  "description": "A Provider object",
+                  "content": {
+                      "application/json": {
+                          "schema": {
+                              "$ref": "#/components/schemas/SourceOut"
+                          }
+                      }
+                  }
+              },
+              "404": {
+                  "description": "Not Found",
+                  "content": {
+                      "application/json": {
+                          "schema": {
+                              "$ref": "#/components/schemas/Error"
+                          }
+                      }
+                  }
+              },
+              "500": {
+                  "description": "Unexpected Error",
+                  "content": {
+                      "application/json": {
+                          "schema": {
+                              "$ref": "#/components/schemas/Error"
+                          }
+                      }
+                  }
+              }
+          }
+      }
+    },
+    "/sources/{source_id}/status/": {
+      "get": {
+        "summary": "Get Source Status",
+        "description": "Return avaiability status for platform source.",
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "path",
+            "description": "Platform Sources identifier",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The status of the source",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusGetResponse"
+                },
+                "examples": {
+                  "Available": {
+                    "value": {
+                      "availability_status": "available",
+                      "availability_status_error": ""
+                    }
+                  },
+                  "NotAvailable": {
+                    "value": {
+                      "availability_status": "unavailabile",
+                      "availability_status_error": "Bucket nonexistantbucketexample could not be found with arn:aws:iam::999999999999:role/CostManagement."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A 400 code occurs when the client either did not provide a source_id parameter, or source_id is not an integer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusGetResponseSourceIdNotInteger"
+                },
+                "examples": {
+                  "NonInteger": {
+                    "value": "source_id must be an integer"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Source is not in our database"
+          }
+        },
+        "tags": [
+          "Sources"
+        ]        
+      }
+    },
     "/source-status/": {
       "get": {
         "summary": "Get Source Status",
@@ -87,6 +302,187 @@
   },
   "components": {
     "schemas": {
+      "Error": {
+        "required": [
+            "errors"
+        ],
+        "properties": {
+            "errors": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "example": {
+                        "detail": "Not Found.",
+                        "status": 404
+                    }
+                }
+            }
+        }
+      },
+      "PaginationMeta": {
+        "properties": {
+            "count": {
+                "type": "integer",
+                "format": "int64",
+                "example": 30
+            }
+        }
+      },
+      "PaginationLinks": {
+        "properties": {
+            "first": {
+                "type": "string",
+                "format": "uri",
+                "example": "/cost-management/v1/(resources)/?offset=0"
+            },
+            "previous": {
+                "type": "string",
+                "format": "uri",
+                "example": "/cost-management/v1/(resources)/?offset=20"
+            },
+            "next": {
+                "type": "string",
+                "format": "uri",
+                "example": "/cost-management/v1/(resources)/?offset=40"
+            },
+            "last": {
+                "type": "string",
+                "format": "uri",
+                "example": "/cost-management/v1/(resources)/?offset=100"
+            }
+        }
+    },
+      "ListPagination": {
+        "properties": {
+            "meta": {
+                "$ref": "#/components/schemas/PaginationMeta"
+            },
+            "links": {
+                "$ref": "#/components/schemas/PaginationLinks"
+            }
+        }
+      },
+      "SourcePagination": {
+        "allOf": [{
+                "$ref": "#/components/schemas/ListPagination"
+            },
+            {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SourceOut"
+                        }
+                    }
+                }
+            }
+        ]
+      },
+      "Source": {
+        "required": [
+            "source_id",
+            "source_type"
+        ],
+        "properties": {
+            "source_id": {
+                "type": "integer",
+                "example": "Platform source identifier"
+            },
+            "source_type": {
+                "type": "string",
+                "example": "AWS"
+            }
+        }
+      },
+      "SourceIn": {
+          "allOf": [{
+                  "$ref": "#/components/schemas/Source"
+              },
+              {
+                  "type": "object",
+                  "required": [
+                      "authentication",
+                      "billing_source"
+                  ],
+                  "properties": {
+                      "authentication": {
+                          "type": "object",
+                          "description": "Dictionary containing resource name.",
+                          "example": {
+                              "resource_name": "arn"
+                          }
+                      },
+                      "billing_source": {
+                          "type": "object",
+                          "description": "Dictionary containing billing source.",
+                          "example": {
+                              "bucket": "test-bucket"
+                          }
+                      }
+                  }
+              }
+          ]
+      },
+      "SourceOut": {
+        "allOf": [{
+                "$ref": "#/components/schemas/Source"
+            },
+            {
+                "type": "object",
+                "required": [
+                    "source_id",
+                    "name",
+                    "source_type",
+                    "authentication",
+                    "billing_source",
+                    "source_uuid"
+                ],
+                "properties": {
+                    "source_id": {
+                        "type": "integer",
+                        "format": "int64",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "My Source"
+                    },
+                    "source_type": {
+                        "type": "string",
+                        "example": "OCP"
+                    },
+                    "authentication": {
+                        "type": "object",
+                        "description": "Dictionary containing resource name.",
+                        "example": {
+                            "resource_name": "arn"
+                        }
+                    },
+                    "billing_source": {
+                        "type": "object",
+                        "description": "Dictionary containing billing source.",
+                        "example": {
+                            "bucket": "test-bucket"
+                        }
+                    },
+                    "koku_uuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
+                    },
+                    "source_uuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "57e60f90-8c0c-4bd1-87a0-2143759aae1d"
+                    }
+                }
+            }
+        ]
+      },
       "StatusGetResponse": {
         "type": "object",
         "properties": {

@@ -156,7 +156,6 @@ class AzureProviderMap(ProviderMap):
                                 Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
                             ),
                             'derived_cost': Sum(Value(0, output_field=DecimalField())),
-                            'count': Sum(Value(0, output_field=DecimalField())),
                         },
                         'aggregate_key': 'usage_quantity',
                         'annotations': {
@@ -170,8 +169,6 @@ class AzureProviderMap(ProviderMap):
                                 Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
                             ),
                             'cost_units': Coalesce(Max('currency'), Value('USD')),
-                            'count': Max('instance_count'),
-                            'count_units': Value('instances', output_field=CharField()),
                             'usage': Sum('usage_quantity'),
                             # FIXME: Waiting on MSFT for usage_units default
                             'usage_units': Coalesce(Max('unit_of_measure'), Value('Storage Type Placeholder'))

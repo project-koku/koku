@@ -182,3 +182,22 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         middleware = IdentityHeaderMiddleware()
         with self.assertRaises(PermissionDenied):
             middleware.process_request(mock_request)
+
+    def test_process_malformed_header(self):
+        """Test that malformed header in request results in 403."""
+        user_data = self._create_user_data()
+        customer = self._create_customer_data()
+        request_context = self._create_request_context(
+            customer, user_data,
+            create_customer=True,
+            create_tenant=True,
+            is_admin=True,
+            is_cost_management=False
+        )
+        mock_request = request_context['request']
+        mock_request.path = '/api/v1/providers/'
+        mock_request.META['HTTP_X_RH_IDENTITY'] = 'not a header'
+
+        middleware = IdentityHeaderMiddleware()
+        with self.assertRaises(PermissionDenied):
+            middleware.process_request(mock_request)

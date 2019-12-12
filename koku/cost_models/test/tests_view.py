@@ -210,6 +210,22 @@ class CostModelViewTests(IamTestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]['name'], 'Test Cost Model')
 
+        url = '%s?description=eSt' % reverse('costmodels-list')
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        results = json_result.get('data')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['name'], 'Test Cost Model')
+        self.assertEqual(results[0]['description'], 'Test')
+
+        url = '%s?description=Fo' % reverse('costmodels-list')
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        results = json_result.get('data')
+        self.assertEqual(len(results), 0)
+
     def test_read_cost_model_invalid(self):
         """Test that reading an invalid cost_model returns an error."""
         url = reverse('costmodels-detail', kwargs={'uuid': uuid4()})

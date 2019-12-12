@@ -150,3 +150,13 @@ class NamedTemporaryGZip:
         """Remove the temp file from disk."""
         self.file.close()
         remove(self.file_name)
+
+
+def dictify_table_export_settings(table_export_settings):
+    """Return a dict representation of a table_export_settings named tuple."""
+    return {
+        'provider': table_export_settings.provider,
+        'output_name': table_export_settings.output_name,
+        'iterate_daily': table_export_settings.iterate_daily,
+        'sql': table_export_settings.sql
+    }

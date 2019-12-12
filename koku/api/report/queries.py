@@ -388,6 +388,25 @@ class ReportQueryHandler(QueryHandler):
                 out_data[key] = grouped
         return out_data
 
+    def _apply_group_null_label(self, data, groupby=None):
+        """Apply any no-{group} labels needed before grouping data.
+
+        Args:
+            data (Dict): A row of the queried data
+            group_by (list): An optional list of groups
+        Returns:
+            (Dict): Data updated with no-group labels
+        """
+        if groupby is None:
+            return data
+
+        for group in groupby:
+            if group in data and data.get(group) is None:
+                group_label = 'no-{}'.format(group)
+                data[group] = group_label
+
+        return data
+
     def _apply_group_by(self, query_data, group_by=None):
         """Group data by date for given time interval then group by list.
 
@@ -399,6 +418,10 @@ class ReportQueryHandler(QueryHandler):
 
         """
         bucket_by_date = OrderedDict()
+
+        if group_by is None:
+            group_by = self._get_group_by()
+
         for item in self.time_interval:
             date_string = self.date_to_string(item)
             bucket_by_date[date_string] = []
@@ -406,17 +429,15 @@ class ReportQueryHandler(QueryHandler):
         for result in query_data:
             if self._limit and result.get('rank'):
                 del result['rank']
+            self._apply_group_null_label(result, group_by)
             date_string = result.get('date')
             date_bucket = bucket_by_date.get(date_string)
             if date_bucket is not None:
                 date_bucket.append(result)
 
         for date, data_list in bucket_by_date.items():
-            data = data_list
-            if group_by is None:
-                group_by = self._get_group_by()
             grouped = ReportQueryHandler._group_data_by_list(group_by, 0,
-                                                             data)
+                                                             data_list)
             bucket_by_date[date] = grouped
         return bucket_by_date
 
@@ -457,12 +478,6 @@ class ReportQueryHandler(QueryHandler):
             group_label = group
             if group is None:
                 group_label = 'no-{}'.format(group_type)
-                if isinstance(group_value, list):
-                    for group_item in group_value:
-                        if group_item.get(group_type) is None:
-                            group_item[group_type] = group_label
-                if isinstance(group_value, dict) and group_type in group_value:
-                    group_value.update({group_type: group_label})
             cur = {group_type: group_label,
                    label: self._transform_data(groups, next_group_index,
                                                group_value)}

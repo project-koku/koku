@@ -52,6 +52,13 @@ class MasuTestCase(TransactionTestCase):
         if not result:
             cls.tenant = Tenant(schema_name=cls.schema)
             cls.tenant.save()
+        else:
+            cls.tenant = Tenant.objects.filter(schema_name=cls.schema).first()
+            if not cls.tenant:
+                cursor.execute(
+                    f"INSERT INTO api_tenant (id, schema_name) values (1, '{cls.schema}')"
+                )
+            cls.tenant = Tenant.objects.filter(schema_name=cls.schema).first()
 
         # Load static data into the DB
         # E.g. report column maps
@@ -60,6 +67,7 @@ class MasuTestCase(TransactionTestCase):
         cls.ocp_test_provider_uuid = '3c6e687e-1a09-4a05-970c-2ccf44b0952e'
         cls.aws_test_provider_uuid = '6e212746-484a-40cd-bba0-09a19d132d64'
         cls.azure_test_provider_uuid = 'b16c111a-d05f-488c-a6d9-c2a6f3ee02bb'
+        cls.unkown_test_provider_uuid = '16b38e92-773b-4984-8749-e54086f98db7'
         cls.aws_provider_resource_name = 'arn:aws:iam::111111111111:role/CostManagement'
         cls.ocp_provider_resource_name = 'my-ocp-cluster-1'
         cls.aws_test_billing_source = 'test-bucket'

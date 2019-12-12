@@ -32,6 +32,12 @@ class CostModel(models.Model):
         """Meta for CostModel."""
 
         db_table = 'cost_model'
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['name'], name='name_idx'),
+            models.Index(fields=['source_type'], name='source_type_idx'),
+            models.Index(fields=['updated_timestamp'], name='updated_timestamp_idx'),
+        ]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
