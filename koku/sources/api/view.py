@@ -116,14 +116,3 @@ class SourcesViewSet(mixins.ListModelMixin,
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
 
         return response
-
-    @action(detail=True, methods=['get'])
-    def status(self, request, *args, **kwargs):
-        """Get source availability status."""
-        source_id = kwargs.get('source_id')
-        try:
-            source_status_obj = SourceStatus(source_id)
-            availability_status = source_status_obj.status()
-            return Response(availability_status, status=status.HTTP_200_OK)
-        except Sources.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
