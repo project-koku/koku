@@ -16,6 +16,7 @@
 
 """View for Source status."""
 import asyncio
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.views.decorators.cache import never_cache
 from rest_framework import status
@@ -25,10 +26,10 @@ from rest_framework.decorators import (api_view,
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+from sources.sources_http_client import SourcesHTTPClient
 
 from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
-from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientError
 
 
 class SourceStatus:
@@ -65,12 +66,13 @@ class SourceStatus:
         return availability_status
 
     async def push_status(self, status_msg):
+        """Push status_msg to platform sources."""
         self.sources_client.set_source_status(status_msg)
 
 
 def _get_source_id_from_request(request):
-    """Helper to get source id from request."""
-    if request.method == "GET":
+    """Get source id from request."""
+    if request.method == 'GET':
         source_id = request.query_params.get('source_id', None)
     elif request.method == 'POST':
         source_id = request.data.get('source_id', None)
@@ -80,7 +82,7 @@ def _get_source_id_from_request(request):
 
 
 def _deliver_status(request, status_obj):
-    """Helper to deliver status depending on request."""
+    """Deliver status depending on request."""
     availability_status = status_obj.status()
 
     if request.method == 'GET':
