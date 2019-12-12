@@ -20,7 +20,6 @@ import logging
 from functools import partial
 from uuid import uuid4
 
-from django.conf import settings
 from django.contrib.postgres.fields import JSONField
 from django.db import models, transaction
 from django.db.models.constraints import CheckConstraint
@@ -113,28 +112,20 @@ class Provider(models.Model):
     PROVIDER_AZURE_LOCAL = 'AZURE-local'
     PROVIDER_GCP_LOCAL = 'GCP-local'
 
-    if settings.DEBUG:
-        PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
-                            (PROVIDER_OCP, PROVIDER_OCP),
-                            (PROVIDER_AZURE, PROVIDER_AZURE),
-                            (PROVIDER_GCP, PROVIDER_GCP),
-                            (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
-                            (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
-                            (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL))
-        CLOUD_PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
-                                  (PROVIDER_AZURE, PROVIDER_AZURE),
-                                  (PROVIDER_GCP, PROVIDER_GCP),
-                                  (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
-                                  (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
-                                  (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL))
-    else:
-        PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
-                            (PROVIDER_OCP, PROVIDER_OCP),
-                            (PROVIDER_AZURE, PROVIDER_AZURE),
-                            (PROVIDER_GCP, PROVIDER_GCP))
-        CLOUD_PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
-                                  (PROVIDER_AZURE, PROVIDER_AZURE),
-                                  (PROVIDER_GCP, PROVIDER_GCP))
+    PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
+                        (PROVIDER_OCP, PROVIDER_OCP),
+                        (PROVIDER_AZURE, PROVIDER_AZURE),
+                        (PROVIDER_GCP, PROVIDER_GCP),
+                        (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
+                        (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
+                        (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL))
+    CLOUD_PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
+                              (PROVIDER_AZURE, PROVIDER_AZURE),
+                              (PROVIDER_GCP, PROVIDER_GCP),
+                              (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
+                              (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
+                              (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL))
+
     # These lists are intended for use for provider type checking
     # throughout the codebase
     PROVIDER_LIST = [choice[0] for choice in PROVIDER_CHOICES]
