@@ -86,6 +86,36 @@ if REMOVE_EXPIRED_REPORT_DATA_ON_DAY != 0:
                                'args': []}
     app.conf.beat_schedule['remove-expired-data'] = REMOVE_EXPIRED_DATA_DEF
 
+
+# Specify the day of the month for removal of expired report data.
+VACUUM_DATA_DAY_OF_WEEK = ENVIRONMENT.get_value(
+    'VACUUM_DATA_DAY_OF_WEEK', default=None
+)
+
+# Specify the time of the day for removal of expired report data.
+VACUUM_DATA_UTC_TIME = ENVIRONMENT.get_value(
+    'VACUUM_DATA_UTC_TIME', default='00:00'
+)
+VACUUM_HOUR, VACUUM_MINUTE = VACUUM_DATA_UTC_TIME.split(':')
+
+if VACUUM_DATA_DAY_OF_WEEK:
+    schedule = crontab(
+        day_of_week=VACUUM_DATA_DAY_OF_WEEK,
+        hour=int(VACUUM_HOUR),
+        minute=int(VACUUM_MINUTE)
+    )
+else:
+    schedule = crontab(
+        hour=int(VACUUM_HOUR),
+        minute=int(VACUUM_MINUTE)
+    )
+
+app.conf.beat_schedule['vacuum-schemas'] = {
+    'task': 'masu.celery.tasks.vacuum_schemas',
+    'schedule': schedule,
+    'args': []
+}
+
 app.conf.beat_schedule['daily_upload_normalized_reports_to_s3'] = {
     'task': 'masu.celery.tasks.upload_normalized_data',
     'schedule': int(os.getenv('UPLOAD_NORMALIZED_DATA_INTERVAL', '86400'))
