@@ -265,7 +265,7 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_by_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
-        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*'  # noqa: E501
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=AmazonEC2'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
