@@ -339,3 +339,27 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(manifest_id)
             manifest_accessor.mark_manifest_as_completed(manifest)
+
+
+@app.task(name='masu.processor.tasks.vacuum_schema', queue_name='reporting')
+def vacuum_schema(schema_name):
+    """Vacuum the reporting tables in the specified schema."""
+
+    table_sql = """
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = %s
+            AND table_name like 'reporting_%%'
+            AND table_type != 'VIEW'
+    """
+
+    with schema_context(schema_name):
+        with connection.cursor() as cursor:
+            cursor.execute(table_sql, [schema_name])
+            tables = cursor.fetchall()
+            tables = [table[0] for table in tables]
+            for table in tables:
+                sql = 'VACUUM ANALYZE {}.{}'.format(schema_name, table)
+                cursor.execute(sql)
+                LOG.info(sql)
+                LOG.info(cursor.statusmessage)
