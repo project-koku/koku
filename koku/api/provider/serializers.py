@@ -16,6 +16,7 @@
 #
 """Provider Model Serializers."""
 
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
@@ -29,8 +30,9 @@ from api.provider.models import (Provider,
                                  ProviderBillingSource)
 from providers.provider_access import ProviderAccessor
 
-PROVIDER_CHOICE_LIST = [provider[0].lower() for provider in Provider.PROVIDER_CHOICES]
-
+PROVIDER_CHOICE_LIST = [provider[0] for provider in Provider.PROVIDER_CHOICES if (
+    settings.DEVELOPMENT or (not settings.DEVELOPMENT and '-local' not in provider[0].lower()))]
+LCASE_PROVIDER_CHOICE_LIST = [provider.lower() for provider in PROVIDER_CHOICE_LIST]
 REPORT_PREFIX_MAX_LENGTH = 64
 
 
@@ -212,7 +214,7 @@ class ProviderSerializer(serializers.ModelSerializer):
     uuid = serializers.UUIDField(allow_null=True, required=False)
     name = serializers.CharField(max_length=256, required=True,
                                  allow_null=False, allow_blank=False)
-    type = serializers.ChoiceField(choices=Provider.PROVIDER_CHOICES)
+    type = serializers.ChoiceField(choices=PROVIDER_CHOICE_LIST)
     created_timestamp = serializers.DateTimeField(read_only=True)
     customer = CustomerSerializer(read_only=True)
     created_by = UserSerializer(read_only=True)
@@ -238,7 +240,7 @@ class ProviderSerializer(serializers.ModelSerializer):
         if data and data != empty:
             provider_type = data.get('type')
 
-        if provider_type and provider_type.lower() not in PROVIDER_CHOICE_LIST:
+        if provider_type and provider_type.lower() not in LCASE_PROVIDER_CHOICE_LIST:
             key = 'type'
             message = f'{provider_type} is not a valid source type.'
             raise serializers.ValidationError(error_obj(key, message))
