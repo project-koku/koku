@@ -476,6 +476,12 @@ class SourcesStorageTest(TestCase):
             self.assertEquals(test.get('expected_pending_update'), response.pending_update)
             test_source_id += 1
 
+    def test_enqueue_source_update_unknown_source(self):
+        """Test to enqueue a source update for an unknown source."""
+        self.test_obj.koku_uuid = faker.uuid4()
+        storage.enqueue_source_update(self.test_source_id + 1)
+        self.assertFalse(self.test_obj.pending_update)
+
     def test_clear_update_flag(self):
         """Test for clearing source update flag."""
         test_matrix = [{'koku_uuid': None, 'pending_update': False, 'expected_pending_update': False},
@@ -498,6 +504,13 @@ class SourcesStorageTest(TestCase):
             response = Sources.objects.get(source_id=test_source_id)
             self.assertEquals(test.get('expected_pending_update'), response.pending_update)
             test_source_id += 1
+
+    def test_clear_update_flag_unknown_id(self):
+        """Test to clear update flag for an unknown id."""
+        self.test_obj.pending_update = True
+        self.test_obj.save()
+        storage.clear_update_flag(self.test_source_id + 1)
+        self.assertTrue(self.test_obj.pending_update)
 
     def test_load_providers_to_update(self):
         """Test loading pending update events."""
