@@ -123,3 +123,21 @@ class AWSReportQueryTest(IamTestCase):
         query_params = handler.filter_to_order_by(query_params)
         self.assertEqual(['*'], query_params._parameters['group_by']['region'])
         self.assertEqual(['*'], query_params._parameters['group_by']['service'])
+
+    def test_two_filters_and_group_by_star(self):
+        """Test what happens when there are two filters for the same category.
+        
+        For example, group_by[service]=*&filter[service]=X&filter[service]=Y"""
+        url = '?group_by[region]=*&filter[region]=eu-west-3&filter[region]=us-west-1'
+        query_params = self.mocked_query_params(url, AWSInstanceTypeView)
+        handler = AWSReportQueryHandler(query_params)
+        query_params = handler.filter_to_order_by(query_params)
+        region_1_exists = False
+        region_2_exists = False
+        if 'eu-west-3' in query_params._parameters['group_by']['region']:
+            region_1_exists = True
+        if 'us-west-1' in query_params._parameters['group_by']['region']:
+            region_2_exists = True
+        # Both regions should be in the resulting group_by list.
+        self.assertTrue(region_1_exists)
+        self.assertTrue(region_2_exists)

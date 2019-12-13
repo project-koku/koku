@@ -334,7 +334,11 @@ class QueryHandler:
                         if isinstance(parameters.parameters['filter'][filter_key], list):
                             for filter_value in parameters.parameters['filter'][filter_key]:
                                 if filter_key == group_by_key:
-                                    parameters.parameters['group_by'][group_by_key] = [filter_value]
+                                    # replace the star if there is one. Otherwise, append to the list.
+                                    if '*' in parameters.parameters['group_by'][group_by_key]:
+                                        parameters.parameters['group_by'][group_by_key].remove('*')
+                                    if filter_value not in parameters.parameters['group_by'][group_by_key]:
+                                        parameters.parameters['group_by'][group_by_key].append(filter_value)
                         else:
                             if filter_key == group_by_key:
                                 parameters.parameters['group_by'][group_by_key] = [filter_value]
