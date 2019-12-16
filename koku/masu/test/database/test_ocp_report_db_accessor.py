@@ -817,3 +817,47 @@ class OCPReportDBAccessorTest(MasuTestCase):
             ).first()
 
             self.assertEquals(monthly_cost_row.monthly_cost, 6 * node_cost)
+
+    def test_remove_monthly_cost(self):
+        """Test that the monthly cost row in the summary table is removed."""
+        report_table_name = OCP_REPORT_TABLE_MAP['report']
+
+        report_table = getattr(self.accessor.report_schema, report_table_name)
+
+        node_cost = random.randrange(1, 100)
+        for _ in range(5):
+            self.creator.create_ocp_usage_line_item(self.reporting_period, self.report)
+
+        with schema_context(self.schema):
+            report_entry = report_table.objects.all().aggregate(
+                Min('interval_start'), Max('interval_start')
+            )
+            start_date = report_entry['interval_start__min']
+            end_date = report_entry['interval_start__max']
+
+            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+            self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
+
+            self.accessor.populate_line_item_daily_summary_table(
+                start_date, end_date, self.cluster_id
+            )
+
+            self.accessor.populate_monthly_cost(node_cost=node_cost, start_date=str(start_date))
+
+            first_month, first_next_month = month_date_range_tuple(start_date)
+            self.assertTrue(
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start=first_month,
+                    monthly_cost__isnull=False
+                ).exists()
+            )
+
+            self.accessor.remove_monthly_cost()
+
+            self.assertFalse(
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start=first_month,
+                    monthly_cost__isnull=False).exists()
+            )
