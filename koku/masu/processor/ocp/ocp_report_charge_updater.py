@@ -294,9 +294,17 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
                 if rates:
                     tiers = self._normalize_tier(rates.get('tiered_rates', []))
                     for tier in tiers:
+                        LOG.info('Updating Monthly Cost for'
+                                 '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s',
+                                 self._schema, self._provider_uuid, start_date, end_date)
+
                         node_rate = Decimal(tier.get('value'))
                         report_accessor.populate_monthly_cost(node_rate, start_date, end_date)
-
+                else:
+                    LOG.info('Removing Monthly Cost for'
+                             'Schema: %s, Provider: %s ',
+                             self._schema, self._provider_uuid)
+                    report_accessor.remove_monthly_cost()
         except OCPReportChargeUpdaterError as error:
             LOG.error('Unable to update monthly costs. Error: %s', str(error))
 
