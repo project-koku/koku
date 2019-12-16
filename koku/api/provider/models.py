@@ -40,7 +40,7 @@ class ProviderAuthentication(models.Model):
 
     # XXX: This field is DEPRECATED
     # XXX: the credentials field should be used instead.
-    # Ex: AWS ARN for cross-acount role access
+    # Ex: AWS ARN for cross-account role access
     provider_resource_name = models.TextField(null=True, unique=True)
 
     credentials = JSONField(null=True, default=dict)
