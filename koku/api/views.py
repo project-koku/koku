@@ -23,6 +23,9 @@ from api.iam.view.user_preference import UserPreferenceViewSet
 from api.metrics.views import CostModelMetricsMapViewSet
 from api.openapi.view import openapi
 from api.provider.view import ProviderViewSet
+from api.report.all.openshift.view import (OCPAllCostView,
+                                           OCPAllInstanceTypeView,
+                                           OCPAllStorageView)
 from api.report.azure.view import (AzureCostView,
                                    AzureInstanceTypeView,
                                    AzureStorageView)
