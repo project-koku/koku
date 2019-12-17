@@ -79,7 +79,7 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             """
             CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary AS (
-                SELECT row_number() OVER (),
+                SELECT row_number() OVER () as id,
                     lids.*
                 FROM (
                     SELECT 'AWS' as source_type,
@@ -140,7 +140,7 @@ class Migration(migrations.Migration):
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary AS (
-                SELECT row_number() OVER (),
+                SELECT row_number() OVER () as id,
                     lids.*
                 FROM (
                     SELECT 'AWS' as source_type,

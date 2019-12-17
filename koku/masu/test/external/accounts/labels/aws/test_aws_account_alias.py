@@ -34,12 +34,6 @@ class AWSAccountAliasTest(MasuTestCase):
         super().setUp()
         self.account_id = '111111111111'
 
-    def tearDown(self):
-        """Teardown test case."""
-        db_access = AccountAliasAccessor(self.account_id, 'acct10001')
-        with schema_context(self.schema):
-            db_access._get_db_obj_query().delete()
-
     def test_initializer(self):
         """Test AWSAccountAlias initializer."""
         arn = 'roleArn'
