@@ -62,6 +62,8 @@ class OCPAllCostLineItemDailySummary(models.Model):
             ),
         ]
 
+    id = models.IntegerField(primary_key=True)
+
     # The infrastructure provider type
     source_type = models.TextField()
 
@@ -166,6 +168,8 @@ class OCPAllCostLineItemProjectDailySummary(models.Model):
                 name='ocpall_proj_inst_type_idx',
             ),
         ]
+
+    id = models.IntegerField(primary_key=True)
 
     # The infrastructure provider type
     source_type = models.TextField()
