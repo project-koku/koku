@@ -95,7 +95,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
         report_type = self.parameters.report_type
         report_group = 'default'
 
-        excluded_filters = set(['time_scope_value', 'time_scope_units', 'resolution'])
+        excluded_filters = set(
+            ['time_scope_value', 'time_scope_units', 'resolution', 'limit', 'offset']
+        )
         filter_keys = set(self.parameters.get('filter', {}).keys())
         filter_keys = filter_keys.difference(excluded_filters)
         group_by_keys = list(self.parameters.get('group_by', {}).keys())
