@@ -28,8 +28,9 @@ fake = Faker()
 
 class SourcesSerializerTests(IamTestCase):
     """Test Cases for the sources endpoint."""
+
     def setUp(self):
-        """Setup tests."""
+        """Set up tests."""
         super().setUp()
         customer = self._create_customer_data()
 

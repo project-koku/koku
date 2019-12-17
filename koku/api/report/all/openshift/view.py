@@ -20,7 +20,6 @@
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
-from api.report.all.openshift.provider_map import OCPAllProviderMap
 from api.report.all.openshift.query_handler import OCPAllReportQueryHandler
 from api.report.all.openshift.serializers import OCPAllQueryParamSerializer
 from api.report.view import ReportView

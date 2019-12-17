@@ -32,8 +32,9 @@ faker = Faker()
 
 class SourcesViewProxyTests(TestCase):
     """Test Cases for the sources proxy endpoint."""
+
     def setUp(self):
-        """Setup tests."""
+        """Set up tests."""
         super().setUp()
         mock_url = PropertyMock(return_value='http://www.sourcesclient.com/api/v1/sources/')
         SourcesProxyViewSet.url = mock_url
@@ -94,7 +95,6 @@ class SourcesViewProxyTests(TestCase):
 
     def test_list_proxy(self):
         """Test the LIST proxy endpoint."""
-
         with requests_mock.mock() as m:
             m.get(f'http://www.sourcesclient.com/api/v1/sources/',
                   status_code=200,
@@ -108,7 +108,6 @@ class SourcesViewProxyTests(TestCase):
 
     def test_list_proxy_connection_error(self):
         """Test the LIST proxy endpoint with connection error."""
-
         with requests_mock.mock() as m:
             m.get(f'http://www.sourcesclient.com/api/v1/sources/',
                   exc=requests.exceptions.ConnectionError)
