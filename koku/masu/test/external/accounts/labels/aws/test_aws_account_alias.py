@@ -19,8 +19,6 @@
 
 from unittest.mock import patch
 
-from tenant_schemas.utils import schema_context
-
 from masu.database.account_alias_accessor import AccountAliasAccessor
 from masu.external.accounts.labels.aws.aws_account_alias import AWSAccountAlias
 from masu.test import MasuTestCase
