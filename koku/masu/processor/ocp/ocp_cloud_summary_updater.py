@@ -20,6 +20,7 @@ import datetime
 import logging
 from decimal import Decimal
 
+from django.db import connection
 from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
@@ -31,6 +32,7 @@ from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
 from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
 from masu.util.ocp.common import get_cluster_id_from_provider
+from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
 
 LOG = logging.getLogger(__name__)
 
@@ -75,6 +77,8 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                 self.update_azure_summary_tables(
                     ocp_provider_uuid, infra_provider_uuid, start_date, end_date
                 )
+
+        self.refresh_openshift_on_infrastructure_views()
 
     def update_aws_summary_tables(self, openshift_provider_uuid, aws_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on AWS."""
@@ -151,3 +155,14 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
             # This call just sends the infrastructure cost to the
             # OCP usage daily summary table
             accessor.update_summary_infrastructure_cost(cluster_id, start_date, end_date)
+
+    def refresh_openshift_on_infrastructure_views(self):
+        """Refresh MATERIALIZED VIEWs."""
+        with schema_context(self._schema):
+            for view in OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS:
+                table_name = view._meta.db_table
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        f'REFRESH MATERIALIZED VIEW {table_name}'
+                    )
+                    LOG.info(f'Refreshed {table_name}.')
