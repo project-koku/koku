@@ -264,6 +264,7 @@ def destroy_provider_event(source_id):
 
 
 def update_endpoint_id(source_id, endpoint_id):
+    """Update Endpoint ID from Source ID."""
     try:
         query = Sources.objects.get(source_id=source_id)
         query.endpoint_id = endpoint_id

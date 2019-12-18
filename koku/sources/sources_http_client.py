@@ -64,13 +64,14 @@ class SourcesHTTPClient:
         return endpoint_id
 
     def get_source_id_from_endpoint_id(self, resource_id):
-        endpoint_url = '{}/endpoints?filter[id]={}'.format(
-            self._base_url, resource_id)
+        """Get Source ID from Sources Endpoint ID."""
+        endpoint_url = f'{self._base_url}/endpoints?filter[id]={resource_id}'
         r = requests.get(endpoint_url, headers=self._identity_header)
 
         if r.status_code != 200:
             raise SourcesHTTPClientError('Status Code: ', r.status_code)
         endpoint_response = r.json()
+
         source_id = None
         if endpoint_response.get('data'):
             source_id = endpoint_response.get('data')[0].get('source_id')
