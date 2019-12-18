@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""OCP-on-AWS Report Serializers."""
+"""OCP-on-All infrastructure Report Serializers."""
 
 import api.report.aws.serializers as awsser
 import api.report.ocp.serializers as ocpser

@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""View for OpenShift on AWS Usage Reports."""
+"""View for OpenShift on All infrastructure Usage Reports."""
 
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.common.permissions.azure_access import AzureAccessPermission

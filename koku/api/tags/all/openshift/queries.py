@@ -28,7 +28,7 @@ class OCPAllTagQueryHandler(TagQueryHandler):
     provider = 'OCP_All'
 
     def __init__(self, parameters):
-        """Establish Azure report query handler.
+        """Establish OCP on All infrastructure tag query handler.
 
         Args:
             parameters    (QueryParameters): parameter object for query
