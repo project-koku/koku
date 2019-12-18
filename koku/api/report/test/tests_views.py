@@ -58,6 +58,11 @@ class ReportViewTest(IamTestCase):
         'reports-openshift-azure-costs',
         'reports-openshift-azure-storage',
         'reports-openshift-azure-instance-type',
+
+        # openshift - on - all infrastructure
+        'reports-openshift-all-costs',
+        'reports-openshift-all-storage',
+        'reports-openshift-all-instance-type',
     ]
     TAGS = [
         # tags
@@ -66,6 +71,7 @@ class ReportViewTest(IamTestCase):
         'openshift-tags',
         'openshift-aws-tags',
         'openshift-azure-tags',
+        'openshift-all-tags',
     ]
 
     def setUp(self):
