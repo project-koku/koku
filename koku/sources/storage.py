@@ -26,6 +26,8 @@ from api.provider.models import Sources
 
 
 LOG = logging.getLogger(__name__)
+REQUIRED_AZURE_AUTH_KEYS = {'client_id', 'tenant_id', 'client_secret', 'subscription_id'}
+REQUIRED_AZURE_BILLING_KEYS = {'resource_group', 'storage_account'}
 
 
 class SourcesStorageError(Exception):
@@ -54,13 +56,12 @@ def _azure_provider_ready_for_create(provider):
     if (provider.source_id and provider.name and provider.auth_header
             and provider.billing_source and not provider.koku_uuid):
         billing_source = provider.billing_source.get('data_source', {})
-
         authentication = provider.authentication.get('credentials', {})
-        required_auth_keys = ['client_id', 'tenant_id', 'client_secret', 'subscription_id']
-        required_billing_keys = ['resource_group', 'storage_account']
         if billing_source and authentication:
-            if set(billing_source.keys()) == set(required_billing_keys)\
-                    and set(authentication.keys()) == set(required_auth_keys):
+            if (
+                set(authentication.keys()) == REQUIRED_AZURE_AUTH_KEYS
+                and set(billing_source.keys()) == REQUIRED_AZURE_BILLING_KEYS
+            ):
                 return True
     return False
 

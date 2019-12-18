@@ -101,7 +101,6 @@ class SourcesSerializer(serializers.ModelSerializer):
         auth_dict = instance.authentication
         if not auth_dict.get('credentials'):
             auth_dict['credentials'] = {'subscription_id': None}
-            # raise SourcesStorageError('Missing credentials key')
         subscription_id = authentication.get('credentials', {}).get('subscription_id')
         auth_dict['credentials']['subscription_id'] = subscription_id
         instance.authentication = auth_dict
