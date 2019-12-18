@@ -43,6 +43,7 @@ from api.report.ocp_aws.view import (OCPAWSCostView,
                                      OCPAWSInstanceTypeView,
                                      OCPAWSStorageView)
 from api.status.views import StatusView
+from api.tags.all.openshift.view import OCPAllTagView
 from api.tags.aws.view import AWSTagView
 from api.tags.azure.view import AzureTagView
 from api.tags.azure.openshift.view import OCPAzureTagView
