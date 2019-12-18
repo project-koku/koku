@@ -25,34 +25,8 @@ from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.ocp_aws.provider_map import OCPAWSProviderMap
 
 
-class OCPAWSReportQueryHandler(AWSReportQueryHandler):
-    """Handles report queries and responses for OCP on AWS."""
-
-    provider = 'OCP_AWS'
-
-    def __init__(self, parameters):
-        """Establish OCP report query handler.
-
-        Args:
-            parameters    (QueryParameters): parameter object for query
-
-        """
-        self._mapper = OCPAWSProviderMap(provider=self.provider,
-                                         report_type=parameters.report_type)
-        self.group_by_options = self._mapper.provider_map.get('group_by_options')
-        self._limit = parameters.get_filter('limit')
-
-        # super() needs to be called after _mapper and _limit is set
-        super().__init__(parameters)
-        # super() needs to be called before _get_group_by is called
-
-        # Update which field is used to calculate cost by group by param.
-        group_by = self._get_group_by()
-        if (group_by and group_by[0] == 'project') or \
-                'project' in self.parameters.get('filter', {}).keys():
-            self._report_type = parameters.report_type + '_by_project'
-            self._mapper = OCPAWSProviderMap(provider=self.provider,
-                                             report_type=self._report_type)
+class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
+    """Base class for OCP on Infrastructure."""
 
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
@@ -146,3 +120,33 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
         self.query_sum = ordered_total
         self.query_data = data
         return self._format_query_response()
+
+
+class OCPAWSReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
+    """Handles report queries and responses for OCP on AWS."""
+
+    provider = 'OCP_AWS'
+
+    def __init__(self, parameters):
+        """Establish OCP report query handler.
+
+        Args:
+            parameters    (QueryParameters): parameter object for query
+
+        """
+        self._mapper = OCPAWSProviderMap(provider=self.provider,
+                                         report_type=parameters.report_type)
+        self.group_by_options = self._mapper.provider_map.get('group_by_options')
+        self._limit = parameters.get_filter('limit')
+
+        # super() needs to be called after _mapper and _limit is set
+        super().__init__(parameters)
+        # super() needs to be called before _get_group_by is called
+
+        # Update which field is used to calculate cost by group by param.
+        group_by = self._get_group_by()
+        if (group_by and group_by[0] == 'project') or \
+                'project' in self.parameters.get('filter', {}).keys():
+            self._report_type = parameters.report_type + '_by_project'
+            self._mapper = OCPAWSProviderMap(provider=self.provider,
+                                             report_type=self._report_type)

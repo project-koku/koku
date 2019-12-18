@@ -23,6 +23,9 @@ from api.iam.view.user_preference import UserPreferenceViewSet
 from api.metrics.views import CostModelMetricsMapViewSet
 from api.openapi.view import openapi
 from api.provider.view import ProviderViewSet
+from api.report.all.openshift.view import (OCPAllCostView,
+                                           OCPAllInstanceTypeView,
+                                           OCPAllStorageView)
 from api.report.azure.view import (AzureCostView,
                                    AzureInstanceTypeView,
                                    AzureStorageView)
@@ -40,6 +43,7 @@ from api.report.ocp_aws.view import (OCPAWSCostView,
                                      OCPAWSInstanceTypeView,
                                      OCPAWSStorageView)
 from api.status.views import StatusView
+from api.tags.all.openshift.view import OCPAllTagView
 from api.tags.aws.view import AWSTagView
 from api.tags.azure.view import AzureTagView
 from api.tags.azure.openshift.view import OCPAzureTagView

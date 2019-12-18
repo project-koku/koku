@@ -396,6 +396,7 @@ class ReportQueryHandler(QueryHandler):
             group_by (list): An optional list of groups
         Returns:
             (Dict): Data updated with no-group labels
+
         """
         if groupby is None:
             return data

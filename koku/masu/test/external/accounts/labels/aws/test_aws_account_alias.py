@@ -19,8 +19,6 @@
 
 from unittest.mock import patch
 
-from tenant_schemas.utils import schema_context
-
 from masu.database.account_alias_accessor import AccountAliasAccessor
 from masu.external.accounts.labels.aws.aws_account_alias import AWSAccountAlias
 from masu.test import MasuTestCase
@@ -33,12 +31,6 @@ class AWSAccountAliasTest(MasuTestCase):
         """Set up test case."""
         super().setUp()
         self.account_id = '111111111111'
-
-    def tearDown(self):
-        """Teardown test case."""
-        db_access = AccountAliasAccessor(self.account_id, 'acct10001')
-        with schema_context(self.schema):
-            db_access._get_db_obj_query().delete()
 
     def test_initializer(self):
         """Test AWSAccountAlias initializer."""

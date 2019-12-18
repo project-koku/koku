@@ -34,6 +34,7 @@ class DateHelper():
 
     @property
     def now(self):
+        """Return current time at timezone."""
         return timezone.now()
 
     @property
