@@ -18,6 +18,8 @@
 """Models for cost entry tables."""
 
 # pylint: disable=unused-import
+from reporting.provider.all.openshift.models import (OCPAllCostLineItemDailySummary,         # noqa: F401
+                                                     OCPAllCostLineItemProjectDailySummary)  # noqa: F401
 from reporting.provider.aws.models import (AWSAccountAlias,                       # noqa: F401
                                            AWSComputeSummary,                     # noqa: F401
                                            AWSComputeSummaryByAccount,            # noqa: F401
@@ -77,4 +79,9 @@ AWS_MATERIALIZED_VIEWS = (
     AWSStorageSummaryByAccount,
     AWSStorageSummaryByRegion,
     AWSStorageSummaryByService
+)
+
+OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (
+    OCPAllCostLineItemDailySummary,
+    OCPAllCostLineItemProjectDailySummary
 )

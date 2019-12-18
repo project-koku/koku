@@ -774,3 +774,29 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     usage_end=first_curr_month,
                     monthly_cost=total_cost
                 )
+
+    def remove_monthly_cost(self):
+        """Delete all the monthly costs of a customer."""
+        # start_date should be the first month this ocp was used
+        start_date = OCPUsageLineItemDailySummary.objects.aggregate(
+            Min('usage_start')
+        )['usage_start__min']
+        # If end_date is not provided, recalculate till the latest month
+        end_date = OCPUsageLineItemDailySummary.objects.aggregate(
+            Max('usage_end')
+        )['usage_end__max']
+
+        LOG.info('Removing monthly costs from %s to %s.', start_date, end_date)
+
+        first_month = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        with schema_context(self.schema):
+            # Calculate monthly cost for every month
+            for curr_month in rrule(freq=MONTHLY, until=end_date, dtstart=first_month):
+                first_curr_month, _ = month_date_range_tuple(curr_month)
+
+                # Remove existing monthly costs
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start=first_curr_month,
+                    monthly_cost__isnull=False
+                ).delete()

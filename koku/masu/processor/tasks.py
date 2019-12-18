@@ -329,10 +329,10 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
         for view in materialized_views:
             table_name = view._meta.db_table
             with connection.cursor() as cursor:
-                LOG.info(f'Refreshing {table_name}.')
                 cursor.execute(
                     f'REFRESH MATERIALIZED VIEW CONCURRENTLY {table_name}'
                 )
+                LOG.info(f'Refreshed {table_name}.')
 
     if manifest_id:
         # Processing for this monifest should be complete after this step
@@ -344,7 +344,6 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
 @app.task(name='masu.processor.tasks.vacuum_schema', queue_name='reporting')
 def vacuum_schema(schema_name):
     """Vacuum the reporting tables in the specified schema."""
-
     table_sql = """
         SELECT table_name
         FROM information_schema.tables

@@ -15,6 +15,9 @@
 #
 
 """View for Source status."""
+import logging
+import threading
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.views.decorators.cache import never_cache
 from rest_framework import status
@@ -24,9 +27,12 @@ from rest_framework.decorators import (api_view,
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientError
 
 from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
+
+LOG = logging.getLogger(__name__)
 
 
 class SourceStatus:
@@ -35,6 +41,9 @@ class SourceStatus:
     def __init__(self, source_id):
         """Initialize source id."""
         self.source = Sources.objects.get(source_id=source_id)
+        self.auth_header = self.source.auth_header
+        self.sources_client = SourcesHTTPClient(auth_header=self.auth_header,
+                                                source_id=source_id)
 
     def status(self):
         """Find the source's availability status."""
@@ -59,9 +68,44 @@ class SourceStatus:
         availability_status = interface.availability_status(source_authentication, source_billing_source)
         return availability_status
 
+    def push_status(self, status_msg):
+        """Push status_msg to platform sources."""
+        try:
+            self.sources_client.set_source_status(status_msg)
+        except SourcesHTTPClientError as error:
+            err_msg = 'Unable to push source status. Reason: {}'.format(str(error))
+            LOG.error(err_msg)
+
+
+def _get_source_id_from_request(request):
+    """Get source id from request."""
+    if request.method == 'GET':
+        source_id = request.query_params.get('source_id', None)
+    elif request.method == 'POST':
+        source_id = request.data.get('source_id', None)
+    else:
+        raise status.HTTP_405_METHOD_NOT_ALLOWED
+    return source_id
+
+
+def _deliver_status(request, status_obj):
+    """Deliver status depending on request."""
+    availability_status = status_obj.status()
+
+    if request.method == 'GET':
+        return Response(availability_status, status=status.HTTP_200_OK)
+    elif request.method == 'POST':
+        status_thread = threading.Thread(target=status_obj.push_status,
+                                         args=(availability_status.get('availability_status_error'),))
+        status_thread.daemon = True
+        status_thread.start()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    else:
+        raise status.HTTP_405_METHOD_NOT_ALLOWED
+
 
 @never_cache  # noqa: C901
-@api_view(http_method_names=['GET'])
+@api_view(http_method_names=['GET', 'POST'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def source_status(request):
@@ -76,7 +120,8 @@ def source_status(request):
                         'availability_status_error': ValidationError-detail}
 
     """
-    source_id = request.query_params.get('source_id', None)
+    source_id = _get_source_id_from_request(request)
+
     if source_id is None:
         return Response(data='Missing query parameter source_id', status=status.HTTP_400_BAD_REQUEST)
     try:
@@ -84,12 +129,11 @@ def source_status(request):
     except ValueError:
         # source_id must be an integer
         return Response(data='source_id must be an integer', status=status.HTTP_400_BAD_REQUEST)
+
     try:
         source_status_obj = SourceStatus(source_id)
     except ObjectDoesNotExist:
         # Source isn't in our database, return 404.
         return Response(status=status.HTTP_404_NOT_FOUND)
 
-    availability_status = source_status_obj.status()
-
-    return Response(availability_status, status=status.HTTP_200_OK)
+    return _deliver_status(request, source_status_obj)

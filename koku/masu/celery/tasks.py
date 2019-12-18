@@ -255,6 +255,7 @@ def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, sta
         table_export_setting (dict): Settings for the table export.
         start_date (string): start date (inclusive)
         end_date (string): end date (inclusive)
+
     """
     LOG.info(
         'query_and_upload_to_s3: schema %s provider_uuid %s table.output_name %s for %s',
@@ -311,6 +312,7 @@ def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, sta
 
 @app.task(name='masu.celery.tasks.vacuum_schemas', queue_name='reporting')
 def vacuum_schemas():
+    """Vacuum all schemas."""
     tenants = Tenant.objects.values('schema_name')
     schema_names = [
         tenant.get('schema_name') for tenant in tenants
