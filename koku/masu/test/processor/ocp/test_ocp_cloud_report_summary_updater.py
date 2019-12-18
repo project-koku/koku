@@ -161,7 +161,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         return bill_ids
 
     @patch(
-        'masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views'
+        'masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views'  # noqa: E501
     )
     @patch('masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map')
     @patch(
@@ -189,7 +189,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         mock_refresh.assert_called()
 
     @patch(
-        'masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views'
+        'masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views'  # noqa: E501
     )
     @patch('masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map')
     @patch('masu.processor.ocp.ocp_cloud_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary')
@@ -219,7 +219,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         mock_refresh.assert_called()
 
     @patch(
-        'masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views'
+        'masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views'  # noqa: E501
     )
     @patch(
         'masu.processor.ocp.ocp_cloud_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary'
@@ -248,7 +248,9 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             mock_ocp_on_aws.assert_not_called()
         mock_refresh.assert_not_called()
 
-    @patch('masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views')
+    @patch(
+        'masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views'  # noqa: E501
+    )
     def test_update_summary_tables(self, mock_refresh):
         """Test that summary tables are updated correctly."""
         self._generate_ocp_on_aws_data()
@@ -386,7 +388,9 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         self.assertIn(self.ocp_provider_uuid, infra_map)
         self.assertEqual(infra_map.get(self.ocp_provider_uuid), expected_mapping)
 
-    @patch('masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views')
+    @patch(
+        'masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views'  # noqa: E501
+    )
     @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
     def test_update_summary_tables_azure(self, mock_markup, mock_refresh):
         """Test that summary tables are updated correctly."""
