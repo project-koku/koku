@@ -139,7 +139,7 @@ class SourcesDataGenerator:
         self._identity_header = header
 
     def create_source(self, source_name, source_type, cluster_id=None):
-        type_map = {'azure': '3', 'aws': '2', 'ocp': '1'}
+        type_map = {'azure': '3', 'aws': '1', 'ocp': '5'}
         json_data = {'source_type_id': type_map.get(source_type), 'name': source_name}
         if cluster_id:
             json_data['source_ref'] = cluster_id
