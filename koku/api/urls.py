@@ -55,12 +55,12 @@ from api.views import (
 
 
 ROUTER = DefaultRouter()
-ROUTER.register(r'dataexportrequests', DataExportRequestViewSet, base_name='dataexportrequests')
-ROUTER.register(r'metrics', CostModelMetricsMapViewSet, base_name='metrics')
+ROUTER.register(r'dataexportrequests', DataExportRequestViewSet, basename='dataexportrequests')
+ROUTER.register(r'metrics', CostModelMetricsMapViewSet, basename='metrics')
 ROUTER.register(r'providers', ProviderViewSet)
-ROUTER.register(r'sources', SourcesProxyViewSet, base_name='sources-proxy')
-ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
-ROUTER.register(r'cloud-accounts', CloudAccountViewSet, base_name='cloud_accounts')
+ROUTER.register(r'sources', SourcesProxyViewSet, basename='sources-proxy')
+ROUTER.register(r'preferences', UserPreferenceViewSet, basename='preferences')
+ROUTER.register(r'cloud-accounts', CloudAccountViewSet, basename='cloud_accounts')
 # pylint: disable=invalid-name
 urlpatterns = [
 
