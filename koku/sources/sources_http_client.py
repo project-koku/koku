@@ -64,6 +64,20 @@ class SourcesHTTPClient:
 
         return endpoint_id
 
+    def get_source_id_from_endpoint_id(self, resource_id):
+        endpoint_url = '{}/endpoints?filter[id]={}'.format(
+            self._base_url, resource_id)
+        r = requests.get(endpoint_url, headers=self._identity_header)
+
+        if r.status_code != 200:
+            raise SourcesHTTPClientError('Status Code: ', r.status_code)
+        endpoint_response = r.json()
+        source_id = None
+        if endpoint_response.get('data'):
+            source_id = endpoint_response.get('data')[0].get('source_id')
+
+        return source_id
+
     def get_cost_management_application_type_id(self):
         """Get the cost management application type id."""
         application_type_url = '{}/application_types?filter[name]=/insights/platform/cost-management'.format(
@@ -125,7 +139,10 @@ class SourcesHTTPClient:
         endpoint_url = '{}/endpoints?filter[source_id]={}'.format(self._base_url, str(self._source_id))
         r = requests.get(endpoint_url, headers=self._identity_header)
         endpoint_response = r.json()
-        resource_id = endpoint_response.get('data')[0].get('id')
+        if endpoint_response.get('data'):
+            resource_id = endpoint_response.get('data')[0].get('id')
+        else:
+            return
 
         authentications_url = \
             (f'{self._base_url}/authentications?filter[resource_type]=Endpoint&'
