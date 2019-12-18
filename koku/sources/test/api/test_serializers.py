@@ -93,8 +93,10 @@ class SourcesSerializerTests(IamTestCase):
 
         serializer = SourcesSerializer(context=self.request_context)
         validated_data = {'authentication': {'credentials': {'subscription_id': 'subscription-uuid'}}}
-        with self.assertRaises(SourcesStorageError):
-            serializer.update(self.azure_obj, validated_data)
+        instance = serializer.update(self.azure_obj, validated_data)
+        self.assertEqual('subscription-uuid', instance.authentication.get('credentials').get('subscription_id'))
+        for field in ('client_id', 'tenant_id', 'client_secret'):
+            self.assertNotIn(field, instance.authentication.get('credentials').keys())
 
     def test_azure_source_update_wrong_type(self):
         """Test the updating azure source with wrong source type."""
