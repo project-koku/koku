@@ -180,7 +180,7 @@ class SourcesStorageTest(TestCase):
         """Test update endpoint id for non-existant source."""
         try:
             storage.update_endpoint_id(self.test_source_id + 1, 11)
-        except Excpetion as error:
+        except Exception as error:
             self.fail(str(error))
 
     def test_screen_and_build_provider_sync_create_event(self):
