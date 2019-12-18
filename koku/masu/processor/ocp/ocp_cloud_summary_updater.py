@@ -78,7 +78,8 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                     ocp_provider_uuid, infra_provider_uuid, start_date, end_date
                 )
 
-        self.refresh_openshift_on_infrastructure_views()
+        if infra_map:
+            self.refresh_openshift_on_infrastructure_views()
 
     def update_aws_summary_tables(self, openshift_provider_uuid, aws_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on AWS."""
