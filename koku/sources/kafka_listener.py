@@ -243,6 +243,11 @@ def sources_network_auth_info(resource_id, auth_header):
     source_id = storage.get_source_from_endpoint(resource_id)
     if source_id:
         save_auth_info(auth_header, source_id)
+    else:
+        sources_network = SourcesHTTPClient(auth_header)
+        source_id = sources_network.get_source_id_from_endpoint_id(resource_id)
+        storage.update_endpoint_id(source_id, resource_id)
+        save_auth_info(auth_header, source_id)
 
 
 def sources_network_info(source_id, auth_header):
@@ -279,7 +284,6 @@ def sources_network_info(source_id, auth_header):
 
     if not endpoint_id and not source_type_name == SOURCES_OCP_SOURCE_NAME:
         LOG.error(f'Unable to find endpoint for Source ID: {source_id}')
-        return
 
     if source_type_name == SOURCES_OCP_SOURCE_NAME:
         source_type = 'OCP'
