@@ -34,16 +34,16 @@ from api.report.serializers import ParamSerializer
 from api.report.view import ReportView
 
 LOG = logging.getLogger(__name__)
-PROVIDERS = ['AWS', 'AZURE', 'OCP', 'OCP_AWS']
-ACCESS_KEYS = {'aws': ['aws.account'],
-               'azure': ['azure.subscription_guid'],
-               'ocp': ['openshift.cluster',
-                       'openshift.project',
-                       'openshift.node'],
-               'ocp_aws': ['aws.account',
-                           'openshift.cluster',
-                           'openshift.project',
-                           'openshift.node']}
+PROVIDERS = ['AWS', 'AZURE', 'OCP', 'OCP_AWS', 'OCP_All']
+ACCESS_KEYS = {
+    'aws': ['aws.account'],
+    'azure': ['azure.subscription_guid'],
+    'ocp': ['openshift.cluster', 'openshift.project', 'openshift.node'],
+    'ocp_aws': ['aws.account', 'openshift.cluster', 'openshift.project',
+                'openshift.node'],
+    'ocp_all': ['aws.account', 'azure.subscription_guid', 'openshift.cluster',
+                'openshift.project', 'openshift.node'],
+}
 
 
 class QueryParametersTests(TestCase):
