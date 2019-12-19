@@ -18,7 +18,7 @@ Send a POST request to
 
 With the content:
 
-Provider Resource Name:arn:aws:iam::589173575009:role/CostManagement
+Provider Resource Name: <whatever your arn is>
 
 You should receive a 200 range response confirming that the Provider was created.
 
