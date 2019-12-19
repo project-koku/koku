@@ -84,6 +84,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get('annotations')
         for q_param, db_field in fields.items():
+            if ':' in q_param:
+                q_param = q_param.split(':', maxsplit=1)[1]
             if q_param in self.parameters.get('group_by', {}).keys():
                 annotations[q_param] = Concat(db_field, Value(''))
         return annotations
