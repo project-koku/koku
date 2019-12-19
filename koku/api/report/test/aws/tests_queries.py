@@ -1268,3 +1268,15 @@ class AWSReportQueryTest(IamTestCase):
         for key in totals:
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])
+    def test_prefixed_logical_and_or(self):
+        """"Test group_by[and:account] prefixes."""
+        """Test execute_query for current month on daily breakdown."""
+        url = '?group_by[and:account]=7777&group_by[and:account]=4444'
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get('data'))
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('cost'))
+
