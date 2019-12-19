@@ -96,3 +96,31 @@ Smoke test:
 ::
     $ cd koku/testing
     $ ./run_smoke_tests.sh
+    
+To use pdb while running the koku-server in docker:
+Ensure all migrations are run.
+Stop the server `docker-compose stop koku-server`
+Run the server with service-ports: `docker-compose run —service-ports koku-server`
+Breakpoints will now be stopped in this terminal window.
+
+To test a specific file using tox, edit this line, for example:
+`coverage run {toxinidir}/koku/manage.py test --noinput -v 2 {posargs: masu.test.database}`
+This will selectively run only the masu database tests, instead of running all of the rest of the tox tests.
+
+If you observe the following error in the tox tests, you may sometimes ignore it, due to tox not setting DEBUG=TRUE, to fix this you can export the variable to be true.
+```
+======================================================================
+FAIL: test_delete_single_provider_skips_delete_archived_data_if_customer_is_none (api.provider.test.tests_models.ProviderModelTest)
+Assert the delete_archived_data task is not called if Customer is None.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/usr/local/Cellar/python/3.7.4_1/Frameworks/Python.framework/Versions/3.7/lib/python3.7/unittest/mock.py", line 1209, in patched
+    return func(*args, **keywargs)
+  File "/Users/nbonilla/Documents/Koku/koku/koku/api/provider/test/tests_models.py", line 43, in test_delete_single_provider_skips_delete_archived_data_if_customer_is_none
+    self.aws_provider.delete()
+AssertionError: no logs of level WARNING or higher triggered on api.provider.models
+
+----------------------------------------------------------------------
+Ran 756 tests in 2025.258s
+FAILED (failures=1)
+```
