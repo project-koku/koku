@@ -1268,6 +1268,7 @@ class AWSReportQueryTest(IamTestCase):
         for key in totals:
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])
+
     def test_prefixed_logical_and_or(self):
         """"Test group_by[and:account] prefixes."""
         """Test execute_query for current month on daily breakdown."""
@@ -1279,4 +1280,3 @@ class AWSReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('cost'))
-
