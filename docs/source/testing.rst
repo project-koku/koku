@@ -96,3 +96,13 @@ Smoke test:
 ::
     $ cd koku/testing
     $ ./run_smoke_tests.sh
+    
+To use pdb while running the koku-server in docker:
+Ensure all migrations are run.
+Stop the server `docker-compose stop koku-server`
+Run the server with service-ports: `docker-compose run —service-ports koku-server`
+Breakpoints will now be stopped in this terminal window.
+
+To test a specific file using tox, edit this line, for example:
+`coverage run {toxinidir}/koku/manage.py test --noinput -v 2 {posargs: masu.test.database}`
+This will selectively run only the masu database tests, instead of running all of the rest of the tox tests.
