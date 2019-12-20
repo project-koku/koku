@@ -19,6 +19,9 @@ Send a POST request to
 With the content:
 
 Provider Resource Name: <whatever your arn is>
+For example: 
+http POST 0.0.0.0:8000/api/cost-management/v1/providers/ name='AWSProvider' type='AWS' \
+authentication:='{"uuid": "e6d90e5a-feb9-472e-97f3-b96839206f4f","provider_resource_name": "arn:aws:iam::01234567890:my_aws_role"}'
 
 You should receive a 200 range response confirming that the Provider was created.
 
