@@ -115,8 +115,7 @@ class SourcesClientDataGenerator:
         return response
 
     def create_azure_storage(self, parameters, resource_group, storage_account):
-        json_data = {'source_id': parameters.get('source_id'),
-                        'billing_source': {'data_source': {'resource_group': resource_group,
+        json_data = {'billing_source': {'data_source': {'resource_group': resource_group,
                                                         'storage_account': storage_account}}}
 
         url = '{}/{}/'.format(self._base_url, parameters.get('source_id'))
@@ -140,7 +139,7 @@ class SourcesDataGenerator:
         self._identity_header = header
 
     def create_source(self, source_name, source_type, cluster_id=None):
-        type_map = {'azure': '3', 'aws': '2', 'ocp': '1'}
+        type_map = {'azure': '3', 'aws': '1', 'ocp': '5'}
         json_data = {'source_type_id': type_map.get(source_type), 'name': source_name}
         if cluster_id:
             json_data['source_ref'] = cluster_id

@@ -207,15 +207,10 @@ def save_auth_info(auth_header, source_id):
     try:
         if source_type == 'OCP':
             source_details = sources_network.get_source_details()
-            # Check for imported to maintain temporary backwards compatibility
-            # until the Sources Front End creates 'imported' entry with OCP Cluster ID.
             if source_details.get('source_ref'):
                 authentication = {'resource_name': source_details.get('source_ref')}
             else:
-                uid = source_details.get('uid')
-                LOG.info(f'OCP is using fallback Source UID ({str(uid)} for authentication.'
-                         ' Update frontend to add Cluster ID to the source_ref field on the Source.')
-                authentication = {'resource_name': uid}
+                raise SourcesHTTPClientError('Unable to find Cluster ID')
         elif source_type == 'AWS':
             authentication = {'resource_name': sources_network.get_aws_role_arn()}
         elif source_type == 'AZURE':
@@ -225,8 +220,9 @@ def save_auth_info(auth_header, source_id):
             return
         storage.add_provider_sources_auth_info(source_id, authentication)
         storage.clear_update_flag(source_id)
-    except SourcesHTTPClientError:
+    except SourcesHTTPClientError as error:
         LOG.info(f'Authentication info not available for Source ID: {source_id}')
+        sources_network.set_source_status(str(error))
 
 
 def sources_network_auth_info(resource_id, auth_header):
@@ -246,6 +242,11 @@ def sources_network_auth_info(resource_id, auth_header):
     """
     source_id = storage.get_source_from_endpoint(resource_id)
     if source_id:
+        save_auth_info(auth_header, source_id)
+    else:
+        sources_network = SourcesHTTPClient(auth_header)
+        source_id = sources_network.get_source_id_from_endpoint_id(resource_id)
+        storage.update_endpoint_id(source_id, resource_id)
         save_auth_info(auth_header, source_id)
 
 
@@ -283,7 +284,6 @@ def sources_network_info(source_id, auth_header):
 
     if not endpoint_id and not source_type_name == SOURCES_OCP_SOURCE_NAME:
         LOG.error(f'Unable to find endpoint for Source ID: {source_id}')
-        return
 
     if source_type_name == SOURCES_OCP_SOURCE_NAME:
         source_type = 'OCP'

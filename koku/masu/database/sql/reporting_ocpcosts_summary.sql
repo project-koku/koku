@@ -1,4 +1,4 @@
-CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost AS (
+CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}} AS (
     SELECT ocp_aws.report_period_id,
         ocp_aws.usage_start,
         ocp_aws.cluster_id,
@@ -56,7 +56,7 @@ CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost AS (
 UPDATE reporting_ocpusagelineitem_daily_summary ods
     SET infra_cost = ic.infra_cost,
         project_infra_cost = ic.project_infra_cost
-    FROM reporting_ocp_infrastructure_cost AS ic
+    FROM reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}} AS ic
     WHERE ic.data_source = 'Pod'
         AND ods.report_period_id = ic.report_period_id
         AND date(ods.usage_start) = date(ic.usage_start)
@@ -72,7 +72,7 @@ UPDATE reporting_ocpusagelineitem_daily_summary ods
 UPDATE reporting_ocpusagelineitem_daily_summary ods
     SET infra_cost = ic.infra_cost,
         project_infra_cost = ic.project_infra_cost
-    FROM reporting_ocp_infrastructure_cost AS ic
+    FROM reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}} AS ic
     WHERE ic.data_source = 'Storage'
         AND ods.report_period_id = ic.report_period_id
         AND date(ods.usage_start) = date(ic.usage_start)

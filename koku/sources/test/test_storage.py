@@ -171,6 +171,18 @@ class SourcesStorageTest(TestCase):
         except Exception as error:
             self.fail(str(error))
 
+    def test_update_endpoint_id(self):
+        """Tests that endpoint id is updated for a source."""
+        storage.update_endpoint_id(self.test_source_id, 11)
+        self.assertEqual(Sources.objects.get(source_id=self.test_source_id).endpoint_id, 11)
+
+    def test_update_endpoint_id_source_does_not_exist(self):
+        """Test update endpoint id for non-existant source."""
+        try:
+            storage.update_endpoint_id(self.test_source_id + 1, 11)
+        except Exception as error:
+            self.fail(str(error))
+
     def test_screen_and_build_provider_sync_create_event(self):
         """Tests that provider create events are generated."""
         test_matrix = [{'provider': MockProvider(1, 'AWS Provider', 'AWS',
@@ -476,6 +488,12 @@ class SourcesStorageTest(TestCase):
             self.assertEquals(test.get('expected_pending_update'), response.pending_update)
             test_source_id += 1
 
+    def test_enqueue_source_update_unknown_source(self):
+        """Test to enqueue a source update for an unknown source."""
+        self.test_obj.koku_uuid = faker.uuid4()
+        storage.enqueue_source_update(self.test_source_id + 1)
+        self.assertFalse(self.test_obj.pending_update)
+
     def test_clear_update_flag(self):
         """Test for clearing source update flag."""
         test_matrix = [{'koku_uuid': None, 'pending_update': False, 'expected_pending_update': False},
@@ -498,6 +516,13 @@ class SourcesStorageTest(TestCase):
             response = Sources.objects.get(source_id=test_source_id)
             self.assertEquals(test.get('expected_pending_update'), response.pending_update)
             test_source_id += 1
+
+    def test_clear_update_flag_unknown_id(self):
+        """Test to clear update flag for an unknown id."""
+        self.test_obj.pending_update = True
+        self.test_obj.save()
+        storage.clear_update_flag(self.test_source_id + 1)
+        self.assertTrue(self.test_obj.pending_update)
 
     def test_load_providers_to_update(self):
         """Test loading pending update events."""

@@ -97,7 +97,7 @@ class ReportSummaryUpdater:
             return (OCPReportSummaryUpdater(self._schema, self._provider, self._manifest),
                     OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest))
 
-        return None
+        return (None, None)
 
     def _format_dates(self, start_date, end_date):
         """Convert dates to strings for use in the updater."""

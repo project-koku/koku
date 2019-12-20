@@ -299,8 +299,14 @@ LOGGING_FORMATTER = os.getenv('DJANGO_LOG_FORMATTER', 'simple')
 DJANGO_LOGGING_LEVEL = os.getenv('DJANGO_LOG_LEVEL', 'INFO')
 KOKU_LOGGING_LEVEL = os.getenv('KOKU_LOG_LEVEL', 'INFO')
 LOGGING_HANDLERS = os.getenv('DJANGO_LOG_HANDLERS', 'console').split(',')
-VERBOSE_FORMATTING = '%(levelname)s %(asctime)s %(module)s ' \
-    '%(process)d %(thread)d %(message)s'
+VERBOSE_FORMATTING = (
+    '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d '
+    '%(task_id)s %(task_parent_id)s %(task_root_id)s '
+    '%(message)s'
+)
+SIMPLE_FORMATTING = (
+    '[%(asctime)s] %(levelname)s %(task_root_id)s %(message)s'
+)
 
 LOG_DIRECTORY = os.getenv('LOG_DIRECTORY', BASE_DIR)
 DEFAULT_LOG_FILE = os.path.join(LOG_DIRECTORY, 'app.log')
@@ -314,10 +320,12 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': VERBOSE_FORMATTING
+            '()': 'koku.log.TaskFormatter',
+            'format': VERBOSE_FORMATTING,
         },
         'simple': {
-            'format': '[%(asctime)s] %(levelname)s: %(message)s'
+            '()': 'koku.log.TaskFormatter',
+            'format': SIMPLE_FORMATTING,
         },
     },
     'handlers': {
@@ -436,6 +444,14 @@ CELERY_IMPORTS = ('masu.processor.tasks', 'masu.celery.tasks',)
 CELERY_BROKER_POOL_LIMIT = None
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_WORKER_CONCURRENCY = 1
+CELERY_WORKER_LOG_FORMAT = (
+    '[%(asctime)s: %(levelname)s/%(processName)s] %(message)s'
+)
+CELERY_WORKER_TASK_LOG_FORMAT = (
+    '[%(asctime)s: %(levelname)s/%(processName)s] '
+    '[%(task_name)s(%(task_id)s via %(task_root_id)s)] '
+    '%(message)s'
+)
 
 
 # AWS S3 Bucket Settings

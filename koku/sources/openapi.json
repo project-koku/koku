@@ -166,15 +166,15 @@
           }
       }
     },
-    "/sources/{source_id}/status/": {
+    "/source-status/": {
       "get": {
         "summary": "Get Source Status",
-        "description": "Return avaiability status for platform source.",
+        "description": "Return whether or not a source is correctly set up.",
         "parameters": [
           {
             "name": "source_id",
-            "in": "path",
-            "description": "Platform Sources identifier",
+            "in": "query",
+            "description": "The source_id",
             "required": true,
             "schema": {
               "type": "integer",
@@ -217,6 +217,9 @@
                 "examples": {
                   "NonInteger": {
                     "value": "source_id must be an integer"
+                  },
+                  "MissingSourceId": {
+                    "value": "Missing query parameter source_id"
                   }
                 }
               }
@@ -227,50 +230,26 @@
           }
         },
         "tags": [
-          "Sources"
-        ]        
-      }
-    },
-    "/source-status/": {
-      "get": {
+          "Source Status"
+        ]
+      },
+      "post": {
         "summary": "Get Source Status",
-        "description": "Return whether or not a source is correctly set up.",
-        "parameters": [
-          {
-            "name": "source_id",
-            "in": "query",
-            "description": "The source_id",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "example": 1
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The status of the source",
+        "description": "Trigger asynchronous source status update.",
+        "requestBody": {
             "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusGetResponse"
-                },
-                "examples": {
-                  "Available": {
-                    "value": {
-                      "availability_status": "available",
-                      "availability_status_error": ""
+                "application/json": {
+                    "schema": {
+                        "$ref": "#/components/schemas/SourceStatusIn"
                     }
-                  },
-                  "NotAvailable": {
-                    "value": {
-                      "availability_status": "unavailabile",
-                      "availability_status_error": "Bucket nonexistantbucketexample could not be found with arn:aws:iam::999999999999:role/CostManagement."
-                    }
-                  }
                 }
-              }
-            }
+            },
+            "description": "Provider to add to a Customer",
+            "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Status update event was successfully queued."
           },
           "400": {
             "description": "A 400 code occurs when the client either did not provide a source_id parameter, or source_id is not an integer",
@@ -439,7 +418,6 @@
                     "source_type",
                     "authentication",
                     "billing_source",
-                    "koku_uuid",
                     "source_uuid"
                 ],
                 "properties": {
@@ -483,6 +461,19 @@
                 }
             }
         ]
+      },
+      "SourceStatusIn": {
+        "type": "object",
+          "required": [
+              "source_id"
+          ],
+        "properties": {
+          "source_id": {
+              "type": "integer",
+              "format": "int64",
+              "example": 1
+          }
+        }
       },
       "StatusGetResponse": {
         "type": "object",

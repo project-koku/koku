@@ -329,3 +329,484 @@ class AWSTagsSummary(models.Model):
 
     key = models.CharField(primary_key=True, max_length=253)
     values = ArrayField(models.CharField(max_length=253))
+
+
+# Materialized Views for UI Reporting
+class AWSCostSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost.
+
+    """
+
+    class Meta:
+        """Meta for AWSCostSummary."""
+
+        db_table = 'reporting_aws_cost_summary'
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateTimeField(null=False)
+
+    usage_end = models.DateTimeField(null=False)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+
+class AWSCostSummaryByService(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by service.
+
+    """
+
+    class Meta:
+        """Meta for AWSCostSummaryByService."""
+
+        db_table = 'reporting_aws_cost_summary_by_service'
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateTimeField(null=False)
+
+    usage_end = models.DateTimeField(null=False)
+
+    product_code = models.CharField(max_length=50, null=False)
+
+    product_family = models.CharField(max_length=150, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+
+class AWSCostSummaryByAccount(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by account.
+
+    """
+
+    class Meta:
+        """Meta for AWSCostSummaryByService."""
+
+        db_table = 'reporting_aws_cost_summary_by_account'
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateTimeField(null=False)
+
+    usage_end = models.DateTimeField(null=False)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey(
+        'AWSAccountAlias', on_delete=models.SET_NULL, null=True
+    )
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+
+class AWSCostSummaryByRegion(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by region.
+
+    """
+
+    class Meta:
+        """Meta for AWSCostSummaryByService."""
+
+        db_table = 'reporting_aws_cost_summary_by_region'
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateTimeField(null=False)
+
+    usage_end = models.DateTimeField(null=False)
+
+    region = models.CharField(max_length=50, null=True)
+
+    availability_zone = models.CharField(max_length=50, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+
+class AWSComputeSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage.
+
+    """
+
+    class Meta:
+        """Meta for AWSComputeSummary."""
+
+        db_table = 'reporting_aws_compute_summary'
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateTimeField(null=False)
+
+    usage_end = models.DateTimeField(null=False)
+
+    instance_type = models.CharField(max_length=50, null=True)
+
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+
+    resource_count = models.IntegerField(null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+
+class AWSComputeSummaryByService(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage by service and instance type.
+
+    """
+
+    class Meta:
+        """Meta for AWSComputeSummaryByService."""
+
+        db_table = 'reporting_aws_compute_summary_by_service'
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateTimeField(null=False)
+
+    usage_end = models.DateTimeField(null=False)
+
+    product_code = models.CharField(max_length=50, null=False)
+
+    product_family = models.CharField(max_length=150, null=True)
+
+    instance_type = models.CharField(max_length=50, null=True)
+
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+
+    resource_count = models.IntegerField(null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+
+class AWSComputeSummaryByAccount(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by service and instance type.
+
+    """
+
+    class Meta:
+        """Meta for AWSComputeSummaryByAccount."""
+
+        db_table = 'reporting_aws_compute_summary_by_account'
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateTimeField(null=False)
+
+    usage_end = models.DateTimeField(null=False)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey(
+        'AWSAccountAlias', on_delete=models.SET_NULL, null=True
+    )
+
+    instance_type = models.CharField(max_length=50, null=True)
+
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+
+    resource_count = models.IntegerField(null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+
+class AWSComputeSummaryByRegion(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by service and instance type.
+
+    """
+
+    class Meta:
+        """Meta for AWSComputeSummaryByRegion."""
+
+        db_table = 'reporting_aws_compute_summary_by_region'
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateTimeField(null=False)
+
+    usage_end = models.DateTimeField(null=False)
+
+    region = models.CharField(max_length=50, null=True)
+
+    availability_zone = models.CharField(max_length=50, null=True)
+
+    instance_type = models.CharField(max_length=50, null=True)
+
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+
+    resource_count = models.IntegerField(null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+
+class AWSStorageSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of storage usage.
+
+    """
+
+    class Meta:
+        """Meta for AWSStorageSummary."""
+
+        db_table = 'reporting_aws_storage_summary'
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateTimeField(null=False)
+
+    usage_end = models.DateTimeField(null=False)
+
+    product_family = models.CharField(max_length=150, null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+
+class AWSStorageSummaryByService(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of storage usage by service.
+
+    """
+
+    class Meta:
+        """Meta for AWSStorageSummary."""
+
+        db_table = 'reporting_aws_storage_summary_by_service'
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateTimeField(null=False)
+
+    usage_end = models.DateTimeField(null=False)
+
+    product_code = models.CharField(max_length=50, null=False)
+
+    product_family = models.CharField(max_length=150, null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+
+class AWSStorageSummaryByAccount(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of storage by account.
+
+    """
+
+    class Meta:
+        """Meta for AWSStorageSummaryByAccount."""
+
+        db_table = 'reporting_aws_storage_summary_by_account'
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateTimeField(null=False)
+
+    usage_end = models.DateTimeField(null=False)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey(
+        'AWSAccountAlias', on_delete=models.SET_NULL, null=True
+    )
+
+    product_family = models.CharField(max_length=150, null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+
+class AWSStorageSummaryByRegion(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by service and instance type.
+
+    """
+
+    class Meta:
+        """Meta for AWSStorageSummaryByRegion."""
+
+        db_table = 'reporting_aws_storage_summary_by_region'
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateTimeField(null=False)
+
+    usage_end = models.DateTimeField(null=False)
+
+    region = models.CharField(max_length=50, null=True)
+
+    availability_zone = models.CharField(max_length=50, null=True)
+
+    product_family = models.CharField(max_length=150, null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+
+class AWSNetworkSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of network usage.
+
+    """
+
+    class Meta:
+        """Meta for AWSNetworkSummary."""
+
+        db_table = 'reporting_aws_network_summary'
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateTimeField(null=False)
+
+    usage_end = models.DateTimeField(null=False)
+
+    product_code = models.CharField(max_length=50, null=False)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+
+class AWSDatabaseSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of database usage.
+
+    """
+
+    class Meta:
+        """Meta for AWSDatabaseSummary."""
+
+        db_table = 'reporting_aws_database_summary'
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateTimeField(null=False)
+
+    usage_end = models.DateTimeField(null=False)
+
+    product_code = models.CharField(max_length=50, null=False)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)

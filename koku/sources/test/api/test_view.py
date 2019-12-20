@@ -31,8 +31,9 @@ from api.provider.models import Sources
 @override_settings(ROOT_URLCONF='sources.urls')
 class SourcesViewTests(IamTestCase):
     """Test Cases for the sources endpoint."""
+
     def setUp(self):
-        """Setup tests."""
+        """Set up tests."""
         super().setUp()
         self.test_account = '10001'
         user_data = self._create_user_data()
@@ -108,7 +109,6 @@ class SourcesViewTests(IamTestCase):
 
     def test_source_list(self):
         """Test the LIST endpoint."""
-
         with requests_mock.mock() as m:
             m.get(f'http://www.sourcesclient.com/api/v1/sources/',
                   status_code=200)
@@ -174,42 +174,4 @@ class SourcesViewTests(IamTestCase):
 
             response = self.client.get(url, content_type='application/json',
                                        **request_context['request'].META)
-            self.assertEqual(response.status_code, 404)
-
-    def test_source_get_status(self):
-        """Test the STATUS endpoint is accessible for any user."""
-        user_data = self._create_user_data()
-        customer = self._create_customer_data(account='10002')
-        other_request_context = self._create_request_context(customer, user_data,
-                                                             create_customer=True,
-                                                             is_admin=False)
-
-        request_contexts = [self.request_context, other_request_context]
-        for context in request_contexts:
-            with requests_mock.mock() as m:
-                m.get(f'http://www.sourcesclient.com/api/v1/sources/{self.test_source_id}/status/',
-                      status_code=200,
-                      headers={'Content-Type': 'application/json'})
-
-                base_url = reverse('sources-detail', kwargs={'source_id': self.test_source_id})
-                url = base_url + 'status/'
-                response = self.client.get(url, content_type='application/json',
-                                           **context['request'].META)
-                body = response.json()
-                self.assertEqual(response.status_code, 200)
-                self.assertIn('availability_status', body.keys())
-                self.assertIn('availability_status_error', body.keys())
-
-    def test_source_status_not_found(self):
-        """Test the STATUS endpoint for non existent source."""
-        wrong_source_id = self.test_source_id + 1
-        with requests_mock.mock() as m:
-            m.get(f'http://www.sourcesclient.com/api/v1/sources/{wrong_source_id}/',
-                  status_code=200,
-                  headers={'Content-Type': 'application/json'})
-
-            base_url = reverse('sources-detail', kwargs={'source_id': wrong_source_id})
-            url = base_url + 'status/'
-            response = self.client.get(url, content_type='application/json',
-                                       **self.request_context['request'].META)
             self.assertEqual(response.status_code, 404)

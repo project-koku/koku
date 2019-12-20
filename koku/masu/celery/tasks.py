@@ -22,7 +22,6 @@
 import calendar
 import csv
 import math
-import uuid
 from datetime import date
 
 import boto3
@@ -39,10 +38,12 @@ from django.db import connection
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer, SyncedFileInColdStorageError
 from api.dataexport.uploader import AwsS3Uploader
+from api.iam.models import Tenant
 from koku.celery import app
 from masu.celery.export import table_export_settings
 from masu.external.date_accessor import DateAccessor
 from masu.processor.orchestrator import Orchestrator
+from masu.processor.tasks import vacuum_schema
 from masu.util.common import NamedTemporaryGZip, dictify_table_export_settings
 from masu.util.upload import get_upload_path
 
@@ -69,8 +70,7 @@ def remove_expired_data():
 @app.task(name='masu.celery.tasks.upload_normalized_data', queue_name='upload')
 def upload_normalized_data():
     """Scheduled task to export normalized data to s3."""
-    log_uuid = str(uuid.uuid4())
-    LOG.info('%s Beginning upload_normalized_data', log_uuid)
+    LOG.info('Beginning upload_normalized_data')
     curr_date = DateAccessor().today()
     curr_month_range = calendar.monthrange(curr_date.year, curr_date.month)
     curr_month_first_day = date(year=curr_date.year, month=curr_date.month, day=1)
@@ -86,8 +86,7 @@ def upload_normalized_data():
 
     for account in accounts:
         LOG.info(
-            '%s processing schema %s provider uuid %s',
-            log_uuid,
+            'processing schema %s provider uuid %s',
             account['schema_name'],
             account['provider_uuid'],
         )
@@ -114,7 +113,7 @@ def upload_normalized_data():
                 prev_month_first_day,
                 prev_month_last_day,
             )
-    LOG.info('%s Completed upload_normalized_data', log_uuid)
+    LOG.info('Completed upload_normalized_data')
 
 
 @app.task(
@@ -256,6 +255,7 @@ def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, sta
         table_export_setting (dict): Settings for the table export.
         start_date (string): start date (inclusive)
         end_date (string): end date (inclusive)
+
     """
     LOG.info(
         'query_and_upload_to_s3: schema %s provider_uuid %s table.output_name %s for %s',
@@ -308,3 +308,17 @@ def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, sta
                         writer.writerow(row)
             temp_file.close()
             uploader.upload_file(temp_file.name, upload_path)
+
+
+@app.task(name='masu.celery.tasks.vacuum_schemas', queue_name='reporting')
+def vacuum_schemas():
+    """Vacuum all schemas."""
+    tenants = Tenant.objects.values('schema_name')
+    schema_names = [
+        tenant.get('schema_name') for tenant in tenants
+        if (tenant.get('schema_name') and tenant.get('schema_name') != 'public')
+    ]
+
+    for schema_name in schema_names:
+        LOG.info('Scheduling VACUUM task for %s', schema_name)
+        vacuum_schema.delay(schema_name)

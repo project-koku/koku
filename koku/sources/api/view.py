@@ -27,13 +27,10 @@ from django.views.decorators.cache import never_cache
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, viewsets
 from rest_framework import status
-from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
 from rest_framework.exceptions import ParseError
 from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
 from sources.api.serializers import SourcesSerializer
-from sources.api.source_status import SourceStatus
 from sources.storage import SourcesStorageError
 
 from api.provider.models import Sources
@@ -116,14 +113,3 @@ class SourcesViewSet(mixins.ListModelMixin,
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
 
         return response
-
-    @action(detail=True, methods=['get'])
-    def status(self, request, *args, **kwargs):
-        """Get source availability status."""
-        source_id = kwargs.get('source_id')
-        try:
-            source_status_obj = SourceStatus(source_id)
-            availability_status = source_status_obj.status()
-            return Response(availability_status, status=status.HTTP_200_OK)
-        except Sources.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)

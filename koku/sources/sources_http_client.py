@@ -50,8 +50,7 @@ class SourcesHTTPClient:
 
     def get_endpoint_id(self):
         """Get Sources Endpoint ID from Source ID."""
-        endpoint_url = '{}/endpoints?filter[source_id]={}'.format(
-            self._base_url, self._source_id)
+        endpoint_url = f'{self._base_url}/endpoints?filter[source_id]={self._source_id}'
         r = requests.get(endpoint_url, headers=self._identity_header)
 
         if r.status_code != 200:
@@ -63,6 +62,21 @@ class SourcesHTTPClient:
             endpoint_id = endpoint_response.get('data')[0].get('id')
 
         return endpoint_id
+
+    def get_source_id_from_endpoint_id(self, resource_id):
+        """Get Source ID from Sources Endpoint ID."""
+        endpoint_url = f'{self._base_url}/endpoints?filter[id]={resource_id}'
+        r = requests.get(endpoint_url, headers=self._identity_header)
+
+        if r.status_code != 200:
+            raise SourcesHTTPClientError('Status Code: ', r.status_code)
+        endpoint_response = r.json()
+
+        source_id = None
+        if endpoint_response.get('data'):
+            source_id = endpoint_response.get('data')[0].get('source_id')
+
+        return source_id
 
     def get_cost_management_application_type_id(self):
         """Get the cost management application type id."""
@@ -122,10 +136,13 @@ class SourcesHTTPClient:
 
     def get_azure_credentials(self):
         """Get the Azure Credentials from Sources Authentication service."""
-        endpoint_url = '{}/endpoints?filter[source_id]={}'.format(self._base_url, str(self._source_id))
+        endpoint_url = f'{self._base_url}/endpoints?filter[source_id]={str(self._source_id)}'
         r = requests.get(endpoint_url, headers=self._identity_header)
         endpoint_response = r.json()
-        resource_id = endpoint_response.get('data')[0].get('id')
+        if endpoint_response.get('data'):
+            resource_id = endpoint_response.get('data')[0].get('id')
+        else:
+            return
 
         authentications_url = \
             (f'{self._base_url}/authentications?filter[resource_type]=Endpoint&'
@@ -137,8 +154,9 @@ class SourcesHTTPClient:
         data_dict = authentications_response.get('data')[0]
         authentications_id = data_dict.get('id')
 
-        authentications_internal_url = '{}/authentications/{}?expose_encrypted_attribute[]=password'.format(
-            self._internal_url, str(authentications_id))
+        authentications_internal_url = (
+            f'{self._internal_url}/authentications/{str(authentications_id)}?expose_encrypted_attribute[]=password'
+        )
         r = requests.get(authentications_internal_url, headers=self._identity_header)
         authentications_internal_response = r.json()
         password = authentications_internal_response.get('password')
@@ -148,8 +166,11 @@ class SourcesHTTPClient:
                              'tenant_id': data_dict.get('extra').get('azure').get('tenant_id')}
         return azure_credentials
 
-    def set_source_status(self, error_msg, cost_management_type_id):
+    def set_source_status(self, error_msg, cost_management_type_id=None):
         """Set the source status with error message."""
+        if not cost_management_type_id:
+            cost_management_type_id = self.get_cost_management_application_type_id()
+
         application_query_url = '{}/applications?filter[application_type_id]={}&filter[source_id]={}'.\
             format(self._base_url, cost_management_type_id, str(self._source_id))
         application_query_response = requests.get(application_query_url, headers=self._identity_header)
@@ -157,7 +178,7 @@ class SourcesHTTPClient:
         if response_data:
             application_id = response_data[0].get('id')
 
-            application_url = '{}/applications/{}'.format(self._base_url, str(application_id))
+            application_url = f'{self._base_url}/applications/{str(application_id)}'
             if error_msg:
                 status = 'unavailable'
             else:
