@@ -127,8 +127,11 @@ FAILED (failures=1)
 
 # Gotchas:
 - The logger is disabled by default during unit tests. If you are building a unit test that asserts that a log occurs, you must re-enable the logger. For example:
+
+```
 import logging
-```with self.assertLogs(logger='masu.external.downloader.aws.aws_report_downloader', level='WARN') as cm:
+with self.assertLogs(logger='masu.external.downloader.aws.aws_report_downloader', level='WARN') as cm:
             logging.disable(logging.NOTSET)
             self.aws_report_downloader._remove_manifest_file("None")
-            self.assertEqual(['WARN: Could not delete manifest file at'], cm.output)```
+            self.assertEqual(['WARN: Could not delete manifest file at'], cm.output)
+```
