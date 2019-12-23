@@ -36,9 +36,6 @@ You may want to check the logs to see if the loading is occuring:
 `docker-compose logs -f koku-server koku-worker`
 
 
-koku_beat is the Celery scheduler: Periodic Tasks — Celery 4.3.0 documentation
-
-
 If you see this error:
 
 Provider skipped: da56f23c-100e-4158-8544-0a146a9dc64d Valid: True Backing off: True
