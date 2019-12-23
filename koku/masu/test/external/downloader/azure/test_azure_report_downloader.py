@@ -16,6 +16,7 @@
 #
 
 """Test the AzureReportDownloader object."""
+import logging
 import shutil
 from datetime import datetime
 from tempfile import NamedTemporaryFile
@@ -240,3 +241,20 @@ class AzureReportDownloaderTest(MasuTestCase):
         self.assertEqual(full_file_path, expected_full_path)
         self.assertEqual(etag, self.mock_data.export_etag)
         mock_download_cost_method._azure_client.download_cost_export.assert_not_called()
+
+    def test_delete_manifest_file_warning(self):
+        """Test that a warning is logged when removing a manifest file that does not exist."""
+        with self.assertLogs(logger='masu.external.downloader.aws.aws_report_downloader',
+                             level='WARN') as captured_logs:
+            # Disable log suppression
+            logging.disable(logging.NOTSET)
+            self.aws_report_downloader._remove_manifest_file('None')
+            self.assertTrue(captured_logs.output[0].startswith('WARNING:'),
+                            msg="The log is expected to start with 'WARNING:' but instead was: "
+                            + captured_logs.output[0])
+            self.assertTrue('Could not delete manifest file at' in captured_logs.output[0],
+                            msg="""The log message is expected to contain
+                                    'Could not delete manifest file at' but instead was: """
+                            + captured_logs.output[0])
+            # Re-enable log suppression
+            logging.disable(logging.CRITICAL)

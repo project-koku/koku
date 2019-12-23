@@ -560,5 +560,5 @@ class AWSReportDownloaderTest(MasuTestCase):
                             msg="""The log message is expected to contain
                                    'Could not delete manifest file at' but instead was: """
                             + captured_logs.output[0])
-            #Re-enable log suppression
+            # Re-enable log suppression
             logging.disable(logging.CRITICAL)

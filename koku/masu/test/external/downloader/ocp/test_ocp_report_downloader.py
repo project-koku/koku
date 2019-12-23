@@ -16,7 +16,7 @@
 #
 
 """Test the Report Downloader."""
-
+import logging
 import os
 import os.path
 import shutil
@@ -132,3 +132,20 @@ class OCPReportDownloaderTest(MasuTestCase):
         self.assertTrue(os.path.isfile(self.test_manifest_path))
         self.ocp_report_downloader._remove_manifest_file(test_report_date)
         self.assertFalse(os.path.isfile(self.test_manifest_path))
+
+    def test_delete_manifest_file_warning(self):
+        """Test that a warning is logged when removing a manifest file that does not exist."""
+        with self.assertLogs(logger='masu.external.downloader.ocp.ocp_report_downloader',
+                             level='WARN') as captured_logs:
+            # Disable log suppression
+            logging.disable(logging.NOTSET)
+            self.aws_report_downloader._remove_manifest_file('None')
+            self.assertTrue(captured_logs.output[0].startswith('WARNING:'),
+                            msg="The log is expected to start with 'WARNING:' but instead was: "
+                            + captured_logs.output[0])
+            self.assertTrue('Could not delete manifest file at' in captured_logs.output[0],
+                            msg="""The log message is expected to contain
+                                    'Could not delete manifest file at' but instead was: """
+                            + captured_logs.output[0])
+            # Re-enable log suppression
+            logging.disable(logging.CRITICAL)
