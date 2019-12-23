@@ -550,7 +550,15 @@ class AWSReportDownloaderTest(MasuTestCase):
         """Test that a warning is logged when removing a manifest file that does not exist."""
         with self.assertLogs(logger='masu.external.downloader.aws.aws_report_downloader',
                              level='WARN') as captured_logs:
+            # Disable log suppression
             logging.disable(logging.NOTSET)
-            self.aws_report_downloader._remove_manifest_file("None")
-            self.assertTrue(captured_logs.output[0].startswith('WARNING:'))
-            self.assertTrue('Could not delete manifest file at' in captured_logs.output[0])
+            self.aws_report_downloader._remove_manifest_file('None')
+            self.assertTrue(captured_logs.output[0].startswith('WARNING:'),
+                            msg="The log is expected to start with 'WARNING:' but instead was: "
+                            + captured_logs.output[0])
+            self.assertTrue('Could not delete manifest file at' in captured_logs.output[0],
+                            msg="""The log message is expected to contain
+                                   'Could not delete manifest file at' but instead was: """
+                            + captured_logs.output[0])
+            #Re-enable log suppression
+            logging.disable(logging.CRITICAL)
