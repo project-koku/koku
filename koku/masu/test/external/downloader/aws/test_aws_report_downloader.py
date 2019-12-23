@@ -18,6 +18,7 @@
 """Test the AWS S3 utility functions."""
 
 import io
+import logging
 import os.path
 import random
 import shutil
@@ -544,3 +545,12 @@ class AWSReportDownloaderTest(MasuTestCase):
         self.assertTrue(os.path.isfile(manifest_file))
         self.aws_report_downloader._remove_manifest_file(manifest_file)
         self.assertFalse(os.path.isfile(manifest_file))
+
+    def test_delete_manifest_file_warning(self):
+        """Test that a warning is logged when removing a manifest file that does not exist."""
+        with self.assertLogs(logger='masu.external.downloader.aws.aws_report_downloader',
+                             level='WARN') as captured_logs:
+            logging.disable(logging.NOTSET)
+            self.aws_report_downloader._remove_manifest_file("None")
+            self.assertTrue(captured_logs.output[0].startswith('WARNING:'))
+            self.assertTrue('Could not delete manifest file at' in captured_logs.output[0])
