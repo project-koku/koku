@@ -135,4 +135,3 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
             self.report_downloader.download_report(test_report_date)
             expected_path = '{}/{}/{}'.format(DATA_DIR, self.customer_name, 'azure')
             self.assertTrue(os.path.isdir(expected_path))
-
