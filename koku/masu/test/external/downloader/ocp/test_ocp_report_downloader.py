@@ -139,7 +139,7 @@ class OCPReportDownloaderTest(MasuTestCase):
                              level='WARN') as captured_logs:
             # Disable log suppression
             logging.disable(logging.NOTSET)
-            self.aws_report_downloader._remove_manifest_file('None')
+            self.report_downloader._remove_manifest_file('None')
             self.assertTrue(captured_logs.output[0].startswith('WARNING:'),
                             msg="The log is expected to start with 'WARNING:' but instead was: "
                             + captured_logs.output[0])
