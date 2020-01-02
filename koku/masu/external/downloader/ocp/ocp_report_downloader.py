@@ -78,7 +78,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             os.remove(manifest_path)
             LOG.info('Deleted manifest file at %s', directory)
         except OSError:
-            LOG.warning('Could not delete manifest file at %s', directory)
+            LOG.info('Could not delete manifest file at %s', directory)
 
         return None
 

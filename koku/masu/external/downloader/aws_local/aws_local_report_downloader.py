@@ -149,7 +149,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             os.remove(manifest_file)
             LOG.info('Deleted manifest file at %s', manifest_file)
         except OSError:
-            LOG.warning('Could not delete manifest file at %s', manifest_file)
+            LOG.info('Could not delete manifest file at %s', manifest_file)
 
         return None
 
