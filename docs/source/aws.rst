@@ -30,7 +30,7 @@ Send a GET request to ``http://<your_host>:5000/api/cost-management/v1/download/
 
 You may want to check the logs to see if the loading is occuring:
 
-`docker-compose logs -f koku-server koku-worker`
+    docker-compose logs -f koku-server koku-worker
 
 If you see this error:
 `Provider skipped: da56f23c-100e-4158-8544-0a146a9dc64d Valid: True Backing off: True`
