@@ -26,7 +26,7 @@ You should receive a 200 range response confirming that the Provider was created
 Trigger Masu
 =============
 
-Send a GET request to `http://<your_host>:5000/api/cost-management/v1/download/` That _should_ trigger the worker to load the data into the DB.
+Send a GET request to ``http://<your_host>:5000/api/cost-management/v1/download/`` That *should* trigger the worker to load the data into the DB.
 
 You may want to check the logs to see if the loading is occuring:
 
