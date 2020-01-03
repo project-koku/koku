@@ -14,7 +14,7 @@ You'll need to set those environment variables with your AWS access and secret k
 =========================
 How to Create a Provider
 =========================
-Send a POST request to
+Send a POST request to ``http://<your_host>:8000/api/cost-management/v1/providers/``
 With the content:
 Provider Resource Name: <whatever your arn is> 
  
