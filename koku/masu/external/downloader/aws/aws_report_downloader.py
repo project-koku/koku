@@ -189,7 +189,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             os.remove(manifest_file)
             LOG.info('Deleted manifest file at %s', manifest_file)
         except OSError:
-            LOG.error('Could not delete manifest file at %s', manifest_file)
+            LOG.info('Could not delete manifest file at %s', manifest_file)
 
         return None
 
@@ -254,7 +254,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             if ex.response['Error']['Code'] == 'NoSuchKey':
                 log_msg = 'Unable to find {} in S3 Bucket: {}'.format(s3_filename,
                                                                       self.report.get('S3Bucket'))
-                LOG.error(log_msg)
+                LOG.info(log_msg)
                 raise AWSReportDownloaderNoFileError(log_msg)
 
             LOG.error('Error downloading file: Error: %s', str(ex))

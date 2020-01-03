@@ -222,7 +222,7 @@ class QueryParameters:
         try:
             query_params = parser.parse(self.url_data)
         except parser.MalformedQueryStringError:
-            LOG.error('Invalid query parameter format %s.', self.url_data)
+            LOG.info('Invalid query parameter format %s.', self.url_data)
             error = {'details': _(f'Invalid query parameter format.')}
             raise ValidationError(error)
 
