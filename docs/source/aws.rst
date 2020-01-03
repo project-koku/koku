@@ -33,5 +33,7 @@ You may want to check the logs to see if the loading is occuring:
     docker-compose logs -f koku-server koku-worker
 
 If you see this error:
-`Provider skipped: da56f23c-100e-4158-8544-0a146a9dc64d Valid: True Backing off: True`
+
+    Provider skipped: da56f23c-100e-4158-8544-0a146a9dc64d Valid: True Backing off: True
+
 Then check the api_providerstatus table to see what the error message is.
