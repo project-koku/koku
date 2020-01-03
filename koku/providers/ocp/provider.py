@@ -58,7 +58,7 @@ class OCPProvider(ProviderInterface):
         if not cluster_id or len(cluster_id) == 0:
             key = 'authentication.provider_resource_name'
             message = 'Provider resource name is a required parameter for OCP.'
-            LOG.error(message)
+            LOG.info(message)
             raise serializers.ValidationError(error_obj(key, message))
         if storage_resource_name:
             key = 'billing_source.bucket'
