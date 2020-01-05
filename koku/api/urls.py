@@ -53,6 +53,7 @@ from api.views import (
     authentication,
     billing_source,
     openapi,
+    openapiHtml,
 )
 
 
@@ -68,6 +69,7 @@ urlpatterns = [
 
     url(r'^status/$', StatusView.as_view(), name='server-status'),
     url(r'^openapi.json', openapi, name='openapi'),
+    url(r'^openapi.html', openapiHtml, name='openapiHtml'),
     url(r'^tags/aws/$', AWSTagView.as_view(), name='aws-tags'),
     url(r'^tags/azure/$', AzureTagView.as_view(), name='azure-tags'),
     url(r'^tags/openshift/$', OCPTagView.as_view(), name='openshift-tags'),

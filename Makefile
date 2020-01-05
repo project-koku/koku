@@ -11,6 +11,7 @@ PYTHON	= $(shell which python)
 TOPDIR  = $(shell pwd)
 PYDIR	= koku
 APIDOC  = apidoc
+OPENAPI_SPEC_PATH = ./docs/source/specs/openapi.json
 
 # How to execute Django's manage.py
 DJANGO_MANAGE = DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py
@@ -36,6 +37,8 @@ ifeq ($(OS),Darwin)
 else
 	PREFIX	= sudo
 endif
+
+NPX := $(shell command -v npx 2> /dev/null)
 
 define HELP_TEXT =
 Please use \`make <target>' where <target> is one of:
@@ -126,6 +129,9 @@ clean:
 
 html:
 	@cd docs; $(MAKE) html
+ifdef NPX
+	npx redoc-cli bundle $(OPENAPI_SPEC_PATH) -o ./docs/source/specs/openapi.html
+endif
 
 lint:
 	tox -e lint

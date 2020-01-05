@@ -20,28 +20,42 @@ import json
 import logging
 import os
 
+from django.shortcuts import render_to_response
+
 from rest_framework import permissions, status
 from rest_framework.decorators import (api_view,
                                        permission_classes,
                                        renderer_classes)
-from rest_framework.renderers import JSONRenderer
+from rest_framework.renderers import JSONRenderer, StaticHTMLRenderer
 from rest_framework.response import Response
 
 from koku.settings import STATIC_ROOT
 
 LOG = logging.getLogger(__name__)
 OPENAPI_FILE_NAME = os.path.join(STATIC_ROOT, 'openapi.json')
+OPENAPIHTML_FILE_NAME = os.path.join(STATIC_ROOT, 'openapi.html')
+
+ext_parser = {
+    'json': json.load,
+    'html': lambda ioFile: ioFile.read()
+}
 
 
-def get_json(path):
-    """Obtain API JSON data from file path."""
-    json_data = None
-    with open(path) as json_file:
-        try:
-            json_data = json.load(json_file)
-        except (IOError, json.JSONDecodeError) as exc:
-            LOG.exception(exc)
-    return json_data
+def static_response(path):
+    ext = path.split('.')[-1]
+    data = None
+    try:
+        load = ext_parser[ext]
+        with open(path) as data_file:
+            try:
+                data = load(data_file)
+            except (IOError, json.JSONDecodeError) as exc:
+                LOG.exception(exc)
+    except KeyError as kexc:
+        LOG.exception(kexc)
+    if data:
+        return Response(data)
+    return Response(status=status.HTTP_404_NOT_FOUND)
 
 
 @api_view(['GET'])
@@ -49,7 +63,11 @@ def get_json(path):
 @renderer_classes((JSONRenderer,))
 def openapi(_):
     """Provide the openapi information."""
-    data = get_json(OPENAPI_FILE_NAME)
-    if data:
-        return Response(data)
-    return Response(status=status.HTTP_404_NOT_FOUND)
+    return static_response(OPENAPI_FILE_NAME)
+
+@api_view(['GET'])
+@permission_classes((permissions.AllowAny,))
+@renderer_classes((StaticHTMLRenderer,))
+def openapiHtml(_):
+    """Provide the openapi information in HTML format."""
+    return static_response(OPENAPIHTML_FILE_NAME)

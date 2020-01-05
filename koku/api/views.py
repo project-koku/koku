@@ -21,7 +21,7 @@
 from api.dataexport.views import DataExportRequestViewSet
 from api.iam.view.user_preference import UserPreferenceViewSet
 from api.metrics.views import CostModelMetricsMapViewSet
-from api.openapi.view import openapi
+from api.openapi.view import openapi, openapiHtml
 from api.provider.view import ProviderViewSet
 from api.report.all.openshift.view import (OCPAllCostView,
                                            OCPAllInstanceTypeView,
