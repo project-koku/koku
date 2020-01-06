@@ -471,22 +471,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         self.assertEqual(repr(filters), expected)
 
-    def test_get_exclusions(self):
-        """Test that exclusions are properly set."""
-        url = '?'
-        query_params = self.mocked_query_params(url, OCPTagView)
-        handler = OCPTagQueryHandler(query_params)
-        tag_keys = handler.get_tag_keys(filters=False)
-
-        group_by_key = tag_keys[0]
-        group_by_value = 'group_By'
-        url = f'?group_by[tag:{group_by_key}]={group_by_value}'
-        query_params = self.mocked_query_params(url, OCPCpuView)
-        handler = OCPReportQueryHandler(query_params)
-        exclusions = handler._get_exclusions()
-        expected = f"<Q: (AND: ('pod_labels__{group_by_key}__isnull', True))>"
-        self.assertEqual(repr(exclusions), expected)
-
     def test_get_tag_group_by(self):
         """Test that tag based group bys work."""
         url = '?'
