@@ -299,7 +299,7 @@ class QueryHandler:
 
         return filters
 
-    def filter_to_order_by(self, parameters): # noqa: C901
+    def filter_to_order_by(self, parameters):  # noqa: C901
         """Remove group_by[NAME]=* and replace it with group_by[NAME]=X.
 
         The parameters object contains a list of filters and a list of group_bys.
