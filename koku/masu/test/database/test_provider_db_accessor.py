@@ -19,7 +19,7 @@
 from api.provider.models import Provider, ProviderInfrastructureMap
 from masu.database.customer_db_accessor import CustomerDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.external import AMAZON_WEB_SERVICES
+from masu.external import PROVIDER_AWS
 from masu.test import MasuTestCase
 
 
@@ -73,7 +73,7 @@ class ProviderDBAccessorTest(MasuTestCase):
         """Test provider type getter."""
         uuid = self.aws_provider_uuid
         with ProviderDBAccessor(uuid) as accessor:
-            self.assertEqual(AMAZON_WEB_SERVICES, accessor.get_type())
+            self.assertEqual(PROVIDER_AWS, accessor.get_type())
 
     def test_get_authentication(self):
         """Test provider authentication getter."""

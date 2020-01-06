@@ -183,26 +183,26 @@ class OCPBillingSourceSerializer(ProviderBillingSourceSerializer):
 
 
 # Registry of authentication serializers.
-AUTHENTICATION_SERIALIZERS = {'AWS': AWSAuthenticationSerializer,
-                              'AWS-local': AWSAuthenticationSerializer,
-                              'AZURE': AzureAuthenticationSerializer,
-                              'AZURE-local': AzureAuthenticationSerializer,
-                              'GCP': GCPAuthenticationSerializer,
-                              'GCP-local': GCPAuthenticationSerializer,
-                              'OCP': OCPAuthenticationSerializer,
+AUTHENTICATION_SERIALIZERS = {Provider.PROVIDER_AWS: AWSAuthenticationSerializer,
+                              Provider.PROVIDER_AWS_LOCAL: AWSAuthenticationSerializer,
+                              Provider.PROVIDER_AZURE: AzureAuthenticationSerializer,
+                              Provider.PROVIDER_AZURE_LOCAL: AzureAuthenticationSerializer,
+                              Provider.PROVIDER_GCP: GCPAuthenticationSerializer,
+                              Provider.PROVIDER_GCP_LOCAL: GCPAuthenticationSerializer,
+                              Provider.PROVIDER_OCP: OCPAuthenticationSerializer,
                               'OCP_AWS': AWSAuthenticationSerializer,
                               'OCP_AZURE': AzureAuthenticationSerializer,
                               }
 
 
 # Registry of billing_source serializers.
-BILLING_SOURCE_SERIALIZERS = {'AWS': AWSBillingSourceSerializer,
-                              'AWS-local': AWSBillingSourceSerializer,
-                              'AZURE': AzureBillingSourceSerializer,
-                              'AZURE-local': AzureBillingSourceSerializer,
-                              'GCP': GCPBillingSourceSerializer,
-                              'GCP-local': GCPBillingSourceSerializer,
-                              'OCP': OCPBillingSourceSerializer,
+BILLING_SOURCE_SERIALIZERS = {Provider.PROVIDER_AWS: AWSBillingSourceSerializer,
+                              Provider.PROVIDER_AWS_LOCAL: AWSBillingSourceSerializer,
+                              Provider.PROVIDER_AZURE: AzureBillingSourceSerializer,
+                              Provider.PROVIDER_AZURE_LOCAL: AzureBillingSourceSerializer,
+                              Provider.PROVIDER_GCP: GCPBillingSourceSerializer,
+                              Provider.PROVIDER_GCP_LOCAL: GCPBillingSourceSerializer,
+                              Provider.PROVIDER_OCP: OCPBillingSourceSerializer,
                               'OCP_AWS': AWSBillingSourceSerializer,
                               'OCP_AZURE': AzureBillingSourceSerializer,
                               }
@@ -290,7 +290,7 @@ class ProviderSerializer(serializers.ModelSerializer):
         provider_type = validated_data['type']
         interface = ProviderAccessor(provider_type)
 
-        if credentials and data_source and provider_type not in ['AWS', 'OCP']:
+        if credentials and data_source and provider_type not in [Provider.PROVIDER_AWS, Provider.PROVIDER_OCP]:
             interface.cost_usage_source_ready(credentials, data_source)
         else:
             interface.cost_usage_source_ready(provider_resource_name, bucket)
@@ -332,7 +332,7 @@ class ProviderSerializer(serializers.ModelSerializer):
         bucket = billing_source.get('bucket')
 
         try:
-            if credentials and data_source and provider_type not in ['AWS', 'OCP']:
+            if credentials and data_source and provider_type not in [Provider.PROVIDER_AWS, Provider.PROVIDER_OCP]:
                 interface.cost_usage_source_ready(credentials, data_source)
             else:
                 interface.cost_usage_source_ready(provider_resource_name, bucket)

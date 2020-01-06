@@ -25,7 +25,7 @@ from sources import storage
 from sources.config import Config
 from sources.storage import SourcesStorageError
 
-from api.provider.models import Sources
+from api.provider.models import Provider, Sources
 
 faker = Faker()
 
@@ -161,7 +161,7 @@ class SourcesStorageTest(TestCase):
 
     def test_screen_and_build_provider_sync_create_event(self):
         """Tests that provider create events are generated."""
-        test_matrix = [{'provider': MockProvider(1, 'AWS Provider', 'AWS',
+        test_matrix = [{'provider': MockProvider(1, 'AWS Provider', Provider.PROVIDER_AWS,
                                                  {'resource_name': 'arn:fake'},
                                                  {'bucket': 'testbucket'},
                                                  'authheader', 1, False),
@@ -171,22 +171,22 @@ class SourcesStorageTest(TestCase):
                                                  None,
                                                  'authheader', 1, False),
                         'expected_response': {}},
-                       {'provider': MockProvider(2, 'OCP Provider', 'OCP',
+                       {'provider': MockProvider(2, 'OCP Provider', Provider.PROVIDER_OCP,
                                                  {'resource_name': 'my-cluster-id'},
                                                  {'bucket': ''},
                                                  'authheader', 2, False),
                         'expected_response': {'operation': 'create', 'offset': 2}},
-                       {'provider': MockProvider(2, 'OCP Provider', 'OCP',
+                       {'provider': MockProvider(2, 'OCP Provider', Provider.PROVIDER_OCP,
                                                  {'resource_name': 'my-cluster-id'},
                                                  {'bucket': ''},
                                                  'authheader', 2, True),
                         'expected_response': {}},
-                       {'provider': MockProvider(2, None, 'OCP',
+                       {'provider': MockProvider(2, None, Provider.PROVIDER_OCP,
                                                  {'resource_name': 'my-cluster-id'},
                                                  {'bucket': ''},
                                                  'authheader', 2, False),
                         'expected_response': {}},
-                       {'provider': MockProvider(3, 'Azure Provider', 'AZURE',
+                       {'provider': MockProvider(3, 'Azure Provider', Provider.PROVIDER_AZURE,
                                                  {'credentials': {'client_id': 'test_client_id',
                                                                   'tenant_id': 'test_tenant_id',
                                                                   'client_secret': 'test_client_secret',
@@ -208,29 +208,31 @@ class SourcesStorageTest(TestCase):
 
     def test_validate_billing_source(self):
         """Test to validate that the billing source dictionary is valid."""
-        test_matrix = [{'provider_type': 'AWS', 'billing_source': {'bucket': 'test-bucket'},
+        test_matrix = [{'provider_type': Provider.PROVIDER_AWS, 'billing_source': {'bucket': 'test-bucket'},
                         'exception': False},
-                       {'provider_type': 'AZURE', 'billing_source': {'data_source': {'resource_group': 'foo',
-                                                                                     'storage_account': 'bar'}},
+                       {'provider_type': Provider.PROVIDER_AZURE,
+                        'billing_source': {'data_source': {'resource_group': 'foo', 'storage_account': 'bar'}},
                         'exception': False},
-                       {'provider_type': 'AWS', 'billing_source': {'nobucket': 'test-bucket'},
+                       {'provider_type': Provider.PROVIDER_AWS, 'billing_source': {'nobucket': 'test-bucket'},
                         'exception': True},
-                       {'provider_type': 'AWS', 'billing_source': {},
+                       {'provider_type': Provider.PROVIDER_AWS, 'billing_source': {},
                         'exception': True},
-                       {'provider_type': 'AZURE', 'billing_source': {},
+                       {'provider_type': Provider.PROVIDER_AZURE, 'billing_source': {},
                         'exception': True},
-                       {'provider_type': 'AZURE', 'billing_source': {'nodata_source': {'resource_group': 'foo',
-                                                                                       'storage_account': 'bar'}},
+                       {'provider_type': Provider.PROVIDER_AZURE,
+                        'billing_source': {'nodata_source': {'resource_group': 'foo', 'storage_account': 'bar'}},
                         'exception': True},
-                       {'provider_type': 'AZURE', 'billing_source': {'data_source': {'noresource_group': 'foo',
-                                                                                     'storage_account': 'bar'}},
+                       {'provider_type': Provider.PROVIDER_AZURE,
+                        'billing_source': {'data_source': {'noresource_group': 'foo', 'storage_account': 'bar'}},
                         'exception': True},
-                       {'provider_type': 'AZURE', 'billing_source': {'data_source': {'resource_group': 'foo',
-                                                                                     'nostorage_account': 'bar'}},
+                       {'provider_type': Provider.PROVIDER_AZURE,
+                        'billing_source': {'data_source': {'resource_group': 'foo', 'nostorage_account': 'bar'}},
                         'exception': True},
-                       {'provider_type': 'AZURE', 'billing_source': {'data_source': {'resource_group': 'foo'}},
+                       {'provider_type': Provider.PROVIDER_AZURE,
+                        'billing_source': {'data_source': {'resource_group': 'foo'}},
                         'exception': True},
-                       {'provider_type': 'AZURE', 'billing_source': {'data_source': {'storage_account': 'bar'}},
+                       {'provider_type': Provider.PROVIDER_AZURE,
+                        'billing_source': {'data_source': {'storage_account': 'bar'}},
                         'exception': True},
                        ]
 

@@ -20,7 +20,7 @@ from django.utils.translation import ugettext as _
 from rest_framework import serializers
 from sources.storage import SourcesStorageError
 
-from api.provider.models import Sources
+from api.provider.models import Provider, Sources
 
 
 def error_obj(key, message):
@@ -70,10 +70,10 @@ class SourcesSerializer(serializers.ModelSerializer):
 
     def _validate_billing_source(self, provider_type, billing_source):
         """Validate billing source parameters."""
-        if provider_type == 'AWS':
+        if provider_type == Provider.PROVIDER_AWS:
             if not billing_source.get('bucket'):
                 raise SourcesStorageError('Missing AWS bucket.')
-        elif provider_type == 'AZURE':
+        elif provider_type == Provider.PROVIDER_AZURE:
             data_source = billing_source.get('data_source')
             if not data_source:
                 raise SourcesStorageError('Missing AZURE data_source.')

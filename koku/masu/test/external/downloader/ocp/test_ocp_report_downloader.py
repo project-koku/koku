@@ -26,6 +26,7 @@ from unittest.mock import Mock, patch
 from faker import Faker
 
 from masu.config import Config
+from masu.external import PROVIDER_OCP
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.report_downloader import ReportDownloader
@@ -68,7 +69,7 @@ class OCPReportDownloaderTest(MasuTestCase):
             customer_name=self.fake_customer_name,
             access_credential=self.cluster_id,
             report_source=None,
-            provider_type='OCP',
+            provider_type=PROVIDER_OCP,
             provider_uuid=self.ocp_provider_uuid,
         )
 

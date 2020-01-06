@@ -21,11 +21,11 @@ from unittest.mock import patch
 
 from masu.exceptions import MasuProcessingError
 from masu.external import (
-    AMAZON_WEB_SERVICES,
-    AWS_LOCAL_SERVICE_PROVIDER,
-    AZURE,
-    AZURE_LOCAL_SERVICE_PROVIDER,
-    OPENSHIFT_CONTAINER_PLATFORM,
+    PROVIDER_AWS,
+    PROVIDER_AWS_LOCAL,
+    PROVIDER_AZURE,
+    PROVIDER_AZURE_LOCAL,
+    PROVIDER_OCP,
 )
 from masu.processor.report_processor import ReportProcessor, ReportProcessorError
 from masu.test import MasuTestCase
@@ -40,7 +40,7 @@ class ReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
-            provider=AMAZON_WEB_SERVICES,
+            provider=PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
@@ -52,7 +52,7 @@ class ReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
-            provider=AWS_LOCAL_SERVICE_PROVIDER,
+            provider=PROVIDER_AWS_LOCAL,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
@@ -64,7 +64,7 @@ class ReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
-            provider=AZURE,
+            provider=PROVIDER_AZURE,
             provider_uuid=self.azure_provider_uuid,
             manifest_id=None,
         )
@@ -77,7 +77,7 @@ class ReportProcessorTest(MasuTestCase):
             report_path=('./koku/masu/test/data/ocp/'
                          'e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'),
             compression='PLAIN',
-            provider=OPENSHIFT_CONTAINER_PLATFORM,
+            provider=PROVIDER_OCP,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
@@ -90,7 +90,7 @@ class ReportProcessorTest(MasuTestCase):
             report_path=('./koku/masu/test/data/ocp/'
                          'e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'),
             compression='PLAIN',
-            provider=AZURE_LOCAL_SERVICE_PROVIDER,
+            provider=PROVIDER_AZURE_LOCAL,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
@@ -107,7 +107,7 @@ class ReportProcessorTest(MasuTestCase):
                 schema_name=self.schema,
                 report_path='/my/report/file',
                 compression='GZIP',
-                provider=AMAZON_WEB_SERVICES,
+                provider=PROVIDER_AWS,
                 provider_uuid=self.aws_provider_uuid,
                 manifest_id=None,
             )
@@ -133,7 +133,7 @@ class ReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
-            provider=AMAZON_WEB_SERVICES,
+            provider=PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
@@ -152,7 +152,7 @@ class ReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
-            provider=AMAZON_WEB_SERVICES,
+            provider=PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
@@ -169,7 +169,7 @@ class ReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
-            provider=AMAZON_WEB_SERVICES,
+            provider=PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
@@ -188,7 +188,7 @@ class ReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
-            provider=AMAZON_WEB_SERVICES,
+            provider=PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )

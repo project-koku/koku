@@ -21,6 +21,7 @@ from django.utils.translation import ugettext as _
 from msrest.exceptions import ClientException
 from rest_framework.serializers import ValidationError
 
+from api.models import Provider
 from .client import AzureClientFactory
 from ..provider_interface import ProviderInterface
 
@@ -50,7 +51,7 @@ class AzureProvider(ProviderInterface):
                        example: "AWS"
 
         """
-        return 'Azure'
+        return Provider.PROVIDER_AZURE
 
     def cost_usage_source_is_reachable(self, credential_name,
                                        storage_resource_name):

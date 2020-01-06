@@ -26,7 +26,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.provider.models import Provider
+from api.models import Provider
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
 from api.provider.test import PROVIDERS, create_generic_provider
 from providers.provider_access import ProviderAccessor
@@ -436,7 +436,7 @@ class ProviderViewTest(IamTestCase):
 
     def test_put_for_ocp_provider(self):
         """Test PUT update for OCP provider."""
-        response, provider = create_generic_provider('OCP', self.headers)
+        response, provider = create_generic_provider(Provider.PROVIDER_OCP, self.headers)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         json_result = response.json()
 
@@ -458,7 +458,7 @@ class ProviderViewTest(IamTestCase):
     @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
     def test_put_for_aws_provider(self, mock_access):
         """Test PUT update for AWS provider."""
-        response, provider = create_generic_provider('AWS', self.headers)
+        response, provider = create_generic_provider(Provider.PROVIDER_AWS, self.headers)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         json_result = response.json()
 
@@ -477,7 +477,7 @@ class ProviderViewTest(IamTestCase):
     def test_put_for_aws_provider_error(self):
         """Test PUT update for AWS provider with error."""
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
-            response, provider = create_generic_provider('AWS', self.headers)
+            response, provider = create_generic_provider(Provider.PROVIDER_AWS, self.headers)
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         with patch.object(ProviderAccessor, 'cost_usage_source_ready',
@@ -496,12 +496,12 @@ class ProviderViewTest(IamTestCase):
     @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
     def test_put_for_azure_provider(self, mock_access):
         """Test PUT update for AZURE provider."""
-        response, provider = create_generic_provider('AZURE', self.headers)
+        response, provider = create_generic_provider(Provider.PROVIDER_AZURE, self.headers)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         json_result = response.json()
 
         name = 'new_name'
-        provider = copy.deepcopy(PROVIDERS['AZURE'])
+        provider = copy.deepcopy(PROVIDERS[Provider.PROVIDER_AZURE])
         provider['name'] = name
 
         url = reverse('provider-detail', args=[json_result.get('uuid')])
@@ -515,12 +515,12 @@ class ProviderViewTest(IamTestCase):
     @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
     def test_put_for_provider_type_change(self, mock_access):
         """Test that provider_type change thru PUT request results in error."""
-        response, provider = create_generic_provider('AWS', self.headers)
+        response, provider = create_generic_provider(Provider.PROVIDER_AWS, self.headers)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         json_result = response.json()
 
         provider = copy.deepcopy(PROVIDERS['AWS'])
-        provider['type'] = 'OCP'
+        provider['type'] = Provider.PROVIDER_OCP
 
         url = reverse('provider-detail', args=[json_result.get('uuid')])
         client = APIClient()
@@ -529,12 +529,12 @@ class ProviderViewTest(IamTestCase):
 
     def test_patch_not_supported(self):
         """Test that PATCH request returns 405."""
-        response, provider = create_generic_provider('AZURE', self.headers)
+        response, provider = create_generic_provider(Provider.PROVIDER_AZURE, self.headers)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         json_result = response.json()
 
         name = 'new_name'
-        provider = copy.deepcopy(PROVIDERS['AZURE'])
+        provider = copy.deepcopy(PROVIDERS[Provider.PROVIDER_AZURE])
         provider['name'] = name
 
         url = reverse('provider-detail', args=[json_result.get('uuid')])
@@ -544,12 +544,12 @@ class ProviderViewTest(IamTestCase):
 
     def test_deleted_before_put_returns_400(self):
         """Test if 400 is raised when a PUT is called on deleted provider."""
-        response, provider = create_generic_provider('AZURE', self.headers)
+        response, provider = create_generic_provider(Provider.PROVIDER_AZURE, self.headers)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         json_result = response.json()
 
         name = 'new_name'
-        provider = copy.deepcopy(PROVIDERS['AZURE'])
+        provider = copy.deepcopy(PROVIDERS[Provider.PROVIDER_AZURE])
         provider['name'] = name
 
         url = reverse('provider-detail', args=[json_result.get('uuid')])

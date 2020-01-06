@@ -86,13 +86,13 @@ class ProviderManager:
         stats = {}
         query = None
         with tenant_context(tenant):
-            if provider.type == 'OCP':
+            if provider.type == Provider.PROVIDER_OCP:
                 query = OCPUsageReportPeriod.objects.filter(provider=provider,
                                                             report_period_start=period_start).first()
-            elif provider.type == 'AWS' or provider.type == 'AWS-local':
+            elif provider.type == Provider.PROVIDER_AWS or provider.type == Provider.PROVIDER_AWS_LOCAL:
                 query = AWSCostEntryBill.objects.filter(provider=provider,
                                                         billing_period_start=period_start).first()
-            elif provider.type == 'AZURE' or provider.type == 'AZURE-local':
+            elif provider.type == Provider.PROVIDER_AZURE or provider.type == Provider.PROVIDER_AZURE_LOCAL:
                 query = AzureCostEntryBill.objects.filter(provider=provider,
                                                           billing_period_start=period_start).first()
         if query and query.summary_data_creation_datetime:

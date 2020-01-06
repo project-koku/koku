@@ -25,7 +25,7 @@ from providers.provider_access import ProviderAccessor
 
 
 PROVIDERS = {
-    'OCP': {
+    Provider.PROVIDER_OCP: {
         'name': 'test_provider',
         'type': Provider.PROVIDER_OCP,
         'authentication': {
@@ -34,7 +34,7 @@ PROVIDERS = {
             }
         }
     },
-    'AWS': {
+    Provider.PROVIDER_AWS: {
         'name': 'test_provider',
         'type': Provider.PROVIDER_AWS,
         'authentication': {
@@ -48,7 +48,7 @@ PROVIDERS = {
             }
         }
     },
-    'AZURE': {
+    Provider.PROVIDER_AZURE: {
         'name': 'test_provider',
         'type': Provider.PROVIDER_AZURE,
         'authentication': {

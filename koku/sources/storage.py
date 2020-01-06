@@ -22,7 +22,7 @@ from json import loads as json_loads
 from json.decoder import JSONDecodeError
 
 
-from api.provider.models import Sources
+from api.provider.models import Provider, Sources
 
 
 LOG = logging.getLogger(__name__)
@@ -359,10 +359,10 @@ def add_provider_sources_network_info(source_id, source_uuid, name, source_type,
 
 def _validate_billing_source(provider_type, billing_source):
     """Validate billing source parameters."""
-    if provider_type == 'AWS':
+    if provider_type == Provider.PROVIDER_AWS:
         if not billing_source.get('bucket'):
             raise SourcesStorageError('Missing AWS bucket.')
-    elif provider_type == 'AZURE':
+    elif provider_type == Provider.PROVIDER_AZURE:
         data_source = billing_source.get('data_source')
         if not data_source:
             raise SourcesStorageError('Missing AZURE data_source.')

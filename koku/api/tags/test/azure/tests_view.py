@@ -23,6 +23,7 @@ from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.models import Provider
 from api.provider.test import create_generic_provider
 from api.report.test.azure.helpers import AzureReportDataGenerator
 from api.utils import DateHelper
@@ -37,7 +38,7 @@ class AzureTagsViewTest(IamTestCase):
         super().setUp()
         self.dh = DateHelper()
         self.ten_days_ago = self.dh.n_days_ago(self.dh.today, 9)
-        _, self.provider = create_generic_provider('AZURE', self.headers)
+        _, self.provider = create_generic_provider(Provider.PROVIDER_AZURE, self.headers)
         self.data_generator = AzureReportDataGenerator(self.tenant, self.provider)
         self.data_generator.add_data_to_tenant()
 

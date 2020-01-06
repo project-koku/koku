@@ -17,7 +17,7 @@
 
 """Test the CURAccountsDB utility object."""
 
-from masu.external import AMAZON_WEB_SERVICES, AZURE, OPENSHIFT_CONTAINER_PLATFORM
+from masu.external import PROVIDER_AWS, PROVIDER_AZURE, PROVIDER_OCP
 from masu.external.accounts.db.cur_accounts_db import CURAccountsDB
 from masu.test import MasuTestCase
 
@@ -32,15 +32,15 @@ class CURAccountsDBTest(MasuTestCase):
             self.fail('unexpected number of accounts')
 
         for account in accounts:
-            if account.get('provider_type') == AMAZON_WEB_SERVICES:
+            if account.get('provider_type') == PROVIDER_AWS:
                 self.assertEqual(account.get('authentication'), self.aws_provider_resource_name)
                 self.assertEqual(account.get('billing_source'), self.aws_test_billing_source)
                 self.assertEqual(account.get('customer_name'), self.schema)
-            elif account.get('provider_type') == OPENSHIFT_CONTAINER_PLATFORM:
+            elif account.get('provider_type') == PROVIDER_OCP:
                 self.assertEqual(account.get('authentication'), self.ocp_provider_resource_name)
                 self.assertEqual(account.get('billing_source'), None)
                 self.assertEqual(account.get('customer_name'), self.schema)
-            elif account.get('provider_type') == AZURE:
+            elif account.get('provider_type') == PROVIDER_AZURE:
                 self.assertEqual(account.get('authentication'), self.azure_credentials)
                 self.assertEqual(account.get('billing_source'), self.azure_data_source)
                 self.assertEqual(account.get('customer_name'), self.schema)

@@ -15,15 +15,16 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Initializer for external module."""
+from api.models import Provider
 
 # Provider Types
-AMAZON_WEB_SERVICES = 'AWS'
-AZURE = 'AZURE'
-GCP = 'GCP'
-OPENSHIFT_CONTAINER_PLATFORM = 'OCP'
-AWS_LOCAL_SERVICE_PROVIDER = 'AWS-local'
-AZURE_LOCAL_SERVICE_PROVIDER = 'AZURE-local'
-GCP_LOCAL = 'GCP-local'
+PROVIDER_AWS = Provider.PROVIDER_AWS
+PROVIDER_AZURE = Provider.PROVIDER_AZURE
+PROVIDER_GCP = Provider.PROVIDER_GCP
+PROVIDER_OCP = Provider.PROVIDER_OCP
+PROVIDER_AWS_LOCAL = Provider.PROVIDER_AWS_LOCAL
+PROVIDER_AZURE_LOCAL = Provider.PROVIDER_AZURE_LOCAL
+PROVIDER_GCP_LOCAL = Provider.PROVIDER_GCP_LOCAL
 
 # Ingest Methods
 POLL_INGEST = 'poll-ingest'

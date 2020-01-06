@@ -25,14 +25,14 @@ from os import remove
 from tempfile import gettempdir
 from uuid import uuid4
 
-from masu.external import (AMAZON_WEB_SERVICES,
-                           AWS_LOCAL_SERVICE_PROVIDER,
-                           AZURE,
-                           AZURE_LOCAL_SERVICE_PROVIDER,
-                           GCP,
-                           LISTEN_INGEST,
-                           OPENSHIFT_CONTAINER_PLATFORM,
-                           POLL_INGEST)
+from masu.external import (LISTEN_INGEST,
+                           POLL_INGEST,
+                           PROVIDER_AWS,
+                           PROVIDER_AWS_LOCAL,
+                           PROVIDER_AZURE,
+                           PROVIDER_AZURE_LOCAL,
+                           PROVIDER_GCP,
+                           PROVIDER_OCP)
 
 LOG = logging.getLogger(__name__)
 
@@ -70,12 +70,12 @@ def stringify_json_data(data):
 def ingest_method_for_provider(provider):
     """Return the ingest method for provider."""
     ingest_map = {
-        AMAZON_WEB_SERVICES: POLL_INGEST,
-        AWS_LOCAL_SERVICE_PROVIDER: POLL_INGEST,
-        AZURE: POLL_INGEST,
-        AZURE_LOCAL_SERVICE_PROVIDER: POLL_INGEST,
-        GCP: POLL_INGEST,
-        OPENSHIFT_CONTAINER_PLATFORM: LISTEN_INGEST
+        PROVIDER_AWS: POLL_INGEST,
+        PROVIDER_AWS_LOCAL: POLL_INGEST,
+        PROVIDER_AZURE: POLL_INGEST,
+        PROVIDER_AZURE_LOCAL: POLL_INGEST,
+        PROVIDER_GCP: POLL_INGEST,
+        PROVIDER_OCP: LISTEN_INGEST
     }
     return ingest_map.get(provider)
 

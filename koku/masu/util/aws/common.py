@@ -28,7 +28,7 @@ from tenant_schemas.utils import schema_context
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.external import AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER
+from masu.external import PROVIDER_AWS, PROVIDER_AWS_LOCAL
 from masu.util import common as utils
 
 LOG = logging.getLogger(__name__)
@@ -253,7 +253,7 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     with ProviderDBAccessor(provider_uuid) as provider_accessor:
         provider = provider_accessor.get_provider()
 
-    if provider.type not in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
+    if provider.type not in (PROVIDER_AWS, PROVIDER_AWS_LOCAL):
         err_msg = 'Provider UUID is not an AWS type.  It is {}'.format(provider.type)
         LOG.warning(err_msg)
         return []

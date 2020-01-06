@@ -105,11 +105,11 @@ class Provider(models.Model):
 
     PROVIDER_AWS = 'AWS'
     PROVIDER_OCP = 'OCP'
-    PROVIDER_AZURE = 'AZURE'
+    PROVIDER_AZURE = 'Azure'
     PROVIDER_GCP = 'GCP'
     # Local Providers are for local development and testing
     PROVIDER_AWS_LOCAL = 'AWS-local'
-    PROVIDER_AZURE_LOCAL = 'AZURE-local'
+    PROVIDER_AZURE_LOCAL = 'Azure-local'
     PROVIDER_GCP_LOCAL = 'GCP-local'
 
     PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),

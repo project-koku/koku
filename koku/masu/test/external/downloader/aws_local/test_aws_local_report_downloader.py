@@ -30,7 +30,7 @@ from faker import Faker
 
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external import AWS_REGIONS
+from masu.external import AWS_REGIONS, PROVIDER_AWS_LOCAL
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
 from masu.external.report_downloader import ReportDownloader
@@ -79,7 +79,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
             customer_name=self.fake_customer_name,
             access_credential=self.fake_auth_credential,
             report_source=self.fake_bucket_name,
-            provider_type='AWS-local',
+            provider_type=PROVIDER_AWS_LOCAL,
             provider_uuid=self.aws_provider_uuid,
         )
 
@@ -144,7 +144,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                 self.fake_customer_name,
                 self.fake_auth_credential,
                 fake_bucket,
-                'AWS-local',
+                PROVIDER_AWS_LOCAL,
                 self.aws_provider_uuid,
             )
             # Names from test report .gz file
@@ -222,7 +222,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                 self.fake_customer_name,
                 self.fake_auth_credential,
                 fake_bucket,
-                'AWS-local',
+                PROVIDER_AWS_LOCAL,
                 1,
             )
             # Names from test report .gz file

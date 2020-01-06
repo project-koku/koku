@@ -19,11 +19,11 @@
 import logging
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.external import (AMAZON_WEB_SERVICES,
-                           AWS_LOCAL_SERVICE_PROVIDER,
-                           AZURE,
-                           AZURE_LOCAL_SERVICE_PROVIDER,
-                           OPENSHIFT_CONTAINER_PLATFORM)
+from masu.external import (PROVIDER_AWS,
+                           PROVIDER_AWS_LOCAL,
+                           PROVIDER_AZURE,
+                           PROVIDER_AZURE_LOCAL,
+                           PROVIDER_OCP)
 from masu.processor.aws.aws_report_charge_updater import AWSReportChargeUpdater
 from masu.processor.azure.azure_report_charge_updater import AzureReportChargeUpdater
 from masu.processor.ocp.ocp_report_charge_updater import OCPReportChargeUpdater
@@ -70,11 +70,11 @@ class ReportChargeUpdater:
             (Object) : Provider-specific report summary updater
 
         """
-        if self._provider.type in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
+        if self._provider.type in (PROVIDER_AWS, PROVIDER_AWS_LOCAL):
             return AWSReportChargeUpdater(self._schema, self._provider)
-        if self._provider.type in (AZURE, AZURE_LOCAL_SERVICE_PROVIDER):
+        if self._provider.type in (PROVIDER_AZURE, PROVIDER_AZURE_LOCAL):
             return AzureReportChargeUpdater(self._schema, self._provider)
-        if self._provider.type in (OPENSHIFT_CONTAINER_PLATFORM, ):
+        if self._provider.type in (PROVIDER_OCP, ):
             return OCPReportChargeUpdater(self._schema, self._provider)
 
         return None
