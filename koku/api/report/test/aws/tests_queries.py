@@ -1317,4 +1317,4 @@ class AWSReportQueryTest(IamTestCase):
         query_4_handler = AWSReportQueryHandler(query_4_params)
         query_4_output = query_4_handler.execute_query()
         query_4_total = query_4_output.get('total').get('cost').get('value')
-        self.assertGreater(query_4_total, query_1_total)
+        self.assertGreaterEqual(query_4_total, query_1_total)
