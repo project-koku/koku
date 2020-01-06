@@ -133,30 +133,6 @@ class SourcesStorageTest(TestCase):
         except Exception as error:
             self.fail(str(error))
 
-    def test_add_provider_billing_source(self):
-        """Tests that add an AWS billing source to a Source."""
-        s3_bucket = {'bucket': 'test-bucket'}
-        storage.add_provider_sources_network_info(self.test_source_id, faker.uuid4(),
-                                                  'AWS Account', 'AWS', 1)
-        storage.add_provider_billing_source({'source_id': self.test_source_id}, s3_bucket)
-        self.assertEqual(Sources.objects.get(source_id=self.test_source_id).billing_source, s3_bucket)
-
-    def test_add_provider_billing_source_non_aws(self):
-        """Tests that add a non-AWS billing source to a Source."""
-        s3_bucket = {'bucket': 'test-bucket'}
-        storage.add_provider_sources_network_info(self.test_source_id, faker.uuid4(),
-                                                  'OCP Account', 'OCP', 1)
-        with self.assertRaises(SourcesStorageError):
-            storage.add_provider_billing_source({'source_id': self.test_source_id}, s3_bucket)
-
-    def test_add_provider_billing_source_non_existent(self):
-        """Tests that add a billing source to a non-existent Source."""
-        s3_bucket = {'bucket': 'test-bucket'}
-        storage.add_provider_sources_network_info(self.test_source_id + 1, faker.uuid4(),
-                                                  'AWS Account', 'AWS', 1)
-        with self.assertRaises(SourcesStorageError):
-            storage.add_provider_billing_source({'source_id': self.test_source_id}, s3_bucket)
-
     def test_add_provider_koku_uuid(self):
         """Tests that add a koku provider uuid to a source."""
         test_uuid = faker.uuid4()
@@ -229,89 +205,6 @@ class SourcesStorageTest(TestCase):
                 self.assertEqual(response.get('offset'), test.get('expected_response').get('offset'))
             else:
                 self.assertEqual(response, {})
-
-    def test_add_subscription_id_to_credentials(self):
-        """Test to add subscription_id to AZURE credentials."""
-        test_source_id = 2
-        subscription_id = 'test_sub_id'
-        azure_obj = Sources(source_id=test_source_id,
-                            auth_header=self.test_header,
-                            offset=2,
-                            source_type='AZURE',
-                            name='Test Azure Source',
-                            authentication={'credentials': {'client_id': 'test_client',
-                                                            'tenant_id': 'test_tenant',
-                                                            'client_secret': 'test_secret'}},
-                            billing_source={'data_source': {'resource_group': 'RG1',
-                                                            'storage_account': 'test_storage'}})
-        azure_obj.save()
-        storage.add_subscription_id_to_credentials({'source_id': test_source_id}, subscription_id)
-
-        response_obj = Sources.objects.get(source_id=test_source_id)
-        self.assertEqual(response_obj.authentication.get('credentials').get('subscription_id'), subscription_id)
-
-    def test_add_subscription_id_to_credentials_with_koku_uuid(self):
-        """Test to add subscription_id to AZURE credentials with koku_uuid."""
-        test_source_id = 2
-        subscription_id = 'test_sub_id'
-        azure_obj = Sources(source_id=test_source_id,
-                            auth_header=self.test_header,
-                            offset=2,
-                            koku_uuid=faker.uuid4(),
-                            source_type='AZURE',
-                            name='Test Azure Source',
-                            authentication={'credentials': {'client_id': 'test_client',
-                                                            'tenant_id': 'test_tenant',
-                                                            'client_secret': 'test_secret'}},
-                            billing_source={'data_source': {'resource_group': 'RG1',
-                                                            'storage_account': 'test_storage'}})
-        azure_obj.save()
-        storage.add_subscription_id_to_credentials({'source_id': test_source_id}, subscription_id)
-
-        response_obj = Sources.objects.get(source_id=test_source_id)
-        self.assertEqual(response_obj.authentication.get('credentials').get('subscription_id'), subscription_id)
-        self.assertTrue(response_obj.pending_update)
-
-    def test_add_subscription_id_to_credentials_non_azure(self):
-        """Test to add subscription_id to a non-AZURE credentials."""
-        test_source_id = 3
-        subscription_id = 'test_sub_id'
-        ocp_obj = Sources(source_id=test_source_id,
-                          auth_header=self.test_header,
-                          offset=3,
-                          source_type='AWS',
-                          name='Test AWS Source',
-                          authentication={'resource_name': 'arn:test'},
-                          billing_source={'bucket': 'test-bucket'})
-        ocp_obj.save()
-
-        with self.assertRaises(SourcesStorageError):
-            storage.add_subscription_id_to_credentials({'source_id': test_source_id}, subscription_id)
-
-    def test_add_subscription_id_to_credentials_non_existent(self):
-        """Test to add subscription_id to a non-existent Source."""
-        test_source_id = 4
-        subscription_id = 'test_sub_id'
-
-        with self.assertRaises(SourcesStorageError):
-            storage.add_subscription_id_to_credentials({'source_id': test_source_id}, subscription_id)
-
-    def test_add_subscription_id_to_credentials_malformed_cred(self):
-        """Test to add subscription_id to with a malformed authentication structure."""
-        test_source_id = 3
-        subscription_id = 'test_sub_id'
-        azure_obj = Sources(source_id=test_source_id,
-                            auth_header=self.test_header,
-                            offset=3,
-                            source_type='AZURE',
-                            name='Test AZURE Source',
-                            authentication={},
-                            billing_source={'billing_source': {'data_source': {'resource_group': 'foo',
-                                                                               'storage_account': 'bar'}}})
-        azure_obj.save()
-
-        with self.assertRaises(SourcesStorageError):
-            storage.add_subscription_id_to_credentials({'source_id': test_source_id}, subscription_id)
 
     def test_validate_billing_source(self):
         """Test to validate that the billing source dictionary is valid."""
@@ -551,30 +444,3 @@ class SourcesStorageTest(TestCase):
             self.assertEquals(len(response), test.get('expected_list_length'))
             test_source_id += 1
             aws_obj.delete()
-
-    def test_get_query_from_api_data(self):
-        """Test helper method to get query based on API request_data."""
-        test_source_id = 3
-        test_source_name = 'Test AWS Source'
-        test_endpoint_id = 4
-        aws_obj = Sources(source_id=test_source_id,
-                          auth_header=self.test_header,
-                          offset=3,
-                          endpoint_id=test_endpoint_id,
-                          source_type='AWS',
-                          name=test_source_name,
-                          billing_source={'bucket': 'test-bucket'})
-        aws_obj.save()
-
-        test_matrix = [{'request_data': {'source_id': test_source_id}, 'expected_exception': None},
-                       {'request_data': {'source_name': test_source_name}, 'expected_exception': None},
-                       {'request_data': {'source_id': test_source_id, 'source_name': test_source_name},
-                        'expected_exception': SourcesStorageError}]
-
-        for test in test_matrix:
-            if not test.get('expected_exception'):
-                response = storage.get_query_from_api_data(test.get('request_data'))
-                self.assertEquals(response.source_id, test_source_id)
-            else:
-                with self.assertRaises(test.get('expected_exception')):
-                    storage.get_query_from_api_data(test.get('request_data'))
