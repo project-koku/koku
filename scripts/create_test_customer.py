@@ -208,18 +208,19 @@ class KokuCustomerOnboarder:
         conn.close()
 
 
-    def create_providers_db(self):
+    def create_providers_db(self, skip_providers):
         """Create a Koku Provider by inserting into the Koku DB."""
-        for provider_type in ['AWS', 'OCP', 'AZURE']:
-            self.create_provider_db(provider_type)
-            print(f'Created {provider_type} provider.')
+        if not skip_providers:
+            for provider_type in ['AWS', 'OCP', 'AZURE']:
+                self.create_provider_db(provider_type)
+                print(f'Created {provider_type} provider.')
 
 
     def onboard(self):
         """Execute Koku onboarding steps."""
         self.create_customer()
         if self._config.get('bypass_api'):
-            self.create_providers_db()
+            self.create_providers_db(self._config.get('no_providers', True))
         else:
             self.create_provider_api()
 
@@ -258,6 +259,8 @@ if __name__ == '__main__':
                         default=DEFAULT_CONFIG)
     PARSER.add_argument('--bypass-api', dest='bypass_api', action='store_true',
                         help='Create Provider in DB, bypassing Koku API')
+    PARSER.add_argument('--no-providers', dest='no_providers', action='store_true',
+                        help='Don\'t create providers at all')
     ARGS = vars(PARSER.parse_args())
 
     try:
