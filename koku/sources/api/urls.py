@@ -17,17 +17,15 @@
 from django.conf.urls import include, url
 from rest_framework.routers import DefaultRouter
 from sources.api.status import get_status
-from sources.api.views import SourcesViewSet, authentication, billing_source, source_status
+from sources.api.views import SourcesViewSet, source_status
 
 ROUTER = DefaultRouter()
 ROUTER.register(r'sources', SourcesViewSet)
 
 # # pylint: disable=invalid-name
 urlpatterns = [
-    url(r'^authentication/$', authentication, name='authentication'),
     url(r'^status/$', get_status, name='server-status'),
     url(r'^source-status/$', source_status, name='source-status'),
-    url(r'^billing_source/$', billing_source, name='billing-source'),
     url(r'^', include(ROUTER.urls)),
 
 ]

@@ -50,8 +50,6 @@ from api.views import (
     SourcesProxyViewSet,
     StatusView,
     UserPreferenceViewSet,
-    authentication,
-    billing_source,
     openapi,
 )
 
@@ -116,7 +114,5 @@ urlpatterns = [
     url(r'^reports/openshift/infrastructures/azure/instance-types/$',
         OCPAzureInstanceTypeView.as_view(),
         name='reports-openshift-azure-instance-type'),
-    url(r'^sources/authentication/$', authentication, name='authentication'),
-    url(r'^sources/billing_source/$', billing_source, name='billing-source'),
     url(r'^', include(ROUTER.urls)),
 ]
