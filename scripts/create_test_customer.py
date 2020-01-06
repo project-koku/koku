@@ -45,23 +45,33 @@ koku:
 
 import argparse
 import os
+import re
 import sys
 from base64 import b64encode
 from json import dumps as json_dumps
 from uuid import uuid4
 
+from yaml import add_constructor, add_implicit_resolver, safe_load, SafeLoader
 import psycopg2
-from yaml import load
-try:
-    from yaml import CLoader as Loader
-except ImportError:
-    from yaml import Loader
 import requests
 
 BASEDIR = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_CONFIG = BASEDIR + '/test_customer.yaml'
 SUPPORTED_PROVIDERS = ['aws', 'ocp', 'azure']
 
+ENV_VARIABLE_MATCHER = re.compile(r'\$\{([^}^{]+)\}')
+
+def variable_constructor(loader, node):
+    """Extract the matched value, return the environment variable or the default."""
+    value = node.value
+    match = ENV_VARIABLE_MATCHER.match(value)
+    env_var = match.group()[2:-1].split(':')
+    if os.getenv(*env_var):
+        return os.getenv(*env_var)
+    raise ValueError("Environment variable is not defined and no default value given.")
+
+add_implicit_resolver('!ENV', ENV_VARIABLE_MATCHER, None, SafeLoader)
+add_constructor('!ENV', variable_constructor, SafeLoader)
 
 class KokuCustomerOnboarder:
     """Uses the Koku API and SQL to create an onboarded customer."""
@@ -72,7 +82,7 @@ class KokuCustomerOnboarder:
         self.customer = self._config.get('customer')
         self.koku = self._config.get('koku')
 
-        self.endpoint_base = 'http://{}:{}/{}/v1/'.format(
+        self.endpoint_base = 'http://{}:{}{}/v1/'.format(
             self.koku.get("host"),
             self.koku.get("port"),
             self.koku.get("prefix"))
@@ -246,9 +256,9 @@ def load_yaml(filename):
     print(f'Loading: {filename}')
     try:
         with open(filename, 'r+') as fhandle:
-            yamlfile = load(fhandle, Loader=Loader)
+            yamlfile = safe_load(fhandle)
     except TypeError:
-        yamlfile = load(filename, Loader=Loader)
+        yamlfile = safe_load(filename)
     return yamlfile
 
 
