@@ -126,7 +126,7 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_two_filters_and_group_by_star(self):
         """Test what happens when there are two filters for the same category.
-        
+
         For example, group_by[service]=*&filter[service]=X&filter[service]=Y"""
         url = '?group_by[region]=*&filter[region]=eu-west-3&filter[region]=us-west-1'
         query_params = self.mocked_query_params(url, AWSInstanceTypeView)
