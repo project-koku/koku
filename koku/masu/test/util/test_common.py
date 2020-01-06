@@ -25,6 +25,7 @@ from decimal import Decimal
 from os.path import exists
 
 from django.test import TestCase
+from dateutil import parser
 
 import masu.util.common as common_utils
 from masu.external import (
@@ -130,6 +131,9 @@ class CommonUtilTests(MasuTestCase):
 
         date_generator = common_utils.date_range(start_date, end_date)
 
+        start_date = parser.parse(start_date)
+        end_date = parser.parse(end_date)
+
         self.assertIsInstance(date_generator, types.GeneratorType)
 
         first_date = next(date_generator)
@@ -147,6 +151,9 @@ class CommonUtilTests(MasuTestCase):
         step = 3
 
         date_generator = common_utils.date_range_pair(start_date, end_date, step=step)
+
+        start_date = parser.parse(start_date)
+        end_date = parser.parse(end_date)
 
         self.assertIsInstance(date_generator, types.GeneratorType)
 
@@ -168,6 +175,9 @@ class CommonUtilTests(MasuTestCase):
         step = 3
 
         date_generator = common_utils.date_range_pair(start_date, end_date, step=step)
+
+        start_date = parser.parse(start_date)
+        end_date = parser.parse(end_date)
 
         self.assertIsInstance(date_generator, types.GeneratorType)
 
