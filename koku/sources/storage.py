@@ -357,59 +357,6 @@ def add_provider_sources_network_info(source_id, source_uuid, name, source_type,
         LOG.error('Unable to add network details.  Source ID: %s does not exist', str(source_id))
 
 
-def get_query_from_api_data(request_data):
-    """Get database query based on request_data from API."""
-    source_id = request_data.get('source_id')
-    source_name = request_data.get('source_name')
-    if source_id and source_name:
-        raise SourcesStorageError('Expected either source_id or source_name, not both.')
-    try:
-        if source_id:
-            query = Sources.objects.get(source_id=source_id)
-        if source_name:
-            query = Sources.objects.get(name=source_name)
-    except Sources.DoesNotExist:
-        raise SourcesStorageError('Source does not exist')
-    return query
-
-
-def add_subscription_id_to_credentials(request_data, subscription_id):
-    """
-    Add AZURE subscription_id Sources database object.
-
-    Args:
-        request_data (dict) - Dictionary containing either source_id or source_name
-        subscription_id (String) - Subscription ID
-
-    Returns:
-        None
-
-    """
-    try:
-        save_needed = False
-        query = get_query_from_api_data(request_data)
-        if query.source_type not in ('AZURE',):
-            raise SourcesStorageError('Source is not AZURE.')
-
-        auth_dict = query.authentication
-
-        if not auth_dict.get('credentials'):
-            raise SourcesStorageError('Missing credentials key')
-
-        if auth_dict.get('credentials').get('subscription_id') != subscription_id:
-            auth_dict['credentials']['subscription_id'] = subscription_id
-            query.authentication = auth_dict
-            save_needed = True
-        if query.koku_uuid and save_needed:
-            query.pending_update = True
-            query.save(update_fields=['authentication', 'pending_update'])
-        else:
-            if save_needed:
-                query.save()
-    except Sources.DoesNotExist:
-        raise SourcesStorageError('Source does not exist')
-
-
 def _validate_billing_source(provider_type, billing_source):
     """Validate billing source parameters."""
     if provider_type == 'AWS':
@@ -423,37 +370,6 @@ def _validate_billing_source(provider_type, billing_source):
             raise SourcesStorageError('Missing AZURE resource_group')
         if not data_source.get('storage_account'):
             raise SourcesStorageError('Missing AZURE storage_account')
-
-
-def add_provider_billing_source(request_data, billing_source):
-    """
-    Add AWS or AZURE billing source to Sources database object.
-
-    Args:
-        request_data (dict) - Dictionary containing either source_id or source_name
-        billing_source (String) - S3 bucket
-
-    Returns:
-        None
-
-    """
-    try:
-        save_needed = False
-        query = get_query_from_api_data(request_data)
-        if query.source_type not in ('AWS', 'AZURE'):
-            raise SourcesStorageError('Source is not AWS nor AZURE.')
-        _validate_billing_source(query.source_type, billing_source)
-        if query.billing_source != billing_source:
-            query.billing_source = billing_source
-            save_needed = True
-        if query.koku_uuid and save_needed:
-            query.pending_update = True
-            query.save(update_fields=['billing_source', 'pending_update'])
-        else:
-            if save_needed:
-                query.save()
-    except Sources.DoesNotExist:
-        raise SourcesStorageError('Source does not exist')
 
 
 def add_provider_koku_uuid(source_id, koku_uuid):

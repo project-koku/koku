@@ -48,6 +48,7 @@ Please use \`make <target>' where <target> is one of:
 
 --- Commands using local services ---
   create-test-customer     create a test customer and tenant in the database
+  create-test-customer-no-providers     create a test customer and tenant in the database without test providers
   collect-static           collect static files to host
   make-migrations          make migrations for the database
   requirements             generate Pipfile.lock, RTD requirements and manifest for product security
@@ -65,6 +66,7 @@ Please use \`make <target>' where <target> is one of:
   docker-down               shut down all containers
   docker-rabbit             run RabbitMQ container
   docker-reinitdb           drop and recreate the database
+  docker-reinitdb-with-providers drop and recreate the database with fake providers
   docker-shell              run Django and database containers with shell access to server (for pdb)
   docker-logs               connect to console logs for all services
   docker-test-all           run unittests
@@ -134,6 +136,14 @@ create-test-customer: run-migrations
 	sleep 5
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
 	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
+
+create-test-customer-no-providers: run-migrations
+	sleep 1
+	$(DJANGO_MANAGE) runserver > /dev/null 2>&1 &
+	sleep 5
+	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-providers || echo "WARNING: create_test_customer failed unexpectedly!"
+	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
+
 
 collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
@@ -435,6 +445,10 @@ docker-rabbit:
 	docker-compose up -d rabbit
 
 docker-reinitdb: docker-down-db remove-db docker-up-db
+	sleep 5
+	$(MAKE) create-test-customer-no-providers
+
+docker-reinitdb-with-providers: docker-down-db remove-db docker-up-db
 	sleep 5
 	$(MAKE) create-test-customer
 
