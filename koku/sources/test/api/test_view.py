@@ -31,8 +31,9 @@ from api.provider.models import Sources
 @override_settings(ROOT_URLCONF='sources.urls')
 class SourcesViewTests(IamTestCase):
     """Test Cases for the sources endpoint."""
+
     def setUp(self):
-        """Setup tests."""
+        """Set up tests."""
         super().setUp()
         self.test_account = '10001'
         user_data = self._create_user_data()
@@ -108,7 +109,6 @@ class SourcesViewTests(IamTestCase):
 
     def test_source_list(self):
         """Test the LIST endpoint."""
-
         with requests_mock.mock() as m:
             m.get(f'http://www.sourcesclient.com/api/v1/sources/',
                   status_code=200)

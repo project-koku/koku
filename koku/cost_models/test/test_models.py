@@ -83,7 +83,6 @@ class CostModelTest(MasuTestCase):
         self, mock_update_charge_info
     ):
         """Assert the update_charge_info task is not called if a cost_model_map does not exist."""
-
         with tenant_context(self.tenant):
             self.cost_model_map.delete()
             self.cost_model.delete()

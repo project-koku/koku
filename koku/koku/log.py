@@ -38,7 +38,7 @@ class TaskRootLogging(Logging):
     def setup_handlers(
         self, logger, logfile, format, colorize, formatter=TaskFormatter, **kwargs
     ):
-        """Always ignore the requested formatter and use our custom one."""
+        """Ignore the requested formatter and use our custom one."""
         return super(TaskRootLogging, self).setup_handlers(
             logger, logfile, format, colorize, TaskFormatter, **kwargs
         )

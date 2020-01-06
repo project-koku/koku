@@ -33,6 +33,10 @@ from api.views import (
     OCPAWSInstanceTypeView,
     OCPAWSStorageView,
     OCPAWSTagView,
+    OCPAllCostView,
+    OCPAllInstanceTypeView,
+    OCPAllStorageView,
+    OCPAllTagView,
     OCPAzureCostView,
     OCPAzureInstanceTypeView,
     OCPAzureStorageView,
@@ -46,19 +50,17 @@ from api.views import (
     SourcesProxyViewSet,
     StatusView,
     UserPreferenceViewSet,
-    authentication,
-    billing_source,
     openapi,
 )
 
 
 ROUTER = DefaultRouter()
-ROUTER.register(r'dataexportrequests', DataExportRequestViewSet, base_name='dataexportrequests')
-ROUTER.register(r'metrics', CostModelMetricsMapViewSet, base_name='metrics')
+ROUTER.register(r'dataexportrequests', DataExportRequestViewSet, basename='dataexportrequests')
+ROUTER.register(r'metrics', CostModelMetricsMapViewSet, basename='metrics')
 ROUTER.register(r'providers', ProviderViewSet)
-ROUTER.register(r'sources', SourcesProxyViewSet, base_name='sources-proxy')
-ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
-ROUTER.register(r'cloud-accounts', CloudAccountViewSet, base_name='cloud_accounts')
+ROUTER.register(r'sources', SourcesProxyViewSet, basename='sources-proxy')
+ROUTER.register(r'preferences', UserPreferenceViewSet, basename='preferences')
+ROUTER.register(r'cloud-accounts', CloudAccountViewSet, basename='cloud_accounts')
 # pylint: disable=invalid-name
 urlpatterns = [
 
@@ -67,6 +69,8 @@ urlpatterns = [
     url(r'^tags/aws/$', AWSTagView.as_view(), name='aws-tags'),
     url(r'^tags/azure/$', AzureTagView.as_view(), name='azure-tags'),
     url(r'^tags/openshift/$', OCPTagView.as_view(), name='openshift-tags'),
+    url(r'^tags/openshift/infrastructures/all/$', OCPAllTagView.as_view(),
+        name='openshift-all-tags'),
     url(r'^tags/openshift/infrastructures/aws/$', OCPAWSTagView.as_view(),
         name='openshift-aws-tags'),
     url(r'^tags/openshift/infrastructures/azure/$', OCPAzureTagView.as_view(),
@@ -89,6 +93,13 @@ urlpatterns = [
         name='reports-openshift-cpu'),
     url(r'^reports/openshift/volumes/$', OCPVolumeView.as_view(),
         name='reports-openshift-volume'),
+    url(r'^reports/openshift/infrastructures/all/costs/$', OCPAllCostView.as_view(),
+        name='reports-openshift-all-costs'),
+    url(r'^reports/openshift/infrastructures/all/storage/$', OCPAllStorageView.as_view(),
+        name='reports-openshift-all-storage'),
+    url(r'^reports/openshift/infrastructures/all/instance-types/$',
+        OCPAllInstanceTypeView.as_view(),
+        name='reports-openshift-all-instance-type'),
     url(r'^reports/openshift/infrastructures/aws/costs/$', OCPAWSCostView.as_view(),
         name='reports-openshift-aws-costs'),
     url(r'^reports/openshift/infrastructures/aws/storage/$', OCPAWSStorageView.as_view(),
@@ -103,7 +114,5 @@ urlpatterns = [
     url(r'^reports/openshift/infrastructures/azure/instance-types/$',
         OCPAzureInstanceTypeView.as_view(),
         name='reports-openshift-azure-instance-type'),
-    url(r'^sources/authentication/$', authentication, name='authentication'),
-    url(r'^sources/billing_source/$', billing_source, name='billing-source'),
     url(r'^', include(ROUTER.urls)),
 ]

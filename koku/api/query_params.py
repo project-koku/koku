@@ -174,6 +174,12 @@ class QueryParameters:
         self._set_access_azure()
         self._set_access_ocp()
 
+    def _set_access_ocp_all(self):
+        """Alter query parameters based on user access."""
+        self._set_access_aws()
+        self._set_access_azure()
+        self._set_access_ocp()
+
     def _set_time_scope_defaults(self):
         """Set the default filter parameters."""
         time_scope_units = self.get_filter('time_scope_units')
@@ -216,7 +222,7 @@ class QueryParameters:
         try:
             query_params = parser.parse(self.url_data)
         except parser.MalformedQueryStringError:
-            LOG.error('Invalid query parameter format %s.', self.url_data)
+            LOG.info('Invalid query parameter format %s.', self.url_data)
             error = {'details': _(f'Invalid query parameter format.')}
             raise ValidationError(error)
 
