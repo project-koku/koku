@@ -18,11 +18,10 @@
 """Test the OCPReportProcessor."""
 import calendar
 import datetime
-from unittest.mock import Mock, patch, call
+from unittest.mock import Mock, call, patch
 
-from dateutil import parser
-from dateutil.rrule import DAILY, rrule
 from dateutil.relativedelta import relativedelta
+from dateutil.rrule import DAILY, rrule
 from tenant_schemas.utils import schema_context
 
 from masu.database import OCP_REPORT_TABLE_MAP

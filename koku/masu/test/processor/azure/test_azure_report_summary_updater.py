@@ -18,10 +18,10 @@
 """Test the AzureReportSummaryUpdater object."""
 import calendar
 import datetime
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
-from tenant_schemas.utils import schema_context
 from dateutil.rrule import DAILY, rrule
+from tenant_schemas.utils import schema_context
 
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor

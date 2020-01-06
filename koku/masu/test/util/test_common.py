@@ -24,8 +24,8 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from os.path import exists
 
-from django.test import TestCase
 from dateutil import parser
+from django.test import TestCase
 
 import masu.util.common as common_utils
 from masu.external import (

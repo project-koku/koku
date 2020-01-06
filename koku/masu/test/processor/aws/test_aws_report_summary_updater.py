@@ -19,7 +19,7 @@
 
 import calendar
 import datetime
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 from dateutil.relativedelta import relativedelta
 from dateutil.rrule import DAILY, rrule
@@ -161,7 +161,6 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
                 call(expected_start_date, date, [str(bill.id)])
             )
             expected_start_date = date + datetime.timedelta(days=1)
-
 
         self.assertIsNone(bill.summary_data_creation_datetime)
         self.assertIsNone(bill.summary_data_updated_datetime)
