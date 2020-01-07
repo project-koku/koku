@@ -186,7 +186,7 @@ class QueryFilterCollectionTest(TestCase):
         qf_coll.add(table=table, field=field, operation=operation, parameter=parameter)
         self.assertEqual(qf_coll.compose(), expected)
 
-    def test_compose_with_and_operator(self):
+    def test_compose_with_filter_with_and_operator(self):
         """Test the compose() method with and operator on the filter."""
         qf_coll = QueryFilterCollection()
         table = self.fake.word()
@@ -207,7 +207,7 @@ class QueryFilterCollectionTest(TestCase):
         qf_coll.add(filts[1])
         self.assertEqual(qf_coll.compose(), expected)
 
-    def test_compose_with_or_operator(self):
+    def test_compose_with_filter_with_or_operator(self):
         """Test the compose() method with or operator on the filter."""
         qf_coll = QueryFilterCollection()
         table = self.fake.word()
@@ -222,11 +222,28 @@ class QueryFilterCollectionTest(TestCase):
                 logical_operator='or'
             ) for _ in range(2)
         ]
-
         expected = filts[0].composed_Q() | filts[1].composed_Q()
         qf_coll.add(filts[0])
         qf_coll.add(filts[1])
         self.assertEqual(qf_coll.compose(), expected)
+
+    def test_compose_with_or_operator(self):
+        """Test the compose() method with or operator on the compose method."""
+        qf_coll = QueryFilterCollection()
+        operation = self.fake.word()
+        filts = [
+            QueryFilter(
+                table=self.fake.word(),
+                field=self.fake.word(),
+                operation=operation,
+                parameter=self.fake.word(),
+            ) for _ in range(2)
+        ]
+
+        expected = filts[0].composed_Q() | filts[1].composed_Q()
+        qf_coll.add(filts[0])
+        qf_coll.add(filts[1])
+        self.assertEqual(qf_coll.compose(logical_operator='or'), expected)
 
     def test_contains_with_filter(self):
         """Test the __contains__() method using a QueryFilter."""
