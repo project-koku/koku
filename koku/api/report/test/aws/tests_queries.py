@@ -1278,43 +1278,35 @@ class AWSReportQueryTest(IamTestCase):
 
         account_ac_fake_aws = FakeAWSCostData(self.provider, account_alias='ac') # noqa
         account_ac_generator = AWSReportDataGenerator(self.tenant)
-        account_ac_generator.add_data_to_tenant(account_ab_fake_aws, product='ec2')
+        account_ac_generator.add_data_to_tenant(account_ac_fake_aws, product='ec2')
 
         # Query 1 - a AND b
-        query_1_url = """?group_by[and:account]=a
-                         &group_by[and:account]=b
-                         &filter[time_scope_value]=-1&filter[time_scope_units]=month"""
+        query_1_url = "?group_by[and:account]=a&group_by[and:account]=b&filter[time_scope_value]=-1&filter[time_scope_units]=month"
         query_1_params = self.mocked_query_params(query_1_url, AWSCostView)
         query_1_handler = AWSReportQueryHandler(query_1_params)
         query_1_output = query_1_handler.execute_query()
-        query_1_total = query_1_output.get('total').get('cost').get('value')
+        query_1_total = query_1_output.get('total').get('cost').get('value', 0)
 
         # Query 2 - ab
-        query_2_url = """?group_by[account]=ab
-                         &filter[time_scope_value]=-1&filter[time_scope_units]=month"""
+        query_2_url = "?group_by[account]=ab&filter[time_scope_value]=-1&filter[time_scope_units]=month"
         query_2_params = self.mocked_query_params(query_2_url, AWSCostView)
         query_2_handler = AWSReportQueryHandler(query_2_params)
         query_2_output = query_2_handler.execute_query()
-        query_2_total = query_2_output.get('total').get('cost').get('value')
+        query_2_total = query_2_output.get('total').get('cost').get('value', 1)
         self.assertEqual(query_1_total, query_2_total)
 
         # Query 3 - (a AND b AND c) == 0
-        query_3_url = """?group_by[and:account]=a
-                         &group_by[and:account]=b
-                         &group_by[and:account]=c
-                         &filter[time_scope_value]=-1&filter[time_scope_units]=month"""
+        query_3_url = "?group_by[and:account]=a&group_by[and:account]=b&group_by[and:account]=c&filter[time_scope_value]=-1&filter[time_scope_units]=month"
         query_3_params = self.mocked_query_params(query_3_url, AWSCostView)
         query_3_handler = AWSReportQueryHandler(query_3_params)
         query_3_output = query_3_handler.execute_query()
-        query_3_total = query_3_output.get('total').get('cost').get('value')
+        query_3_total = query_3_output.get('total').get('cost').get('value', 2)
         self.assertEqual(0, query_3_total)
 
         # Query 4 - (a OR b) > (a AND b)
-        query_4_url = """?group_by[account]=a
-                         &group_by[account]=b
-                         &filter[time_scope_value]=-1&filter[time_scope_units]=month"""
+        query_4_url = "?group_by[account]=a&group_by[account]=b&filter[time_scope_value]=-1&filter[time_scope_units]=month"
         query_4_params = self.mocked_query_params(query_4_url, AWSCostView)
         query_4_handler = AWSReportQueryHandler(query_4_params)
         query_4_output = query_4_handler.execute_query()
-        query_4_total = query_4_output.get('total').get('cost').get('value')
+        query_4_total = query_4_output.get('total').get('cost').get('value', 0)
         self.assertGreater(query_4_total, query_1_total)
