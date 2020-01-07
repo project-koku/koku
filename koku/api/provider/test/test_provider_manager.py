@@ -16,7 +16,6 @@
 #
 """Test the Provider views."""
 import json
-from unittest.mock import patch
 
 from dateutil import parser
 from django.http import HttpRequest, QueryDict
@@ -34,7 +33,6 @@ from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModelMap
-from providers.provider_access import ProviderAccessor, ProviderAccessorError
 
 
 class MockResponse:

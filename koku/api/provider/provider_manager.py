@@ -22,7 +22,7 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
 from tenant_schemas.utils import tenant_context
 
-from api.provider.models import Provider, ProviderInfrastructureMap, Sources
+from api.provider.models import Provider, Sources
 from cost_models.models import CostModelMap
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
