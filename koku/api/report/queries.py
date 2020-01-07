@@ -132,10 +132,28 @@ class ReportQueryHandler(QueryHandler):
         # Update filters that specifiy and or or in the query parameter
         and_composed_filters = self._set_operator_specified_filters('and')
         or_composed_filters = self._set_operator_specified_filters('or')
+        multi_field_or_composed_filters = self._set_or_filters()
         composed_filters = filters.compose()
         composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        if multi_field_or_composed_filters:
+            composed_filters = composed_filters & multi_field_or_composed_filters
         LOG.debug(f'_get_search_filter: {composed_filters}')
         return composed_filters
+
+    def _set_or_filters(self):
+        """Create a composed filter collection of ORed filters.
+
+        This is designed to handle specific cases in the provider_map
+        not to accomodate user input via the API.
+
+        """
+        filters = QueryFilterCollection()
+        or_filter = self._mapper._report_type_map.get('or_filter', [])
+        for filt in or_filter:
+            q_filter = QueryFilter(**filt)
+            filters.add(q_filter)
+
+        return filters.compose(logical_operator='or')
 
     def _set_tag_filters(self, filters):
         """Create tag_filters."""
