@@ -1288,7 +1288,7 @@ class AWSReportQueryTest(IamTestCase):
         query_1_total = query_1_output.get('total').get('cost').get('value', 0)
 
         # Query 2 - ab
-        query_2_url = "?group_by[account]=ab&filter[time_scope_value]=-1&filter[time_scope_units]=month"  #noqa
+        query_2_url = "?group_by[account]=ab&filter[time_scope_value]=-1&filter[time_scope_units]=month"  # noqa
         query_2_params = self.mocked_query_params(query_2_url, AWSCostView)
         query_2_handler = AWSReportQueryHandler(query_2_params)
         query_2_output = query_2_handler.execute_query()
@@ -1296,7 +1296,7 @@ class AWSReportQueryTest(IamTestCase):
         self.assertEqual(query_1_total, query_2_total)
 
         # Query 3 - (a AND b AND c) == 0
-        query_3_url = "?group_by[and:account]=a&group_by[and:account]=b&group_by[and:account]=c&filter[time_scope_value]=-1&filter[time_scope_units]=month"  #noqa
+        query_3_url = "?group_by[and:account]=a&group_by[and:account]=b&group_by[and:account]=c&filter[time_scope_value]=-1&filter[time_scope_units]=month"  # noqa
         query_3_params = self.mocked_query_params(query_3_url, AWSCostView)
         query_3_handler = AWSReportQueryHandler(query_3_params)
         query_3_output = query_3_handler.execute_query()
@@ -1304,7 +1304,7 @@ class AWSReportQueryTest(IamTestCase):
         self.assertEqual(0, query_3_total)
 
         # Query 4 - (a OR b) > (a AND b)
-        query_4_url = "?group_by[account]=a&group_by[account]=b&filter[time_scope_value]=-1&filter[time_scope_units]=month"  #noqa
+        query_4_url = "?group_by[account]=a&group_by[account]=b&filter[time_scope_value]=-1&filter[time_scope_units]=month"  # noqa
         query_4_params = self.mocked_query_params(query_4_url, AWSCostView)
         query_4_handler = AWSReportQueryHandler(query_4_params)
         query_4_output = query_4_handler.execute_query()
