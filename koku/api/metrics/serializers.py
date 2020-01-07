@@ -28,7 +28,7 @@ LOG = logging.getLogger(__name__)
 SOURCE_TYPE_MAP = {
     'OCP': 'OpenShift Container Platform',
     'AWS': 'Amazon Web Services',
-    'AZURE': 'Microsoft Azure',
+    'Azure': 'Microsoft Azure',
 }
 
 

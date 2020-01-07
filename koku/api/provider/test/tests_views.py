@@ -26,7 +26,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Provider
+from api.provider.models import Provider
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
 from api.provider.test import PROVIDERS, create_generic_provider
 from providers.provider_access import ProviderAccessor

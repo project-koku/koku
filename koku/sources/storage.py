@@ -71,7 +71,7 @@ def screen_and_build_provider_sync_create_event(provider):
     provider_event = {}
     screen_map = {'AWS': _aws_provider_ready_for_create,
                   'OCP': _ocp_provider_ready_for_create,
-                  'AZURE': _azure_provider_ready_for_create}
+                  'Azure': _azure_provider_ready_for_create}
     screen_fn = screen_map.get(provider.source_type)
     if screen_fn and screen_fn(provider) and not provider.pending_delete:
         provider_event = {'operation': 'create', 'provider': provider, 'offset': provider.offset}

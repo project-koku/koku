@@ -456,7 +456,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEqual(source_obj.name, source_name)
-        self.assertEqual(source_obj.source_type, 'AZURE')
+        self.assertEqual(source_obj.source_type, 'Azure')
         self.assertEqual(source_obj.authentication, {'credentials': {'client_id': username,
                                                                      'client_secret': authentication,
                                                                      'tenant_id': tenent_id}})

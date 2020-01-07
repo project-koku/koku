@@ -308,7 +308,7 @@ class SourcesStorageTest(TestCase):
                             auth_header=self.test_header,
                             offset=3,
                             endpoint_id=test_endpoint_id,
-                            source_type='AZURE',
+                            source_type='Azure',
                             name='Test AZURE Source',
                             authentication={'credentials': {'subscription_id': 'orig-sub-id',
                                                             'client_id': 'test-client-id'}})

@@ -213,7 +213,7 @@ def save_auth_info(auth_header, source_id):
                 raise SourcesHTTPClientError('Unable to find Cluster ID')
         elif source_type == 'AWS':
             authentication = {'resource_name': sources_network.get_aws_role_arn()}
-        elif source_type == 'AZURE':
+        elif source_type == 'Azure':
             authentication = {'credentials': sources_network.get_azure_credentials()}
         else:
             LOG.error(f'Unexpected source type: {source_type}')
@@ -290,7 +290,7 @@ def sources_network_info(source_id, auth_header):
     elif source_type_name == SOURCES_AWS_SOURCE_NAME:
         source_type = 'AWS'
     elif source_type_name == SOURCES_AZURE_SOURCE_NAME:
-        source_type = 'AZURE'
+        source_type = 'Azure'
     else:
         LOG.error(f'Unexpected source type ID: {source_type_id}')
         return

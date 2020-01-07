@@ -46,7 +46,7 @@ class SourcesViewTests(IamTestCase):
                                  auth_header=self.request_context['request'].META,
                                  account_id=customer.get('account_id'),
                                  offset=1,
-                                 source_type='AZURE',
+                                 source_type='Azure',
                                  name='Test Azure Source',
                                  authentication={'credentials': {'client_id': 'test_client',
                                                                  'tenant_id': 'test_tenant',

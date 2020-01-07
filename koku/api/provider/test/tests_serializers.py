@@ -46,7 +46,7 @@ class ProviderSerializerTest(IamTestCase):
             user = serializer.save()
             request.user = user
         self.generic_providers = {
-            'OCP': {
+            Provider.PROVIDER_OCP: {
                 'name': 'test_provider',
                 'type': Provider.PROVIDER_OCP,
                 'authentication': {
@@ -55,7 +55,7 @@ class ProviderSerializerTest(IamTestCase):
                     }
                 }
             },
-            'AWS': {
+            Provider.PROVIDER_AWS: {
                 'name': 'test_provider',
                 'type': Provider.PROVIDER_AWS,
                 'authentication': {
@@ -69,7 +69,7 @@ class ProviderSerializerTest(IamTestCase):
                     }
                 }
             },
-            'AZURE': {
+            Provider.PROVIDER_AZURE: {
                 'name': 'test_provider',
                 'type': Provider.PROVIDER_AZURE,
                 'authentication': {
@@ -93,7 +93,8 @@ class ProviderSerializerTest(IamTestCase):
         """Tests that adding all unique providers together is successful."""
         list_of_uuids = []
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
-            serializer = ProviderSerializer(data=self.generic_providers['AZURE'], context=self.request_context)
+            serializer = ProviderSerializer(data=self.generic_providers[Provider.PROVIDER_AZURE],
+                                            context=self.request_context)
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
             schema_name = serializer.data['customer'].get('schema_name')
@@ -102,7 +103,9 @@ class ProviderSerializerTest(IamTestCase):
             self.assertFalse('schema_name' in serializer.data['customer'])
             list_of_uuids.append(instance.uuid)
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
-            serializer = ProviderSerializer(data=self.generic_providers['AWS'], context=self.request_context)
+            serializer = ProviderSerializer(
+                data=self.generic_providers[Provider.PROVIDER_AWS],
+                context=self.request_context)
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
             schema_name = serializer.data['customer'].get('schema_name')
@@ -111,7 +114,9 @@ class ProviderSerializerTest(IamTestCase):
             self.assertFalse('schema_name' in serializer.data['customer'])
             list_of_uuids.append(instance.uuid)
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
-            serializer = ProviderSerializer(data=self.generic_providers['OCP'], context=self.request_context)
+            serializer = ProviderSerializer(
+                data=self.generic_providers[Provider.PROVIDER_OCP],
+                context=self.request_context)
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
             schema_name = serializer.data['customer'].get('schema_name')

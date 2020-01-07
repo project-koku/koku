@@ -83,7 +83,7 @@ class SourcesSerializer(serializers.ModelSerializer):
                 raise SourcesStorageError('Missing AZURE storage_account')
 
     def _update_billing_source(self, instance, billing_source):
-        if instance.source_type not in ('AWS', 'AZURE'):
+        if instance.source_type not in ('AWS', 'Azure'):
             raise SourcesStorageError(f'Option not supported by '
                                       f'source type {instance.source_type}.')
         self._validate_billing_source(instance.source_type, billing_source)
@@ -95,7 +95,7 @@ class SourcesSerializer(serializers.ModelSerializer):
             instance.save()
 
     def _update_authentication(self, instance, authentication):
-        if instance.source_type not in ('AZURE',):
+        if instance.source_type not in ('Azure',):
             raise SourcesStorageError(f'Option not supported by '
                                       f'source type {instance.source_type}.')
         auth_dict = instance.authentication

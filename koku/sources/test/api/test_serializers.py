@@ -44,7 +44,7 @@ class SourcesSerializerTests(IamTestCase):
                                  auth_header=self.azure_request_context['request'].META,
                                  account_id=customer.get('account_id'),
                                  offset=1,
-                                 source_type='AZURE',
+                                 source_type='Azure',
                                  name=self.azure_name,
                                  authentication={'credentials': {'client_id': 'test_client',
                                                                  'tenant_id': 'test_tenant',

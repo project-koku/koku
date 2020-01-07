@@ -158,7 +158,7 @@ class KokuCustomerOnboarder:
                 AND data_source = %s
 
         """
-        values =[bucket, json_dumps(data_source)]
+        values = [bucket, json_dumps(data_source)]
         cursor.execute(billing_sql, values)
         try:
             billing_id = cursor.fetchone()
@@ -175,7 +175,7 @@ class KokuCustomerOnboarder:
                     RETURNING id
                     ;
                 """
-                values =[str(uuid4()), bucket, json_dumps(data_source)]
+                values = [str(uuid4()), bucket, json_dumps(data_source)]
                 cursor.execute(billing_sql, values)
                 billing_id = cursor.fetchone()[0]
         conn.commit()
@@ -188,7 +188,7 @@ class KokuCustomerOnboarder:
             RETURNING id
             ;
         """
-        values =[str(uuid4()), provider_resource_name, json_dumps(credentials)]
+        values = [str(uuid4()), provider_resource_name, json_dumps(credentials)]
 
         cursor.execute(auth_sql, values)
         auth_id = cursor.fetchone()[0]
@@ -207,14 +207,12 @@ class KokuCustomerOnboarder:
         conn.commit()
         conn.close()
 
-
     def create_providers_db(self, skip_providers):
         """Create a Koku Provider by inserting into the Koku DB."""
         if not skip_providers:
-            for provider_type in ['AWS', 'OCP', 'AZURE']:
+            for provider_type in ['AWS', 'OCP', 'Azure']:
                 self.create_provider_db(provider_type)
                 print(f'Created {provider_type} provider.')
-
 
     def onboard(self):
         """Execute Koku onboarding steps."""
