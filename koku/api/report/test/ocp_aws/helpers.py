@@ -26,6 +26,7 @@ from django.db.models.functions import Cast
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider, ProviderAuthentication, ProviderBillingSource
+from api.provider.models import ProviderInfrastructureMap
 from api.report.test import FakeAWSCostData
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.utils import DateHelper
@@ -65,7 +66,8 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
             self._tags = self._generate_tags()
         return self._tags
 
-    def create_ocp_provider(self, cluster_id, cluster_alias):
+    def create_ocp_provider(self, cluster_id, cluster_alias,
+                            infrastructure_type=None):
         """Create OCP test provider."""
         authentication_data = {
             'uuid': uuid4(),
@@ -90,9 +92,14 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
             'customer': None,
             'created_by': None,
             'type': Provider.PROVIDER_OCP,
-            'setup_complete': False
+            'setup_complete': False,
+            'infrastructure': None
         }
         provider = Provider(**provider_data)
+        infrastructure = ProviderInfrastructureMap(infrastructure_provider=provider,
+                                                   infrastructure_type=infrastructure_type)
+        infrastructure.save()
+        provider.infrastructure = infrastructure
         provider.save()
         self.cluster_alias = cluster_alias
         self.provider_uuid = provider_uuid
