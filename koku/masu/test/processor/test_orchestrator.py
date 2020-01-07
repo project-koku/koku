@@ -23,8 +23,8 @@ from unittest.mock import patch
 
 import faker
 
+from api.models import Provider
 from masu.config import Config
-from masu.external import PROVIDER_AWS, PROVIDER_AZURE, PROVIDER_OCP
 from masu.external.accounts_accessor import AccountsAccessor, AccountsAccessorError
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.orchestrator import Orchestrator
@@ -81,15 +81,15 @@ class OrchestratorTest(MasuTestCase):
             self.fail('Unexpected number of test accounts')
 
         for account in orchestrator._accounts:
-            if account.get('provider_type') == PROVIDER_AWS:
+            if account.get('provider_type') == Provider.PROVIDER_AWS:
                 self.assertEqual(account.get('authentication'), self.aws_provider_resource_name)
                 self.assertEqual(account.get('billing_source'), self.aws_test_billing_source)
                 self.assertEqual(account.get('customer_name'), self.schema)
-            elif account.get('provider_type') == PROVIDER_OCP:
+            elif account.get('provider_type') == Provider.PROVIDER_OCP:
                 self.assertEqual(account.get('authentication'), self.ocp_provider_resource_name)
                 self.assertEqual(account.get('billing_source'), self.ocp_test_billing_source)
                 self.assertEqual(account.get('customer_name'), self.schema)
-            elif account.get('provider_type') == PROVIDER_AZURE:
+            elif account.get('provider_type') == Provider.PROVIDER_AZURE:
                 self.assertEqual(account.get('authentication'), self.azure_credentials)
                 self.assertEqual(account.get('billing_source'), self.azure_data_source)
                 self.assertEqual(account.get('customer_name'), self.schema)
@@ -100,11 +100,11 @@ class OrchestratorTest(MasuTestCase):
             self.fail('Unexpected number of listener test accounts')
 
         for account in orchestrator._polling_accounts:
-            if account.get('provider_type') == PROVIDER_AWS:
+            if account.get('provider_type') == Provider.PROVIDER_AWS:
                 self.assertEqual(account.get('authentication'), self.aws_provider_resource_name)
                 self.assertEqual(account.get('billing_source'), self.aws_test_billing_source)
                 self.assertEqual(account.get('customer_name'), self.schema)
-            elif account.get('provider_type') == PROVIDER_AZURE:
+            elif account.get('provider_type') == Provider.PROVIDER_AZURE:
                 self.assertEqual(account.get('authentication'), self.azure_credentials)
                 self.assertEqual(account.get('billing_source'), self.azure_data_source)
                 self.assertEqual(account.get('customer_name'), self.schema)

@@ -16,7 +16,7 @@
 #
 """Account label interface for masu to consume."""
 
-from masu.external import PROVIDER_AWS
+from api.models import Provider
 from masu.external.accounts.labels.aws.aws_account_alias import AWSAccountAlias
 
 
@@ -42,7 +42,7 @@ class AccountLabel:
             (Object) : Some object that implements update_account_alias()
 
         """
-        if self.provider_type == PROVIDER_AWS:
+        if self.provider_type == Provider.PROVIDER_AWS:
             return AWSAccountAlias(role_arn=self.auth, schema_name=self.schema)
         return None
 

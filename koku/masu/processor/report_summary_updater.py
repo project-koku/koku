@@ -20,13 +20,9 @@
 import datetime
 import logging
 
+from api.models import Provider
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external import (PROVIDER_AWS,
-                           PROVIDER_AWS_LOCAL,
-                           PROVIDER_AZURE,
-                           PROVIDER_AZURE_LOCAL,
-                           PROVIDER_OCP)
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
 from masu.processor.azure.azure_report_summary_updater import AzureReportSummaryUpdater
@@ -87,13 +83,13 @@ class ReportSummaryUpdater:
             (Object) : Provider-specific report summary updater
 
         """
-        if self._provider.type in (PROVIDER_AWS, PROVIDER_AWS_LOCAL):
+        if self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
             return (AWSReportSummaryUpdater(self._schema, self._provider, self._manifest),
                     OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest))
-        if self._provider.type in (PROVIDER_AZURE, PROVIDER_AZURE_LOCAL):
+        if self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             return (AzureReportSummaryUpdater(self._schema, self._provider, self._manifest),
                     OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest))
-        if self._provider.type in (PROVIDER_OCP, ):
+        if self._provider.type in (Provider.PROVIDER_OCP, ):
             return (OCPReportSummaryUpdater(self._schema, self._provider, self._manifest),
                     OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest))
 

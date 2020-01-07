@@ -19,14 +19,8 @@
 
 from unittest.mock import patch
 
+from api.models import Provider
 from masu.exceptions import MasuProcessingError
-from masu.external import (
-    PROVIDER_AWS,
-    PROVIDER_AWS_LOCAL,
-    PROVIDER_AZURE,
-    PROVIDER_AZURE_LOCAL,
-    PROVIDER_OCP,
-)
 from masu.processor.report_processor import ReportProcessor, ReportProcessorError
 from masu.test import MasuTestCase
 
@@ -40,7 +34,7 @@ class ReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
-            provider=PROVIDER_AWS,
+            provider=Provider.PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
@@ -52,7 +46,7 @@ class ReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
-            provider=PROVIDER_AWS_LOCAL,
+            provider=Provider.PROVIDER_AWS_LOCAL,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
@@ -64,7 +58,7 @@ class ReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
-            provider=PROVIDER_AZURE,
+            provider=Provider.PROVIDER_AZURE,
             provider_uuid=self.azure_provider_uuid,
             manifest_id=None,
         )
@@ -77,7 +71,7 @@ class ReportProcessorTest(MasuTestCase):
             report_path=('./koku/masu/test/data/ocp/'
                          'e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'),
             compression='PLAIN',
-            provider=PROVIDER_OCP,
+            provider=Provider.PROVIDER_OCP,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
@@ -90,7 +84,7 @@ class ReportProcessorTest(MasuTestCase):
             report_path=('./koku/masu/test/data/ocp/'
                          'e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'),
             compression='PLAIN',
-            provider=PROVIDER_AZURE_LOCAL,
+            provider=Provider.PROVIDER_AZURE_LOCAL,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
@@ -107,7 +101,7 @@ class ReportProcessorTest(MasuTestCase):
                 schema_name=self.schema,
                 report_path='/my/report/file',
                 compression='GZIP',
-                provider=PROVIDER_AWS,
+                provider=Provider.PROVIDER_AWS,
                 provider_uuid=self.aws_provider_uuid,
                 manifest_id=None,
             )
@@ -133,7 +127,7 @@ class ReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
-            provider=PROVIDER_AWS,
+            provider=Provider.PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
@@ -152,7 +146,7 @@ class ReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
-            provider=PROVIDER_AWS,
+            provider=Provider.PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
@@ -169,7 +163,7 @@ class ReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
-            provider=PROVIDER_AWS,
+            provider=Provider.PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
@@ -188,7 +182,7 @@ class ReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
-            provider=PROVIDER_AWS,
+            provider=Provider.PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )

@@ -19,7 +19,7 @@
 
 from unittest.mock import patch
 
-from masu.external import PROVIDER_AWS, PROVIDER_AZURE, PROVIDER_OCP
+from api.models import Provider
 from masu.external.accounts_accessor import AccountsAccessor, AccountsAccessorError
 from masu.test import MasuTestCase
 
@@ -35,15 +35,15 @@ class AccountsAccessorTest(MasuTestCase):
             self.fail('unexpected number of accounts')
 
         for account in account_objects:
-            if account.get('provider_type') == PROVIDER_AWS:
+            if account.get('provider_type') == Provider.PROVIDER_AWS:
                 self.assertEqual(account.get('authentication'), self.aws_provider_resource_name)
                 self.assertEqual(account.get('billing_source'), self.aws_test_billing_source)
                 self.assertEqual(account.get('customer_name'), self.schema)
-            elif account.get('provider_type') == PROVIDER_OCP:
+            elif account.get('provider_type') == Provider.PROVIDER_OCP:
                 self.assertEqual(account.get('authentication'), self.ocp_provider_resource_name)
                 self.assertEqual(account.get('billing_source'), self.ocp_test_billing_source)
                 self.assertEqual(account.get('customer_name'), self.schema)
-            elif account.get('provider_type') == PROVIDER_AZURE:
+            elif account.get('provider_type') == Provider.PROVIDER_AZURE:
                 self.assertEqual(account.get('authentication'), self.azure_credentials)
                 self.assertEqual(account.get('billing_source'), self.azure_data_source)
                 self.assertEqual(account.get('customer_name'), self.schema)
@@ -56,7 +56,7 @@ class AccountsAccessorTest(MasuTestCase):
         self.assertEqual(len(account_objects), 1)
 
         aws_account = account_objects.pop()
-        self.assertEqual(aws_account.get('provider_type'), PROVIDER_AWS)
+        self.assertEqual(aws_account.get('provider_type'), Provider.PROVIDER_AWS)
         self.assertTrue(AccountsAccessor().is_polling_account(aws_account))
 
     def test_get_ocp_account_is_not_poll(self):
@@ -65,7 +65,7 @@ class AccountsAccessorTest(MasuTestCase):
         self.assertEqual(len(account_objects), 1)
 
         ocp_account = account_objects.pop()
-        self.assertEqual(ocp_account.get('provider_type'), PROVIDER_OCP)
+        self.assertEqual(ocp_account.get('provider_type'), Provider.PROVIDER_OCP)
         self.assertFalse(AccountsAccessor().is_polling_account(ocp_account))
 
     @patch('masu.util.ocp.common.poll_ingest_override_for_provider', return_value=True)
@@ -75,7 +75,7 @@ class AccountsAccessorTest(MasuTestCase):
         self.assertEqual(len(account_objects), 1)
 
         ocp_account = account_objects.pop()
-        self.assertEqual(ocp_account.get('provider_type'), PROVIDER_OCP)
+        self.assertEqual(ocp_account.get('provider_type'), Provider.PROVIDER_OCP)
         self.assertTrue(AccountsAccessor().is_polling_account(ocp_account))
 
     def test_invalid_source_specification(self):

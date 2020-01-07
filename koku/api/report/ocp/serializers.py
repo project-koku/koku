@@ -103,7 +103,10 @@ class FilterSerializer(BaseFilterSerializer):
 
         if data.get('infrastructures'):
             infra_value = data['infrastructures']
-            data['infrastructures'] = [infra_value.upper()]
+            if infra_value != 'azure':
+                data['infrastructures'] = [infra_value.upper()]
+            else:
+                data['infrastructures'] = ['Azure']
 
         return data
 

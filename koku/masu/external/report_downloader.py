@@ -20,13 +20,8 @@ import logging
 
 from dateutil.relativedelta import relativedelta
 
+from api.models import Provider
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
-from masu.external import (PROVIDER_AWS,
-                           PROVIDER_AWS_LOCAL,
-                           PROVIDER_AZURE,
-                           PROVIDER_AZURE_LOCAL,
-                           PROVIDER_GCP,
-                           PROVIDER_OCP)
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
@@ -79,7 +74,7 @@ class ReportDownloader:
             (Object) : Some object that is a child of CURAccountsInterface
 
         """
-        if self.provider_type == PROVIDER_AWS:
+        if self.provider_type == Provider.PROVIDER_AWS:
             return AWSReportDownloader(task=self.task,
                                        customer_name=self.customer_name,
                                        auth_credential=self.credential,
@@ -87,7 +82,7 @@ class ReportDownloader:
                                        report_name=self.report_name,
                                        provider_uuid=self.provider_uuid)
 
-        if self.provider_type == PROVIDER_AWS_LOCAL:
+        if self.provider_type == Provider.PROVIDER_AWS_LOCAL:
             return AWSLocalReportDownloader(task=self.task,
                                             customer_name=self.customer_name,
                                             auth_credential=self.credential,
@@ -95,7 +90,7 @@ class ReportDownloader:
                                             report_name=self.report_name,
                                             provider_uuid=self.provider_uuid)
 
-        if self.provider_type == PROVIDER_AZURE:
+        if self.provider_type == Provider.PROVIDER_AZURE:
             return AzureReportDownloader(task=self.task,
                                          customer_name=self.customer_name,
                                          auth_credential=self.credential,
@@ -103,7 +98,7 @@ class ReportDownloader:
                                          report_name=self.report_name,
                                          provider_uuid=self.provider_uuid)
 
-        if self.provider_type == PROVIDER_AZURE_LOCAL:
+        if self.provider_type == Provider.PROVIDER_AZURE_LOCAL:
             return AzureLocalReportDownloader(task=self.task,
                                               customer_name=self.customer_name,
                                               auth_credential=self.credential,
@@ -111,7 +106,7 @@ class ReportDownloader:
                                               report_name=self.report_name,
                                               provider_uuid=self.provider_uuid)
 
-        if self.provider_type == PROVIDER_OCP:
+        if self.provider_type == Provider.PROVIDER_OCP:
             return OCPReportDownloader(task=self.task,
                                        customer_name=self.customer_name,
                                        auth_credential=self.credential,
@@ -119,7 +114,7 @@ class ReportDownloader:
                                        report_name=self.report_name,
                                        provider_uuid=self.provider_uuid)
 
-        if self.provider_type == PROVIDER_GCP:
+        if self.provider_type == Provider.PROVIDER_GCP:
             return GCPReportDownloader(task=self.task,
                                        customer_name=self.customer_name,
                                        auth_credential=self.credential,

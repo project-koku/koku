@@ -15,16 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Initializer for external module."""
-from api.models import Provider
-
-# Provider Types
-PROVIDER_AWS = Provider.PROVIDER_AWS
-PROVIDER_AZURE = Provider.PROVIDER_AZURE
-PROVIDER_GCP = Provider.PROVIDER_GCP
-PROVIDER_OCP = Provider.PROVIDER_OCP
-PROVIDER_AWS_LOCAL = Provider.PROVIDER_AWS_LOCAL
-PROVIDER_AZURE_LOCAL = Provider.PROVIDER_AZURE_LOCAL
-PROVIDER_GCP_LOCAL = Provider.PROVIDER_GCP_LOCAL
 
 # Ingest Methods
 POLL_INGEST = 'poll-ingest'

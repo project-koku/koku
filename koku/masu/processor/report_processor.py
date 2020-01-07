@@ -18,12 +18,7 @@
 
 import logging
 
-from masu.external import (PROVIDER_AWS,
-                           PROVIDER_AWS_LOCAL,
-                           PROVIDER_AZURE,
-                           PROVIDER_AZURE_LOCAL,
-                           PROVIDER_GCP, PROVIDER_GCP_LOCAL,
-                           PROVIDER_OCP)
+from api.models import Provider
 from masu.processor.aws.aws_report_processor import AWSReportProcessor
 from masu.processor.azure.azure_report_processor import AzureReportProcessor
 from masu.processor.gcp.gcp_report_processor import GCPReportProcessor
@@ -72,26 +67,26 @@ class ReportProcessor:
             (Object) : Provider-specific report processor
 
         """
-        if self.provider_type in (PROVIDER_AWS, PROVIDER_AWS_LOCAL):
+        if self.provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
             return AWSReportProcessor(schema_name=self.schema_name,
                                       report_path=self.report_path,
                                       compression=self.compression,
                                       provider_uuid=self.provider_uuid,
                                       manifest_id=self.manifest_id)
 
-        if self.provider_type in (PROVIDER_AZURE, PROVIDER_AZURE_LOCAL):
+        if self.provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             return AzureReportProcessor(schema_name=self.schema_name,
                                         report_path=self.report_path,
                                         compression=self.compression,
                                         provider_uuid=self.provider_uuid,
                                         manifest_id=self.manifest_id)
 
-        if self.provider_type in (PROVIDER_OCP, ):
+        if self.provider_type in (Provider.PROVIDER_OCP, ):
             return OCPReportProcessor(schema_name=self.schema_name,
                                       report_path=self.report_path,
                                       compression=self.compression,
                                       provider_uuid=self.provider_uuid)
-        if self.provider_type in (PROVIDER_GCP, PROVIDER_GCP_LOCAL):
+        if self.provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
             return GCPReportProcessor(schema_name=self.schema_name,
                                       report_path=self.report_path,
                                       compression=self.compression,
