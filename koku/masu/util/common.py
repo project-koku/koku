@@ -25,6 +25,7 @@ from os import remove
 from tempfile import gettempdir
 from uuid import uuid4
 
+import pytz
 from dateutil import parser
 from dateutil.rrule import DAILY, rrule
 
@@ -180,9 +181,9 @@ def date_range(start_date, end_date, step=5):
         rrule(freq=DAILY, dtstart=start_date, until=end_date, interval=step)
     )
     for date in dates:
-        yield date
+        yield date.replace(tzinfo=pytz.UTC)
     if end_date not in dates:
-        yield end_date
+        yield end_date.replace(tzinfo=pytz.UTC)
 
 
 def date_range_pair(start_date, end_date, step=5):
@@ -201,11 +202,11 @@ def date_range_pair(start_date, end_date, step=5):
     )
     # Special case with only 1 period
     if len(dates) == 1:
-        yield start_date, end_date
+        yield start_date.replace(tzinfo=pytz.UTC), end_date.replace(tzinfo=pytz.UTC)
     for date in dates:
         if date == start_date:
             continue
-        yield start_date, date
+        yield start_date.replace(tzinfo=pytz.UTC), date.replace(tzinfo=pytz.UTC)
         start_date = date + timedelta(days=1)
     if len(dates) != 1 and end_date not in dates:
-        yield start_date, end_date
+        yield start_date.replace(tzinfo=pytz.UTC), end_date.replace(tzinfo=pytz.UTC)
