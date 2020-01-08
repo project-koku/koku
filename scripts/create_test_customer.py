@@ -45,33 +45,18 @@ koku:
 
 import argparse
 import os
-import re
 import sys
 from base64 import b64encode
 from json import dumps as json_dumps
 from uuid import uuid4
 
-from yaml import add_constructor, add_implicit_resolver, safe_load, SafeLoader
+from yaml import safe_load
 import psycopg2
 import requests
 
 BASEDIR = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_CONFIG = BASEDIR + '/test_customer.yaml'
 SUPPORTED_PROVIDERS = ['aws', 'ocp', 'azure']
-
-ENV_VARIABLE_MATCHER = re.compile(r'\$\{([^}^{]+)\}')
-
-def variable_constructor(loader, node):
-    """Extract the matched value, return the environment variable or the default."""
-    value = node.value
-    match = ENV_VARIABLE_MATCHER.match(value)
-    env_var = match.group()[2:-1].split(':')
-    if os.getenv(*env_var):
-        return os.getenv(*env_var)
-    raise ValueError("Environment variable is not defined and no default value given.")
-
-add_implicit_resolver('!ENV', ENV_VARIABLE_MATCHER, None, SafeLoader)
-add_constructor('!ENV', variable_constructor, SafeLoader)
 
 class KokuCustomerOnboarder:
     """Uses the Koku API and SQL to create an onboarded customer."""
@@ -85,7 +70,7 @@ class KokuCustomerOnboarder:
         self.endpoint_base = 'http://{}:{}{}/v1/'.format(
             self.koku.get("host"),
             self.koku.get("port"),
-            self.koku.get("prefix"))
+            os.getenv("API_PATH_PREFIX", self.koku.get("prefix")))
 
         self.auth_token = get_token(self.customer.get('account_id'),
                                     self.customer.get('user'),
@@ -168,7 +153,7 @@ class KokuCustomerOnboarder:
                 AND data_source = %s
 
         """
-        values =[bucket, json_dumps(data_source)]
+        values = [bucket, json_dumps(data_source)]
         cursor.execute(billing_sql, values)
         try:
             billing_id = cursor.fetchone()
@@ -198,7 +183,7 @@ class KokuCustomerOnboarder:
             RETURNING id
             ;
         """
-        values =[str(uuid4()), provider_resource_name, json_dumps(credentials)]
+        values = [str(uuid4()), provider_resource_name, json_dumps(credentials)]
 
         cursor.execute(auth_sql, values)
         auth_id = cursor.fetchone()[0]
@@ -272,6 +257,9 @@ if __name__ == '__main__':
     PARSER.add_argument('--no-providers', dest='no_providers', action='store_true',
                         help='Don\'t create providers at all')
     ARGS = vars(PARSER.parse_args())
+
+    if ARGS['no_providers'] and not ARGS['bypass_api']:
+        PARSER.error('--bypass-api must be supplied with --no-providers')
 
     try:
         CONFIG = load_yaml(ARGS.get('config_file'))
