@@ -70,7 +70,7 @@ class KokuCustomerOnboarder:
         self.endpoint_base = 'http://{}:{}{}/v1/'.format(
             self.koku.get("host"),
             self.koku.get("port"),
-            os.getenv("API_PATH_PREFIX", self.koku.get("prefix")))
+            self._config.get("api_prefix") or self.koku.get("prefix"))
 
         self.auth_token = get_token(self.customer.get('account_id'),
                                     self.customer.get('user'),
@@ -256,6 +256,9 @@ if __name__ == '__main__':
                         help='Create Provider in DB, bypassing Koku API')
     PARSER.add_argument('--no-providers', dest='no_providers', action='store_true',
                         help='Don\'t create providers at all')
+    PARSER.add_argument('--api-prefix', dest='api_prefix',
+                        help='API path prefix',
+                        default=os.getenv("API_PATH_PREFIX"))
     ARGS = vars(PARSER.parse_args())
 
     if ARGS['no_providers'] and not ARGS['bypass_api']:
