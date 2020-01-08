@@ -83,8 +83,10 @@ class AWSReportQueryHandler(ReportQueryHandler):
             annotations['usage_units'] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get('annotations')
+        prefix_removed_parameters_list = list(map(lambda x: x if ':' not in x else x.split(':', maxsplit=1)[1],
+                                              self.parameters.get('group_by', {}).keys()))
         for q_param, db_field in fields.items():
-            if q_param in self.parameters.get('group_by', {}).keys():
+            if q_param in prefix_removed_parameters_list:
                 annotations[q_param] = Concat(db_field, Value(''))
         return annotations
 

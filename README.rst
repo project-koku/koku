@@ -149,6 +149,7 @@ To run IQE Smoke, Vortex or API tests, while on the Red Hat network and koku dep
     make docker-iqe-vortex-tests
     make docker-iqe-api-tests
 
+The tests expect an empty database, you may clear out the database using `make docker-reinitdb`
 Individual IQE tests can be ran with run_test.sh::
 
     <koku_topdir>/testing/run_test.sh iqe tests plugin hccm -k test_api_cost_model_markup_calculation_ocp
