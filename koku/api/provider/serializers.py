@@ -191,7 +191,7 @@ AUTHENTICATION_SERIALIZERS = {Provider.PROVIDER_AWS: AWSAuthenticationSerializer
                               Provider.PROVIDER_GCP_LOCAL: GCPAuthenticationSerializer,
                               Provider.PROVIDER_OCP: OCPAuthenticationSerializer,
                               'OCP_AWS': AWSAuthenticationSerializer,
-                              'OCP_AZURE': AzureAuthenticationSerializer,
+                              'OCP_Azure': AzureAuthenticationSerializer,
                               }
 
 
@@ -204,7 +204,7 @@ BILLING_SOURCE_SERIALIZERS = {Provider.PROVIDER_AWS: AWSBillingSourceSerializer,
                               Provider.PROVIDER_GCP_LOCAL: GCPBillingSourceSerializer,
                               Provider.PROVIDER_OCP: OCPBillingSourceSerializer,
                               'OCP_AWS': AWSBillingSourceSerializer,
-                              'OCP_AZURE': AzureBillingSourceSerializer,
+                              'OCP_Azure': AzureBillingSourceSerializer,
                               }
 
 

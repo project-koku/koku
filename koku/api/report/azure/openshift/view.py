@@ -29,7 +29,7 @@ class OCPAzureView(ReportView):
     """OCP+Azure Base View."""
 
     permission_classes = [AzureAccessPermission, OpenShiftAccessPermission]
-    provider = 'OCP_AZURE'
+    provider = 'OCP_Azure'
     serializer = OCPAzureQueryParamSerializer
     query_handler = OCPAzureReportQueryHandler
     tag_handler = [AzureTagsSummary]

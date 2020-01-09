@@ -28,7 +28,7 @@ from api.report.azure.query_handler import AzureReportQueryHandler
 class OCPAzureReportQueryHandler(AzureReportQueryHandler):
     """Handles report queries and responses for OCP on Azure."""
 
-    provider = 'OCP_AZURE'
+    provider = 'OCP_Azure'
 
     def __init__(self, parameters):
         """Establish OCP report query handler.

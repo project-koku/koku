@@ -33,7 +33,7 @@ class OCPAzureProviderMap(ProviderMap):
         """Constructor."""
         self._mapping = [
             {
-                'provider': 'OCP_AZURE',
+                'provider': 'OCP_Azure',
                 'alias': 'subscription_guid',
                 'annotations': {
                     'cluster': 'cluster_id',
