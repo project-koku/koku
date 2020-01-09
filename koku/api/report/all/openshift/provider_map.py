@@ -211,11 +211,19 @@ class OCPAllProviderMap(ProviderMap):
                         },
                         'count': None,
                         'delta_key': {'usage': Sum('usage_amount')},
-                        'filter': [{
-                            'field': 'product_family',
-                            'operation': 'contains',
-                            'parameter': 'Storage'
-                        }, ],
+                        'filter': [{}],
+                        'or_filter': [
+                            {
+                                'field': 'product_family',
+                                'operation': 'contains',
+                                'parameter': 'Storage'
+                            },
+                            {
+                                'field': 'product_code',
+                                'operation': 'contains',
+                                'parameter': 'Storage'
+                            },
+                        ],
                         'cost_units_key': 'currency_code',
                         'cost_units_fallback': 'USD',
                         'usage_units_key': 'unit',
@@ -259,11 +267,19 @@ class OCPAllProviderMap(ProviderMap):
                         },
                         'count': None,
                         'delta_key': {'usage': Sum('usage_amount')},
-                        'filter': [{
-                            'field': 'product_family',
-                            'operation': 'contains',
-                            'parameter': 'Storage'
-                        }, ],
+                        'filter': [{}],
+                        'or_filter': [
+                            {
+                                'field': 'product_family',
+                                'operation': 'contains',
+                                'parameter': 'Storage'
+                            },
+                            {
+                                'field': 'product_code',
+                                'operation': 'contains',
+                                'parameter': 'Storage'
+                            },
+                        ],
                         'cost_units_key': 'currency_code',
                         'cost_units_fallback': 'USD',
                         'usage_units_key': 'unit',
