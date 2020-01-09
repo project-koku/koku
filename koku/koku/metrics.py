@@ -16,14 +16,15 @@
 #
 
 """Prometheus metrics."""
-import logging
 import time
-from datetime import datetime, timedelta
 
+from celery.utils.log import get_task_logger
 from django.db import InterfaceError, OperationalError, connection
 from prometheus_client import Gauge
 
-LOG = logging.getLogger(__name__)
+from .celery import app
+
+LOG = get_task_logger(__name__)
 PGSQL_GAUGE = Gauge('postgresql_schema_size_bytes',
                     'PostgreSQL DB Size (bytes)',
                     ['schema'])
@@ -31,9 +32,6 @@ PGSQL_GAUGE = Gauge('postgresql_schema_size_bytes',
 
 class DatabaseStatus():
     """Database status information."""
-
-    _last_result = None
-    _last_query = None
 
     def query(self, query):
         """Execute a SQL query, format the results.
@@ -46,12 +44,6 @@ class DatabaseStatus():
             ]
 
         """
-        # cache response for 5 minutes.
-        query_interval = datetime.now() - timedelta(minutes=5)
-        if self._last_query and \
-                self._last_query > query_interval:
-            return self._last_result
-
         retries = 0
         rows = None
         while retries < 3:
@@ -76,8 +68,7 @@ class DatabaseStatus():
         # transform list-of-lists into list-of-dicts including column names.
         result = [dict(zip(names, row)) for row in rows if len(row) == 2]
 
-        self._last_result = result
-        self._last_query = datetime.now()
+        LOG.debug('Collected metrics returned.')
 
         return result
 
@@ -123,4 +114,8 @@ class DatabaseStatus():
         return self.query(query)
 
 
-DBSTATUS = DatabaseStatus()
+@app.task(name='koku.metrics.collect_metrics')
+def collect_metrics():
+    """Collect DB metrics with scheduled celery task."""
+    db_status = DatabaseStatus()
+    db_status.collect()
