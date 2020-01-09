@@ -1,7 +1,7 @@
 ===
 IQE
 ===
-This section is only Red Hat employees only.
+This section is for Red Hat employees only.
 
 IQE is a suite of tests that ensures the quality of any pull request
 to Koku via additional tests. IQE is owned by Red Hat QA,
