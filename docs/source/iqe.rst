@@ -1,12 +1,12 @@
 ===
 IQE
 ===
-For simple setup, continue to the prerequisites below, otherwise, for information on IQE, visit: https://gitlab.cee.redhat.com/insights-qe/hccm-plugin/tree/master while on the Red Hat internal network.
 
 Prerequisites:
     - koku is deployed via docker-compose or other method, 
     - you are connected to the Red Hat internal network.
 
+For simple setup, continue to the prerequisites below, otherwise, for information on IQE, visit: https://gitlab.cee.redhat.com/insights-qe/hccm-plugin/tree/master 
 
 ===================
 Running IQE locally
