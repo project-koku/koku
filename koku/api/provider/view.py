@@ -98,6 +98,15 @@ class ProviderMethodException(APIException):
         self.detail = {'detail': force_text(message)}
 
 
+class ProviderBadRequestException(APIException):
+    """General Exception class for Provider errors."""
+
+    def __init__(self, message):
+        """Set custom error message for Provider errors."""
+        self.status_code = status.HTTP_400_BAD_REQUEST
+        self.detail = {'detail': force_text(message)}
+
+
 class ProviderViewSet(mixins.CreateModelMixin,
                       mixins.DestroyModelMixin,
                       mixins.ListModelMixin,
@@ -130,6 +139,11 @@ class ProviderViewSet(mixins.CreateModelMixin,
         by filtering against a `user` object in the request.
         """
         queryset = Provider.objects.none()
+        stats = self.request.query_params.get('stats', 'false').lower()
+        if stats not in ['false', 'true']:
+            raise ProviderBadRequestException(
+                "The stat parameter was set to {} but can be either 'false' or 'true'."
+                .format(stats))
         user = self.request.user
         if user:
             try:
@@ -165,10 +179,12 @@ class ProviderViewSet(mixins.CreateModelMixin,
     def list(self, request, *args, **kwargs):
         """Obtain the list of providers."""
         response = super().list(request=request, args=args, kwargs=kwargs)
+        stats = request.query_params.get('stats', 'false').lower()
         for provider in response.data['data']:
             manager = ProviderManager(provider['uuid'])
             tenant = get_tenant(request.user)
-            provider['stats'] = manager.provider_statistics(tenant)
+            if stats == 'true':
+                provider['stats'] = manager.provider_statistics(tenant)
             provider['infrastructure'] = manager.get_infrastructure_name(tenant)
             provider['cost_models'] = [
                 {'name': model.name, 'uuid': model.uuid}
@@ -180,10 +196,12 @@ class ProviderViewSet(mixins.CreateModelMixin,
     def retrieve(self, request, *args, **kwargs):
         """Get a provider."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
+        stats = request.query_params.get('stats', 'false').lower()
         tenant = get_tenant(request.user)
         manager = ProviderManager(kwargs['uuid'])
         response.data['infrastructure'] = manager.get_infrastructure_name(tenant)
-        response.data['stats'] = manager.provider_statistics(tenant)
+        if stats == 'true':
+            response.data['stats'] = manager.provider_statistics(tenant)
         response.data['cost_models'] = [
             {'name': model.name, 'uuid': model.uuid}
             for model in manager.get_cost_models(tenant)
