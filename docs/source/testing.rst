@@ -131,7 +131,7 @@ If you observe the following error in the tox tests, you may sometimes ignore it
 ==========
 PDB in IQE
 ==========
-Shell into the docker container that runs IQE::
+Begin a shell session into the docker container that runs IQE by running the following command::
 
     koku/testing/run_test.sh bash
 
