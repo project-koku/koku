@@ -1,12 +1,7 @@
 ===
 IQE
 ===
-This section is for Red Hat employees only.
-
-IQE is a suite of tests that ensures the quality of any pull request
-to Koku via additional tests. IQE is owned by Red Hat QA,
-
-The source code for the IQE tests is here: https://gitlab.cee.redhat.com/insights-qe/hccm-plugin/tree/master
+For simple setup, continue to the prerequisites below, otherwise, for information on IQE, visit: https://gitlab.cee.redhat.com/insights-qe/hccm-plugin/tree/master while on the Red Hat internal network.
 
 Prerequisites:
     - koku is deployed via docker-compose or other method, 
