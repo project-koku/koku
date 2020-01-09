@@ -17,7 +17,6 @@
 """Test the prometheus metrics."""
 import logging
 import random
-from datetime import datetime
 from unittest import mock
 from unittest.mock import Mock, patch
 
@@ -61,14 +60,6 @@ class DatabaseStatusTest(IamTestCase):
         dbs.collect()
         self.assertFalse(mock_gauge.called)
 
-    def test_query_cache(self):
-        """Test that query() returns a cached response when available."""
-        dbs = DatabaseStatus()
-        dbs._last_result = 1
-        dbs._last_query = datetime.now()
-        result = dbs.query('SELECT count(*) from now()')
-        self.assertEqual(result, 1)
-
     def test_query_exception(self):
         """Test _query() when an exception is thrown."""
         logging.disable(0)
@@ -77,7 +68,7 @@ class DatabaseStatusTest(IamTestCase):
             mock_cursor.execute.side_effect = OperationalError('test exception')
             test_query = 'SELECT count(*) from now()'
             dbs = DatabaseStatus()
-            with self.assertLogs(level=logging.WARNING):
+            with self.assertLogs(logger='koku.metrics.collect_metrics', level=logging.WARNING):
                 dbs.query(test_query)
 
     @patch('koku.metrics.connection')
