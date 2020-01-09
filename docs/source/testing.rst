@@ -97,41 +97,62 @@ Smoke test:
     $ cd koku/testing
     $ ./run_smoke_tests.sh
     
+=====================
+PDB in Docker
+=====================
 To use pdb while running the koku-server in docker:
-Ensure all migrations are run.
-Stop the server `docker-compose stop koku-server`
-Run the server with service-ports: `docker-compose run —service-ports koku-server`
-Breakpoints will now be stopped in this terminal window.
+    1. Ensure all migrations are run.
+    2. Stop the server `docker-compose stop koku-server`
+    3. Run the server with service-ports: `docker-compose run —service-ports koku- 
+       server`
 
-To test a specific file using tox, edit this line, for example:
-`coverage run {toxinidir}/koku/manage.py test --noinput -v 2 {posargs: masu.test.database}`
+Breakpoints should now be stopped at, in this terminal window.
+
+To test a specific file using tox, edit this line, for example::
+
+    coverage run {toxinidir}/koku/manage.py test --noinput -v 2 {posargs:masu.test.database}`
+
 This will selectively run only the masu database tests, instead of running all of the rest of the tox tests.
 
-If you observe the following error in the tox tests, you may sometimes ignore it, due to tox not setting DEBUG=TRUE, to fix this you can export the variable to be true.
-```
-======================================================================
-FAIL: test_delete_single_provider_skips_delete_archived_data_if_customer_is_none (api.provider.test.tests_models.ProviderModelTest)
-Assert the delete_archived_data task is not called if Customer is None.
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/usr/local/Cellar/python/3.7.4_1/Frameworks/Python.framework/Versions/3.7/lib/python3.7/unittest/mock.py", line 1209, in patched
+If you observe the following error in the tox tests, you may sometimes ignore it, due to tox not setting DEBUG=TRUE, to fix this you can export the variable to be true::
+    
+    FAIL: test_delete_single_provider_skips_delete_archived_data_if_customer_is_none 
+    (api.provider.test.tests_models.ProviderModelTest)
+    Assert the delete_archived_data task is not called if Customer is None.
+    ----------------------------------------------------------------------
+    Traceback (most recent call last):
+    File "/usr/local/Cellar/python/3.7.4_1/Frameworks/Python.framework/Versions/3.7/lib/python3.7/unittest/mock.py", line 1209, in patched
     return func(*args, **keywargs)
-  File "/Users/nbonilla/Documents/Koku/koku/koku/api/provider/test/tests_models.py", line 43, in test_delete_single_provider_skips_delete_archived_data_if_customer_is_none
+    File "/Users/nbonilla/Documents/Koku/koku/koku/api/provider/test/tests_models.py", line 43, in test_delete_single_provider_skips_delete_archived_data_if_customer_is_none
     self.aws_provider.delete()
-AssertionError: no logs of level WARNING or higher triggered on api.provider.models
+    AssertionError: no logs of level WARNING or higher triggered on api.provider.models
+    
 
-----------------------------------------------------------------------
-Ran 756 tests in 2025.258s
-FAILED (failures=1)
-```
+==========
+PDB in IQE
+==========
+Shell into the docker container that runs IQE::
 
-# Gotchas:
-- The logger is disabled by default during unit tests. If you are building a unit test that asserts that a log occurs, you must re-enable the logger. For example:
+    koku/testing/run_test.sh bash
 
-```
-import logging
-with self.assertLogs(logger='masu.external.downloader.aws.aws_report_downloader', level='WARN') as cm:
-            logging.disable(logging.NOTSET)
-            self.aws_report_downloader._remove_manifest_file("None")
-            self.assertEqual(['WARN: Could not delete manifest file at'], cm.output)
-```
+since IQE itself is installed in this container, you may run the following command while inside the container to run a specific test::
+
+    iqe tests plugin hccm -k test_api_aws_storage_filtered_top --pdb
+
+or to run all tests::
+
+    iqe tests plugin hccm --pdb
+
+Any test that fails should start a PDB session.
+
+=========================
+Unit testing log messages
+=========================
+The logger is disabled by default during unit tests. If you are building a unit test that asserts log messages, you must re-enable the logger. For example::
+
+    import logging
+    with self.assertLogs(logger='masu.external.downloader.aws.aws_report_downloader', 
+    level='WARN') as cm:
+                logging.disable(logging.NOTSET)
+                self.aws_report_downloader._remove_manifest_file("None")
+                self.assertEqual(['WARN: Could not delete manifest file at'], cm.output)
