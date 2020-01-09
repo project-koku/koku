@@ -25,7 +25,7 @@ An example of what can be generated is found in the example_ocp_static_data.yml 
 Note: tags in this file are akin to user defined tags in AWS
 Note: If you don't set cost and rate, the generated cost and rate would be random each day.
 
-There are example yamls are in the nise repo. 
+There example yamls are in the nise repo. 
 
 =============
 List of flags
