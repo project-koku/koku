@@ -16,8 +16,6 @@
 #
 """API application configuration module."""
 
-import sys
-
 from django.apps import AppConfig
 
 
@@ -25,9 +23,3 @@ class ApiConfig(AppConfig):
     """API application configuration."""
 
     name = 'api'
-
-    def ready(self):
-        """Determine if app is ready on application startup."""
-        # Don't run on Django tab completion commands
-        if 'manage.py' in sys.argv[0] and 'runserver' not in sys.argv:
-            return
