@@ -33,7 +33,7 @@ PGSQL_GAUGE = Gauge('postgresql_schema_size_bytes',
 class DatabaseStatus():
     """Database status information."""
 
-    def query(self, query):
+    def query(self, query):  # pylint: disable=R0201
         """Execute a SQL query, format the results.
 
         Returns:
