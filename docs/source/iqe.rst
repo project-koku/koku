@@ -12,14 +12,12 @@ For simple setup, continue to the prerequisites below, otherwise, for informatio
 Running IQE locally
 ===================
 
+IQE expects the database to be empty.
 To run IQE Smoke, Vortex or API tests, run one of the following commands, respectively::
 
     make docker-iqe-smokes-tests
     make docker-iqe-vortex-tests
     make docker-iqe-api-tests
-
-The tests expect the koku database to be empty
-
 
 
 ====================
