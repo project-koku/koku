@@ -113,6 +113,9 @@ To test a specific file using tox, edit this line, for example::
     coverage run {toxinidir}/koku/manage.py test --noinput -v 2 {posargs:masu.test.database}`
 
 This will selectively run only the masu database tests, instead of running all of the rest of the tox tests.
+The posargs can be further specified down to single files, or further specified down to single tests, the following posargs would separately be considered valid:
+    - masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
+    - masu.test.external.downloader.azure.test_azure_services.AzureServiceTest.specific_test
 
 If you observe the following error in the tox tests, you may sometimes ignore it, due to tox not setting DEBUG=TRUE, to fix this you can export the variable to be true::
     
