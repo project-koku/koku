@@ -9,3 +9,4 @@ Development Information
    CONTRIBUTING
    openshift
    testing
+   nise
