@@ -42,4 +42,4 @@ customer:
 koku:
   host: localhost
   port: 8000
-  prefix: api
+  prefix: /api

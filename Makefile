@@ -141,7 +141,7 @@ create-test-customer-no-providers: run-migrations
 	sleep 1
 	$(DJANGO_MANAGE) runserver > /dev/null 2>&1 &
 	sleep 5
-	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-providers || echo "WARNING: create_test_customer failed unexpectedly!"
+	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-providers --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
 	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
 
 
@@ -465,12 +465,15 @@ docker-up-db:
 	docker-compose up -d db
 
 docker-iqe-smokes-tests:
+	$(MAKE) docker-reinitdb
 	./testing/run_smoke_tests.sh
 
 docker-iqe-api-tests:
+	$(MAKE) docker-reinitdb
 	./testing/run_api_tests.sh
 
 docker-iqe-vortex-tests:
+	$(MAKE) docker-reinitdb
 	./testing/run_vortex_api_tests.sh
 
 ########################

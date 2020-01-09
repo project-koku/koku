@@ -50,18 +50,13 @@ from base64 import b64encode
 from json import dumps as json_dumps
 from uuid import uuid4
 
+from yaml import safe_load
 import psycopg2
-from yaml import load
-try:
-    from yaml import CLoader as Loader
-except ImportError:
-    from yaml import Loader
 import requests
 
 BASEDIR = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_CONFIG = BASEDIR + '/test_customer.yaml'
 SUPPORTED_PROVIDERS = ['aws', 'ocp', 'azure']
-
 
 class KokuCustomerOnboarder:
     """Uses the Koku API and SQL to create an onboarded customer."""
@@ -72,10 +67,10 @@ class KokuCustomerOnboarder:
         self.customer = self._config.get('customer')
         self.koku = self._config.get('koku')
 
-        self.endpoint_base = 'http://{}:{}/{}/v1/'.format(
+        self.endpoint_base = 'http://{}:{}{}/v1/'.format(
             self.koku.get("host"),
             self.koku.get("port"),
-            self.koku.get("prefix"))
+            self._config.get("api_prefix") or self.koku.get("prefix"))
 
         self.auth_token = get_token(self.customer.get('account_id'),
                                     self.customer.get('user'),
@@ -244,9 +239,9 @@ def load_yaml(filename):
     print(f'Loading: {filename}')
     try:
         with open(filename, 'r+') as fhandle:
-            yamlfile = load(fhandle, Loader=Loader)
+            yamlfile = safe_load(fhandle)
     except TypeError:
-        yamlfile = load(filename, Loader=Loader)
+        yamlfile = safe_load(filename)
     return yamlfile
 
 
@@ -259,7 +254,13 @@ if __name__ == '__main__':
                         help='Create Provider in DB, bypassing Koku API')
     PARSER.add_argument('--no-providers', dest='no_providers', action='store_true',
                         help='Don\'t create providers at all')
+    PARSER.add_argument('--api-prefix', dest='api_prefix',
+                        help='API path prefix',
+                        default=os.getenv("API_PATH_PREFIX"))
     ARGS = vars(PARSER.parse_args())
+
+    if ARGS['no_providers'] and not ARGS['bypass_api']:
+        PARSER.error('--bypass-api must be supplied with --no-providers')
 
     try:
         CONFIG = load_yaml(ARGS.get('config_file'))

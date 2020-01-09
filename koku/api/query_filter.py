@@ -160,10 +160,19 @@ class QueryFilterCollection(object):
             if qf not in self:
                 self._filters.append(qf)
 
-    def compose(self):
-        """Compose filters into a dict for submitting to Django's ORM."""
+    def compose(self, logical_operator=None):
+        """Compose filters into a dict for submitting to Django's ORM.
+
+        Args:
+            logical_operator (str): 'and' or 'or' -- how to combine the filters.
+
+        """
         composed_query = None
         compose_dict = defaultdict(list)
+        operator = 'and'
+        if logical_operator == 'or':
+            operator = 'or'
+
         for filt in self._filters:
             filt_key = filt.compose_key()
             compose_dict[filt_key].append(filt)
@@ -180,7 +189,10 @@ class QueryFilterCollection(object):
             if composed_query is None:
                 composed_query = or_filter
             else:
-                composed_query = composed_query & or_filter
+                if operator == 'or':
+                    composed_query = composed_query | or_filter
+                else:
+                    composed_query = composed_query & or_filter
         return composed_query
 
     def __contains__(self, item):
