@@ -146,13 +146,18 @@ While IQE is running a docker container:
 
         koku/testing/run_test.sh bash
 
-To run a specific test, use the following command. Replace :code:`-k` flag's input to a specific unit test to run::
-
-    iqe tests plugin hccm -k test_api_aws_storage_filtered_top --pdb
-
-The following command runs all unit tests. The optional :code:`--pdb` flag will cause any failed test to automatically start a pdb session::
+The following command runs all QE tests. The optional :code:`--pdb` flag will cause any failed test to automatically start a pdb session::
 
     iqe tests plugin hccm --pdb
+
+To run a specific subset of the integration test suite (IQE), you can specify a single test using the :code:`-k` flag. The single test names can be found in the IQE repo. Here is an example of running a single test named :code:`test_api_aws_storage_filtered_top`::
+
+
+    iqe tests plugin hccm -k test_api_aws_storage_filtered_top --pdb
+    
+the single test name was found in the hccm plugin repo itself at https://gitlab.cee.redhat.com/insights-qe/hccm-plugin/blob/master/iqe_hccm/tests/rest_api/v1/test_aws_storage_reports.py#L245 
+Any function definition name in this file can be passed in as the parameter for :code:`-k` to run specifically that test.
+
 
 Smoke testing with IQE
 ======================
