@@ -161,6 +161,10 @@ Prerequisites:
 
     - koku is running and accessible via the network 
     - you are connected to the Red Hat internal network
+    
+For a quick start on smoke testing, continue to the section Running IQE in Docker below.
+Otherwise, for more in-depth information on IQE, see https://gitlab.cee.redhat.com/insights-qe/hccm-plugin/tree/master
+
 
 Running IQE in Docker
 ---------------------
@@ -170,13 +174,3 @@ To run IQE Smoke, Vortex or API tests, run one of the following commands, respec
     make docker-iqe-smokes-tests
     make docker-iqe-vortex-tests
     make docker-iqe-api-tests
-
-Running IQE source code
--------------------------------
-There need to be clones of the following git repositories:
-
-  - koku
-  - iqe
-  - hccm-plugin
-
-You will need to edit the settings file to match your environment: ``koku.git/testing/conf/settings.local.yaml``
