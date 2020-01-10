@@ -246,6 +246,7 @@ services:
         - KOKU_API_PATH_PREFIX=${KOKU_API_PATH_PREFIX-/api/cost-management/v1}
         - SOURCES_KAFKA_HOST=${SOURCES_KAFKA_HOST-kafka}
         - SOURCES_KAFKA_PORT=${SOURCES_KAFKA_PORT-29092}
+        - prometheus_multiproc_dir=/tmp
       privileged: true
       ports:
           - 4000:8000
