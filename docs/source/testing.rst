@@ -108,8 +108,8 @@ Smoke test::
     $ ./run_smoke_tests.sh
     
 
-tox
-===
+Run specific unit tests
+-----------------------
 
 To run a specific subset of unit tests, you can pass a particular module path to tox. To do this, use positional args using the :code:`--` separator. For example::
 
@@ -138,7 +138,7 @@ While koku-server is running in a docker container:
 PDB in IQE container
 --------------------
 
-While IQE is running a docker container: 
+While IQE (the integration test suite) is running a docker container: 
 
     Start a shell session in the docker container that runs IQE::
 
@@ -148,7 +148,7 @@ The following command runs all QE tests. The optional :code:`--pdb` flag will ca
 
     iqe tests plugin hccm --pdb
 
-To run a specific subset of the integration test suite (IQE), you can specify a single test using the :code:`-k` flag. The single test names can be found in the IQE repo. Here is an example of running a single test named :code:`test_api_aws_storage_filtered_top`::
+To run a specific subset of the integration test suite, you can specify a single test using the :code:`-k` flag. The single test names can be found in the IQE repo. Here is an example of running a single test named :code:`test_api_aws_storage_filtered_top`::
 
 
     iqe tests plugin hccm -k test_api_aws_storage_filtered_top --pdb
