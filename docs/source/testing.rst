@@ -121,17 +121,18 @@ The argument can be vague or specified further, for example the following argume
     - masu.test.external
     - masu.test.external.downloader.azure.test_azure_services.AzureServiceTest.specific_test
 
-PDB
-===
+Debugging Options
+=================
 
-PDB in Dockerized koku
-----------------------
+Running PDB in dockerized koku
+------------------------------
 
 To use pdb while running the koku-server in docker:
     1. Ensure all migrations are run.
     2. Stop the server `docker-compose stop koku-server`
     3. Run the server with service-ports: :code:`docker-compose run —service-ports koku- 
        server`
+    4. set a breakpoint using :code:`import pdb; pdb.set_trace()`
 
 Breakpoints should now be stopped at, in this terminal window.
 
