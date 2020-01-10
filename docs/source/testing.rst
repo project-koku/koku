@@ -134,8 +134,6 @@ While koku-server is running in a docker container:
 3. Run the server with service-ports: :code:`docker-compose run —service-ports koku-server`
 4. set a breakpoint using :code:`import pdb; pdb.set_trace()`
 
-Breakpoints should now be stopped at, in this terminal window.
-
 
 PDB in IQE container
 --------------------
@@ -155,8 +153,8 @@ To run a specific subset of the integration test suite (IQE), you can specify a 
 
     iqe tests plugin hccm -k test_api_aws_storage_filtered_top --pdb
     
-the single test name was found in the hccm plugin repo itself at https://gitlab.cee.redhat.com/insights-qe/hccm-plugin/blob/master/iqe_hccm/tests/rest_api/v1/test_aws_storage_reports.py#L245 
-Any function definition name in this file can be passed in as the parameter for :code:`-k` to run specifically that test.
+The single test name above was found in the hccm plugin repo itself at https://gitlab.cee.redhat.com/insights-qe/hccm-plugin/blob/master/iqe_hccm/tests/rest_api/v1/test_aws_storage_reports.py#L245 
+Any function definition name in this file can be passed in as the parameter for :code:`-k` to run specifically that test. To find more specific test names, search that repo for test function names.
 
 
 Smoke testing with IQE
