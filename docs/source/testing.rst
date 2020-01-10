@@ -179,8 +179,3 @@ optionally you can, run all tests::
     iqe tests plugin hccm --pdb
 
 Any test that fails should start a PDB session.
-
-
-
-
-
