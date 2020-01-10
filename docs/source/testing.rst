@@ -44,7 +44,7 @@ The logger is disabled by default during unit tests. If you are building a unit 
                 self.aws_report_downloader._remove_manifest_file("None")
                 self.assertEqual(['WARN: Could not delete manifest file at'], cm.output)
 
-If you observe the following error in the tox tests, you may sometimes ignore it, due to the environment variable DEBUG=TRUE sometimes not being TRUE::
+If you observe the following error when running the unit tests, it may be a false error. This can be due to some tests expecting the DEBUG setting to be TRUE::
     
     FAIL: test_delete_single_provider_skips_delete_archived_data_if_customer_is_none 
     (api.provider.test.tests_models.ProviderModelTest)
