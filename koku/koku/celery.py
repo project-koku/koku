@@ -116,10 +116,12 @@ app.conf.beat_schedule['vacuum-schemas'] = {
     'args': []
 }
 
-app.conf.beat_schedule['daily_upload_normalized_reports_to_s3'] = {
-    'task': 'masu.celery.tasks.upload_normalized_data',
-    'schedule': int(os.getenv('UPLOAD_NORMALIZED_DATA_INTERVAL', '86400'))
-}
+# Toggle to enable/disable S3 archiving of account data.
+if ENVIRONMENT.bool('ENABLE_S3_ARCHIVING', default=True):
+    app.conf.beat_schedule['daily_upload_normalized_reports_to_s3'] = {
+        'task': 'masu.celery.tasks.upload_normalized_data',
+        'schedule': int(os.getenv('UPLOAD_NORMALIZED_DATA_INTERVAL', '86400'))
+    }
 
 # Celery timeout if broker is unavaiable to avoid blocking indefintely
 app.conf.broker_transport_options = {
