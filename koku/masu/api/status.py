@@ -41,6 +41,7 @@ from koku.celery import app as celery_app
 from masu.api import API_VERSION
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
+from masu.prometheus_stats import CELERY_ERRORS_COUNTER
 
 LOG = logging.getLogger(__name__)
 
@@ -94,7 +95,8 @@ class ApplicationStatus():
         try:
             conn = celery_app.connection()
             conn.heartbeat_check()
-        except (ConnectionRefusedError, socket.timeout):
+        except (OSError, ConnectionRefusedError, socket.timeout):
+            CELERY_ERRORS_COUNTER.inc()
             return {'Error': BROKER_CONNECTION_ERROR}
         # Now check if Celery workers are running
         stats = self._check_celery_status()
@@ -116,6 +118,7 @@ class ApplicationStatus():
             if not stats:
                 stats = {'Error': CELERY_WORKER_NOT_FOUND}
         except (ConnectionResetError, TimeoutError) as err:
+            CELERY_ERRORS_COUNTER.inc()
             stats = {'Error': str(err)}
         finally:
             if conn:
