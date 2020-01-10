@@ -124,10 +124,10 @@ The following are examples of valid module paths:
 Debugging Options
 =================
 
-Running PDB in koku in docker
------------------------------
+PDB in koku container
+---------------------
 
-To use pdb while running the koku-server in docker:
+While koku-server is running in a docker container:
 
 1. Ensure all migrations are run.
 2. Stop the server `docker-compose stop koku-server`
@@ -137,9 +137,10 @@ To use pdb while running the koku-server in docker:
 Breakpoints should now be stopped at, in this terminal window.
 
 
-Running PDB in IQE
-------------------
-To run PDB while using dockerized IQE: 
+PDB in IQE container
+--------------------
+
+While IQE is running a docker container: 
 
     Start a shell session in the docker container that runs IQE::
 
