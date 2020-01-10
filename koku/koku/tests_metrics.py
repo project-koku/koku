@@ -61,7 +61,7 @@ class DatabaseStatusTest(IamTestCase):
         self.assertFalse(mock_gauge.called)
 
     @patch('time.sleep', return_value=None)  # make this test go 6 seconds faster :)
-    def test_query_exception(self, patched_sleep):
+    def test_query_exception(self, patched_sleep):  # pylint: disable=W0613
         """Test _query() when an exception is thrown."""
         logging.disable(logging.NOTSET)
         with mock.patch('django.db.backends.utils.CursorWrapper') as mock_cursor:
