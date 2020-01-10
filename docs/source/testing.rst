@@ -97,13 +97,13 @@ Smoke test:
     $ cd koku/testing
     $ ./run_smoke_tests.sh
     
-=====================
-PDB in Docker
-=====================
+======================
+PDB in Dockerized koku
+======================
 To use pdb while running the koku-server in docker:
     1. Ensure all migrations are run.
     2. Stop the server `docker-compose stop koku-server`
-    3. Run the server with service-ports: `docker-compose run —service-ports koku- 
+    3. Run the server with service-ports: :code:`docker-compose run —service-ports koku- 
        server`
 
 Breakpoints should now be stopped at, in this terminal window.
@@ -130,24 +130,6 @@ If you observe the following error in the tox tests, you may sometimes ignore it
     self.aws_provider.delete()
     AssertionError: no logs of level WARNING or higher triggered on api.provider.models
     
-
-==========
-PDB in IQE
-==========
-Begin a shell session into the docker container that runs IQE by running the following command::
-
-    koku/testing/run_test.sh bash
-
-since IQE itself is installed in this container, you may run the following command while inside the container to run a specific test::
-
-    iqe tests plugin hccm -k test_api_aws_storage_filtered_top --pdb
-
-or to run all tests::
-
-    iqe tests plugin hccm --pdb
-
-Any test that fails should start a PDB session.
-
 =========================
 Unit testing log messages
 =========================
@@ -159,11 +141,7 @@ The logger is disabled by default during unit tests. If you are building a unit 
                 logging.disable(logging.NOTSET)
                 self.aws_report_downloader._remove_manifest_file("None")
                 self.assertEqual(['WARN: Could not delete manifest file at'], cm.output)
-                
-                
-===
-IQE
-===
+
 
 Prerequisites:
     - koku is deployed via docker-compose or other method, 
