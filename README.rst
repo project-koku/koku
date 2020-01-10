@@ -64,12 +64,12 @@ psycopg2 is a dependency of Django and installing the psycopg2 wheel will likely
     The following environment variables can be set in the koku repo's .env file
         LDFLAGS="-L/usr/local/opt/openssl/lib"
         CPPFLAGS="-I/usr/local/opt/openssl/include"
-    These environment variables will then be available next time you activate your virtualenv. For immediate use running `source .env` will load the environment variables into your existing terminal environment. 
-    
+    These environment variables will then be available next time you activate your virtualenv. For immediate use running `source .env` will load the environment variables into your existing terminal environment.
+
     Alternatively, run the following commands:
         `export LDFLAGS="-L/usr/local/opt/openssl/lib"`
         `export CPPFLAGS="-I/usr/local/opt/openssl/include"`
-        
+
 If dependency installation still fails, try using ::
 
     pipenv install --dev --sequential
@@ -78,53 +78,90 @@ To activate the virtual environment run ::
 
     pipenv shell
 
-Preferred Environment
----------------------
 
-Please refer to `Working with Openshift`_.
+Quick Start
+-----------
+This will explain how to start the server and its dependencies using Docker, create AWS/OCP providers, and view reports.  This will not cover all API or scenarios but should give you an end to end flow.
 
-Alternative Environment
------------------------
-If deploying with Openshift seems overly complex you can try an alternate local environment where you will need to install and setup some of the dependencies and configuration.
+Settting up environment variables
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Configuration
-^^^^^^^^^^^^^
+This project is developed using the Django web framework. Many configuration settings can be read in from a ``.env`` file. To configure do the following:
 
-This project is developed using the Django web framework. Many configuration settings can be read in from a `.env` file. An example file `.env.example` is provided in the repository. To use the defaults simply ::
+1. Copy ``example.env`` into a ``.env``
+2. Obtain AWS values and update the following in your ``.env``::
 
-    cp .env.example .env
+    AWS_ACCESS_KEY_ID=YOUR_AWS_ACCESS_KEY
+    AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_KEY
+    AWS_RESOURCE_NAME=YOUR_COST_MANAGEMENT_AWS_ARN
 
+3. If you are on Mac, add::
 
-Modify as you see fit.
+    LDFLAGS="-L/usr/local/opt/openssl/lib"
+    CPPFLAGS="-I/usr/local/opt/openssl/include"
+
+Starting Koku using Docker Compose
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Run the following commands::
+
+    make docker-up
+    docker-compose logs -f koku-server koku-worker
+    pip install koku-nise
+
+Run AWS Scenario
+^^^^^^^^^^^^^^^^
+
+1. Create AWS Provider::
+
+    make aws-provider aws_name=AWS-PROVIDER-001 bucket=cost-usage-bucket
+
+2. Verify provider exists by visiting http://127.0.0.1:8000/api/cost-management/v1/providers/
+3. Trigger MASU processing by visiting http://127.0.0.1:5000/api/cost-management/v1/download/
+4. Wait for processing to complete
+5. Verify data existing using AWS API endpoints
+
+    - http://127.0.0.1:8000/api/cost-management/v1/reports/aws/instance-types/
+    - http://127.0.0.1:8000/api/cost-management/v1/reports/aws/costs/
+    - http://127.0.0.1:8000/api/cost-management/v1/reports/aws/storage/
+
+Run OCP Scenario
+^^^^^^^^^^^^^^^^
+
+1. Create OCP Provider::
+
+    make ocp-provider-from-yaml cluster_id=kevan_test_cluster srf_yaml=../nise/example_ocp_static_data.yml ocp_name=kevan_ocp_name
+
+2. Verify provider exists by visiting http://127.0.0.1:8000/api/cost-management/v1/providers/
+3. Trigger MASU processing by visiting http://127.0.0.1:5000/api/cost-management/v1/download/
+4. Wait for processing to complete
+5. Verify data exists using API endpoints
+
+    - http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/volumes/
+    - http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/memory/
+    - http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/compute/
 
 Database
 ^^^^^^^^
 
-PostgreSQL is used as the database backend for Koku. A docker-compose file is provided for creating a local database container. If modifications were made to the .env file the docker-compose file will need to be modified to ensure matching database credentials. Several commands are available for interacting with the database. ::
-
-    # Initialize the docker network for koku services if it doesn't already exist
-    docker network create koku-network
-
-    # This will launch a Postgres container
-    make docker-up-db
-
-    # This will run Django's migrations against the database
-    make run-migrations
-
-    # This will stop and remove a currently running database and run the above commands
-    make docker-reinitdb
-
-Assuming the default .env file values are used, to access the database directly using psql run ::
+PostgreSQL is used as the database backend for Koku. A docker-compose file is provided for creating a local database container. Assuming the default .env file values are used, to access the database directly using psql run ::
 
     PGPASSWORD=postgres psql postgres -U postgres -h localhost -p 15432
 
-There is a known limitation with docker-compose and Linux environments with SELinux enabled. You may see the following error during the postgres container deployment::
+**Note:** There is a known limitation with docker-compose and Linux environments with SELinux enabled. You may see the following error during the postgres container deployment::
 
     "mkdir: cannot create directory '/var/lib/pgsql/data/userdata': Permission denied" can be resolved by granting ./pg_data ownership permissions to uid:26 (postgres user in centos/postgresql-96-centos7)
 
-If a docker container running Postgres is not feasible, it is possible to run Postgres locally as documented in the Postgres tutorial_. The default port for local Postgres installations is `5432`. Make sure to modify the `.env` file accordingly. To initialize the database run ::
+Run the following command::
 
-    make run-migrations
+    setfacl -m u:26:-wx ./pg_data
+
+See  https://access.redhat.com/containers/?tab=overview#/registry.access.redhat.com/rhel8/postgresql-96
+
+Running in a Production-like Environment
+----------------------------------------
+
+Please refer to `Working with Openshift`_.
 
 Testing and Linting
 -------------------
