@@ -116,6 +116,12 @@ app.conf.beat_schedule['vacuum-schemas'] = {
     'args': []
 }
 
+# Collect prometheus metrics.
+app.conf.beat_schedule['db_metrics'] = {
+    'task': 'koku.metrics.collect_metrics',
+    'schedule': crontab(minute='*/15'),
+}
+
 # Toggle to enable/disable S3 archiving of account data.
 if ENVIRONMENT.bool('ENABLE_S3_ARCHIVING', default=True):
     app.conf.beat_schedule['daily_upload_normalized_reports_to_s3'] = {
