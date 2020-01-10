@@ -97,14 +97,16 @@ Smoke test:
     $ cd koku/testing
     $ ./run_smoke_tests.sh
     
+===
+tox
+===
+To run a specific tox test, you may run a command below, replacing everything after the :code:`--` with your specific modules and files::
 
-To test a specific file using tox, edit this line, for example::
-
-    coverage run {toxinidir}/koku/manage.py test --noinput -v 2 {posargs:masu.test.database}`
+    tox -e py36 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
 
 This will selectively run only the masu database tests, instead of running all of the rest of the tox tests.
-The posargs can be further specified down to single files, or further specified down to single tests, the following posargs would separately be considered valid:
-    - masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
+The argument can be vague or specified further, for example the following arguments would separately be considered valid:
+    - masu.test.external
     - masu.test.external.downloader.azure.test_azure_services.AzureServiceTest.specific_test
 
 If you observe the following error in the tox tests, you may sometimes ignore it, due to tox not setting DEBUG=TRUE, to fix this you can export the variable to be true::
