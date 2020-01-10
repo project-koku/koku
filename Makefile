@@ -37,87 +37,89 @@ else
 	PREFIX	= sudo
 endif
 
-define HELP_TEXT =
-Please use \`make <target>' where <target> is one of:
-
---- General Commands ---
-  clean                    clean the project directory of any scratch files, bytecode, logs, etc.
-  help                     show this message
-  html                     create html documentation for the project
-  lint                     run linting against the project
-
---- Commands using local services ---
-  create-test-customer     create a test customer and tenant in the database
-  create-test-customer-no-providers     create a test customer and tenant in the database without test providers
-  collect-static           collect static files to host
-  make-migrations          make migrations for the database
-  requirements             generate Pipfile.lock, RTD requirements and manifest for product security
-  manifest                 create/update manifest for product security
-  check-manifest           check that the manifest is up to date
-  remove-db                remove local directory: $(TOPDIR)/pg_data
-  run-migrations           run migrations against database
-  serve                    run the Django app on localhost
-  superuser                create a Django super user
-  unittest                 run unittests
-
---- Commands using Docker Compose ---
-  docker-up                 run django and database
-  docker-up-db              run database only
-  docker-down               shut down all containers
-  docker-rabbit             run RabbitMQ container
-  docker-reinitdb           drop and recreate the database
-  docker-reinitdb-with-providers drop and recreate the database with fake providers
-  docker-shell              run Django and database containers with shell access to server (for pdb)
-  docker-logs               connect to console logs for all services
-  docker-test-all           run unittests
-
---- Commands using an OpenShift Cluster ---
-  oc-clean                     stop openshift cluster & remove local config data
-  oc-create-all                create all application pods
-  oc-create-celery-exporter    create the Celery Prometheus exporter pod
-  oc-create-celery-scheduler   create the Celery scheduler pod
-  oc-create-celery-worker      create the Celery worker pod
-  oc-create-configmap          create the ConfigMaps
-  oc-create-database           create the PostgreSQL DB pod
-  oc-create-flower             create the Celery Flower pod
-  oc-create-imagestream        create ImageStreams
-  oc-create-koku-api           create the Koku API pod
-  oc-create-koku-auth-cache    create the Redis pod for auth caching
-  oc-create-listener           create Masu Listener pod (deprecated)
-  oc-create-masu               create Masu pod (deprecated)
-  oc-create-rabbitmq           create RabbitMQ pod
-  oc-create-route              create routes for Koku APIs
-  oc-create-secret             create Secrets
-  oc-create-worker             create Celery worker pod
-  oc-delete-all                delete most Openshift objects without a cluster restart
-  oc-delete-celery-worker      delete the Celery worker pod
-  oc-delete-configmap          delete the ConfigMaps
-  oc-delete-database           delete the PostgreSQL DB pod
-  oc-delete-flower             delete the Celery Flower pod
-  oc-delete-imagestream        delete ImageStreams
-  oc-delete-koku-api           delete the Koku API pod
-  oc-delete-koku-auth-cache    delete the Redis pod for auth caching
-  oc-delete-listener           delete Masu Listener pod (deprecated)
-  oc-delete-masu               delete Masu pod (deprecated)
-  oc-delete-rabbitmq           delete RabbitMQ pod
-  oc-delete-secret             delete Secrets
-  oc-delete-worker             delete Celery worker pod
-  oc-down                      stop app & openshift cluster
-  oc-forward-ports             port forward the DB to localhost
-  oc-login-dev                 login to an openshift cluster as 'developer'
-  oc-reinit                    remove existing app and restart app in initialized openshift cluster
-  oc-run-migrations            run Django migrations in the Openshift DB
-  oc-stop-forwarding-ports     stop port forwarding the DB to localhost
-  oc-up                        initialize an openshift cluster
-  oc-up-all                    run app in openshift cluster
-  oc-up-db                     run Postgres in an openshift cluster
-endef
-export HELP_TEXT
-
-# help always comes first.
 help:
-	@echo "$$HELP_TEXT"
-
+	@echo "Please use \`make <target>' where <target> is one of:"
+	@echo ""
+	@echo "--- General Commands ---"
+	@echo "  clean                                clean the project directory of any scratch files, bytecode, logs, etc"
+	@echo "  help                                 show this message"
+	@echo "  html                                 create html documentation for the project"
+	@echo "  lint                                 run linting against the project"
+	@echo ""
+	@echo "--- Commands using local services ---"
+	@echo "  create-test-customer                 create a test customer and tenant in the database"
+	@echo "  create-test-customer-no-providers    create a test customer and tenant in the database without test providers"
+	@echo "  collect-static                       collect static files to host"
+	@echo "  make-migrations                      make migrations for the database"
+	@echo "  requirements                         generate Pipfile.lock, RTD requirements and manifest for product security"
+	@echo "  manifest                             create/update manifest for product security"
+	@echo "  check-manifest                       check that the manifest is up to date"
+	@echo "  remove-db                            remove local directory $(TOPDIR)/pg_data"
+	@echo "  run-migrations                       run migrations against database"
+	@echo "  serve                                run the Django app on localhost"
+	@echo "  superuser                            create a Django super user"
+	@echo "  unittest                             run unittests"
+	@echo ""
+	@echo "--- Commands using Docker Compose ---"
+	@echo "  docker-up                            run django and database"
+	@echo "  docker-up-db                         run database only"
+	@echo "  docker-down                          shut down all containers"
+	@echo "  docker-rabbit                        run RabbitMQ container"
+	@echo "  docker-reinitdb                      drop and recreate the database"
+	@echo "  docker-reinitdb-with-providers       drop and recreate the database with fake providers"
+	@echo "  docker-shell                         run Django and database containers with shell access to server (for pdb)"
+	@echo "  docker-logs                          connect to console logs for all services"
+	@echo "  docker-test-all                      run unittests"
+	@echo ""
+	@echo "--- Commands using an OpenShift Cluster ---"
+	@echo "  oc-clean                             stop openshift cluster & remove local config data"
+	@echo "  oc-create-all                        create all application pods"
+	@echo "  oc-create-celery-exporter            create the Celery Prometheus exporter pod"
+	@echo "  oc-create-celery-scheduler           create the Celery scheduler pod"
+	@echo "  oc-create-celery-worker              create the Celery worker pod"
+	@echo "  oc-create-configmap                  create the ConfigMaps"
+	@echo "  oc-create-database                   create the PostgreSQL DB pod"
+	@echo "  oc-create-flower                     create the Celery Flower pod"
+	@echo "  oc-create-imagestream                create ImageStreams"
+	@echo "  oc-create-koku-api                   create the Koku API pod"
+	@echo "  oc-create-koku-auth-cache            create the Redis pod for auth caching"
+	@echo "  oc-create-listener                   create Masu Listener pod (deprecated)"
+	@echo "  oc-create-masu                       create Masu pod (deprecated)"
+	@echo "  oc-create-rabbitmq                   create RabbitMQ pod"
+	@echo "  oc-create-route                      create routes for Koku APIs"
+	@echo "  oc-create-secret                     create Secrets"
+	@echo "  oc-create-worker                     create Celery worker pod"
+	@echo "  oc-delete-all                        delete most Openshift objects without a cluster restart"
+	@echo "  oc-delete-celery-worker              delete the Celery worker pod"
+	@echo "  oc-delete-configmap                  delete the ConfigMaps"
+	@echo "  oc-delete-database                   delete the PostgreSQL DB pod"
+	@echo "  oc-delete-flower                     delete the Celery Flower pod"
+	@echo "  oc-delete-imagestream                delete ImageStreams"
+	@echo "  oc-delete-koku-api                   delete the Koku API pod"
+	@echo "  oc-delete-koku-auth-cache            delete the Redis pod for auth caching"
+	@echo "  oc-delete-listener                   delete Masu Listener pod (deprecated)"
+	@echo "  oc-delete-masu                       delete Masu pod (deprecated)"
+	@echo "  oc-delete-rabbitmq                   delete RabbitMQ pod"
+	@echo "  oc-delete-secret                     delete Secrets"
+	@echo "  oc-delete-worker                     delete Celery worker pod"
+	@echo "  oc-down                              stop app & openshift cluster"
+	@echo "  oc-forward-ports                     port forward the DB to localhost"
+	@echo "  oc-login-dev                         login to an openshift cluster as 'developer'"
+	@echo "  oc-reinit                            remove existing app and restart app in initialized openshift cluster"
+	@echo "  oc-run-migrations                    run Django migrations in the Openshift DB"
+	@echo "  oc-stop-forwarding-ports             stop port forwarding the DB to localhost"
+	@echo "  oc-up                                initialize an openshift cluster"
+	@echo "  oc-up-all                            run app in openshift cluster"
+	@echo "  oc-up-db                             run Postgres in an openshift cluster"
+	@echo ""
+	@echo "--- Create Providers ---"
+	@echo "  ocp_provider_from_yaml               Create ocp provider using a yaml file."
+	@echo "      cluster_id=<cluster_name>            @param - Required. The name of your cluster (ex. my-ocp-cluster-0)"
+	@echo "      srf_yaml=<filename>                  @param - Required. Path of static-report-file yaml (ex. '/ocp_static_report.yml')"
+	@echo "      ocp_name=<provider_name>             @param - defaults to cluser_id param"
+	@echo "  aws_provider                        Create aws provider using environment variables"
+	@echo "      aws_name=<provider_name>             @param - Required. Name of the provider"
+	@echo "      bucket=<bucket_name>                 @param - Required. Name of the bucket"
 
 ### General Commands ###
 
@@ -475,6 +477,38 @@ docker-iqe-api-tests:
 docker-iqe-vortex-tests:
 	$(MAKE) docker-reinitdb
 	./testing/run_vortex_api_tests.sh
+
+### Provider targets ###
+ocp_provider_from_yaml:
+#parameter validation
+ifndef cluster_id
+	$(error param cluster_id is not set)
+endif
+ifndef srf_yaml
+	$(error param srf_yaml is not set)
+endif
+ifndef ocp_name
+override ocp_name = $(cluster_id)
+endif
+	(command -v nise > /dev/null 2>&1) || (echo 'nise is not installed, please install nise.' && exit 1 )
+	mkdir -p testing/pvc_dir/insights_local
+	nise --ocp --ocp-cluster-id $(cluster_id) --insights-upload testing/pvc_dir/insights_local --static-report-file $(srf_yaml)
+	curl -d '{"name": "$(ocp_name)", "type": "OCP", "authentication": {"provider_resource_name": "$(cluster_id)"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/providers/
+# These csv could be cleaned up when [https://github.com/project-koku/nise/issues/176](https://github.com/project-koku/nise/issues/176) is resolved.
+	rm *ocp_pod_usage.csv
+	rm *ocp_storage_usage.csv
+# From here you can hit the http://127.0.0.1:5000/api/cost-management/v1/download/ endpoint to start running masu.
+# After masu has run these endpoints should have data in them: (v1/reports/openshift/memory, v1/reports/openshift/compute/, v1/reports/openshift/volumes/)
+
+aws_provider:
+ifndef aws_name
+	$(error param aws_name is not set)
+endif
+ifndef bucket
+	$(error param bucket is not set)
+endif
+	(printenv AWS_RESOURCE_NAME > /dev/null 2>&1) || (echo 'AWS_RESOURCE_NAME is not set in .env' && exit 1)
+	curl -d '{"name": "$(aws_name)", "type": "AWS", "authentication": {"provider_resource_name": "${AWS_RESOURCE_NAME}"}, "billing_source": {"bucket": "$(bucket)"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/providers/
 
 ########################
 ### Internal targets ###
