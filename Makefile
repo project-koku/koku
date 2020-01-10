@@ -116,7 +116,7 @@ help:
 	@echo "  ocp_provider_from_yaml               Create ocp provider using a yaml file."
 	@echo "      cluster_id=<cluster_name>            @param - Required. The name of your cluster (ex. my-ocp-cluster-0)"
 	@echo "      srf_yaml=<filename>                  @param - Required. Path of static-report-file yaml (ex. '/ocp_static_report.yml')"
-	@echo "      ocp_name=<provider_name>             @param - defaults to cluser_id param"
+	@echo "      ocp_name=<provider_name>             @param - Required. The name of the provider. (ex. 'OCPprovider')"
 	@echo "  aws_provider                        Create aws provider using environment variables"
 	@echo "      aws_name=<provider_name>             @param - Required. Name of the provider"
 	@echo "      bucket=<bucket_name>                 @param - Required. Name of the bucket"
@@ -488,7 +488,7 @@ ifndef srf_yaml
 	$(error param srf_yaml is not set)
 endif
 ifndef ocp_name
-override ocp_name = $(cluster_id)
+	$(error param ocp_name is not set)
 endif
 	(command -v nise > /dev/null 2>&1) || (echo 'nise is not installed, please install nise.' && exit 1 )
 	mkdir -p testing/pvc_dir/insights_local
