@@ -104,24 +104,11 @@ To run a specific tox test, you may run a command below, replacing everything af
 
     tox -e py36 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
 
-This will selectively run only the masu database tests, instead of running all of the rest of the tox tests.
+This will selectively run only the AzureServiceTest module
 The argument can be vague or specified further, for example the following arguments would separately be considered valid:
     - masu.test.external
     - masu.test.external.downloader.azure.test_azure_services.AzureServiceTest.specific_test
 
-If you observe the following error in the tox tests, you may sometimes ignore it, due to tox not setting DEBUG=TRUE, to fix this you can export the variable to be true::
-    
-    FAIL: test_delete_single_provider_skips_delete_archived_data_if_customer_is_none 
-    (api.provider.test.tests_models.ProviderModelTest)
-    Assert the delete_archived_data task is not called if Customer is None.
-    ----------------------------------------------------------------------
-    Traceback (most recent call last):
-    File "/usr/local/Cellar/python/3.7.4_1/Frameworks/Python.framework/Versions/3.7/lib/python3.7/unittest/mock.py", line 1209, in patched
-    return func(*args, **keywargs)
-    File "/Users/nbonilla/Documents/Koku/koku/koku/api/provider/test/tests_models.py", line 43, in test_delete_single_provider_skips_delete_archived_data_if_customer_is_none
-    self.aws_provider.delete()
-    AssertionError: no logs of level WARNING or higher triggered on api.provider.models
-    
 =========================
 Unit testing log messages
 =========================
@@ -134,27 +121,27 @@ The logger is disabled by default during unit tests. If you are building a unit 
                 self.aws_report_downloader._remove_manifest_file("None")
                 self.assertEqual(['WARN: Could not delete manifest file at'], cm.output)
 
+If you observe the following error in the tox tests, you may sometimes ignore it, due to the environment variable DEBUG=TRUE sometimes not being TRUE::
+    
+    FAIL: test_delete_single_provider_skips_delete_archived_data_if_customer_is_none 
+    (api.provider.test.tests_models.ProviderModelTest)
+    Assert the delete_archived_data task is not called if Customer is None.
+    ----------------------------------------------------------------------
+    Traceback (most recent call last):
+    File "/usr/local/Cellar/python/3.7.4_1/Frameworks/Python.framework/Versions/3.7/lib/python3.7/unittest/mock.py", line 1209, in patched
+    return func(*args, **keywargs)
+    File "/Users/nbonilla/Documents/Koku/koku/koku/api/provider/test/tests_models.py", line 43, in test_delete_single_provider_skips_delete_archived_data_if_customer_is_none
+    self.aws_provider.delete()
+    AssertionError: no logs of level WARNING or higher triggered on api.provider.models
 
-Prerequisites:
-    - koku is deployed via docker-compose or other method, 
-    - you are connected to the Red Hat internal network.
-
-For simple setup, continue to the prerequisites below, otherwise, for information on IQE, visit: https://gitlab.cee.redhat.com/insights-qe/hccm-plugin/tree/master 
-
-===================
-Running IQE locally
-===================
-
-IQE expects the database to be empty.
-To run IQE Smoke, Vortex or API tests, run one of the following commands, respectively::
-
-    make docker-iqe-smokes-tests
-    make docker-iqe-vortex-tests
-    make docker-iqe-api-tests
+~~~
+PDB
+~~~
 
 ======================
 PDB in Dockerized koku
 ======================
+
 To use pdb while running the koku-server in docker:
     1. Ensure all migrations are run.
     2. Stop the server `docker-compose stop koku-server`
@@ -181,3 +168,25 @@ optionally you can, run all tests::
     iqe tests plugin hccm --pdb
 
 Any test that fails should start a PDB session.
+
+~~~
+IQE
+~~~
+
+Prerequisites:
+    - koku is deployed via docker-compose or other method, 
+    - you are connected to the Red Hat internal network
+
+
+===================
+Running IQE locally
+===================
+
+IQE expects the database to be empty.
+To run IQE Smoke, Vortex or API tests, run one of the following commands, respectively::
+
+    make docker-iqe-smokes-tests
+    make docker-iqe-vortex-tests
+    make docker-iqe-api-tests
+
+
