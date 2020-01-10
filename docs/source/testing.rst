@@ -111,7 +111,7 @@ Smoke test::
 tox
 ===
 
-To run a specific tox test, you may run a command below, replacing everything after the :code:`--` with your specific modules and files::
+To run a specific subset of unit tests, you can pass a particular module path to tox. To do this, use positional args using the :code:`--` separator. For example::
 
     tox -e py36 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
 
