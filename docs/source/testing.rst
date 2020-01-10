@@ -160,7 +160,7 @@ Smoke testing with IQE
 
 Prerequisites:
 
-    - koku is deployed via docker-compose or other method, 
+    - koku is running and accessible via the network 
     - you are connected to the Red Hat internal network
 
 Running IQE in Docker
