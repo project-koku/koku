@@ -98,11 +98,12 @@ def reload_aws_map(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    replaces = [('reporting_common', '0001_initial'), ('reporting_common', '0002_auto_20180926_1905'), ('reporting_common', '0003_auto_20180928_1732'), ('reporting_common', '0004_auto_20181003_1859'), ('reporting_common', '0005_auto_20181127_2046'), ('reporting_common', '0006_auto_20190208_0316'), ('reporting_common', '0007_auto_20190208_0316')]
+    #replaces = [('reporting_common', '0001_initial'), ('reporting_common', '0002_auto_20180926_1905'), ('reporting_common', '0003_auto_20180928_1732'), ('reporting_common', '0004_auto_20181003_1859'), ('reporting_common', '0005_auto_20181127_2046'), ('reporting_common', '0006_auto_20190208_0316'), ('reporting_common', '0007_auto_20190208_0316')]
 
     dependencies = [
-        ('api', '0001_initial'),
-        ('api', '0002_auto_20180926_1905'),
+        #('api', '0001_initial'),
+        #('api', '0002_auto_20180926_1905'),
+        ('api','0001_initial_squashed_0008_auto_20190305_2015')
     ]
 
     operations = [
