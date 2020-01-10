@@ -113,7 +113,7 @@ help:
 	@echo "  oc-up-db                             run Postgres in an openshift cluster"
 	@echo ""
 	@echo "--- Create Providers ---"
-	@echo "  ocp_provider_from_yaml               Create ocp provider using a yaml file."
+	@echo "  ocp-provider-from-yaml               Create ocp provider using a yaml file."
 	@echo "      cluster_id=<cluster_name>            @param - Required. The name of your cluster (ex. my-ocp-cluster-0)"
 	@echo "      srf_yaml=<filename>                  @param - Required. Path of static-report-file yaml (ex. '/ocp_static_report.yml')"
 	@echo "      ocp_name=<provider_name>             @param - Required. The name of the provider. (ex. 'OCPprovider')"
@@ -479,7 +479,7 @@ docker-iqe-vortex-tests:
 	./testing/run_vortex_api_tests.sh
 
 ### Provider targets ###
-ocp_provider_from_yaml:
+ocp-provider-from-yaml:
 #parameter validation
 ifndef cluster_id
 	$(error param cluster_id is not set)
@@ -500,7 +500,7 @@ endif
 # From here you can hit the http://127.0.0.1:5000/api/cost-management/v1/download/ endpoint to start running masu.
 # After masu has run these endpoints should have data in them: (v1/reports/openshift/memory, v1/reports/openshift/compute/, v1/reports/openshift/volumes/)
 
-aws_provider:
+aws-provider:
 ifndef aws_name
 	$(error param aws_name is not set)
 endif

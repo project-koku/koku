@@ -53,6 +53,10 @@ KAFKA_CONNECTION_ERRORS_COUNTER = Counter('kafka_connection_errors',
                                           'Number of Kafka connection errors',
                                           registry=WORKER_REGISTRY)
 
+CELERY_ERRORS_COUNTER = Counter('celery_errors',
+                                'Number of celery errors',
+                                registry=WORKER_REGISTRY)
+
 
 def initialize_prometheus_exporter():
     """Start Prometheus stats HTTP server."""
