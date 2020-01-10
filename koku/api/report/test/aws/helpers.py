@@ -36,6 +36,7 @@ from reporting.models import (
     AWSCostEntryLineItemDailySummary,
     AWSCostEntryPricing,
     AWSCostEntryProduct,
+    AWS_MATERIALIZED_VIEWS,
 )
 
 
@@ -208,4 +209,18 @@ class AWSReportDataGenerator(object):
             self._populate_daily_table()
             self._populate_daily_summary_table()
             self._populate_tag_summary_table()
+        refresh_materialized_views(self.tenant.schema_name, 'AWS')
+
+    def remove_data_from_tenant(self):
+        """Remove the added data."""
+        with tenant_context(self.tenant):
+            for table in (AWSCostEntry,
+                          AWSCostEntryBill,
+                          AWSCostEntryLineItem,
+                          AWSCostEntryLineItemDaily,
+                          AWSCostEntryLineItemDailySummary,
+                          AWSCostEntryPricing,
+                          AWSCostEntryProduct,
+                          AWSAccountAlias):
+                table.objects.all().delete()
         refresh_materialized_views(self.tenant.schema_name, 'AWS')

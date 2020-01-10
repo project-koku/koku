@@ -1271,6 +1271,7 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_prefixed_logical_and(self):
         """Test prefixed logical AND."""
+        self.generator.remove_data_from_tenant()
         # Create Test Accounts
         account_ab_fake_aws = FakeAWSCostData(self.provider, account_alias='ab')
         account_ab_generator = AWSReportDataGenerator(self.tenant)
@@ -1293,7 +1294,8 @@ class AWSReportQueryTest(IamTestCase):
         query_2_handler = AWSReportQueryHandler(query_2_params)
         query_2_output = query_2_handler.execute_query()
         query_2_total = query_2_output.get('total').get('cost').get('value', 1)
-        self.assertEqual(query_1_total, query_2_total)
+        with self.subTest('query1 vs query2'):
+            self.assertEqual(query_1_total, query_2_total)
 
         # Query 3 - (a AND b AND c) == 0
         query_3_url = "?group_by[and:account]=a&group_by[and:account]=b&group_by[and:account]=c&filter[time_scope_value]=-1&filter[time_scope_units]=month"  # noqa
@@ -1301,7 +1303,8 @@ class AWSReportQueryTest(IamTestCase):
         query_3_handler = AWSReportQueryHandler(query_3_params)
         query_3_output = query_3_handler.execute_query()
         query_3_total = query_3_output.get('total').get('cost').get('value', 2)
-        self.assertEqual(0, query_3_total)
+        with self.subTest('query3 vs 0'):
+            self.assertEqual(0, query_3_total)
 
         # Query 4 - (a OR b) > (a AND b)
         query_4_url = "?group_by[account]=a&group_by[account]=b&filter[time_scope_value]=-1&filter[time_scope_units]=month"  # noqa
@@ -1309,4 +1312,5 @@ class AWSReportQueryTest(IamTestCase):
         query_4_handler = AWSReportQueryHandler(query_4_params)
         query_4_output = query_4_handler.execute_query()
         query_4_total = query_4_output.get('total').get('cost').get('value', 0)
-        self.assertGreater(query_4_total, query_1_total)
+        with self.subTest('query4 vs query1'):
+            self.assertGreater(query_4_total, query_1_total)
