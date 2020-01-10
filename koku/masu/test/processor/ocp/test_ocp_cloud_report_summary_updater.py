@@ -175,9 +175,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         self, mock_ocp, mock_ocp_on_aws, mock_map, mock_refresh
     ):
         """Test that summary tables are properly run for an OCP provider."""
-        start_date = datetime.datetime(
-            year=self.today.year, month=self.today.month, day=self.today.day
-        )
+        start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
@@ -188,7 +186,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         updater = OCPCloudReportSummaryUpdater(schema='acct10001', provider=provider, manifest=None)
         updater.update_summary_tables(start_date_str, end_date_str)
 
-        mock_ocp_on_aws.assert_called_with(start_date, end_date, cluster_id, [])
+        mock_ocp_on_aws.assert_called_with(start_date.date(), end_date.date(), cluster_id, [])
         mock_refresh.assert_called()
 
     @patch(
@@ -207,9 +205,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         fake_bills[1].id = 2
         bill_ids = [str(bill.id) for bill in fake_bills]
         mock_utility.return_value = fake_bills
-        start_date = datetime.datetime(
-            year=self.today.year, month=self.today.month, day=self.today.day
-        )
+        start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
@@ -220,7 +216,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         mock_map.return_value = {self.ocp_test_provider_uuid: (self.aws_provider_uuid, 'AWS')}
         updater = OCPCloudReportSummaryUpdater(schema='acct10001', provider=provider, manifest=None)
         updater.update_summary_tables(start_date_str, end_date_str)
-        mock_ocp_on_aws.assert_called_with(start_date, end_date, cluster_id, bill_ids)
+        mock_ocp_on_aws.assert_called_with(start_date.date(), end_date.date(), cluster_id, bill_ids)
         mock_refresh.assert_called()
 
     @patch(

@@ -87,9 +87,7 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         """Test that summary tables are properly run."""
         self.manifest.num_processed_files = self.manifest.num_total_files
 
-        start_date = datetime.datetime(
-            year=self.today.year, month=self.today.month, day=self.today.day
-        )
+        start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
 
@@ -101,8 +99,8 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
 
-        expected_start_date = start_date
-        expected_end_date = end_date
+        expected_start_date = start_date.date()
+        expected_end_date = end_date.date()
 
         self.assertIsNone(bill.summary_data_updated_datetime)
 
@@ -124,9 +122,7 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         """Test that summary tables are run for a full month."""
         self.manifest.num_processed_files = self.manifest.num_total_files
 
-        start_date = datetime.datetime(
-            year=self.today.year, month=self.today.month, day=self.today.day
-        )
+        start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date
         bill_date = start_date.replace(day=1).date()
         with schema_context(self.schema):
@@ -148,7 +144,7 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         expected_calls = []
         for date in dates:
             expected_calls.append(
-                call(expected_start_date, date, [str(bill.id)])
+                call(expected_start_date.date(), date.date(), [str(bill.id)])
             )
             expected_start_date = date + datetime.timedelta(days=1)
 

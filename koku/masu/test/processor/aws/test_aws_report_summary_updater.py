@@ -93,9 +93,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         """Test that summary tables are properly run."""
         self.manifest.num_processed_files = self.manifest.num_total_files
 
-        start_date = datetime.datetime(
-            year=self.today.year, month=self.today.month, day=self.today.day
-        )
+        start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
 
@@ -107,8 +105,8 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
 
-        expected_start_date = start_date
-        expected_end_date = end_date
+        expected_start_date = start_date.date()
+        expected_end_date = end_date.date()
 
         self.assertIsNone(bill.summary_data_updated_datetime)
 
@@ -134,9 +132,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         """Test that summary tables are run for a full month."""
         self.manifest.num_processed_files = self.manifest.num_total_files
 
-        start_date = datetime.datetime(
-            year=self.today.year, month=self.today.month, day=self.today.day
-        )
+        start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date
         bill_date = start_date.replace(day=1).date()
         with schema_context(self.schema):
@@ -158,7 +154,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         expected_calls = []
         for date in dates:
             expected_calls.append(
-                call(expected_start_date, date, [str(bill.id)])
+                call(expected_start_date.date(), date.date(), [str(bill.id)])
             )
             expected_start_date = date + datetime.timedelta(days=1)
 
@@ -202,9 +198,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
 
         self.updater = AWSReportSummaryUpdater('acct10001', self.provider, self.manifest)
 
-        start_date = datetime.datetime(
-            year=self.today.year, month=self.today.month, day=self.today.day
-        )
+        start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = billing_start.date()
         self.creator.create_cost_entry_bill(
@@ -218,8 +212,8 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
 
-        expected_start_date = bill_date
-        expected_end_date = bill_date.replace(day=last_day_of_month)
+        expected_start_date = billing_start
+        expected_end_date = billing_start.replace(day=last_day_of_month)
 
         dates = list(
             rrule(freq=DAILY, dtstart=expected_start_date, until=expected_end_date, interval=5)
@@ -229,7 +223,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         expected_calls = []
         for date in dates:
             expected_calls.append(
-                call(expected_start_date, date, [str(bill.id)])
+                call(expected_start_date.date(), date.date(), [str(bill.id)])
             )
             expected_start_date = date + datetime.timedelta(days=1)
 
@@ -297,9 +291,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         """Test that summary tables are run for a full month."""
         self.manifest.num_processed_files = self.manifest.num_total_files
 
-        start_date = datetime.datetime(
-            year=self.today.year, month=self.today.month, day=self.today.day
-        )
+        start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date
         bill_date = start_date.replace(day=1).date()
 
@@ -324,7 +316,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         expected_calls = []
         for date in dates:
             expected_calls.append(
-                call(expected_start_date, date, [str(bill.id)])
+                call(expected_start_date.date(), date.date(), [str(bill.id)])
             )
             expected_start_date = date + datetime.timedelta(days=1)
 
@@ -406,8 +398,8 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
 
-        expected_start_date = start_date
-        expected_end_date = end_date
+        expected_start_date = start_date.date()
+        expected_end_date = end_date.date()
         self.updater.update_daily_tables(start_date_str, end_date_str)
         mock_daily.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
         mock_summary.assert_not_called()
