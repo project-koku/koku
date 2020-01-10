@@ -82,23 +82,15 @@ class AccountsAccessor:
             (Boolean) : True if provider should be polled for updates.
 
         """
-        poll = False
-        if utils.ingest_method_for_provider(account.get('provider_type')) == POLL_INGEST:
+        if utils.ingest_method_for_provider(account.get('provider_type')) == POLL_INGEST \
+                or ocp_utils.poll_ingest_override_for_provider(account.get('provider_uuid')):
             log_statement = (f'Polling for\n'
                              f' schema_name: {account.get("schema_name")}\n'
                              f' provider: {account.get("provider_type")}\n'
                              f' account (provider uuid): {account.get("provider_uuid")}')
             LOG.info(log_statement)
-            poll = True
-        else:
-            if ocp_utils.poll_ingest_override_for_provider(account.get('provider_uuid')):
-                log_statement = (f'Polling for'
-                                 f' schema_name: {account.get("schema_name")}\n'
-                                 f' provider: {account.get("provider_type")}\n'
-                                 f' account (provider uuid): {account.get("provider_uuid")}')
-                LOG.info(log_statement)
-                poll = True
-        return poll
+            return True
+        return False
 
     def get_accounts(self, provider_uuid=None):
         """
