@@ -141,6 +141,13 @@ Run OCP Scenario
     - http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/memory/
     - http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/compute/
 
+Stopping Koku using Docker Compose
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To bring down all the docker containers, run the following command::
+
+    make docker-down
+
+
 Database
 ^^^^^^^^
 
@@ -152,7 +159,7 @@ PostgreSQL is used as the database backend for Koku. A docker-compose file is pr
 
     "mkdir: cannot create directory '/var/lib/pgsql/data/userdata': Permission denied" can be resolved by granting ./pg_data ownership permissions to uid:26 (postgres user in centos/postgresql-96-centos7)
 
-Run the following command::
+If you see this error, run the following command (assuming you are at the project top level directory)::
 
     setfacl -m u:26:-wx ./pg_data
 
@@ -190,7 +197,6 @@ To run IQE Smoke, Vortex or API tests, while on the Red Hat network and koku dep
     make docker-iqe-vortex-tests
     make docker-iqe-api-tests
 
-The tests expect an empty database, you may clear out the database using `make docker-reinitdb`
 Individual IQE tests can be ran with run_test.sh::
 
     <koku_topdir>/testing/run_test.sh iqe tests plugin hccm -k test_api_cost_model_markup_calculation_ocp
