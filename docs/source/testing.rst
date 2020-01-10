@@ -15,8 +15,8 @@ Running the test suite requires a minimum of an accessible database and Koku API
 Unit testing using docker-compose
 ---------------------------------
 
-Example:
-::
+Example::
+
     $ make docker-up
     $ tox
     $ make docker-down
@@ -26,27 +26,37 @@ Unit testing using OpenShift
 
 The ``Makefile`` provides convenience commands for enabling port-forwarding. This is required for accessing a database pod hosted within an OpenShift environment.
 
-Example:
-::
+Example::
+
     $ make oc-create-all
     $ make oc-forward-ports
     $ tox
     $ make stop-forwarding-ports
 
-Smoke testing
-=============
+Unit testing log messages
+-------------------------
+The logger is disabled by default during unit tests. If you are building a unit test that asserts log messages, you must re-enable the logger. For example::
 
-Running the QE functional and smoke tests is achieved through the scripts provided in ``koku.git/testing``
+    import logging
+    with self.assertLogs(logger='masu.external.downloader.aws.aws_report_downloader', 
+    level='WARN') as cm:
+                logging.disable(logging.NOTSET)
+                self.aws_report_downloader._remove_manifest_file("None")
+                self.assertEqual(['WARN: Could not delete manifest file at'], cm.output)
 
-Requirements
-------------
-In order to run the test suite, there need to be clones of the following git repositories:
+If you observe the following error when running the unit tests, it may be a false error. This can be due to some tests expecting the DEBUG setting to be TRUE::
+    
+    FAIL: test_delete_single_provider_skips_delete_archived_data_if_customer_is_none 
+    (api.provider.test.tests_models.ProviderModelTest)
+    Assert the delete_archived_data task is not called if Customer is None.
+    ----------------------------------------------------------------------
+    Traceback (most recent call last):
+    File "/usr/local/Cellar/python/3.7.4_1/Frameworks/Python.framework/Versions/3.7/lib/python3.7/unittest/mock.py", line 1209, in patched
+    return func(*args, **keywargs)
+    File "/Users/nbonilla/Documents/Koku/koku/koku/api/provider/test/tests_models.py", line 43, in test_delete_single_provider_skips_delete_archived_data_if_customer_is_none
+    self.aws_provider.delete()
+    AssertionError: no logs of level WARNING or higher triggered on api.provider.models
 
-  - koku
-  - iqe
-  - hccm-plugin
-
-You will need to edit the settings file to match your environment: ``koku.git/testing/conf/settings.local.yaml``
 
 Loading test data into the database
 -----------------------------------
@@ -67,8 +77,8 @@ You can use the ``oc expose`` command to accomplish this.
 Examples
 --------
 
-settings.local.yaml:
-::
+settings.local.yaml::
+
     local:
       hccm:
         ocp_dir: /var/tmp/masu/insights_local
@@ -92,46 +102,78 @@ settings.local.yaml:
           password: password
    
 
-Smoke test:
-::
+Smoke test::
+
     $ cd koku/testing
     $ ./run_smoke_tests.sh
     
-To use pdb while running the koku-server in docker:
-Ensure all migrations are run.
-Stop the server `docker-compose stop koku-server`
-Run the server with service-ports: `docker-compose run —service-ports koku-server`
-Breakpoints will now be stopped in this terminal window.
 
-To test a specific file using tox, edit this line, for example:
-`coverage run {toxinidir}/koku/manage.py test --noinput -v 2 {posargs: masu.test.database}`
-This will selectively run only the masu database tests, instead of running all of the rest of the tox tests.
+Run specific unit tests
+-----------------------
 
-If you observe the following error in the tox tests, you may sometimes ignore it, due to tox not setting DEBUG=TRUE, to fix this you can export the variable to be true.
-```
-======================================================================
-FAIL: test_delete_single_provider_skips_delete_archived_data_if_customer_is_none (api.provider.test.tests_models.ProviderModelTest)
-Assert the delete_archived_data task is not called if Customer is None.
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/usr/local/Cellar/python/3.7.4_1/Frameworks/Python.framework/Versions/3.7/lib/python3.7/unittest/mock.py", line 1209, in patched
-    return func(*args, **keywargs)
-  File "/Users/nbonilla/Documents/Koku/koku/koku/api/provider/test/tests_models.py", line 43, in test_delete_single_provider_skips_delete_archived_data_if_customer_is_none
-    self.aws_provider.delete()
-AssertionError: no logs of level WARNING or higher triggered on api.provider.models
+To run a specific subset of unit tests, you can pass a particular module path to tox. To do this, use positional args using the :code:`--` separator. For example::
 
-----------------------------------------------------------------------
-Ran 756 tests in 2025.258s
-FAILED (failures=1)
-```
+    tox -e py36 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
 
-# Gotchas:
-- The logger is disabled by default during unit tests. If you are building a unit test that asserts that a log occurs, you must re-enable the logger. For example:
+The previous command will selectively run only the AzureServiceTest module
+The following are examples of valid module paths:
 
-```
-import logging
-with self.assertLogs(logger='masu.external.downloader.aws.aws_report_downloader', level='WARN') as cm:
-            logging.disable(logging.NOTSET)
-            self.aws_report_downloader._remove_manifest_file("None")
-            self.assertEqual(['WARN: Could not delete manifest file at'], cm.output)
-```
+    - masu.test.external
+    - masu.test.external.downloader.azure.test_azure_services.AzureServiceTest.specific_test
+
+Debugging Options
+=================
+
+PDB in koku container
+---------------------
+
+While koku-server is running in a docker container:
+
+1. Ensure all migrations are run.
+2. Stop the server `docker-compose stop koku-server`
+3. Run the server with service-ports: :code:`docker-compose run —service-ports koku-server`
+4. set a breakpoint using :code:`import pdb; pdb.set_trace()`
+
+
+PDB in IQE container
+--------------------
+
+While IQE (the integration test suite) is running a docker container: 
+
+    Start a shell session in the docker container that runs IQE::
+
+        koku/testing/run_test.sh bash
+
+The following command runs all QE tests. The optional :code:`--pdb` flag will cause any failed test to automatically start a pdb session::
+
+    iqe tests plugin hccm --pdb
+
+To run a specific subset of the integration test suite, you can specify a single test using the :code:`-k` flag. The single test names can be found in the IQE repo. Here is an example of running a single test named :code:`test_api_aws_storage_filtered_top`::
+
+
+    iqe tests plugin hccm -k test_api_aws_storage_filtered_top --pdb
+    
+The single test name above was found in the hccm plugin repo itself at https://gitlab.cee.redhat.com/insights-qe/hccm-plugin/blob/master/iqe_hccm/tests/rest_api/v1/test_aws_storage_reports.py#L245 
+Any function definition name in this file can be passed in as the parameter for :code:`-k` to run specifically that test. To find more specific test names, search that repo for test function names.
+
+
+Smoke testing with IQE
+======================
+
+Prerequisites:
+
+    - koku is running and accessible via the network 
+    - you are connected to the Red Hat internal network
+    
+For a quick start on smoke testing, continue to the section Running IQE in Docker below.
+Otherwise, for more in-depth information on IQE, see https://gitlab.cee.redhat.com/insights-qe/hccm-plugin/tree/master
+
+
+Running IQE in Docker
+---------------------
+
+To run IQE Smoke, Vortex or API tests, run one of the following commands, respectively::
+
+    make docker-iqe-smokes-tests
+    make docker-iqe-vortex-tests
+    make docker-iqe-api-tests
