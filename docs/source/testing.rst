@@ -124,8 +124,8 @@ The following are examples of valid module paths:
 Debugging Options
 =================
 
-Running PDB in dockerized koku
-------------------------------
+Running PDB in koku in docker
+-----------------------------
 
 To use pdb while running the koku-server in docker:
 
