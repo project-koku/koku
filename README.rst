@@ -86,7 +86,7 @@ This will explain how to start the server and its dependencies using Docker, cre
 Settting up environment variables
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This project is developed using the Django web framework. Many configuration settings can be read in from a ``.env`` file. To configure do the following:
+This project is developed using the Django web framework. Many configuration settings can be read in from a ``.env`` file. To configure, do the following:
 
 1. Copy ``example.env`` into a ``.env``
 2. Obtain AWS values and update the following in your ``.env``::
@@ -130,7 +130,7 @@ Run OCP Scenario
 
 1. Create OCP Provider::
 
-    make ocp-provider-from-yaml cluster_id=kevan_test_cluster srf_yaml=../nise/example_ocp_static_data.yml ocp_name=kevan_ocp_name
+    make ocp-provider-from-yaml cluster_id=my_test_cluster srf_yaml=../nise/example_ocp_static_data.yml ocp_name=my_ocp_name
 
 2. Verify provider exists by visiting http://127.0.0.1:8000/api/cost-management/v1/providers/
 3. Trigger MASU processing by visiting http://127.0.0.1:5000/api/cost-management/v1/download/
