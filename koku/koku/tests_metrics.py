@@ -60,16 +60,18 @@ class DatabaseStatusTest(IamTestCase):
         dbs.collect()
         self.assertFalse(mock_gauge.called)
 
-    def test_query_exception(self):
+    @patch('time.sleep', return_value=None)  # make this test go 6 seconds faster :)
+    def test_query_exception(self, patched_sleep):
         """Test _query() when an exception is thrown."""
-        logging.disable(0)
+        logging.disable(logging.NOTSET)
         with mock.patch('django.db.backends.utils.CursorWrapper') as mock_cursor:
             mock_cursor = mock_cursor.return_value.__enter__.return_value
             mock_cursor.execute.side_effect = OperationalError('test exception')
             test_query = 'SELECT count(*) from now()'
             dbs = DatabaseStatus()
-            with self.assertLogs(logger='koku.metrics.collect_metrics', level=logging.WARNING):
-                dbs.query(test_query)
+            with self.assertLogs(logger='koku.metrics', level=logging.WARNING):
+                result = dbs.query(test_query)
+            self.assertFalse(result)
 
     @patch('koku.metrics.connection')
     def test_schema_size_valid(self, mock_connection):
