@@ -17,7 +17,6 @@
 """Test the prometheus metrics."""
 import logging
 import random
-from datetime import datetime
 from unittest import mock
 from unittest.mock import Mock, patch
 
@@ -25,7 +24,7 @@ from django.db import OperationalError
 from faker import Faker
 
 from api.iam.test.iam_test_case import IamTestCase
-from koku.metrics import DatabaseStatus
+from koku.metrics import DatabaseStatus, collect_metrics
 
 FAKE = Faker()
 
@@ -53,6 +52,14 @@ class DatabaseStatusTest(IamTestCase):
         self.assertTrue(mock_gauge.called)
 
     @patch('koku.metrics.PGSQL_GAUGE.labels')
+    @patch('koku.metrics.DatabaseStatus.query', return_value=[{'schema': 'foo',
+                                                               'size': 10}])
+    def test_collect_metrics(self, _, mock_gauge):
+        """Test collect_metrics."""
+        collect_metrics()
+        self.assertTrue(mock_gauge.called)
+
+    @patch('koku.metrics.PGSQL_GAUGE.labels')
     @patch('koku.metrics.DatabaseStatus.query', return_value=[{'schema': None,
                                                                'size': None}])
     def test_collect_bad_schema_size(self, _, mock_gauge):
@@ -61,24 +68,18 @@ class DatabaseStatusTest(IamTestCase):
         dbs.collect()
         self.assertFalse(mock_gauge.called)
 
-    def test_query_cache(self):
-        """Test that query() returns a cached response when available."""
-        dbs = DatabaseStatus()
-        dbs._last_result = 1
-        dbs._last_query = datetime.now()
-        result = dbs.query('SELECT count(*) from now()')
-        self.assertEqual(result, 1)
-
-    def test_query_exception(self):
+    @patch('time.sleep', return_value=None)  # make this test go 6 seconds faster :)
+    def test_query_exception(self, patched_sleep):  # pylint: disable=W0613
         """Test _query() when an exception is thrown."""
-        logging.disable(0)
+        logging.disable(logging.NOTSET)
         with mock.patch('django.db.backends.utils.CursorWrapper') as mock_cursor:
             mock_cursor = mock_cursor.return_value.__enter__.return_value
             mock_cursor.execute.side_effect = OperationalError('test exception')
             test_query = 'SELECT count(*) from now()'
             dbs = DatabaseStatus()
-            with self.assertLogs(level=logging.WARNING):
-                dbs.query(test_query)
+            with self.assertLogs(logger='koku.metrics', level=logging.WARNING):
+                result = dbs.query(test_query)
+            self.assertFalse(result)
 
     @patch('koku.metrics.connection')
     def test_schema_size_valid(self, mock_connection):
