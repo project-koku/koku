@@ -36,7 +36,6 @@ from reporting.models import (
     AWSCostEntryLineItemDailySummary,
     AWSCostEntryPricing,
     AWSCostEntryProduct,
-    AWS_MATERIALIZED_VIEWS,
 )
 
 
