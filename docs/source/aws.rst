@@ -2,9 +2,7 @@
 ===========================
 How to ingest data from AWS
 ===========================
-1. Add AWS credentials to docker-compose
-
-Docker-compose has two repeated lines:
+1. Add AWS credentials to the `.env` file.
 
 AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
@@ -16,10 +14,14 @@ How to Create a Provider
 =========================
 Send a POST request to ``http://<your_host>:8000/api/cost-management/v1/providers/``
 With the content:
-Provider Resource Name: <whatever your arn is> 
- 
-    http POST 0.0.0.0:8000/api/cost-management/v1/providers/ name='AWSProvider' type='AWS' \ authentication:='{"uuid": "e6d90e5a-feb9-472e-97f3-b96839206f4f","provider_resource_name": "arn:aws:iam::01234567890:my_aws_role"}' 
- 
+Provider Resource Name: <whatever your arn is>
+
+    curl -d '{"name": "AWSProvider", "type": "AWS", "authentication": {"provider_resource_name": "$ARN"}, "billing_source": {"bucket": "$BUCKET"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/providers/
+
+Note:
+   - The `$ARN` variable will need to be replace with your provider resource name. Example, `arn:aws:iam::01234567890:my_aws_role`.
+   - The `$BUCKET` variable will need to be replaced with your bucket name. Example, `koku_bucket`.
+
 You should receive a 200 range response confirming that the Provider was created.
 
 =============
