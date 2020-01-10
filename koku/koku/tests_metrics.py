@@ -24,7 +24,7 @@ from django.db import OperationalError
 from faker import Faker
 
 from api.iam.test.iam_test_case import IamTestCase
-from koku.metrics import DatabaseStatus
+from koku.metrics import DatabaseStatus, collect_metrics
 
 FAKE = Faker()
 
@@ -49,6 +49,14 @@ class DatabaseStatusTest(IamTestCase):
         """Test collect()."""
         dbs = DatabaseStatus()
         dbs.collect()
+        self.assertTrue(mock_gauge.called)
+
+    @patch('koku.metrics.PGSQL_GAUGE.labels')
+    @patch('koku.metrics.DatabaseStatus.query', return_value=[{'schema': 'foo',
+                                                               'size': 10}])
+    def test_collect_metrics(self, _, mock_gauge):
+        """Test collect_metrics."""
+        collect_metrics()
         self.assertTrue(mock_gauge.called)
 
     @patch('koku.metrics.PGSQL_GAUGE.labels')
