@@ -128,7 +128,8 @@ Running PDB in dockerized koku
 ------------------------------
 
 To use pdb while running the koku-server in docker:
-    1. Ensure all migrations are run.
+
+1. Ensure all migrations are run.
     2. Stop the server `docker-compose stop koku-server`
     3. Run the server with service-ports: :code:`docker-compose run —service-ports koku- 
        server`
@@ -140,6 +141,7 @@ Breakpoints should now be stopped at, in this terminal window.
 Running PDB in IQE
 ------------------
 To run PDB while using dockerized IQE: 
+
     Start a shell session in the docker container that runs IQE::
 
         koku/testing/run_test.sh bash
@@ -158,6 +160,7 @@ Smoke testing with IQE
 ======================
 
 Prerequisites:
+
     - koku is deployed via docker-compose or other method, 
     - you are connected to the Red Hat internal network
 
