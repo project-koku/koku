@@ -97,16 +97,6 @@ Smoke test:
     $ cd koku/testing
     $ ./run_smoke_tests.sh
     
-======================
-PDB in Dockerized koku
-======================
-To use pdb while running the koku-server in docker:
-    1. Ensure all migrations are run.
-    2. Stop the server `docker-compose stop koku-server`
-    3. Run the server with service-ports: :code:`docker-compose run —service-ports koku- 
-       server`
-
-Breakpoints should now be stopped at, in this terminal window.
 
 To test a specific file using tox, edit this line, for example::
 
@@ -160,6 +150,16 @@ To run IQE Smoke, Vortex or API tests, run one of the following commands, respec
     make docker-iqe-vortex-tests
     make docker-iqe-api-tests
 
+======================
+PDB in Dockerized koku
+======================
+To use pdb while running the koku-server in docker:
+    1. Ensure all migrations are run.
+    2. Stop the server `docker-compose stop koku-server`
+    3. Run the server with service-ports: :code:`docker-compose run —service-ports koku- 
+       server`
+
+Breakpoints should now be stopped at, in this terminal window.
 
 ====================
 Running PDB in IQE
