@@ -49,7 +49,6 @@ class AWSReportQueryTest(IamTestCase):
         _, self.provider = create_generic_provider('AWS', self.headers)
         self.fake_aws = FakeAWSCostData(self.provider)
         self.generator = AWSReportDataGenerator(self.tenant)
-        self.generator.add_data_to_tenant(self.fake_aws)
 
     def test_apply_group_null_label(self):
         """Test adding group label for null values."""
