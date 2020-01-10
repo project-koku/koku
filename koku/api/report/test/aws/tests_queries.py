@@ -49,10 +49,10 @@ class AWSReportQueryTest(IamTestCase):
         _, self.provider = create_generic_provider('AWS', self.headers)
         self.fake_aws = FakeAWSCostData(self.provider)
         self.generator = AWSReportDataGenerator(self.tenant)
+        self.generator.add_data_to_tenant(self.fake_aws)
 
     def test_apply_group_null_label(self):
         """Test adding group label for null values."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?'
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -73,7 +73,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_transform_null_group(self):
         """Test transform data with null group value."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?'
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -100,7 +99,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_get_group_by_with_group_by_and_limit_params(self):
         """Test the _get_group_by method with limit and group by params."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         expected = ['account']
         url = '?group_by[account]=*&filter[limit]=1'
         query_params = self.mocked_query_params(url, AWSInstanceTypeView)
@@ -110,7 +108,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_get_group_by_with_group_by_and_no_limit_params(self):
         """Test the _get_group_by method with group by params."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         expected = ['account', 'instance_type']
         url = '?group_by[account]=*'
         query_params = self.mocked_query_params(url, AWSInstanceTypeView)
@@ -120,7 +117,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_get_group_by_with_limit_and_no_group_by_params(self):
         """Test the _get_group_by method with limit params."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         expected = ['instance_type']
         url = '?filter[limit]=1'
         query_params = self.mocked_query_params(url, AWSInstanceTypeView)
@@ -130,7 +126,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_get_resolution_empty_day_time_scope(self):
         """Test get_resolution returns default when time_scope is month."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_value]=-10'
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -138,7 +133,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_get_time_scope_units_empty_default(self):
         """Test get_time_scope_units returns default when query params are empty."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?'
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -146,7 +140,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_get_time_scope_units_existing_value(self):
         """Test get_time_scope_units returns month when time_scope is month."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month'
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -154,7 +147,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_get_time_scope_value_empty_default(self):
         """Test get_time_scope_value returns default when query params are empty."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?'
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -162,14 +154,12 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_get_time_scope_value_existing_value(self):
         """Test validationerror for invalid time_scope_value."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_value]=9999'
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, AWSCostView)
 
     def test_get_time_frame_filter_current_month(self):
         """Test _get_time_frame_filter for current month."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily'
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -183,7 +173,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_get_time_frame_filter_previous_month(self):
         """Test _get_time_frame_filter for previous month."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=daily'
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -197,7 +186,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_get_time_frame_filter_last_ten(self):
         """Test _get_time_frame_filter for last ten days."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily'
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -215,7 +203,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_get_time_frame_filter_last_thirty(self):
         """Test _get_time_frame_filter for last thirty days."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=day&filter[time_scope_value]=-30&filter[resolution]=daily'
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -233,7 +220,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_take_defaults(self):
         """Test execute_query for current month on daily breakdown."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?'
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -245,7 +231,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_daily(self):
         """Test execute_query for current month on daily breakdown."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily'
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -260,7 +245,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_monthly(self):
         """Test execute_query for current month on monthly breakdown."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -275,7 +259,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -302,7 +285,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_by_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=AmazonEC2'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -329,7 +311,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_query_by_partial_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=eC2'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -356,7 +337,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_by_account(self):
         """Test execute_query for current month on monthly breakdown by account."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -383,7 +363,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_by_account_by_service(self):
         """Test execute_query for current month breakdown by account by service."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&group_by[service]=*'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -410,7 +389,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_with_counts(self):
         """Test execute_query for with counts of unique resources."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         with tenant_context(self.tenant):
             instance_type = AWSCostEntryProduct.objects.first().instance_type
 
@@ -446,7 +424,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_account_w_limit(self):
         """Test execute_query for current month on monthly breakdown by account with limit."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         self.generator.add_data_to_tenant(FakeAWSCostData(self.provider))
 
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[account]=*'  # noqa: E501
@@ -475,7 +452,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_account_w_order(self):
         """Test execute_query for current month on monthly breakdown by account with asc order."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         self.generator.add_data_to_tenant(FakeAWSCostData(self.provider))
 
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&order_by[cost]=asc'  # noqa: E501
@@ -513,7 +489,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_account_w_order_by_account_alias(self):
         """Test execute_query for current month on monthly breakdown by account with asc order."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         self.generator.add_data_to_tenant(FakeAWSCostData(self.provider))
 
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&order_by[account_alias]=asc'  # noqa: E501
@@ -547,7 +522,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_region(self):
         """Test execute_query for current month on monthly breakdown by region."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[region]=*'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -575,7 +549,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_filtered_region(self):
         """Test execute_query for current month on monthly breakdown by filtered region."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[region]={self.fake_aws.region}'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -600,7 +573,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_avail_zone(self):
         """Test execute_query for current month on monthly breakdown by avail_zone."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[az]=*'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -628,7 +600,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_filtered_avail_zone(self):
         """Test execute_query for current month on monthly breakdown by filtered avail_zone."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[az]={self.fake_aws.availability_zone}'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -654,7 +625,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_filter_account(self):
         """Test execute_query for current month on monthly filtered by account."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[account]={self.fake_aws.account_alias}'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -677,7 +647,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_filter_service(self):
         """Test execute_query for current month on monthly filtered by service."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[service]=AmazonEC2'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -702,7 +671,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_filter_region(self):
         """Test execute_query for current month on monthly filtered by region."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[region]={self.fake_aws.region}'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -723,7 +691,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_filter_avail_zone(self):
         """Test execute_query for current month on monthly filtered by avail_zone."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[az]={self.fake_aws.availability_zone}'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -747,7 +714,6 @@ class AWSReportQueryTest(IamTestCase):
     @patch('api.query_params.QueryParameters.accept_type', new_callable=PropertyMock)
     def test_execute_query_current_month_filter_avail_zone_csv(self, mock_accept):
         """Test execute_query for current month on monthly filtered by avail_zone for csv."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         mock_accept.return_value = 'text/csv'
         url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[az]={self.fake_aws.availability_zone}'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -771,7 +737,6 @@ class AWSReportQueryTest(IamTestCase):
     @patch('api.query_params.QueryParameters.accept_type', new_callable=PropertyMock)
     def test_execute_query_curr_month_by_account_w_limit_csv(self, mock_accept):
         """Test execute_query for current month on monthly by account with limt as csv."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         mock_accept.return_value = 'text/csv'
         self.generator.add_data_to_tenant(FakeAWSCostData(self.provider))
 
@@ -797,7 +762,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_w_delta(self):
         """Test grouped by deltas."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         dh = DateHelper()
         current_total = Decimal(0)
         prev_total = Decimal(0)
@@ -854,7 +818,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_w_delta_no_previous_data(self):
         """Test deltas with no previous data."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         expected_delta_value = Decimal(self.generator.current_month_total)
         expected_delta_percent = None
 
@@ -874,7 +837,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_orderby_delta(self):
         """Test execute_query with ordering by delta ascending."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         dh = DateHelper()
         current_data = FakeAWSCostData(self.provider)
         previous_data = copy.deepcopy(current_data)
@@ -917,7 +879,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_with_account_alias(self):
         """Test execute_query when account alias is avaiable."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[account]=*'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -929,7 +890,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_orderby_alias(self):
         """Test execute_query when account alias is avaiable."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         # generate test data
         expected = {self.fake_aws.account_alias: self.fake_aws.account_id}
         fake_data = FakeAWSCostData(self.provider)
@@ -955,7 +915,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_calculate_total(self):
         """Test that calculated totals return correctly."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -970,7 +929,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_percent_delta(self):
         """Test _percent_delta() utility method."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?'
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -978,7 +936,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_rank_list(self):
         """Test rank list limit with account alias."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[account]=*'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -1007,7 +964,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_rank_list_no_account(self):
         """Test rank list limit with out account alias."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[service]=*'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -1035,7 +991,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_rank_list_with_offset(self):
         """Test rank list limit and offset with account alias."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1&filter[offset]=1&group_by[account]=*'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -1054,7 +1009,6 @@ class AWSReportQueryTest(IamTestCase):
 
         Query for instance_types, validating that cost totals are present.
         """
-        self.generator.add_data_to_tenant(self.fake_aws)
         self.generator.add_data_to_tenant(FakeAWSCostData(self.provider), product='ec2')
         self.generator.add_data_to_tenant(FakeAWSCostData(self.provider), product='ebs')
 
@@ -1079,7 +1033,6 @@ class AWSReportQueryTest(IamTestCase):
 
         Query for instance_types, validating that cost totals are present.
         """
-        self.generator.add_data_to_tenant(self.fake_aws)
         self.generator.add_data_to_tenant(FakeAWSCostData(self.provider), product='ec2')
 
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[instance_type]=*'  # noqa: E501
@@ -1105,7 +1058,6 @@ class AWSReportQueryTest(IamTestCase):
 
         Query for storage, validating that cost totals are present.
         """
-        self.generator.add_data_to_tenant(self.fake_aws)
         self.generator.add_data_to_tenant(FakeAWSCostData(self.provider), product='ebs')
 
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*'  # noqa: E501
@@ -1139,7 +1091,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_order_by(self):
         """Test that order_by returns properly sorted data."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         today = datetime.utcnow()
         yesterday = today - timedelta(days=1)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'  # noqa: E501
@@ -1177,14 +1128,12 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_strip_tag_prefix(self):
         """Verify that our tag prefix is stripped from a string."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         tag_str = 'tag:project'
         result = strip_tag_prefix(tag_str)
         self.assertEqual(result, tag_str.replace('tag:', ''))
 
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSTagView)
         handler = AWSTagQueryHandler(query_params)
@@ -1212,7 +1161,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSTagView)
         handler = AWSTagQueryHandler(query_params)
@@ -1245,7 +1193,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_return_others_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSTagView)
         handler = AWSTagQueryHandler(query_params)
@@ -1285,7 +1232,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        self.generator.add_data_to_tenant(self.fake_aws)
         url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSTagView)
         handler = AWSTagQueryHandler(query_params)
@@ -1322,6 +1268,17 @@ class AWSReportQueryTest(IamTestCase):
         for key in totals:
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])
+
+class AWSReportQueryLogicalAndTest(IamTestCase):
+    """Tests the report queries."""
+
+    def setUp(self):
+        """Set up the customer view tests."""
+        self.dh = DateHelper()
+        super().setUp()
+        _, self.provider = create_generic_provider('AWS', self.headers)
+        self.fake_aws = FakeAWSCostData(self.provider)
+        self.generator = AWSReportDataGenerator(self.tenant)
 
     def test_prefixed_logical_and(self):
         """Test prefixed logical AND."""
