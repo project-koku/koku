@@ -1269,6 +1269,7 @@ class AWSReportQueryTest(IamTestCase):
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])
 
+
 class AWSReportQueryLogicalAndTest(IamTestCase):
     """Tests the report queries."""
 
