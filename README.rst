@@ -43,49 +43,6 @@ To get started developing against Koku first clone a local copy of the git repos
 
     git clone https://github.com/project-koku/koku
 
-Developing inside a virtual environment is recommended. A Pipfile is provided. Pipenv is recommended for combining virtual environment (virtualenv) and dependency management (pip). To install pipenv, use pip ::
-
-    pip3 install pipenv
-
-Then project dependencies and a virtual environment can be created using ::
-
-    pipenv install --dev
-
-**Note for Mac OSX users**
-
-psycopg2 is a dependency of Django and installing the psycopg2 wheel will likely fail. The following steps should be taken to allow installation to succeed: ::
-
-
-    brew install openssl
-    brew unlink openssl && brew link openssl --force
-
-    `/usr/local/opt/openssl/bin` should be appended to the PATH environment variable
-
-    The following environment variables can be set in the koku repo's .env file
-        LDFLAGS="-L/usr/local/opt/openssl/lib"
-        CPPFLAGS="-I/usr/local/opt/openssl/include"
-    These environment variables will then be available next time you activate your virtualenv. For immediate use running `source .env` will load the environment variables into your existing terminal environment.
-
-    Alternatively, run the following commands:
-        `export LDFLAGS="-L/usr/local/opt/openssl/lib"`
-        `export CPPFLAGS="-I/usr/local/opt/openssl/include"`
-
-If dependency installation still fails, try using ::
-
-    pipenv install --dev --sequential
-
-To activate the virtual environment run ::
-
-    pipenv shell
-
-
-Quick Start
------------
-This will explain how to start the server and its dependencies using Docker, create AWS/OCP providers, and view reports.  This will not cover all API or scenarios but should give you an end to end flow.
-
-Settting up environment variables
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
 This project is developed using the Django web framework. Many configuration settings can be read in from a ``.env`` file. To configure, do the following:
 
 1. Copy ``example.env`` into a ``.env``
@@ -95,10 +52,36 @@ This project is developed using the Django web framework. Many configuration set
     AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_KEY
     AWS_RESOURCE_NAME=YOUR_COST_MANAGEMENT_AWS_ARN
 
-3. If you are on Mac, add::
+3. (Mac Only) If you are on Mac, do the following note that psycopg2 is a dependency of Django and installing the psycopg2 wheel will likely fail. The following steps should be taken to allow installation to succeed: ::
+
+    brew install openssl
+    brew unlink openssl && brew link openssl --force
+
+4. (Mac Only) Also add the following to your ``.env```::
 
     LDFLAGS="-L/usr/local/opt/openssl/lib"
     CPPFLAGS="-I/usr/local/opt/openssl/include"
+
+5. Developing inside a virtual environment is recommended. A Pipfile is provided. Pipenv is recommended for combining virtual environment (virtualenv) and dependency management (pip). To install pipenv, use pip ::
+
+    pip3 install pipenv
+
+6. Then project dependencies and a virtual environment can be created using ::
+
+    pipenv install --dev
+
+7. If dependency installation still fails, try using ::
+
+    pipenv install --dev --sequential
+
+8. To activate the virtual environment run ::
+
+    pipenv shell
+
+
+Quick Start
+-----------
+This will explain how to start the server and its dependencies using Docker, create AWS/OCP providers, and view reports.  This will not cover all API or scenarios but should give you an end to end flow.
 
 Starting Koku using Docker Compose
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
