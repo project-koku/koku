@@ -115,8 +115,8 @@ To run a specific subset of unit tests, you can pass a particular module path to
 
     tox -e py36 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
 
-This will selectively run only the AzureServiceTest module
-The argument can be vague or specified further, for example the following arguments would separately be considered valid:
+The previous command will selectively run only the AzureServiceTest module
+The following are examples of valid module paths:
 
     - masu.test.external
     - masu.test.external.downloader.azure.test_azure_services.AzureServiceTest.specific_test
@@ -145,15 +145,13 @@ To run PDB while using dockerized IQE:
 
         koku/testing/run_test.sh bash
 
-To run a specific test, use the following command. Replace :code:`-k` flag's input to a specific test you want to run::
+To run a specific test, use the following command. Replace :code:`-k` flag's input to a specific unit test to run::
 
     iqe tests plugin hccm -k test_api_aws_storage_filtered_top --pdb
 
-optionally you can, run all tests::
+The following command runs all unit tests. The optional :code:`--pdb` flag will cause any failed test to automatically start a pdb session::
 
     iqe tests plugin hccm --pdb
-
-Any test that fails should start a PDB session.
 
 Smoke testing with IQE
 ======================
