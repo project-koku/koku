@@ -214,7 +214,7 @@ class ProviderSerializer(serializers.ModelSerializer):
     uuid = serializers.UUIDField(allow_null=True, required=False)
     name = serializers.CharField(max_length=256, required=True,
                                  allow_null=False, allow_blank=False)
-    type = serializers.ChoiceField(choices=PROVIDER_CHOICE_LIST)
+    type = serializers.ChoiceField(choices=LCASE_PROVIDER_CHOICE_LIST)
     created_timestamp = serializers.DateTimeField(read_only=True)
     customer = CustomerSerializer(read_only=True)
     created_by = UserSerializer(read_only=True)
@@ -246,8 +246,10 @@ class ProviderSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(error_obj(key, message))
 
         if provider_type:
-            self.fields['authentication'] = AUTHENTICATION_SERIALIZERS.get(provider_type)()
-            self.fields['billing_source'] = BILLING_SOURCE_SERIALIZERS.get(provider_type)(
+            self.fields['authentication'] = AUTHENTICATION_SERIALIZERS.get(
+                Provider.PROVIDER_CASE_MAPPING.get(provider_type, provider_type))()
+            self.fields['billing_source'] = BILLING_SOURCE_SERIALIZERS.get(
+                Provider.PROVIDER_CASE_MAPPING.get(provider_type, provider_type))(
                 default={'bucket': '', 'data_source': {'bucket': ''}}
             )
         else:
@@ -288,6 +290,8 @@ class ProviderSerializer(serializers.ModelSerializer):
         credentials = authentication.get('credentials')
         provider_resource_name = credentials.get('provider_resource_name')
         provider_type = validated_data['type']
+        provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type, provider_type)
+        validated_data['type'] = provider_type
         interface = ProviderAccessor(provider_type)
 
         if credentials and data_source and provider_type not in [Provider.PROVIDER_AWS, Provider.PROVIDER_OCP]:
@@ -318,6 +322,8 @@ class ProviderSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
         provider_type = validated_data['type']
+        provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type, provider_type)
+        validated_data['type'] = provider_type
         if instance.type != provider_type:
             error = {'Error': 'The Provider Type cannot be changed with a PUT request.'}
             raise serializers.ValidationError(error)

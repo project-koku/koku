@@ -58,6 +58,7 @@ BASEDIR = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_CONFIG = BASEDIR + '/test_customer.yaml'
 SUPPORTED_PROVIDERS = ['aws', 'ocp', 'azure']
 
+
 class KokuCustomerOnboarder:
     """Uses the Koku API and SQL to create an onboarded customer."""
 
@@ -205,7 +206,7 @@ class KokuCustomerOnboarder:
     def create_providers_db(self, skip_providers):
         """Create a Koku Provider by inserting into the Koku DB."""
         if not skip_providers:
-            for provider_type in ['AWS', 'OCP', 'Azure']:
+            for provider_type in ['AWS', 'OCP', 'azure']:
                 self.create_provider_db(provider_type)
                 print(f'Created {provider_type} provider.')
 

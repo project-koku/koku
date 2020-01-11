@@ -59,6 +59,7 @@ class ProviderFilter(FilterSet):
     """Provider custom filters."""
 
     name = CharListFilter(field_name='name', lookup_expr='name__icontains')
+    type = CharListFilter(field_name='type', lookup_expr='name__icontains')
 
     class Meta:
         model = Provider
@@ -141,11 +142,14 @@ class ProviderViewSet(mixins.CreateModelMixin,
     @never_cache
     def create(self, request, *args, **kwargs):
         """Create a Provider."""
+        request.data['type'] = request.data.get('type', '').lower()
         return super().create(request=request, args=args, kwargs=kwargs)
 
     @never_cache
     def update(self, request, *args, **kwargs):
         """Update a Provider."""
+        if request.data.get('type'):
+            request.data['type'] = request.data.get('type').lower()
         if request.method == 'PATCH':
             raise ProviderMethodException('PATCH not supported')
         user = request.user

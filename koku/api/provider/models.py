@@ -112,6 +112,16 @@ class Provider(models.Model):
     PROVIDER_AZURE_LOCAL = 'Azure-local'
     PROVIDER_GCP_LOCAL = 'GCP-local'
 
+    PROVIDER_CASE_MAPPING = {
+        'aws': PROVIDER_AWS,
+        'ocp': PROVIDER_OCP,
+        'azure': PROVIDER_AZURE,
+        'gcp': PROVIDER_GCP,
+        'aws-local': PROVIDER_AWS_LOCAL,
+        'azure-local': PROVIDER_AZURE_LOCAL,
+        'gcp-local': PROVIDER_GCP_LOCAL
+    }
+
     PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
                         (PROVIDER_OCP, PROVIDER_OCP),
                         (PROVIDER_AZURE, PROVIDER_AZURE),

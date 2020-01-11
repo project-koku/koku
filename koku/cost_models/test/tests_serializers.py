@@ -49,7 +49,7 @@ class CostModelSerializerTest(IamTestCase):
 
         provider_data = {
             'name': 'test_provider',
-            'type': Provider.PROVIDER_OCP,
+            'type': Provider.PROVIDER_OCP.lower(),
             'authentication': {'provider_resource_name': self.fake.word()},
         }
         serializer = ProviderSerializer(
