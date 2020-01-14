@@ -59,7 +59,8 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        #('reporting_common', '0019_auto_20191022_1602'),
+        # There is currently a circular dependency with two tables here: Provider <-> ProviderInfrastructureMap
+        # BUT there is only ONE not null constraint, which keeps this from being a problem at the moment.
     ]
 
     operations = [
@@ -156,7 +157,7 @@ class Migration(migrations.Migration):
                 ('customer', models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='api.Customer')),
                 ('created_timestamp', models.DateTimeField(auto_now_add=True, null=True)),
                 ('active', models.BooleanField(default=True)),
-                ('infrastructure', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='api.ProviderInfrastructureMap')),
+                ('infrastructure', models.IntegerField()),
             ],
             options={
                 'ordering': ['name'],
@@ -245,6 +246,12 @@ class Migration(migrations.Migration):
                 ('infrastructure_type', models.CharField(choices=[('AWS', 'AWS'), ('AZURE', 'AZURE'), ('GCP', 'GCP'), ('AWS-local', 'AWS-local'), ('AZURE-local', 'AZURE-local'), ('GCP-local', 'GCP-local')], max_length=50)),
                 ('infrastructure_provider', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.Provider')),
             ],
+        ),
+        # Circular FK!
+        migrations.AlterField(
+            model_name='provider',
+            name='infrastructure',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='api.ProviderInfrastructureMap'),
         ),
         migrations.RunPython(
             code=mig_0040_load_openshift_metric_map,
