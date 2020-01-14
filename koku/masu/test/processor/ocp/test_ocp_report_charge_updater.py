@@ -676,13 +676,14 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.creator.create_cost_model(self.ocp_provider_uuid, 'OCP', rates=rate, markup=markup)
 
         usage_period = self.accessor.get_current_usage_period()
+        report_periods = [usage_period]
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
         end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
 
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
-        self.updater._update_pod_charge()
-        self.updater._update_storage_charge()
+        self.updater._update_pod_charge(report_periods)
+        self.updater._update_storage_charge(report_periods)
 
         self.updater._cluster_id = None
         self.updater._update_markup_cost(start_date, end_date)

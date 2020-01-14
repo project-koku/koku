@@ -213,17 +213,22 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                      entry.interval_start.strftime(self._datetime_format)): entry.id
                     for entry in reports}
 
-    def get_pod_usage_cpu_core_hours(self, cluster_id=None):
+    def get_pod_usage_cpu_core_hours(self, report_periods, cluster_id=None):
         """Make a mapping of cpu pod usage hours."""
         table = OCPUsageLineItemDailySummary
-        filters = {
-            'data_source': 'Pod'
-        }
-        if cluster_id:
-            filters['cluster_id'] = cluster_id
-        with schema_context(self.schema):
-            reports = self._get_reports(table, filters)
-            return {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
+        entries = {}
+        for report_period in report_periods:
+            filters = {
+                'data_source': 'Pod',
+                'report_period': report_period
+            }
+            if cluster_id:
+                filters['cluster_id'] = cluster_id
+            with schema_context(self.schema):
+                reports = self._get_reports(table, filters)
+                for entry in reports:
+                    entries[entry.id] = entry.pod_usage_cpu_core_hours
+        return entries
 
     def _get_reports(self, table, filters=None):
         """Return requested reports from given table.
@@ -243,66 +248,90 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 reports = self._get_db_obj_query(table).all()
             return reports
 
-    def get_pod_request_cpu_core_hours(self, cluster_id=None):
+    def get_pod_request_cpu_core_hours(self, report_periods, cluster_id=None):
         """Make a mapping of cpu pod request hours."""
         table = OCPUsageLineItemDailySummary
-        filters = {
-            'data_source': 'Pod'
-        }
-        if cluster_id:
-            filters['cluster_id'] = cluster_id
-        with schema_context(self.schema):
-            reports = self._get_reports(table, filters)
-            return {entry.id: entry.pod_request_cpu_core_hours for entry in reports}
+        entries = {}
+        for report_period in report_periods:
+            filters = {
+                'data_source': 'Pod',
+                'report_period': report_period
+            }
+            if cluster_id:
+                filters['cluster_id'] = cluster_id
+            with schema_context(self.schema):
+                reports = self._get_reports(table, filters)
+                for entry in reports:
+                    entries[entry.id] = entry.pod_request_cpu_core_hours
+        return entries
 
-    def get_pod_usage_memory_gigabyte_hours(self, cluster_id=None):
+    def get_pod_usage_memory_gigabyte_hours(self, report_periods, cluster_id=None):
         """Make a mapping of memory_usage hours."""
         table = OCPUsageLineItemDailySummary
-        filters = {
-            'data_source': 'Pod'
-        }
-        if cluster_id:
-            filters['cluster_id'] = cluster_id
-        with schema_context(self.schema):
-            reports = self._get_reports(table, filters)
-            return {entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports}
+        entries = {}
+        for report_period in report_periods:
+            filters = {
+                'data_source': 'Pod',
+                'report_period': report_period
+            }
+            if cluster_id:
+                filters['cluster_id'] = cluster_id
+            with schema_context(self.schema):
+                reports = self._get_reports(table, filters)
+                for entry in reports:
+                    entries[entry.id] = entry.pod_usage_memory_gigabyte_hours
+        return entries
 
-    def get_pod_request_memory_gigabyte_hours(self, cluster_id=None):
+    def get_pod_request_memory_gigabyte_hours(self, report_periods, cluster_id=None):
         """Make a mapping of memory_request_hours."""
         table = OCPUsageLineItemDailySummary
-        filters = {
-            'data_source': 'Pod'
-        }
-        if cluster_id:
-            filters['cluster_id'] = cluster_id
-        with schema_context(self.schema):
-            reports = self._get_reports(table, filters)
-            return {entry.id: entry.pod_request_memory_gigabyte_hours for entry in reports}
+        entries = {}
+        for report_period in report_periods:
+            filters = {
+                'data_source': 'Pod',
+                'report_period': report_period
+            }
+            if cluster_id:
+                filters['cluster_id'] = cluster_id
+            with schema_context(self.schema):
+                reports = self._get_reports(table, filters)
+                for entry in reports:
+                    entries[entry.id] = entry.pod_request_memory_gigabyte_hours
+        return entries
 
-    def get_persistentvolumeclaim_usage_gigabyte_months(self, cluster_id=None):
+    def get_persistentvolumeclaim_usage_gigabyte_months(self, report_periods, cluster_id=None):
         """Make a mapping of persistentvolumeclaim_usage_gigabyte_months."""
         table = OCPUsageLineItemDailySummary
-        filters = {
-            'data_source': 'Storage'
-        }
-        if cluster_id:
-            filters['cluster_id'] = cluster_id
-        with schema_context(self.schema):
-            reports = self._get_reports(table, filters)
-            # pylint: disable=line-too-long
-            return {entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
+        entries = {}
+        for report_period in report_periods:
+            filters = {
+                'data_source': 'Storage',
+                'report_period': report_period
+            }
+            if cluster_id:
+                filters['cluster_id'] = cluster_id
+            with schema_context(self.schema):
+                reports = self._get_reports(table, filters)
+                for entry in reports:
+                    entries[entry.id] = entry.persistentvolumeclaim_usage_gigabyte_months
+        return entries
 
-    def get_volume_request_storage_gigabyte_months(self, cluster_id=None):
+    def get_volume_request_storage_gigabyte_months(self, report_periods, cluster_id=None):
         """Make a mapping of volume_request_storage_gigabyte_months."""
         table = OCPUsageLineItemDailySummary
-        filters = {
-            'data_source': 'Storage'
-        }
-        if cluster_id:
-            filters['cluster_id'] = cluster_id
-        with schema_context(self.schema):
-            reports = self._get_reports(table, filters)
-            return {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
+        entries = {}
+        for report_period in report_periods:
+            filters = {
+                'data_source': 'Storage',
+                'report_period': report_period
+            }
+            if cluster_id:
+                filters['cluster_id'] = cluster_id
+            with schema_context(self.schema):
+                reports = self._get_reports(table, filters)
+                for entry in reports:
+                    entries[entry.id] = entry.volume_request_storage_gigabyte_months
+        return entries
 
     def populate_line_item_daily_table(self, start_date, end_date, cluster_id):
         """Populate the daily aggregate of line items table.
