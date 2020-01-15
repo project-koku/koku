@@ -289,6 +289,10 @@ class CostModelSerializer(serializers.Serializer):
     def validate(self, data):
         """Validate that the source type is acceptable."""
         # The cost model has markup, no rates, and is for a valid non-OpenShift source type
+        source_type = data.get('source_type', '')
+        if source_type and Provider.PROVIDER_CASE_MAPPING.get(source_type.lower()):
+            data['source_type'] = Provider.PROVIDER_CASE_MAPPING.get(source_type.lower())
+
         if (data.get('markup') and not data.get('rates') and data['source_type'] != 'OCP'
                 and data['source_type'] in SOURCE_TYPE_MAP.keys()):
             return data

@@ -119,7 +119,9 @@ class Provider(models.Model):
         'gcp': PROVIDER_GCP,
         'aws-local': PROVIDER_AWS_LOCAL,
         'azure-local': PROVIDER_AZURE_LOCAL,
-        'gcp-local': PROVIDER_GCP_LOCAL
+        'gcp-local': PROVIDER_GCP_LOCAL,
+        'ocp-aws': 'OCP_AWS',
+        'ocp-azure': 'OCP_Azure'
     }
 
     PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),

@@ -30,6 +30,7 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException
 from rest_framework.filters import OrderingFilter
 
+from api.common.filters import CharListFilter
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
 from cost_models.models import CostModel
 from cost_models.serializers import CostModelSerializer
@@ -44,6 +45,7 @@ class CostModelsFilter(FilterSet):
     uuid = UUIDFilter(field_name='uuid')
     provider_uuid = UUIDFilter(field_name='costmodelmap__provider_uuid')
     description = CharFilter(field_name='description', lookup_expr='icontains')
+    source_type = CharListFilter(field_name='source_type', lookup_expr='name__icontains')
 
     def list_contain_filter(self, qs, name, values):
         """Filter items that contain values in their name."""
