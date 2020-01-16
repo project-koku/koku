@@ -97,7 +97,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('api', '0001_squashed_0041_sources_account_id'),
+        ('api', '0001_initial_squashed_0008_auto_20190305_2015'),
     ]
 
     operations = [
