@@ -147,15 +147,15 @@ While IQE (the integration test suite) is running a docker container:
 
 The following command runs all QE api tests. The optional :code:`--pdb` flag will cause any failed test to automatically start a pdb session::
 
-    iqe tests plugin hccm -k test_api
+    iqe tests plugin hccm -k test_api --pdb
     
 To run a subset of the above tests, for example only smoke tests::
 
-    iqe tests plugin hccm -k test_api -m hccm_smoke
+    iqe tests plugin hccm -k test_api -m hccm_smoke --pdb
     
 To run the vortex the tests::
 
-    iqe tests plugin hccm -k test_api -m qa
+    iqe tests plugin hccm -k test_api -m qa --pdb
 
 To run a specific subset of the integration test suite, you can specify a single test using the :code:`-k` flag. The single test names can be found in the IQE repo. Here is an example of running a single test named :code:`test_api_aws_storage_filtered_top`::
 
