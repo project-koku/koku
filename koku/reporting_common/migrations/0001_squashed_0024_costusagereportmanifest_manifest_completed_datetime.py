@@ -27,6 +27,42 @@ def mig_0001_load_report_map_data(apps, schema_editor):
         map = ReportColumnMap(**entry)
         map.save()
 
+# reporting_common.migrations.0003_auto_20180928_1732
+def mig_0001_load_ocp_report_map_data(apps, schema_editor):
+    """Load OCP Usage report to database mapping."""
+    ReportColumnMap = apps.get_model('reporting_common', 'ReportColumnMap')
+
+    data = pkgutil.get_data('reporting_common',
+                            'data/ocp_report_column_map.json')
+
+    data = json.loads(data)
+
+    for entry in data:
+        del entry['report_type']
+        if entry['database_table'] == "reporting_ocpstoragelineitem":
+            continue
+        map = ReportColumnMap(**entry)
+        map.save()
+
+# reporting_common.migrations.0005_auto_20181127_2046
+def mig_0001_reload_ocp_map_0005(apps, schema_editor):
+    """Update report to database mapping."""
+    ReportColumnMap = apps.get_model('reporting_common', 'ReportColumnMap')
+    ocp_items = ReportColumnMap.objects.filter(provider_type='OCP')
+    ocp_items.delete()
+
+    data = pkgutil.get_data('reporting_common',
+                            'data/ocp_report_column_map.json')
+
+    data = json.loads(data)
+
+    for entry in data:
+        del entry['report_type']
+        if entry['database_table'] == "reporting_ocpstoragelineitem":
+            continue
+        map = ReportColumnMap(**entry)
+        map.save()
+
 # reporting_common.migrations.0007_auto_20190208_0316
 def mig_0001_reload_ocp_map_0007(apps, schema_editor):
     """Update report to database mapping."""
@@ -51,6 +87,36 @@ def mig_0001_reload_aws_map(apps, schema_editor):
 
     data = pkgutil.get_data('reporting_common',
                             'data/aws_report_column_map.json')
+
+    data = json.loads(data)
+
+    for entry in data:
+        map = ReportColumnMap(**entry)
+        map.save()
+
+# reporting_common.migrations.0014_auto_20190820_1513
+def mig_0014_load_azure_report_map_data(apps, schema_editor):
+    """Load Azure Usage report to database mapping."""
+    ReportColumnMap = apps.get_model('reporting_common', 'ReportColumnMap')
+
+    data = pkgutil.get_data('reporting_common',
+                            'data/azure_report_column_map.json')
+
+    data = json.loads(data)
+
+    for entry in data:
+        map = ReportColumnMap(**entry)
+        map.save()
+
+# reporting_common.migrations.0016_auto_20190829_2053
+def mig_0016_reload_azure_map(apps, schema_editor):
+    """Update report to database mapping."""
+    ReportColumnMap = apps.get_model('reporting_common', 'ReportColumnMap')
+    azure_items = ReportColumnMap.objects.filter(provider_type='AZURE')
+    azure_items.delete()
+
+    data = pkgutil.get_data('reporting_common',
+                            'data/azure_report_column_map.json')
 
     data = json.loads(data)
 
@@ -102,38 +168,16 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='CostUsageReportManifest',
-            fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('assembly_id', models.TextField()),
-                ('manifest_creation_datetime', models.DateTimeField(default=django.utils.timezone.now, null=True)),
-                ('manifest_updated_datetime', models.DateTimeField(default=django.utils.timezone.now, null=True)),
-                ('billing_period_start_datetime', models.DateTimeField()),
-                ('num_processed_files', models.IntegerField(default=0)),
-                ('num_total_files', models.IntegerField()),
-                ('provider', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.Provider')),
-                ('task',models.UUIDField(null=True)),
-                ('manifest_completed_datetime', models.DateTimeField(null=True)),
-            ],
-        ),
-        migrations.AlterUniqueTogether(
-            name='costusagereportmanifest',
-            unique_together={('provider', 'assembly_id')},
-        ),
-        migrations.CreateModel(
             name='CostUsageReportStatus',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('report_name', models.CharField(max_length=128)),
+                ('report_name', models.CharField(max_length=128, unique=True)),
+                ('cursor_position', models.PositiveIntegerField()),
                 ('last_completed_datetime', models.DateTimeField(null=True)),
                 ('last_started_datetime', models.DateTimeField(null=True)),
                 ('etag', models.CharField(max_length=64, null=True)),
-                ('manifest', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='reporting_common.CostUsageReportManifest')),
+                ('provider', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='api.Provider')),
             ],
-        ),
-        migrations.AlterUniqueTogether(
-            name='costusagereportstatus',
-            unique_together={('manifest', 'report_name')},
         ),
         migrations.CreateModel(
             name='RegionMapping',
@@ -150,16 +194,11 @@ class Migration(migrations.Migration):
             name='ReportColumnMap',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('provider_type', models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE'), ('GCP', 'GCP'), ('AWS-local', 'AWS-local'), ('AZURE-local', 'AZURE-local'), ('GCP-local', 'GCP-local')], default='AWS', max_length=50)),
-                ('provider_column_name', models.CharField(max_length=128)),
+                ('provider_type', models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP')], default='AWS', max_length=50)),
+                ('provider_column_name', models.CharField(max_length=128, unique=True)),
                 ('database_table', models.CharField(max_length=50)),
                 ('database_column', models.CharField(max_length=128)),
-                ('report_type', models.CharField(max_length=50, null=True)),
             ],
-        ),
-        migrations.AlterUniqueTogether(
-            name='reportcolumnmap',
-            unique_together={('report_type', 'provider_column_name')},
         ),
         migrations.CreateModel(
             name='SIUnitScale',
@@ -176,16 +215,161 @@ class Migration(migrations.Migration):
         migrations.RunPython(
             code=mig_0001_load_report_map_data,
         ),
+        migrations.AlterField(
+            model_name='reportcolumnmap',
+            name='provider_type',
+            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AWS-local', 'AWS-local'), ('OCP-local', 'OCP-local')], default='AWS', max_length=50),
+        ),
+        migrations.RunPython(
+            code=mig_0001_load_ocp_report_map_data,
+        ),
+        migrations.CreateModel(
+            name='CostUsageReportManifest',
+            fields=[
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('assembly_id', models.TextField(unique=True)),
+                ('manifest_creation_datetime', models.DateTimeField(default=django.utils.timezone.now, null=True)),
+                ('manifest_updated_datetime', models.DateTimeField(default=django.utils.timezone.now, null=True)),
+                ('billing_period_start_datetime', models.DateTimeField()),
+                ('num_processed_files', models.IntegerField(default=0)),
+                ('num_total_files', models.IntegerField()),
+                # source of FK
+                ('provider', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.Provider')),
+            ],
+        ),
+        migrations.RemoveField(
+            model_name='costusagereportstatus',
+            name='cursor_position',
+        ),
+        migrations.RemoveField(
+            model_name='costusagereportstatus',
+            name='provider',
+        ),
+        migrations.AddField(
+            model_name='costusagereportstatus',
+            name='manifest',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='reporting_common.CostUsageReportManifest'),
+        ),
+        migrations.RunPython(
+            code=mig_0001_reload_ocp_map_0005,
+        ),
+        migrations.AddField(
+            model_name='reportcolumnmap',
+            name='report_type',
+            field=models.CharField(max_length=50, null=True),
+        ),
+        migrations.AlterField(
+            model_name='reportcolumnmap',
+            name='provider_column_name',
+            field=models.CharField(max_length=128),
+        ),
+        migrations.AlterUniqueTogether(
+            name='reportcolumnmap',
+            unique_together={('report_type', 'provider_column_name')},
+        ),
         migrations.RunPython(
             code=mig_0001_reload_ocp_map_0007,
         ),
         migrations.RunPython(
             code=mig_0001_reload_aws_map,
         ),
+        migrations.AlterField(
+            model_name='costusagereportmanifest',
+            name='assembly_id',
+            field=models.TextField(),
+        ),
+        migrations.AlterUniqueTogether(
+            name='costusagereportmanifest',
+            unique_together={('provider', 'assembly_id')},
+        ),
+        migrations.AlterField(
+            model_name='costusagereportstatus',
+            name='report_name',
+            field=models.CharField(max_length=128),
+        ),
+        migrations.AlterUniqueTogether(
+            name='costusagereportstatus',
+            unique_together={('manifest', 'report_name')},
+        ),
+        migrations.AlterField(
+            model_name='reportcolumnmap',
+            name='provider_type',
+            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE')], default='AWS', max_length=50),
+        ),
+        migrations.AlterField(
+            model_name='reportcolumnmap',
+            name='provider_type',
+            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE'), ('AWS-local', 'AWS-local'), ('OCP-local', 'OCP-local')], default='AWS', max_length=50),
+        ),
+        migrations.RunPython(
+            code=mig_0014_load_azure_report_map_data,
+        ),
+        migrations.AlterField(
+            model_name='reportcolumnmap',
+            name='provider_type',
+            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE'), ('AWS-local', 'AWS-local'), ('AZURE-local', 'AZURE-local')], default='AWS', max_length=50),
+        ),
+        migrations.RunPython(
+            code=mig_0016_reload_azure_map,
+        ),
+        migrations.AlterField(
+            model_name='reportcolumnmap',
+            name='provider_type',
+            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE'), ('GCP', 'GCP'), ('AWS-local', 'AWS-local'), ('AZURE-local', 'AZURE-local'), ('GCP-local', 'GCP-local')], default='AWS', max_length=50),
+        ),
         migrations.RunPython(
             code=mig_0018_reload_azure_map,
         ),
+        migrations.AddField(
+            model_name='costusagereportmanifest',
+            name='provider_uuid',
+            field=models.UUIDField(null=True),
+        ),
+        migrations.RunSQL(
+            sql='\n                UPDATE reporting_common_costusagereportmanifest AS m\n                    SET provider_uuid = p.uuid\n                FROM api_provider AS p\n                WHERE p.id = m.provider_id\n            ',
+        ),
+        migrations.AlterUniqueTogether(
+            name='costusagereportmanifest',
+            unique_together=set(),
+        ),
+        migrations.RemoveField(
+            model_name='costusagereportmanifest',
+            name='provider',
+        ),
+        # should be handled from CreateModel def above
+        #migrations.AddField(
+        #    model_name='costusagereportmanifest',
+        #    name='provider',
+        #    field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='api.Provider'),
+        #),
+        migrations.AlterUniqueTogether(
+            name='costusagereportmanifest',
+            unique_together={('provider', 'assembly_id')},
+        ),
+        migrations.RunSQL(
+            sql='\n                UPDATE reporting_common_costusagereportmanifest\n                    SET provider_id = provider_uuid\n            ',
+        ),
+        migrations.RemoveField(
+            model_name='costusagereportmanifest',
+            name='provider_uuid',
+        ),
+        # This should be effectively handled from above changes
+        #migrations.AlterField(
+        #    model_name='costusagereportmanifest',
+        #    name='provider',
+        #    field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.Provider'),
+        #),
         migrations.RunPython(
             code=mig_0022_load_gcp_column_map,
+        ),
+        migrations.AddField(
+            model_name='costusagereportmanifest',
+            name='task',
+            field=models.UUIDField(null=True),
+        ),
+        migrations.AddField(
+            model_name='costusagereportmanifest',
+            name='manifest_completed_datetime',
+            field=models.DateTimeField(null=True),
         ),
     ]
