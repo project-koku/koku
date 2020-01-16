@@ -101,7 +101,7 @@ class SourcesSerializerTests(IamTestCase):
 
     def test_azure_source_update_wrong_type(self):
         """Test the updating azure source with wrong source type."""
-        self.azure_obj.source_type = Provider.Provider_AWS
+        self.azure_obj.source_type = Provider.PROVIDER_AWS
         self.azure_obj.save()
 
         serializer = SourcesSerializer(context=self.request_context)
