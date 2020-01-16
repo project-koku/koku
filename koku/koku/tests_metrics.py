@@ -78,7 +78,7 @@ class DatabaseStatusTest(IamTestCase):
             test_query = 'SELECT count(*) from now()'
             dbs = DatabaseStatus()
             with self.assertLogs(logger='koku.metrics', level=logging.WARNING):
-                result = dbs.query(test_query)
+                result = dbs.query(test_query, 'test_query')
             self.assertFalse(result)
 
     @patch('koku.metrics.connection')

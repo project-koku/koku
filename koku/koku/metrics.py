@@ -24,15 +24,14 @@ from prometheus_client import Counter, Gauge
 
 from .celery import app
 
-DB_CONNECTION_ERRORS = Counter('db_connection_erros',
-                               'Number of DB connection errors')
+DB_CONNECTION_ERRORS = Counter('db_connection_erros', 'Number of DB connection errors')
 LOG = get_task_logger(__name__)
-PGSQL_GAUGE = Gauge('postgresql_schema_size_bytes',
-                    'PostgreSQL DB Size (bytes)',
-                    ['schema'])
+PGSQL_GAUGE = Gauge(
+    'postgresql_schema_size_bytes', 'PostgreSQL DB Size (bytes)', ['schema']
+)
 
 
-class DatabaseStatus():
+class DatabaseStatus:
     """Database status information."""
 
     def connection_check(self):  # pylint: disable=R0201
@@ -41,7 +40,9 @@ class DatabaseStatus():
             connection.cursor()
             LOG.debug('DatabaseStatus.connection_check: DB connected!')
         except OperationalError as error:
-            LOG.error('DatabaseStatus.connection_check: No connection to DB: %s', str(error))
+            LOG.error(
+                'DatabaseStatus.connection_check: No connection to DB: %s', str(error)
+            )
             DB_CONNECTION_ERRORS.inc()
 
     def query(self, query, query_tag):  # pylint: disable=R0201
@@ -66,11 +67,17 @@ class DatabaseStatus():
                 LOG.warning('DatabaseStatus.query exception: %s', exc)
                 time.sleep(2)
         else:
-            LOG.error('DatabaseStatus.query (query: %s): Query failed to return results.', query_tag)  # noqa
+            LOG.error(
+                'DatabaseStatus.query (query: %s): Query failed to return results.',
+                query_tag,
+            )
             return []
 
         if not rows:
-            LOG.info('DatabaseStatus.query (query: %s): Query returned no results.', query_tag)
+            LOG.info(
+                'DatabaseStatus.query (query: %s): Query returned no results.',
+                query_tag,
+            )
             return []
 
         # get column names
