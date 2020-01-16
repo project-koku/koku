@@ -73,7 +73,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-#        ('reporting_common', '0019_auto_20191022_1602'),
+        ('reporting_common', '0019_auto_20191022_1602'),
     ]
 
     operations = [
@@ -164,82 +164,6 @@ class Migration(migrations.Migration):
                 'unique_together': {('authentication', 'billing_source')},
             },
         ),
-        migrations.AddField(
-            model_name='provider',
-            name='created_timestamp',
-            field=models.DateTimeField(auto_now_add=True, null=True),
-        ),
-        migrations.AlterField(
-            model_name='provider',
-            name='type',
-            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP')], default='AWS', max_length=50),
-        ),
-        migrations.AlterField(
-            model_name='provider',
-            name='type',
-            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AWS-local', 'AWS-local'), ('OCP-local', 'OCP-local')], default='AWS', max_length=50),
-        ),
-        migrations.AlterField(
-            model_name='provider',
-            name='type',
-            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE')], default='AWS', max_length=50),
-        ),
-        migrations.AlterField(
-            model_name='provider',
-            name='type',
-            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE'), ('AWS-local', 'AWS-local'), ('OCP-local', 'OCP-local')], default='AWS', max_length=50),
-        ),
-        migrations.AlterField(
-            model_name='provider',
-            name='type',
-            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE'), ('AWS-local', 'AWS-local'), ('AZURE-local', 'AZURE-local')], default='AWS', max_length=50),
-        ),
-        migrations.AlterField(
-            model_name='provider',
-            name='type',
-            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE')], default='AWS', max_length=50),
-        ),
-        migrations.AlterField(
-            model_name='provider',
-            name='type',
-            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE'), ('GCP', 'GCP'), ('AWS-local', 'AWS-local'), ('AZURE-local', 'AZURE-local'), ('GCP-local', 'GCP-local')], default='AWS', max_length=50),
-        ),
-        migrations.RemoveField(
-            model_name='providerstatus',
-            name='provider',
-        ),
-        migrations.RunSQL(
-            sql=['ALTER TABLE api_provider DROP CONSTRAINT api_provider_pkey'],
-            state_operations=[migrations.RemoveField(
-                model_name='provider',
-                name='id',
-            )],
-        ),
-        migrations.AlterField(
-            model_name='provider',
-            name='uuid',
-            field=models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False),
-        ),
-        migrations.AddField(
-            model_name='providerstatus',
-            name='provider',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='api.Provider'),
-        ),
-        migrations.AlterField(
-            model_name='providerstatus',
-            name='provider',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.Provider'),
-        ),
-        migrations.AddField(
-            model_name='provider',
-            name='active',
-            field=models.BooleanField(default=True),
-        ),
-        migrations.AddField(
-            model_name='provider',
-            name='infrastructure',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='api.ProviderInfrastructureMap'),
-        ),
         migrations.RunPython(
             code=mig_0001_migrate_customer_schema_name,
         ),
@@ -277,9 +201,10 @@ class Migration(migrations.Migration):
         migrations.RunPython(
             code=mig_0010_load_openshift_metric_map,
         ),
-        migrations.RemoveField(
-            model_name='providerstatus',
-            name='provider_uuid',
+        migrations.AddField(
+            model_name='provider',
+            name='created_timestamp',
+            field=models.DateTimeField(auto_now_add=True, null=True),
         ),
         migrations.AlterField(
             model_name='costmodelmetricsmap',
@@ -287,9 +212,19 @@ class Migration(migrations.Migration):
             field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP')], max_length=50),
         ),
         migrations.AlterField(
+            model_name='provider',
+            name='type',
+            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP')], default='AWS', max_length=50),
+        ),
+        migrations.AlterField(
             model_name='costmodelmetricsmap',
             name='source_type',
             field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AWS-local', 'AWS-local'), ('OCP-local', 'OCP-local')], max_length=50),
+        ),
+        migrations.AlterField(
+            model_name='provider',
+            name='type',
+            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AWS-local', 'AWS-local'), ('OCP-local', 'OCP-local')], default='AWS', max_length=50),
         ),
         migrations.AddField(
             model_name='providerauthentication',
@@ -305,6 +240,11 @@ class Migration(migrations.Migration):
             model_name='costmodelmetricsmap',
             name='source_type',
             field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE')], max_length=50),
+        ),
+        migrations.AlterField(
+            model_name='provider',
+            name='type',
+            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE')], default='AWS', max_length=50),
         ),
         migrations.AlterField(
             model_name='providerauthentication',
@@ -360,9 +300,19 @@ class Migration(migrations.Migration):
             field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE'), ('AWS-local', 'AWS-local'), ('OCP-local', 'OCP-local')], max_length=50),
         ),
         migrations.AlterField(
+            model_name='provider',
+            name='type',
+            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE'), ('AWS-local', 'AWS-local'), ('OCP-local', 'OCP-local')], default='AWS', max_length=50),
+        ),
+        migrations.AlterField(
             model_name='costmodelmetricsmap',
             name='source_type',
             field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE'), ('AWS-local', 'AWS-local'), ('AZURE-local', 'AZURE-local')], max_length=50),
+        ),
+        migrations.AlterField(
+            model_name='provider',
+            name='type',
+            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE'), ('AWS-local', 'AWS-local'), ('AZURE-local', 'AZURE-local')], default='AWS', max_length=50),
         ),
         migrations.RemoveConstraint(
             model_name='providerbillingsource',
@@ -383,9 +333,19 @@ class Migration(migrations.Migration):
             field=models.CharField(choices=[('pending', 'Pending'), ('processing', 'Processing'), ('complete', 'Complete'), ('error', 'Error')], default='pending', max_length=32),
         ),
         migrations.AlterField(
+            model_name='provider',
+            name='type',
+            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE')], default='AWS', max_length=50),
+        ),
+        migrations.AlterField(
             model_name='costmodelmetricsmap',
             name='source_type',
             field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE'), ('GCP', 'GCP'), ('AWS-local', 'AWS-local'), ('AZURE-local', 'AZURE-local'), ('GCP-local', 'GCP-local')], max_length=50),
+        ),
+        migrations.AlterField(
+            model_name='provider',
+            name='type',
+            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE'), ('GCP', 'GCP'), ('AWS-local', 'AWS-local'), ('AZURE-local', 'AZURE-local'), ('GCP-local', 'GCP-local')], default='AWS', max_length=50),
         ),
         migrations.CreateModel(
             name='Sources',
@@ -444,8 +404,43 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             sql='\n                UPDATE api_providerstatus AS ps\n                    SET provider_uuid = p.uuid\n                FROM api_provider AS p\n                WHERE p.id = ps.provider_id\n            ',
         ),
+        migrations.RemoveField(
+            model_name='providerstatus',
+            name='provider',
+        ),
+        migrations.RunSQL(
+            sql=['ALTER TABLE api_provider DROP CONSTRAINT api_provider_pkey'],
+            state_operations=[migrations.RemoveField(
+                model_name='provider',
+                name='id',
+            )],
+        ),
+        migrations.AlterField(
+            model_name='provider',
+            name='uuid',
+            field=models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False),
+        ),
+        migrations.AddField(
+            model_name='providerstatus',
+            name='provider',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='api.Provider'),
+        ),
         migrations.RunSQL(
             sql='\n                UPDATE api_providerstatus AS ps\n                    SET provider_id = provider_uuid\n            ',
+        ),
+        migrations.AlterField(
+            model_name='providerstatus',
+            name='provider',
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.Provider'),
+        ),
+        migrations.RemoveField(
+            model_name='providerstatus',
+            name='provider_uuid',
+        ),
+        migrations.AddField(
+            model_name='provider',
+            name='active',
+            field=models.BooleanField(default=True),
         ),
         migrations.CreateModel(
             name='ProviderInfrastructureMap',
@@ -454,6 +449,11 @@ class Migration(migrations.Migration):
                 ('infrastructure_type', models.CharField(choices=[('AWS', 'AWS'), ('AZURE', 'AZURE'), ('GCP', 'GCP'), ('AWS-local', 'AWS-local'), ('AZURE-local', 'AZURE-local'), ('GCP-local', 'GCP-local')], max_length=50)),
                 ('infrastructure_provider', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.Provider')),
             ],
+        ),
+        migrations.AddField(
+            model_name='provider',
+            name='infrastructure',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='api.ProviderInfrastructureMap'),
         ),
         migrations.AlterField(
             model_name='sources',
