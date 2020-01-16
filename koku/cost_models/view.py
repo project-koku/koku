@@ -45,7 +45,7 @@ class CostModelsFilter(FilterSet):
     uuid = UUIDFilter(field_name='uuid')
     provider_uuid = UUIDFilter(field_name='costmodelmap__provider_uuid')
     description = CharFilter(field_name='description', lookup_expr='icontains')
-    source_type = CharListFilter(field_name='source_type', lookup_expr='name__icontains')
+    source_type = CharListFilter(field_name='source_type', lookup_expr='source_type__iexact')
 
     def list_contain_filter(self, qs, name, values):
         """Filter items that contain values in their name."""

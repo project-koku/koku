@@ -44,7 +44,7 @@ class ProviderFilter(FilterSet):
     """Provider custom filters."""
 
     name = CharListFilter(field_name='name', lookup_expr='name__icontains')
-    type = CharListFilter(field_name='type', lookup_expr='name__icontains')
+    type = CharListFilter(field_name='type', lookup_expr='type__iexact')
 
     class Meta:
         model = Provider
