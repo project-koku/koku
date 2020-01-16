@@ -24,7 +24,7 @@ from prometheus_client import Counter, Gauge
 
 from .celery import app
 
-DB_CONNECTION_ERRORS = Counter('db_connection_erros', 'Number of DB connection errors')
+DB_CONNECTION_ERRORS = Counter('db_connection_errors', 'Number of DB connection errors')
 LOG = get_task_logger(__name__)
 PGSQL_GAUGE = Gauge(
     'postgresql_schema_size_bytes', 'PostgreSQL DB Size (bytes)', ['schema']
