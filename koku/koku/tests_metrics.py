@@ -34,6 +34,22 @@ FAKE = Faker()
 class DatabaseStatusTest(IamTestCase):
     """Test DatabaseStatus object."""
 
+    def test_db_is_connected(self):
+        """Test that db is connected and logs at DEBUG level."""
+        logging.disable(logging.NOTSET)
+        with self.assertLogs(logger='koku.metrics', level=logging.DEBUG):
+            DatabaseStatus().connection_check()
+
+    @patch('koku.metrics.DB_CONNECTION_ERRORS.inc')
+    @patch('koku.metrics.connection')
+    def test_db_is_not_connected(self, mock_connection, mock_counter):
+        """Test that db is not connected, log at ERROR level and counter increments."""
+        mock_connection.cursor.side_effect = OperationalError('test exception')
+        logging.disable(logging.NOTSET)
+        with self.assertLogs(logger='koku.metrics', level=logging.ERROR):
+            DatabaseStatus().connection_check()
+        self.assertTrue(mock_counter.called)
+
     @patch('koku.metrics.DatabaseStatus.query', return_value=True)
     def test_schema_size(self, mock_status):
         """Test schema_size()."""
@@ -80,6 +96,22 @@ class DatabaseStatusTest(IamTestCase):
             with self.assertLogs(logger='koku.metrics', level=logging.WARNING):
                 result = dbs.query(test_query, 'test_query')
             self.assertFalse(result)
+
+    @patch('koku.metrics.connection')
+    def test_query_return_empty(self, mock_connection):
+        """Test that empty query returns [] and logs info."""
+        # Mocked up objects:
+        #   connection.cursor().fetchall()
+        #   connection.cursor().description
+        mock_ctx = Mock(return_value=Mock(description=[('schema',), ('size',)],
+                                          fetchall=[('chicken', 2)]))
+        mock_connection.cursor = Mock(return_value=Mock(__enter__=mock_ctx,
+                                                        __exit__=mock_ctx))
+        logging.disable(logging.NOTSET)
+        dbs = DatabaseStatus()
+        with self.assertLogs(logger='koku.metrics', level=logging.INFO):
+            result = dbs.schema_size()
+        self.assertFalse(result)
 
     @patch('koku.metrics.connection')
     def test_schema_size_valid(self, mock_connection):

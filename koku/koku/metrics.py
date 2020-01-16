@@ -62,10 +62,11 @@ class DatabaseStatus:
                 with connection.cursor() as cursor:
                     cursor.execute(query)
                     rows = cursor.fetchall()
-                    break
             except (OperationalError, InterfaceError) as exc:
                 LOG.warning('DatabaseStatus.query exception: %s', exc)
                 time.sleep(2)
+            else:
+                break
         else:
             LOG.error(
                 'DatabaseStatus.query (query: %s): Query failed to return results.',
