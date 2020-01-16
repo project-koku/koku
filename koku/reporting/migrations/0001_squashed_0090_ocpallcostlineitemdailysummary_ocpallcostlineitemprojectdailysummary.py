@@ -14,9 +14,8 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        #('api', '0033_auto_20191022_1635'),
-        #('api', '0032_auto_20191022_1620'),
-        ('api', '0001_squashed_0041_sources_account_id'),
+        ('api', '0033_auto_20191022_1635'),
+        ('api', '0032_auto_20191022_1620'),
     ]
 
     operations = [
@@ -29,6 +28,14 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.CreateModel(
+            name='AWSCostEntry',
+            fields=[
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('interval_start', models.DateTimeField()),
+                ('interval_end', models.DateTimeField()),
+            ],
+        ),
+        migrations.CreateModel(
             name='AWSCostEntryBill',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
@@ -38,47 +45,6 @@ class Migration(migrations.Migration):
                 ('billing_period_start', models.DateTimeField()),
                 ('billing_period_end', models.DateTimeField()),
             ],
-        ),
-        migrations.AddField(
-            model_name='awscostentrybill',
-            name='finalized_datetime',
-            field=models.DateTimeField(null=True),
-        ),
-        migrations.AddField(
-            model_name='awscostentrybill',
-            name='summary_data_creation_datetime',
-            field=models.DateTimeField(null=True),
-        ),
-        migrations.AddField(
-            model_name='awscostentrybill',
-            name='summary_data_updated_datetime',
-            field=models.DateTimeField(null=True),
-        ),
-        migrations.AddField(
-            model_name='awscostentrybill',
-            name='provider_id',
-            field=models.IntegerField(null=True),
-        ),
-        migrations.AlterUniqueTogether(
-            name='awscostentrybill',
-            unique_together={('bill_type', 'payer_account_id', 'billing_period_start')},
-        ),
-        migrations.CreateModel(
-            name='AWSCostEntry',
-            fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('interval_start', models.DateTimeField()),
-                ('interval_end', models.DateTimeField()),
-            ],
-        ),
-        migrations.AddField(
-            model_name='awscostentry',
-            name='bill',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntryBill'),
-        ),
-        migrations.AddIndex(
-            model_name='awscostentry',
-            index=models.Index(fields=['interval_start'], name='interval_start_idx'),
         ),
         migrations.CreateModel(
             name='AWSCostEntryLineItem',
@@ -114,35 +80,6 @@ class Migration(migrations.Migration):
                 ('tax_type', models.TextField(null=True)),
             ],
         ),
-        migrations.AddField(
-            model_name='awscostentrylineitem',
-            name='cost_entry',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntry'),
-        ),
-        migrations.AddField(
-            model_name='awscostentrylineitem',
-            name='cost_entry_bill',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntryBill'),
-        ),
-        migrations.AddField(
-            model_name='awscostentrylineitem',
-            name='cost_entry_pricing',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntryPricing'),
-        ),
-        migrations.AddField(
-            model_name='awscostentrylineitem',
-            name='cost_entry_product',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntryProduct'),
-        ),
-        migrations.AddField(
-            model_name='awscostentrylineitem',
-            name='cost_entry_reservation',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntryReservation'),
-        ),
-        migrations.AlterUniqueTogether(
-            name='awscostentrylineitem',
-            unique_together={('hash', 'cost_entry')},
-        ),
         migrations.CreateModel(
             name='AWSCostEntryLineItemAggregates',
             fields=[
@@ -161,17 +98,6 @@ class Migration(migrations.Migration):
                 'db_table': 'reporting_awscostentrylineitem_aggregates',
             },
         ),
-        migrations.AddField(
-            model_name='awscostentrylineitemaggregates',
-            name='account_alias',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSAccountAlias'),
-        ),
-        migrations.AddField(
-            model_name='awscostentrylineitemaggregates',
-            name='tags',
-            field=django.contrib.postgres.fields.jsonb.JSONField(null=True),
-        ),
-
         migrations.CreateModel(
             name='AWSCostEntryLineItemDaily',
             fields=[
@@ -202,34 +128,6 @@ class Migration(migrations.Migration):
                 'db_table': 'reporting_awscostentrylineitem_daily',
             },
         ),
-        migrations.AddField(
-            model_name='awscostentrylineitemdaily',
-            name='cost_entry_pricing',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntryPricing'),
-        ),
-        migrations.AddField(
-            model_name='awscostentrylineitemdaily',
-            name='cost_entry_product',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntryProduct'),
-        ),
-        migrations.AddField(
-            model_name='awscostentrylineitemdaily',
-            name='cost_entry_reservation',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntryReservation'),
-        ),
-        migrations.AddIndex(
-            model_name='awscostentrylineitemdaily',
-            index=models.Index(fields=['usage_start'], name='usage_start_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='awscostentrylineitemdaily',
-            index=models.Index(fields=['product_code'], name='product_code_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='awscostentrylineitemdaily',
-            index=models.Index(fields=['usage_account_id'], name='usage_account_id_idx'),
-        ),
-
         migrations.CreateModel(
             name='AWSCostEntryLineItemDailySummary',
             fields=[
@@ -260,33 +158,6 @@ class Migration(migrations.Migration):
                 'db_table': 'reporting_awscostentrylineitem_daily_summary',
             },
         ),
-        migrations.AddField(
-            model_name='awscostentrylineitemdailysummary',
-            name='account_alias',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSAccountAlias'),
-        ),
-        migrations.AddIndex(
-            model_name='awscostentrylineitemdailysummary',
-            index=models.Index(fields=['usage_start'], name='summary_usage_start_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='awscostentrylineitemdailysummary',
-            index=models.Index(fields=['product_code'], name='summary_product_code_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='awscostentrylineitemdailysummary',
-            index=models.Index(fields=['usage_account_id'], name='summary_usage_account_id_idx'),
-        ),
-        migrations.AddField(
-            model_name='awscostentrylineitemdailysummary',
-            name='tags',
-            field=django.contrib.postgres.fields.jsonb.JSONField(null=True),
-        ),
-        migrations.AddIndex(
-            model_name='awscostentrylineitemdailysummary',
-            index=django.contrib.postgres.indexes.GinIndex(fields=['tags'], name='tags_idx'),
-        ),
-
         migrations.CreateModel(
             name='AWSCostEntryPricing',
             fields=[
@@ -295,11 +166,6 @@ class Migration(migrations.Migration):
                 ('unit', models.CharField(max_length=63, null=True)),
             ],
         ),
-        migrations.AlterUniqueTogether(
-            name='awscostentrypricing',
-            unique_together={('term', 'unit')},
-        ),
-
         migrations.CreateModel(
             name='AWSCostEntryProduct',
             fields=[
@@ -315,15 +181,6 @@ class Migration(migrations.Migration):
                 ('vcpu', models.PositiveIntegerField(null=True)),
             ],
         ),
-        migrations.AddIndex(
-            model_name='awscostentryproduct',
-            index=models.Index(fields=['region'], name='region_idx'),
-        ),
-        migrations.AlterUniqueTogether(
-            name='awscostentryproduct',
-            unique_together={('sku', 'product_name', 'region')},
-        ),
-
         migrations.CreateModel(
             name='AWSCostEntryReservation',
             fields=[
@@ -334,8 +191,101 @@ class Migration(migrations.Migration):
                 ('start_time', models.DateTimeField(null=True)),
                 ('end_time', models.DateTimeField(null=True)),
             ],
-        ),        
-        
+        ),
+        migrations.AddIndex(
+            model_name='awscostentryproduct',
+            index=models.Index(fields=['region'], name='region_idx'),
+        ),
+        migrations.AlterUniqueTogether(
+            name='awscostentryproduct',
+            unique_together={('sku', 'product_name', 'region')},
+        ),
+        migrations.AlterUniqueTogether(
+            name='awscostentrypricing',
+            unique_together={('term', 'unit')},
+        ),
+        migrations.AddField(
+            model_name='awscostentrylineitemdailysummary',
+            name='account_alias',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSAccountAlias'),
+        ),
+        migrations.AddField(
+            model_name='awscostentrylineitemdaily',
+            name='cost_entry_pricing',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntryPricing'),
+        ),
+        migrations.AddField(
+            model_name='awscostentrylineitemdaily',
+            name='cost_entry_product',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntryProduct'),
+        ),
+        migrations.AddField(
+            model_name='awscostentrylineitemdaily',
+            name='cost_entry_reservation',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntryReservation'),
+        ),
+        migrations.AddField(
+            model_name='awscostentrylineitem',
+            name='cost_entry',
+            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntry'),
+        ),
+        migrations.AddField(
+            model_name='awscostentrylineitem',
+            name='cost_entry_bill',
+            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntryBill'),
+        ),
+        migrations.AddField(
+            model_name='awscostentrylineitem',
+            name='cost_entry_pricing',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntryPricing'),
+        ),
+        migrations.AddField(
+            model_name='awscostentrylineitem',
+            name='cost_entry_product',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntryProduct'),
+        ),
+        migrations.AddField(
+            model_name='awscostentrylineitem',
+            name='cost_entry_reservation',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntryReservation'),
+        ),
+        migrations.AddField(
+            model_name='awscostentry',
+            name='bill',
+            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntryBill'),
+        ),
+        migrations.AddIndex(
+            model_name='awscostentrylineitemdailysummary',
+            index=models.Index(fields=['usage_start'], name='summary_usage_start_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='awscostentrylineitemdailysummary',
+            index=models.Index(fields=['product_code'], name='summary_product_code_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='awscostentrylineitemdailysummary',
+            index=models.Index(fields=['usage_account_id'], name='summary_usage_account_id_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='awscostentrylineitemdaily',
+            index=models.Index(fields=['usage_start'], name='usage_start_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='awscostentrylineitemdaily',
+            index=models.Index(fields=['product_code'], name='product_code_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='awscostentrylineitemdaily',
+            index=models.Index(fields=['usage_account_id'], name='usage_account_id_idx'),
+        ),
+        migrations.AlterUniqueTogether(
+            name='awscostentrylineitem',
+            unique_together={('hash', 'cost_entry')},
+        ),
+        migrations.AddIndex(
+            model_name='awscostentry',
+            index=models.Index(fields=['interval_start'], name='interval_start_idx'),
+        ),
         migrations.CreateModel(
             name='OCPUsageLineItem',
             fields=[
@@ -349,6 +299,88 @@ class Migration(migrations.Migration):
                 ('pod_usage_memory_seconds', models.DecimalField(decimal_places=5, max_digits=17, null=True)),
             ],
         ),
+        migrations.CreateModel(
+            name='OCPUsageLineItemDaily',
+            fields=[
+                ('id', models.BigAutoField(primary_key=True, serialize=False)),
+                ('namespace', models.CharField(max_length=253)),
+                ('pod', models.CharField(max_length=253)),
+                ('node', models.CharField(max_length=253)),
+                ('usage_start', models.DateTimeField()),
+                ('usage_end', models.DateTimeField()),
+                ('pod_usage_cpu_core_seconds', models.DecimalField(decimal_places=5, max_digits=17, null=True)),
+                ('pod_usage_memory_seconds', models.DecimalField(decimal_places=5, max_digits=17, null=True)),
+            ],
+            options={
+                'db_table': 'reporting_ocpusagelineitem_daily',
+            },
+        ),
+        migrations.CreateModel(
+            name='OCPUsageLineItemDailySummary',
+            fields=[
+                ('id', models.BigAutoField(primary_key=True, serialize=False)),
+                ('namespace', models.CharField(max_length=253)),
+                ('pod', models.CharField(max_length=253)),
+                ('node', models.CharField(max_length=253)),
+                ('usage_start', models.DateTimeField()),
+                ('usage_end', models.DateTimeField()),
+                ('pod_usage_cpu_core_seconds', models.DecimalField(decimal_places=5, max_digits=17, null=True)),
+                ('pod_usage_memory_seconds', models.DecimalField(decimal_places=5, max_digits=17, null=True)),
+            ],
+            options={
+                'db_table': 'reporting_ocpusagelineitem_daily_summary',
+            },
+        ),
+        migrations.CreateModel(
+            name='OCPUsageReportPeriod',
+            fields=[
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('cluster_id', models.CharField(max_length=50)),
+                ('report_period_start', models.DateTimeField()),
+                ('report_period_end', models.DateTimeField()),
+            ],
+        ),
+        migrations.CreateModel(
+            name='OCPUsageReport',
+            fields=[
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('interval_start', models.DateTimeField()),
+                ('interval_end', models.DateTimeField()),
+                ('report_period', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='reporting.OCPUsageReportPeriod')),
+            ],
+        ),
+        migrations.AddIndex(
+            model_name='ocpusagelineitemdailysummary',
+            index=models.Index(fields=['usage_start'], name='summary_ocp_usage_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='ocpusagelineitemdailysummary',
+            index=models.Index(fields=['namespace'], name='summary_namespace_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='ocpusagelineitemdailysummary',
+            index=models.Index(fields=['pod'], name='summary_pod_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='ocpusagelineitemdailysummary',
+            index=models.Index(fields=['node'], name='summary_node_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='ocpusagelineitemdaily',
+            index=models.Index(fields=['usage_start'], name='ocp_usage_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='ocpusagelineitemdaily',
+            index=models.Index(fields=['namespace'], name='namespace_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='ocpusagelineitemdaily',
+            index=models.Index(fields=['pod'], name='pod_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='ocpusagelineitemdaily',
+            index=models.Index(fields=['node'], name='node_idx'),
+        ),
         migrations.AddField(
             model_name='ocpusagelineitem',
             name='report',
@@ -359,6 +391,10 @@ class Migration(migrations.Migration):
             name='report_period',
             field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='reporting.OCPUsageReportPeriod'),
         ),
+        migrations.AddIndex(
+            model_name='ocpusagereport',
+            index=models.Index(fields=['interval_start'], name='ocp_interval_start_idx'),
+        ),
         migrations.AlterUniqueTogether(
             name='ocpusagelineitem',
             unique_together={('report', 'namespace', 'pod', 'node')},
@@ -367,6 +403,56 @@ class Migration(migrations.Migration):
             model_name='ocpusagelineitem',
             old_name='pod_usage_memory_seconds',
             new_name='pod_limit_cpu_cores',
+        ),
+        migrations.RenameField(
+            model_name='ocpusagelineitemdaily',
+            old_name='pod_usage_memory_seconds',
+            new_name='pod_limit_cpu_cores',
+        ),
+        migrations.RenameField(
+            model_name='ocpusagelineitemdailysummary',
+            old_name='pod_usage_memory_seconds',
+            new_name='pod_limit_cpu_cores',
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdaily',
+            name='pod_limit_memory_bytes',
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdaily',
+            name='pod_request_cpu_core_seconds',
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdaily',
+            name='pod_request_memory_byte_seconds',
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdaily',
+            name='pod_usage_memory_byte_seconds',
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdailysummary',
+            name='pod_limit_memory_bytes',
+            field=models.DecimalField(decimal_places=5, max_digits=17, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdailysummary',
+            name='pod_request_cpu_core_seconds',
+            field=models.DecimalField(decimal_places=5, max_digits=17, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdailysummary',
+            name='pod_request_memory_byte_seconds',
+            field=models.DecimalField(decimal_places=5, max_digits=17, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdailysummary',
+            name='pod_usage_memory_byte_seconds',
+            field=models.DecimalField(decimal_places=5, max_digits=17, null=True),
         ),
         migrations.RemoveField(
             model_name='ocpusagelineitem',
@@ -407,6 +493,139 @@ class Migration(migrations.Migration):
             field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
         ),
         migrations.AddField(
+            model_name='awscostentrybill',
+            name='finalized_datetime',
+            field=models.DateTimeField(null=True),
+        ),
+        migrations.AddField(
+            model_name='awscostentrybill',
+            name='summary_data_creation_datetime',
+            field=models.DateTimeField(null=True),
+        ),
+        migrations.AddField(
+            model_name='awscostentrybill',
+            name='summary_data_updated_datetime',
+            field=models.DateTimeField(null=True),
+        ),
+        migrations.AddField(
+            model_name='awscostentrylineitemaggregates',
+            name='account_alias',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSAccountAlias'),
+        ),
+        migrations.AddField(
+            model_name='awscostentrybill',
+            name='provider_id',
+            field=models.IntegerField(null=True),
+        ),
+        migrations.AlterUniqueTogether(
+            name='awscostentrybill',
+            unique_together={('bill_type', 'payer_account_id', 'billing_period_start')},
+        ),
+        migrations.CreateModel(
+            name='OCPUsageLineItemAggregates',
+            fields=[
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('time_scope_value', models.IntegerField()),
+                ('cluster_id', models.CharField(max_length=50, null=True)),
+                ('namespace', models.CharField(max_length=253)),
+                ('pod', models.CharField(max_length=253)),
+                ('node', models.CharField(max_length=253)),
+                ('pod_usage_cpu_core_hours', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
+                ('pod_request_cpu_core_hours', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
+                ('pod_limit_cpu_cores', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
+                ('pod_usage_memory_gigabytes', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
+                ('pod_request_memory_gigabytes', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
+                ('pod_limit_memory_gigabytes', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
+            ],
+            options={
+                'db_table': 'reporting_ocpusagelineitem_aggregates',
+            },
+        ),
+        migrations.DeleteModel(
+            name='OCPUsageLineItemDailySummary',
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdaily',
+            name='cluster_id',
+            field=models.CharField(max_length=50, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagereportperiod',
+            name='provider_id',
+            field=models.IntegerField(null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagereportperiod',
+            name='summary_data_creation_datetime',
+            field=models.DateTimeField(null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagereportperiod',
+            name='summary_data_updated_datetime',
+            field=models.DateTimeField(null=True),
+        ),
+        migrations.AlterUniqueTogether(
+            name='ocpusagereport',
+            unique_together={('report_period', 'interval_start')},
+        ),
+        migrations.AlterUniqueTogether(
+            name='ocpusagereportperiod',
+            unique_together={('cluster_id', 'report_period_start')},
+        ),
+        migrations.AlterField(
+            model_name='ocpusagelineitemdaily',
+            name='pod_limit_cpu_cores',
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
+        ),
+        migrations.AlterField(
+            model_name='ocpusagelineitemdaily',
+            name='pod_usage_cpu_core_seconds',
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
+        ),
+        migrations.CreateModel(
+            name='OCPUsageLineItemDailySummary',
+            fields=[
+                ('id', models.BigAutoField(primary_key=True, serialize=False)),
+                ('cluster_id', models.CharField(max_length=50, null=True)),
+                ('namespace', models.CharField(max_length=253)),
+                ('pod', models.CharField(max_length=253)),
+                ('node', models.CharField(max_length=253)),
+                ('usage_start', models.DateTimeField()),
+                ('usage_end', models.DateTimeField()),
+                ('pod_usage_cpu_core_hours', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
+                ('pod_request_cpu_core_hours', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
+                ('pod_limit_cpu_cores', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
+                ('pod_usage_memory_gigabytes', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
+                ('pod_request_memory_gigabytes', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
+                ('pod_limit_memory_gigabytes', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
+            ],
+            options={
+                'db_table': 'reporting_ocpusagelineitem_daily_summary',
+            },
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdaily',
+            name='total_seconds',
+            field=models.IntegerField(default=0),
+            preserve_default=False,
+        ),
+        migrations.AddIndex(
+            model_name='ocpusagelineitemdailysummary',
+            index=models.Index(fields=['usage_start'], name='summary_ocp_usage_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='ocpusagelineitemdailysummary',
+            index=models.Index(fields=['namespace'], name='summary_namespace_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='ocpusagelineitemdailysummary',
+            index=models.Index(fields=['pod'], name='summary_pod_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='ocpusagelineitemdailysummary',
+            index=models.Index(fields=['node'], name='summary_node_idx'),
+        ),
+        migrations.AddField(
             model_name='ocpusagelineitem',
             name='node_capacity_cpu_core_seconds',
             field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
@@ -431,6 +650,71 @@ class Migration(migrations.Migration):
             name='pod_labels',
             field=django.contrib.postgres.fields.jsonb.JSONField(null=True),
         ),
+        migrations.AddField(
+            model_name='ocpusagelineitemaggregates',
+            name='node_capacity_cpu_core_hours',
+            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemaggregates',
+            name='node_capacity_cpu_cores',
+            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemaggregates',
+            name='node_capacity_memory_byte_hours',
+            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemaggregates',
+            name='node_capacity_memory_bytes',
+            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdaily',
+            name='node_capacity_cpu_core_seconds',
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdaily',
+            name='node_capacity_cpu_cores',
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdaily',
+            name='node_capacity_memory_byte_seconds',
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdaily',
+            name='node_capacity_memory_bytes',
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdaily',
+            name='pod_labels',
+            field=django.contrib.postgres.fields.jsonb.JSONField(null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdailysummary',
+            name='node_capacity_cpu_core_hours',
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdailysummary',
+            name='node_capacity_cpu_cores',
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdailysummary',
+            name='pod_charge_cpu_core_hours',
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdailysummary',
+            name='pod_charge_memory_gigabyte_hours',
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
+        ),
         migrations.RenameField(
             model_name='ocpusagelineitem',
             old_name='pod_limit_cpu_cores',
@@ -440,6 +724,51 @@ class Migration(migrations.Migration):
             model_name='ocpusagelineitem',
             old_name='pod_limit_memory_bytes',
             new_name='pod_limit_memory_byte_seconds',
+        ),
+        migrations.RenameField(
+            model_name='ocpusagelineitemaggregates',
+            old_name='pod_limit_cpu_cores',
+            new_name='pod_limit_cpu_core_hours',
+        ),
+        migrations.RenameField(
+            model_name='ocpusagelineitemdaily',
+            old_name='pod_limit_cpu_cores',
+            new_name='pod_limit_cpu_core_seconds',
+        ),
+        migrations.RenameField(
+            model_name='ocpusagelineitemdaily',
+            old_name='pod_limit_memory_bytes',
+            new_name='pod_limit_memory_byte_seconds',
+        ),
+        migrations.RenameField(
+            model_name='ocpusagelineitemdailysummary',
+            old_name='pod_limit_cpu_cores',
+            new_name='pod_limit_cpu_core_hours',
+        ),
+        migrations.RenameField(
+            model_name='ocpusagelineitemdailysummary',
+            old_name='pod_limit_memory_gigabytes',
+            new_name='pod_limit_memory_gigabyte_hours',
+        ),
+        migrations.RenameField(
+            model_name='ocpusagelineitemdailysummary',
+            old_name='pod_request_memory_gigabytes',
+            new_name='pod_request_memory_gigabyte_hours',
+        ),
+        migrations.RenameField(
+            model_name='ocpusagelineitemdailysummary',
+            old_name='pod_usage_memory_gigabytes',
+            new_name='pod_usage_memory_gigabyte_hours',
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdailysummary',
+            name='node_capacity_memory_gigabyte_hours',
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdailysummary',
+            name='node_capacity_memory_gigabytes',
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
         ),
         migrations.AlterField(
             model_name='ocpusagelineitem',
@@ -472,126 +801,6 @@ class Migration(migrations.Migration):
             field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
         ),
         migrations.AddField(
-            model_name='ocpusagelineitem',
-            name='resource_id',
-            field=models.CharField(max_length=253, null=True),
-        ),
-
-
-        migrations.CreateModel(
-            name='OCPUsageLineItemDaily',
-            fields=[
-                ('id', models.BigAutoField(primary_key=True, serialize=False)),
-                ('namespace', models.CharField(max_length=253)),
-                ('pod', models.CharField(max_length=253)),
-                ('node', models.CharField(max_length=253)),
-                ('usage_start', models.DateTimeField()),
-                ('usage_end', models.DateTimeField()),
-                ('pod_usage_cpu_core_seconds', models.DecimalField(decimal_places=5, max_digits=17, null=True)),
-                ('pod_usage_memory_seconds', models.DecimalField(decimal_places=5, max_digits=17, null=True)),
-            ],
-            options={
-                'db_table': 'reporting_ocpusagelineitem_daily',
-            },
-        ),
-        migrations.AddIndex(
-            model_name='ocpusagelineitemdaily',
-            index=models.Index(fields=['usage_start'], name='ocp_usage_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='ocpusagelineitemdaily',
-            index=models.Index(fields=['namespace'], name='namespace_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='ocpusagelineitemdaily',
-            index=models.Index(fields=['pod'], name='pod_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='ocpusagelineitemdaily',
-            index=models.Index(fields=['node'], name='node_idx'),
-        ),
-        migrations.RenameField(
-            model_name='ocpusagelineitemdaily',
-            old_name='pod_usage_memory_seconds',
-            new_name='pod_limit_cpu_cores',
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdaily',
-            name='pod_limit_memory_bytes',
-            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdaily',
-            name='pod_request_cpu_core_seconds',
-            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdaily',
-            name='pod_request_memory_byte_seconds',
-            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdaily',
-            name='pod_usage_memory_byte_seconds',
-            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdaily',
-            name='cluster_id',
-            field=models.CharField(max_length=50, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdaily',
-            name='total_seconds',
-            field=models.IntegerField(default=0),
-            preserve_default=False,
-        ),
-        migrations.AlterField(
-            model_name='ocpusagelineitemdaily',
-            name='pod_limit_cpu_cores',
-            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
-        ),
-        migrations.AlterField(
-            model_name='ocpusagelineitemdaily',
-            name='pod_usage_cpu_core_seconds',
-            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdaily',
-            name='node_capacity_cpu_core_seconds',
-            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdaily',
-            name='node_capacity_cpu_cores',
-            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdaily',
-            name='node_capacity_memory_byte_seconds',
-            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdaily',
-            name='node_capacity_memory_bytes',
-            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdaily',
-            name='pod_labels',
-            field=django.contrib.postgres.fields.jsonb.JSONField(null=True),
-        ),
-        migrations.RenameField(
-            model_name='ocpusagelineitemdaily',
-            old_name='pod_limit_cpu_cores',
-            new_name='pod_limit_cpu_core_seconds',
-        ),
-        migrations.RenameField(
-            model_name='ocpusagelineitemdaily',
-            old_name='pod_limit_memory_bytes',
-            new_name='pod_limit_memory_byte_seconds',
-        ),
-        migrations.AddField(
             model_name='ocpusagelineitemdaily',
             name='cluster_capacity_cpu_core_seconds',
             field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
@@ -601,205 +810,6 @@ class Migration(migrations.Migration):
             name='cluster_capacity_memory_byte_seconds',
             field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
         ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdaily',
-            name='cluster_alias',
-            field=models.CharField(max_length=256, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdaily',
-            name='resource_id',
-            field=models.CharField(max_length=253, null=True),
-        ),
-
-
-        migrations.CreateModel(
-            name='OCPUsageReportPeriod',
-            fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('cluster_id', models.CharField(max_length=50)),
-                ('report_period_start', models.DateTimeField()),
-                ('report_period_end', models.DateTimeField()),
-            ],
-        ),
-        migrations.AddField(
-            model_name='ocpusagereportperiod',
-            name='provider_id',
-            field=models.IntegerField(null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagereportperiod',
-            name='summary_data_creation_datetime',
-            field=models.DateTimeField(null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagereportperiod',
-            name='summary_data_updated_datetime',
-            field=models.DateTimeField(null=True),
-        ),
-        migrations.AlterUniqueTogether(
-            name='ocpusagereportperiod',
-            unique_together={('cluster_id', 'report_period_start')},
-        ),
-
-        migrations.CreateModel(
-            name='OCPUsageReport',
-            fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('interval_start', models.DateTimeField()),
-                ('interval_end', models.DateTimeField()),
-                ('report_period', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='reporting.OCPUsageReportPeriod')),
-            ],
-        ),
-        migrations.AddIndex(
-            model_name='ocpusagereport',
-            index=models.Index(fields=['interval_start'], name='ocp_interval_start_idx'),
-        ),
-        migrations.AlterUniqueTogether(
-            name='ocpusagereport',
-            unique_together={('report_period', 'interval_start')},
-        ),
-
-        
-        migrations.CreateModel(
-            name='OCPUsageLineItemAggregates',
-            fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('time_scope_value', models.IntegerField()),
-                ('cluster_id', models.CharField(max_length=50, null=True)),
-                ('namespace', models.CharField(max_length=253)),
-                ('pod', models.CharField(max_length=253)),
-                ('node', models.CharField(max_length=253)),
-                ('pod_usage_cpu_core_hours', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
-                ('pod_request_cpu_core_hours', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
-                ('pod_limit_cpu_cores', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
-                ('pod_usage_memory_gigabytes', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
-                ('pod_request_memory_gigabytes', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
-                ('pod_limit_memory_gigabytes', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
-            ],
-            options={
-                'db_table': 'reporting_ocpusagelineitem_aggregates',
-            },
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemaggregates',
-            name='node_capacity_cpu_core_hours',
-            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemaggregates',
-            name='node_capacity_cpu_cores',
-            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemaggregates',
-            name='node_capacity_memory_byte_hours',
-            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemaggregates',
-            name='node_capacity_memory_bytes',
-            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
-        ),
-        migrations.RenameField(
-            model_name='ocpusagelineitemaggregates',
-            old_name='pod_limit_cpu_cores',
-            new_name='pod_limit_cpu_core_hours',
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemaggregates',
-            name='resource_id',
-            field=models.CharField(max_length=253, null=True),
-        ),
-
-
-        migrations.CreateModel(
-            name='OCPUsageLineItemDailySummary',
-            fields=[
-                ('id', models.BigAutoField(primary_key=True, serialize=False)),
-                ('cluster_id', models.CharField(max_length=50, null=True)),
-                ('namespace', models.CharField(max_length=253)),
-                ('pod', models.CharField(max_length=253)),
-                ('node', models.CharField(max_length=253)),
-                ('usage_start', models.DateTimeField()),
-                ('usage_end', models.DateTimeField()),
-                ('pod_usage_cpu_core_hours', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
-                ('pod_request_cpu_core_hours', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
-                ('pod_limit_cpu_cores', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
-                ('pod_usage_memory_gigabytes', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
-                ('pod_request_memory_gigabytes', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
-                ('pod_limit_memory_gigabytes', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
-            ],
-            options={
-                'db_table': 'reporting_ocpusagelineitem_daily_summary',
-            },
-        ),
-        migrations.AddIndex(
-            model_name='ocpusagelineitemdailysummary',
-            index=models.Index(fields=['usage_start'], name='summary_ocp_usage_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='ocpusagelineitemdailysummary',
-            index=models.Index(fields=['namespace'], name='summary_namespace_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='ocpusagelineitemdailysummary',
-            index=models.Index(fields=['pod'], name='summary_pod_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='ocpusagelineitemdailysummary',
-            index=models.Index(fields=['node'], name='summary_node_idx'),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdailysummary',
-            name='node_capacity_cpu_core_hours',
-            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdailysummary',
-            name='node_capacity_cpu_cores',
-            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdailysummary',
-            name='pod_charge_cpu_core_hours',
-            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdailysummary',
-            name='pod_charge_memory_gigabyte_hours',
-            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
-        ),
-        migrations.RenameField(
-            model_name='ocpusagelineitemdailysummary',
-            old_name='pod_limit_cpu_cores',
-            new_name='pod_limit_cpu_core_hours',
-        ),
-        migrations.RenameField(
-            model_name='ocpusagelineitemdailysummary',
-            old_name='pod_limit_memory_gigabytes',
-            new_name='pod_limit_memory_gigabyte_hours',
-        ),
-        migrations.RenameField(
-            model_name='ocpusagelineitemdailysummary',
-            old_name='pod_request_memory_gigabytes',
-            new_name='pod_request_memory_gigabyte_hours',
-        ),
-        migrations.RenameField(
-            model_name='ocpusagelineitemdailysummary',
-            old_name='pod_usage_memory_gigabytes',
-            new_name='pod_usage_memory_gigabyte_hours',
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdailysummary',
-            name='node_capacity_memory_gigabyte_hours',
-            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpusagelineitemdailysummary',
-            name='node_capacity_memory_gigabytes',
-            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
-        ),        
         migrations.AddField(
             model_name='ocpusagelineitemdailysummary',
             name='cluster_capacity_cpu_core_hours',
@@ -854,17 +864,20 @@ class Migration(migrations.Migration):
             index=django.contrib.postgres.indexes.GinIndex(fields=['pod_labels'], name='pod_labels_idx'),
         ),
         migrations.AddField(
-            model_name='ocpusagelineitemdailysummary',
+            model_name='ocpusagelineitemdaily',
             name='cluster_alias',
             field=models.CharField(max_length=256, null=True),
         ),
         migrations.AddField(
             model_name='ocpusagelineitemdailysummary',
-            name='resource_id',
-            field=models.CharField(max_length=253, null=True),
+            name='cluster_alias',
+            field=models.CharField(max_length=256, null=True),
         ),
-
-
+        migrations.AddField(
+            model_name='awscostentrylineitemdailysummary',
+            name='tags',
+            field=django.contrib.postgres.fields.jsonb.JSONField(null=True),
+        ),
         migrations.CreateModel(
             name='OCPUsagePodLabelSummary',
             fields=[
@@ -875,8 +888,26 @@ class Migration(migrations.Migration):
                 'db_table': 'reporting_ocpusagepodlabel_summary',
             },
         ),
-
-
+        migrations.AddField(
+            model_name='ocpusagelineitem',
+            name='resource_id',
+            field=models.CharField(max_length=253, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemaggregates',
+            name='resource_id',
+            field=models.CharField(max_length=253, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdaily',
+            name='resource_id',
+            field=models.CharField(max_length=253, null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpusagelineitemdailysummary',
+            name='resource_id',
+            field=models.CharField(max_length=253, null=True),
+        ),
         migrations.CreateModel(
             name='AWSTagsSummary',
             fields=[
@@ -887,21 +918,18 @@ class Migration(migrations.Migration):
                 'db_table': 'reporting_awstags_summary',
             },
         ),
-
-
-
-        # VIEW  reporting_ocpawscostlineitem_daily (INITIAL DEFINITION)
-        #migrations.RunSQL(
-        #    sql='\n            DROP VIEW IF EXISTS reporting_ocpawscostlineitem_daily;\n\n            CREATE OR REPLACE VIEW reporting_ocpawscostlineitem_daily AS (\n                SELECT ocp.cluster_id,\n                    ocp.cluster_alias,\n                    ocp.namespace,\n                    ocp.pod,\n                    ocp.node,\n                    ocp.pod_labels,\n                    ocp.pod_usage_cpu_core_seconds,\n                    ocp.pod_request_cpu_core_seconds,\n                    ocp.pod_limit_cpu_core_seconds,\n                    ocp.pod_usage_memory_byte_seconds,\n                    ocp.pod_request_memory_byte_seconds,\n                    ocp.node_capacity_cpu_cores,\n                    ocp.node_capacity_cpu_core_seconds,\n                    ocp.node_capacity_memory_bytes,\n                    ocp.node_capacity_memory_byte_seconds,\n                    ocp.cluster_capacity_cpu_core_seconds,\n                    ocp.cluster_capacity_memory_byte_seconds,\n                    aws.cost_entry_product_id,\n                    aws.cost_entry_pricing_id,\n                    aws.cost_entry_reservation_id,\n                    aws.line_item_type,\n                    aws.usage_account_id,\n                    aws.usage_start,\n                    aws.usage_end,\n                    aws.product_code,\n                    aws.usage_type,\n                    aws.operation,\n                    aws.availability_zone,\n                    aws.resource_id,\n                    aws.usage_amount,\n                    aws.normalization_factor,\n                    aws.normalized_usage_amount,\n                    aws.currency_code,\n                    aws.unblended_rate,\n                    aws.unblended_cost,\n                    aws.blended_rate,\n                    aws.blended_cost,\n                    aws.public_on_demand_cost,\n                    aws.public_on_demand_rate,\n                    aws.tax_type,\n                    aws.tags\n                FROM reporting_awscostentrylineitem_daily as aws\n                JOIN reporting_ocpusagelineitem_daily as ocp\n                    ON aws.resource_id = ocp.resource_id\n                        AND aws.usage_start::date = ocp.usage_start::date\n            );\n            ',
-        #),
-        # VIEW reporting_ocpawscostlineitem_daily (REDEFINITION)
-        migrations.RunSQL(
-            sql="\n            DROP VIEW IF EXISTS reporting_ocpawscostlineitem_daily;\n            DROP VIEW IF EXISTS reporting_ocpawsusagecostlineitem_daily;\n\n            CREATE OR REPLACE VIEW reporting_ocpawsusagelineitem_daily AS (\n                WITH cte_usage_tag_matched as (\n                    SELECT aws.id as aws_id,\n                            ocp.id as ocp_id,\n                            aws.usage_start,\n                            ocp.namespace\n                        FROM (\n                        SELECT aws.id,\n                            aws.usage_start,\n                            LOWER(key) as key,\n                            LOWER(value) as value\n                            FROM reporting_awscostentrylineitem_daily as aws,\n                                jsonb_each_text(aws.tags) labels\n                        ) AS aws\n                        JOIN (\n                            SELECT ocp.id,\n                                ocp.usage_start,\n                                ocp.cluster_alias,\n                                ocp.node,\n                                ocp.namespace,\n                                LOWER(key) as key,\n                                LOWER(value) as value\n                            FROM reporting_ocpusagelineitem_daily as ocp,\n                                jsonb_each_text(ocp.pod_labels) labels\n                        ) AS ocp\n                            ON aws.usage_start::date = ocp.usage_start::date\n                                AND (\n                                    (aws.key = ocp.key AND aws.value = ocp.value)\n                                    OR (aws.key = 'openshift_cluster' AND aws.value = ocp.cluster_alias)\n                                    OR (aws.key = 'openshift_node' AND aws.value = ocp.node)\n                                    OR (aws.key = 'openshift_project' AND aws.value = ocp.namespace)\n                                )\n                        GROUP BY aws.id, ocp.id, aws.usage_start, ocp.namespace\n                ),\n                cte_number_of_shared_projects AS (\n                    SELECT usage_start,\n                        aws_id,\n                        count(DISTINCT namespace) as shared_projects\n                    FROM cte_usage_tag_matched\n                    GROUP BY usage_start, aws_id\n                )\n                SELECT ocp.cluster_id,\n                    ocp.cluster_alias,\n                    ocp.namespace,\n                    ocp.pod,\n                    ocp.node,\n                    ocp.pod_labels,\n                    ocp.pod_usage_cpu_core_seconds,\n                    ocp.pod_request_cpu_core_seconds,\n                    ocp.pod_limit_cpu_core_seconds,\n                    ocp.pod_usage_memory_byte_seconds,\n                    ocp.pod_request_memory_byte_seconds,\n                    ocp.node_capacity_cpu_cores,\n                    ocp.node_capacity_cpu_core_seconds,\n                    ocp.node_capacity_memory_bytes,\n                    ocp.node_capacity_memory_byte_seconds,\n                    ocp.cluster_capacity_cpu_core_seconds,\n                    ocp.cluster_capacity_memory_byte_seconds,\n                    aws.cost_entry_product_id,\n                    aws.cost_entry_pricing_id,\n                    aws.cost_entry_reservation_id,\n                    aws.line_item_type,\n                    aws.usage_account_id,\n                    aws.usage_start,\n                    aws.usage_end,\n                    aws.product_code,\n                    aws.usage_type,\n                    aws.operation,\n                    aws.availability_zone,\n                    aws.resource_id,\n                    aws.usage_amount,\n                    aws.normalization_factor,\n                    aws.normalized_usage_amount,\n                    aws.currency_code,\n                    aws.unblended_rate,\n                    aws.unblended_cost,\n                    aws.blended_rate,\n                    aws.blended_cost,\n                    aws.public_on_demand_cost,\n                    aws.public_on_demand_rate,\n                    aws.tax_type,\n                    aws.tags,\n                    1::int as shared_projects\n                FROM reporting_awscostentrylineitem_daily as aws\n                JOIN reporting_ocpusagelineitem_daily as ocp\n                    ON aws.resource_id = ocp.resource_id\n                        AND aws.usage_start::date = ocp.usage_start::date\n\n                UNION\n\n                SELECT ocp.cluster_id,\n                    ocp.cluster_alias,\n                    ocp.namespace,\n                    ocp.pod,\n                    ocp.node,\n                    ocp.pod_labels,\n                    ocp.pod_usage_cpu_core_seconds,\n                    ocp.pod_request_cpu_core_seconds,\n                    ocp.pod_limit_cpu_core_seconds,\n                    ocp.pod_usage_memory_byte_seconds,\n                    ocp.pod_request_memory_byte_seconds,\n                    ocp.node_capacity_cpu_cores,\n                    ocp.node_capacity_cpu_core_seconds,\n                    ocp.node_capacity_memory_bytes,\n                    ocp.node_capacity_memory_byte_seconds,\n                    ocp.cluster_capacity_cpu_core_seconds,\n                    ocp.cluster_capacity_memory_byte_seconds,\n                    aws.cost_entry_product_id,\n                    aws.cost_entry_pricing_id,\n                    aws.cost_entry_reservation_id,\n                    aws.line_item_type,\n                    aws.usage_account_id,\n                    aws.usage_start,\n                    aws.usage_end,\n                    aws.product_code,\n                    aws.usage_type,\n                    aws.operation,\n                    aws.availability_zone,\n                    aws.resource_id,\n                    aws.usage_amount,\n                    aws.normalization_factor,\n                    aws.normalized_usage_amount,\n                    aws.currency_code,\n                    aws.unblended_rate,\n                    aws.unblended_cost,\n                    aws.blended_rate,\n                    aws.blended_cost,\n                    aws.public_on_demand_cost,\n                    aws.public_on_demand_rate,\n                    aws.tax_type,\n                    aws.tags,\n                    tm.shared_projects\n                FROM (\n                    SELECT tm.usage_start,\n                        tm.ocp_id,\n                        tm.aws_id,\n                        max(sp.shared_projects) as shared_projects\n                    FROM cte_usage_tag_matched AS tm\n                    LEFT JOIN cte_number_of_shared_projects AS sp\n                        ON tm.aws_id = sp.aws_id\n                    GROUP BY tm.usage_start, tm.ocp_id, tm.aws_id\n                ) AS tm\n                JOIN reporting_awscostentrylineitem_daily as aws\n                    ON tm.aws_id = aws.id\n                JOIN reporting_ocpusagelineitem_daily as ocp\n                    ON tm.ocp_id = ocp.id\n            );\n            ",
+        migrations.AddField(
+            model_name='awscostentrylineitemaggregates',
+            name='tags',
+            field=django.contrib.postgres.fields.jsonb.JSONField(null=True),
         ),
-
-
-
-
+        migrations.AddIndex(
+            model_name='awscostentrylineitemdailysummary',
+            index=django.contrib.postgres.indexes.GinIndex(fields=['tags'], name='tags_idx'),
+        ),
+        migrations.RunSQL(
+            sql='\n            DROP VIEW IF EXISTS reporting_ocpawscostlineitem_daily;\n\n            CREATE OR REPLACE VIEW reporting_ocpawscostlineitem_daily AS (\n                SELECT ocp.cluster_id,\n                    ocp.cluster_alias,\n                    ocp.namespace,\n                    ocp.pod,\n                    ocp.node,\n                    ocp.pod_labels,\n                    ocp.pod_usage_cpu_core_seconds,\n                    ocp.pod_request_cpu_core_seconds,\n                    ocp.pod_limit_cpu_core_seconds,\n                    ocp.pod_usage_memory_byte_seconds,\n                    ocp.pod_request_memory_byte_seconds,\n                    ocp.node_capacity_cpu_cores,\n                    ocp.node_capacity_cpu_core_seconds,\n                    ocp.node_capacity_memory_bytes,\n                    ocp.node_capacity_memory_byte_seconds,\n                    ocp.cluster_capacity_cpu_core_seconds,\n                    ocp.cluster_capacity_memory_byte_seconds,\n                    aws.cost_entry_product_id,\n                    aws.cost_entry_pricing_id,\n                    aws.cost_entry_reservation_id,\n                    aws.line_item_type,\n                    aws.usage_account_id,\n                    aws.usage_start,\n                    aws.usage_end,\n                    aws.product_code,\n                    aws.usage_type,\n                    aws.operation,\n                    aws.availability_zone,\n                    aws.resource_id,\n                    aws.usage_amount,\n                    aws.normalization_factor,\n                    aws.normalized_usage_amount,\n                    aws.currency_code,\n                    aws.unblended_rate,\n                    aws.unblended_cost,\n                    aws.blended_rate,\n                    aws.blended_cost,\n                    aws.public_on_demand_cost,\n                    aws.public_on_demand_rate,\n                    aws.tax_type,\n                    aws.tags\n                FROM reporting_awscostentrylineitem_daily as aws\n                JOIN reporting_ocpusagelineitem_daily as ocp\n                    ON aws.resource_id = ocp.resource_id\n                        AND aws.usage_start::date = ocp.usage_start::date\n            );\n            ',
+        ),
         migrations.CreateModel(
             name='OCPAWSCostLineItemDaily',
             fields=[
@@ -948,12 +976,10 @@ class Migration(migrations.Migration):
                 ('tags', django.contrib.postgres.fields.jsonb.JSONField(null=True)),
             ],
             options={
-                'db_table': 'reporting_ocpawscostlineitem_daily',  # references view
+                'db_table': 'reporting_ocpawscostlineitem_daily',
                 'managed': False,
             },
         ),
-
-
         migrations.CreateModel(
             name='OCPAWSCostLineItemDailySummary',
             fields=[
@@ -998,28 +1024,6 @@ class Migration(migrations.Migration):
             model_name='ocpawscostlineitemdailysummary',
             index=django.contrib.postgres.indexes.GinIndex(fields=['pod_labels'], name='cost_pod_labels_idx'),
         ),
-        migrations.AddField(
-            model_name='ocpawscostlineitemdailysummary',
-            name='normalized_usage_amount',
-            field=models.FloatField(null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpawscostlineitemdailysummary',
-            name='usage_amount',
-            field=models.FloatField(null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpawscostlineitemdailysummary',
-            name='instance_type',
-            field=models.CharField(max_length=50, null=True),
-        ),
-        migrations.AddField(
-            model_name='ocpawscostlineitemdailysummary',
-            name='currency_code',
-            field=models.CharField(max_length=10, null=True),
-        ),
-
-
         migrations.CreateModel(
             name='OCPStorageLineItem',
             fields=[
@@ -1042,8 +1046,21 @@ class Migration(migrations.Migration):
                 'unique_together': {('report', 'namespace', 'persistentvolumeclaim')},
             },
         ),
-
-
+        migrations.AddField(
+            model_name='ocpawscostlineitemdailysummary',
+            name='normalized_usage_amount',
+            field=models.FloatField(null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpawscostlineitemdailysummary',
+            name='usage_amount',
+            field=models.FloatField(null=True),
+        ),
+        migrations.AddField(
+            model_name='ocpawscostlineitemdailysummary',
+            name='instance_type',
+            field=models.CharField(max_length=50, null=True),
+        ),
         migrations.CreateModel(
             name='OCPStorageVolumeClaimLabelSummary',
             fields=[
@@ -1054,8 +1071,6 @@ class Migration(migrations.Migration):
                 'db_table': 'reporting_ocpstoragevolumeclaimlabel_summary',
             },
         ),
-
-
         migrations.CreateModel(
             name='OCPStorageVolumeLabelSummary',
             fields=[
@@ -1066,8 +1081,11 @@ class Migration(migrations.Migration):
                 'db_table': 'reporting_ocpstoragevolumelabel_summary',
             },
         ),
-
-
+        migrations.AddField(
+            model_name='ocpawscostlineitemdailysummary',
+            name='currency_code',
+            field=models.CharField(max_length=10, null=True),
+        ),
         migrations.CreateModel(
             name='OCPStorageLineItemDaily',
             fields=[
@@ -1094,8 +1112,6 @@ class Migration(migrations.Migration):
                 'db_table': 'reporting_ocpstoragelineitem_daily',
             },
         ),
-
-
         migrations.CreateModel(
             name='OCPStorageLineItemDailySummary',
             fields=[
@@ -1121,27 +1137,11 @@ class Migration(migrations.Migration):
                 'db_table': 'reporting_ocpstoragelineitem_daily_summary',
             },
         ),
-
-
-        # VIEW reporting_ocpawsstoragelineitem_daily (INITIAL DEFINITION)
+        migrations.RunSQL(
+            sql="\n            DROP VIEW IF EXISTS reporting_ocpawscostlineitem_daily;\n            DROP VIEW IF EXISTS reporting_ocpawsusagecostlineitem_daily;\n\n            CREATE OR REPLACE VIEW reporting_ocpawsusagelineitem_daily AS (\n                WITH cte_usage_tag_matched as (\n                    SELECT aws.id as aws_id,\n                            ocp.id as ocp_id,\n                            aws.usage_start,\n                            ocp.namespace\n                        FROM (\n                        SELECT aws.id,\n                            aws.usage_start,\n                            LOWER(key) as key,\n                            LOWER(value) as value\n                            FROM reporting_awscostentrylineitem_daily as aws,\n                                jsonb_each_text(aws.tags) labels\n                        ) AS aws\n                        JOIN (\n                            SELECT ocp.id,\n                                ocp.usage_start,\n                                ocp.cluster_alias,\n                                ocp.node,\n                                ocp.namespace,\n                                LOWER(key) as key,\n                                LOWER(value) as value\n                            FROM reporting_ocpusagelineitem_daily as ocp,\n                                jsonb_each_text(ocp.pod_labels) labels\n                        ) AS ocp\n                            ON aws.usage_start::date = ocp.usage_start::date\n                                AND (\n                                    (aws.key = ocp.key AND aws.value = ocp.value)\n                                    OR (aws.key = 'openshift_cluster' AND aws.value = ocp.cluster_alias)\n                                    OR (aws.key = 'openshift_node' AND aws.value = ocp.node)\n                                    OR (aws.key = 'openshift_project' AND aws.value = ocp.namespace)\n                                )\n                        GROUP BY aws.id, ocp.id, aws.usage_start, ocp.namespace\n                ),\n                cte_number_of_shared_projects AS (\n                    SELECT usage_start,\n                        aws_id,\n                        count(DISTINCT namespace) as shared_projects\n                    FROM cte_usage_tag_matched\n                    GROUP BY usage_start, aws_id\n                )\n                SELECT ocp.cluster_id,\n                    ocp.cluster_alias,\n                    ocp.namespace,\n                    ocp.pod,\n                    ocp.node,\n                    ocp.pod_labels,\n                    ocp.pod_usage_cpu_core_seconds,\n                    ocp.pod_request_cpu_core_seconds,\n                    ocp.pod_limit_cpu_core_seconds,\n                    ocp.pod_usage_memory_byte_seconds,\n                    ocp.pod_request_memory_byte_seconds,\n                    ocp.node_capacity_cpu_cores,\n                    ocp.node_capacity_cpu_core_seconds,\n                    ocp.node_capacity_memory_bytes,\n                    ocp.node_capacity_memory_byte_seconds,\n                    ocp.cluster_capacity_cpu_core_seconds,\n                    ocp.cluster_capacity_memory_byte_seconds,\n                    aws.cost_entry_product_id,\n                    aws.cost_entry_pricing_id,\n                    aws.cost_entry_reservation_id,\n                    aws.line_item_type,\n                    aws.usage_account_id,\n                    aws.usage_start,\n                    aws.usage_end,\n                    aws.product_code,\n                    aws.usage_type,\n                    aws.operation,\n                    aws.availability_zone,\n                    aws.resource_id,\n                    aws.usage_amount,\n                    aws.normalization_factor,\n                    aws.normalized_usage_amount,\n                    aws.currency_code,\n                    aws.unblended_rate,\n                    aws.unblended_cost,\n                    aws.blended_rate,\n                    aws.blended_cost,\n                    aws.public_on_demand_cost,\n                    aws.public_on_demand_rate,\n                    aws.tax_type,\n                    aws.tags,\n                    1::int as shared_projects\n                FROM reporting_awscostentrylineitem_daily as aws\n                JOIN reporting_ocpusagelineitem_daily as ocp\n                    ON aws.resource_id = ocp.resource_id\n                        AND aws.usage_start::date = ocp.usage_start::date\n\n                UNION\n\n                SELECT ocp.cluster_id,\n                    ocp.cluster_alias,\n                    ocp.namespace,\n                    ocp.pod,\n                    ocp.node,\n                    ocp.pod_labels,\n                    ocp.pod_usage_cpu_core_seconds,\n                    ocp.pod_request_cpu_core_seconds,\n                    ocp.pod_limit_cpu_core_seconds,\n                    ocp.pod_usage_memory_byte_seconds,\n                    ocp.pod_request_memory_byte_seconds,\n                    ocp.node_capacity_cpu_cores,\n                    ocp.node_capacity_cpu_core_seconds,\n                    ocp.node_capacity_memory_bytes,\n                    ocp.node_capacity_memory_byte_seconds,\n                    ocp.cluster_capacity_cpu_core_seconds,\n                    ocp.cluster_capacity_memory_byte_seconds,\n                    aws.cost_entry_product_id,\n                    aws.cost_entry_pricing_id,\n                    aws.cost_entry_reservation_id,\n                    aws.line_item_type,\n                    aws.usage_account_id,\n                    aws.usage_start,\n                    aws.usage_end,\n                    aws.product_code,\n                    aws.usage_type,\n                    aws.operation,\n                    aws.availability_zone,\n                    aws.resource_id,\n                    aws.usage_amount,\n                    aws.normalization_factor,\n                    aws.normalized_usage_amount,\n                    aws.currency_code,\n                    aws.unblended_rate,\n                    aws.unblended_cost,\n                    aws.blended_rate,\n                    aws.blended_cost,\n                    aws.public_on_demand_cost,\n                    aws.public_on_demand_rate,\n                    aws.tax_type,\n                    aws.tags,\n                    tm.shared_projects\n                FROM (\n                    SELECT tm.usage_start,\n                        tm.ocp_id,\n                        tm.aws_id,\n                        max(sp.shared_projects) as shared_projects\n                    FROM cte_usage_tag_matched AS tm\n                    LEFT JOIN cte_number_of_shared_projects AS sp\n                        ON tm.aws_id = sp.aws_id\n                    GROUP BY tm.usage_start, tm.ocp_id, tm.aws_id\n                ) AS tm\n                JOIN reporting_awscostentrylineitem_daily as aws\n                    ON tm.aws_id = aws.id\n                JOIN reporting_ocpusagelineitem_daily as ocp\n                    ON tm.ocp_id = ocp.id\n            );\n            ",
+        ),
         migrations.RunSQL(
             sql="\n            DROP VIEW IF EXISTS reporting_ocpawsstoragelineitem_daily;\n\n            CREATE OR REPLACE VIEW reporting_ocpawsstoragelineitem_daily AS (\n                WITH cte_storage_tag_matchted as (\n                    SELECT aws.id as aws_id,\n                            COALESCE(pvl.id, pvcl.id) as ocp_id,\n                            aws.usage_start,\n                            COALESCE(pvl.namespace, pvcl.namespace) as namespace\n                        FROM (\n                        SELECT aws.id,\n                            aws.usage_start,\n                            LOWER(key) as key,\n                            LOWER(value) as value\n                            FROM reporting_awscostentrylineitem_daily as aws,\n                                jsonb_each_text(aws.tags) labels\n                        ) AS aws\n                        LEFT JOIN (\n                            SELECT ocp.id,\n                                ocp.usage_start,\n                                ocp.cluster_alias,\n                                ocp.node,\n                                ocp.namespace,\n                                LOWER(key) as key,\n                                LOWER(value) as value\n                            FROM reporting_ocpstoragelineitem_daily as ocp,\n                                jsonb_each_text(ocp.persistentvolume_labels) labels\n                        ) AS pvl\n                            ON aws.usage_start::date = pvl.usage_start::date\n                                AND (\n                                    (aws.key = pvl.key AND aws.value = pvl.value)\n                                    OR (aws.key = 'ocp_cluster' AND aws.value = pvl.cluster_alias)\n                                    OR (aws.key = 'ocp_node' AND aws.value = pvl.node)\n                                    OR (aws.key = 'ocp_project' AND aws.value = pvl.namespace)\n                                )\n                        LEFT JOIN (\n                            SELECT ocp.id,\n                                ocp.usage_start,\n                                ocp.cluster_alias,\n                                ocp.node,\n                                ocp.namespace,\n                                LOWER(key) as key,\n                                LOWER(value) as value\n                            FROM reporting_ocpstoragelineitem_daily as ocp,\n                                jsonb_each_text(ocp.persistentvolumeclaim_labels) labels\n                    ) AS pvcl\n                            ON aws.usage_start::date = pvcl.usage_start::date\n                                AND (\n                                    (aws.key = pvcl.key AND aws.value = pvcl.value)\n                                    OR (aws.key = 'openshift_cluster' AND aws.value = pvcl.cluster_alias)\n                                    OR (aws.key = 'openshift_node' AND aws.value = pvcl.node)\n                                    OR (aws.key = 'openshift_project' AND aws.value = pvcl.namespace)\n                                )\n                    WHERE (pvl.id IS NOT NULL OR pvcl.id IS NOT NULL) OR pvl.id = pvcl.id\n                    GROUP BY aws.usage_start, aws.id, pvl.id, pvcl.id, pvl.namespace, pvcl.namespace\n                ),\n                cte_number_of_shared_projects AS (\n                    SELECT usage_start,\n                        aws_id,\n                        count(DISTINCT namespace) as shared_projects\n                    FROM cte_storage_tag_matchted\n                    GROUP BY usage_start, aws_id\n                )\n                SELECT ocp.cluster_id,\n                    ocp.cluster_alias,\n                    ocp.namespace,\n                    ocp.pod,\n                    ocp.node,\n                    ocp.persistentvolumeclaim,\n                    ocp.persistentvolume,\n                    ocp.storageclass,\n                    ocp.persistentvolumeclaim_capacity_bytes,\n                    ocp.persistentvolumeclaim_capacity_byte_seconds,\n                    ocp.volume_request_storage_byte_seconds,\n                    ocp.persistentvolumeclaim_usage_byte_seconds,\n                    ocp.persistentvolume_labels,\n                    ocp.persistentvolumeclaim_labels,\n                    aws.cost_entry_product_id,\n                    aws.cost_entry_pricing_id,\n                    aws.cost_entry_reservation_id,\n                    aws.line_item_type,\n                    aws.usage_account_id,\n                    aws.usage_start,\n                    aws.usage_end,\n                    aws.product_code,\n                    aws.usage_type,\n                    aws.operation,\n                    aws.availability_zone,\n                    aws.resource_id,\n                    aws.usage_amount,\n                    aws.normalization_factor,\n                    aws.normalized_usage_amount,\n                    aws.currency_code,\n                    aws.unblended_rate,\n                    aws.unblended_cost,\n                    aws.blended_rate,\n                    aws.blended_cost,\n                    aws.public_on_demand_cost,\n                    aws.public_on_demand_rate,\n                    aws.tax_type,\n                    aws.tags,\n                    tm.shared_projects\n                FROM (\n                    SELECT tm.usage_start,\n                        tm.ocp_id,\n                        tm.aws_id,\n                        max(sp.shared_projects) as shared_projects\n                    FROM cte_storage_tag_matchted AS tm\n                    LEFT JOIN cte_number_of_shared_projects AS sp\n                        ON tm.aws_id = sp.aws_id\n                    GROUP BY tm.usage_start, tm.ocp_id, tm.aws_id\n                ) AS tm\n                JOIN reporting_awscostentrylineitem_daily as aws\n                    ON tm.aws_id = aws.id\n                JOIN reporting_ocpstoragelineitem_daily as ocp\n                    ON tm.ocp_id = ocp.id\n            )\n            ;\n            ",
-        ),
-        # VIEW reporting_ocpawsstoragelineitem_daily (REDEFINITION 1)
-        migrations.RunSQL(
-            sql="\n            DROP VIEW IF EXISTS reporting_ocpawsstoragelineitem_daily;\n\n            CREATE OR REPLACE VIEW reporting_ocpawsstoragelineitem_daily AS (\n                WITH cte_storage_tag_matchted as (\n                    SELECT aws.id as aws_id,\n                            COALESCE(pvl.id, pvcl.id) as ocp_id,\n                            aws.usage_start,\n                            COALESCE(pvl.namespace, pvcl.namespace) as namespace\n                        FROM (\n                        SELECT aws.id,\n                            aws.usage_start,\n                            LOWER(key) as key,\n                            LOWER(value) as value\n                            FROM reporting_awscostentrylineitem_daily as aws,\n                                jsonb_each_text(aws.tags) labels\n                        ) AS aws\n                        LEFT JOIN (\n                            SELECT ocp.id,\n                                ocp.usage_start,\n                                ocp.cluster_alias,\n                                ocp.node,\n                                ocp.namespace,\n                                LOWER(key) as key,\n                                LOWER(value) as value\n                            FROM reporting_ocpstoragelineitem_daily as ocp,\n                                jsonb_each_text(ocp.persistentvolume_labels) labels\n                        ) AS pvl\n                            ON aws.usage_start::date = pvl.usage_start::date\n                                AND (\n                                    (aws.key = pvl.key AND aws.value = pvl.value)\n                                    OR (aws.key = 'openshift_cluster' AND aws.value = pvl.cluster_alias)\n                                    OR (aws.key = 'openshift_node' AND aws.value = pvl.node)\n                                    OR (aws.key = 'openshift_project' AND aws.value = pvl.namespace)\n                                )\n                        LEFT JOIN (\n                            SELECT ocp.id,\n                                ocp.usage_start,\n                                ocp.cluster_alias,\n                                ocp.node,\n                                ocp.namespace,\n                                LOWER(key) as key,\n                                LOWER(value) as value\n                            FROM reporting_ocpstoragelineitem_daily as ocp,\n                                jsonb_each_text(ocp.persistentvolumeclaim_labels) labels\n                    ) AS pvcl\n                            ON aws.usage_start::date = pvcl.usage_start::date\n                                AND (\n                                    (aws.key = pvcl.key AND aws.value = pvcl.value)\n                                    OR (aws.key = 'openshift_cluster' AND aws.value = pvcl.cluster_alias)\n                                    OR (aws.key = 'openshift_node' AND aws.value = pvcl.node)\n                                    OR (aws.key = 'openshift_project' AND aws.value = pvcl.namespace)\n                                )\n                    WHERE (pvl.id IS NOT NULL OR pvcl.id IS NOT NULL) OR pvl.id = pvcl.id\n                    GROUP BY aws.usage_start, aws.id, pvl.id, pvcl.id, pvl.namespace, pvcl.namespace\n                ),\n                cte_number_of_shared_projects AS (\n                    SELECT usage_start,\n                        aws_id,\n                        count(DISTINCT namespace) as shared_projects\n                    FROM cte_storage_tag_matchted\n                    GROUP BY usage_start, aws_id\n                )\n                SELECT ocp.cluster_id,\n                    ocp.cluster_alias,\n                    ocp.namespace,\n                    ocp.pod,\n                    ocp.node,\n                    ocp.persistentvolumeclaim,\n                    ocp.persistentvolume,\n                    ocp.storageclass,\n                    ocp.persistentvolumeclaim_capacity_bytes,\n                    ocp.persistentvolumeclaim_capacity_byte_seconds,\n                    ocp.volume_request_storage_byte_seconds,\n                    ocp.persistentvolumeclaim_usage_byte_seconds,\n                    ocp.persistentvolume_labels,\n                    ocp.persistentvolumeclaim_labels,\n                    aws.cost_entry_product_id,\n                    aws.cost_entry_pricing_id,\n                    aws.cost_entry_reservation_id,\n                    aws.line_item_type,\n                    aws.usage_account_id,\n                    aws.usage_start,\n                    aws.usage_end,\n                    aws.product_code,\n                    aws.usage_type,\n                    aws.operation,\n                    aws.availability_zone,\n                    aws.resource_id,\n                    aws.usage_amount,\n                    aws.normalization_factor,\n                    aws.normalized_usage_amount,\n                    aws.currency_code,\n                    aws.unblended_rate,\n                    aws.unblended_cost,\n                    aws.blended_rate,\n                    aws.blended_cost,\n                    aws.public_on_demand_cost,\n                    aws.public_on_demand_rate,\n                    aws.tax_type,\n                    aws.tags,\n                    tm.shared_projects\n                FROM (\n                    SELECT tm.usage_start,\n                        tm.ocp_id,\n                        tm.aws_id,\n                        max(sp.shared_projects) as shared_projects\n                    FROM cte_storage_tag_matchted AS tm\n                    LEFT JOIN cte_number_of_shared_projects AS sp\n                        ON tm.aws_id = sp.aws_id\n                    GROUP BY tm.usage_start, tm.ocp_id, tm.aws_id\n                ) AS tm\n                JOIN reporting_awscostentrylineitem_daily as aws\n                    ON tm.aws_id = aws.id\n                JOIN reporting_ocpstoragelineitem_daily as ocp\n                    ON tm.ocp_id = ocp.id\n            )\n            ;\n            ",
-        ),
-        # VIEW reporting_ocpawsstoragelineitem_daily (REDEFINITION 2)
-        migrations.RunSQL(
-            sql='\n            DROP VIEW IF EXISTS reporting_ocpawsstoragelineitem_daily;\n            DROP VIEW IF EXISTS reporting_ocpawsusagelineitem_daily;\n            ',
-        ),
-        # VIEW reporting_ocpawsstoragelineitem_daily (REDEFINITION 3)
-        migrations.RunSQL(
-            sql="\n            CREATE OR REPLACE VIEW reporting_ocpawsstoragelineitem_daily AS (\n                WITH cte_storage_tag_matchted as (\n                    SELECT aws.id as aws_id,\n                            COALESCE(pvl.id, pvcl.id) as ocp_id,\n                            aws.usage_start,\n                            COALESCE(pvl.namespace, pvcl.namespace) as namespace\n                        FROM (\n                        SELECT aws.id,\n                            aws.usage_start,\n                            LOWER(key) as key,\n                            LOWER(value) as value\n                            FROM reporting_awscostentrylineitem_daily as aws,\n                                jsonb_each_text(aws.tags) labels\n                        ) AS aws\n                        LEFT JOIN (\n                            SELECT ocp.id,\n                                ocp.usage_start,\n                                ocp.cluster_alias,\n                                ocp.node,\n                                ocp.namespace,\n                                LOWER(key) as key,\n                                LOWER(value) as value\n                            FROM reporting_ocpstoragelineitem_daily as ocp,\n                                jsonb_each_text(ocp.persistentvolume_labels) labels\n                        ) AS pvl\n                            ON aws.usage_start::date = pvl.usage_start::date\n                                AND (\n                                    (aws.key = pvl.key AND aws.value = pvl.value)\n                                    OR (aws.key = 'openshift_cluster' AND aws.value = pvl.cluster_alias)\n                                    OR (aws.key = 'openshift_node' AND aws.value = pvl.node)\n                                    OR (aws.key = 'openshift_project' AND aws.value = pvl.namespace)\n                                )\n                        LEFT JOIN (\n                            SELECT ocp.id,\n                                ocp.usage_start,\n                                ocp.cluster_alias,\n                                ocp.node,\n                                ocp.namespace,\n                                LOWER(key) as key,\n                                LOWER(value) as value\n                            FROM reporting_ocpstoragelineitem_daily as ocp,\n                                jsonb_each_text(ocp.persistentvolumeclaim_labels) labels\n                    ) AS pvcl\n                            ON aws.usage_start::date = pvcl.usage_start::date\n                                AND (\n                                    (aws.key = pvcl.key AND aws.value = pvcl.value)\n                                    OR (aws.key = 'openshift_cluster' AND aws.value = pvcl.cluster_alias)\n                                    OR (aws.key = 'openshift_node' AND aws.value = pvcl.node)\n                                    OR (aws.key = 'openshift_project' AND aws.value = pvcl.namespace)\n                                )\n                    WHERE (pvl.id IS NOT NULL OR pvcl.id IS NOT NULL) OR pvl.id = pvcl.id\n                    GROUP BY aws.usage_start, aws.id, pvl.id, pvcl.id, pvl.namespace, pvcl.namespace\n                ),\n                cte_number_of_shared_projects AS (\n                    SELECT usage_start,\n                        aws_id,\n                        count(DISTINCT namespace) as shared_projects\n                    FROM cte_storage_tag_matchted\n                    GROUP BY usage_start, aws_id\n                )\n                SELECT ocp.cluster_id,\n                    ocp.cluster_alias,\n                    ocp.namespace,\n                    ocp.pod,\n                    ocp.node,\n                    ocp.persistentvolumeclaim,\n                    ocp.persistentvolume,\n                    ocp.storageclass,\n                    ocp.persistentvolumeclaim_capacity_bytes,\n                    ocp.persistentvolumeclaim_capacity_byte_seconds,\n                    ocp.volume_request_storage_byte_seconds,\n                    ocp.persistentvolumeclaim_usage_byte_seconds,\n                    ocp.persistentvolume_labels,\n                    ocp.persistentvolumeclaim_labels,\n                    aws.cost_entry_product_id,\n                    aws.cost_entry_pricing_id,\n                    aws.cost_entry_reservation_id,\n                    aws.line_item_type,\n                    aws.usage_account_id,\n                    aws.usage_start,\n                    aws.usage_end,\n                    aws.product_code,\n                    aws.usage_type,\n                    aws.operation,\n                    aws.availability_zone,\n                    aws.resource_id,\n                    aws.usage_amount,\n                    aws.normalization_factor,\n                    aws.normalized_usage_amount,\n                    aws.currency_code,\n                    aws.unblended_rate,\n                    aws.unblended_cost,\n                    aws.blended_rate,\n                    aws.blended_cost,\n                    aws.public_on_demand_cost,\n                    aws.public_on_demand_rate,\n                    aws.tax_type,\n                    aws.tags,\n                    tm.shared_projects\n                FROM (\n                    SELECT tm.usage_start,\n                        tm.ocp_id,\n                        tm.aws_id,\n                        max(sp.shared_projects) as shared_projects\n                    FROM cte_storage_tag_matchted AS tm\n                    LEFT JOIN cte_number_of_shared_projects AS sp\n                        ON tm.aws_id = sp.aws_id\n                    GROUP BY tm.usage_start, tm.ocp_id, tm.aws_id\n                ) AS tm\n                JOIN reporting_awscostentrylineitem_daily as aws\n                    ON tm.aws_id = aws.id\n                JOIN reporting_ocpstoragelineitem_daily as ocp\n                    ON tm.ocp_id = ocp.id\n            )\n            ;\n\n            CREATE OR REPLACE VIEW reporting_ocpawsusagelineitem_daily AS (\n                WITH cte_usage_tag_matched as (\n                    SELECT aws.id as aws_id,\n                            ocp.id as ocp_id,\n                            aws.usage_start,\n                            ocp.namespace\n                        FROM (\n                        SELECT aws.id,\n                            aws.usage_start,\n                            LOWER(key) as key,\n                            LOWER(value) as value\n                            FROM reporting_awscostentrylineitem_daily as aws,\n                                jsonb_each_text(aws.tags) labels\n                        ) AS aws\n                        JOIN (\n                            SELECT ocp.id,\n                                ocp.usage_start,\n                                ocp.cluster_alias,\n                                ocp.node,\n                                ocp.namespace,\n                                LOWER(key) as key,\n                                LOWER(value) as value\n                            FROM reporting_ocpusagelineitem_daily as ocp,\n                                jsonb_each_text(ocp.pod_labels) labels\n                        ) AS ocp\n                            ON aws.usage_start::date = ocp.usage_start::date\n                                AND (\n                                    (aws.key = ocp.key AND aws.value = ocp.value)\n                                    OR (aws.key = 'openshift_cluster' AND aws.value = ocp.cluster_alias)\n                                    OR (aws.key = 'openshift_node' AND aws.value = ocp.node)\n                                    OR (aws.key = 'openshift_project' AND aws.value = ocp.namespace)\n                                )\n                        GROUP BY aws.id, ocp.id, aws.usage_start, ocp.namespace\n                ),\n                cte_number_of_shared_projects AS (\n                    SELECT usage_start,\n                        aws_id,\n                        count(DISTINCT namespace) as shared_projects\n                    FROM cte_usage_tag_matched\n                    GROUP BY usage_start, aws_id\n                )\n                SELECT ocp.cluster_id,\n                    ocp.cluster_alias,\n                    ocp.namespace,\n                    ocp.pod,\n                    ocp.node,\n                    ocp.pod_labels,\n                    ocp.pod_usage_cpu_core_seconds,\n                    ocp.pod_request_cpu_core_seconds,\n                    ocp.pod_limit_cpu_core_seconds,\n                    ocp.pod_usage_memory_byte_seconds,\n                    ocp.pod_request_memory_byte_seconds,\n                    ocp.node_capacity_cpu_cores,\n                    ocp.node_capacity_cpu_core_seconds,\n                    ocp.node_capacity_memory_bytes,\n                    ocp.node_capacity_memory_byte_seconds,\n                    ocp.cluster_capacity_cpu_core_seconds,\n                    ocp.cluster_capacity_memory_byte_seconds,\n                    aws.cost_entry_product_id,\n                    aws.cost_entry_pricing_id,\n                    aws.cost_entry_reservation_id,\n                    aws.line_item_type,\n                    aws.usage_account_id,\n                    aws.usage_start,\n                    aws.usage_end,\n                    aws.product_code,\n                    aws.usage_type,\n                    aws.operation,\n                    aws.availability_zone,\n                    aws.resource_id,\n                    aws.usage_amount,\n                    aws.normalization_factor,\n                    aws.normalized_usage_amount,\n                    aws.currency_code,\n                    aws.unblended_rate,\n                    aws.unblended_cost,\n                    aws.blended_rate,\n                    aws.blended_cost,\n                    aws.public_on_demand_cost,\n                    aws.public_on_demand_rate,\n                    aws.tax_type,\n                    aws.tags,\n                    1::int as shared_projects\n                FROM reporting_awscostentrylineitem_daily as aws\n                JOIN reporting_ocpusagelineitem_daily as ocp\n                    ON aws.resource_id = ocp.resource_id\n                        AND aws.usage_start::date = ocp.usage_start::date\n\n                UNION\n\n                SELECT ocp.cluster_id,\n                    ocp.cluster_alias,\n                    ocp.namespace,\n                    ocp.pod,\n                    ocp.node,\n                    ocp.pod_labels,\n                    ocp.pod_usage_cpu_core_seconds,\n                    ocp.pod_request_cpu_core_seconds,\n                    ocp.pod_limit_cpu_core_seconds,\n                    ocp.pod_usage_memory_byte_seconds,\n                    ocp.pod_request_memory_byte_seconds,\n                    ocp.node_capacity_cpu_cores,\n                    ocp.node_capacity_cpu_core_seconds,\n                    ocp.node_capacity_memory_bytes,\n                    ocp.node_capacity_memory_byte_seconds,\n                    ocp.cluster_capacity_cpu_core_seconds,\n                    ocp.cluster_capacity_memory_byte_seconds,\n                    aws.cost_entry_product_id,\n                    aws.cost_entry_pricing_id,\n                    aws.cost_entry_reservation_id,\n                    aws.line_item_type,\n                    aws.usage_account_id,\n                    aws.usage_start,\n                    aws.usage_end,\n                    aws.product_code,\n                    aws.usage_type,\n                    aws.operation,\n                    aws.availability_zone,\n                    aws.resource_id,\n                    aws.usage_amount,\n                    aws.normalization_factor,\n                    aws.normalized_usage_amount,\n                    aws.currency_code,\n                    aws.unblended_rate,\n                    aws.unblended_cost,\n                    aws.blended_rate,\n                    aws.blended_cost,\n                    aws.public_on_demand_cost,\n                    aws.public_on_demand_rate,\n                    aws.tax_type,\n                    aws.tags,\n                    tm.shared_projects\n                FROM (\n                    SELECT tm.usage_start,\n                        tm.ocp_id,\n                        tm.aws_id,\n                        max(sp.shared_projects) as shared_projects\n                    FROM cte_usage_tag_matched AS tm\n                    LEFT JOIN cte_number_of_shared_projects AS sp\n                        ON tm.aws_id = sp.aws_id\n                    GROUP BY tm.usage_start, tm.ocp_id, tm.aws_id\n                ) AS tm\n                JOIN reporting_awscostentrylineitem_daily as aws\n                    ON tm.aws_id = aws.id\n                JOIN reporting_ocpusagelineitem_daily as ocp\n                    ON tm.ocp_id = ocp.id\n            );\n            ",
-        ),
-        # VIEW reporting_ocpawsstoragelineitem_daily (REDEFINITION 4)
-        migrations.RunSQL(
-            sql='\n            DROP VIEW IF EXISTS reporting_ocpawsstoragelineitem_daily;\n            DROP VIEW IF EXISTS reporting_ocpawsusagelineitem_daily;\n            ',
         ),
         migrations.CreateModel(
             name='OCPAWSStorageLineItemDaily',
@@ -1184,12 +1184,10 @@ class Migration(migrations.Migration):
                 ('tags', django.contrib.postgres.fields.jsonb.JSONField(null=True)),
             ],
             options={
-                'db_table': 'reporting_ocpawsstoragelineitem_daily',  # REFERENCES VIEW
+                'db_table': 'reporting_ocpawsstoragelineitem_daily',
                 'managed': False,
             },
         ),
-
-
         migrations.CreateModel(
             name='OCPAWSUsageLineItemDaily',
             fields=[
@@ -1281,8 +1279,9 @@ class Migration(migrations.Migration):
             name='total_capacity_memory_gigabyte_hours',
             field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
         ),
-
-
+        migrations.RunSQL(
+            sql="\n            DROP VIEW IF EXISTS reporting_ocpawsstoragelineitem_daily;\n\n            CREATE OR REPLACE VIEW reporting_ocpawsstoragelineitem_daily AS (\n                WITH cte_storage_tag_matchted as (\n                    SELECT aws.id as aws_id,\n                            COALESCE(pvl.id, pvcl.id) as ocp_id,\n                            aws.usage_start,\n                            COALESCE(pvl.namespace, pvcl.namespace) as namespace\n                        FROM (\n                        SELECT aws.id,\n                            aws.usage_start,\n                            LOWER(key) as key,\n                            LOWER(value) as value\n                            FROM reporting_awscostentrylineitem_daily as aws,\n                                jsonb_each_text(aws.tags) labels\n                        ) AS aws\n                        LEFT JOIN (\n                            SELECT ocp.id,\n                                ocp.usage_start,\n                                ocp.cluster_alias,\n                                ocp.node,\n                                ocp.namespace,\n                                LOWER(key) as key,\n                                LOWER(value) as value\n                            FROM reporting_ocpstoragelineitem_daily as ocp,\n                                jsonb_each_text(ocp.persistentvolume_labels) labels\n                        ) AS pvl\n                            ON aws.usage_start::date = pvl.usage_start::date\n                                AND (\n                                    (aws.key = pvl.key AND aws.value = pvl.value)\n                                    OR (aws.key = 'openshift_cluster' AND aws.value = pvl.cluster_alias)\n                                    OR (aws.key = 'openshift_node' AND aws.value = pvl.node)\n                                    OR (aws.key = 'openshift_project' AND aws.value = pvl.namespace)\n                                )\n                        LEFT JOIN (\n                            SELECT ocp.id,\n                                ocp.usage_start,\n                                ocp.cluster_alias,\n                                ocp.node,\n                                ocp.namespace,\n                                LOWER(key) as key,\n                                LOWER(value) as value\n                            FROM reporting_ocpstoragelineitem_daily as ocp,\n                                jsonb_each_text(ocp.persistentvolumeclaim_labels) labels\n                    ) AS pvcl\n                            ON aws.usage_start::date = pvcl.usage_start::date\n                                AND (\n                                    (aws.key = pvcl.key AND aws.value = pvcl.value)\n                                    OR (aws.key = 'openshift_cluster' AND aws.value = pvcl.cluster_alias)\n                                    OR (aws.key = 'openshift_node' AND aws.value = pvcl.node)\n                                    OR (aws.key = 'openshift_project' AND aws.value = pvcl.namespace)\n                                )\n                    WHERE (pvl.id IS NOT NULL OR pvcl.id IS NOT NULL) OR pvl.id = pvcl.id\n                    GROUP BY aws.usage_start, aws.id, pvl.id, pvcl.id, pvl.namespace, pvcl.namespace\n                ),\n                cte_number_of_shared_projects AS (\n                    SELECT usage_start,\n                        aws_id,\n                        count(DISTINCT namespace) as shared_projects\n                    FROM cte_storage_tag_matchted\n                    GROUP BY usage_start, aws_id\n                )\n                SELECT ocp.cluster_id,\n                    ocp.cluster_alias,\n                    ocp.namespace,\n                    ocp.pod,\n                    ocp.node,\n                    ocp.persistentvolumeclaim,\n                    ocp.persistentvolume,\n                    ocp.storageclass,\n                    ocp.persistentvolumeclaim_capacity_bytes,\n                    ocp.persistentvolumeclaim_capacity_byte_seconds,\n                    ocp.volume_request_storage_byte_seconds,\n                    ocp.persistentvolumeclaim_usage_byte_seconds,\n                    ocp.persistentvolume_labels,\n                    ocp.persistentvolumeclaim_labels,\n                    aws.cost_entry_product_id,\n                    aws.cost_entry_pricing_id,\n                    aws.cost_entry_reservation_id,\n                    aws.line_item_type,\n                    aws.usage_account_id,\n                    aws.usage_start,\n                    aws.usage_end,\n                    aws.product_code,\n                    aws.usage_type,\n                    aws.operation,\n                    aws.availability_zone,\n                    aws.resource_id,\n                    aws.usage_amount,\n                    aws.normalization_factor,\n                    aws.normalized_usage_amount,\n                    aws.currency_code,\n                    aws.unblended_rate,\n                    aws.unblended_cost,\n                    aws.blended_rate,\n                    aws.blended_cost,\n                    aws.public_on_demand_cost,\n                    aws.public_on_demand_rate,\n                    aws.tax_type,\n                    aws.tags,\n                    tm.shared_projects\n                FROM (\n                    SELECT tm.usage_start,\n                        tm.ocp_id,\n                        tm.aws_id,\n                        max(sp.shared_projects) as shared_projects\n                    FROM cte_storage_tag_matchted AS tm\n                    LEFT JOIN cte_number_of_shared_projects AS sp\n                        ON tm.aws_id = sp.aws_id\n                    GROUP BY tm.usage_start, tm.ocp_id, tm.aws_id\n                ) AS tm\n                JOIN reporting_awscostentrylineitem_daily as aws\n                    ON tm.aws_id = aws.id\n                JOIN reporting_ocpstoragelineitem_daily as ocp\n                    ON tm.ocp_id = ocp.id\n            )\n            ;\n            ",
+        ),
         migrations.AddField(
             model_name='awscostentrylineitemdailysummary',
             name='resource_ids',
@@ -1298,7 +1297,6 @@ class Migration(migrations.Migration):
         migrations.DeleteModel(
             name='AWSCostEntryLineItemAggregates',
         ),
-
         migrations.CreateModel(
             name='CostSummary',
             fields=[
@@ -1315,28 +1313,20 @@ class Migration(migrations.Migration):
                 ('persistentvolumeclaim_charge_gb_month', models.DecimalField(decimal_places=6, max_digits=24, null=True)),
             ],
             options={
-                'db_table': 'reporting_costs_summary', # VIEW
+                'db_table': 'reporting_costs_summary',
                 'managed': False,
             },
         ),
-
-
-        # VIEW
         migrations.RunSQL(
             sql='\n            DROP VIEW IF EXISTS reporting_costs_summary;\n\n            CREATE OR REPLACE VIEW reporting_costs_summary AS (\n                SELECT usageli.usage_start,\n                    usageli.usage_end,\n                    usageli.cluster_id,\n                    usageli.namespace,\n                    usageli.pod,\n                    COALESCE(usageli.pod_charge_cpu_core_hours, 0) AS pod_charge_cpu_core_hours,\n                    COALESCE(usageli.pod_charge_memory_gigabyte_hours, 0) AS pod_charge_memory_gigabyte_hours,\n                    COALESCE(storageli.persistentvolumeclaim_charge_gb_month, 0) AS persistentvolumeclaim_charge_gb_month\n                FROM reporting_ocpusagelineitem_daily_summary as usageli\n                LEFT JOIN reporting_ocpstoragelineitem_daily_summary as storageli\n                    ON usageli.usage_start = storageli.usage_start\n                        AND usageli.usage_end = storageli.usage_end\n                        AND usageli.cluster_id = storageli.cluster_id\n                        AND usageli.namespace = storageli.namespace\n                        AND usageli.pod = storageli.pod\n            )\n            ;\n            ',
         ),
-
         migrations.AddIndex(
             model_name='awscostentrylineitemdailysummary',
             index=models.Index(fields=['account_alias'], name='summary_account_alias_idx'),
         ),
-
-
-        # VIEW reporting_ocpcosts_summary INITIAL DEFINITION
         migrations.RunSQL(
             sql='\n            DROP VIEW IF EXISTS reporting_costs_summary;\n            DROP VIEW IF EXISTS reporting_ocpcosts_summary;\n\n            CREATE OR REPLACE VIEW reporting_ocpcosts_summary AS (\n                SELECT usageli.usage_start,\n                    usageli.usage_end,\n                    usageli.cluster_id,\n                    usageli.cluster_alias,\n                    usageli.namespace,\n                    usageli.pod,\n                    usageli.node,\n                    COALESCE(usageli.pod_charge_cpu_core_hours, 0) AS pod_charge_cpu_core_hours,\n                    COALESCE(usageli.pod_charge_memory_gigabyte_hours, 0) AS pod_charge_memory_gigabyte_hours,\n                    COALESCE(storageli.persistentvolumeclaim_charge_gb_month, 0) AS persistentvolumeclaim_charge_gb_month,\n                    COALESCE(ocp_aws.infra_cost, 0) as infra_cost,\n                    COALESCE(ocp_aws.project_infra_cost, 0) as project_infra_cost\n                FROM reporting_ocpusagelineitem_daily_summary as usageli\n                LEFT JOIN reporting_ocpstoragelineitem_daily_summary as storageli\n                    ON usageli.usage_start = storageli.usage_start\n                        AND usageli.usage_end = storageli.usage_end\n                        AND usageli.cluster_id = storageli.cluster_id\n                        AND usageli.namespace = storageli.namespace\n                        AND usageli.pod = storageli.pod\n                LEFT JOIN (\n                    SELECT cluster_id,\n                        usage_start,\n                        namespace,\n                        pod,\n                        node,\n                        sum(ocp_aws.unblended_cost / ocp_aws.shared_projects) as infra_cost,\n                        sum(ocp_aws.pod_cost) as project_infra_cost\n                    FROM reporting_ocpawscostlineitem_daily_summary AS ocp_aws\n                    GROUP BY cluster_id,\n                            usage_start,\n                            namespace,\n                            pod,\n                            node\n                ) as ocp_aws\n                    ON usageli.usage_start = ocp_aws.usage_start\n                        AND usageli.cluster_id = ocp_aws.cluster_id\n                        AND usageli.namespace = ocp_aws.namespace\n                        AND usageli.pod = ocp_aws.pod\n                        AND usageli.node = ocp_aws.node\n            )\n            ;\n            ',
         ),
-
         migrations.AlterModelTable(
             name='costsummary',
             table='reporting_ocpcosts_summary',
@@ -1349,8 +1339,9 @@ class Migration(migrations.Migration):
             name='ocpusagereportperiod',
             unique_together={('cluster_id', 'report_period_start', 'provider_id')},
         ),
-
-
+        migrations.RunSQL(
+            sql='\n            DROP VIEW IF EXISTS reporting_ocpawsstoragelineitem_daily;\n            DROP VIEW IF EXISTS reporting_ocpawsusagelineitem_daily;\n            ',
+        ),
         migrations.AlterField(
             model_name='awscostentrylineitemdaily',
             name='usage_amount',
@@ -1366,9 +1357,9 @@ class Migration(migrations.Migration):
             name='usage_amount',
             field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
         ),
-
-
-
+        migrations.RunSQL(
+            sql="\n            CREATE OR REPLACE VIEW reporting_ocpawsstoragelineitem_daily AS (\n                WITH cte_storage_tag_matchted as (\n                    SELECT aws.id as aws_id,\n                            COALESCE(pvl.id, pvcl.id) as ocp_id,\n                            aws.usage_start,\n                            COALESCE(pvl.namespace, pvcl.namespace) as namespace\n                        FROM (\n                        SELECT aws.id,\n                            aws.usage_start,\n                            LOWER(key) as key,\n                            LOWER(value) as value\n                            FROM reporting_awscostentrylineitem_daily as aws,\n                                jsonb_each_text(aws.tags) labels\n                        ) AS aws\n                        LEFT JOIN (\n                            SELECT ocp.id,\n                                ocp.usage_start,\n                                ocp.cluster_alias,\n                                ocp.node,\n                                ocp.namespace,\n                                LOWER(key) as key,\n                                LOWER(value) as value\n                            FROM reporting_ocpstoragelineitem_daily as ocp,\n                                jsonb_each_text(ocp.persistentvolume_labels) labels\n                        ) AS pvl\n                            ON aws.usage_start::date = pvl.usage_start::date\n                                AND (\n                                    (aws.key = pvl.key AND aws.value = pvl.value)\n                                    OR (aws.key = 'openshift_cluster' AND aws.value = pvl.cluster_alias)\n                                    OR (aws.key = 'openshift_node' AND aws.value = pvl.node)\n                                    OR (aws.key = 'openshift_project' AND aws.value = pvl.namespace)\n                                )\n                        LEFT JOIN (\n                            SELECT ocp.id,\n                                ocp.usage_start,\n                                ocp.cluster_alias,\n                                ocp.node,\n                                ocp.namespace,\n                                LOWER(key) as key,\n                                LOWER(value) as value\n                            FROM reporting_ocpstoragelineitem_daily as ocp,\n                                jsonb_each_text(ocp.persistentvolumeclaim_labels) labels\n                    ) AS pvcl\n                            ON aws.usage_start::date = pvcl.usage_start::date\n                                AND (\n                                    (aws.key = pvcl.key AND aws.value = pvcl.value)\n                                    OR (aws.key = 'openshift_cluster' AND aws.value = pvcl.cluster_alias)\n                                    OR (aws.key = 'openshift_node' AND aws.value = pvcl.node)\n                                    OR (aws.key = 'openshift_project' AND aws.value = pvcl.namespace)\n                                )\n                    WHERE (pvl.id IS NOT NULL OR pvcl.id IS NOT NULL) OR pvl.id = pvcl.id\n                    GROUP BY aws.usage_start, aws.id, pvl.id, pvcl.id, pvl.namespace, pvcl.namespace\n                ),\n                cte_number_of_shared_projects AS (\n                    SELECT usage_start,\n                        aws_id,\n                        count(DISTINCT namespace) as shared_projects\n                    FROM cte_storage_tag_matchted\n                    GROUP BY usage_start, aws_id\n                )\n                SELECT ocp.cluster_id,\n                    ocp.cluster_alias,\n                    ocp.namespace,\n                    ocp.pod,\n                    ocp.node,\n                    ocp.persistentvolumeclaim,\n                    ocp.persistentvolume,\n                    ocp.storageclass,\n                    ocp.persistentvolumeclaim_capacity_bytes,\n                    ocp.persistentvolumeclaim_capacity_byte_seconds,\n                    ocp.volume_request_storage_byte_seconds,\n                    ocp.persistentvolumeclaim_usage_byte_seconds,\n                    ocp.persistentvolume_labels,\n                    ocp.persistentvolumeclaim_labels,\n                    aws.cost_entry_product_id,\n                    aws.cost_entry_pricing_id,\n                    aws.cost_entry_reservation_id,\n                    aws.line_item_type,\n                    aws.usage_account_id,\n                    aws.usage_start,\n                    aws.usage_end,\n                    aws.product_code,\n                    aws.usage_type,\n                    aws.operation,\n                    aws.availability_zone,\n                    aws.resource_id,\n                    aws.usage_amount,\n                    aws.normalization_factor,\n                    aws.normalized_usage_amount,\n                    aws.currency_code,\n                    aws.unblended_rate,\n                    aws.unblended_cost,\n                    aws.blended_rate,\n                    aws.blended_cost,\n                    aws.public_on_demand_cost,\n                    aws.public_on_demand_rate,\n                    aws.tax_type,\n                    aws.tags,\n                    tm.shared_projects\n                FROM (\n                    SELECT tm.usage_start,\n                        tm.ocp_id,\n                        tm.aws_id,\n                        max(sp.shared_projects) as shared_projects\n                    FROM cte_storage_tag_matchted AS tm\n                    LEFT JOIN cte_number_of_shared_projects AS sp\n                        ON tm.aws_id = sp.aws_id\n                    GROUP BY tm.usage_start, tm.ocp_id, tm.aws_id\n                ) AS tm\n                JOIN reporting_awscostentrylineitem_daily as aws\n                    ON tm.aws_id = aws.id\n                JOIN reporting_ocpstoragelineitem_daily as ocp\n                    ON tm.ocp_id = ocp.id\n            )\n            ;\n\n            CREATE OR REPLACE VIEW reporting_ocpawsusagelineitem_daily AS (\n                WITH cte_usage_tag_matched as (\n                    SELECT aws.id as aws_id,\n                            ocp.id as ocp_id,\n                            aws.usage_start,\n                            ocp.namespace\n                        FROM (\n                        SELECT aws.id,\n                            aws.usage_start,\n                            LOWER(key) as key,\n                            LOWER(value) as value\n                            FROM reporting_awscostentrylineitem_daily as aws,\n                                jsonb_each_text(aws.tags) labels\n                        ) AS aws\n                        JOIN (\n                            SELECT ocp.id,\n                                ocp.usage_start,\n                                ocp.cluster_alias,\n                                ocp.node,\n                                ocp.namespace,\n                                LOWER(key) as key,\n                                LOWER(value) as value\n                            FROM reporting_ocpusagelineitem_daily as ocp,\n                                jsonb_each_text(ocp.pod_labels) labels\n                        ) AS ocp\n                            ON aws.usage_start::date = ocp.usage_start::date\n                                AND (\n                                    (aws.key = ocp.key AND aws.value = ocp.value)\n                                    OR (aws.key = 'openshift_cluster' AND aws.value = ocp.cluster_alias)\n                                    OR (aws.key = 'openshift_node' AND aws.value = ocp.node)\n                                    OR (aws.key = 'openshift_project' AND aws.value = ocp.namespace)\n                                )\n                        GROUP BY aws.id, ocp.id, aws.usage_start, ocp.namespace\n                ),\n                cte_number_of_shared_projects AS (\n                    SELECT usage_start,\n                        aws_id,\n                        count(DISTINCT namespace) as shared_projects\n                    FROM cte_usage_tag_matched\n                    GROUP BY usage_start, aws_id\n                )\n                SELECT ocp.cluster_id,\n                    ocp.cluster_alias,\n                    ocp.namespace,\n                    ocp.pod,\n                    ocp.node,\n                    ocp.pod_labels,\n                    ocp.pod_usage_cpu_core_seconds,\n                    ocp.pod_request_cpu_core_seconds,\n                    ocp.pod_limit_cpu_core_seconds,\n                    ocp.pod_usage_memory_byte_seconds,\n                    ocp.pod_request_memory_byte_seconds,\n                    ocp.node_capacity_cpu_cores,\n                    ocp.node_capacity_cpu_core_seconds,\n                    ocp.node_capacity_memory_bytes,\n                    ocp.node_capacity_memory_byte_seconds,\n                    ocp.cluster_capacity_cpu_core_seconds,\n                    ocp.cluster_capacity_memory_byte_seconds,\n                    aws.cost_entry_product_id,\n                    aws.cost_entry_pricing_id,\n                    aws.cost_entry_reservation_id,\n                    aws.line_item_type,\n                    aws.usage_account_id,\n                    aws.usage_start,\n                    aws.usage_end,\n                    aws.product_code,\n                    aws.usage_type,\n                    aws.operation,\n                    aws.availability_zone,\n                    aws.resource_id,\n                    aws.usage_amount,\n                    aws.normalization_factor,\n                    aws.normalized_usage_amount,\n                    aws.currency_code,\n                    aws.unblended_rate,\n                    aws.unblended_cost,\n                    aws.blended_rate,\n                    aws.blended_cost,\n                    aws.public_on_demand_cost,\n                    aws.public_on_demand_rate,\n                    aws.tax_type,\n                    aws.tags,\n                    1::int as shared_projects\n                FROM reporting_awscostentrylineitem_daily as aws\n                JOIN reporting_ocpusagelineitem_daily as ocp\n                    ON aws.resource_id = ocp.resource_id\n                        AND aws.usage_start::date = ocp.usage_start::date\n\n                UNION\n\n                SELECT ocp.cluster_id,\n                    ocp.cluster_alias,\n                    ocp.namespace,\n                    ocp.pod,\n                    ocp.node,\n                    ocp.pod_labels,\n                    ocp.pod_usage_cpu_core_seconds,\n                    ocp.pod_request_cpu_core_seconds,\n                    ocp.pod_limit_cpu_core_seconds,\n                    ocp.pod_usage_memory_byte_seconds,\n                    ocp.pod_request_memory_byte_seconds,\n                    ocp.node_capacity_cpu_cores,\n                    ocp.node_capacity_cpu_core_seconds,\n                    ocp.node_capacity_memory_bytes,\n                    ocp.node_capacity_memory_byte_seconds,\n                    ocp.cluster_capacity_cpu_core_seconds,\n                    ocp.cluster_capacity_memory_byte_seconds,\n                    aws.cost_entry_product_id,\n                    aws.cost_entry_pricing_id,\n                    aws.cost_entry_reservation_id,\n                    aws.line_item_type,\n                    aws.usage_account_id,\n                    aws.usage_start,\n                    aws.usage_end,\n                    aws.product_code,\n                    aws.usage_type,\n                    aws.operation,\n                    aws.availability_zone,\n                    aws.resource_id,\n                    aws.usage_amount,\n                    aws.normalization_factor,\n                    aws.normalized_usage_amount,\n                    aws.currency_code,\n                    aws.unblended_rate,\n                    aws.unblended_cost,\n                    aws.blended_rate,\n                    aws.blended_cost,\n                    aws.public_on_demand_cost,\n                    aws.public_on_demand_rate,\n                    aws.tax_type,\n                    aws.tags,\n                    tm.shared_projects\n                FROM (\n                    SELECT tm.usage_start,\n                        tm.ocp_id,\n                        tm.aws_id,\n                        max(sp.shared_projects) as shared_projects\n                    FROM cte_usage_tag_matched AS tm\n                    LEFT JOIN cte_number_of_shared_projects AS sp\n                        ON tm.aws_id = sp.aws_id\n                    GROUP BY tm.usage_start, tm.ocp_id, tm.aws_id\n                ) AS tm\n                JOIN reporting_awscostentrylineitem_daily as aws\n                    ON tm.aws_id = aws.id\n                JOIN reporting_ocpusagelineitem_daily as ocp\n                    ON tm.ocp_id = ocp.id\n            );\n            ",
+        ),
         migrations.AlterUniqueTogether(
             name='awscostentrylineitem',
             unique_together=set(),
@@ -1377,23 +1368,15 @@ class Migration(migrations.Migration):
             model_name='awscostentrylineitem',
             name='hash',
         ),
-
-
-        # VIEW  reporting_ocpcosts_summary (REDEFINITION 1)
         migrations.RunSQL(
             sql='\n            DROP VIEW IF EXISTS reporting_ocpcosts_summary;\n\n            CREATE OR REPLACE VIEW reporting_ocpcosts_summary AS (\n                SELECT usageli.usage_start,\n                    usageli.usage_end,\n                    usageli.cluster_id,\n                    usageli.cluster_alias,\n                    usageli.namespace,\n                    usageli.pod,\n                    usageli.node,\n                    usageli.pod_labels,\n                    COALESCE(usageli.pod_charge_cpu_core_hours, 0.0::decimal) AS pod_charge_cpu_core_hours,\n                    COALESCE(usageli.pod_charge_memory_gigabyte_hours, 0.0::decimal) AS pod_charge_memory_gigabyte_hours,\n                    0::decimal AS persistentvolumeclaim_charge_gb_month,\n                    COALESCE(ocp_aws.infra_cost, 0) as infra_cost,\n                    COALESCE(ocp_aws.project_infra_cost, 0) as project_infra_cost\n                FROM reporting_ocpusagelineitem_daily_summary as usageli\n                LEFT JOIN (\n                    SELECT cluster_id,\n                        usage_start,\n                        namespace,\n                        pod,\n                        node,\n                        sum(ocp_aws.unblended_cost / ocp_aws.shared_projects) as infra_cost,\n                        sum(ocp_aws.pod_cost) as project_infra_cost\n                    FROM reporting_ocpawscostlineitem_daily_summary AS ocp_aws\n                    GROUP BY cluster_id,\n                            usage_start,\n                            namespace,\n                            pod,\n                            node\n                ) as ocp_aws\n                    ON usageli.usage_start = ocp_aws.usage_start\n                        AND usageli.cluster_id = ocp_aws.cluster_id\n                        AND usageli.namespace = ocp_aws.namespace\n                        AND usageli.pod = ocp_aws.pod\n                        AND usageli.node = ocp_aws.node\n\n                UNION\n\n                SELECT storageli.usage_start,\n                    storageli.usage_end,\n                    storageli.cluster_id,\n                    storageli.cluster_alias,\n                    storageli.namespace,\n                    storageli.pod,\n                    storageli.node,\n                    storageli.volume_labels as pod_labels,\n                    0::decimal AS pod_charge_cpu_core_hours,\n                    0::decimal AS pod_charge_memory_gigabyte_hours,\n                    COALESCE(storageli.persistentvolumeclaim_charge_gb_month, 0::decimal) AS persistentvolumeclaim_charge_gb_month,\n                    COALESCE(ocp_aws.infra_cost, 0::decimal) as infra_cost,\n                    COALESCE(ocp_aws.project_infra_cost, 0::decimal) as project_infra_cost\n                FROM reporting_ocpstoragelineitem_daily_summary as storageli\n                LEFT JOIN (\n                    SELECT cluster_id,\n                        usage_start,\n                        namespace,\n                        pod,\n                        node,\n                        sum(ocp_aws.unblended_cost / ocp_aws.shared_projects) as infra_cost,\n                        sum(ocp_aws.pod_cost) as project_infra_cost\n                    FROM reporting_ocpawscostlineitem_daily_summary AS ocp_aws\n                    GROUP BY cluster_id,\n                            usage_start,\n                            namespace,\n                            pod,\n                            node\n                ) as ocp_aws\n                    ON storageli.usage_start = ocp_aws.usage_start\n                        AND storageli.cluster_id = ocp_aws.cluster_id\n                        AND storageli.namespace = ocp_aws.namespace\n                        AND storageli.pod = ocp_aws.pod\n                        AND storageli.node = ocp_aws.node\n            )\n            ;\n            ',
         ),
-        # VIEW reporting_ocpcosts_summary DROP
         migrations.RunSQL(
             sql='\n        DROP VIEW IF EXISTS reporting_ocpcosts_summary;\n        ',
         ),
-
-        # INGORE ALL PREVIOUS CostSummary MIGRATION STEPS
         migrations.DeleteModel(
             name='CostSummary',
         ),
-
-        # NEW CostSummary DEFINITION
         migrations.CreateModel(
             name='CostSummary',
             fields=[
@@ -1416,15 +1399,12 @@ class Migration(migrations.Migration):
                 'db_table': 'reporting_ocpcosts_summary',
             },
         ),
-
         migrations.DeleteModel(
             name='OCPAWSCostLineItemDaily',
         ),
-
         migrations.RunSQL(
             sql='\n            UPDATE reporting_ocpawscostlineitem_daily_summary\n                SET namespace=\'{""}\',\n                    pod=\'{""}\';\n            ',
         ),
-
         migrations.RemoveIndex(
             model_name='ocpawscostlineitemdailysummary',
             name='cost_labels_idx',
@@ -1456,7 +1436,6 @@ class Migration(migrations.Migration):
             name='project_costs',
             field=django.contrib.postgres.fields.jsonb.JSONField(null=True),
         ),
-
         migrations.CreateModel(
             name='OCPAWSCostLineItemProjectDailySummary',
             fields=[
@@ -1488,15 +1467,12 @@ class Migration(migrations.Migration):
                 'db_table': 'reporting_ocpawscostlineitem_project_daily_summary',
             },
         ),
-
         migrations.DeleteModel(
             name='OCPAWSStorageLineItemDaily',
         ),
-
         migrations.DeleteModel(
             name='OCPAWSUsageLineItemDaily',
         ),
-
         migrations.AddIndex(
             model_name='ocpawscostlineitemprojectdailysummary',
             index=models.Index(fields=['usage_start'], name='cost_proj_sum_ocp_usage_idx'),
@@ -1517,8 +1493,9 @@ class Migration(migrations.Migration):
             model_name='ocpawscostlineitemprojectdailysummary',
             index=django.contrib.postgres.indexes.GinIndex(fields=['tags'], name='cost_proj_tags_idx'),
         ),
-
-
+        migrations.RunSQL(
+            sql='\n            DROP VIEW IF EXISTS reporting_ocpawsstoragelineitem_daily;\n            DROP VIEW IF EXISTS reporting_ocpawsusagelineitem_daily;\n            ',
+        ),
         migrations.AddIndex(
             model_name='awscostentrylineitemdailysummary',
             index=models.Index(fields=['product_family'], name='summary_product_family_idx'),
@@ -1624,7 +1601,6 @@ class Migration(migrations.Migration):
             name='derived_cost_datetime',
             field=models.DateTimeField(null=True),
         ),
-
         migrations.CreateModel(
             name='AzureCostEntryBill',
             fields=[
@@ -1638,7 +1614,6 @@ class Migration(migrations.Migration):
                 ('provider_id', models.IntegerField(null=True)),
             ],
         ),
-
         migrations.CreateModel(
             name='AzureCostEntryLineItemDaily',
             fields=[
@@ -1654,7 +1629,6 @@ class Migration(migrations.Migration):
                 'db_table': 'reporting_azurecostentrylineitem_daily',
             },
         ),
-
         migrations.CreateModel(
             name='AzureCostEntryLineItemDailySummary',
             fields=[
@@ -1673,7 +1647,6 @@ class Migration(migrations.Migration):
                 'db_table': 'reporting_azurecostentrylineitem_daily_summary',
             },
         ),
-
         migrations.CreateModel(
             name='AzureCostEntryProduct',
             fields=[
@@ -1686,7 +1659,6 @@ class Migration(migrations.Migration):
                 ('additional_info', django.contrib.postgres.fields.jsonb.JSONField(null=True)),
             ],
         ),
-
         migrations.CreateModel(
             name='AzureMeter',
             fields=[
@@ -1700,7 +1672,6 @@ class Migration(migrations.Migration):
                 ('currency', models.CharField(max_length=10)),
             ],
         ),
-
         migrations.CreateModel(
             name='AzureTagsSummary',
             fields=[
@@ -1711,7 +1682,6 @@ class Migration(migrations.Migration):
                 'db_table': 'reporting_azuretags_summary',
             },
         ),
-
         migrations.CreateModel(
             name='AzureService',
             fields=[
@@ -1725,7 +1695,6 @@ class Migration(migrations.Migration):
                 'unique_together': {('service_tier', 'service_name')},
             },
         ),
-
         migrations.AddIndex(
             model_name='azurecostentryproduct',
             index=models.Index(fields=['resource_location'], name='resource_location_idx'),
@@ -1754,7 +1723,6 @@ class Migration(migrations.Migration):
             name='azurecostentrybill',
             unique_together={('billing_period_start', 'provider_id')},
         ),
-
         migrations.CreateModel(
             name='AzureCostEntryProductService',
             fields=[
@@ -1774,7 +1742,6 @@ class Migration(migrations.Migration):
                 'unique_together': {('instance_id', 'service_name', 'service_tier')},
             },
         ),
-
         migrations.AlterUniqueTogether(
             name='azureservice',
             unique_together=None,
@@ -1855,11 +1822,9 @@ class Migration(migrations.Migration):
             name='unit_of_measure',
             field=models.CharField(max_length=63, null=True),
         ),
-
         migrations.RunSQL(
             sql='DELETE FROM reporting_azurecostentrylineitem_daily',
         ),
-
         migrations.AlterUniqueTogether(
             name='azurecostentrylineitemdaily',
             unique_together={('cost_entry_bill', 'cost_entry_product', 'meter', 'subscription_guid', 'usage_date_time')},
@@ -1943,27 +1908,21 @@ class Migration(migrations.Migration):
             model_name='ocpusagelineitemdailysummary',
             index=models.Index(fields=['data_source'], name='summary_data_source_idx'),
         ),
-
         migrations.RunSQL(
             sql="\n            UPDATE reporting_ocpusagelineitem_daily_summary\n                SET data_source='Pod'\n            ;\n            ",
         ),
-
         migrations.RunSQL(
             sql="\n            INSERT INTO reporting_ocpusagelineitem_daily_summary\n                (data_source,\n                 cluster_id,\n                 cluster_alias,\n                 namespace,\n                 pod,\n                 node,\n                 usage_start,\n                 usage_end,\n                 persistentvolumeclaim,\n                 persistentvolume,\n                 storageclass,\n                 volume_labels,\n                 persistentvolumeclaim_capacity_gigabyte,\n                 persistentvolumeclaim_capacity_gigabyte_months,\n                 volume_request_storage_gigabyte_months,\n                 persistentvolumeclaim_usage_gigabyte_months,\n                 persistentvolumeclaim_charge_gb_month\n                )\n                SELECT 'Storage' as data_source,\n                    cluster_id,\n                    cluster_alias,\n                    namespace,\n                    pod,\n                    node,\n                    usage_start,\n                    usage_end,\n                    persistentvolumeclaim,\n                    persistentvolume,\n                    storageclass,\n                    volume_labels,\n                    persistentvolumeclaim_capacity_gigabyte,\n                    persistentvolumeclaim_capacity_gigabyte_months,\n                    volume_request_storage_gigabyte_months,\n                    persistentvolumeclaim_usage_gigabyte_months,\n                    persistentvolumeclaim_charge_gb_month\n                FROM reporting_ocpstoragelineitem_daily_summary\n            ;\n            ",
         ),
-
         migrations.RunSQL(
             sql='\n            UPDATE reporting_ocpusagelineitem_daily_summary ods\n                SET infra_cost = ic.infra_cost,\n                    project_infra_cost = ic.project_infra_cost,\n                    markup_cost = ic.markup_cost,\n                    project_markup_cost = ic.project_markup_cost\n                FROM reporting_ocpcosts_summary AS ic\n                WHERE ods.usage_start = ic.usage_start\n                    AND ods.cluster_id = ic.cluster_id\n                    AND ods.cluster_alias = ic.cluster_alias\n                    AND ods.namespace = ic.namespace\n                    AND ods.pod = ic.pod\n                    AND ods.node = ic.node\n                    AND ods.pod_labels = ic.pod_labels\n            ;\n            ',
         ),
-
         migrations.RunSQL(
             sql='\n            UPDATE reporting_ocpusagelineitem_daily_summary ods\n                SET infra_cost = ic.infra_cost,\n                    project_infra_cost = ic.project_infra_cost,\n                    markup_cost = ic.markup_cost,\n                    project_markup_cost = ic.project_markup_cost\n                FROM reporting_ocpcosts_summary AS ic\n                WHERE ods.usage_start = ic.usage_start\n                    AND ods.cluster_id = ic.cluster_id\n                    AND ods.cluster_alias = ic.cluster_alias\n                    AND ods.namespace = ic.namespace\n                    AND ods.pod = ic.pod\n                    AND ods.node = ic.node\n                    AND ods.volume_labels = ic.pod_labels\n            ;\n            ',
         ),
-
         migrations.DeleteModel(
             name='OCPStorageLineItemDailySummary',
         ),
-
         migrations.AlterField(
             model_name='awscostentryproduct',
             name='product_name',
@@ -1988,19 +1947,15 @@ class Migration(migrations.Migration):
             name='provider_uuid',
             field=models.UUIDField(null=True),
         ),
-
         migrations.RunSQL(
             sql='\n                UPDATE reporting_awscostentrybill AS b\n                    SET provider_uuid = p.uuid\n                FROM public.api_provider AS p\n                WHERE p.id = b.provider_id\n            ',
         ),
-
         migrations.RunSQL(
             sql='\n                UPDATE reporting_azurecostentrybill AS b\n                    SET provider_uuid = p.uuid\n                FROM public.api_provider AS p\n                WHERE p.id = b.provider_id\n            ',
         ),
-
         migrations.RunSQL(
             sql='\n                UPDATE reporting_ocpusagereportperiod AS b\n                    SET provider_uuid = p.uuid\n                FROM public.api_provider AS p\n                WHERE p.id = b.provider_id\n            ',
         ),
-
         migrations.AlterUniqueTogether(
             name='awscostentrybill',
             unique_together=set(),
@@ -2040,19 +1995,15 @@ class Migration(migrations.Migration):
             name='provider',
             field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='api.Provider'),
         ),
-
         migrations.RunSQL(
             sql='\n                UPDATE reporting_awscostentrybill\n                    SET provider_id = provider_uuid\n            ',
         ),
-
         migrations.RunSQL(
             sql='\n                UPDATE reporting_azurecostentrybill\n                    SET provider_id = provider_uuid\n            ',
         ),
-
         migrations.RunSQL(
             sql='\n                UPDATE reporting_ocpusagereportperiod\n                    SET provider_id = provider_uuid\n            ',
         ),
-
         migrations.AlterField(
             model_name='awscostentrybill',
             name='provider',
@@ -2217,8 +2168,6 @@ class Migration(migrations.Migration):
             name='cost_entry_bill',
             field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='reporting.AWSCostEntryBill'),
         ),
-
-
         migrations.CreateModel(
             name='GCPCostEntryBill',
             fields=[
@@ -2235,8 +2184,6 @@ class Migration(migrations.Migration):
                 'unique_together': {('billing_period_start', 'provider')},
             },
         ),
-
-
         migrations.CreateModel(
             name='GCPProject',
             fields=[
@@ -2248,7 +2195,6 @@ class Migration(migrations.Migration):
                 ('project_labels', models.CharField(blank=True, max_length=256, null=True)),
             ],
         ),
-
         migrations.AddField(
             model_name='azuremeter',
             name='provider',
@@ -2479,8 +2425,6 @@ class Migration(migrations.Migration):
             name='project_markup_cost',
             field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
         ),
-
-
         migrations.CreateModel(
             name='GCPCostEntryLineItemDaily',
             fields=[
@@ -2501,7 +2445,6 @@ class Migration(migrations.Migration):
                 'unique_together': {('start_time', 'line_item_type', 'project')},
             },
         ),
-
         migrations.AlterField(
             model_name='ocpawscostlineitemdailysummary',
             name='markup_cost',
@@ -2897,8 +2840,6 @@ class Migration(migrations.Migration):
             name='project_markup_cost',
             field=models.DecimalField(decimal_places=9, max_digits=27, null=True),
         ),
-
-
         migrations.CreateModel(
             name='OCPAzureCostLineItemProjectDailySummary',
             fields=[
@@ -2930,8 +2871,6 @@ class Migration(migrations.Migration):
                 'db_table': 'reporting_ocpazurecostlineitem_project_daily_summary',
             },
         ),
-
-
         migrations.CreateModel(
             name='OCPAzureCostLineItemDailySummary',
             fields=[
@@ -2963,7 +2902,6 @@ class Migration(migrations.Migration):
                 'db_table': 'reporting_ocpazurecostlineitem_daily_summary',
             },
         ),
-
         migrations.AddIndex(
             model_name='ocpazurecostlineitemprojectdailysummary',
             index=models.Index(fields=['usage_start'], name='ocpazure_proj_usage_start_idx'),
@@ -3104,8 +3042,6 @@ class Migration(migrations.Migration):
             name='azurecostentryproductservice',
             unique_together={('instance_id', 'instance_type', 'service_tier', 'service_name')},
         ),
-
-
         migrations.CreateModel(
             name='AWSComputeSummary',
             fields=[
@@ -3126,8 +3062,6 @@ class Migration(migrations.Migration):
                 'managed': False,
             },
         ),
-
-
         migrations.CreateModel(
             name='AWSComputeSummaryByAccount',
             fields=[
@@ -3149,8 +3083,6 @@ class Migration(migrations.Migration):
                 'managed': False,
             },
         ),
-
-
         migrations.CreateModel(
             name='AWSComputeSummaryByRegion',
             fields=[
@@ -3173,8 +3105,6 @@ class Migration(migrations.Migration):
                 'managed': False,
             },
         ),
-
-
         migrations.CreateModel(
             name='AWSComputeSummaryByService',
             fields=[
@@ -3197,8 +3127,6 @@ class Migration(migrations.Migration):
                 'managed': False,
             },
         ),
-
-
         migrations.CreateModel(
             name='AWSCostSummary',
             fields=[
@@ -3214,8 +3142,6 @@ class Migration(migrations.Migration):
                 'managed': False,
             },
         ),
-
-
         migrations.CreateModel(
             name='AWSCostSummaryByAccount',
             fields=[
@@ -3232,8 +3158,6 @@ class Migration(migrations.Migration):
                 'managed': False,
             },
         ),
-
-
         migrations.CreateModel(
             name='AWSCostSummaryByRegion',
             fields=[
@@ -3251,8 +3175,6 @@ class Migration(migrations.Migration):
                 'managed': False,
             },
         ),
-
-
         migrations.CreateModel(
             name='AWSCostSummaryByService',
             fields=[
@@ -3270,8 +3192,6 @@ class Migration(migrations.Migration):
                 'managed': False,
             },
         ),
-
-
         migrations.CreateModel(
             name='AWSDatabaseSummary',
             fields=[
@@ -3290,8 +3210,6 @@ class Migration(migrations.Migration):
                 'managed': False,
             },
         ),
-
-
         migrations.CreateModel(
             name='AWSNetworkSummary',
             fields=[
@@ -3310,8 +3228,6 @@ class Migration(migrations.Migration):
                 'managed': False,
             },
         ),
-
-
         migrations.CreateModel(
             name='AWSStorageSummary',
             fields=[
@@ -3330,8 +3246,6 @@ class Migration(migrations.Migration):
                 'managed': False,
             },
         ),
-
-
         migrations.CreateModel(
             name='AWSStorageSummaryByAccount',
             fields=[
@@ -3351,8 +3265,6 @@ class Migration(migrations.Migration):
                 'managed': False,
             },
         ),
-
-
         migrations.CreateModel(
             name='AWSStorageSummaryByRegion',
             fields=[
@@ -3373,8 +3285,6 @@ class Migration(migrations.Migration):
                 'managed': False,
             },
         ),
-
-
         migrations.CreateModel(
             name='AWSStorageSummaryByService',
             fields=[
@@ -3394,14 +3304,9 @@ class Migration(migrations.Migration):
                 'managed': False,
             },
         ),
-
-
-        # VIEW
         migrations.RunSQL(
             sql="\n            CREATE MATERIALIZED VIEW reporting_aws_cost_summary AS(\n                SELECT row_number() OVER(ORDER BY date(usage_start)) as id,\n                    date(usage_start) as usage_start,\n                    date(usage_start) as usage_end,\n                    sum(unblended_cost) as unblended_cost,\n                    sum(markup_cost) as markup_cost,\n                    max(currency_code) as currency_code\n                FROM reporting_awscostentrylineitem_daily_summary\n                -- Get data for this month or last month\n                WHERE date_trunc('month', usage_start) = date_trunc('month', now())\n                    OR date_trunc('month', usage_start) = date_trunc('month', date_trunc('month', now()) - INTERVAL '1' DAY)\n                GROUP BY date(usage_start)\n            )\n            ;\n\n            CREATE UNIQUE INDEX aws_cost_summary\n            ON reporting_aws_cost_summary (usage_start)\n            ;\n\n            CREATE MATERIALIZED VIEW reporting_aws_cost_summary_by_service AS(\n                SELECT row_number() OVER(ORDER BY date(usage_start), product_code, product_family) as id,\n                    date(usage_start) as usage_start,\n                    date(usage_start) as usage_end,\n                    product_code,\n                    product_family,\n                    sum(unblended_cost) as unblended_cost,\n                    sum(markup_cost) as markup_cost,\n                    max(currency_code) as currency_code\n                FROM reporting_awscostentrylineitem_daily_summary\n                -- Get data for this month or last month\n                WHERE date_trunc('month', usage_start) = date_trunc('month', now())\n                    OR date_trunc('month', usage_start) = date_trunc('month', date_trunc('month', now()) - INTERVAL '1' DAY)\n                GROUP BY date(usage_start), product_code, product_family\n            )\n            ;\n\n            CREATE UNIQUE INDEX aws_cost_summary_service\n            ON reporting_aws_cost_summary_by_service (usage_start, product_code, product_family)\n            ;\n\n            CREATE MATERIALIZED VIEW reporting_aws_cost_summary_by_account AS(\n                SELECT row_number() OVER(ORDER BY date(usage_start), usage_account_id, account_alias_id) as id,\n                    date(usage_start) as usage_start,\n                    date(usage_start) as usage_end,\n                    usage_account_id,\n                    account_alias_id,\n                    sum(unblended_cost) as unblended_cost,\n                    sum(markup_cost) as markup_cost,\n                    max(currency_code) as currency_code\n                FROM reporting_awscostentrylineitem_daily_summary\n                -- Get data for this month or last month\n                WHERE date_trunc('month', usage_start) = date_trunc('month', now())\n                    OR date_trunc('month', usage_start) = date_trunc('month', date_trunc('month', now()) - INTERVAL '1' DAY)\n                GROUP BY date(usage_start), usage_account_id, account_alias_id\n            )\n            ;\n\n            CREATE UNIQUE INDEX aws_cost_summary_account\n            ON reporting_aws_cost_summary_by_account (usage_start, usage_account_id, account_alias_id)\n            ;\n\n            CREATE MATERIALIZED VIEW reporting_aws_cost_summary_by_region AS(\n                SELECT row_number() OVER(ORDER BY date(usage_start), region, availability_zone) as id,\n                    date(usage_start) as usage_start,\n                    date(usage_start) as usage_end,\n                    region,\n                    availability_zone,\n                    sum(unblended_cost) as unblended_cost,\n                    sum(markup_cost) as markup_cost,\n                    max(currency_code) as currency_code\n                FROM reporting_awscostentrylineitem_daily_summary\n                -- Get data for this month or last month\n                WHERE date_trunc('month', usage_start) = date_trunc('month', now())\n                    OR date_trunc('month', usage_start) = date_trunc('month', date_trunc('month', now()) - INTERVAL '1' DAY)\n                GROUP BY date(usage_start), region, availability_zone\n            )\n            ;\n\n            CREATE UNIQUE INDEX aws_cost_summary_region\n            ON reporting_aws_cost_summary_by_region (usage_start, region, availability_zone)\n            ;\n\n            CREATE MATERIALIZED VIEW reporting_aws_compute_summary AS(\n                SELECT row_number() OVER(ORDER BY date(usage_start), instance_type) as id,\n                    date(usage_start) as usage_start,\n                    date(usage_start) as usage_end,\n                    instance_type,\n                    array_agg(DISTINCT resource_id) as resource_ids,\n                    count(DISTINCT resource_id) as resource_count,\n                    sum(usage_amount) as usage_amount,\n                    max(unit) as unit,\n                    sum(unblended_cost) as unblended_cost,\n                    sum(markup_cost) as markup_cost,\n                    max(currency_code) as currency_code\n                FROM reporting_awscostentrylineitem_daily_summary,\n                    unnest(resource_ids) resource_id\n                -- Get data for this month or last month\n                WHERE instance_type IS NOT NULL\n                    AND (\n                        date_trunc('month', usage_start) = date_trunc('month', now())\n                            OR date_trunc('month', usage_start) = date_trunc('month', date_trunc('month', now()) - INTERVAL '1' DAY)\n                    )\n                GROUP BY date(usage_start), instance_type\n            )\n            ;\n\n            CREATE UNIQUE INDEX aws_compute_summary\n            ON reporting_aws_compute_summary (usage_start, instance_type)\n            ;\n\n            CREATE MATERIALIZED VIEW reporting_aws_compute_summary_by_service AS(\n                SELECT row_number() OVER(ORDER BY date(usage_start), product_code, product_family, instance_type) as id,\n                    date(usage_start) as usage_start,\n                    date(usage_start) as usage_end,\n                    product_code,\n                    product_family,\n                    instance_type,\n                    array_agg(DISTINCT resource_id) as resource_ids,\n                    count(DISTINCT resource_id) as resource_count,\n                    sum(usage_amount) as usage_amount,\n                    max(unit) as unit,\n                    sum(unblended_cost) as unblended_cost,\n                    sum(markup_cost) as markup_cost,\n                    max(currency_code) as currency_code\n                FROM reporting_awscostentrylineitem_daily_summary,\n                    unnest(resource_ids) resource_id\n                -- Get data for this month or last month\n                WHERE instance_type IS NOT NULL\n                    AND (\n                        date_trunc('month', usage_start) = date_trunc('month', now())\n                            OR date_trunc('month', usage_start) = date_trunc('month', date_trunc('month', now()) - INTERVAL '1' DAY)\n                    )\n                GROUP BY date(usage_start), product_code, product_family, instance_type\n            )\n            ;\n\n            CREATE UNIQUE INDEX aws_compute_summary_service\n            ON reporting_aws_compute_summary_by_service (usage_start, product_code, product_family, instance_type)\n            ;\n\n            CREATE MATERIALIZED VIEW reporting_aws_compute_summary_by_account AS(\n                SELECT row_number() OVER(ORDER BY date(usage_start), usage_account_id, account_alias_id, instance_type) as id,\n                    date(usage_start) as usage_start,\n                    date(usage_start) as usage_end,\n                    usage_account_id,\n                    account_alias_id,\n                    instance_type,\n                    array_agg(DISTINCT resource_id) as resource_ids,\n                    count(DISTINCT resource_id) as resource_count,\n                    sum(usage_amount) as usage_amount,\n                    max(unit) as unit,\n                    sum(unblended_cost) as unblended_cost,\n                    sum(markup_cost) as markup_cost,\n                    max(currency_code) as currency_code\n                FROM reporting_awscostentrylineitem_daily_summary,\n                    unnest(resource_ids) resource_id\n                -- Get data for this month or last month\n                WHERE instance_type IS NOT NULL\n                    AND (\n                        date_trunc('month', usage_start) = date_trunc('month', now())\n                            OR date_trunc('month', usage_start) = date_trunc('month', date_trunc('month', now()) - INTERVAL '1' DAY)\n                    )\n                GROUP BY date(usage_start), usage_account_id, account_alias_id, instance_type\n            )\n            ;\n\n            CREATE UNIQUE INDEX aws_compute_summary_account\n            ON reporting_aws_compute_summary_by_account (usage_start, usage_account_id, account_alias_id, instance_type)\n            ;\n\n            CREATE MATERIALIZED VIEW reporting_aws_compute_summary_by_region AS(\n                SELECT row_number() OVER(ORDER BY date(usage_start), region, availability_zone, instance_type) as id,\n                    date(usage_start) as usage_start,\n                    date(usage_start) as usage_end,\n                    region,\n                    availability_zone,\n                    instance_type,\n                    array_agg(DISTINCT resource_id) as resource_ids,\n                    count(DISTINCT resource_id) as resource_count,\n                    sum(usage_amount) as usage_amount,\n                    max(unit) as unit,\n                    sum(unblended_cost) as unblended_cost,\n                    sum(markup_cost) as markup_cost,\n                    max(currency_code) as currency_code\n                FROM reporting_awscostentrylineitem_daily_summary,\n                    unnest(resource_ids) resource_id\n                -- Get data for this month or last month\n                WHERE instance_type IS NOT NULL\n                    AND (\n                        date_trunc('month', usage_start) = date_trunc('month', now())\n                            OR date_trunc('month', usage_start) = date_trunc('month', date_trunc('month', now()) - INTERVAL '1' DAY)\n                    )\n                GROUP BY date(usage_start), region, availability_zone, instance_type\n            )\n            ;\n\n            CREATE UNIQUE INDEX aws_compute_summary_region\n            ON reporting_aws_compute_summary_by_region (usage_start, region, availability_zone, instance_type)\n            ;\n\n            CREATE MATERIALIZED VIEW reporting_aws_storage_summary AS(\n                SELECT row_number() OVER(ORDER BY date(usage_start), product_family) as id,\n                    date(usage_start) as usage_start,\n                    date(usage_start) as usage_end,\n                    product_family,\n                    sum(usage_amount) as usage_amount,\n                    max(unit) as unit,\n                    sum(unblended_cost) as unblended_cost,\n                    sum(markup_cost) as markup_cost,\n                    max(currency_code) as currency_code\n                FROM reporting_awscostentrylineitem_daily_summary\n                -- Get data for this month or last month\n                WHERE product_family LIKE '%Storage%'\n                    AND unit = 'GB-Mo'\n                    AND (\n                        date_trunc('month', usage_start) = date_trunc('month', now())\n                            OR date_trunc('month', usage_start) = date_trunc('month', date_trunc('month', now()) - INTERVAL '1' DAY)\n                    )\n                GROUP BY date(usage_start), product_family\n            )\n            ;\n\n            CREATE UNIQUE INDEX aws_storage_summary\n            ON reporting_aws_storage_summary (usage_start, product_family)\n            ;\n\n            CREATE MATERIALIZED VIEW reporting_aws_storage_summary_by_service AS(\n                SELECT row_number() OVER(ORDER BY date(usage_start), product_code, product_family) as id,\n                    date(usage_start) as usage_start,\n                    date(usage_start) as usage_end,\n                    product_code,\n                    product_family,\n                    sum(usage_amount) as usage_amount,\n                    max(unit) as unit,\n                    sum(unblended_cost) as unblended_cost,\n                    sum(markup_cost) as markup_cost,\n                    max(currency_code) as currency_code\n                FROM reporting_awscostentrylineitem_daily_summary\n                -- Get data for this month or last month\n                WHERE product_family LIKE '%Storage%'\n                    AND unit = 'GB-Mo'\n                    AND (\n                        date_trunc('month', usage_start) = date_trunc('month', now())\n                            OR date_trunc('month', usage_start) = date_trunc('month', date_trunc('month', now()) - INTERVAL '1' DAY)\n                    )\n                GROUP BY date(usage_start), product_code, product_family\n            )\n            ;\n\n            CREATE UNIQUE INDEX aws_storage_summary_service\n            ON reporting_aws_storage_summary_by_service (usage_start, product_code, product_family)\n            ;\n\n            CREATE MATERIALIZED VIEW reporting_aws_storage_summary_by_account AS(\n                SELECT row_number() OVER(ORDER BY date(usage_start), usage_account_id, account_alias_id, product_family) as id,\n                    date(usage_start) as usage_start,\n                    date(usage_start) as usage_end,\n                    usage_account_id,\n                    account_alias_id,\n                    product_family,\n                    sum(usage_amount) as usage_amount,\n                    max(unit) as unit,\n                    sum(unblended_cost) as unblended_cost,\n                    sum(markup_cost) as markup_cost,\n                    max(currency_code) as currency_code\n                FROM reporting_awscostentrylineitem_daily_summary\n                -- Get data for this month or last month\n                WHERE product_family LIKE '%Storage%'\n                    AND unit = 'GB-Mo'\n                    AND (\n                        date_trunc('month', usage_start) = date_trunc('month', now())\n                            OR date_trunc('month', usage_start) = date_trunc('month', date_trunc('month', now()) - INTERVAL '1' DAY)\n                    )\n                GROUP BY date(usage_start), usage_account_id, account_alias_id, product_family\n            )\n            ;\n\n            CREATE UNIQUE INDEX aws_storage_summary_account\n            ON reporting_aws_storage_summary_by_account (usage_start, usage_account_id, account_alias_id, product_family)\n            ;\n\n            CREATE MATERIALIZED VIEW reporting_aws_storage_summary_by_region AS(\n                SELECT row_number() OVER(ORDER BY date(usage_start), region, availability_zone, product_family) as id,\n                    date(usage_start) as usage_start,\n                    date(usage_start) as usage_end,\n                    region,\n                    availability_zone,\n                    product_family,\n                    sum(usage_amount) as usage_amount,\n                    max(unit) as unit,\n                    sum(unblended_cost) as unblended_cost,\n                    sum(markup_cost) as markup_cost,\n                    max(currency_code) as currency_code\n                FROM reporting_awscostentrylineitem_daily_summary\n                -- Get data for this month or last month\n                WHERE product_family LIKE '%Storage%'\n                    AND unit = 'GB-Mo'\n                    AND (\n                        date_trunc('month', usage_start) = date_trunc('month', now())\n                            OR date_trunc('month', usage_start) = date_trunc('month', date_trunc('month', now()) - INTERVAL '1' DAY)\n                    )\n                GROUP BY date(usage_start), region, availability_zone, product_family\n            )\n            ;\n\n            CREATE UNIQUE INDEX aws_storage_summary_region\n            ON reporting_aws_storage_summary_by_region (usage_start, region, availability_zone, product_family)\n            ;\n\n            CREATE MATERIALIZED VIEW reporting_aws_network_summary AS(\n                SELECT row_number() OVER(ORDER BY date(usage_start), product_code) as id,\n                    date(usage_start) as usage_start,\n                    date(usage_start) as usage_end,\n                    product_code,\n                    sum(usage_amount) as usage_amount,\n                    max(unit) as unit,\n                    sum(unblended_cost) as unblended_cost,\n                    sum(markup_cost) as markup_cost,\n                    max(currency_code) as currency_code\n                FROM reporting_awscostentrylineitem_daily_summary\n                -- Get data for this month or last month\n                WHERE product_code IN ('AmazonVPC','AmazonCloudFront','AmazonRoute53','AmazonAPIGateway')\n                    AND (\n                        date_trunc('month', usage_start) = date_trunc('month', now())\n                            OR date_trunc('month', usage_start) = date_trunc('month', date_trunc('month', now()) - INTERVAL '1' DAY)\n                    )\n                GROUP BY date(usage_start), product_code\n            )\n            ;\n\n            CREATE UNIQUE INDEX aws_network_summary\n            ON reporting_aws_network_summary (usage_start, product_code)\n            ;\n\n            CREATE MATERIALIZED VIEW reporting_aws_database_summary AS(\n                SELECT row_number() OVER(ORDER BY date(usage_start), product_code) as id,\n                    date(usage_start) as usage_start,\n                    date(usage_start) as usage_end,\n                    product_code,\n                    sum(usage_amount) as usage_amount,\n                    max(unit) as unit,\n                    sum(unblended_cost) as unblended_cost,\n                    sum(markup_cost) as markup_cost,\n                    max(currency_code) as currency_code\n                FROM reporting_awscostentrylineitem_daily_summary\n                -- Get data for this month or last month\n                WHERE product_code IN ('AmazonRDS','AmazonDynamoDB','AmazonElastiCache','AmazonNeptune','AmazonRedshift','AmazonDocumentDB')\n                    AND (\n                        date_trunc('month', usage_start) = date_trunc('month', now())\n                            OR date_trunc('month', usage_start) = date_trunc('month', date_trunc('month', now()) - INTERVAL '1' DAY)\n                    )\n                GROUP BY date(usage_start), product_code\n            )\n            ;\n\n            CREATE UNIQUE INDEX aws_database_summary\n            ON reporting_aws_database_summary (usage_start, product_code)\n            ;\n            ",
         ),
-
-
         migrations.CreateModel(
             name='OCPAllCostLineItemDailySummary',
             fields=[
@@ -3434,8 +3339,6 @@ class Migration(migrations.Migration):
                 'managed': False,
             },
         ),
-
-
         migrations.CreateModel(
             name='OCPAllCostLineItemProjectDailySummary',
             fields=[
@@ -3468,9 +3371,6 @@ class Migration(migrations.Migration):
                 'managed': False,
             },
         ),
-
-
-        # VIEW
         migrations.RunSQL(
             sql="\n            CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary AS (\n                SELECT row_number() OVER () as id,\n                    lids.*\n                FROM (\n                    SELECT 'AWS' as source_type,\n                        cluster_id,\n                        cluster_alias,\n                        namespace,\n                        node,\n                        resource_id,\n                        usage_start,\n                        usage_end,\n                        usage_account_id,\n                        account_alias_id,\n                        product_code,\n                        product_family,\n                        instance_type,\n                        region,\n                        availability_zone,\n                        tags,\n                        usage_amount,\n                        unit,\n                        unblended_cost,\n                        markup_cost,\n                        currency_code,\n                        shared_projects,\n                        project_costs\n                    FROM reporting_ocpawscostlineitem_daily_summary\n                    WHERE usage_start >= date_trunc('month', date_trunc('month', now()) - INTERVAL '1' DAY)\n\n                    UNION\n\n                    SELECT 'Azure' as source_type,\n                        cluster_id,\n                        cluster_alias,\n                        namespace,\n                        node,\n                        resource_id,\n                        usage_start,\n                        usage_end,\n                        subscription_guid as usage_account_id,\n                        NULL::int as account_alias_id,\n                        service_name as product_code,\n                        NULL as product_family,\n                        instance_type,\n                        resource_location as region,\n                        NULL as availability_zone,\n                        tags,\n                        usage_quantity as usage_amount,\n                        unit_of_measure as unit,\n                        pretax_cost as unblended_cost,\n                        markup_cost,\n                        currency as currency_code,\n                        shared_projects,\n                        project_costs\n                    FROM reporting_ocpazurecostlineitem_daily_summary\n                    WHERE usage_start >= date_trunc('month', date_trunc('month', now()) - INTERVAL '1' DAY)\n                ) AS lids\n            )\n            ;\n\n            CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary AS (\n                SELECT row_number() OVER () as id,\n                    lids.*\n                FROM (\n                    SELECT 'AWS' as source_type,\n                        cluster_id,\n                        cluster_alias,\n                        data_source,\n                        namespace,\n                        node,\n                        pod_labels,\n                        resource_id,\n                        usage_start,\n                        usage_end,\n                        usage_account_id,\n                        account_alias_id,\n                        product_code,\n                        product_family,\n                        instance_type,\n                        region,\n                        availability_zone,\n                        usage_amount,\n                        unit,\n                        unblended_cost,\n                        project_markup_cost,\n                        pod_cost,\n                        currency_code\n                    FROM reporting_ocpawscostlineitem_project_daily_summary\n                    WHERE usage_start >= date_trunc('month', date_trunc('month', now()) - INTERVAL '1' DAY)\n\n                    UNION\n\n                    SELECT 'Azure' as source_type,\n                        cluster_id,\n                        cluster_alias,\n                        data_source,\n                        namespace,\n                        node,\n                        pod_labels,\n                        resource_id,\n                        usage_start,\n                        usage_end,\n                        subscription_guid as usage_account_id,\n                        NULL::int as account_alias_id,\n                        service_name as product_code,\n                        NULL as product_family,\n                        instance_type,\n                        resource_location as region,\n                        NULL as availability_zone,\n                        usage_quantity as usage_amount,\n                        unit_of_measure as unit,\n                        pretax_cost as unblended_cost,\n                        project_markup_cost,\n                        pod_cost,\n                        currency as currency_code\n                    FROM reporting_ocpazurecostlineitem_project_daily_summary\n                    WHERE usage_start >= date_trunc('month', date_trunc('month', now()) - INTERVAL '1' DAY)\n                ) AS lids\n            )\n            ;\n            ",
         ),
