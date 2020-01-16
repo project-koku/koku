@@ -68,7 +68,7 @@ class OrchestratorTest(MasuTestCase):
                     'authentication': fake_arn(service='iam', generate_account_id=True),
                     'billing_source': self.fake.word(),
                     'customer_name': self.fake.word(),
-                    'provider_type': 'AWS',
+                    'provider_type': Provider.PROVIDER_AWS,
                     'schema_name': self.fake.word(),
                 }
             )

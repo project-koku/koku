@@ -34,15 +34,16 @@ from api.report.serializers import ParamSerializer
 from api.report.view import ReportView
 
 LOG = logging.getLogger(__name__)
-PROVIDERS = [Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE, Provider.PROVIDER_OCP, 'OCP_AWS', 'OCP_All']
+PROVIDERS = [Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE,
+             Provider.PROVIDER_OCP, Provider.OCP_AWS, Provider.OCP_ALL]
 ACCESS_KEYS = {
-    'aws': ['aws.account'],
-    'azure': ['azure.subscription_guid'],
-    'ocp': ['openshift.cluster', 'openshift.project', 'openshift.node'],
-    'ocp_aws': ['aws.account', 'openshift.cluster', 'openshift.project',
-                'openshift.node'],
-    'ocp_all': ['aws.account', 'azure.subscription_guid', 'openshift.cluster',
-                'openshift.project', 'openshift.node'],
+    Provider.PROVIDER_AWS.lower(): ['aws.account'],
+    Provider.PROVIDER_AZURE.lower(): ['azure.subscription_guid'],
+    Provider.PROVIDER_OCP.lower(): ['openshift.cluster', 'openshift.project', 'openshift.node'],
+    Provider.OCP_AWS.lower(): ['aws.account', 'openshift.cluster', 'openshift.project',
+                               'openshift.node'],
+    Provider.OCP_ALL.lower(): ['aws.account', 'azure.subscription_guid', 'openshift.cluster',
+                               'openshift.project', 'openshift.node'],
 }
 
 

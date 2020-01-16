@@ -25,7 +25,7 @@ from django.urls import reverse
 from sources.api.view import SourcesViewSet
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.provider.models import Sources
+from api.provider.models import Provider, Sources
 
 
 @override_settings(ROOT_URLCONF='sources.urls')
@@ -46,7 +46,7 @@ class SourcesViewTests(IamTestCase):
                                  auth_header=self.request_context['request'].META,
                                  account_id=customer.get('account_id'),
                                  offset=1,
-                                 source_type='Azure',
+                                 source_type=Provider.PROVIDER_AZURE,
                                  name='Test Azure Source',
                                  authentication={'credentials': {'client_id': 'test_client',
                                                                  'tenant_id': 'test_tenant',

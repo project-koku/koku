@@ -369,7 +369,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             schema=self.schema, provider=ocp_provider, manifest=None
         )
 
-        expected_mapping = (self.aws_provider_uuid, 'AWS')
+        expected_mapping = (self.aws_provider_uuid, Provider.PROVIDER_AWS)
         infra_map = updater.get_infra_map()
 
         self.assertEqual(len(infra_map.keys()), 1)

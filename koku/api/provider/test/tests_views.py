@@ -452,7 +452,7 @@ class ProviderViewTest(IamTestCase):
 
         name = 'new_name'
         auth = {'provider_resource_name': 'testing_123'}
-        provider = copy.deepcopy(PROVIDERS['OCP'])
+        provider = copy.deepcopy(PROVIDERS[Provider.PROVIDER_OCP])
         provider['name'] = name
         provider['authentication'] = auth
 
@@ -480,7 +480,7 @@ class ProviderViewTest(IamTestCase):
         json_result = response.json()
 
         name = 'new_name'
-        provider = copy.deepcopy(PROVIDERS['AWS'])
+        provider = copy.deepcopy(PROVIDERS[Provider.PROVIDER_AWS])
         provider['name'] = name
 
         url = reverse('provider-detail', args=[json_result.get('uuid')])
@@ -501,7 +501,7 @@ class ProviderViewTest(IamTestCase):
                           side_effect=serializers.ValidationError):
             json_result = response.json()
             name = 'new_name'
-            provider = copy.deepcopy(PROVIDERS['AWS'])
+            provider = copy.deepcopy(PROVIDERS[Provider.PROVIDER_AWS])
             provider['name'] = name
 
             url = reverse('provider-detail', args=[json_result.get('uuid')])
@@ -543,7 +543,7 @@ class ProviderViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         json_result = response.json()
 
-        provider = copy.deepcopy(PROVIDERS['AWS'])
+        provider = copy.deepcopy(PROVIDERS[Provider.PROVIDER_AWS])
         provider['type'] = Provider.PROVIDER_OCP
 
         url = reverse('provider-detail', args=[json_result.get('uuid')])

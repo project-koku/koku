@@ -190,8 +190,8 @@ AUTHENTICATION_SERIALIZERS = {Provider.PROVIDER_AWS: AWSAuthenticationSerializer
                               Provider.PROVIDER_GCP: GCPAuthenticationSerializer,
                               Provider.PROVIDER_GCP_LOCAL: GCPAuthenticationSerializer,
                               Provider.PROVIDER_OCP: OCPAuthenticationSerializer,
-                              'OCP_AWS': AWSAuthenticationSerializer,
-                              'OCP_Azure': AzureAuthenticationSerializer,
+                              Provider.OCP_AWS: AWSAuthenticationSerializer,
+                              Provider.OCP_AZURE: AzureAuthenticationSerializer,
                               }
 
 
@@ -203,8 +203,8 @@ BILLING_SOURCE_SERIALIZERS = {Provider.PROVIDER_AWS: AWSBillingSourceSerializer,
                               Provider.PROVIDER_GCP: GCPBillingSourceSerializer,
                               Provider.PROVIDER_GCP_LOCAL: GCPBillingSourceSerializer,
                               Provider.PROVIDER_OCP: OCPBillingSourceSerializer,
-                              'OCP_AWS': AWSBillingSourceSerializer,
-                              'OCP_Azure': AzureBillingSourceSerializer,
+                              Provider.OCP_AWS: AWSBillingSourceSerializer,
+                              Provider.OCP_AZURE: AzureBillingSourceSerializer,
                               }
 
 
@@ -247,9 +247,9 @@ class ProviderSerializer(serializers.ModelSerializer):
 
         if provider_type:
             self.fields['authentication'] = AUTHENTICATION_SERIALIZERS.get(
-                Provider.PROVIDER_CASE_MAPPING.get(provider_type, provider_type))()
+                Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower()))()
             self.fields['billing_source'] = BILLING_SOURCE_SERIALIZERS.get(
-                Provider.PROVIDER_CASE_MAPPING.get(provider_type, provider_type))(
+                Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower()))(
                 default={'bucket': '', 'data_source': {'bucket': ''}}
             )
         else:
@@ -290,7 +290,7 @@ class ProviderSerializer(serializers.ModelSerializer):
         credentials = authentication.get('credentials')
         provider_resource_name = credentials.get('provider_resource_name')
         provider_type = validated_data['type']
-        provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type, provider_type)
+        provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type)
         validated_data['type'] = provider_type
         interface = ProviderAccessor(provider_type)
 
@@ -322,7 +322,7 @@ class ProviderSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
         provider_type = validated_data['type']
-        provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type, provider_type)
+        provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type)
         validated_data['type'] = provider_type
         if instance.type != provider_type:
             error = {'Error': 'The Provider Type cannot be changed with a PUT request.'}

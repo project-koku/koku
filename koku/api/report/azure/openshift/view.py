@@ -19,6 +19,7 @@
 
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
+from api.models import Provider
 from api.report.azure.openshift.query_handler import OCPAzureReportQueryHandler
 from api.report.azure.openshift.serializers import OCPAzureQueryParamSerializer
 from api.report.view import ReportView
@@ -29,7 +30,7 @@ class OCPAzureView(ReportView):
     """OCP+Azure Base View."""
 
     permission_classes = [AzureAccessPermission, OpenShiftAccessPermission]
-    provider = 'OCP_Azure'
+    provider = Provider.OCP_AZURE
     serializer = OCPAzureQueryParamSerializer
     query_handler = OCPAzureReportQueryHandler
     tag_handler = [AzureTagsSummary]

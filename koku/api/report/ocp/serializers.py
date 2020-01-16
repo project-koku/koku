@@ -19,6 +19,7 @@ from django.utils.translation import ugettext as _
 from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
+from api.models import Provider
 from api.report.serializers import (FilterSerializer as BaseFilterSerializer,
                                     GroupSerializer,
                                     OrderSerializer,
@@ -103,10 +104,7 @@ class FilterSerializer(BaseFilterSerializer):
 
         if data.get('infrastructures'):
             infra_value = data['infrastructures']
-            if infra_value != 'azure':
-                data['infrastructures'] = [infra_value.upper()]
-            else:
-                data['infrastructures'] = ['Azure']
+            data['infrastructures'] = [Provider.PROVIDER_CASE_MAPPING.get(infra_value.lower())]
 
         return data
 

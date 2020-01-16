@@ -127,21 +127,21 @@ class ProviderDBAccessorTest(MasuTestCase):
 
     def test_get_infrastructure_type(self):
         """Test that infrastructure type is returned."""
-        infrastructure_type = 'AWS'
+        infrastructure_type = Provider.PROVIDER_AWS
         with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
             accessor.set_infrastructure(self.aws_provider_uuid, infrastructure_type)
             self.assertEqual(accessor.get_infrastructure_type(), infrastructure_type)
 
     def test_get_infrastructure_provider_uuid(self):
         """Test that infrastructure provider UUID is returned."""
-        infrastructure_type = 'AWS'
+        infrastructure_type = Provider.PROVIDER_AWS
         with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
             accessor.set_infrastructure(self.aws_provider_uuid, infrastructure_type)
             self.assertEqual(accessor.get_infrastructure_provider_uuid(), self.aws_provider_uuid)
 
     def test_set_infrastructure(self):
         """Test that infrastructure provider UUID is returned."""
-        infrastructure_type = 'AWS'
+        infrastructure_type = Provider.PROVIDER_AWS
         with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
             accessor.set_infrastructure(self.aws_provider_uuid, infrastructure_type)
 
@@ -155,7 +155,7 @@ class ProviderDBAccessorTest(MasuTestCase):
 
     def test_get_associated_openshift_providers(self):
         """Test that infrastructure provider UUID is returned."""
-        infrastructure_type = 'AWS'
+        infrastructure_type = Provider.PROVIDER_AWS
         with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
             accessor.set_infrastructure(self.aws_provider_uuid, infrastructure_type)
 

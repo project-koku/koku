@@ -104,9 +104,9 @@ class ExpiredDataRemoverTest(MasuTestCase):
             with patch.object(DateAccessor, 'today', return_value=test_case.get('current_date')):
                 retention_policy = test_case.get('months_to_keep')
                 if retention_policy:
-                    remover = ExpiredDataRemover(self.schema, 'AWS', retention_policy)
+                    remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS, retention_policy)
                 else:
-                    remover = ExpiredDataRemover(self.schema, 'AWS')
+                    remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
                 expire_date = remover._calculate_expiration_date()
                 self.assertEqual(expire_date, test_case.get('expected_expire'))
 

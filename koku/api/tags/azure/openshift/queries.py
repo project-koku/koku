@@ -16,6 +16,7 @@
 #
 
 """OCP-on-Azure Tag Query Handling."""
+from api.models import Provider
 from api.report.azure.openshift.provider_map import OCPAzureProviderMap
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.ocp.queries import OCPTagQueryHandler
@@ -26,7 +27,7 @@ class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
     """Handles tag queries and responses for OCP-on-Azure."""
 
     data_sources = [{'db_table': OCPAzureCostLineItemDailySummary, 'db_column': 'tags'}]
-    provider = 'OCP_Azure'
+    provider = Provider.OCP_AZURE
 
     def __init__(self, parameters):
         """Establish Azure report query handler.

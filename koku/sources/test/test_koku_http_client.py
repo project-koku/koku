@@ -149,7 +149,7 @@ class KokuHTTPClientTest(TestCase):
         with requests_mock.mock() as m:
             m.put(f'http://www.koku.com/api/cost-management/v1/providers/{expected_uuid}/',
                   status_code=200, json={})
-            response = client.update_provider(expected_uuid, 'Aws Test', 'AWS',
+            response = client.update_provider(expected_uuid, 'Aws Test', Provider.PROVIDER_AWS,
                                               {'resource_name': 'arn:test'}, {'bucket': 'bucket'})
             self.assertEqual(response, {})
 
@@ -162,7 +162,7 @@ class KokuHTTPClientTest(TestCase):
             m.put(f'http://www.koku.com/api/cost-management/v1/providers/{expected_uuid}/',
                   exc=requests.exceptions.RequestException)
             with self.assertRaises(KokuHTTPClientError):
-                client.update_provider(expected_uuid, 'Aws Test', 'AWS',
+                client.update_provider(expected_uuid, 'Aws Test', Provider.PROVIDER_AWS,
                                        {'resource_name': 'arn:test'}, {'bucket': 'bucket'})
 
     @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
@@ -174,7 +174,7 @@ class KokuHTTPClientTest(TestCase):
             m.put(f'http://www.koku.com/api/cost-management/v1/providers/{expected_uuid}/',
                   status_code=400, json={})
             with self.assertRaises(KokuHTTPClientNonRecoverableError):
-                client.update_provider(expected_uuid, 'Aws Test', 'AWS',
+                client.update_provider(expected_uuid, 'Aws Test', Provider.PROVIDER_AWS,
                                        {'resource_name': 'arn:test'}, {'bucket': 'bucket'})
 
     @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
@@ -186,7 +186,7 @@ class KokuHTTPClientTest(TestCase):
             m.put(f'http://www.koku.com/api/cost-management/v1/providers/{expected_uuid}/',
                   status_code=404, json={})
             with self.assertRaises(KokuHTTPClientNonRecoverableError):
-                client.update_provider(expected_uuid, 'Aws Test', 'AWS',
+                client.update_provider(expected_uuid, 'Aws Test', Provider.PROVIDER_AWS,
                                        {'resource_name': 'arn:test'}, {'bucket': 'bucket'})
 
     def test_get_authentication_for_provider(self):

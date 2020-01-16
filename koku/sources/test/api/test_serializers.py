@@ -21,7 +21,7 @@ from sources.api.serializers import SourcesSerializer
 from sources.storage import SourcesStorageError
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.provider.models import Sources
+from api.provider.models import Provider, Sources
 
 fake = Faker()
 
@@ -44,7 +44,7 @@ class SourcesSerializerTests(IamTestCase):
                                  auth_header=self.azure_request_context['request'].META,
                                  account_id=customer.get('account_id'),
                                  offset=1,
-                                 source_type='Azure',
+                                 source_type=Provider.PROVIDER_AZURE,
                                  name=self.azure_name,
                                  authentication={'credentials': {'client_id': 'test_client',
                                                                  'tenant_id': 'test_tenant',
@@ -61,7 +61,7 @@ class SourcesSerializerTests(IamTestCase):
                                auth_header=self.aws_request_context['request'].META,
                                account_id=customer.get('account_id'),
                                offset=2,
-                               source_type='AWS',
+                               source_type=Provider.PROVIDER_AWS,
                                name=self.aws_name)
         self.aws_obj.save()
 
@@ -101,7 +101,7 @@ class SourcesSerializerTests(IamTestCase):
 
     def test_azure_source_update_wrong_type(self):
         """Test the updating azure source with wrong source type."""
-        self.azure_obj.source_type = 'AWS'
+        self.azure_obj.source_type = Provider.Provider_AWS
         self.azure_obj.save()
 
         serializer = SourcesSerializer(context=self.request_context)
@@ -177,7 +177,7 @@ class SourcesSerializerTests(IamTestCase):
 
     def test_ocp_source_billing_source_update(self):
         """Test the updating billing_source for invalid OCP source."""
-        self.aws_obj.instance_type = 'OCP'
+        self.aws_obj.instance_type = Provider.PROVIDER_OCP
         self.aws_obj.save()
         test_bucket = 'test-bucket'
         serializer = SourcesSerializer(context=self.request_context)

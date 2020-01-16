@@ -66,7 +66,7 @@ class OCPProviderMap(ProviderMap):
                     'infrastructures': {
                         'field': 'cluster_id',
                         'operation': 'exact',
-                        'custom': ProviderAccessor('OCP').infrastructure_key_list
+                        'custom': ProviderAccessor(Provider.PROVIDER_OCP).infrastructure_key_list
                     },
                 },
                 'group_by_options': ['cluster', 'project', 'node'],
