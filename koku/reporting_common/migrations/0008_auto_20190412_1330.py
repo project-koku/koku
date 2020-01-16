@@ -6,10 +6,8 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        #('api', '0008_auto_20190305_2015'),
-        #('reporting_common', '0007_auto_20190208_0316'),
-        ('api','0001_initial_squashed_0008_auto_20190305_2015'),
-        ('reporting_common', '0001_initial_squashed_0007_auto_20190208_0316'),
+        ('api', '0008_auto_20190305_2015'),
+        ('reporting_common', '0007_auto_20190208_0316'),
     ]
 
     operations = [

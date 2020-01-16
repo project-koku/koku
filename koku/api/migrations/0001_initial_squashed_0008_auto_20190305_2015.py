@@ -29,7 +29,7 @@ def migrate_customer_schema_name(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    #replaces = [('api', '0001_initial'), ('api', '0002_auto_20180926_1905'), ('api', '0003_auto_20181008_1819'), ('api', '0004_auto_20181012_1507'), ('api', '0005_auto_20181109_2121'), ('api', '0006_delete_rate'), ('api', '0007_auto_20181213_1940'), ('api', '0008_auto_20190305_2015')]
+    replaces = [('api', '0001_initial'), ('api', '0002_auto_20180926_1905'), ('api', '0003_auto_20181008_1819'), ('api', '0004_auto_20181012_1507'), ('api', '0005_auto_20181109_2121'), ('api', '0006_delete_rate'), ('api', '0007_auto_20181213_1940'), ('api', '0008_auto_20190305_2015')]
 
     dependencies = [
     ]
