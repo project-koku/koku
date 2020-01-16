@@ -24,7 +24,7 @@ from api.report.test.aws.helpers import AWSReportDataGenerator
 from api.utils import DateHelper
 
 
-class AWSReportQueryTest(IamTestCase):
+class QueryHandlerTest(IamTestCase):
     """Tests the report queries."""
 
     def setUp(self):
