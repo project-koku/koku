@@ -65,6 +65,33 @@ PROVIDERS = {
                 'storage_account': {}
             }
         }
+    },
+    'AzUrE': {
+        'name': 'test_provider',
+        'type': 'AzUrE',
+        'authentication': {
+            'credentials': {
+                'subscription_id': '12345678-1234-5678-1234-567812345678',
+                'tenant_id': '12345678-1234-5678-1234-567812345678',
+                'client_id': '12345678-1234-5678-1234-567812345678',
+                'client_secret': '12345'
+            }
+        },
+        'billing_source': {
+            'data_source': {
+                'resource_group': {},
+                'storage_account': {}
+            }
+        }
+    },
+    'oCp': {
+        'name': 'test_provider',
+        'type': 'oCp',
+        'authentication': {
+            'credentials': {
+                'provider_resource_name': 'my-ocp-cluster-1'
+            }
+        }
     }
 }
 

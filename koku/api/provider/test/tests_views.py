@@ -45,13 +45,14 @@ class ProviderViewTest(IamTestCase):
         # if serializer.is_valid(raise_exception=True):
         #     serializer.save()
 
-    def create_provider(self, bucket_name, iam_arn, headers=None):
+    def create_provider(self, bucket_name, iam_arn,
+                        headers=None, provider_type=Provider.PROVIDER_AWS):
         """Create a provider and return response."""
         req_headers = self.headers
         if headers:
             req_headers = headers
         provider = {'name': 'test_provider',
-                    'type': Provider.PROVIDER_AWS,
+                    'type': provider_type,
                     'authentication': {
                         'provider_resource_name': iam_arn
                     },
@@ -99,6 +100,15 @@ class ProviderViewTest(IamTestCase):
         client = APIClient()
         response = client.post(url, data=provider, format='json', **req_headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_aws_type_camel_casing(self):
+        """Test creating a provider with type camel cased."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn, provider_type='aWs')
+        json_result = response.json()
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(json_result.get('type'), Provider.PROVIDER_AWS)
 
     @patch('providers.aws.provider._get_sts_access', return_value={'empty': 'dict'})
     def test_create_aws_with_no_bucket_name(self, mock_sts_return):
@@ -455,6 +465,13 @@ class ProviderViewTest(IamTestCase):
         self.assertEqual(put_json_result.get('name'), name)
         self.assertEqual(put_json_result.get('authentication').get('credentials'), auth)
 
+    def test_create_ocp_type_camel_casing(self):
+        """Test creating a provider with type camel cased."""
+        response, _ = create_generic_provider('oCp', self.headers)
+        json_result = response.json()
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(json_result.get('type'), Provider.PROVIDER_OCP)
+
     @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
     def test_put_for_aws_provider(self, mock_access):
         """Test PUT update for AWS provider."""
@@ -511,6 +528,13 @@ class ProviderViewTest(IamTestCase):
 
         put_json_result = put_response.json()
         self.assertEqual(put_json_result.get('name'), name)
+
+    def test_create_azure_type_camel_casing(self):
+        """Test creating a provider with type camel cased."""
+        response, _ = create_generic_provider('AzUrE', self.headers)
+        json_result = response.json()
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(json_result.get('type'), Provider.PROVIDER_AZURE)
 
     @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
     def test_put_for_provider_type_change(self, mock_access):
