@@ -56,6 +56,25 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self.column_map = column_map
         self.jinja_sql = JinjaSql()
 
+    @staticmethod
+    def get_formatted_date(start_date, end_date):
+        """Format the start & end date."""
+        if isinstance(start_date, str):
+            start_date = parse(start_date)
+        if isinstance(end_date, str):
+            end_date = parse(end_date)
+        if not start_date:
+            # If start_date is not provided, recalculate from the first month
+            start_date = OCPUsageLineItemDailySummary.objects.aggregate(
+                Min('usage_start')
+            )['usage_start__min']
+        if not end_date:
+            # If end_date is not provided, recalculate till the latest month
+            end_date = OCPUsageLineItemDailySummary.objects.aggregate(
+                Max('usage_end')
+            )['usage_end__max']
+        return (start_date, end_date)
+
     def get_current_usage_report(self):
         """Get the most recent usage report object."""
         table_name = OCP_REPORT_TABLE_MAP['report']
@@ -104,7 +123,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         report_periods = self.get_usage_period_query_by_provider(provider_uuid)
         with schema_context(self.schema):
             if start_date:
-                report_date = parse(start_date).replace(day=1)
+                if isinstance(start_date, str):
+                    start_date = parse(start_date)
+                report_date = start_date.replace(day=1)
                 report_periods = report_periods.filter(
                     report_period_start=report_date
                 ).all()
@@ -213,22 +234,19 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                      entry.interval_start.strftime(self._datetime_format)): entry.id
                     for entry in reports}
 
-    def get_pod_usage_cpu_core_hours(self, report_periods, cluster_id=None):
+    def get_pod_usage_cpu_core_hours(self, start_date, end_date, cluster_id=None):
         """Make a mapping of cpu pod usage hours."""
         table = OCPUsageLineItemDailySummary
-        entries = {}
-        for report_period in report_periods:
-            filters = {
-                'data_source': 'Pod',
-                'report_period': report_period
-            }
-            if cluster_id:
-                filters['cluster_id'] = cluster_id
-            with schema_context(self.schema):
-                reports = self._get_reports(table, filters)
-                for entry in reports:
-                    entries[entry.id] = entry.pod_usage_cpu_core_hours
-        return entries
+        filters = {
+            'data_source': 'Pod',
+            'usage_start__gte': start_date,
+            'usage_start__lte': end_date
+        }
+        if cluster_id:
+            filters['cluster_id'] = cluster_id
+        with schema_context(self.schema):
+            reports = self._get_reports(table, filters)
+            return {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
 
     def _get_reports(self, table, filters=None):
         """Return requested reports from given table.
@@ -248,90 +266,77 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 reports = self._get_db_obj_query(table).all()
             return reports
 
-    def get_pod_request_cpu_core_hours(self, report_periods, cluster_id=None):
+    def get_pod_request_cpu_core_hours(self, start_date, end_date, cluster_id=None):
         """Make a mapping of cpu pod request hours."""
         table = OCPUsageLineItemDailySummary
-        entries = {}
-        for report_period in report_periods:
-            filters = {
-                'data_source': 'Pod',
-                'report_period': report_period
-            }
-            if cluster_id:
-                filters['cluster_id'] = cluster_id
-            with schema_context(self.schema):
-                reports = self._get_reports(table, filters)
-                for entry in reports:
-                    entries[entry.id] = entry.pod_request_cpu_core_hours
-        return entries
+        filters = {
+            'data_source': 'Pod',
+            'usage_start__gte': start_date,
+            'usage_start__lte': end_date
+        }
+        if cluster_id:
+            filters['cluster_id'] = cluster_id
+        with schema_context(self.schema):
+            reports = self._get_reports(table, filters)
+            return {entry.id: entry.pod_request_cpu_core_hours for entry in reports}
 
-    def get_pod_usage_memory_gigabyte_hours(self, report_periods, cluster_id=None):
+    def get_pod_usage_memory_gigabyte_hours(self, start_date, end_date, cluster_id=None):
         """Make a mapping of memory_usage hours."""
         table = OCPUsageLineItemDailySummary
-        entries = {}
-        for report_period in report_periods:
-            filters = {
-                'data_source': 'Pod',
-                'report_period': report_period
-            }
-            if cluster_id:
-                filters['cluster_id'] = cluster_id
-            with schema_context(self.schema):
-                reports = self._get_reports(table, filters)
-                for entry in reports:
-                    entries[entry.id] = entry.pod_usage_memory_gigabyte_hours
-        return entries
+        filters = {
+            'data_source': 'Pod',
+            'usage_start__gte': start_date,
+            'usage_start__lte': end_date
+        }
+        if cluster_id:
+            filters['cluster_id'] = cluster_id
+        with schema_context(self.schema):
+            reports = self._get_reports(table, filters)
+            return {entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports}
 
-    def get_pod_request_memory_gigabyte_hours(self, report_periods, cluster_id=None):
+    def get_pod_request_memory_gigabyte_hours(self, start_date, end_date, cluster_id=None):
         """Make a mapping of memory_request_hours."""
         table = OCPUsageLineItemDailySummary
-        entries = {}
-        for report_period in report_periods:
-            filters = {
-                'data_source': 'Pod',
-                'report_period': report_period
-            }
-            if cluster_id:
-                filters['cluster_id'] = cluster_id
-            with schema_context(self.schema):
-                reports = self._get_reports(table, filters)
-                for entry in reports:
-                    entries[entry.id] = entry.pod_request_memory_gigabyte_hours
-        return entries
+        filters = {
+            'data_source': 'Pod',
+            'usage_start__gte': start_date,
+            'usage_start__lte': end_date
+        }
+        if cluster_id:
+            filters['cluster_id'] = cluster_id
+        with schema_context(self.schema):
+            reports = self._get_reports(table, filters)
+            return {entry.id: entry.pod_request_memory_gigabyte_hours for entry in reports}
 
-    def get_persistentvolumeclaim_usage_gigabyte_months(self, report_periods, cluster_id=None):
+    def get_persistentvolumeclaim_usage_gigabyte_months(self, start_date,
+                                                        end_date, cluster_id=None):
         """Make a mapping of persistentvolumeclaim_usage_gigabyte_months."""
         table = OCPUsageLineItemDailySummary
-        entries = {}
-        for report_period in report_periods:
-            filters = {
-                'data_source': 'Storage',
-                'report_period': report_period
-            }
-            if cluster_id:
-                filters['cluster_id'] = cluster_id
-            with schema_context(self.schema):
-                reports = self._get_reports(table, filters)
-                for entry in reports:
-                    entries[entry.id] = entry.persistentvolumeclaim_usage_gigabyte_months
-        return entries
+        filters = {
+            'data_source': 'Storage',
+            'usage_start__gte': start_date,
+            'usage_start__lte': end_date
+        }
+        if cluster_id:
+            filters['cluster_id'] = cluster_id
+        with schema_context(self.schema):
+            reports = self._get_reports(table, filters)
+            # pylint: disable=line-too-long
+            return {entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
 
-    def get_volume_request_storage_gigabyte_months(self, report_periods, cluster_id=None):
+    def get_volume_request_storage_gigabyte_months(self, start_date, end_date, cluster_id=None):
         """Make a mapping of volume_request_storage_gigabyte_months."""
         table = OCPUsageLineItemDailySummary
-        entries = {}
-        for report_period in report_periods:
-            filters = {
-                'data_source': 'Storage',
-                'report_period': report_period
-            }
-            if cluster_id:
-                filters['cluster_id'] = cluster_id
-            with schema_context(self.schema):
-                reports = self._get_reports(table, filters)
-                for entry in reports:
-                    entries[entry.id] = entry.volume_request_storage_gigabyte_months
-        return entries
+        filters = {
+            'data_source': 'Storage',
+            'usage_start__gte': start_date,
+            'usage_start__lte': end_date
+        }
+        if cluster_id:
+            filters['cluster_id'] = cluster_id
+        with schema_context(self.schema):
+            reports = self._get_reports(table, filters)
+            return {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
 
     def populate_line_item_daily_table(self, start_date, end_date, cluster_id):
         """Populate the daily aggregate of line items table.
@@ -759,21 +764,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             end_date (datetime, str): The end_date to calculate monthly_cost.
 
         """
-        if isinstance(start_date, str):
-            start_date = parse(start_date)
-        if isinstance(end_date, str):
-            end_date = parse(end_date)
-        if not start_date:
-            # If start_date is not provided, recalculate from the first month
-            start_date = OCPUsageLineItemDailySummary.objects.aggregate(
-                Min('usage_start')
-            )['usage_start__min']
-        if not end_date:
-            # If end_date is not provided, recalculate till the latest month
-            end_date = OCPUsageLineItemDailySummary.objects.aggregate(
-                Max('usage_end')
-            )['usage_end__max']
-
         LOG.info('Populating Monthly cost from %s to %s.', start_date, end_date)
 
         first_month = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
