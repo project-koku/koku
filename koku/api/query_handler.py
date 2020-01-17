@@ -327,7 +327,7 @@ class QueryHandler:
 
         """
         for group_by_key in parameters.parameters.get('group_by', {}):
-            for group_by_value in parameters.parameters.get('group_by', {}).get(group_by_key, {}):
+            for group_by_value in parameters.parameters['group_by'][group_by_key]:
                 if group_by_value == '*':
                     # find if there is a filter[X]=Y that matches this group_by[X]=*
                     # get filter value for current group_by_key
