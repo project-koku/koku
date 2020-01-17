@@ -19,6 +19,7 @@
 from django.db.models import CharField, DecimalField, F, Max, Sum, Value
 from django.db.models.functions import Coalesce
 
+from api.models import Provider
 from api.report.provider_map import ProviderMap
 from reporting.models import AzureCostEntryLineItemDailySummary
 
@@ -30,7 +31,7 @@ class AzureProviderMap(ProviderMap):
         """Constructor."""
         self._mapping = [
             {
-                'provider': 'AZURE',
+                'provider': Provider.PROVIDER_AZURE,
                 'alias': 'subscription_guid',  # FIXME: probably wrong
                 'annotations': {},
                 'end_date': 'costentrybill__billing_period_end',

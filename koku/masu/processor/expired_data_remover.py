@@ -25,12 +25,8 @@ from datetime import (datetime, timedelta)
 
 import pytz
 
+from api.models import Provider
 from masu.config import Config
-from masu.external import (AMAZON_WEB_SERVICES,
-                           AWS_LOCAL_SERVICE_PROVIDER,
-                           AZURE,
-                           AZURE_LOCAL_SERVICE_PROVIDER,
-                           OPENSHIFT_CONTAINER_PLATFORM)
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleaner
 from masu.processor.azure.azure_report_db_cleaner import AzureReportDBCleaner
@@ -91,13 +87,13 @@ class ExpiredDataRemover():
             (Object) : Provider-specific report cleaner
 
         """
-        if self._provider in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
+        if self._provider in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
             return AWSReportDBCleaner(self._schema)
 
-        if self._provider in (AZURE, AZURE_LOCAL_SERVICE_PROVIDER):
+        if self._provider in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             return AzureReportDBCleaner(self._schema)
 
-        if self._provider in (OPENSHIFT_CONTAINER_PLATFORM, ):
+        if self._provider in (Provider.PROVIDER_OCP, ):
             return OCPReportDBCleaner(self._schema)
 
         return None

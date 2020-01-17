@@ -27,7 +27,7 @@ from faker import Faker
 from sources.config import Config
 from sources.sources_http_client import SourcesHTTPClientError
 
-from api.provider.models import Sources
+from api.provider.models import Provider, Sources
 
 faker = Faker()
 
@@ -307,7 +307,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                              auth_header=Config.SOURCES_FAKE_HEADER,
                              offset=1,
                              name='AWS Source',
-                             source_type='AWS',
+                             source_type=Provider.PROVIDER_AWS,
                              authentication='fakeauth',
                              billing_source='s3bucket')
         aws_source.save()
@@ -316,21 +316,21 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                                         auth_header=Config.SOURCES_FAKE_HEADER,
                                         offset=2,
                                         name='AWS Source 2',
-                                        source_type='AWS')
+                                        source_type=Provider.PROVIDER_AWS)
         aws_source_incomplete.save()
 
         ocp_source = Sources(source_id=3,
                              auth_header=Config.SOURCES_FAKE_HEADER,
                              authentication='fakeauth',
                              offset=3, name='OCP Source',
-                             source_type='OCP')
+                             source_type=Provider.PROVIDER_OCP)
         ocp_source.save()
 
         ocp_source_complete = Sources(source_id=4,
                                       auth_header=Config.SOURCES_FAKE_HEADER,
                                       offset=4,
                                       name='Complete OCP Source',
-                                      source_type='OCP',
+                                      source_type=Provider.PROVIDER_OCP,
                                       koku_uuid=faker.uuid4())
         ocp_source_complete.save()
         source_delete = Sources.objects.get(source_id=4)
@@ -364,17 +364,17 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}',
                   status_code=200, json={'data': [{'id': resource_id}]})
             m.get((f'http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint'
-                  f'&[authtype]=arn&[resource_id]={resource_id}'),
+                   f'&[authtype]=arn&[resource_id]={resource_id}'),
                   status_code=200, json={'data': [{'id': authentication_id}]})
             m.get((f'http://www.sources.com/internal/v1.0/authentications/{authentication_id}'
-                  f'?expose_encrypted_attribute[]=password'),
+                   f'?expose_encrypted_attribute[]=password'),
                   status_code=200, json={'password': authentication})
 
             source_integration.sources_network_info(test_source_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEqual(source_obj.name, source_name)
-        self.assertEqual(source_obj.source_type, 'AWS')
+        self.assertEqual(source_obj.source_type, Provider.PROVIDER_AWS)
         self.assertEqual(source_obj.authentication, {'resource_name': authentication})
 
     @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
@@ -407,7 +407,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}',
                   status_code=200, json={'data': [{'id': resource_id}]})
             m.get((f'http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint'
-                  f'&[authtype]=token&[resource_id]={resource_id}'),
+                   f'&[authtype]=token&[resource_id]={resource_id}'),
                   status_code=200, json={'data': [{'id': authentication_id}]})
             m.patch(f'http://www.sources.com/api/v1.0/applications/{app_id}',
                     status_code=204)
@@ -415,7 +415,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEqual(source_obj.name, source_name)
-        self.assertEqual(source_obj.source_type, 'OCP')
+        self.assertEqual(source_obj.source_type, Provider.PROVIDER_OCP)
         self.assertEqual(source_obj.authentication, {})
 
     @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
@@ -446,17 +446,17 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}',
                   status_code=200, json={'data': [{'id': resource_id}]})
             m.get((f'http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint'
-                  f'&[authtype]=tenant_id_client_id_client_secret&[resource_id]={resource_id}'),
+                   f'&[authtype]=tenant_id_client_id_client_secret&[resource_id]={resource_id}'),
                   status_code=200, json={'data': [authentications_response]})
             m.get((f'http://www.sources.com/internal/v1.0/authentications/{authentication_id}'
-                  f'?expose_encrypted_attribute[]=password'),
+                   f'?expose_encrypted_attribute[]=password'),
                   status_code=200, json={'password': authentication})
 
             source_integration.sources_network_info(test_source_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEqual(source_obj.name, source_name)
-        self.assertEqual(source_obj.source_type, 'AZURE')
+        self.assertEqual(source_obj.source_type, Provider.PROVIDER_AZURE)
         self.assertEqual(source_obj.authentication, {'credentials': {'client_id': username,
                                                                      'client_secret': authentication,
                                                                      'tenant_id': tenent_id}})
@@ -521,7 +521,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         ocp_source = Sources(source_id=test_source_id,
                              auth_header=test_auth_header,
                              endpoint_id=test_resource_id,
-                             source_type='OCP',
+                             source_type=Provider.PROVIDER_OCP,
                              offset=1)
         ocp_source.save()
 
@@ -551,7 +551,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         ocp_source = Sources(source_id=test_source_id,
                              auth_header=test_auth_header,
                              endpoint_id=test_resource_id,
-                             source_type='OCP',
+                             source_type=Provider.PROVIDER_OCP,
                              offset=1)
         ocp_source.save()
 
@@ -577,7 +577,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         ocp_source = Sources(source_id=test_source_id,
                              auth_header=test_auth_header,
                              endpoint_id=test_resource_id,
-                             source_type='OCP',
+                             source_type=Provider.PROVIDER_OCP,
                              offset=1)
         ocp_source.save()
 

@@ -25,7 +25,7 @@ from providers.provider_access import ProviderAccessor
 
 
 PROVIDERS = {
-    'OCP': {
+    Provider.PROVIDER_OCP: {
         'name': 'test_provider',
         'type': Provider.PROVIDER_OCP,
         'authentication': {
@@ -34,7 +34,7 @@ PROVIDERS = {
             }
         }
     },
-    'AWS': {
+    Provider.PROVIDER_AWS: {
         'name': 'test_provider',
         'type': Provider.PROVIDER_AWS,
         'authentication': {
@@ -48,7 +48,7 @@ PROVIDERS = {
             }
         }
     },
-    'AZURE': {
+    Provider.PROVIDER_AZURE: {
         'name': 'test_provider',
         'type': Provider.PROVIDER_AZURE,
         'authentication': {
@@ -63,6 +63,33 @@ PROVIDERS = {
             'data_source': {
                 'resource_group': {},
                 'storage_account': {}
+            }
+        }
+    },
+    'AzUrE': {
+        'name': 'test_provider',
+        'type': 'AzUrE',
+        'authentication': {
+            'credentials': {
+                'subscription_id': '12345678-1234-5678-1234-567812345678',
+                'tenant_id': '12345678-1234-5678-1234-567812345678',
+                'client_id': '12345678-1234-5678-1234-567812345678',
+                'client_secret': '12345'
+            }
+        },
+        'billing_source': {
+            'data_source': {
+                'resource_group': {},
+                'storage_account': {}
+            }
+        }
+    },
+    'oCp': {
+        'name': 'test_provider',
+        'type': 'oCp',
+        'authentication': {
+            'credentials': {
+                'provider_resource_name': 'my-ocp-cluster-1'
             }
         }
     }
