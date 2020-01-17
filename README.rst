@@ -4,9 +4,8 @@ Koku README
 
 |license| |Build Status| |codecov| |Updates| |Python 3| |Docs|
 
-~~~~~
 About
-~~~~~
+=====
 
 Koku's goal is to provide an open source solution for cost management of cloud and hybrid cloud environments. This solution is offered via a web interface that exposes resource consumption and cost data in easily digestible and filterable views. The project also aims to provide insight into this data and ultimately provide suggested optimizations for reducing cost and eliminating unnecessary resource usage.
 
@@ -79,9 +78,10 @@ This project is developed using the Django web framework. Many configuration set
     pipenv shell
 
 
-Quick Start
------------
-This will explain how to start the server and its dependencies using Docker, create AWS/OCP providers, and view reports.  This will not cover all API or scenarios but should give you an end to end flow.
+Developing with Docker Compose
+------------------------------
+
+This will explain how to start the server and its dependencies using Docker, create AWS/OCP providers, and view reports. This will not cover all API or scenarios but should give you an end to end flow.
 
 Starting Koku using Docker Compose
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -148,10 +148,10 @@ If you see this error, run the following command (assuming you are at the projec
 
 See  https://access.redhat.com/containers/?tab=overview#/registry.access.redhat.com/rhel8/postgresql-96
 
-Running in a Production-like Environment
-----------------------------------------
+Developing with OpenShift
+-------------------------
 
-Please refer to `Working with Openshift`_.
+Our production deployment runs on OpenShift. At times you may need to run on OpenShift if you are working on deployment templates or would like to test in a production like environment. This is a more advanced scenario that many new developers will not need. To learn how to run OpenShift refer to `Working with Openshift`_.
 
 Testing and Linting
 -------------------
@@ -185,7 +185,7 @@ Individual IQE tests can be ran with run_test.sh::
     <koku_topdir>/testing/run_test.sh iqe tests plugin hccm -k test_api_cost_model_markup_calculation_ocp
 
 pgAdmin
--------------------
+-------
 
 If you want to interact with the Postgres database from a GUI:
 
