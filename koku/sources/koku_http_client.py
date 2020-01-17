@@ -21,6 +21,8 @@ import requests
 from requests.exceptions import RequestException
 from sources.config import Config
 
+from api.models import Provider
+
 
 class KokuHTTPClientError(Exception):
     """KokuHTTPClient Error."""
@@ -75,9 +77,9 @@ class KokuHTTPClient:
 
     def get_authentication_for_provider(self, provider_type, authentication):
         """Build authentication json data for provider type."""
-        provider_map = {'AWS': self._authentication_for_aws,
-                        'OCP': self._authentication_for_ocp,
-                        'AZURE': self._authentication_for_azure}
+        provider_map = {Provider.PROVIDER_AWS: self._authentication_for_aws,
+                        Provider.PROVIDER_OCP: self._authentication_for_ocp,
+                        Provider.PROVIDER_AZURE: self._authentication_for_azure}
         provider_fn = provider_map.get(provider_type)
         if provider_fn:
             return provider_fn(authentication)
@@ -108,9 +110,9 @@ class KokuHTTPClient:
 
     def get_billing_source_for_provider(self, provider_type, billing_source):
         """Build billing source json data for provider type."""
-        provider_map = {'AWS': self._billing_source_for_aws,
-                        'OCP': self._billing_source_for_ocp,
-                        'AZURE': self._billing_source_for_azure}
+        provider_map = {Provider.PROVIDER_AWS: self._billing_source_for_aws,
+                        Provider.PROVIDER_OCP: self._billing_source_for_ocp,
+                        Provider.PROVIDER_AZURE: self._billing_source_for_azure}
         provider_fn = provider_map.get(provider_type)
         if provider_fn:
             return provider_fn(billing_source)

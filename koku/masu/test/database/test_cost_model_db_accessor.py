@@ -18,6 +18,7 @@
 """Test the CostModelDBAccessor utility object."""
 from tenant_schemas.utils import schema_context
 
+from api.models import Provider
 from cost_models.models import CostModel
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
@@ -59,7 +60,7 @@ class CostModelDBAccessorTest(MasuTestCase):
         self.markup = {'value': 10, 'unit': 'percent'}
 
         self.cost_model = self.creator.create_cost_model(
-            self.provider_uuid, 'OCP', self.rates, self.markup
+            self.provider_uuid, Provider.PROVIDER_OCP, self.rates, self.markup
         )
 
     def test_initializer(self):
@@ -212,7 +213,8 @@ class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
         report = self.creator.create_ocp_report(reporting_period)
         self.creator.create_ocp_usage_line_item(reporting_period, report)
 
-        self.cost_model = self.creator.create_cost_model(self.provider_uuid, 'OCP')
+        self.cost_model = self.creator.create_cost_model(
+            self.provider_uuid, Provider.PROVIDER_OCP)
 
     def test_initializer_no_rate_no_markup(self):
         """Test initializer."""

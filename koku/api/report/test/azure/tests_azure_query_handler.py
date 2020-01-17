@@ -27,6 +27,7 @@ from django.urls import reverse
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.models import Provider
 from api.provider.test import create_generic_provider
 from api.query_filter import QueryFilter
 from api.report.azure.query_handler import AzureReportQueryHandler
@@ -57,7 +58,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             'usage_start__gte': self.dh.last_month_start,
             'usage_start__lte': self.dh.last_month_end,
         }
-        _, self.provider = create_generic_provider('AZURE', self.headers)
+        _, self.provider = create_generic_provider(Provider.PROVIDER_AZURE, self.headers)
         self.generator = AzureReportDataGenerator(self.tenant, self.provider)
         self.generator.add_data_to_tenant()
 

@@ -18,6 +18,7 @@
 """View for OpenShift Usage Reports."""
 
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
+from api.models import Provider
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import (OCPCostQueryParamSerializer,
                                         OCPInventoryQueryParamSerializer)
@@ -31,7 +32,7 @@ class OCPView(ReportView):
     """OCP Base View."""
 
     permission_classes = [OpenShiftAccessPermission]
-    provider = 'OCP'
+    provider = Provider.PROVIDER_OCP
     serializer = OCPInventoryQueryParamSerializer
     query_handler = OCPReportQueryHandler
     tag_handler = [OCPUsagePodLabelSummary,

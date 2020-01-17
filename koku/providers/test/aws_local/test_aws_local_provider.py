@@ -22,6 +22,7 @@ import tempfile
 from django.test import TestCase
 from rest_framework.exceptions import ValidationError
 
+from api.models import Provider
 from providers.aws_local.provider import AWSLocalProvider
 
 
@@ -41,7 +42,7 @@ class AWSLocalProviderTestCase(TestCase):
     def test_get_name(self):
         """Get name of provider."""
         provider = AWSLocalProvider()
-        self.assertEqual(provider.name(), 'AWS-local')
+        self.assertEqual(provider.name(), Provider.PROVIDER_AWS_LOCAL)
 
     def test_cost_usage_source_is_reachable(self):
         """Verify that the cost usage source is authenticated and created."""

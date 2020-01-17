@@ -26,6 +26,7 @@ from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.models import Provider
 from api.provider.test import create_generic_provider
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.utils import DateHelper
@@ -45,7 +46,7 @@ class OCPTagsViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        _, self.provider = create_generic_provider('OCP', self.headers)
+        _, self.provider = create_generic_provider(Provider.PROVIDER_OCP, self.headers)
         self.data_generator = OCPReportDataGenerator(self.tenant, self.provider)
         self.data_generator.add_data_to_tenant()
 

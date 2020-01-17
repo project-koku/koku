@@ -20,6 +20,7 @@ from django.test import TestCase
 from faker import Faker
 from rest_framework.exceptions import ValidationError
 
+from api.models import Provider
 from providers.azure_local.provider import AzureLocalProvider
 
 FAKE = Faker()
@@ -31,7 +32,7 @@ class AzureLocalProviderTestCase(TestCase):
     def test_get_name(self):
         """Get name of provider."""
         provider = AzureLocalProvider()
-        self.assertEqual(provider.name(), 'AZURE-local')
+        self.assertEqual(provider.name(), Provider.PROVIDER_AZURE_LOCAL)
 
     def test_cost_usage_source_is_reachable_valid(self):
         """Test that cost_usage_source_is_reachable succeeds."""

@@ -21,6 +21,7 @@ from django.db.models import F, Window
 from django.db.models.functions import (Coalesce, RowNumber)
 from tenant_schemas.utils import tenant_context
 
+from api.models import Provider
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.ocp_aws.provider_map import OCPAWSProviderMap
 
@@ -125,7 +126,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
 class OCPAWSReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
     """Handles report queries and responses for OCP on AWS."""
 
-    provider = 'OCP_AWS'
+    provider = Provider.OCP_AWS
 
     def __init__(self, parameters):
         """Establish OCP report query handler.
