@@ -183,7 +183,7 @@ class OCPAzureReportDataGenerator(object):
             'billing_source': bill,
             'customer': None,
             'created_by': None,
-            'type': 'OCP',
+            'type': Provider.PROVIDER_OCP,
             'setup_complete': False
         }
         provider = Provider(**provider_data)

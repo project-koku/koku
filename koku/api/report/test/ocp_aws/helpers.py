@@ -89,7 +89,7 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
             'billing_source': billing_source_id,
             'customer': None,
             'created_by': None,
-            'type': 'OCP',
+            'type': Provider.PROVIDER_OCP,
             'setup_complete': False
         }
         provider = Provider(**provider_data)

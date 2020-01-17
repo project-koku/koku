@@ -20,6 +20,7 @@ import logging
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
+from api.models import Provider
 from ..aws.provider import AWSProvider
 
 LOG = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ class AWSLocalProvider(AWSProvider):
 
     def name(self):
         """Return name of the provider."""
-        return 'AWS-local'
+        return Provider.PROVIDER_AWS_LOCAL
 
     def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
         """Verify that the cost usage source exists and is reachable."""

@@ -19,6 +19,7 @@
 from django.db.models import CharField, DecimalField, F, Max, Sum, Value
 from django.db.models.functions import Coalesce
 
+from api.models import Provider
 from api.report.provider_map import ProviderMap
 from providers.provider_access import ProviderAccessor
 from reporting.models import OCPUsageLineItemDailySummary
@@ -31,7 +32,7 @@ class OCPProviderMap(ProviderMap):
         """Constructor."""
         self._mapping = [
             {
-                'provider': 'OCP',
+                'provider': Provider.PROVIDER_OCP,
                 'annotations': {
                     'cluster': 'cluster_id',
                     'project': 'namespace'
@@ -65,7 +66,7 @@ class OCPProviderMap(ProviderMap):
                     'infrastructures': {
                         'field': 'cluster_id',
                         'operation': 'exact',
-                        'custom': ProviderAccessor('OCP').infrastructure_key_list
+                        'custom': ProviderAccessor(Provider.PROVIDER_OCP).infrastructure_key_list
                     },
                 },
                 'group_by_options': ['cluster', 'project', 'node'],

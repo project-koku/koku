@@ -58,6 +58,7 @@ BASEDIR = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_CONFIG = BASEDIR + '/test_customer.yaml'
 SUPPORTED_PROVIDERS = ['aws', 'ocp', 'azure']
 
+
 class KokuCustomerOnboarder:
     """Uses the Koku API and SQL to create an onboarded customer."""
 
@@ -170,7 +171,7 @@ class KokuCustomerOnboarder:
                     RETURNING id
                     ;
                 """
-                values =[str(uuid4()), bucket, json_dumps(data_source)]
+                values = [str(uuid4()), bucket, json_dumps(data_source)]
                 cursor.execute(billing_sql, values)
                 billing_id = cursor.fetchone()[0]
         conn.commit()
@@ -202,14 +203,12 @@ class KokuCustomerOnboarder:
         conn.commit()
         conn.close()
 
-
     def create_providers_db(self, skip_providers):
         """Create a Koku Provider by inserting into the Koku DB."""
         if not skip_providers:
-            for provider_type in ['AWS', 'OCP', 'AZURE']:
+            for provider_type in ['AWS', 'OCP', 'Azure']:
                 self.create_provider_db(provider_type)
                 print(f'Created {provider_type} provider.')
-
 
     def onboard(self):
         """Execute Koku onboarding steps."""

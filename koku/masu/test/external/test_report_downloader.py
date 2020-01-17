@@ -22,14 +22,7 @@ from uuid import uuid4
 
 from faker import Faker
 
-from masu.external import (
-    AMAZON_WEB_SERVICES,
-    AWS_LOCAL_SERVICE_PROVIDER,
-    AZURE,
-    AZURE_LOCAL_SERVICE_PROVIDER,
-    GCP,
-    OPENSHIFT_CONTAINER_PLATFORM,
-)
+from api.models import Provider
 from masu.external.downloader.aws.aws_report_downloader import (
     AWSReportDownloader,
     AWSReportDownloaderError,
@@ -62,7 +55,7 @@ class ReportDownloaderTest(MasuTestCase):
         Create a ReportDownloader with some faked inputs.
 
         Args:
-            provider_type (str): the provider type (e.g. AMAZON_WEB_SERVICES)
+            provider_type (str): the provider type (e.g. PROVIDER_AWS)
 
         Returns:
             ReportDownloader instance.
@@ -84,7 +77,7 @@ class ReportDownloaderTest(MasuTestCase):
         Assert initializing ReportDownloader sets the expected provider's downloader class.
 
         Args:
-            provider_type (str): the provider type (e.g. AMAZON_WEB_SERVICES)
+            provider_type (str): the provider type (e.g. PROVIDER_AWS)
             downloader_class (class): the expected downloader class
 
         """
@@ -98,7 +91,7 @@ class ReportDownloaderTest(MasuTestCase):
     )
     def test_init_with_aws(self, mock_downloader_init):
         """Assert ReportDownloader creation sets the AWS downloader."""
-        self.assertDownloaderSetsProviderDownloader(AMAZON_WEB_SERVICES, AWSReportDownloader)
+        self.assertDownloaderSetsProviderDownloader(Provider.PROVIDER_AWS, AWSReportDownloader)
         mock_downloader_init.assert_called()
 
     @patch(
@@ -108,7 +101,7 @@ class ReportDownloaderTest(MasuTestCase):
     def test_init_with_aws_local(self, mock_downloader_init):
         """Assert ReportDownloader creation sets the AWS-local downloader."""
         self.assertDownloaderSetsProviderDownloader(
-            AWS_LOCAL_SERVICE_PROVIDER, AWSLocalReportDownloader
+            Provider.PROVIDER_AWS_LOCAL, AWSLocalReportDownloader
         )
         mock_downloader_init.assert_called()
 
@@ -118,7 +111,7 @@ class ReportDownloaderTest(MasuTestCase):
     )
     def test_init_with_azure(self, mock_downloader_init):
         """Assert ReportDownloader creation sets the Azure downloader."""
-        self.assertDownloaderSetsProviderDownloader(AZURE, AzureReportDownloader)
+        self.assertDownloaderSetsProviderDownloader(Provider.PROVIDER_AZURE, AzureReportDownloader)
         mock_downloader_init.assert_called()
 
     @patch(
@@ -128,7 +121,7 @@ class ReportDownloaderTest(MasuTestCase):
     def test_init_with_azure_local(self, mock_downloader_init):
         """Assert ReportDownloader creation sets the Azure-local downloader."""
         self.assertDownloaderSetsProviderDownloader(
-            AZURE_LOCAL_SERVICE_PROVIDER, AzureLocalReportDownloader
+            Provider.PROVIDER_AZURE_LOCAL, AzureLocalReportDownloader
         )
         mock_downloader_init.assert_called()
 
@@ -138,7 +131,7 @@ class ReportDownloaderTest(MasuTestCase):
     )
     def test_init_with_gcp(self, mock_downloader_init):
         """Assert ReportDownloader creation sets the GCP downloader."""
-        self.assertDownloaderSetsProviderDownloader(GCP, GCPReportDownloader)
+        self.assertDownloaderSetsProviderDownloader(Provider.PROVIDER_GCP, GCPReportDownloader)
         mock_downloader_init.assert_called()
 
     @patch(
@@ -148,7 +141,7 @@ class ReportDownloaderTest(MasuTestCase):
     def test_init_with_ocp(self, mock_downloader_init):
         """Assert ReportDownloader creation sets the OCP downloader."""
         self.assertDownloaderSetsProviderDownloader(
-            OPENSHIFT_CONTAINER_PLATFORM, OCPReportDownloader
+            Provider.PROVIDER_OCP, OCPReportDownloader
         )
         mock_downloader_init.assert_called()
 
@@ -159,7 +152,7 @@ class ReportDownloaderTest(MasuTestCase):
     def test_init_with_downloader_exception(self, mock_downloader_init):
         """Assert ReportDownloaderError is raised when _set_downloader raises an exception."""
         with self.assertRaises(ReportDownloaderError):
-            self.create_downloader(AMAZON_WEB_SERVICES)
+            self.create_downloader(Provider.PROVIDER_AWS)
         mock_downloader_init.assert_called()
 
     def test_invalid_provider_type(self):
@@ -173,7 +166,7 @@ class ReportDownloaderTest(MasuTestCase):
     )
     def test_get_reports_error(self, mock_downloader_init):
         """Assert ReportDownloaderError is raised when get_reports raises an exception."""
-        downloader = self.create_downloader(AMAZON_WEB_SERVICES)
+        downloader = self.create_downloader(Provider.PROVIDER_AWS)
         mock_downloader_init.assert_called()
         with patch.object(
             AWSReportDownloader, 'get_report_context_for_date', side_effect=Exception('some error'),

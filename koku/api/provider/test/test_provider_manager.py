@@ -246,7 +246,7 @@ class ProviderManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             ocp_metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
-            ocp_source_type = 'OCP'
+            ocp_source_type = Provider.PROVIDER_OCP
             tiered_rates = [{'unit': 'USD', 'value': 0.22}]
             ocp_data = {
                 'name': 'Test Cost Model',
@@ -354,7 +354,7 @@ class ProviderManagerTest(IamTestCase):
         # Create Provider
         provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
         provider = Provider.objects.create(name='ocpprovidername',
-                                           type='OCP',
+                                           type=Provider.PROVIDER_OCP,
                                            created_by=self.user,
                                            customer=self.customer,
                                            authentication=provider_authentication,)
@@ -389,7 +389,7 @@ class ProviderManagerTest(IamTestCase):
         # Create Provider
         provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
         provider = Provider.objects.create(name='ocpprovidername',
-                                           type='OCP',
+                                           type=Provider.PROVIDER_OCP,
                                            created_by=self.user,
                                            customer=self.customer,
                                            authentication=provider_authentication,)
@@ -409,7 +409,7 @@ class ProviderManagerTest(IamTestCase):
         # Create Provider
         provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
         provider = Provider.objects.create(name='ocpprovidername',
-                                           type='AWS',
+                                           type=Provider.PROVIDER_AWS,
                                            created_by=self.user,
                                            customer=self.customer,
                                            authentication=provider_authentication,)
@@ -442,7 +442,7 @@ class ProviderManagerTest(IamTestCase):
         """Test that the provider infrastructure returns AWS when running on AWS."""
         provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
         provider = Provider.objects.create(name='ocpprovidername',
-                                           type='AWS',
+                                           type=Provider.PROVIDER_AWS,
                                            created_by=self.user,
                                            customer=self.customer,
                                            authentication=provider_authentication,)
@@ -454,7 +454,7 @@ class ProviderManagerTest(IamTestCase):
         provider_uuid = data_generator.provider_uuid
         manager = ProviderManager(provider_uuid)
         infrastructure_name = manager.get_infrastructure_name(self.tenant)
-        self.assertEqual(infrastructure_name, 'AWS')
+        self.assertEqual(infrastructure_name, Provider.PROVIDER_AWS)
 
         data_generator.remove_data_from_tenant()
 
@@ -462,7 +462,7 @@ class ProviderManagerTest(IamTestCase):
         """Test that the provider infrastructure returns Azure when running on Azure."""
         provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1002')
         provider = Provider.objects.create(name='ocpprovidername',
-                                           type='AZURE',
+                                           type=Provider.PROVIDER_AZURE,
                                            created_by=self.user,
                                            customer=self.customer,
                                            authentication=provider_authentication,)
@@ -473,7 +473,7 @@ class ProviderManagerTest(IamTestCase):
         provider_uuid = data_generator.provider_uuid
         manager = ProviderManager(provider_uuid)
         infrastructure_name = manager.get_infrastructure_name(self.tenant)
-        self.assertEqual(infrastructure_name, 'AZURE')
+        self.assertEqual(infrastructure_name, Provider.PROVIDER_AZURE)
 
         data_generator.remove_data_from_tenant()
 
@@ -481,7 +481,7 @@ class ProviderManagerTest(IamTestCase):
         """Test that the provider infrastructure returns Unknown when running stand alone."""
         provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
         provider = Provider.objects.create(name='ocpprovidername',
-                                           type='OCP',
+                                           type=Provider.PROVIDER_OCP,
                                            created_by=self.user,
                                            customer=self.customer,
                                            authentication=provider_authentication,)
@@ -502,7 +502,7 @@ class ProviderManagerTest(IamTestCase):
         """Test that the provider infrastructure returns Unknown when running stand alone."""
         provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
         provider = Provider.objects.create(name='ocpprovidername',
-                                           type='OCP',
+                                           type=Provider.PROVIDER_OCP,
                                            created_by=self.user,
                                            customer=self.customer,
                                            authentication=provider_authentication,)
