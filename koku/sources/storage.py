@@ -22,7 +22,7 @@ from json import loads as json_loads
 from json.decoder import JSONDecodeError
 
 
-from api.provider.models import Sources
+from api.provider.models import Provider, Sources
 
 
 LOG = logging.getLogger(__name__)
@@ -69,9 +69,9 @@ def _azure_provider_ready_for_create(provider):
 def screen_and_build_provider_sync_create_event(provider):
     """Determine if the source should be queued for synchronization."""
     provider_event = {}
-    screen_map = {'AWS': _aws_provider_ready_for_create,
-                  'OCP': _ocp_provider_ready_for_create,
-                  'AZURE': _azure_provider_ready_for_create}
+    screen_map = {Provider.PROVIDER_AWS: _aws_provider_ready_for_create,
+                  Provider.PROVIDER_OCP: _ocp_provider_ready_for_create,
+                  Provider.PROVIDER_AZURE: _azure_provider_ready_for_create}
     screen_fn = screen_map.get(provider.source_type)
     if screen_fn and screen_fn(provider) and not provider.pending_delete:
         provider_event = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
@@ -359,10 +359,10 @@ def add_provider_sources_network_info(source_id, source_uuid, name, source_type,
 
 def _validate_billing_source(provider_type, billing_source):
     """Validate billing source parameters."""
-    if provider_type == 'AWS':
+    if provider_type == Provider.PROVIDER_AWS:
         if not billing_source.get('bucket'):
             raise SourcesStorageError('Missing AWS bucket.')
-    elif provider_type == 'AZURE':
+    elif provider_type == Provider.PROVIDER_AZURE:
         data_source = billing_source.get('data_source')
         if not data_source:
             raise SourcesStorageError('Missing AZURE data_source.')

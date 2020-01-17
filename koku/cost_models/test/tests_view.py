@@ -56,7 +56,7 @@ class CostModelViewTests(IamTestCase):
             request.user = user
 
         provider_data = {'name': 'test_provider',
-                         'type': Provider.PROVIDER_OCP,
+                         'type': Provider.PROVIDER_OCP.lower(),
                          'authentication': {
                              'provider_resource_name': self.fake.word()
                          }}
@@ -65,7 +65,7 @@ class CostModelViewTests(IamTestCase):
             self.provider = serializer.save()
 
         self.ocp_metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
-        self.ocp_source_type = 'OCP'
+        self.ocp_source_type = Provider.PROVIDER_OCP
         tiered_rates = [
             {
                 'value': round(Decimal(random.random()), 6),

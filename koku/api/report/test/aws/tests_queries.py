@@ -27,6 +27,7 @@ from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.models import Provider
 from api.provider.test import create_generic_provider
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.aws.view import AWSCostView, AWSInstanceTypeView, AWSStorageView
@@ -46,7 +47,7 @@ class AWSReportQueryTest(IamTestCase):
         """Set up the customer view tests."""
         self.dh = DateHelper()
         super().setUp()
-        _, self.provider = create_generic_provider('AWS', self.headers)
+        _, self.provider = create_generic_provider(Provider.PROVIDER_AWS, self.headers)
         self.fake_aws = FakeAWSCostData(self.provider)
         self.generator = AWSReportDataGenerator(self.tenant)
         self.generator.add_data_to_tenant(self.fake_aws)
@@ -1277,7 +1278,7 @@ class AWSReportQueryLogicalAndTest(IamTestCase):
         """Set up the customer view tests."""
         self.dh = DateHelper()
         super().setUp()
-        _, self.provider = create_generic_provider('AWS', self.headers)
+        _, self.provider = create_generic_provider(Provider.PROVIDER_AWS, self.headers)
         self.fake_aws = FakeAWSCostData(self.provider)
         self.generator = AWSReportDataGenerator(self.tenant)
 

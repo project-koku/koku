@@ -27,8 +27,8 @@ import requests_mock
 from requests.exceptions import HTTPError
 
 import masu.external.kafka_msg_handler as msg_handler
+from api.models import Provider
 from masu.config import Config
-from masu.external import OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.accounts_accessor import AccountsAccessor, AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
@@ -161,7 +161,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         """Test that the account details are returned given a provider uuid."""
         ocp_account = msg_handler.get_account(self.ocp_test_provider_uuid)
         self.assertIsNotNone(ocp_account)
-        self.assertEqual(ocp_account.get('provider_type'), OPENSHIFT_CONTAINER_PLATFORM)
+        self.assertEqual(ocp_account.get('provider_type'), Provider.PROVIDER_OCP)
 
     @patch.object(AccountsAccessor, 'get_accounts')
     def test_get_account_exception(self, mock_accessor):
@@ -177,7 +177,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         mock_download_process_value = [
             {
                 'schema_name': self.schema,
-                'provider_type': OPENSHIFT_CONTAINER_PLATFORM,
+                'provider_type': Provider.PROVIDER_OCP,
                 'provider_uuid': self.ocp_test_provider_uuid,
                 'start_date': DateAccessor().today(),
             }
@@ -196,7 +196,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         mock_download_process_value = [
             {
                 'schema_name': self.schema,
-                'provider_type': OPENSHIFT_CONTAINER_PLATFORM,
+                'provider_type': Provider.PROVIDER_OCP,
                 'provider_uuid': self.ocp_test_provider_uuid,
                 'start_date': DateAccessor().today(),
             }
@@ -219,7 +219,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         mock_download_process_value = [
             {
                 'schema_name': self.schema,
-                'provider_type': OPENSHIFT_CONTAINER_PLATFORM,
+                'provider_type': Provider.PROVIDER_OCP,
                 'provider_uuid': self.ocp_test_provider_uuid,
                 'start_date': DateAccessor().today(),
             }

@@ -21,14 +21,14 @@ from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
 from api.metrics.models import CostModelMetricsMap
-
+from api.models import Provider
 
 LOG = logging.getLogger(__name__)
 
 SOURCE_TYPE_MAP = {
-    'OCP': 'OpenShift Container Platform',
-    'AWS': 'Amazon Web Services',
-    'AZURE': 'Microsoft Azure',
+    Provider.PROVIDER_OCP: 'OpenShift Container Platform',
+    Provider.PROVIDER_AWS: 'Amazon Web Services',
+    Provider.PROVIDER_AZURE: 'Microsoft Azure',
 }
 
 

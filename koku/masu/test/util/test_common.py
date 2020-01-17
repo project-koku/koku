@@ -26,12 +26,9 @@ from os.path import exists
 from django.test import TestCase
 
 import masu.util.common as common_utils
+from api.models import Provider
 from masu.external import (
-    AMAZON_WEB_SERVICES,
-    AWS_LOCAL_SERVICE_PROVIDER,
-    AZURE_LOCAL_SERVICE_PROVIDER,
     LISTEN_INGEST,
-    OPENSHIFT_CONTAINER_PLATFORM,
     POLL_INGEST,
 )
 from masu.test import MasuTestCase
@@ -100,10 +97,10 @@ class CommonUtilTests(MasuTestCase):
     def test_ingest_method_type(self):
         """Test that the correct ingest method is returned for provider type."""
         test_matrix = [
-            {'provider_type': AMAZON_WEB_SERVICES, 'expected_ingest': POLL_INGEST},
-            {'provider_type': AWS_LOCAL_SERVICE_PROVIDER, 'expected_ingest': POLL_INGEST},
-            {'provider_type': OPENSHIFT_CONTAINER_PLATFORM, 'expected_ingest': LISTEN_INGEST},
-            {'provider_type': AZURE_LOCAL_SERVICE_PROVIDER, 'expected_ingest': POLL_INGEST},
+            {'provider_type': Provider.PROVIDER_AWS, 'expected_ingest': POLL_INGEST},
+            {'provider_type': Provider.PROVIDER_AWS_LOCAL, 'expected_ingest': POLL_INGEST},
+            {'provider_type': Provider.PROVIDER_OCP, 'expected_ingest': LISTEN_INGEST},
+            {'provider_type': Provider.PROVIDER_AZURE_LOCAL, 'expected_ingest': POLL_INGEST},
             {'provider_type': 'NEW_TYPE', 'expected_ingest': None}
         ]
 
