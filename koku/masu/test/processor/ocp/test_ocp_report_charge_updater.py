@@ -24,6 +24,7 @@ from unittest.mock import patch
 from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
 
+from api.models import Provider
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -571,7 +572,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 'tiered_rates': [{'value': 1, 'unit': 'USD'}],
             }
         ]
-        self.creator.create_cost_model(self.ocp_provider_uuid, 'OCP', rates=rate, markup=markup)
+        self.creator.create_cost_model(self.ocp_provider_uuid,
+                                       Provider.PROVIDER_OCP, rates=rate, markup=markup)
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -600,16 +602,16 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         ]
         openshift_markup = {'value': 10, 'unit': 'percent'}
         self.creator.create_cost_model(
-            self.ocp_provider_uuid, 'OCP', rates=rate, markup=openshift_markup
+            self.ocp_provider_uuid, Provider.PROVIDER_OCP, rates=rate, markup=openshift_markup
         )
 
         aws_markup = {'value': 5, 'unit': 'percent'}
-        self.creator.create_cost_model(self.aws_provider_uuid, 'AWS', markup=aws_markup)
+        self.creator.create_cost_model(self.aws_provider_uuid, Provider.PROVIDER_AWS, markup=aws_markup)
 
         # Set infrastructure relationship for OCP on AWS
         # This is required to pick up the AWS markup
         with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
-            accessor.set_infrastructure(self.aws_provider_uuid, 'AWS')
+            accessor.set_infrastructure(self.aws_provider_uuid, Provider.PROVIDER_AWS)
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -673,7 +675,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 'tiered_rates': [{'value': 1, 'unit': 'USD'}],
             }
         ]
-        self.creator.create_cost_model(self.ocp_provider_uuid, 'OCP', rates=rate, markup=markup)
+        self.creator.create_cost_model(self.ocp_provider_uuid, Provider.PROVIDER_OCP, rates=rate, markup=markup)
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -780,7 +782,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 'tiered_rates': [{'value': 1.5, 'unit': 'USD'}],
             }
         ]
-        self.creator.create_cost_model(self.ocp_provider_uuid, 'OCP', cpu_usage_rate)
+        self.creator.create_cost_model(self.ocp_provider_uuid, Provider.PROVIDER_OCP, cpu_usage_rate)
 
         other_provider_uuid = self.aws_provider_uuid
         other_cpu_usage_rate = [
@@ -789,7 +791,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 'tiered_rates': [{'value': 2.5, 'unit': 'USD'}],
             }
         ]
-        self.creator.create_cost_model(other_provider_uuid, 'AWS', other_cpu_usage_rate)
+        self.creator.create_cost_model(other_provider_uuid, Provider.PROVIDER_AWS, other_cpu_usage_rate)
 
         cpu_rate_value = Decimal(cpu_usage_rate[0].get('tiered_rates')[0].get('value'))
 
@@ -819,7 +821,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         node_cost = random.randrange(1, 200)
         monthly_cost_metric = [{'metric': {'name': 'node_cost_per_month'},
                                 'tiered_rates': [{'value': node_cost, 'unit': 'USD'}]}]
-        self.creator.create_cost_model(self.ocp_provider_uuid, 'OCP', monthly_cost_metric)
+        self.creator.create_cost_model(self.ocp_provider_uuid, Provider.PROVIDER_OCP, monthly_cost_metric)
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)

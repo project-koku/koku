@@ -24,6 +24,7 @@ from dateutil.relativedelta import relativedelta
 from django.db.models import Max, Min, Sum
 from tenant_schemas.utils import schema_context
 
+from api.models import Provider
 from masu.database import AWS_CUR_TABLE_MAP, AZURE_REPORT_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
@@ -181,7 +182,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
             cluster_id = provider_accessor.get_authentication()
-        mock_map.return_value = {self.ocp_test_provider_uuid: (self.aws_provider_uuid, 'AWS')}
+        mock_map.return_value = {self.ocp_test_provider_uuid: (self.aws_provider_uuid, Provider.PROVIDER_AWS)}
         updater = OCPCloudReportSummaryUpdater(schema='acct10001', provider=provider, manifest=None)
         updater.update_summary_tables(start_date_str, end_date_str)
 
@@ -212,7 +213,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             provider = provider_accessor.get_provider()
         with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
             cluster_id = provider_accessor.get_authentication()
-        mock_map.return_value = {self.ocp_test_provider_uuid: (self.aws_provider_uuid, 'AWS')}
+        mock_map.return_value = {self.ocp_test_provider_uuid: (self.aws_provider_uuid, Provider.PROVIDER_AWS)}
         updater = OCPCloudReportSummaryUpdater(schema='acct10001', provider=provider, manifest=None)
         updater.update_summary_tables(start_date_str, end_date_str)
         mock_ocp_on_aws.assert_called_with(start_date_str, end_date_str, cluster_id, bill_ids)
@@ -359,7 +360,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
 
     def test_get_infra_map(self):
         """Test that an infrastructure map is returned."""
-        infrastructure_type = 'AWS'
+        infrastructure_type = Provider.PROVIDER_AWS
         with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
             accessor.set_infrastructure(self.aws_provider_uuid, infrastructure_type)
             ocp_provider = accessor.get_provider()
@@ -368,7 +369,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             schema=self.schema, provider=ocp_provider, manifest=None
         )
 
-        expected_mapping = (self.aws_provider_uuid, 'AWS')
+        expected_mapping = (self.aws_provider_uuid, Provider.PROVIDER_AWS)
         infra_map = updater.get_infra_map()
 
         self.assertEqual(len(infra_map.keys()), 1)
@@ -397,7 +398,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         markup = {'value': 10, 'unit': 'percent'}
         mock_markup.return_value = markup
         with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
-            accessor.set_infrastructure(self.azure_provider_uuid, 'AZURE')
+            accessor.set_infrastructure(self.azure_provider_uuid, Provider.PROVIDER_AZURE)
         self._generate_ocp_on_azure_data()
 
         start_date = self.date_accessor.today_with_timezone('UTC')

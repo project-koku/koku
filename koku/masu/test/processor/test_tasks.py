@@ -29,6 +29,7 @@ from dateutil import relativedelta
 from django.db.models import Max, Min
 from tenant_schemas.utils import schema_context
 
+from api.models import Provider
 from api.report.test import FakeAWSCostData
 from api.report.test.aws.helpers import AWSReportDataGenerator
 from masu.config import Config
@@ -87,7 +88,7 @@ class GetReportFileTests(MasuTestCase):
             Mock(),
             customer_name=self.fake.word(),
             authentication=account,
-            provider_type='AWS',
+            provider_type=Provider.PROVIDER_AWS,
             report_month=DateAccessor().today(),
             provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
@@ -109,7 +110,7 @@ class GetReportFileTests(MasuTestCase):
                 Mock(),
                 customer_name=self.fake.word(),
                 authentication=account,
-                provider_type='AWS',
+                provider_type=Provider.PROVIDER_AWS,
                 report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
@@ -139,7 +140,7 @@ class GetReportFileTests(MasuTestCase):
                 Mock(),
                 customer_name=self.fake.word(),
                 authentication=account,
-                provider_type='AWS',
+                provider_type=Provider.PROVIDER_AWS,
                 report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
@@ -159,7 +160,7 @@ class GetReportFileTests(MasuTestCase):
                 Mock(),
                 customer_name=self.fake.word(),
                 authentication=account,
-                provider_type='AWS',
+                provider_type=Provider.PROVIDER_AWS,
                 report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
@@ -179,7 +180,7 @@ class GetReportFileTests(MasuTestCase):
                 Mock(),
                 customer_name=self.fake.word(),
                 authentication=account,
-                provider_type='AWS',
+                provider_type=Provider.PROVIDER_AWS,
                 report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
@@ -198,7 +199,7 @@ class GetReportFileTests(MasuTestCase):
             Mock(),
             customer_name=self.fake.word(),
             authentication=account,
-            provider_type='AWS',
+            provider_type=Provider.PROVIDER_AWS,
             report_month=DateAccessor().today(),
             provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
@@ -220,7 +221,7 @@ class ProcessReportFileTests(MasuTestCase):
         report_dir = tempfile.mkdtemp()
         path = '{}/{}'.format(report_dir, 'file1.csv')
         schema_name = self.schema
-        provider = 'AWS'
+        provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
         report_dict = {
             'file': path,
@@ -255,7 +256,7 @@ class ProcessReportFileTests(MasuTestCase):
         report_dir = tempfile.mkdtemp()
         path = '{}/{}'.format(report_dir, 'file1.csv')
         schema_name = self.schema
-        provider = 'AWS'
+        provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
         report_dict = {
             'file': path,
@@ -286,7 +287,7 @@ class ProcessReportFileTests(MasuTestCase):
         report_dir = tempfile.mkdtemp()
         path = '{}/{}'.format(report_dir, 'file1.csv')
         schema_name = self.schema
-        provider = 'AWS'
+        provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
         report_dict = {
             'file': path,
@@ -315,7 +316,7 @@ class ProcessReportFileTests(MasuTestCase):
         report_dir = tempfile.mkdtemp()
         path = '{}/{}'.format(report_dir, 'file1.csv')
         schema_name = self.schema
-        provider = 'AWS'
+        provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
         report_dict = {
             'file': path,
@@ -351,7 +352,7 @@ class ProcessReportFileTests(MasuTestCase):
         report_meta = {}
         report_meta['start_date'] = str(DateAccessor().today())
         report_meta['schema_name'] = self.schema
-        report_meta['provider_type'] = 'OCP'
+        report_meta['provider_type'] = Provider.PROVIDER_OCP
         report_meta['provider_uuid'] = self.ocp_test_provider_uuid
         report_meta['manifest_id'] = 1
         reports_to_summarize = [report_meta]
@@ -367,7 +368,7 @@ class ProcessReportFileTests(MasuTestCase):
         """Test than an exception rolls back the atomic transaction."""
         path = '{}/{}'.format('test', 'file1.csv')
         schema_name = self.schema
-        provider = 'AWS'
+        provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
         manifest_dict = {
             'assembly_id': '12345',
@@ -433,7 +434,7 @@ class TestProcessorTasks(MasuTestCase):
         self.fake_get_report_args = {
             'customer_name': self.fake.word(),
             'authentication': self.fake_account,
-            'provider_type': 'AWS',
+            'provider_type': Provider.PROVIDER_AWS,
             'schema_name': self.fake.word(),
             'billing_source': self.fake.word(),
             'provider_uuid': self.aws_provider_uuid,
@@ -600,7 +601,7 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
         # disable logging override set in masu/__init__.py
         logging.disable(logging.NOTSET)
         with self.assertLogs('masu.processor._tasks.remove_expired') as logger:
-            remove_expired_data(schema_name=self.schema, provider='AWS', simulate=True)
+            remove_expired_data(schema_name=self.schema, provider=Provider.PROVIDER_AWS, simulate=True)
             self.assertIn(expected.format(str(expected_results)), logger.output)
 
 
@@ -666,7 +667,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch('masu.processor.tasks.update_charge_info')
     def test_update_summary_tables_aws(self, mock_charge_info, mock_views, mock_chain):
         """Test that the summary table task runs."""
-        provider = 'AWS'
+        provider = Provider.PROVIDER_AWS
         provider_aws_uuid = self.aws_provider_uuid
 
         daily_table_name = AWS_CUR_TABLE_MAP['line_item_daily']
@@ -694,7 +695,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch('masu.processor.tasks.update_charge_info')
     def test_update_summary_tables_aws_end_date(self, mock_charge_info):
         """Test that the summary table task respects a date range."""
-        provider = 'AWS'
+        provider = Provider.PROVIDER_AWS
         provider_aws_uuid = self.aws_provider_uuid
         ce_table_name = AWS_CUR_TABLE_MAP['cost_entry']
         daily_table_name = AWS_CUR_TABLE_MAP['line_item_daily']
@@ -764,7 +765,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_markup.return_value = markup
         mock_rate_map.return_value = rate_metric_map
 
-        provider = 'OCP'
+        provider = Provider.PROVIDER_OCP
         provider_ocp_uuid = self.ocp_test_provider_uuid
 
         daily_table_name = OCP_REPORT_TABLE_MAP['line_item_daily']
@@ -828,7 +829,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test that the summary table task respects a date range."""
         mock_cpu_rate.return_value = 1.5
         mock_mem_rate.return_value = 2.5
-        provider = 'OCP'
+        provider = Provider.PROVIDER_OCP
         provider_ocp_uuid = self.ocp_test_provider_uuid
         ce_table_name = OCP_REPORT_TABLE_MAP['report']
         daily_table_name = OCP_REPORT_TABLE_MAP['line_item_daily']
@@ -892,7 +893,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.add(**manifest_dict)
             manifest.save()
 
-        refresh_materialized_views(self.schema, 'AWS', manifest_id=manifest.id)
+        refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
 
         views_to_check = [
             view for view in AWS_MATERIALIZED_VIEWS

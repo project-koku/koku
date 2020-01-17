@@ -15,6 +15,7 @@ from django.test import override_settings
 
 from api.dataexport.models import DataExportRequest as APIExportRequest
 from api.dataexport.syncer import SyncedFileInColdStorageError
+from api.models import Provider
 from masu.celery import tasks
 from masu.celery.export import TableExportSetting
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
@@ -197,7 +198,7 @@ class TestCeleryTasks(MasuTestCase):
     @override_settings(ENABLE_S3_ARCHIVING=False)
     def test_delete_archived_data_archiving_disabled_noop(self, mock_resource):
         """Test that delete_archived_data returns early when feature is disabled."""
-        schema_name, provider_type, provider_uuid = fake.slug(), 'AWS', fake.uuid4()
+        schema_name, provider_type, provider_uuid = fake.slug(), Provider.PROVIDER_AWS, fake.uuid4()
         tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
         mock_resource.assert_not_called()
 
@@ -205,7 +206,7 @@ class TestCeleryTasks(MasuTestCase):
     @override_settings(S3_BUCKET_PATH='')
     def test_delete_archived_data_missing_bucket_path_exception(self, mock_resource):
         """Test that delete_archived_data raises an exception with an empty bucket path."""
-        schema_name, provider_type, provider_uuid = fake.slug(), 'AWS', fake.uuid4()
+        schema_name, provider_type, provider_uuid = fake.slug(), Provider.PROVIDER_AWS, fake.uuid4()
         with self.assertRaises(ImproperlyConfigured):
             tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
         mock_resource.assert_not_called()
@@ -215,7 +216,7 @@ class TestCeleryTasks(MasuTestCase):
     def test_delete_archived_data_success(self, mock_resource):
         """Test that delete_archived_data correctly interacts with AWS S3."""
         schema_name = 'acct10001'
-        provider_type = 'AWS'
+        provider_type = Provider.PROVIDER_AWS
         provider_uuid = '00000000-0000-0000-0000-000000000001'
         expected_prefix = 'data_archive/acct10001/aws/00000000-0000-0000-0000-000000000001/'
 

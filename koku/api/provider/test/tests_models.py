@@ -28,7 +28,7 @@ class ProviderModelTest(MasuTestCase):
         with tenant_context(self.tenant):
             self.aws_provider.delete()
         mock_delete_archived_data.delay.assert_called_with(
-            self.schema, 'AWS', self.aws_provider_uuid
+            self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid
         )
 
     @patch('masu.celery.tasks.delete_archived_data')
@@ -51,8 +51,8 @@ class ProviderModelTest(MasuTestCase):
         with tenant_context(self.tenant):
             Provider.objects.all().delete()
         expected_calls = [
-            call(self.schema, 'AWS', UUID(self.aws_provider_uuid)),
-            call(self.schema, 'OCP', UUID(self.ocp_provider_uuid)),
-            call(self.schema, 'AZURE', UUID(self.azure_provider_uuid)),
+            call(self.schema, Provider.PROVIDER_AWS, UUID(self.aws_provider_uuid)),
+            call(self.schema, Provider.PROVIDER_OCP, UUID(self.ocp_provider_uuid)),
+            call(self.schema, Provider.PROVIDER_AZURE, UUID(self.azure_provider_uuid)),
         ]
         mock_delete_archived_data.delay.assert_has_calls(expected_calls, any_order=True)

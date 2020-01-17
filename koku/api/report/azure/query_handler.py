@@ -22,6 +22,7 @@ from django.db.models import (F, Value, Window)
 from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
+from api.models import Provider
 from api.report.azure.provider_map import AzureProviderMap
 from api.report.queries import ReportQueryHandler
 
@@ -31,7 +32,7 @@ LOG = logging.getLogger(__name__)
 class AzureReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for Azure."""
 
-    provider = 'AZURE'
+    provider = Provider.PROVIDER_AZURE
 
     def __init__(self, parameters):
         """Establish Azure report query handler.

@@ -52,13 +52,13 @@ class ProviderAccessor:
         if not [service for service in valid_services if service_name in service]:
             LOG.error('%s is not a valid provider', service_name)
 
-        services = {'AWS': AWSProvider,
-                    'AWS-local': AWSLocalProvider,
-                    'AZURE-local': AzureLocalProvider,
-                    'OCP': OCPProvider,
-                    'AZURE': AzureProvider,
-                    'GCP': GCPProvider,
-                    'GCP-local': GCPLocalProvider}
+        services = {Provider.PROVIDER_AWS: AWSProvider,
+                    Provider.PROVIDER_AWS_LOCAL: AWSLocalProvider,
+                    Provider.PROVIDER_AZURE_LOCAL: AzureLocalProvider,
+                    Provider.PROVIDER_OCP: OCPProvider,
+                    Provider.PROVIDER_AZURE: AzureProvider,
+                    Provider.PROVIDER_GCP: GCPProvider,
+                    Provider.PROVIDER_GCP_LOCAL: GCPLocalProvider}
 
         self.service = None
         if callable(services.get(service_name)):
