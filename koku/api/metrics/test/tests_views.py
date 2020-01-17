@@ -23,6 +23,7 @@ from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.serializers import SOURCE_TYPE_MAP
+from api.models import Provider
 
 
 class CostModelMetricsMapViewTest(IamTestCase):
@@ -48,7 +49,7 @@ class CostModelMetricsMapViewTest(IamTestCase):
         url = reverse('metrics-list')
         client = APIClient()
 
-        params = {'source_type': 'OCP'}
+        params = {'source_type': Provider.PROVIDER_OCP}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -58,7 +59,7 @@ class CostModelMetricsMapViewTest(IamTestCase):
         url = reverse('metrics-list')
         client = APIClient()
 
-        params = {'source_type': 'OCP'}
+        params = {'source_type': Provider.PROVIDER_OCP}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.post(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
@@ -68,7 +69,7 @@ class CostModelMetricsMapViewTest(IamTestCase):
         url = reverse('metrics-list')
         client = APIClient()
 
-        params = {'source_type': 'OCP'}
+        params = {'source_type': Provider.PROVIDER_OCP}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)

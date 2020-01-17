@@ -232,7 +232,7 @@ class AzureReportDBCleanerTest(MasuTestCase):
         azure_provider = Provider.objects.create(
             uuid=test_provider_uuid,
             name='Test Provider',
-            type='AZURE',
+            type=Provider.PROVIDER_AZURE_LOCAL,
             authentication=azure_auth,
             billing_source=azure_billing_source,
             customer=self.customer,

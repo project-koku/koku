@@ -21,6 +21,7 @@ from django.db.models import F, Window
 from django.db.models.functions import Coalesce, RowNumber
 from tenant_schemas.utils import tenant_context
 
+from api.models import Provider
 from api.report.azure.openshift.provider_map import OCPAzureProviderMap
 from api.report.azure.query_handler import AzureReportQueryHandler
 
@@ -28,7 +29,7 @@ from api.report.azure.query_handler import AzureReportQueryHandler
 class OCPAzureReportQueryHandler(AzureReportQueryHandler):
     """Handles report queries and responses for OCP on Azure."""
 
-    provider = 'OCP_AZURE'
+    provider = Provider.OCP_AZURE
 
     def __init__(self, parameters):
         """Establish OCP report query handler.

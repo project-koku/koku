@@ -24,6 +24,7 @@ from unittest.mock import Mock, patch
 
 from faker import Faker
 
+from api.models import Provider
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.azure_local.azure_local_report_downloader import (
@@ -85,7 +86,7 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
             customer_name=self.customer_name,
             access_credential=self.fake_auth_credential,
             report_source=self.fake_bucket_name,
-            provider_type='AZURE-local',
+            provider_type=Provider.PROVIDER_AZURE_LOCAL,
             provider_uuid=self.azure_provider_uuid,
         )
 

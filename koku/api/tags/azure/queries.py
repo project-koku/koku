@@ -17,6 +17,7 @@
 """Azure Tag Query Handling."""
 import logging
 
+from api.models import Provider
 from api.query_filter import QueryFilter
 from api.report.azure.provider_map import AzureProviderMap
 from api.tags.queries import TagQueryHandler
@@ -34,7 +35,7 @@ class AzureTagQueryHandler(TagQueryHandler):
     SUPPORTED_FILTERS = ['subscription_guid']
     FILTER_MAP = {'subscription_guid': {'field': 'subscription_guid',
                                         'operation': 'icontains'}}
-    provider = 'AZURE'
+    provider = Provider.PROVIDER_AZURE
 
     def __init__(self, parameters):
         """Establish Azure report query handler.
