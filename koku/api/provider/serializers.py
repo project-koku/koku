@@ -289,7 +289,7 @@ class ProviderSerializer(serializers.ModelSerializer):
         authentication = validated_data.pop('authentication')
         credentials = authentication.get('credentials')
         provider_resource_name = credentials.get('provider_resource_name')
-        provider_type = validated_data['type']
+        provider_type = validated_data['type'].lower()
         provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type)
         validated_data['type'] = provider_type
         interface = ProviderAccessor(provider_type)
