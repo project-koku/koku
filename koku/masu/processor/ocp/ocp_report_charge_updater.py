@@ -19,6 +19,7 @@
 import csv
 import io
 import logging
+from dateutil.parser import parse
 from decimal import Decimal
 
 from tenant_schemas.utils import schema_context
@@ -283,7 +284,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         except OCPReportChargeUpdaterError as error:
             LOG.error('Unable to calculate storage usage charge. Error: %s', str(error))
 
-    def _update_monthly_cost(self, start_date=None, end_date=None):
+    def _update_monthly_cost(self, start_date, end_date):
         """Update the monthly cost for a period of time."""
         try:
             with CostModelDBAccessor(self._schema, self._provider_uuid,
@@ -307,7 +308,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         except OCPReportChargeUpdaterError as error:
             LOG.error('Unable to update monthly costs. Error: %s', str(error))
 
-    def update_summary_charge_info(self, start_date=None, end_date=None):
+    def update_summary_charge_info(self, start_date, end_date):
         """Update the OCP summary table with the charge information.
 
         Args:
@@ -318,12 +319,14 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
             None
 
         """
+        if isinstance(start_date, str):
+            start_date = parse(start_date)
+        if isinstance(end_date, str):
+            end_date = parse(end_date)
         self._cluster_id = get_cluster_id_from_provider(self._provider_uuid)
 
         LOG.info('Starting charge calculation updates for provider: %s. Cluster ID: %s.',
                  self._provider_uuid, self._cluster_id)
-        with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
-            start_date, end_date = report_accessor.get_formatted_date(start_date, end_date)
         self._update_pod_charge(start_date, end_date)
         self._update_storage_charge(start_date, end_date)
         self._update_markup_cost(start_date, end_date)

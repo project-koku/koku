@@ -120,8 +120,6 @@ help:
 	@echo "  aws-provider                        Create aws provider using environment variables"
 	@echo "      aws_name=<provider_name>             @param - Required. Name of the provider"
 	@echo "      bucket=<bucket_name>                 @param - Required. Name of the bucket"
-	@echo "  find-provider-uuids                 Returns the uuids to be used for creating a cost model"
-	@echo "      type=<provider_type>                 @param - Required. Provider type (ex. 'OCP')"
 
 ### General Commands ###
 
@@ -511,12 +509,6 @@ ifndef bucket
 endif
 	(printenv AWS_RESOURCE_NAME > /dev/null 2>&1) || (echo 'AWS_RESOURCE_NAME is not set in .env' && exit 1)
 	curl -d '{"name": "$(aws_name)", "type": "AWS", "authentication": {"provider_resource_name": "${AWS_RESOURCE_NAME}"}, "billing_source": {"bucket": "$(bucket)"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/providers/
-
-# TODO: Add how to create a cost model to the `Create OCP Provder` section once this pr is merged:
-# https://github.com/project-koku/koku/pull/1613/files#diff-88b99bb28683bd5b7e3a204826ead112R114
-
-find-provider-uuids:
-	curl http://127.0.0.1:8000/api/cost-management/v1/providers/ | python3 -c "import sys, json; data_list=json.load(sys.stdin)['data']; print([data['uuid'] for data in data_list if data['type']=='$(type)']);" | sed "s?'?\"?g"
 
 ########################
 ### Internal targets ###

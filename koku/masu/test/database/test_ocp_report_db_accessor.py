@@ -806,7 +806,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
             start_date = report_entry['interval_start__min']
             end_date = report_entry['interval_start__max']
 
-        # Moving this outside of the with made it faster.
         start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
         first_month, _ = month_date_range_tuple(start_date)
