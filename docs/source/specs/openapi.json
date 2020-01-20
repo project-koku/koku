@@ -792,6 +792,16 @@
                         }
                     },
                     {
+                        "name": "stats",
+                        "in": "query",
+                        "description": "Include provider status",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["true", "false"]
+                        }
+                    },
+                    {
                         "$ref": "#/components/parameters/QueryOffset"
                     },
                     {
@@ -843,6 +853,15 @@
                     "schema": {
                         "type": "string",
                         "format": "uuid"
+                    }
+                }, {
+                    "name": "stats",
+                    "in": "query",
+                    "description": "Include provider status",
+                    "required": false,
+                    "schema": {
+                        "type": "string",
+                        "enum": ["true", "false"]
                     }
                 }],
                 "responses": {
