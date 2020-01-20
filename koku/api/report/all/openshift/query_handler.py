@@ -16,6 +16,7 @@
 #
 """OCP Query Handling for Reports."""
 
+from api.models import Provider
 from api.report.all.openshift.provider_map import OCPAllProviderMap
 from api.report.ocp_aws.query_handler import OCPInfrastructureReportQueryHandlerBase
 
@@ -23,7 +24,7 @@ from api.report.ocp_aws.query_handler import OCPInfrastructureReportQueryHandler
 class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
     """Handles report queries and responses for OCP on All Infrastructure."""
 
-    provider = 'OCP_All'
+    provider = Provider.OCP_ALL
 
     def __init__(self, parameters):
         """Establish OCP report query handler.

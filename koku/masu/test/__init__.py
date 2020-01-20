@@ -109,7 +109,7 @@ class MasuTestCase(TransactionTestCase):
         self.aws_provider = Provider.objects.create(
             uuid=self.aws_test_provider_uuid,
             name='Test Provider',
-            type='AWS',
+            type=Provider.PROVIDER_AWS,
             authentication=self.aws_auth,
             billing_source=self.aws_billing_source,
             customer=self.customer,
@@ -128,7 +128,7 @@ class MasuTestCase(TransactionTestCase):
         self.ocp_provider = Provider.objects.create(
             uuid=self.ocp_test_provider_uuid,
             name='Test Provider',
-            type='OCP',
+            type=Provider.PROVIDER_OCP,
             authentication=self.ocp_auth,
             customer=self.customer,
             setup_complete=False,
@@ -150,7 +150,7 @@ class MasuTestCase(TransactionTestCase):
         self.azure_provider = Provider.objects.create(
             uuid=self.azure_test_provider_uuid,
             name='Test Provider',
-            type='AZURE',
+            type=Provider.PROVIDER_AZURE,
             authentication=self.azure_auth,
             billing_source=self.azure_billing_source,
             customer=self.customer,

@@ -28,21 +28,22 @@ from faker import Faker
 from querystring_parser import parser
 from rest_framework.serializers import ValidationError
 
-from api.models import Tenant, User
+from api.models import Provider, Tenant, User
 from api.query_params import QueryParameters, get_tenant
 from api.report.serializers import ParamSerializer
 from api.report.view import ReportView
 
 LOG = logging.getLogger(__name__)
-PROVIDERS = ['AWS', 'AZURE', 'OCP', 'OCP_AWS', 'OCP_All']
+PROVIDERS = [Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE,
+             Provider.PROVIDER_OCP, Provider.OCP_AWS, Provider.OCP_ALL]
 ACCESS_KEYS = {
-    'aws': ['aws.account'],
-    'azure': ['azure.subscription_guid'],
-    'ocp': ['openshift.cluster', 'openshift.project', 'openshift.node'],
-    'ocp_aws': ['aws.account', 'openshift.cluster', 'openshift.project',
-                'openshift.node'],
-    'ocp_all': ['aws.account', 'azure.subscription_guid', 'openshift.cluster',
-                'openshift.project', 'openshift.node'],
+    Provider.PROVIDER_AWS.lower(): ['aws.account'],
+    Provider.PROVIDER_AZURE.lower(): ['azure.subscription_guid'],
+    Provider.PROVIDER_OCP.lower(): ['openshift.cluster', 'openshift.project', 'openshift.node'],
+    Provider.OCP_AWS.lower(): ['aws.account', 'openshift.cluster', 'openshift.project',
+                               'openshift.node'],
+    Provider.OCP_ALL.lower(): ['aws.account', 'azure.subscription_guid', 'openshift.cluster',
+                               'openshift.project', 'openshift.node'],
 }
 
 
@@ -389,7 +390,7 @@ class QueryParametersTests(TestCase):
                             GET=Mock(urlencode=Mock(return_value=fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider='AWS'),
+                         query_handler=Mock(provider=Provider.PROVIDER_AWS),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -412,7 +413,7 @@ class QueryParametersTests(TestCase):
                             GET=Mock(urlencode=Mock(return_value=fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider='AZURE'),
+                         query_handler=Mock(provider=Provider.PROVIDER_AZURE),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -431,7 +432,7 @@ class QueryParametersTests(TestCase):
                             GET=Mock(urlencode=Mock(return_value=fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider='OCP'),
+                         query_handler=Mock(provider=Provider.PROVIDER_OCP),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -448,7 +449,7 @@ class QueryParametersTests(TestCase):
                             GET=Mock(urlencode=Mock(return_value=fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider='AWS'),
+                         query_handler=Mock(provider=Provider.PROVIDER_AWS),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -467,7 +468,7 @@ class QueryParametersTests(TestCase):
                             GET=Mock(urlencode=Mock(return_value='')))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider='AZURE'),
+                         query_handler=Mock(provider=Provider.PROVIDER_AZURE),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -485,7 +486,7 @@ class QueryParametersTests(TestCase):
                             GET=Mock(urlencode=Mock(return_value=fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider='OCP'),
+                         query_handler=Mock(provider=Provider.PROVIDER_OCP),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])

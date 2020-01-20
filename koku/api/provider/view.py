@@ -17,15 +17,11 @@
 
 """View for Providers."""
 import logging
-from functools import reduce
-from operator import and_
 
-from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
-from django_filters import CharFilter, FilterSet
-from django_filters.filters import BaseCSVFilter
+from django_filters import FilterSet
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException
@@ -33,6 +29,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.serializers import UUIDField
 
+from api.common.filters import CharListFilter
 from api.iam.models import Customer
 from api.provider import serializers
 from api.provider.models import Provider
@@ -43,22 +40,11 @@ from .provider_manager import ProviderManager, ProviderManagerError
 LOG = logging.getLogger(__name__)
 
 
-class CharListFilter(BaseCSVFilter, CharFilter):
-    """Add query filter capability to provide an anded list of filter values."""
-
-    def filter(self, qs, value):
-        """Filter to create a composite and filter of the value list."""
-        if not value:
-            return qs
-        value_list = ','.join(value).split(',')
-        queries = [Q(**{self.lookup_expr: val}) for val in value_list]
-        return qs.filter(reduce(and_, queries))
-
-
 class ProviderFilter(FilterSet):
     """Provider custom filters."""
 
     name = CharListFilter(field_name='name', lookup_expr='name__icontains')
+    type = CharListFilter(field_name='type', lookup_expr='type__iexact')
 
     class Meta:
         model = Provider
@@ -98,6 +84,15 @@ class ProviderMethodException(APIException):
         self.detail = {'detail': force_text(message)}
 
 
+class ProviderBadRequestException(APIException):
+    """General Exception class for Provider errors."""
+
+    def __init__(self, message):
+        """Set custom error message for Provider errors."""
+        self.status_code = status.HTTP_400_BAD_REQUEST
+        self.detail = {'detail': force_text(message)}
+
+
 class ProviderViewSet(mixins.CreateModelMixin,
                       mixins.DestroyModelMixin,
                       mixins.ListModelMixin,
@@ -130,6 +125,11 @@ class ProviderViewSet(mixins.CreateModelMixin,
         by filtering against a `user` object in the request.
         """
         queryset = Provider.objects.none()
+        stats = self.request.query_params.get('stats', 'false').lower()
+        if stats not in ['false', 'true']:
+            raise ProviderBadRequestException(
+                "The stat parameter was set to {} but can be either 'false' or 'true'."
+                .format(stats))
         user = self.request.user
         if user:
             try:
@@ -141,11 +141,17 @@ class ProviderViewSet(mixins.CreateModelMixin,
     @never_cache
     def create(self, request, *args, **kwargs):
         """Create a Provider."""
+        provider_type = request.data.get('type')
+        if provider_type and Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower()):
+            request.data['type'] = request.data.get('type', '').lower()
         return super().create(request=request, args=args, kwargs=kwargs)
 
     @never_cache
     def update(self, request, *args, **kwargs):
         """Update a Provider."""
+        provider_type = request.data.get('type')
+        if provider_type and Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower()):
+            request.data['type'] = provider_type.lower()
         if request.method == 'PATCH':
             raise ProviderMethodException('PATCH not supported')
         user = request.user
@@ -165,10 +171,12 @@ class ProviderViewSet(mixins.CreateModelMixin,
     def list(self, request, *args, **kwargs):
         """Obtain the list of providers."""
         response = super().list(request=request, args=args, kwargs=kwargs)
+        stats = request.query_params.get('stats', 'false').lower()
         for provider in response.data['data']:
             manager = ProviderManager(provider['uuid'])
             tenant = get_tenant(request.user)
-            provider['stats'] = manager.provider_statistics(tenant)
+            if stats == 'true':
+                provider['stats'] = manager.provider_statistics(tenant)
             provider['infrastructure'] = manager.get_infrastructure_name(tenant)
             provider['cost_models'] = [
                 {'name': model.name, 'uuid': model.uuid}
@@ -180,10 +188,12 @@ class ProviderViewSet(mixins.CreateModelMixin,
     def retrieve(self, request, *args, **kwargs):
         """Get a provider."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
+        stats = request.query_params.get('stats', 'false').lower()
         tenant = get_tenant(request.user)
         manager = ProviderManager(kwargs['uuid'])
         response.data['infrastructure'] = manager.get_infrastructure_name(tenant)
-        response.data['stats'] = manager.provider_statistics(tenant)
+        if stats == 'true':
+            response.data['stats'] = manager.provider_statistics(tenant)
         response.data['cost_models'] = [
             {'name': model.name, 'uuid': model.uuid}
             for model in manager.get_cost_models(tenant)

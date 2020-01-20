@@ -26,7 +26,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientError
 
-from api.provider.models import Sources
+from api.provider.models import Provider, Sources
 from providers.provider_access import ProviderAccessor
 
 faker = Faker()
@@ -89,7 +89,7 @@ class SourcesStatusTest(TestCase):
             Sources.objects.create(
                 source_id=1,
                 name='New AWS Mock Test Source',
-                source_type='AWS',
+                source_type=Provider.PROVIDER_AWS,
                 authentication={},
                 billing_source={'bucket': 'my-bucket'},
                 koku_uuid='',
@@ -138,7 +138,7 @@ class SourcesStatusTest(TestCase):
             Sources.objects.create(
                 source_id=1,
                 name='New AWS Mock Test Source',
-                source_type='AWS',
+                source_type=Provider.PROVIDER_AWS,
                 authentication={},
                 billing_source={'bucket': 'hi'},
                 koku_uuid='',
@@ -162,7 +162,7 @@ class SourcesStatusTest(TestCase):
             Sources.objects.create(
                 source_id=1,
                 name='New AWS Mock Test Source',
-                source_type='AWS',
+                source_type=Provider.PROVIDER_AWS,
                 authentication={'credentials': 'hi'},
                 billing_source={'data_source': 'ho'},
                 koku_uuid='',
@@ -181,7 +181,7 @@ class SourcesStatusTest(TestCase):
             Sources.objects.create(
                 source_id=1,
                 name='New AWS Mock Test Source',
-                source_type='AWS',
+                source_type=Provider.PROVIDER_AWS,
                 authentication={'resource_name': 'ho'},
                 billing_source={'data_source': 'hi'},
                 koku_uuid='',
@@ -200,7 +200,7 @@ class SourcesStatusTest(TestCase):
             Sources.objects.create(
                 source_id=1,
                 name='New AWS Mock Test Source',
-                source_type='AWS',
+                source_type=Provider.PROVIDER_AWS,
                 authentication={},
                 billing_source={'bucket': 'my-bucket'},
                 koku_uuid='',
@@ -220,7 +220,7 @@ class SourcesStatusTest(TestCase):
             Sources.objects.create(
                 source_id=1,
                 name='New AWS Mock Test Source',
-                source_type='AWS',
+                source_type=Provider.PROVIDER_AWS,
                 authentication={},
                 billing_source={'bucket': 'my-bucket'},
                 koku_uuid='',
