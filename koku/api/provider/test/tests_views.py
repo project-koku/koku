@@ -270,7 +270,7 @@ class ProviderViewTest(IamTestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]['uuid'], first_provider_uuid)
         self.assertEqual(results[0].get('infrastructure'), 'Unknown')
-        self.assertEqual(results[0].get('stats'), {})
+        self.assertEqual(results[0].get('stats'), None)
         self.assertEqual(len(results[0]['cost_models']), 1)
         self.assertEqual(results[0]['cost_models'][0], expected_cost_model_info)
 
@@ -310,7 +310,7 @@ class ProviderViewTest(IamTestCase):
         uuid = json_result.get('uuid')
         self.assertIsNotNone(uuid)
         self.assertEqual(uuid, provider_uuid)
-        self.assertEqual(json_result.get('stats'), {})
+        self.assertEqual(json_result.get('stats'), None)
         self.assertEqual(json_result.get('infrastructure'), 'Unknown')
         cost_models = json_result.get('cost_models')
         self.assertEqual(len(cost_models), 1)
@@ -659,3 +659,102 @@ class ProviderViewTest(IamTestCase):
         with patch.object(ProviderManager, 'update', side_effect=ProviderManagerError('Update Error.')):
             response = client.put(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def test_get_provider_with_stats(self):
+        """Test get a provider with status."""
+        # Set up all the data for this test.
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        create_response = self.create_provider(bucket_name, iam_arn, )
+        provider_result = create_response.json()
+        provider_uuid = provider_result.get('uuid')
+        self.assertIsNotNone(provider_uuid)
+
+        # Call the API for testing the results.
+        url = '%s?stats=true' % reverse('provider-detail', args=[provider_uuid])
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertEqual(json_result.get('stats'), {})
+
+        url = '%s?stats=True' % reverse('provider-detail', args=[provider_uuid])
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertEqual(json_result.get('stats'), {})
+
+        url = '%s?stats=false' % reverse('provider-detail', args=[provider_uuid])
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertEqual(json_result.get('stats'), None)
+
+    def test_get_provider_with_stats_invalid(self):
+        """Test get a provider with bad status value."""
+        # Set up all the data for this test.
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        create_response = self.create_provider(bucket_name, iam_arn, )
+        provider_result = create_response.json()
+        provider_uuid = provider_result.get('uuid')
+        self.assertIsNotNone(provider_uuid)
+
+        # Call the API for testing the results.
+        url = '%s?stats=bla' % reverse('provider-detail', args=[provider_uuid])
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_get_provider_list_with_stats(self):
+        """Test get provider list with status."""
+        # Set up all the data for this test.
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        create_response = self.create_provider(bucket_name, iam_arn, )
+        provider_result = create_response.json()
+        provider_uuid = provider_result.get('uuid')
+        self.assertIsNotNone(provider_uuid)
+
+        # Call the API for testing the results.
+        url = '%s?stats=true' % reverse('provider-list')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        for provider in json_result.get('data'):
+            self.assertEqual(provider.get('stats'), {})
+
+        url = '%s?stats=True' % reverse('provider-list')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        for provider in json_result.get('data'):
+            self.assertEqual(provider.get('stats'), {})
+
+        url = '%s?stats=false' % reverse('provider-list')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        for provider in json_result.get('data'):
+            self.assertEqual(provider.get('stats'), None)
+
+    def test_get_provider_list_with_stats_invalid(self):
+        """Test get a provider list with bad status value."""
+        # Set up all the data for this test.
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        create_response = self.create_provider(bucket_name, iam_arn, )
+        provider_result = create_response.json()
+        provider_uuid = provider_result.get('uuid')
+        self.assertIsNotNone(provider_uuid)
+
+        # Call the API for testing the results.
+        url = '%s?stats=bla' % reverse('provider-list')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
