@@ -769,7 +769,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         provider_ocp_uuid = self.ocp_test_provider_uuid
 
         daily_table_name = OCP_REPORT_TABLE_MAP['line_item_daily']
-        start_date = self.start_date.replace(day=1) + relativedelta.relativedelta(months=-1)
+        start_date = self.start_date.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        ) + relativedelta.relativedelta(months=-1)
+        end_date = start_date + timedelta(days=10)
 
         with schema_context(self.schema):
             daily_query = self.ocp_accessor._get_db_obj_query(daily_table_name)
@@ -777,12 +780,15 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             initial_daily_count = daily_query.count()
 
         self.assertEqual(initial_daily_count, 0)
-        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date)
+        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date)
 
         with schema_context(self.schema):
             self.assertNotEqual(daily_query.count(), initial_daily_count)
 
-        update_charge_info(schema_name=self.schema, provider_uuid=provider_ocp_uuid)
+        update_charge_info(schema_name=self.schema,
+                          provider_uuid=provider_ocp_uuid,
+                          start_date=start_date,
+                          end_date=end_date)
 
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
         with ProviderDBAccessor(provider_ocp_uuid) as provider_accessor:
