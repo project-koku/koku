@@ -321,7 +321,7 @@ class ProviderSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
-        provider_type = validated_data['type']
+        provider_type = validated_data['type'].lower()
         provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type)
         validated_data['type'] = provider_type
         if instance.type != provider_type:
