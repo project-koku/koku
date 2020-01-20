@@ -786,9 +786,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             self.assertNotEqual(daily_query.count(), initial_daily_count)
 
         update_charge_info(schema_name=self.schema,
-                          provider_uuid=provider_ocp_uuid,
-                          start_date=start_date,
-                          end_date=end_date)
+                           provider_uuid=provider_ocp_uuid,
+                           start_date=start_date,
+                           end_date=end_date)
 
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
         with ProviderDBAccessor(provider_ocp_uuid) as provider_accessor:
