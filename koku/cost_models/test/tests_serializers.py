@@ -49,7 +49,7 @@ class CostModelSerializerTest(IamTestCase):
 
         provider_data = {
             'name': 'test_provider',
-            'type': Provider.PROVIDER_OCP,
+            'type': Provider.PROVIDER_OCP.lower(),
             'authentication': {'provider_resource_name': self.fake.word()},
         }
         serializer = ProviderSerializer(
@@ -59,7 +59,7 @@ class CostModelSerializerTest(IamTestCase):
             self.provider = serializer.save()
 
         ocp_metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
-        ocp_source_type = 'OCP'
+        ocp_source_type = Provider.PROVIDER_OCP
         tiered_rates = [{'unit': 'USD', 'value': 0.22}]
         self.ocp_data = {
             'name': 'Test Cost Model',
@@ -114,7 +114,7 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_not_OCP_source_type_with_markup(self):
         """Test that a source type is valid if it has markup."""
-        self.ocp_data['source_type'] = 'AWS'
+        self.ocp_data['source_type'] = Provider.PROVIDER_AWS
         self.ocp_data['rates'] = []
 
         with tenant_context(self.tenant):
@@ -137,7 +137,7 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_error_on_source_type_without_markup(self):
         """Test error when non OCP source is added without markup."""
-        self.ocp_data['source_type'] = 'AWS'
+        self.ocp_data['source_type'] = Provider.PROVIDER_AWS
         self.ocp_data['markup'] = {}
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.ocp_data)
@@ -147,7 +147,7 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_error_on_nonOCP_source_type_with_markup_and_rates(self):
         """Test error when non OCP source is added with markup and rates."""
-        self.ocp_data['source_type'] = 'AWS'
+        self.ocp_data['source_type'] = Provider.PROVIDER_AWS
 
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.ocp_data)
@@ -332,7 +332,7 @@ class CostModelSerializerTest(IamTestCase):
             ocp_data = {
                 'name': 'Test Cost Model',
                 'description': 'Test',
-                'source_type': 'OCP',
+                'source_type': Provider.PROVIDER_OCP,
                 'providers': [{'uuid': self.provider.uuid, 'name': self.provider.name}],
                 'rates': [
                     {
@@ -371,7 +371,7 @@ class CostModelSerializerTest(IamTestCase):
             ocp_data = {
                 'name': 'Test Cost Model',
                 'description': 'Test',
-                'source_type': 'OCP',
+                'source_type': Provider.PROVIDER_OCP,
                 'providers': [{'uuid': self.provider.uuid, 'name': self.provider.name}],
                 'rates': [
                     {
@@ -451,7 +451,7 @@ class CostModelSerializerTest(IamTestCase):
         serializer = CostModelSerializer(data=None)
 
         for metric_choice in CostModelMetricsMap.METRIC_CHOICES:
-            response = serializer._get_metric_display_data('OCP', metric_choice[0])
+            response = serializer._get_metric_display_data(Provider.PROVIDER_OCP, metric_choice[0])
             self.assertIsNotNone(response.label_measurement_unit)
             self.assertIsNotNone(response.label_measurement)
             self.assertIsNotNone(response.label_metric)

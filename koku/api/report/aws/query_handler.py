@@ -23,6 +23,7 @@ from django.db.models.expressions import Func
 from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
+from api.models import Provider
 from api.report.aws.provider_map import AWSProviderMap
 from api.report.queries import ReportQueryHandler
 
@@ -43,7 +44,7 @@ EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
 class AWSReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for AWS."""
 
-    provider = 'AWS'
+    provider = Provider.PROVIDER_AWS
 
     def __init__(self, parameters):
         """Establish AWS report query handler.
@@ -84,7 +85,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get('annotations')
         prefix_removed_parameters_list = list(map(lambda x: x if ':' not in x else x.split(':', maxsplit=1)[1],
-                                              self.parameters.get('group_by', {}).keys()))
+                                                  self.parameters.get('group_by', {}).keys()))
         for q_param, db_field in fields.items():
             if q_param in prefix_removed_parameters_list:
                 annotations[q_param] = Concat(db_field, Value(''))

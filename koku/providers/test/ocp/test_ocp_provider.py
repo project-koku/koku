@@ -19,6 +19,7 @@
 from django.test import TestCase
 from rest_framework.serializers import ValidationError
 
+from api.models import Provider
 from providers.ocp.provider import OCPProvider
 
 
@@ -28,7 +29,7 @@ class OCPProviderTestCase(TestCase):
     def test_get_name(self):
         """Get name of provider."""
         provider = OCPProvider()
-        self.assertEqual(provider.name(), 'OCP')
+        self.assertEqual(provider.name(), Provider.PROVIDER_OCP)
 
     def test_cost_usage_source_is_reachable_bucket_provided(self):
         """Verify that the cost usage source is authenticated and created."""

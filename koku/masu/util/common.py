@@ -28,13 +28,8 @@ from uuid import uuid4
 from dateutil import parser
 from dateutil.rrule import DAILY, rrule
 
-from masu.external import (AMAZON_WEB_SERVICES,
-                           AWS_LOCAL_SERVICE_PROVIDER,
-                           AZURE,
-                           AZURE_LOCAL_SERVICE_PROVIDER,
-                           GCP,
-                           LISTEN_INGEST,
-                           OPENSHIFT_CONTAINER_PLATFORM,
+from api.models import Provider
+from masu.external import (LISTEN_INGEST,
                            POLL_INGEST)
 
 LOG = logging.getLogger(__name__)
@@ -73,12 +68,12 @@ def stringify_json_data(data):
 def ingest_method_for_provider(provider):
     """Return the ingest method for provider."""
     ingest_map = {
-        AMAZON_WEB_SERVICES: POLL_INGEST,
-        AWS_LOCAL_SERVICE_PROVIDER: POLL_INGEST,
-        AZURE: POLL_INGEST,
-        AZURE_LOCAL_SERVICE_PROVIDER: POLL_INGEST,
-        GCP: POLL_INGEST,
-        OPENSHIFT_CONTAINER_PLATFORM: LISTEN_INGEST
+        Provider.PROVIDER_AWS: POLL_INGEST,
+        Provider.PROVIDER_AWS_LOCAL: POLL_INGEST,
+        Provider.PROVIDER_AZURE: POLL_INGEST,
+        Provider.PROVIDER_AZURE_LOCAL: POLL_INGEST,
+        Provider.PROVIDER_GCP: POLL_INGEST,
+        Provider.PROVIDER_OCP: LISTEN_INGEST
     }
     return ingest_map.get(provider)
 

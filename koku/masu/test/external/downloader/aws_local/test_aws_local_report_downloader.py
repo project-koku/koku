@@ -28,6 +28,7 @@ from unittest.mock import patch
 
 from faker import Faker
 
+from api.models import Provider
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import AWS_REGIONS
@@ -79,7 +80,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
             customer_name=self.fake_customer_name,
             access_credential=self.fake_auth_credential,
             report_source=self.fake_bucket_name,
-            provider_type='AWS-local',
+            provider_type=Provider.PROVIDER_AWS_LOCAL,
             provider_uuid=self.aws_provider_uuid,
         )
 
@@ -144,7 +145,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                 self.fake_customer_name,
                 self.fake_auth_credential,
                 fake_bucket,
-                'AWS-local',
+                Provider.PROVIDER_AWS_LOCAL,
                 self.aws_provider_uuid,
             )
             # Names from test report .gz file
@@ -222,7 +223,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                 self.fake_customer_name,
                 self.fake_auth_credential,
                 fake_bucket,
-                'AWS-local',
+                Provider.PROVIDER_AWS_LOCAL,
                 1,
             )
             # Names from test report .gz file

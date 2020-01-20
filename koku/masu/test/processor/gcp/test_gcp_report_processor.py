@@ -55,7 +55,7 @@ class GCPReportProcessorTest(MasuTestCase):
         self.gcp_provider = Provider.objects.create(
             uuid=uuid.uuid4(),
             name='Test Provider',
-            type='GCP',
+            type=Provider.PROVIDER_GCP,
             authentication=gcp_auth,
             billing_source=gcp_billing_source,
             customer=self.customer,

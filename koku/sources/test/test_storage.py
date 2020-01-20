@@ -25,7 +25,7 @@ from sources import storage
 from sources.config import Config
 from sources.storage import SourcesStorageError
 
-from api.provider.models import Sources
+from api.provider.models import Provider, Sources
 
 faker = Faker()
 
@@ -110,7 +110,7 @@ class SourcesStorageTest(TestCase):
         self.assertEqual(test_source.authentication, {})
 
         test_name = 'My Source Name'
-        source_type = 'AWS'
+        source_type = Provider.PROVIDER_AWS
         endpoint_id = 1
         source_uuid = faker.uuid4()
         storage.add_provider_sources_network_info(self.test_source_id, source_uuid,
@@ -126,7 +126,7 @@ class SourcesStorageTest(TestCase):
         """Tests that adding information retrieved from the sources network API is not successful."""
         try:
             test_name = 'My Source Name'
-            source_type = 'AWS'
+            source_type = Provider.PROVIDER_AWS
             authentication = 'testauth'
             storage.add_provider_sources_network_info(self.test_source_id + 1, faker.uuid4(),
                                                       test_name, source_type, authentication)
@@ -161,32 +161,32 @@ class SourcesStorageTest(TestCase):
 
     def test_screen_and_build_provider_sync_create_event(self):
         """Tests that provider create events are generated."""
-        test_matrix = [{'provider': MockProvider(1, 'AWS Provider', 'AWS',
+        test_matrix = [{'provider': MockProvider(1, 'AWS Provider', Provider.PROVIDER_AWS,
                                                  {'resource_name': 'arn:fake'},
                                                  {'bucket': 'testbucket'},
                                                  'authheader', 1, False),
                         'expected_response': {'operation': 'create', 'offset': 1}},
-                       {'provider': MockProvider(1, 'AWS Provider', 'AWS',
+                       {'provider': MockProvider(1, 'AWS Provider', Provider.PROVIDER_AWS,
                                                  {'resource_name': 'arn:fake'},
                                                  None,
                                                  'authheader', 1, False),
                         'expected_response': {}},
-                       {'provider': MockProvider(2, 'OCP Provider', 'OCP',
+                       {'provider': MockProvider(2, 'OCP Provider', Provider.PROVIDER_OCP,
                                                  {'resource_name': 'my-cluster-id'},
                                                  {'bucket': ''},
                                                  'authheader', 2, False),
                         'expected_response': {'operation': 'create', 'offset': 2}},
-                       {'provider': MockProvider(2, 'OCP Provider', 'OCP',
+                       {'provider': MockProvider(2, 'OCP Provider', Provider.PROVIDER_OCP,
                                                  {'resource_name': 'my-cluster-id'},
                                                  {'bucket': ''},
                                                  'authheader', 2, True),
                         'expected_response': {}},
-                       {'provider': MockProvider(2, None, 'OCP',
+                       {'provider': MockProvider(2, None, Provider.PROVIDER_OCP,
                                                  {'resource_name': 'my-cluster-id'},
                                                  {'bucket': ''},
                                                  'authheader', 2, False),
                         'expected_response': {}},
-                       {'provider': MockProvider(3, 'Azure Provider', 'AZURE',
+                       {'provider': MockProvider(3, 'Azure Provider', Provider.PROVIDER_AZURE,
                                                  {'credentials': {'client_id': 'test_client_id',
                                                                   'tenant_id': 'test_tenant_id',
                                                                   'client_secret': 'test_client_secret',
@@ -208,29 +208,31 @@ class SourcesStorageTest(TestCase):
 
     def test_validate_billing_source(self):
         """Test to validate that the billing source dictionary is valid."""
-        test_matrix = [{'provider_type': 'AWS', 'billing_source': {'bucket': 'test-bucket'},
+        test_matrix = [{'provider_type': Provider.PROVIDER_AWS, 'billing_source': {'bucket': 'test-bucket'},
                         'exception': False},
-                       {'provider_type': 'AZURE', 'billing_source': {'data_source': {'resource_group': 'foo',
-                                                                                     'storage_account': 'bar'}},
+                       {'provider_type': Provider.PROVIDER_AZURE,
+                        'billing_source': {'data_source': {'resource_group': 'foo', 'storage_account': 'bar'}},
                         'exception': False},
-                       {'provider_type': 'AWS', 'billing_source': {'nobucket': 'test-bucket'},
+                       {'provider_type': Provider.PROVIDER_AWS, 'billing_source': {'nobucket': 'test-bucket'},
                         'exception': True},
-                       {'provider_type': 'AWS', 'billing_source': {},
+                       {'provider_type': Provider.PROVIDER_AWS, 'billing_source': {},
                         'exception': True},
-                       {'provider_type': 'AZURE', 'billing_source': {},
+                       {'provider_type': Provider.PROVIDER_AZURE, 'billing_source': {},
                         'exception': True},
-                       {'provider_type': 'AZURE', 'billing_source': {'nodata_source': {'resource_group': 'foo',
-                                                                                       'storage_account': 'bar'}},
+                       {'provider_type': Provider.PROVIDER_AZURE,
+                        'billing_source': {'nodata_source': {'resource_group': 'foo', 'storage_account': 'bar'}},
                         'exception': True},
-                       {'provider_type': 'AZURE', 'billing_source': {'data_source': {'noresource_group': 'foo',
-                                                                                     'storage_account': 'bar'}},
+                       {'provider_type': Provider.PROVIDER_AZURE,
+                        'billing_source': {'data_source': {'noresource_group': 'foo', 'storage_account': 'bar'}},
                         'exception': True},
-                       {'provider_type': 'AZURE', 'billing_source': {'data_source': {'resource_group': 'foo',
-                                                                                     'nostorage_account': 'bar'}},
+                       {'provider_type': Provider.PROVIDER_AZURE,
+                        'billing_source': {'data_source': {'resource_group': 'foo', 'nostorage_account': 'bar'}},
                         'exception': True},
-                       {'provider_type': 'AZURE', 'billing_source': {'data_source': {'resource_group': 'foo'}},
+                       {'provider_type': Provider.PROVIDER_AZURE,
+                        'billing_source': {'data_source': {'resource_group': 'foo'}},
                         'exception': True},
-                       {'provider_type': 'AZURE', 'billing_source': {'data_source': {'storage_account': 'bar'}},
+                       {'provider_type': Provider.PROVIDER_AZURE,
+                        'billing_source': {'data_source': {'storage_account': 'bar'}},
                         'exception': True},
                        ]
 
@@ -251,14 +253,14 @@ class SourcesStorageTest(TestCase):
         ocp_obj = Sources(source_id=test_source_id,
                           auth_header=self.test_header,
                           offset=3,
-                          source_type='OCP',
+                          source_type=Provider.PROVIDER_OCP,
                           name='Test OCP Source',
                           authentication={'resource_name': 'arn:test'},
                           billing_source={'bucket': 'test-bucket'})
         ocp_obj.save()
 
         response = storage.get_source_type(test_source_id)
-        self.assertEquals(response, 'OCP')
+        self.assertEquals(response, Provider.PROVIDER_OCP)
         self.assertEquals(storage.get_source_type(test_source_id + 1), None)
 
     def test_get_source_from_endpoint(self):
@@ -269,7 +271,7 @@ class SourcesStorageTest(TestCase):
                           auth_header=self.test_header,
                           offset=3,
                           endpoint_id=test_endpoint_id,
-                          source_type='AWS',
+                          source_type=Provider.PROVIDER_AWS,
                           name='Test AWS Source',
                           authentication={'resource_name': 'arn:test'},
                           billing_source={'bucket': 'test-bucket'})
@@ -288,7 +290,7 @@ class SourcesStorageTest(TestCase):
                           auth_header=self.test_header,
                           offset=3,
                           endpoint_id=test_endpoint_id,
-                          source_type='AWS',
+                          source_type=Provider.PROVIDER_AWS,
                           name='Test AWS Source',
                           billing_source={'bucket': 'test-bucket'})
         aws_obj.save()
@@ -306,7 +308,7 @@ class SourcesStorageTest(TestCase):
                             auth_header=self.test_header,
                             offset=3,
                             endpoint_id=test_endpoint_id,
-                            source_type='AZURE',
+                            source_type=Provider.PROVIDER_AZURE,
                             name='Test AZURE Source',
                             authentication={'credentials': {'subscription_id': 'orig-sub-id',
                                                             'client_id': 'test-client-id'}})
@@ -324,7 +326,7 @@ class SourcesStorageTest(TestCase):
                           auth_header=self.test_header,
                           offset=3,
                           endpoint_id=4,
-                          source_type='AWS',
+                          source_type=Provider.PROVIDER_AWS,
                           name='Test AWS Source',
                           billing_source={'bucket': 'test-bucket'})
         aws_obj.save()
@@ -340,7 +342,7 @@ class SourcesStorageTest(TestCase):
                           auth_header=self.test_header,
                           offset=3,
                           endpoint_id=4,
-                          source_type='AWS',
+                          source_type=Provider.PROVIDER_AWS,
                           name='Test AWS Source',
                           billing_source={'bucket': 'test-bucket'},
                           pending_delete=True)
@@ -371,7 +373,7 @@ class SourcesStorageTest(TestCase):
                               pending_update=test.get('pending_update'),
                               offset=3,
                               endpoint_id=4,
-                              source_type='AWS',
+                              source_type=Provider.PROVIDER_AWS,
                               name='Test AWS Source',
                               billing_source={'bucket': 'test-bucket'})
             aws_obj.save()
@@ -400,7 +402,7 @@ class SourcesStorageTest(TestCase):
                               pending_update=test.get('pending_update'),
                               offset=3,
                               endpoint_id=4,
-                              source_type='AWS',
+                              source_type=Provider.PROVIDER_AWS,
                               name='Test AWS Source',
                               billing_source={'bucket': 'test-bucket'})
             aws_obj.save()
@@ -435,7 +437,7 @@ class SourcesStorageTest(TestCase):
                               pending_delete=test.get('pending_delete'),
                               offset=3,
                               endpoint_id=4,
-                              source_type='AWS',
+                              source_type=Provider.PROVIDER_AWS,
                               name='Test AWS Source',
                               billing_source={'bucket': 'test-bucket'})
             aws_obj.save()

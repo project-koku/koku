@@ -28,6 +28,7 @@ from rest_framework_csv.renderers import CSVRenderer
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.models import Provider
 from api.provider.test import create_generic_provider
 from api.query_handler import TruncDayString
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
@@ -48,7 +49,7 @@ class OCPAWSReportViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        _, self.provider = create_generic_provider('OCP', self.headers)
+        _, self.provider = create_generic_provider(Provider.PROVIDER_OCP, self.headers)
         self.data_generator = OCPAWSReportDataGenerator(self.tenant, self.provider)
         self.data_generator.add_data_to_tenant()
 

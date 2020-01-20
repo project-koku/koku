@@ -28,7 +28,7 @@ customer:
           bucket: ''
     azure_provider:
       provider_name: Azure Test Provider
-      provider_type: 'AZURE'
+      provider_type: 'Azure'
       authentication:
         credentials:
           subscription_id: '11111111-1111-1111-1111-11111111'
