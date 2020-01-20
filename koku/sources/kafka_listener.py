@@ -31,7 +31,7 @@ from sources.config import Config
 from sources.koku_http_client import KokuHTTPClient, KokuHTTPClientError, KokuHTTPClientNonRecoverableError
 from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientError
 
-from api.provider.models import Sources
+from api.provider.models import Provider, Sources
 
 LOG = logging.getLogger(__name__)
 
@@ -205,15 +205,15 @@ def save_auth_info(auth_header, source_id):
         return
 
     try:
-        if source_type == 'OCP':
+        if source_type == Provider.PROVIDER_OCP:
             source_details = sources_network.get_source_details()
             if source_details.get('source_ref'):
                 authentication = {'resource_name': source_details.get('source_ref')}
             else:
                 raise SourcesHTTPClientError('Unable to find Cluster ID')
-        elif source_type == 'AWS':
+        elif source_type == Provider.PROVIDER_AWS:
             authentication = {'resource_name': sources_network.get_aws_role_arn()}
-        elif source_type == 'AZURE':
+        elif source_type == Provider.PROVIDER_AZURE:
             authentication = {'credentials': sources_network.get_azure_credentials()}
         else:
             LOG.error(f'Unexpected source type: {source_type}')
@@ -286,11 +286,11 @@ def sources_network_info(source_id, auth_header):
         LOG.error(f'Unable to find endpoint for Source ID: {source_id}')
 
     if source_type_name == SOURCES_OCP_SOURCE_NAME:
-        source_type = 'OCP'
+        source_type = Provider.PROVIDER_OCP
     elif source_type_name == SOURCES_AWS_SOURCE_NAME:
-        source_type = 'AWS'
+        source_type = Provider.PROVIDER_AWS
     elif source_type_name == SOURCES_AZURE_SOURCE_NAME:
-        source_type = 'AZURE'
+        source_type = Provider.PROVIDER_AZURE
     else:
         LOG.error(f'Unexpected source type ID: {source_type_id}')
         return

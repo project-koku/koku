@@ -19,6 +19,7 @@
 from django.db.models import CharField, Count, DecimalField, F, Max, Sum, Value
 from django.db.models.functions import Coalesce
 
+from api.models import Provider
 from api.report.provider_map import ProviderMap
 from reporting.models import (
     OCPAzureCostLineItemDailySummary,
@@ -33,7 +34,7 @@ class OCPAzureProviderMap(ProviderMap):
         """Constructor."""
         self._mapping = [
             {
-                'provider': 'OCP_AZURE',
+                'provider': Provider.OCP_AZURE,
                 'alias': 'subscription_guid',
                 'annotations': {
                     'cluster': 'cluster_id',

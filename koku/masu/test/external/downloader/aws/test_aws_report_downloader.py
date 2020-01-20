@@ -27,6 +27,7 @@ from unittest.mock import Mock, patch
 from botocore.exceptions import ClientError
 from faker import Faker
 
+from api.models import Provider
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProviderError
@@ -177,7 +178,7 @@ class AWSReportDownloaderTest(MasuTestCase):
             customer_name=self.fake_customer_name,
             access_credential=self.auth_credential,
             report_source=self.fake_bucket_name,
-            provider_type='AWS',
+            provider_type=Provider.PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
         )
         self.aws_report_downloader = AWSReportDownloader(
@@ -244,7 +245,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                     customer_name=self.fake_customer_name,
                     access_credential=self.auth_credential,
                     report_source=self.fake_bucket_name,
-                    provider_type='AWS',
+                    provider_type=Provider.PROVIDER_AWS,
                     provider_uuid=self.aws_provider_uuid,
                 )
                 AWSReportDownloader(

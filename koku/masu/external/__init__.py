@@ -16,15 +16,6 @@
 #
 """Initializer for external module."""
 
-# Provider Types
-AMAZON_WEB_SERVICES = 'AWS'
-AZURE = 'AZURE'
-GCP = 'GCP'
-OPENSHIFT_CONTAINER_PLATFORM = 'OCP'
-AWS_LOCAL_SERVICE_PROVIDER = 'AWS-local'
-AZURE_LOCAL_SERVICE_PROVIDER = 'AZURE-local'
-GCP_LOCAL = 'GCP-local'
-
 # Ingest Methods
 POLL_INGEST = 'poll-ingest'
 LISTEN_INGEST = 'listen-ingest'

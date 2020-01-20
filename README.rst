@@ -4,9 +4,8 @@ Koku README
 
 |license| |Build Status| |codecov| |Updates| |Python 3| |Docs|
 
-~~~~~
 About
-~~~~~
+=====
 
 Koku's goal is to provide an open source solution for cost management of cloud and hybrid cloud environments. This solution is offered via a web interface that exposes resource consumption and cost data in easily digestible and filterable views. The project also aims to provide insight into this data and ultimately provide suggested optimizations for reducing cost and eliminating unnecessary resource usage.
 
@@ -43,88 +42,116 @@ To get started developing against Koku first clone a local copy of the git repos
 
     git clone https://github.com/project-koku/koku
 
-Developing inside a virtual environment is recommended. A Pipfile is provided. Pipenv is recommended for combining virtual environment (virtualenv) and dependency management (pip). To install pipenv, use pip ::
+This project is developed using the Django web framework. Many configuration settings can be read in from a ``.env`` file. To configure, do the following:
 
-    pip3 install pipenv
+1. Copy ``example.env`` into a ``.env``
+2. Obtain AWS values and update the following in your ``.env``::
 
-Then project dependencies and a virtual environment can be created using ::
+    AWS_ACCESS_KEY_ID=YOUR_AWS_ACCESS_KEY
+    AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_KEY
+    AWS_RESOURCE_NAME=YOUR_COST_MANAGEMENT_AWS_ARN
 
-    pipenv install --dev
-
-**Note for Mac OSX users**
-
-psycopg2 is a dependency of Django and installing the psycopg2 wheel will likely fail. The following steps should be taken to allow installation to succeed: ::
-
+3. (Mac Only) If you are on Mac, do the following note that psycopg2 is a dependency of Django and installing the psycopg2 wheel will likely fail. The following steps should be taken to allow installation to succeed: ::
 
     brew install openssl
     brew unlink openssl && brew link openssl --force
 
-    `/usr/local/opt/openssl/bin` should be appended to the PATH environment variable
+4. (Mac Only) Also add the following to your ``.env```::
 
-    The following environment variables can be set in the koku repo's .env file
-        LDFLAGS="-L/usr/local/opt/openssl/lib"
-        CPPFLAGS="-I/usr/local/opt/openssl/include"
-    These environment variables will then be available next time you activate your virtualenv. For immediate use running `source .env` will load the environment variables into your existing terminal environment. 
-    
-    Alternatively, run the following commands:
-        `export LDFLAGS="-L/usr/local/opt/openssl/lib"`
-        `export CPPFLAGS="-I/usr/local/opt/openssl/include"`
-        
-If dependency installation still fails, try using ::
+    LDFLAGS="-L/usr/local/opt/openssl/lib"
+    CPPFLAGS="-I/usr/local/opt/openssl/include"
+
+5. Developing inside a virtual environment is recommended. A Pipfile is provided. Pipenv is recommended for combining virtual environment (virtualenv) and dependency management (pip). To install pipenv, use pip ::
+
+    pip3 install pipenv
+
+6. Then project dependencies and a virtual environment can be created using ::
+
+    pipenv install --dev
+
+7. If dependency installation still fails, try using ::
 
     pipenv install --dev --sequential
 
-To activate the virtual environment run ::
+8. To activate the virtual environment run ::
 
     pipenv shell
 
-Preferred Environment
----------------------
 
-Please refer to `Working with Openshift`_.
+Developing with Docker Compose
+------------------------------
 
-Alternative Environment
------------------------
-If deploying with Openshift seems overly complex you can try an alternate local environment where you will need to install and setup some of the dependencies and configuration.
+This will explain how to start the server and its dependencies using Docker, create AWS/OCP providers, and view reports. This will not cover all API or scenarios but should give you an end to end flow.
 
-Configuration
-^^^^^^^^^^^^^
+Starting Koku using Docker Compose
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This project is developed using the Django web framework. Many configuration settings can be read in from a `.env` file. An example file `.env.example` is provided in the repository. To use the defaults simply ::
+Run the following commands::
 
-    cp .env.example .env
+    make docker-up
+    docker-compose logs -f koku-server koku-worker
+    pip install koku-nise
 
+Run AWS Scenario
+^^^^^^^^^^^^^^^^
 
-Modify as you see fit.
+1. Create AWS Provider::
+
+    make aws-provider aws_name=AWS-PROVIDER-001 bucket=cost-usage-bucket
+
+2. Verify provider exists by visiting http://127.0.0.1:8000/api/cost-management/v1/providers/
+3. Trigger MASU processing by visiting http://127.0.0.1:5000/api/cost-management/v1/download/
+4. Wait for processing to complete
+5. Verify data existing using AWS API endpoints
+
+    - http://127.0.0.1:8000/api/cost-management/v1/reports/aws/instance-types/
+    - http://127.0.0.1:8000/api/cost-management/v1/reports/aws/costs/
+    - http://127.0.0.1:8000/api/cost-management/v1/reports/aws/storage/
+
+Run OCP Scenario
+^^^^^^^^^^^^^^^^
+
+1. Create OCP Provider::
+
+    make ocp-provider-from-yaml cluster_id=my_test_cluster srf_yaml=../nise/example_ocp_static_data.yml ocp_name=my_ocp_name
+
+2. Verify provider exists by visiting http://127.0.0.1:8000/api/cost-management/v1/providers/
+3. Trigger MASU processing by visiting http://127.0.0.1:5000/api/cost-management/v1/download/
+4. Wait for processing to complete
+5. Verify data exists using API endpoints
+
+    - http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/volumes/
+    - http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/memory/
+    - http://127.0.0.1:8000/api/cost-management/v1/reports/openshift/compute/
+
+Stopping Koku using Docker Compose
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To bring down all the docker containers, run the following command::
+
+    make docker-down
+
 
 Database
 ^^^^^^^^
 
-PostgreSQL is used as the database backend for Koku. A docker-compose file is provided for creating a local database container. If modifications were made to the .env file the docker-compose file will need to be modified to ensure matching database credentials. Several commands are available for interacting with the database. ::
-
-    # Initialize the docker network for koku services if it doesn't already exist
-    docker network create koku-network
-
-    # This will launch a Postgres container
-    make docker-up-db
-
-    # This will run Django's migrations against the database
-    make run-migrations
-
-    # This will stop and remove a currently running database and run the above commands
-    make docker-reinitdb
-
-Assuming the default .env file values are used, to access the database directly using psql run ::
+PostgreSQL is used as the database backend for Koku. A docker-compose file is provided for creating a local database container. Assuming the default .env file values are used, to access the database directly using psql run ::
 
     PGPASSWORD=postgres psql postgres -U postgres -h localhost -p 15432
 
-There is a known limitation with docker-compose and Linux environments with SELinux enabled. You may see the following error during the postgres container deployment::
+**Note:** There is a known limitation with docker-compose and Linux environments with SELinux enabled. You may see the following error during the postgres container deployment::
 
     "mkdir: cannot create directory '/var/lib/pgsql/data/userdata': Permission denied" can be resolved by granting ./pg_data ownership permissions to uid:26 (postgres user in centos/postgresql-96-centos7)
 
-If a docker container running Postgres is not feasible, it is possible to run Postgres locally as documented in the Postgres tutorial_. The default port for local Postgres installations is `5432`. Make sure to modify the `.env` file accordingly. To initialize the database run ::
+If you see this error, run the following command (assuming you are at the project top level directory)::
 
-    make run-migrations
+    setfacl -m u:26:-wx ./pg_data
+
+See  https://access.redhat.com/containers/?tab=overview#/registry.access.redhat.com/rhel8/postgresql-96
+
+Developing with OpenShift
+-------------------------
+
+Our production deployment runs on OpenShift. At times you may need to run on OpenShift if you are working on deployment templates or would like to test in a production like environment. This is a more advanced scenario that many new developers will not need. To learn how to run OpenShift refer to `Working with Openshift`_.
 
 Testing and Linting
 -------------------
@@ -139,6 +166,10 @@ To run unit tests specifically::
 
     tox -e py36
 
+To run a specific subset of unit tests, you can pass a particular module path to tox. To do this, use positional args using the -- separator. For example::
+
+    tox -e py36 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
+
 To lint the code base ::
 
     tox -e lint
@@ -149,13 +180,12 @@ To run IQE Smoke, Vortex or API tests, while on the Red Hat network and koku dep
     make docker-iqe-vortex-tests
     make docker-iqe-api-tests
 
-The tests expect an empty database, you may clear out the database using `make docker-reinitdb`
 Individual IQE tests can be ran with run_test.sh::
 
     <koku_topdir>/testing/run_test.sh iqe tests plugin hccm -k test_api_cost_model_markup_calculation_ocp
 
 pgAdmin
--------------------
+-------
 
 If you want to interact with the Postgres database from a GUI:
 

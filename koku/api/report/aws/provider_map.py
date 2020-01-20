@@ -20,6 +20,7 @@ from django.db.models import CharField, DecimalField, F, Max, Sum, Value
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 
+from api.models import Provider
 from api.report.provider_map import ProviderMap
 from reporting.provider.aws.models import (
     AWSComputeSummary,
@@ -47,7 +48,7 @@ class AWSProviderMap(ProviderMap):
         """Constructor."""
         self._mapping = [
             {
-                'provider': 'AWS',
+                'provider': Provider.PROVIDER_AWS,
                 'alias': 'account_alias__account_alias',
                 'annotations': {
                     'account': 'usage_account_id',
