@@ -84,3 +84,7 @@ class AzureProviderTestCase(TestCase):
         obj = AzureProvider()
         self.assertEqual(obj.infra_key_list_implementation(FAKE.uuid4(),
                                                            FAKE.word()), [])
+                    
+    def test_add_provider_without_cost_export(self):
+        """Test that provider creation is not allowed when no cost export is set up"""
+        assert 0
