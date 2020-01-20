@@ -19,9 +19,9 @@
 import csv
 import io
 import logging
-from dateutil.parser import parse
 from decimal import Decimal
 
+from dateutil.parser import parse
 from tenant_schemas.utils import schema_context
 
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
