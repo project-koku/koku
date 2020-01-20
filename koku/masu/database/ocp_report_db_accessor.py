@@ -745,6 +745,21 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             end_date (datetime, str): The end_date to calculate monthly_cost.
 
         """
+        if isinstance(start_date, str):
+            start_date = parse(start_date)
+        if isinstance(end_date, str):
+            end_date = parse(end_date)
+        if not start_date:
+            # If start_date is not provided, recalculate from the first month
+            start_date = OCPUsageLineItemDailySummary.objects.aggregate(
+                Min('usage_start')
+            )['usage_start__min']
+        if not end_date:
+            # If end_date is not provided, recalculate till the latest month
+            end_date = OCPUsageLineItemDailySummary.objects.aggregate(
+                Max('usage_end')
+            )['usage_end__max']
+
         LOG.info('Populating Monthly cost from %s to %s.', start_date, end_date)
 
         first_month = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
