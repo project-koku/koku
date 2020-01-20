@@ -46,18 +46,18 @@ class ProviderSerializerTest(IamTestCase):
             user = serializer.save()
             request.user = user
         self.generic_providers = {
-            'OCP': {
+            Provider.PROVIDER_OCP: {
                 'name': 'test_provider',
-                'type': Provider.PROVIDER_OCP,
+                'type': Provider.PROVIDER_OCP.lower(),
                 'authentication': {
                     'credentials': {
                         'provider_resource_name': 'my-ocp-cluster-1'
                     }
                 }
             },
-            'AWS': {
+            Provider.PROVIDER_AWS: {
                 'name': 'test_provider',
-                'type': Provider.PROVIDER_AWS,
+                'type': Provider.PROVIDER_AWS.lower(),
                 'authentication': {
                     'credentials': {
                         'provider_resource_name': 'arn:aws:s3:::my_s3_bucket'
@@ -69,9 +69,9 @@ class ProviderSerializerTest(IamTestCase):
                     }
                 }
             },
-            'AZURE': {
+            Provider.PROVIDER_AZURE: {
                 'name': 'test_provider',
-                'type': Provider.PROVIDER_AZURE,
+                'type': Provider.PROVIDER_AZURE.lower(),
                 'authentication': {
                     'credentials': {
                         'subscription_id': '12345678-1234-5678-1234-567812345678',
@@ -93,7 +93,8 @@ class ProviderSerializerTest(IamTestCase):
         """Tests that adding all unique providers together is successful."""
         list_of_uuids = []
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
-            serializer = ProviderSerializer(data=self.generic_providers['AZURE'], context=self.request_context)
+            serializer = ProviderSerializer(data=self.generic_providers[Provider.PROVIDER_AZURE],
+                                            context=self.request_context)
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
             schema_name = serializer.data['customer'].get('schema_name')
@@ -102,7 +103,9 @@ class ProviderSerializerTest(IamTestCase):
             self.assertFalse('schema_name' in serializer.data['customer'])
             list_of_uuids.append(instance.uuid)
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
-            serializer = ProviderSerializer(data=self.generic_providers['AWS'], context=self.request_context)
+            serializer = ProviderSerializer(
+                data=self.generic_providers[Provider.PROVIDER_AWS],
+                context=self.request_context)
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
             schema_name = serializer.data['customer'].get('schema_name')
@@ -111,7 +114,9 @@ class ProviderSerializerTest(IamTestCase):
             self.assertFalse('schema_name' in serializer.data['customer'])
             list_of_uuids.append(instance.uuid)
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
-            serializer = ProviderSerializer(data=self.generic_providers['OCP'], context=self.request_context)
+            serializer = ProviderSerializer(
+                data=self.generic_providers[Provider.PROVIDER_OCP],
+                context=self.request_context)
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
             schema_name = serializer.data['customer'].get('schema_name')
@@ -126,7 +131,7 @@ class ProviderSerializerTest(IamTestCase):
     def test_create_provider_fails_user(self):
         """Test creating a provider fails with no user."""
         provider = {'name': 'test_provider',
-                    'type': Provider.PROVIDER_AWS,
+                    'type': Provider.PROVIDER_AWS.lower(),
                     'authentication': {
                         'provider_resource_name': 'arn:aws:s3:::my_s3_bucket'
                     },
@@ -141,7 +146,7 @@ class ProviderSerializerTest(IamTestCase):
     def test_create_provider_fails_customer(self):  # pylint: disable=C0103
         """Test creating a provider where customer is not found for user."""
         provider = {'name': 'test_provider',
-                    'type': Provider.PROVIDER_AWS,
+                    'type': Provider.PROVIDER_AWS.lower(),
                     'authentication': {
                         'provider_resource_name': 'arn:aws:s3:::my_s3_bucket'
                     },
@@ -160,7 +165,7 @@ class ProviderSerializerTest(IamTestCase):
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = 'my_s3_bucket'
         provider = {'name': 'test_provider',
-                    'type': Provider.PROVIDER_AWS,
+                    'type': Provider.PROVIDER_AWS.lower(),
                     'authentication': {
                         'provider_resource_name': iam_arn
                     },
@@ -184,7 +189,7 @@ class ProviderSerializerTest(IamTestCase):
         """Test creating an OCP provider."""
         cluster_id = 'my-ocp-cluster-1'
         provider = {'name': 'test_provider',
-                    'type': Provider.PROVIDER_OCP,
+                    'type': Provider.PROVIDER_OCP.lower(),
                     'authentication': {
                         'provider_resource_name': cluster_id
                     }}
@@ -205,7 +210,7 @@ class ProviderSerializerTest(IamTestCase):
         """Test creating an OCP Source when the provider already exists."""
         cluster_id = 'my-ocp-cluster-1'
         provider = {'name': 'test_provider',
-                    'type': Provider.PROVIDER_OCP,
+                    'type': Provider.PROVIDER_OCP.lower(),
                     'authentication': {
                         'provider_resource_name': cluster_id
                     }}
@@ -256,7 +261,7 @@ class ProviderSerializerTest(IamTestCase):
     def test_create_provider_with_credentials_and_data_source(self):
         """Test creating a provider with data_source field instead of bucket."""
         provider = {'name': 'test_provider',
-                    'type': Provider.PROVIDER_AWS,
+                    'type': Provider.PROVIDER_AWS.lower(),
                     'authentication': {
                         'credentials': {'one': 'two', 'three': 'four'}
                     },
@@ -280,7 +285,7 @@ class ProviderSerializerTest(IamTestCase):
         """Test creating a provider with credentials and provider_resource_name fields should fail."""
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         provider = {'name': 'test_provider',
-                    'type': Provider.PROVIDER_AWS,
+                    'type': Provider.PROVIDER_AWS.lower(),
                     'authentication': {
                         'credentials': {'one': 'two', 'three': 'four'},
                         'provider_resource_name': iam_arn
@@ -300,7 +305,7 @@ class ProviderSerializerTest(IamTestCase):
         """Test creating a provider with data_source and bucket fields should fail."""
         bucket_name = 'my_s3_bucket'
         provider = {'name': 'test_provider',
-                    'type': Provider.PROVIDER_AWS,
+                    'type': Provider.PROVIDER_AWS.lower(),
                     'authentication': {
                         'credentials': {'one': 'two', 'three': 'four'}
                     },
@@ -321,7 +326,7 @@ class ProviderSerializerTest(IamTestCase):
         cluster_id = 'my-ocp-cluster-1'
         provider = {
             'name': 'test_provider_one',
-            'type': Provider.PROVIDER_OCP,
+            'type': Provider.PROVIDER_OCP.lower(),
             'authentication': {
                 'provider_resource_name': cluster_id
             },
@@ -359,7 +364,7 @@ class ProviderSerializerTest(IamTestCase):
 
         provider = {
             'name': FAKE.word(),
-            'type': Provider.PROVIDER_AZURE,
+            'type': Provider.PROVIDER_AZURE.lower(),
             'authentication': {'credentials': credentials},
             'billing_source': {'data_source': source_name}
         }
@@ -381,7 +386,7 @@ class ProviderSerializerTest(IamTestCase):
 
         provider = {
             'name': FAKE.word(),
-            'type': Provider.PROVIDER_AZURE,
+            'type': Provider.PROVIDER_AZURE.lower(),
             'authentication': credentials,
             'billing_source': {'data_source': source_name}
         }
@@ -394,7 +399,7 @@ class ProviderSerializerTest(IamTestCase):
         """Test that the same blank billing entry is used for all OCP providers."""
         provider = {
             'name': 'test_provider_one',
-            'type': Provider.PROVIDER_GCP,
+            'type': Provider.PROVIDER_GCP.lower(),
             'authentication': {
                 'credentials': {'project_id': 'gcp_project'}
             },
@@ -420,7 +425,7 @@ class ProviderSerializerTest(IamTestCase):
         """Test the data_source.bucket validation for GCP provider."""
         provider = {
             'name': 'test_provider_val_data_source',
-            'type': Provider.PROVIDER_GCP,
+            'type': Provider.PROVIDER_GCP.lower(),
             'authentication': {
                 'credentials': {'project_id': 'gcp_project'}
             },
@@ -443,7 +448,7 @@ class ProviderSerializerTest(IamTestCase):
         """Test the data_source.report_prefix validation for GCP provider."""
         provider = {
             'name': 'test_provider_val_data_source',
-            'type': Provider.PROVIDER_GCP,
+            'type': Provider.PROVIDER_GCP.lower(),
             'authentication': {
                 'credentials': {'project_id': 'gcp_project'}
             },
@@ -469,7 +474,7 @@ class ProviderSerializerTest(IamTestCase):
         """Test that the same blank billing entry is used for all OCP providers."""
         provider = {
             'name': 'test_provider_one',
-            'type': Provider.PROVIDER_GCP,
+            'type': Provider.PROVIDER_GCP.lower(),
             'authentication': {
                 'credentials': {'project_id': 'gcp_project'}
             },
@@ -526,7 +531,7 @@ class AdminProviderSerializerTest(IamTestCase):
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = 'my_s3_bucket'
         provider = {'name': 'test_provider',
-                    'type': Provider.PROVIDER_AWS,
+                    'type': Provider.PROVIDER_AWS.lower(),
                     'authentication': {
                         'provider_resource_name': iam_arn
                     },

@@ -6,6 +6,7 @@ from faker import Faker
 from google.cloud.exceptions import GoogleCloudError
 from rest_framework.serializers import ValidationError
 
+from api.models import Provider
 from providers.gcp.provider import GCPProvider
 
 FAKE = Faker()
@@ -17,7 +18,7 @@ class GCPProviderTestCase(TestCase):
     def test_name(self):
         """Test name property."""
         provider = GCPProvider()
-        self.assertEqual(provider.name(), 'GCP')
+        self.assertEqual(provider.name(), Provider.PROVIDER_GCP)
 
     @patch('providers.gcp.provider.storage')
     def test_cost_usage_source_is_reachable_valid(self, mock_storage):

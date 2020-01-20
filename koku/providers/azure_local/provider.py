@@ -20,6 +20,7 @@ import logging
 from django.utils.translation import ugettext as _
 from rest_framework.serializers import ValidationError
 
+from api.models import Provider
 from ..azure.provider import AzureProvider
 
 LOG = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ class AzureLocalProvider(AzureProvider):
 
     def name(self):
         """Return name of the provider."""
-        return 'AZURE-local'
+        return Provider.PROVIDER_AZURE_LOCAL
 
     def cost_usage_source_is_reachable(self, credential_name,
                                        storage_resource_name):

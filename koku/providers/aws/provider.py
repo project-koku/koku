@@ -23,6 +23,7 @@ from django.utils.translation import ugettext as _
 from requests.exceptions import ConnectionError as BotoConnectionError
 from rest_framework import serializers   # meh
 
+from api.models import Provider
 from ..provider_interface import ProviderInterface
 
 LOG = logging.getLogger(__name__)
@@ -124,7 +125,7 @@ class AWSProvider(ProviderInterface):
 
     def name(self):
         """Return name of the provider."""
-        return 'AWS'
+        return Provider.PROVIDER_AWS
 
     def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
         """Verify that the S3 bucket exists and is reachable."""

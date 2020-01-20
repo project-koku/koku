@@ -19,6 +19,7 @@
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.models import Provider
 from api.provider.test import create_generic_provider
 from api.report.ocp_aws.query_handler import OCPAWSReportQueryHandler
 from api.report.ocp_aws.view import (
@@ -79,7 +80,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
         self.dh = DateHelper()
-        _, self.provider = create_generic_provider('OCP', self.headers)
+        _, self.provider = create_generic_provider(Provider.PROVIDER_OCP, self.headers)
 
         self.this_month_filter = {'usage_start__gte': self.dh.this_month_start}
         self.ten_day_filter = {'usage_start__gte': self.dh.n_days_ago(self.dh.today, 9)}

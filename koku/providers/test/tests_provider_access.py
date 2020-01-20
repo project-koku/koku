@@ -22,6 +22,7 @@ from django.test import TestCase
 from django.utils.translation import ugettext as _
 from rest_framework.serializers import ValidationError
 
+from api.models import Provider
 from providers.aws.provider import AWSProvider
 from providers.aws_local.provider import AWSLocalProvider
 from providers.azure.provider import AzureProvider
@@ -43,33 +44,33 @@ class ProviderAccessorTestCase(TestCase):
 
     def test_establish_aws_provider(self):
         """Verify that an aws service is created."""
-        provider_name = 'AWS'
+        provider_name = Provider.PROVIDER_AWS
         interface = ProviderAccessor(provider_name)
         self.assertIsNotNone(interface.service)
 
     def test_establish_ocp_provider(self):
         """Verify that an ocp service is created."""
-        provider_name = 'OCP'
+        provider_name = Provider.PROVIDER_OCP
         interface = ProviderAccessor(provider_name)
         self.assertIsNotNone(interface.service)
 
     def test_establish_aws_local_provider(self):
         """Verify that AWS local provider is created."""
-        provider_name = 'AWS-local'
+        provider_name = Provider.PROVIDER_AWS_LOCAL
         interface = ProviderAccessor(provider_name)
         self.assertIsNotNone(interface.service)
         self.assertTrue(isinstance(interface.service, AWSLocalProvider))
 
     def test_establish_azure_provider(self):
         """Verify that AZURE provider is created."""
-        provider_name = 'AZURE'
+        provider_name = Provider.PROVIDER_AZURE
         interface = ProviderAccessor(provider_name)
         self.assertIsNotNone(interface.service)
         self.assertTrue(isinstance(interface.service, AzureProvider))
 
     def test_establish_azure_local_provider(self):
         """Verify that AZURE local provider is created."""
-        provider_name = 'AZURE-local'
+        provider_name = Provider.PROVIDER_AZURE_LOCAL
         interface = ProviderAccessor(provider_name)
         self.assertIsNotNone(interface.service)
         self.assertTrue(isinstance(interface.service, AzureLocalProvider))
@@ -94,7 +95,7 @@ class ProviderAccessorTestCase(TestCase):
 
     def test_usage_source_ready(self):
         """Get status of cost usage source."""
-        provider = 'AWS'
+        provider = Provider.PROVIDER_AWS
         interface = ProviderAccessor(provider)
 
         credential = 'arn:aws:s3:::my_s3_bucket'
@@ -107,7 +108,7 @@ class ProviderAccessorTestCase(TestCase):
 
     def test_availability_status(self):
         """Get availability_status for a provider."""
-        provider = 'AWS'
+        provider = Provider.PROVIDER_AWS
         interface = ProviderAccessor(provider)
 
         credential = 'arn:aws:s3:::my_s3_bucket'
@@ -129,7 +130,7 @@ class ProviderAccessorTestCase(TestCase):
 
         detail_msg = 'Error Msg'
         mock_error = ValidationError(error_obj('err.key', detail_msg))
-        provider = 'AWS'
+        provider = Provider.PROVIDER_AWS
         interface = ProviderAccessor(provider)
 
         credential = 'arn:aws:s3:::my_s3_bucket'

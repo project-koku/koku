@@ -2,6 +2,7 @@
 from django.test import TestCase
 from rest_framework.exceptions import ValidationError
 
+from api.models import Provider
 from providers.gcp_local.provider import GCPLocalProvider
 
 
@@ -11,7 +12,7 @@ class GCPLocalProviderTestCase(TestCase):
     def test_get_name(self):
         """Get name of provider."""
         provider = GCPLocalProvider()
-        self.assertEqual(provider.name(), 'GCP-local')
+        self.assertEqual(provider.name(), Provider.PROVIDER_GCP_LOCAL)
 
     def test_cost_usage_source_is_reachable(self):
         """Verify that the file where local gcp ifles are stored is reachable."""

@@ -5,6 +5,7 @@ from google.cloud import storage
 from google.cloud.exceptions import GoogleCloudError
 from rest_framework import serializers
 
+from api.models import Provider
 from ..provider_interface import ProviderInterface, error_obj
 
 LOG = logging.getLogger(__name__)
@@ -15,7 +16,7 @@ class GCPProvider(ProviderInterface):
 
     def name(self):
         """Return name of the provider."""
-        return 'GCP'
+        return Provider.PROVIDER_GCP
 
     def cost_usage_source_is_reachable(self, credential_name, data_source):
         """
