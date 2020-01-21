@@ -91,7 +91,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
     found from the user tied to a request.
     """
 
-    def process_exception(self, request, exception):
+    def process_exception(self, request, exception):  # pylint: disable=R0201,R1710
         """Raise 424 on InterfaceError."""
         if isinstance(exception, InterfaceError):
             LOG.error('TenantMiddleware InterfaceError exception: %s', exception)
