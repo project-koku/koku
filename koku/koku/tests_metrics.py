@@ -22,6 +22,7 @@ from unittest.mock import Mock, patch
 
 from django.db import OperationalError
 from faker import Faker
+from prometheus_client import REGISTRY
 
 from api.iam.test.iam_test_case import IamTestCase
 from koku.metrics import DatabaseStatus, collect_metrics
@@ -40,15 +41,29 @@ class DatabaseStatusTest(IamTestCase):
         with self.assertLogs(logger='koku.metrics', level=logging.DEBUG):
             DatabaseStatus().connection_check()
 
-    @patch('koku.metrics.DB_CONNECTION_ERRORS.inc')
     @patch('koku.metrics.connection')
-    def test_db_is_not_connected(self, mock_connection, mock_counter):
+    def test_db_is_not_connected(self, mock_connection):
         """Test that db is not connected, log at ERROR level and counter increments."""
         mock_connection.cursor.side_effect = OperationalError('test exception')
         logging.disable(logging.NOTSET)
+        before = REGISTRY.get_sample_value('db_connection_errors_total')
         with self.assertLogs(logger='koku.metrics', level=logging.ERROR):
             DatabaseStatus().connection_check()
-        self.assertTrue(mock_counter.called)
+        after = REGISTRY.get_sample_value('db_connection_errors_total')
+        self.assertEqual(1, after - before)
+
+    @patch('koku.metrics.DatabaseStatus.collect')
+    def test_celery_task(self, mock_collect):
+        """Test celery task to increment prometheus counter."""
+        logging.disable(logging.NOTSET)
+        before = REGISTRY.get_sample_value('db_connection_errors_total')
+        with mock.patch('django.db.backends.utils.CursorWrapper') as mock_cursor:
+            mock_cursor.side_effect = OperationalError('test exception')
+            mock_collect.return_value = []
+            task = collect_metrics.s().apply()
+            self.assertTrue(task.successful())
+        after = REGISTRY.get_sample_value('db_connection_errors_total')
+        self.assertEqual(1, after - before)
 
     @patch('koku.metrics.DatabaseStatus.query', return_value=True)
     def test_schema_size(self, mock_status):

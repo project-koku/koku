@@ -20,11 +20,14 @@ import time
 
 from celery.utils.log import get_task_logger
 from django.db import InterfaceError, OperationalError, connection
-from prometheus_client import Gauge
+from prometheus_client import Counter, Gauge
 
 from .celery import app
 
 LOG = get_task_logger(__name__)
+DB_CONNECTION_ERRORS_COUNTER = Counter(
+    'db_connection_errors', 'Number of DB connection errors'
+)
 PGSQL_GAUGE = Gauge(
     'postgresql_schema_size_bytes', 'PostgreSQL DB Size (bytes)', ['schema']
 )
@@ -32,6 +35,15 @@ PGSQL_GAUGE = Gauge(
 
 class DatabaseStatus:
     """Database status information."""
+
+    def connection_check(self):  # pylint: disable=R0201
+        """Check DB connection."""
+        try:
+            connection.cursor()
+            LOG.debug('DatabaseStatus.connection_check: DB connected!')
+        except OperationalError as error:
+            LOG.error('DatabaseStatus.connection_check: No connection to DB: %s', str(error))
+            DB_CONNECTION_ERRORS_COUNTER.inc()
 
     def query(self, query, query_tag):  # pylint: disable=R0201
         """Execute a SQL query, format the results.
@@ -125,4 +137,5 @@ class DatabaseStatus:
 def collect_metrics():
     """Collect DB metrics with scheduled celery task."""
     db_status = DatabaseStatus()
+    db_status.connection_check()
     db_status.collect()
