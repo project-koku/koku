@@ -55,7 +55,6 @@ class DatabaseStatusTest(IamTestCase):
     @patch('koku.metrics.DatabaseStatus.collect')
     def test_celery_task(self, mock_collect):
         """Test celery task to increment prometheus counter."""
-        logging.disable(logging.NOTSET)
         before = REGISTRY.get_sample_value('db_connection_errors_total')
         with mock.patch('django.db.backends.utils.CursorWrapper') as mock_cursor:
             mock_cursor.side_effect = OperationalError('test exception')
