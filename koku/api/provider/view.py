@@ -142,7 +142,9 @@ class ProviderViewSet(mixins.CreateModelMixin,
     def create(self, request, *args, **kwargs):
         """Create a Provider."""
         provider_type = request.data.get('type')
-        if provider_type and Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower()):
+        if (provider_type
+                and Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower())
+                and provider_type != provider_type.lower()):
             request.data['type'] = request.data.get('type', '').lower()
         return super().create(request=request, args=args, kwargs=kwargs)
 
@@ -150,7 +152,9 @@ class ProviderViewSet(mixins.CreateModelMixin,
     def update(self, request, *args, **kwargs):
         """Update a Provider."""
         provider_type = request.data.get('type')
-        if provider_type and Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower()):
+        if (provider_type
+                and Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower())
+                and provider_type != provider_type.lower()):
             request.data['type'] = provider_type.lower()
         if request.method == 'PATCH':
             raise ProviderMethodException('PATCH not supported')
