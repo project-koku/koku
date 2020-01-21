@@ -103,7 +103,11 @@ class AzureProvider(ProviderInterface):
         except (AdalError, AzureException, ClientException, TypeError) as exc:
             raise ValidationError(error_obj(key, str(exc)))
         try:
-            describe_cost_management_exports()
+            #import pdb
+            #pdb.set_trace()
+            from masu.external.downloader.azure.azure_service import AzureService
+            azure_service = AzureService(credential_name.get('subscription_id', {}), credential_name.get('tenant_id', {}), credential_name.get('client_id', {}), credential_name.get('client_secret', {}), storage_resource_name.get('resource_group', {}), storage_resource_name.get('storage_account', {}))
+            azure_service.describe_cost_management_exports()
         except Exception as exc:
             raise ValidationError(error_obj(key, 'No cost report found' + str(exc)))
 
