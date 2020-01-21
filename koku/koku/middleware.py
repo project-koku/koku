@@ -201,11 +201,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         if not is_hybrid_cloud and not is_cost_management:
             raise PermissionDenied()
 
+        account = json_rh_auth.get('identity', {}).get('account_number')
         user = json_rh_auth.get('identity', {}).get('user', {})
         username = user.get('username')
         email = user.get('email')
-        account = json_rh_auth.get('identity', {}).get('account_number')
-        is_admin = json_rh_auth.get('identity', {}).get('user', {}).get('is_org_admin')
+        is_admin = user.get('is_org_admin')
         if (username and email and account):
             # Check for customer creation & user creation
             query_string = ''
