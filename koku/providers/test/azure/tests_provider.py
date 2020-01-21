@@ -84,9 +84,8 @@ class AzureProviderTestCase(TestCase):
         obj = AzureProvider()
         self.assertEqual(obj.infra_key_list_implementation(FAKE.uuid4(),
                                                            FAKE.word()), [])
-
-    #@patch.object(AzureProvider, 'cost_usage_source_is_reachable', return_value=['foo'])  
-    @patch('AzureService')  
+ 
+    @patch('AzureService', describe_cost_management_export, return_value=[])  
     def test_cost_usage_source_reachable_without_cost_export(self, obj):
         """Test that cost_usage_source_is_reachable raises an exception when the describe_cost_management_export list returns no items in it's array."""
         # blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
