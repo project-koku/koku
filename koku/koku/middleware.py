@@ -33,25 +33,37 @@ from tenant_schemas.middleware import BaseTenantMiddleware
 from api.common import RH_IDENTITY_HEADER
 from api.iam.models import Customer, Tenant, User
 from api.iam.serializers import UserSerializer, create_schema_name, extract_header
-from koku.rbac import RbacService
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
+from koku.rbac import RbacService
 
 
 LOG = logging.getLogger(__name__)  # pylint: disable=invalid-name
-unique_account_counter = Counter('hccm_unique_account',  # pylint: disable=invalid-name
-                                 'Unique Account Counter')
-unique_user_counter = Counter('hccm_unique_user',  # pylint: disable=invalid-name
-                              'Unique User Counter',
-                              ['account', 'user'])
+UNIQUE_ACCOUNT_COUNTER = Counter(
+    'hccm_unique_account', 'Unique Account Counter'  # pylint: disable=invalid-name
+)
+UNIQUE_USER_COUNTER = Counter(
+    'hccm_unique_user',  # pylint: disable=invalid-name
+    'Unique User Counter',
+    ['account', 'user'],
+)
 
 
 def is_no_auth(request):
     """Check condition for needing to authenticate the user."""
-    no_auth_list = ['status', 'metrics', 'openapi.json',
-                    'download', 'report_data', 'expired_data', 'update_charge',
-                    'upload_normalized_data',
-                    'authentication', 'billing_source', 'cloud-accounts',
-                    'sources']
+    no_auth_list = [
+        'status',
+        'metrics',
+        'openapi.json',
+        'download',
+        'report_data',
+        'expired_data',
+        'update_charge',
+        'upload_normalized_data',
+        'authentication',
+        'billing_source',
+        'cloud-accounts',
+        'sources',
+    ]
     no_auth = any(no_auth_path in request.path for no_auth_path in no_auth_list)
     return no_auth
 
@@ -129,7 +141,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
                 customer.save()
                 tenant = Tenant(schema_name=schema_name)
                 tenant.save()
-                unique_account_counter.inc()
+                UNIQUE_ACCOUNT_COUNTER.inc()
                 LOG.info('Created new customer from account_id %s.', account)
         except IntegrityError:
             customer = Customer.objects.filter(account_id=account).get()
@@ -159,9 +171,14 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
                 if serializer.is_valid(raise_exception=True):
                     new_user = serializer.save()
 
-                unique_user_counter.labels(account=customer.account_id, user=username).inc()
-                LOG.info('Created new user %s for customer(account_id %s).',
-                            username, customer.account_id)
+                UNIQUE_USER_COUNTER.labels(
+                    account=customer.account_id, user=username
+                ).inc()
+                LOG.info(
+                    'Created new user %s for customer(account_id %s).',
+                    username,
+                    customer.account_id,
+                )
         except (IntegrityError, ValidationError):
             new_user = User.objects.get(username=username)
         return new_user
@@ -194,10 +211,16 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             LOG.error('Error decoding authentication header: %s', str(error))
             raise PermissionDenied()
 
-        is_cost_management = json_rh_auth.get(
-            'entitlements', {}).get('cost_management', {}).get('is_entitled', False)
-        is_hybrid_cloud = json_rh_auth.get(
-            'entitlements', {}).get('hybrid_cloud', {}).get('is_entitled', False)
+        is_cost_management = (
+            json_rh_auth.get('entitlements', {})
+            .get('cost_management', {})
+            .get('is_entitled', False)
+        )
+        is_hybrid_cloud = (
+            json_rh_auth.get('entitlements', {})
+            .get('hybrid_cloud', {})
+            .get('is_entitled', False)
+        )
         if not is_hybrid_cloud and not is_cost_management:
             raise PermissionDenied()
 
@@ -206,7 +229,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         username = user.get('username')
         email = user.get('email')
         is_admin = user.get('is_org_admin')
-        if (username and email and account):
+        if username and email and account:
             # Check for customer creation & user creation
             query_string = ''
             if request.META['QUERY_STRING']:
@@ -228,15 +251,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             try:
                 user = User.objects.get(username=username)
             except User.DoesNotExist:
-                user = IdentityHeaderMiddleware._create_user(username,
-                                                             email,
-                                                             customer,
-                                                             request)
+                user = IdentityHeaderMiddleware._create_user(
+                    username, email, customer, request
+                )
 
-            user.identity_header = {
-                'encoded': rh_auth_header,
-                'decoded': json_rh_auth
-            }
+            user.identity_header = {'encoded': rh_auth_header, 'decoded': json_rh_auth}
             user.admin = is_admin
 
             cache = caches['rbac']
