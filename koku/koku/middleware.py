@@ -18,12 +18,13 @@
 """Custom Koku Middleware."""
 import binascii
 import logging
+from http import HTTPStatus
 from json.decoder import JSONDecodeError
 
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.db.utils import IntegrityError, OperationalError
+from django.db.utils import IntegrityError, InterfaceError, OperationalError
 from django.http import HttpResponse
 from django.utils.deprecation import MiddlewareMixin
 from prometheus_client import Counter
@@ -37,12 +38,12 @@ from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 from koku.rbac import RbacService
 
 
-LOG = logging.getLogger(__name__)  # pylint: disable=invalid-name
+LOG = logging.getLogger(__name__)
 UNIQUE_ACCOUNT_COUNTER = Counter(
-    'hccm_unique_account', 'Unique Account Counter'  # pylint: disable=invalid-name
+    'hccm_unique_account', 'Unique Account Counter'
 )
 UNIQUE_USER_COUNTER = Counter(
-    'hccm_unique_user',  # pylint: disable=invalid-name
+    'hccm_unique_user',
     'Unique User Counter',
     ['account', 'user'],
 )
@@ -74,7 +75,12 @@ class HttpResponseUnauthorizedRequest(HttpResponse):
     Used if identity header is not sent.
     """
 
-    status_code = 401
+    status_code = HTTPStatus.UNAUTHORIZED
+
+class HttpResponseFailedDependency(HttpResponse):
+    """A subclass of HttpResponse to return a 424."""
+
+    status_code = HTTPStatus.FAILED_DEPENDENCY
 
 
 class KokuTenantMiddleware(BaseTenantMiddleware):
@@ -83,6 +89,12 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
     Determines which schema to use based on the customer's schema
     found from the user tied to a request.
     """
+
+    def process_exception(self, request, exception):
+        """Raise 424 on InterfaceError."""
+        if isinstance(exception, InterfaceError):
+            LOG.error('TenantMiddleware InterfaceError exception: %s', exception)
+            return HttpResponseFailedDependency()
 
     def process_request(self, request):  # pylint: disable=R1710
         """Check before super."""
