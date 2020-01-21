@@ -82,6 +82,7 @@ class AzureProvider(ProviderInterface):
 
         """
         key = 'billing_source.bucket'
+        
 
         if not (isinstance(credential_name, dict)
                 and isinstance(storage_resource_name, dict)):
@@ -101,6 +102,10 @@ class AzureProvider(ProviderInterface):
                                                               storage_account)
         except (AdalError, AzureException, ClientException, TypeError) as exc:
             raise ValidationError(error_obj(key, str(exc)))
+        try:
+            describe_cost_management_exports()
+        except Exception as exc:
+            raise ValidationError(error_obj(key, 'No cost report found' + str(exc)))
 
         return True
 

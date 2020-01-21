@@ -84,7 +84,23 @@ class AzureProviderTestCase(TestCase):
         obj = AzureProvider()
         self.assertEqual(obj.infra_key_list_implementation(FAKE.uuid4(),
                                                            FAKE.word()), [])
-                    
-    def test_add_provider_without_cost_export(self):
-        """Test that provider creation is not allowed when no cost export is set up"""
-        assert 0
+
+    #@patch.object(AzureProvider, 'cost_usage_source_is_reachable', return_value=['foo'])  
+    @patch('AzureService')  
+    def test_cost_usage_source_reachable_without_cost_export(self, obj):
+        """Test that cost_usage_source_is_reachable raises an exception when the describe_cost_management_export list returns no items in it's array."""
+        # blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
+        # create provider.
+        # call get_latest_cost_export_for_path
+        # get same error here.
+        """Create AzureProvider and call cost_usage_source_is_reachable"""
+        credentials = {'subscription_id': FAKE.uuid4(),
+                       'tenant_id': FAKE.uuid4(),
+                       'client_id': FAKE.uuid4(),
+                       'client_secret': FAKE.word()}
+        source_name = {'resource_group': FAKE.word(),
+                       'storage_account': FAKE.word()}
+        #obj = AzureProvider()
+
+        with self.assertRaisesMessage(Exception, "Could not create provider because no export is set up."):
+            obj.cost_usage_source_is_reachable(credentials, source_name)
