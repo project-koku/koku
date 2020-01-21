@@ -20,7 +20,7 @@ import time
 
 from celery.utils.log import get_task_logger
 from django.db import InterfaceError, OperationalError, connection
-from prometheus_client import Counter, Gauge
+from prometheus_client import Gauge
 
 from .celery import app
 
