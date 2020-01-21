@@ -77,6 +77,7 @@ class HttpResponseUnauthorizedRequest(HttpResponse):
 
     status_code = HTTPStatus.UNAUTHORIZED
 
+
 class HttpResponseFailedDependency(HttpResponse):
     """A subclass of HttpResponse to return a 424."""
 
