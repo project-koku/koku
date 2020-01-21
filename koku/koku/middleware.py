@@ -23,7 +23,7 @@ from json.decoder import JSONDecodeError
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.db.utils import IntegrityError
+from django.db.utils import IntegrityError, OperationalError
 from django.http import HttpResponse
 from django.utils.deprecation import MiddlewareMixin
 from prometheus_client import Counter
@@ -34,9 +34,10 @@ from api.common import RH_IDENTITY_HEADER
 from api.iam.models import Customer, Tenant, User
 from api.iam.serializers import UserSerializer, create_schema_name, extract_header
 from koku.rbac import RbacService
+from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 
 
-logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+LOG = logging.getLogger(__name__)  # pylint: disable=invalid-name
 unique_account_counter = Counter('hccm_unique_account',  # pylint: disable=invalid-name
                                  'Unique Account Counter')
 unique_user_counter = Counter('hccm_unique_user',  # pylint: disable=invalid-name
@@ -129,7 +130,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
                 tenant = Tenant(schema_name=schema_name)
                 tenant.save()
                 unique_account_counter.inc()
-                logger.info('Created new customer from account_id %s.', account)
+                LOG.info('Created new customer from account_id %s.', account)
         except IntegrityError:
             customer = Customer.objects.filter(account_id=account).get()
 
@@ -159,7 +160,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
                     new_user = serializer.save()
 
                 unique_user_counter.labels(account=customer.account_id, user=username).inc()
-                logger.info('Created new user %s for customer(account_id %s).',
+                LOG.info('Created new user %s for customer(account_id %s).',
                             username, customer.account_id)
         except (IntegrityError, ValidationError):
             new_user = User.objects.get(username=username)
@@ -186,22 +187,25 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             return
         try:
             rh_auth_header, json_rh_auth = extract_header(request, self.header)
-            username = json_rh_auth.get('identity', {}).get('user', {}).get('username')
-            email = json_rh_auth.get('identity', {}).get('user', {}).get('email')
-            account = json_rh_auth.get('identity', {}).get('account_number')
-            is_admin = json_rh_auth.get('identity', {}).get('user', {}).get('is_org_admin')
-            is_cost_management = json_rh_auth.get(
-                'entitlements', {}).get('cost_management', {}).get('is_entitled', False)
-            is_hybrid_cloud = json_rh_auth.get(
-                'entitlements', {}).get('hybrid_cloud', {}).get('is_entitled', False)
-            if not is_hybrid_cloud and not is_cost_management:
-                raise PermissionDenied()
         except (KeyError, JSONDecodeError):
-            logger.warning('Could not obtain identity on request.')
+            LOG.warning('Could not obtain identity on request.')
             return
         except binascii.Error as error:
-            logger.error('Error decoding authentication header: %s', str(error))
+            LOG.error('Error decoding authentication header: %s', str(error))
             raise PermissionDenied()
+
+        is_cost_management = json_rh_auth.get(
+            'entitlements', {}).get('cost_management', {}).get('is_entitled', False)
+        is_hybrid_cloud = json_rh_auth.get(
+            'entitlements', {}).get('hybrid_cloud', {}).get('is_entitled', False)
+        if not is_hybrid_cloud and not is_cost_management:
+            raise PermissionDenied()
+
+        user = json_rh_auth.get('identity', {}).get('user', {})
+        username = user.get('username')
+        email = user.get('email')
+        account = json_rh_auth.get('identity', {}).get('account_number')
+        is_admin = json_rh_auth.get('identity', {}).get('user', {}).get('is_org_admin')
         if (username and email and account):
             # Check for customer creation & user creation
             query_string = ''
@@ -211,11 +215,15 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
                 f'API: {request.path}{query_string}'
                 f' -- ACCOUNT: {account} USER: {username}'
             )
-            logger.info(stmt)
+            LOG.info(stmt)
             try:
                 customer = Customer.objects.filter(account_id=account).get()
             except Customer.DoesNotExist:
                 customer = IdentityHeaderMiddleware._create_customer(account)
+            except OperationalError as err:
+                LOG.error(err)
+                DB_CONNECTION_ERRORS_COUNTER.inc()
+                raise err
 
             try:
                 user = User.objects.get(username=username)
@@ -224,6 +232,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
                                                              email,
                                                              customer,
                                                              request)
+
             user.identity_header = {
                 'encoded': rh_auth_header,
                 'decoded': json_rh_auth
