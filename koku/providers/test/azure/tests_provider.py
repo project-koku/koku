@@ -87,6 +87,7 @@ class AzureProviderTestCase(TestCase):
  
     #@patch('providers.azure.provider.describe_cost_management_export', return_value=[])
     #@patch('providers.azure.provider.describe_cost_management_export', return_value=[]) 
+    #@patch('masu.external.downloader.azure.azure_report_downloader.AzureService')
     def test_cost_usage_source_reachable_without_cost_export(self):
         import pdb
         pdb.set_trace()
@@ -102,8 +103,13 @@ class AzureProviderTestCase(TestCase):
                        'client_secret': FAKE.word()}
         source_name = {'resource_group': FAKE.word(),
                        'storage_account': FAKE.word()}
-        #obj = AzureProvider()
+        azure_provider = AzureProvider()
 
-        with patch.object(AzureProvider, "__init__", lambda a, b, c, d, e, f, g, h: None):
+        #with patch.object(AzureService, "__init__", lambda a, b, c, d, e, f, g, h: None) as obj:
+        #from masu.external.downloader.azure.azure_report_downloader import AzureService
+        from masu.external.downloader.azure.azure_service import AzureService
+        with patch.object(AzureService, 'describe_cost_management_exports', return_value=[]) as mock_azure_service:
             with self.assertRaisesMessage(Exception, "Could not create provider because no export is set up."):
-                obj.cost_usage_source_is_reachable(credentials, source_name)
+                import pdb
+                pdb.set_trace()
+                azure_provider.cost_usage_source_is_reachable(credentials, source_name)

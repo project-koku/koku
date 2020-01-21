@@ -24,7 +24,7 @@ from rest_framework.serializers import ValidationError
 from api.models import Provider
 from .client import AzureClientFactory
 from ..provider_interface import ProviderInterface
-
+from masu.external.downloader.azure.azure_service import AzureService
 
 def error_obj(key, message):
     """Create an error object."""
@@ -102,13 +102,9 @@ class AzureProvider(ProviderInterface):
                                                               storage_account)
         except (AdalError, AzureException, ClientException, TypeError) as exc:
             raise ValidationError(error_obj(key, str(exc)))
-        try:
-            #import pdb
-            #pdb.set_trace()
-            from masu.external.downloader.azure.azure_service import AzureService
-            azure_service = AzureService(credential_name.get('subscription_id', {}), credential_name.get('tenant_id', {}), credential_name.get('client_id', {}), credential_name.get('client_secret', {}), storage_resource_name.get('resource_group', {}), storage_resource_name.get('storage_account', {}))
-            azure_service.describe_cost_management_exports()
-        except Exception as exc:
+        
+        azure_service = AzureService(credential_name.get('subscription_id', {}), credential_name.get('tenant_id', {}), credential_name.get('client_id', {}), credential_name.get('client_secret', {}), storage_resource_name.get('resource_group', {}), storage_resource_name.get('storage_account', {}))
+        if not azure_service.describe_cost_management_exports():
             raise ValidationError(error_obj(key, 'No cost report found' + str(exc)))
 
         return True
