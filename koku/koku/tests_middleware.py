@@ -20,6 +20,7 @@ from unittest.mock import Mock, patch
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 from django.db.utils import OperationalError
+from rest_framework import status
 
 from api.iam.models import Customer, Tenant, User
 from api.iam.serializers import (UserSerializer)
@@ -203,8 +204,8 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         with self.assertRaises(PermissionDenied):
             middleware.process_request(mock_request)
 
-    def test_process_raises_operational_error(self):
-        """Test OperationalError is raised when db is down."""
+    def test_process_operational_error_return_424(self):
+        """Test OperationalError causes 424 Reponse."""
         user_data = self._create_user_data()
         customer = self._create_customer_data()
         request_context = self._create_request_context(customer, user_data,
@@ -220,5 +221,5 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
             mock_customer.filter.side_effect = OperationalError
 
             middleware = IdentityHeaderMiddleware()
-            with self.assertRaises(OperationalError):
-                middleware.process_request(mock_request)
+            response = middleware.process_request(mock_request)
+            self.assertEqual(response.status_code, status.HTTP_424_FAILED_DEPENDENCY)

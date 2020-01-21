@@ -20,6 +20,7 @@ from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import faker
+from django.db.utils import InterfaceError
 from django.urls import reverse
 from rest_framework import serializers
 from rest_framework import status
@@ -283,6 +284,15 @@ class ProviderViewTest(IamTestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]['uuid'], second_provider_uuid)
         self.assertEqual(len(results[0]['cost_models']), 0)
+
+    @patch('api.provider.view.ProviderViewSet.list')
+    def test_list_provider_exception_return_424(self, mocked_list):
+        """Test that 424 is returned when view raises InterfaceError."""
+        mocked_list.side_effect = InterfaceError('connection already closed')
+        url = reverse('provider-list')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_424_FAILED_DEPENDENCY)
 
     def test_get_provider(self):
         """Test get a provider."""

@@ -259,7 +259,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             except OperationalError as err:
                 LOG.error(err)
                 DB_CONNECTION_ERRORS_COUNTER.inc()
-                raise err
+                return HttpResponseFailedDependency()
 
             try:
                 user = User.objects.get(username=username)
