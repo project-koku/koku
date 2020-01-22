@@ -238,7 +238,7 @@ class ProviderSerializer(serializers.ModelSerializer):
 
         provider_type = None
         if data and data != empty:
-            provider_type = data.get('type')
+            provider_type = data.get('type').lower()
 
         if provider_type and provider_type.lower() not in LCASE_PROVIDER_CHOICE_LIST:
             key = 'type'
@@ -247,9 +247,9 @@ class ProviderSerializer(serializers.ModelSerializer):
 
         if provider_type:
             self.fields['authentication'] = AUTHENTICATION_SERIALIZERS.get(
-                Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower()))()
+                Provider.PROVIDER_CASE_MAPPING.get(provider_type))()
             self.fields['billing_source'] = BILLING_SOURCE_SERIALIZERS.get(
-                Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower()))(
+                Provider.PROVIDER_CASE_MAPPING.get(provider_type))(
                 default={'bucket': '', 'data_source': {'bucket': ''}}
             )
         else:
@@ -321,7 +321,7 @@ class ProviderSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
-        provider_type = validated_data['type']
+        provider_type = validated_data['type'].lower()
         provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type)
         validated_data['type'] = provider_type
         if instance.type != provider_type:

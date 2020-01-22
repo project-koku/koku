@@ -472,6 +472,15 @@ class ProviderViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(json_result.get('type'), Provider.PROVIDER_OCP)
 
+    def test_create_aws_type_lower_case(self):
+        """Test creating a provider with type camel cased."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn, provider_type='aws')
+        json_result = response.json()
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(json_result.get('type'), Provider.PROVIDER_AWS)
+
     @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
     def test_put_for_aws_provider(self, mock_access):
         """Test PUT update for AWS provider."""

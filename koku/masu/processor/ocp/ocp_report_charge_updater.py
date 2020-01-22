@@ -21,6 +21,7 @@ import io
 import logging
 from decimal import Decimal
 
+from dateutil.parser import parse
 from tenant_schemas.utils import schema_context
 
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -209,7 +210,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         LOG.info('Finished updating markup.')
 
     # pylint: disable=too-many-locals
-    def _update_pod_charge(self):
+    def _update_pod_charge(self, start_date, end_date):
         """Calculate and store total POD charges."""
         try:
             with CostModelDBAccessor(self._schema, self._provider_uuid,
@@ -221,10 +222,9 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
 
             with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
                 try:
-                    cpu_usage = report_accessor.get_pod_usage_cpu_core_hours(self._cluster_id)
+                    cpu_usage = report_accessor.get_pod_usage_cpu_core_hours(start_date, end_date, self._cluster_id)
                     cpu_usage_charge = self._calculate_charge(cpu_usage_rates, cpu_usage)
-
-                    cpu_request = report_accessor.get_pod_request_cpu_core_hours(self._cluster_id)
+                    cpu_request = report_accessor.get_pod_request_cpu_core_hours(start_date, end_date, self._cluster_id)
                     cpu_request_charge = self._calculate_charge(cpu_request_rates, cpu_request)
 
                     total_cpu_charge = self._aggregate_charges(cpu_usage_charge, cpu_request_charge)
@@ -237,11 +237,11 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
 
                 try:
                     mem_usage = report_accessor.\
-                        get_pod_usage_memory_gigabyte_hours(self._cluster_id)
+                        get_pod_usage_memory_gigabyte_hours(start_date, end_date, self._cluster_id)
                     mem_usage_charge = self._calculate_charge(mem_usage_rates, mem_usage)
 
                     mem_request = report_accessor.\
-                        get_pod_request_memory_gigabyte_hours(self._cluster_id)
+                        get_pod_request_memory_gigabyte_hours(start_date, end_date, self._cluster_id)
                     mem_request_charge = self._calculate_charge(mem_request_rates, mem_request)
 
                     total_memory_charge = self._aggregate_charges(mem_usage_charge,
@@ -257,7 +257,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         except OCPReportChargeUpdaterError as error:
             LOG.error('Unable to calculate charge. Error: %s', str(error))
 
-    def _update_storage_charge(self):
+    def _update_storage_charge(self, start_date, end_date):
         """Calculate and store the storage charges."""
         try:
             with CostModelDBAccessor(self._schema, self._provider_uuid,
@@ -267,12 +267,12 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
 
             with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
                 storage_usage = report_accessor.\
-                    get_persistentvolumeclaim_usage_gigabyte_months(self._cluster_id)
+                    get_persistentvolumeclaim_usage_gigabyte_months(start_date, end_date, self._cluster_id)
                 storage_usage_charge = self._calculate_charge(storage_usage_rates,
                                                               storage_usage)
 
                 storage_request = report_accessor.\
-                    get_volume_request_storage_gigabyte_months(self._cluster_id)
+                    get_volume_request_storage_gigabyte_months(start_date, end_date, self._cluster_id)
                 storage_request_charge = self._calculate_charge(storage_request_rates,
                                                                 storage_request)
                 total_storage_charge = self._aggregate_charges(storage_usage_charge,
@@ -284,7 +284,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         except OCPReportChargeUpdaterError as error:
             LOG.error('Unable to calculate storage usage charge. Error: %s', str(error))
 
-    def _update_monthly_cost(self, start_date=None, end_date=None):
+    def _update_monthly_cost(self, start_date, end_date):
         """Update the monthly cost for a period of time."""
         try:
             with CostModelDBAccessor(self._schema, self._provider_uuid,
@@ -308,7 +308,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         except OCPReportChargeUpdaterError as error:
             LOG.error('Unable to update monthly costs. Error: %s', str(error))
 
-    def update_summary_charge_info(self, start_date=None, end_date=None):
+    def update_summary_charge_info(self, start_date, end_date):
         """Update the OCP summary table with the charge information.
 
         Args:
@@ -319,12 +319,16 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
             None
 
         """
+        if isinstance(start_date, str):
+            start_date = parse(start_date)
+        if isinstance(end_date, str):
+            end_date = parse(end_date)
         self._cluster_id = get_cluster_id_from_provider(self._provider_uuid)
 
         LOG.info('Starting charge calculation updates for provider: %s. Cluster ID: %s.',
                  self._provider_uuid, self._cluster_id)
-        self._update_pod_charge()
-        self._update_storage_charge()
+        self._update_pod_charge(start_date, end_date)
+        self._update_storage_charge(start_date, end_date)
         self._update_markup_cost(start_date, end_date)
         self._update_monthly_cost(start_date, end_date)
 
