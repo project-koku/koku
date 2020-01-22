@@ -38,15 +38,15 @@ Unit testing log messages
 The logger is disabled by default during unit tests. If you are building a unit test that asserts log messages, you must re-enable the logger. For example::
 
     import logging
-    with self.assertLogs(logger='masu.external.downloader.aws.aws_report_downloader', 
+    with self.assertLogs(logger='masu.external.downloader.aws.aws_report_downloader',
     level='WARN') as cm:
                 logging.disable(logging.NOTSET)
                 self.aws_report_downloader._remove_manifest_file("None")
                 self.assertEqual(['WARN: Could not delete manifest file at'], cm.output)
 
 If you observe the following error when running the unit tests, it may be a false error. This can be due to some tests expecting the DEBUG setting to be TRUE::
-    
-    FAIL: test_delete_single_provider_skips_delete_archived_data_if_customer_is_none 
+
+    FAIL: test_delete_single_provider_skips_delete_archived_data_if_customer_is_none
     (api.provider.test.tests_models.ProviderModelTest)
     Assert the delete_archived_data task is not called if Customer is None.
     ----------------------------------------------------------------------
@@ -100,13 +100,13 @@ settings.local.yaml::
         default:
           username: user_dev@foo.com
           password: password
-   
+
 
 Smoke test::
 
     $ cd koku/testing
     $ ./run_smoke_tests.sh
-    
+
 
 Run specific unit tests
 -----------------------
@@ -139,7 +139,7 @@ PDB in IQE container
 --------------------
 
 Set the environment variable ENV_FOR_DYNACONF=local
-While IQE (the integration test suite) is running a docker container: 
+While IQE (the integration test suite) is running a docker container:
 
     Start a shell session in the docker container that runs IQE::
 
@@ -148,11 +148,11 @@ While IQE (the integration test suite) is running a docker container:
 The following command runs all QE api tests. The optional :code:`--pdb` flag will cause any failed test to automatically start a pdb session::
 
     iqe tests plugin hccm -k test_api --pdb
-    
+
 To run a subset of the above tests, for example only smoke tests::
 
     iqe tests plugin hccm -k test_api -m hccm_smoke --pdb
-    
+
 To run the vortex the tests::
 
     iqe tests plugin hccm -k test_api -m qa --pdb
@@ -161,8 +161,8 @@ To run a specific subset of the integration test suite, you can specify a single
 
 
     iqe tests plugin hccm -k test_api_aws_storage_filtered_top --pdb
-    
-The single test name above was found in the hccm plugin repo itself at https://gitlab.cee.redhat.com/insights-qe/hccm-plugin/blob/master/iqe_hccm/tests/rest_api/v1/test_aws_storage_reports.py#L245 
+
+The single test name above was found in the hccm plugin repo itself at https://gitlab.cee.redhat.com/insights-qe/hccm-plugin/blob/master/iqe_hccm/tests/rest_api/v1/test_aws_storage_reports.py#L245
 Any function definition name in this file can be passed in as the parameter for :code:`-k` to run specifically that test. To find more specific test names, search that repo for test function names.
 
 
@@ -171,9 +171,9 @@ Smoke testing with IQE
 
 Prerequisites:
 
-    - koku is running and accessible via the network 
+    - koku is running and accessible via the network
     - you are connected to the Red Hat internal network
-    
+
 For a quick start on smoke testing, continue to the section Running IQE in Docker below.
 Otherwise, for more in-depth information on IQE, see https://gitlab.cee.redhat.com/insights-qe/hccm-plugin/tree/master
 
