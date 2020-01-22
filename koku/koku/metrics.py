@@ -20,20 +20,32 @@ import time
 
 from celery.utils.log import get_task_logger
 from django.db import InterfaceError, OperationalError, connection
-from prometheus_client import Gauge
+from prometheus_client import Counter, Gauge
 
 from .celery import app
 
 LOG = get_task_logger(__name__)
-PGSQL_GAUGE = Gauge('postgresql_schema_size_bytes',
-                    'PostgreSQL DB Size (bytes)',
-                    ['schema'])
+DB_CONNECTION_ERRORS_COUNTER = Counter(
+    'db_connection_errors', 'Number of DB connection errors'
+)
+PGSQL_GAUGE = Gauge(
+    'postgresql_schema_size_bytes', 'PostgreSQL DB Size (bytes)', ['schema']
+)
 
 
-class DatabaseStatus():
+class DatabaseStatus:
     """Database status information."""
 
-    def query(self, query):  # pylint: disable=R0201
+    def connection_check(self):  # pylint: disable=R0201
+        """Check DB connection."""
+        try:
+            connection.cursor()
+            LOG.debug('DatabaseStatus.connection_check: DB connected!')
+        except OperationalError as error:
+            LOG.error('DatabaseStatus.connection_check: No connection to DB: %s', str(error))
+            DB_CONNECTION_ERRORS_COUNTER.inc()
+
+    def query(self, query, query_tag):  # pylint: disable=R0201
         """Execute a SQL query, format the results.
 
         Returns:
@@ -44,22 +56,29 @@ class DatabaseStatus():
             ]
 
         """
-        retries = 0
         rows = None
-        while retries < 3:
+        for _ in range(3):
             try:
                 with connection.cursor() as cursor:
                     cursor.execute(query)
                     rows = cursor.fetchall()
             except (OperationalError, InterfaceError) as exc:
-                LOG.warning(exc)
-                retries += 1
+                LOG.warning('DatabaseStatus.query exception: %s', exc)
                 time.sleep(2)
-                continue
-            break
+            else:
+                break
+        else:
+            LOG.error(
+                'DatabaseStatus.query (query: %s): Query failed to return results.',
+                query_tag,
+            )
+            return []
 
         if not rows:
-            LOG.error('Query failed to return results.')
+            LOG.info(
+                'DatabaseStatus.query (query: %s): Query returned no results.',
+                query_tag,
+            )
             return []
 
         # get column names
@@ -68,7 +87,7 @@ class DatabaseStatus():
         # transform list-of-lists into list-of-dicts including column names.
         result = [dict(zip(names, row)) for row in rows if len(row) == 2]
 
-        LOG.debug('Collected metrics returned.')
+        LOG.debug('DatabaseStatus.query (query: %s): query returned.', query_tag)
 
         return result
 
@@ -111,11 +130,12 @@ class DatabaseStatus():
             GROUP BY schema_name
             ORDER BY schema_name;
         """
-        return self.query(query)
+        return self.query(query, 'DB storage consumption')
 
 
 @app.task(name='koku.metrics.collect_metrics')
 def collect_metrics():
     """Collect DB metrics with scheduled celery task."""
     db_status = DatabaseStatus()
+    db_status.connection_check()
     db_status.collect()
