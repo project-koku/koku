@@ -128,6 +128,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
             super().process_request(request)
         except OperationalError as err:
             LOG.error('Request resulted in OperationalError: %s', err)
+            DB_CONNECTION_ERRORS_COUNTER.inc()
             return HttpResponseFailedDependency(
                 {'source': 'Database', 'exception': err}
             )
