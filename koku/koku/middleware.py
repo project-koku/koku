@@ -94,6 +94,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
     def process_exception(self, request, exception):  # pylint: disable=R0201,R1710
         """Raise 424 on InterfaceError."""
         if isinstance(exception, InterfaceError):
+            DB_CONNECTION_ERRORS_COUNTER.inc()
             LOG.error('TenantMiddleware InterfaceError exception: %s', exception)
             return HttpResponseFailedDependency()
 
