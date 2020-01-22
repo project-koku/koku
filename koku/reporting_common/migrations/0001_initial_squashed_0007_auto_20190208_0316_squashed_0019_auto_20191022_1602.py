@@ -136,7 +136,7 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             sql="""
             CREATE INDEX if not exists reporting_common_reportc_provider_column_name_e01eaba3_like ON public.reporting_common_reportcolumnmap USING btree (provider_column_name varchar_pattern_ops)
-,            """
+            """,
         ),
 
         migrations.CreateModel(

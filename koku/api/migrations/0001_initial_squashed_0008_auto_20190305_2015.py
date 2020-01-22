@@ -129,8 +129,8 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Provider',
             fields=[
-                ('id', models.AutoField(auto_created=True, serialize=False, verbose_name='ID')), # RESTORED THIS COL AFTER EXAMINING MASTER, PROD
-                ('uuid', models.UUIDField(default=uuid.uuid4, serialize=False)),
+                ('id', models.IntegerField(serialize=False, verbose_name='ID')), # RESTORED THIS COL AFTER EXAMINING MASTER, PROD
+                ('uuid', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('name', models.CharField(max_length=256)),
                 ('type', models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('Azure', 'Azure'), ('GCP', 'GCP'), ('AWS-local', 'AWS-local'), ('Azure-local', 'Azure-local'), ('GCP-local', 'GCP-local')], default='AWS', max_length=50)),
                 ('setup_complete', models.BooleanField(default=False)),
@@ -146,11 +146,18 @@ class Migration(migrations.Migration):
                 'unique_together': {('authentication', 'billing_source')},
             },
         ),
-        # Must make constraint names match
-        migrations.RunSQL(
+
+        # Making things look like master and production
+        migrations.RunSQL (
             sql="""
-            ALTER TABLE public.api_provider 
-              ADD CONSTRAINT api_provider_uuid_7aa7496c_pk PRIMARY KEY (uuid)
+            create sequence public.api_provider_id_seq
+                   start with 1
+                   increment by 1
+                   no maxvalue
+                   cache 1;
+            alter sequence public.api_provider_id_seq owned by api_provider.id;
+            alter table public.api_provider
+                  alter column id set default nextval('public.api_provider_id_seq'::regclass);
             """,
         ),
 
