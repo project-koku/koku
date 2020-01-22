@@ -48,7 +48,7 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=t
                                    }
                                },
                                'entitlements': {
-                                   'cost_management': {'is_entitled': True}
+                                   'openshift': {'is_entitled': True}
                                }
                                }
             json_identity = json_dumps(identity_header)
