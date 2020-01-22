@@ -132,6 +132,12 @@ class Migration(migrations.Migration):
             }
         ),
 
+        # This index was missing and I cannot find where it is being created. So I have copied the DDL from the DB created in master.
+        migrations.RunSQL(
+            sql="""
+            CREATE INDEX if not exists reporting_common_reportc_provider_column_name_e01eaba3_like ON public.reporting_common_reportcolumnmap USING btree (provider_column_name varchar_pattern_ops)
+,            """
+        ),
 
         migrations.CreateModel(
             name='SIUnitScale',
