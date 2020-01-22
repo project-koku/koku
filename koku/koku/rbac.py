@@ -18,6 +18,8 @@
 import logging
 
 import requests
+from prometheus_client import Counter
+from requests.exceptions import ConnectionError
 from rest_framework import status
 
 from api.query_handler import WILDCARD
@@ -25,6 +27,9 @@ from koku.env import ENVIRONMENT
 
 
 LOGGER = logging.getLogger(__name__)
+RBAC_CONNECTION_ERROR_COUNTER = Counter(
+    'rbac_connection_errors', 'Number of RBAC ConnectionErros.'
+)
 PROTOCOL = 'protocol'
 HOST = 'host'
 PORT = 'port'
@@ -157,6 +162,10 @@ def _apply_access(access):  # noqa: C901
     return res_access
 
 
+class RbacConnectionError(ConnectionError):
+    """Exception for Rbac ConnectionErrors."""
+
+
 class RbacService:  # pylint: disable=too-few-public-methods
     """A class to handle interactions with the RBAC service."""
 
@@ -183,7 +192,12 @@ class RbacService:  # pylint: disable=too-few-public-methods
     def _request_user_access(self, url, headers):
         """Send request to RBAC service and handle pagination case."""
         access = []
-        response = requests.get(url, headers=headers)
+        try:
+            response = requests.get(url, headers=headers)
+        except ConnectionError as err:
+            LOGGER.error('Error requesting user access: %s', err)
+            RBAC_CONNECTION_ERROR_COUNTER.inc()
+            raise RbacConnectionError(err)
 
         if response.status_code != status.HTTP_200_OK:
             try:
