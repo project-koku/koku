@@ -129,7 +129,8 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Provider',
             fields=[
-                ('uuid', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
+                ('id', models.AutoField(auto_created=True, serialize=False, verbose_name='ID')), # RESTORED THIS COL AFTER EXAMINING MASTER, PROD
+                ('uuid', models.UUIDField(default=uuid.uuid4, serialize=False)),
                 ('name', models.CharField(max_length=256)),
                 ('type', models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('Azure', 'Azure'), ('GCP', 'GCP'), ('AWS-local', 'AWS-local'), ('Azure-local', 'Azure-local'), ('GCP-local', 'GCP-local')], default='AWS', max_length=50)),
                 ('setup_complete', models.BooleanField(default=False)),
@@ -144,6 +145,13 @@ class Migration(migrations.Migration):
                 'ordering': ['name'],
                 'unique_together': {('authentication', 'billing_source')},
             },
+        ),
+        # Must make constraint names match
+        migrations.RunSQL(
+            sql="""
+            ALTER TABLE public.api_provider 
+              ADD CONSTRAINT api_provider_uuid_7aa7496c_pk PRIMARY KEY (uuid)
+            """,
         ),
 
 
