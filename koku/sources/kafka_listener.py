@@ -26,6 +26,7 @@ from aiokafka import AIOKafkaConsumer
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from kafka.errors import KafkaError
+from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from sources import storage
 from sources.config import Config
 from sources.koku_http_client import KokuHTTPClient, KokuHTTPClientError, KokuHTTPClientNonRecoverableError
@@ -363,6 +364,7 @@ async def process_messages(msg_pending_queue):  # pragma: no cover
             LOG.error(f'Source {source_id} Unexpected message processing error: {str(error)}')
 
 
+@KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
 async def listen_for_messages(consumer, application_source_id, msg_pending_queue):  # pragma: no cover
     """
     Listen for Platform-Sources kafka messages.
@@ -502,6 +504,7 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
             LOG.error(f'Source {source_id} Unexpected synchronization error: {str(error)}')
 
 
+@KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
 def asyncio_sources_thread(event_loop):  # pragma: no cover
     """
     Configure Sources listener thread function to run the asyncio event loop.
