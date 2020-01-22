@@ -25,13 +25,16 @@ from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.utils import IntegrityError, InterfaceError, OperationalError
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.utils.deprecation import MiddlewareMixin
+from django.utils.encoding import force_text
 from prometheus_client import Counter
-from rest_framework.exceptions import ValidationError
+from rest_framework.response import Response
+from rest_framework.exceptions import APIException, ValidationError
 from tenant_schemas.middleware import BaseTenantMiddleware
 
 from api.common import RH_IDENTITY_HEADER
+from api.common.exception_handler import custom_exception_handler
 from api.iam.models import Customer, Tenant, User
 from api.iam.serializers import UserSerializer, create_schema_name, extract_header
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
@@ -78,10 +81,20 @@ class HttpResponseUnauthorizedRequest(HttpResponse):
     status_code = HTTPStatus.UNAUTHORIZED
 
 
-class HttpResponseFailedDependency(HttpResponse):
+class HttpResponseFailedDependency(JsonResponse):
     """A subclass of HttpResponse to return a 424."""
 
     status_code = HTTPStatus.FAILED_DEPENDENCY
+
+    def __init__(self, dikt):
+        data = {
+            'errors': [{
+                'detail': f'{dikt.get("source")} unavailable. Error: {dikt.get("exception")}',
+                'status': self.status_code,
+                'title': 'Failed Dependency'
+            },]
+        }
+        super().__init__(data)
 
 
 class KokuTenantMiddleware(BaseTenantMiddleware):
@@ -93,10 +106,13 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
 
     def process_exception(self, request, exception):  # pylint: disable=R0201,R1710
         """Raise 424 on InterfaceError."""
+
         if isinstance(exception, InterfaceError):
             DB_CONNECTION_ERRORS_COUNTER.inc()
-            LOG.error('TenantMiddleware InterfaceError exception: %s', exception)
-            return HttpResponseFailedDependency()
+            LOG.error('KokuTenantMiddleware InterfaceError exception: %s', exception)
+            return HttpResponseFailedDependency(
+                {'source': 'Database', 'exception': exception}
+            )
 
     def process_request(self, request):  # pylint: disable=R1710
         """Check before super."""
@@ -111,7 +127,13 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
                     raise PermissionDenied()
             else:
                 return HttpResponseUnauthorizedRequest()
-        super().process_request(request)
+        try:
+            super().process_request(request)
+        except OperationalError as err:
+            LOG.error('Request resulted in OperationalError: %s', err)
+            return HttpResponseFailedDependency(
+                {'source': 'Database', 'exception': err}
+            )
 
     def get_tenant(self, model, hostname, request):
         """Override the tenant selection logic."""
@@ -258,9 +280,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             except Customer.DoesNotExist:
                 customer = IdentityHeaderMiddleware._create_customer(account)
             except OperationalError as err:
-                LOG.error(err)
+                LOG.error('IdentityHeaderMiddleware exception: %s', err)
                 DB_CONNECTION_ERRORS_COUNTER.inc()
-                return HttpResponseFailedDependency()
+                return HttpResponseFailedDependency(
+                    {'source': 'Database', 'exception': err}
+                )
 
             try:
                 user = User.objects.get(username=username)
