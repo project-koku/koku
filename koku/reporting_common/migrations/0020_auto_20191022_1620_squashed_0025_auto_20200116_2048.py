@@ -2,64 +2,42 @@
 
 from django.db import migrations, models
 import django.db.models.deletion
+import json
+import pkgutil
 
+# REPORTING_COMMON
 
 # Functions from the following migrations need manual copying.
 # Move them and any dependencies into this file, then update the
 # RunPython operations to refer to the local versions:
 # reporting_common.migrations.0022_add_gcp_column_maps
+def load_gcp_column_map(apps, schema_editor):
+    """Load GCP column map to database mapping."""
+    ReportColumnMap = apps.get_model('reporting_common', 'ReportColumnMap')
+    ReportColumnMap.objects.filter(provider_type='GCP').delete()
+
+    data = pkgutil.get_data('reporting_common',
+                            'data/gcp_report_column_map.json')
+
+    data = json.loads(data)
+
+    for entry in data:
+        map = ReportColumnMap(**entry)
+        map.save()
+
 
 class Migration(migrations.Migration):
 
     replaces = [('reporting_common', '0020_auto_20191022_1620'), ('reporting_common', '0021_auto_20191022_1635'), ('reporting_common', '0022_add_gcp_column_maps'), ('reporting_common', '0023_costusagereportmanifest_task'), ('reporting_common', '0024_costusagereportmanifest_manifest_completed_datetime'), ('reporting_common', '0025_auto_20200116_2048')]
 
     dependencies = [
-        # ('reporting_common', '0019_auto_20191022_1602'),
         ('reporting_common', '0001_initial_squashed_0007_auto_20190208_0316_squashed_0019_auto_20191022_1602')
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='costusagereportmanifest',
-            name='provider',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='api.Provider'),
-        ),
-        migrations.AlterUniqueTogether(
-            name='costusagereportmanifest',
-            unique_together={('provider', 'assembly_id')},
-        ),
-        migrations.RemoveField(
-            model_name='costusagereportmanifest',
-            name='provider_uuid',
-        ),
-        migrations.AlterField(
-            model_name='costusagereportmanifest',
-            name='provider',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.Provider'),
-        ),
-        migrations.AddField(
-            model_name='costusagereportmanifest',
-            name='task',
-            field=models.UUIDField(null=True),
-        ),
-        migrations.AddField(
-            model_name='costusagereportmanifest',
-            name='manifest_completed_datetime',
-            field=models.DateTimeField(null=True),
-        ),
-        migrations.RunSQL(
-            sql='\n                UPDATE reporting_common_costusagereportmanifest\n                    SET provider_id = provider_uuid\n            ',
-        ),
-
-
         migrations.RunPython(
-            code=reporting_common.migrations.0022_add_gcp_column_maps.load_gcp_column_map,
+            code=load_gcp_column_map,
         ),
 
 
-        migrations.AlterField(
-            model_name='reportcolumnmap',
-            name='provider_type',
-            field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('Azure', 'Azure'), ('GCP', 'GCP'), ('AWS-local', 'AWS-local'), ('Azure-local', 'Azure-local'), ('GCP-local', 'GCP-local')], default='AWS', max_length=50),
-        ),
     ]

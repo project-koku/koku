@@ -11,19 +11,6 @@ import uuid
 # Functions from the following migrations need manual copying.
 # Move them and any dependencies into this file, then update the
 # RunPython operations to refer to the local versions:
-# api.migrations.0010_costmodelmetricsmap
-# def load_openshift_metric_map(apps, schema_editor):
-#     """Load AWS Cost Usage report to database mapping."""
-#     CostModelMetricsMap = apps.get_model('api', 'CostModelMetricsMap')
-
-#     data = pkgutil.get_data('api',
-#                             'metrics/data/cost_models_metric_map.json')
-
-#     data = json.loads(data)
-
-#     for entry in data:
-#         map = CostModelMetricsMap(**entry)
-#         map.save()
 
 # api.migrations.0029_cloud_account_seeder
 def seed_cost_management_aws_account_id(apps, schema_editor):
@@ -54,8 +41,6 @@ class Migration(migrations.Migration):
     replaces = [('api', '0009_providerstatus'), ('api', '0010_costmodelmetricsmap'), ('api', '0011_auto_20190613_1554'), ('api', '0012_auto_20190723_1655'), ('api', '0013_auto_20190812_1815'), ('api', '0014_auto_20190807_1420'), ('api', '0015_dataexportrequest'), ('api', '0016_dataexportrequest_bucket_name'), ('api', '0017_auto_20190823_1442'), ('api', '0018_auto_20190827_1536'), ('api', '0019_auto_20190912_1853'), ('api', '0020_sources'), ('api', '0021_auto_20190917_1757'), ('api', '0022_auto_20190923_1410'), ('api', '0023_auto_20190923_1810'), ('api', '0024_auto_20190925_1914'), ('api', '0025_sources_endpoint_id'), ('api', '0026_auto_20191003_2339'), ('api', '0027_auto_20191008_1905'), ('api', '0028_cloud_account'), ('api', '0029_cloud_account_seeder'), ('api', '0030_auto_20191022_1602'), ('api', '0031_auto_20191022_1615'), ('api', '0032_auto_20191022_1620'), ('api', '0033_auto_20191022_1635'), ('api', '0034_provider_active'), ('api', '0035_auto_20191108_1914'), ('api', '0036_auto_20191113_2029'), ('api', '0037_auto_20191120_1538'), ('api', '0038_sources_source_uuid'), ('api', '0039_auto_20191121_2154'), ('api', '0040_auto_20191121_2154'), ('api', '0041_sources_account_id'), ('api', '0042_auto_20200116_2048')]
 
     dependencies = [
-        #('api', '0008_auto_20190305_2015'),
-        #('reporting_common', '0019_auto_20191022_1602'),
         ('api', '0001_initial_squashed_0008_auto_20190305_2015'),
         ('reporting_common', '0001_initial_squashed_0007_auto_20190208_0316_squashed_0019_auto_20191022_1602'),
     ]
@@ -72,34 +57,6 @@ class Migration(migrations.Migration):
                 ('provider', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.Provider')),
             ],
         ),
-        # migrations.AlterField(
-        #     model_name='providerstatus',
-        #     name='timestamp',
-        #     field=models.DateTimeField(),
-        # ),
-        # migrations.AddField(
-        #     model_name='providerstatus',
-        #     name='provider_uuid',
-        #     field=models.UUIDField(null=True),
-        # ),
-        # migrations.RemoveField(
-        #     model_name='providerstatus',
-        #     name='provider',
-        # ),
-        # migrations.AddField(
-        #     model_name='providerstatus',
-        #     name='provider',
-        #     field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='api.Provider'),
-        # ),
-        # migrations.AlterField(
-        #     model_name='providerstatus',
-        #     name='provider',
-        #     field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.Provider'),
-        # ),
-        # migrations.RemoveField(
-        #     model_name='providerstatus',
-        #     name='provider_uuid',
-        # ),
 
 
         migrations.CreateModel(
@@ -117,68 +74,6 @@ class Migration(migrations.Migration):
                 'unique_together': {('source_type', 'metric')},
             },
         ),
-        # migrations.AlterField(
-        #     model_name='costmodelmetricsmap',
-        #     name='source_type',
-        #     field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP')], max_length=50),
-        # ),
-        # migrations.AlterField(
-        #     model_name='costmodelmetricsmap',
-        #     name='source_type',
-        #     field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AWS-local', 'AWS-local'), ('OCP-local', 'OCP-local')], max_length=50),
-        # ),
-        # migrations.AlterField(
-        #     model_name='costmodelmetricsmap',
-        #     name='source_type',
-        #     field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE')], max_length=50),
-        # ),
-        # migrations.AlterField(
-        #     model_name='costmodelmetricsmap',
-        #     name='source_type',
-        #     field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE'), ('AWS-local', 'AWS-local'), ('OCP-local', 'OCP-local')], max_length=50),
-        # ),
-        # migrations.AlterField(
-        #     model_name='costmodelmetricsmap',
-        #     name='source_type',
-        #     field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE'), ('AWS-local', 'AWS-local'), ('AZURE-local', 'AZURE-local')], max_length=50),
-        # ),
-        # migrations.AlterField(
-        #     model_name='costmodelmetricsmap',
-        #     name='source_type',
-        #     field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE')], max_length=50),
-        # ),
-        # migrations.AlterField(
-        #     model_name='costmodelmetricsmap',
-        #     name='source_type',
-        #     field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AZURE', 'AZURE'), ('GCP', 'GCP'), ('AWS-local', 'AWS-local'), ('AZURE-local', 'AZURE-local'), ('GCP-local', 'GCP-local')], max_length=50),
-        # ),
-        # migrations.AlterField(
-        #     model_name='costmodelmetricsmap',
-        #     name='metric',
-        #     field=models.CharField(choices=[('cpu_core_usage_per_hour', 'cpu_core_usage_per_hour'), ('cpu_core_request_per_hour', 'cpu_core_request_per_hour'), ('memory_gb_usage_per_hour', 'memory_gb_usage_per_hour'), ('memory_gb_request_per_hour', 'memory_gb_request_per_hour'), ('storage_gb_usage_per_month', 'storage_gb_usage_per_month'), ('storage_gb_request_per_month', 'storage_gb_request_per_month'), ('node_cost_per_month', 'node_cost_per_month')], max_length=256),
-        # ),
-        # migrations.AlterField(
-        #     model_name='costmodelmetricsmap',
-        #     name='source_type',
-        #     field=models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('Azure', 'Azure'), ('GCP', 'GCP'), ('AWS-local', 'AWS-local'), ('Azure-local', 'Azure-local'), ('GCP-local', 'GCP-local')], max_length=50),
-        # ),
-
-        # handled below
-        # migrations.RunPython(
-        #     #code=api.migrations.0010_costmodelmetricsmap.load_openshift_metric_map,
-        #     code=load_openshift_metric_map,
-        # ),
-
-
-        # MODEL DEFINITION IN api/migrations/0001_initial_squashed_0008_auto_20190305_2015
-
-
-        # MODEL DEFINITION IN api/migrations/0001_initial_squashed_0008_auto_20190305_2015
-
-
-        # MODEL DEFINITION IN api/migrations/0001_initial_squashed_0008_auto_20190305_2015
-
-
         migrations.CreateModel(
             name='DataExportRequest',
             fields=[
@@ -201,16 +96,6 @@ class Migration(migrations.Migration):
             field=models.CharField(default='', max_length=63),
             preserve_default=False,
         ),
-        # migrations.AlterField(
-        #     model_name='dataexportrequest',
-        #     name='status',
-        #     field=models.CharField(choices=[('pending', 'Pending'), ('processing', 'Processing'), ('complete', 'Complete'), ('error', 'Error')], default='pending', max_length=32),
-        # ),
-        # migrations.AlterField(
-        #     model_name='dataexportrequest',
-        #     name='status',
-        #     field=models.CharField(choices=[('pending', 'Pending'), ('processing', 'Processing'), ('waiting', 'Waiting'), ('complete', 'Complete'), ('error', 'Error')], default='pending', max_length=32),
-        # ),
 
 
         migrations.CreateModel(
@@ -234,46 +119,6 @@ class Migration(migrations.Migration):
                 'db_table': 'api_sources',
             },
         ),
-        # migrations.AlterField(
-        #     model_name='sources',
-        #     name='authentication',
-        #     field=django.contrib.postgres.fields.jsonb.JSONField(default=dict),
-        # ),
-        # migrations.AlterField(
-        #     model_name='sources',
-        #     name='billing_source',
-        #     field=django.contrib.postgres.fields.jsonb.JSONField(default=dict, null=True),
-        # ),
-        # migrations.AlterField(
-        #     model_name='sources',
-        #     name='auth_header',
-        #     field=models.TextField(null=True),
-        # ),
-        # migrations.AddField(
-        #     model_name='sources',
-        #     name='endpoint_id',
-        #     field=models.IntegerField(null=True),
-        # ),
-        # migrations.AddField(
-        #     model_name='sources',
-        #     name='pending_update',
-        #     field=models.BooleanField(default=False),
-        # ),
-        # migrations.AlterField(
-        #     model_name='sources',
-        #     name='koku_uuid',
-        #     field=models.CharField(max_length=512, null=True, unique=True),
-        # ),
-        # migrations.AddField(
-        #     model_name='sources',
-        #     name='source_uuid',
-        #     field=models.UUIDField(null=True, unique=True),
-        # ),
-        # migrations.AddField(
-        #     model_name='sources',
-        #     name='account_id',
-        #     field=models.CharField(max_length=150, null=True),
-        # ),
 
 
         migrations.CreateModel(
@@ -288,31 +133,6 @@ class Migration(migrations.Migration):
         ),
 
 
-        # migrations.RunSQL(
-        #     sql="""
-        #         UPDATE api_providerstatus AS ps
-        #             SET provider_uuid = p.uuid
-        #         FROM api_provider AS p
-        #         WHERE p.id = ps.provider_id
-        #     """,
-        # ),
-        # migrations.RunSQL(
-        #     sql="""
-        #         UPDATE api_providerstatus AS ps
-        #             SET provider_id = provider_uuid
-        #     """,
-        # ),
-
-
-        # migrations.RunSQL(
-        #     sql=['ALTER TABLE api_provider DROP CONSTRAINT api_provider_pkey'],
-        #     state_operations=[migrations.RemoveField(
-        #         model_name='provider',
-        #         name='id',
-        #     )],
-        # ),
-
-
         migrations.CreateModel(
             name='ProviderInfrastructureMap',
             fields=[
@@ -321,12 +141,6 @@ class Migration(migrations.Migration):
                 ('infrastructure_provider', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.Provider')),
             ],
         ),
-        # migrations.AlterField(
-        #     model_name='providerinfrastructuremap',
-        #     name='infrastructure_type',
-        #     field=models.CharField(choices=[('AWS', 'AWS'), ('Azure', 'Azure'), ('GCP', 'GCP'), ('AWS-local', 'AWS-local'), ('Azure-local', 'Azure-local'), ('GCP-local', 'GCP-local')], max_length=50),
-        # ),
-
 
         # ==============================
         # CIRCULAR FK HERE!
@@ -339,13 +153,11 @@ class Migration(migrations.Migration):
 
 
         migrations.RunPython(
-            #code=api.migrations.0029_cloud_account_seeder.seed_cost_management_aws_account_id,
             code=seed_cost_management_aws_account_id,
         ),
 
 
         migrations.RunPython(
-            #code=api.migrations.0040_auto_20191121_2154.load_openshift_metric_map,
             code=load_openshift_metric_map,
         ),
 
