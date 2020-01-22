@@ -27,14 +27,11 @@ from django.db import transaction
 from django.db.utils import IntegrityError, InterfaceError, OperationalError
 from django.http import HttpResponse, JsonResponse
 from django.utils.deprecation import MiddlewareMixin
-from django.utils.encoding import force_text
 from prometheus_client import Counter
-from rest_framework.response import Response
-from rest_framework.exceptions import APIException, ValidationError
+from rest_framework.exceptions import ValidationError
 from tenant_schemas.middleware import BaseTenantMiddleware
 
 from api.common import RH_IDENTITY_HEADER
-from api.common.exception_handler import custom_exception_handler
 from api.iam.models import Customer, Tenant, User
 from api.iam.serializers import UserSerializer, create_schema_name, extract_header
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
@@ -87,12 +84,13 @@ class HttpResponseFailedDependency(JsonResponse):
     status_code = HTTPStatus.FAILED_DEPENDENCY
 
     def __init__(self, dikt):
+        """Create JSON response body."""
         data = {
             'errors': [{
                 'detail': f'{dikt.get("source")} unavailable. Error: {dikt.get("exception")}',
                 'status': self.status_code,
                 'title': 'Failed Dependency'
-            },]
+            }]
         }
         super().__init__(data)
 
@@ -106,7 +104,6 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
 
     def process_exception(self, request, exception):  # pylint: disable=R0201,R1710
         """Raise 424 on InterfaceError."""
-
         if isinstance(exception, InterfaceError):
             DB_CONNECTION_ERRORS_COUNTER.inc()
             LOG.error('KokuTenantMiddleware InterfaceError exception: %s', exception)
