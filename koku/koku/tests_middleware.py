@@ -15,11 +15,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the project middleware."""
+import logging
 from unittest.mock import Mock, patch
 
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 from django.db.utils import OperationalError
+from requests.exceptions import ConnectionError  # pylint: disable=W0622
 from rest_framework import status
 
 from api.iam.models import Customer, Tenant, User
@@ -223,3 +225,22 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
             middleware = IdentityHeaderMiddleware()
             response = middleware.process_request(mock_request)
             self.assertEqual(response.status_code, status.HTTP_424_FAILED_DEPENDENCY)
+
+    @patch('koku.rbac.requests.get', side_effect=ConnectionError('test exception'))
+    def test_rbac_connection_error_return_424(self, mocked_get):
+        """Test RbacConnectionError causes 424 Reponse."""
+        user_data = self._create_user_data()
+        customer = self._create_customer_data()
+        request_context = self._create_request_context(customer, user_data,
+                                                       create_customer=True,
+                                                       create_tenant=True,
+                                                       is_admin=False,
+                                                       is_openshift=True)
+        mock_request = request_context['request']
+        mock_request.path = '/api/v1/providers/'
+        mock_request.META['QUERY_STRING'] = ''
+
+        middleware = IdentityHeaderMiddleware()
+        response = middleware.process_request(mock_request)
+        self.assertEqual(response.status_code, status.HTTP_424_FAILED_DEPENDENCY)
+        mocked_get.assert_called()
