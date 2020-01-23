@@ -19,10 +19,17 @@ import os
 from unittest.mock import Mock, patch
 
 from django.test import TestCase
+from prometheus_client import REGISTRY
+from requests.exceptions import ConnectionError  # pylint: disable=W0622
 from rest_framework import status
 
-from koku.rbac import RbacService, _apply_access, _get_operation, _process_acls
-
+from koku.rbac import (
+    RbacConnectionError,
+    RbacService,
+    _apply_access,
+    _get_operation,
+    _process_acls
+)
 
 LIMITED_AWS_ACCESS = {
     'permission': 'cost-management:aws.account:read',
@@ -176,6 +183,18 @@ class RbacServiceTest(TestCase):
         url = '{}://{}:{}{}'.format(rbac.protocol, rbac.host, rbac.port, rbac.path)
         access = rbac._request_user_access(url, headers={})  # pylint: disable=protected-access
         self.assertEqual(access, [LIMITED_AWS_ACCESS, LIMITED_AWS_ACCESS])
+        mock_get.assert_called()
+
+    @patch('koku.rbac.requests.get', side_effect=ConnectionError('test exception'))
+    def test_get_except(self, mock_get):
+        """Test handling of request with ConnectionError."""
+        before = REGISTRY.get_sample_value('rbac_connection_errors_total')
+        rbac = RbacService()
+        url = '{}://{}:{}{}'.format(rbac.protocol, rbac.host, rbac.port, rbac.path)
+        with self.assertRaises(RbacConnectionError):
+            rbac._request_user_access(url, headers={})  # pylint: disable=protected-access
+        after = REGISTRY.get_sample_value('rbac_connection_errors_total')
+        self.assertEqual(1, after - before)
         mock_get.assert_called()
 
     def test_process_acls_bad_permission(self):
