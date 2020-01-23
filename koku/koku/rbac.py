@@ -19,7 +19,7 @@ import logging
 
 import requests
 from prometheus_client import Counter
-from requests.exceptions import ConnectionError
+from requests.exceptions import ConnectionError  # pylint: disable=W0622
 from rest_framework import status
 
 from api.query_handler import WILDCARD
