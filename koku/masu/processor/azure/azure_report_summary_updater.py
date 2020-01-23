@@ -25,6 +25,7 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.azure.common import get_bills_from_provider
+from masu.util.common import date_range_pair
 
 LOG = logging.getLogger(__name__)
 
@@ -118,10 +119,15 @@ class AzureReportSummaryUpdater:
         with AzureReportDBAccessor(self._schema, self._column_map) as accessor:
             # Need these bills on the session to update dates after processing
             bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
-            LOG.info('Updating Azure report summary tables: \n\tSchema: %s'
-                     '\n\tProvider: %s \n\tDates: %s - %s',
-                     self._schema, self._provider.uuid, start_date, end_date)
-            accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
+            for start, end in date_range_pair(start_date, end_date):
+                LOG.info(
+                    'Updating Azure report summary tables: \n\tSchema: %s'
+                    '\n\tProvider: %s \n\tDates: %s - %s',
+                    self._schema, self._provider.uuid, start, end
+                )
+                accessor.populate_line_item_daily_summary_table(
+                    start, end, bill_ids
+                )
             accessor.populate_tags_summary_table()
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
