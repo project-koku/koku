@@ -19,4 +19,5 @@ jobs:
         fi
         TAG="r.$DATE.$MINOR_VERSION"
         git log -p $(git tag --list | tail -1)..$(git rev-parse --abbrev-ref HEAD) | git tag -a $TAG -F -
+        git push origin $TAG
       shell: bash
