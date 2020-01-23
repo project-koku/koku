@@ -52,6 +52,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
     def setUp(self):
         """Set up tests."""
         super().setUp()
+        self.today = self.date_accessor.today_with_timezone('UTC')
         self.column_map = ReportingCommonDBAccessor().column_map
 
     def _generate_ocp_on_aws_data(self, cluster_id=None):
@@ -186,7 +187,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         updater = OCPCloudReportSummaryUpdater(schema='acct10001', provider=provider, manifest=None)
         updater.update_summary_tables(start_date_str, end_date_str)
 
-        mock_ocp_on_aws.assert_called_with(start_date_str, end_date_str, cluster_id, [])
+        mock_ocp_on_aws.assert_called_with(start_date.date(), end_date.date(), cluster_id, [])
         mock_refresh.assert_called()
 
     @patch(
@@ -216,7 +217,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         mock_map.return_value = {self.ocp_test_provider_uuid: (self.aws_provider_uuid, Provider.PROVIDER_AWS)}
         updater = OCPCloudReportSummaryUpdater(schema='acct10001', provider=provider, manifest=None)
         updater.update_summary_tables(start_date_str, end_date_str)
-        mock_ocp_on_aws.assert_called_with(start_date_str, end_date_str, cluster_id, bill_ids)
+        mock_ocp_on_aws.assert_called_with(start_date.date(), end_date.date(), cluster_id, bill_ids)
         mock_refresh.assert_called()
 
     @patch(

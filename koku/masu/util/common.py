@@ -25,6 +25,9 @@ from os import remove
 from tempfile import gettempdir
 from uuid import uuid4
 
+from dateutil import parser
+from dateutil.rrule import DAILY, rrule
+
 from api.models import Provider
 from masu.external import (LISTEN_INGEST,
                            POLL_INGEST)
@@ -155,3 +158,49 @@ def dictify_table_export_settings(table_export_settings):
         'iterate_daily': table_export_settings.iterate_daily,
         'sql': table_export_settings.sql
     }
+
+
+def date_range(start_date, end_date, step=5):
+    """Create a range generator for dates.
+
+    Given a start date and end date make an generator that returns the next date
+    in the range with the given interval.
+
+    """
+    if isinstance(start_date, str):
+        start_date = parser.parse(start_date)
+    if isinstance(end_date, str):
+        end_date = parser.parse(end_date)
+
+    dates = rrule(freq=DAILY, dtstart=start_date, until=end_date, interval=step)
+
+    for date in dates:
+        yield date.date()
+    if end_date not in dates:
+        yield end_date.date()
+
+
+def date_range_pair(start_date, end_date, step=5):
+    """Create a range generator for dates.
+
+    Given a start date and end date make an generator that returns a start
+    and end date over the interval.
+
+    """
+    if isinstance(start_date, str):
+        start_date = parser.parse(start_date)
+    if isinstance(end_date, str):
+        end_date = parser.parse(end_date)
+    dates = list(
+        rrule(freq=DAILY, dtstart=start_date, until=end_date, interval=step)
+    )
+    # Special case with only 1 period
+    if len(dates) == 1:
+        yield start_date.date(), end_date.date()
+    for date in dates:
+        if date == start_date:
+            continue
+        yield start_date.date(), date.date()
+        start_date = date + timedelta(days=1)
+    if len(dates) != 1 and end_date not in dates:
+        yield start_date.date(), end_date.date()
