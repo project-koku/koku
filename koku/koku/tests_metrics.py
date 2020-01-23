@@ -22,6 +22,7 @@ from unittest.mock import Mock, patch
 
 from django.db import OperationalError
 from faker import Faker
+from prometheus_client import REGISTRY
 
 from api.iam.test.iam_test_case import IamTestCase
 from koku.metrics import DatabaseStatus, collect_metrics
@@ -33,6 +34,35 @@ FAKE = Faker()
 # pylint: disable=no-member,protected-access
 class DatabaseStatusTest(IamTestCase):
     """Test DatabaseStatus object."""
+
+    def test_db_is_connected(self):
+        """Test that db is connected and logs at DEBUG level."""
+        logging.disable(logging.NOTSET)
+        with self.assertLogs(logger='koku.metrics', level=logging.DEBUG):
+            DatabaseStatus().connection_check()
+
+    @patch('koku.metrics.connection')
+    def test_db_is_not_connected(self, mock_connection):
+        """Test that db is not connected, log at ERROR level and counter increments."""
+        mock_connection.cursor.side_effect = OperationalError('test exception')
+        logging.disable(logging.NOTSET)
+        before = REGISTRY.get_sample_value('db_connection_errors_total')
+        with self.assertLogs(logger='koku.metrics', level=logging.ERROR):
+            DatabaseStatus().connection_check()
+        after = REGISTRY.get_sample_value('db_connection_errors_total')
+        self.assertEqual(1, after - before)
+
+    @patch('koku.metrics.DatabaseStatus.collect')
+    def test_celery_task(self, mock_collect):
+        """Test celery task to increment prometheus counter."""
+        before = REGISTRY.get_sample_value('db_connection_errors_total')
+        with mock.patch('django.db.backends.utils.CursorWrapper') as mock_cursor:
+            mock_cursor.side_effect = OperationalError('test exception')
+            mock_collect.return_value = []
+            task = collect_metrics.s().apply()
+            self.assertTrue(task.successful())
+        after = REGISTRY.get_sample_value('db_connection_errors_total')
+        self.assertEqual(1, after - before)
 
     @patch('koku.metrics.DatabaseStatus.query', return_value=True)
     def test_schema_size(self, mock_status):
@@ -78,8 +108,24 @@ class DatabaseStatusTest(IamTestCase):
             test_query = 'SELECT count(*) from now()'
             dbs = DatabaseStatus()
             with self.assertLogs(logger='koku.metrics', level=logging.WARNING):
-                result = dbs.query(test_query)
+                result = dbs.query(test_query, 'test_query')
             self.assertFalse(result)
+
+    @patch('koku.metrics.connection')
+    def test_query_return_empty(self, mock_connection):
+        """Test that empty query returns [] and logs info."""
+        # Mocked up objects:
+        #   connection.cursor().fetchall()
+        #   connection.cursor().description
+        mock_ctx = Mock(return_value=Mock(description=[('schema',), ('size',)],
+                                          fetchall=[('chicken', 2)]))
+        mock_connection.cursor = Mock(return_value=Mock(__enter__=mock_ctx,
+                                                        __exit__=mock_ctx))
+        logging.disable(logging.NOTSET)
+        dbs = DatabaseStatus()
+        with self.assertLogs(logger='koku.metrics', level=logging.INFO):
+            result = dbs.schema_size()
+        self.assertFalse(result)
 
     @patch('koku.metrics.connection')
     def test_schema_size_valid(self, mock_connection):
