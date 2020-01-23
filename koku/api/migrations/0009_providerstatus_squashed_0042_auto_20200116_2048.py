@@ -108,7 +108,7 @@ class Migration(migrations.Migration):
                 ('source_type', models.CharField(max_length=50)),
                 ('authentication', django.contrib.postgres.fields.jsonb.JSONField(default=dict)),
                 ('billing_source', django.contrib.postgres.fields.jsonb.JSONField(default=dict, null=True)),
-                ('koku_uuid', models.CharField(max_length=512, null=True, unique=True)),
+                ('koku_uuid', models.CharField(max_length=512, null=True)),
                 ('auth_header', models.TextField(null=True)),
                 ('pending_delete', models.BooleanField(default=False)),
                 ('offset', models.IntegerField()),
@@ -121,7 +121,14 @@ class Migration(migrations.Migration):
                 'db_table': 'api_sources',
             },
         ),
-
+        # This is here to ensure that the constraint name on this ticket branch matches the 
+        # name that exists on the master branch and in production
+        migrations.RunSQL(
+            sql="""
+            alter table public.api_sources
+              add constraint api_sources_koku_uuid_ed719dad_uniq unique (koku_uuid);
+            """,
+        ),
 
         migrations.CreateModel(
             name='CloudAccount',
