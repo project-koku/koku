@@ -127,6 +127,9 @@ class Migration(migrations.Migration):
             sql="""
             alter table public.api_sources
               add constraint api_sources_koku_uuid_ed719dad_uniq unique (koku_uuid);
+            
+            CREATE INDEX api_sources_koku_uuid_ed719dad_like 
+                ON public.api_sources USING btree (koku_uuid varchar_pattern_ops);            
             """,
         ),
 
