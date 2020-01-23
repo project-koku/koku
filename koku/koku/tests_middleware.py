@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the project middleware."""
-import logging
 from unittest.mock import Mock, patch
 
 from django.core.cache import caches
