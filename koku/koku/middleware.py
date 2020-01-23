@@ -35,7 +35,7 @@ from api.common import RH_IDENTITY_HEADER
 from api.iam.models import Customer, Tenant, User
 from api.iam.serializers import UserSerializer, create_schema_name, extract_header
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
-from koku.rbac import RbacService
+from koku.rbac import RbacConnectionError, RbacService
 
 
 LOG = logging.getLogger(__name__)
@@ -292,7 +292,12 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             cache = caches['rbac']
             user_access = cache.get(user.uuid)
             if not user_access:
-                user_access = self._get_access(user)
+                try:
+                    user_access = self._get_access(user)
+                except RbacConnectionError as err:
+                    return HttpResponseFailedDependency(
+                        {'source': 'Rbac', 'exception': err}
+                    )
                 cache.set(user.uuid, user_access, self.rbac.cache_ttl)
             user.access = user_access
             request.user = user
