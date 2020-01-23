@@ -14,8 +14,8 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('api', '0033_auto_20191022_1635'),
-        ('api', '0032_auto_20191022_1620'),
+        ('api', '0001_initial_squashed_0008_auto_20190305_2015'),
+        ('api', '0009_providerstatus_squashed_0042_auto_20200116_2048'),
     ]
 
     operations = [
