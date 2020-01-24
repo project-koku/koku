@@ -61,6 +61,7 @@ select row_number() over(order by c.usage_start, c.instance_type) as id,
        ) as r
     on c.usage_start = r.usage_start
    and c.instance_type = r.instance_type
+       )
   with data
        ;
 -- explain analyze comes in slightly faster on average than using the lateral unnest.
@@ -136,6 +137,7 @@ select row_number() over(order by c.usage_start, c.product_code, c.product_famil
    and c.product_code = r.product_code
    and c.product_family = r.product_family
    and c.instance_type = r.instance_type
+       )
   with data
        ;
 
@@ -210,6 +212,7 @@ select row_number() over(order by c.usage_start, c.usage_account_id, c.account_a
    and c.usage_account_id = r.usage_account_id
    and c.account_alias_id = r.account_alias_id
    and c.instance_type = r.instance_type
+       )
   with data
        ;
 
@@ -284,6 +287,7 @@ select row_number() over(order by c.usage_start, c.region, c.availability_zone, 
    and c.region = r.region
    and c.availability_zone = r.availability_zone
    and c.instance_type = r.instance_type
+       )
   with data
        ;
 
