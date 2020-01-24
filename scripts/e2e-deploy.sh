@@ -48,7 +48,7 @@
 #     REGISTRY_REDHAT_IO_SECRETS='/path/to/secrets/rh_registry.yml'  see: https://access.redhat.com/terms-based-registry/#/accounts for the file you need
 #     E2E_REPO='/path/to/e2e-deploy'
 
-#set -e
+set -e
 
 ### login info
 OCP_USER=developer
