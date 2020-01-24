@@ -92,7 +92,7 @@ The script ``scripts/e2e-deploy.sh`` handles setup and configuration of `crc`_ o
 
 **Note:**  If you're using crc the ``OPENSHIFT_API_URL`` will be ``https://api.crc.testing:6443`` and if you're using OKD 3.11 it will be ``https://127.0.0.1:8443/``. The ``REGISTRY_REDHAT_IO_SECRETS`` will be the path to the  file distributed by https://access.redhat.com/terms-based-registry. If your account does not have access to the content, you should file an issue with https://redhat.service-now.com/help and reach out to a teammate to share the file so that you are unblocked.
 
-4. Now that you are inside of the IQE virtual environment, change directories to the scripts folder inside of the koku repo (``koku/scripts``). Make sure that you have initiated a bare bones OpenShift cluster (``oc cluster up`` if you are using OKD 3.11) and then run the e2e-deploy script. This will set up your secrets in the secrets project, pull down the appropriate images for the hccm project, kick off builds also deploy the project.
+4. Now that you are inside of the IQE virtual environment, change directories to the scripts folder inside of the koku repo (``koku/scripts``). Make sure that you have initiated a bare bones OpenShift cluster (``oc cluster up`` if you are using OKD 3.11) and then run the e2e-deploy script. This will set up your secrets in the secrets project, pull down and build the required images for koku, and deploy the project.
 
 **Note:** If you are getting intermittent deployment failures that don't make sense, you could try increasing the memory and CPUs allotted to docker.
 
