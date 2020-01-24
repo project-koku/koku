@@ -9,7 +9,7 @@
 Developing using OpenShift
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The recommend development workflow is to develop using the same tools the application uses as its target environment. In this case, Koku is intended for use inside an OpenShift deployment. Therefore, it is recommended that Koku development also use an OpenShift deployment. Developing using OpenShift will align not only the software architecture, but also ensures the developer builds familiarity with the toolchain.
+The recommended development workflow is to develop using the same tools the application uses as its target environment. In this case, Koku is intended for use inside an OpenShift deployment. Therefore, it is recommended that Koku development also use an OpenShift deployment. Developing using OpenShift will align not only the software architecture, but also ensures the developer builds familiarity with the toolchain.
 
 Prerequistes
 ============
@@ -65,8 +65,38 @@ Installing and configuring `crc`_ is outside the scope of this document.  Please
 
 In order to access RHEL images for building Koku, you must configure `Red Hat Registry Authentication`_.
 
-The script ``scripts/e2e-deploy.sh`` handles setup and configuration of `crc`_, including `Red Hat Registry Authentication`_.
 
+Running locally in OpenShift using e2e-deploy
+---------------------------------------------
+The script ``scripts/e2e-deploy.sh`` handles setup and configuration of `crc`_ or OKD 3.11, including `Red Hat Registry Authentication`_. To use the script, complete the following steps.
+
+1. First, make sure that you have cloned and followed the setup instructions of the following repos::
+
+    - https://github.com/project-koku/koku
+    - https://github.com/RedHatInsights/e2e-deploy
+    - https://gitlab.cee.redhat.com/insights-qe/iqe-tests.git
+
+2. Next, make sure that you have the following tools installed::
+
+    - oc
+    - ocdeployer
+    - iqe
+    - python
+    - base64
+
+3. Finally, either export the following environment variables or add them to a .env file and enter the IQE virtual environment::
+
+    OPENSHIFT_API_URL=CRC_OR_OKD_API_URL
+    REGISTRY_REDHAT_IO_SECRETS=PATH_TO_RH_REGISTRY_YAML
+    E2E_REPO=PATH_TO_LOCAL_E2E_REPO
+
+**Note:**  If you're using crc the `OPENSHIFT_API_URL` will be `https://api.crc.testing:6443` and if you're using OKD 3.11 it will be `https://127.0.0.1:8443/`. The `REGISTRY_REDHAT_IO_SECRETS` will be the path to the  file distributed by https://access.redhat.com/terms-based-registry. If your account does not have access to the content, you should file an issue with https://redhat.service-now.com/help and reach out to a teammate to share the file so that you are unblocked.
+
+4. Now that you are inside of the IQE virtual environment, change directories to the scripts folder inside of the koku repo (`koku/scripts`). Make sure that you have initiated a bare bones OpenShift cluster (`oc cluster up` if you are using OKD 3.11) and then run the e2e-deploy script. This will set up your secrets in the secrets project, pull down the appropriate images for the hccm project, kick off builds also deploy the project.
+
+**Note:** If you are getting intermittent deployment failures that don't make sense, you could try increasing the memory and CPUs allotted to docker.
+
+5. To delete all of the objects created by running the e2e-deploy script, run `make oc-delete-e2e`.
 
 Deploying Services
 ------------------

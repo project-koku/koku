@@ -21,7 +21,7 @@
 # and testing.
 #
 # Prerequisites:
-# - an OCP4 environment (e.g. Code-Ready Containers)
+# - an OCP4 environment (e.g. Code-Ready Containers) or OKD 3.11
 #
 # - registry.redhat.io secrets YAML
 #     see: https://docs.openshift.com/container-platform/4.2/registry/registry-options.html#registry-authentication-enabled-registry-overview_registry-options
@@ -43,31 +43,22 @@
 #
 #   Check the READMEs in the above git repos for installation instructions
 #
+# - The following environement variables must be exported
+#     OPENSHIFT_API_URL=https://api.crc.testng:6443 or OPENSHIFT_API_URL=https://127.0.0.1:8443/
+#     REGISTRY_REDHAT_IO_SECRETS='/path/to/secrets/rh_registry.yml'  see: https://access.redhat.com/terms-based-registry/#/accounts for the file you need
+#     E2E_REPO='/path/to/e2e-deploy'
 
-set -e
-
-########## CONFIGURATION ##########
-########## Change these to suit your needs. ##########
-
-### API URL
-OPENSHIFT_API_URL=https://api.crc.testing:6443
+#set -e
 
 ### login info
 OCP_USER=developer
 OCP_PASSWORD=developer
 
-### config files & dirs
-# see: https://access.redhat.com/terms-based-registry/#/accounts
-REGISTRY_REDHAT_IO_SECRETS=''
-
-# location of application secrets
-KOKU_SECRETS=$(dirname $(readlink -f $0))/e2e-secrets.yml
-
-# location of e2e repo clone
-E2E_REPO=''
-
-# location of application environment vars
-DEPLOY_ENV=${E2E_REPO}/env/dev.yml
+if [[ "$OSTYPE" == "darwin"* ]]; then
+        KOKU_SECRETS=$PWD/e2e-secrets.yml
+else
+        KOKU_SECRETS=$(dirname $(readlink -f $0))/e2e-secrets.yml
+fi
 
 # Project names to use
 SECRETS_PROJECT=secrets
@@ -79,18 +70,15 @@ OC=$(which oc)
 OCDEPLOYER=$(which ocdeployer)
 IQE=$(which iqe)
 
-########## END CONFIGURATION ##########
-########## You shouldn't need to edit below here. ##########
-
-pushd ${E2E_REPO}
+pushd $E2E_REPO
 
 ### validation
-if [ -z "${REGISTRY_REDHAT_IO_SECRETS}" ]; then
+if [ -z "$REGISTRY_REDHAT_IO_SECRETS" ]; then
     echo 'Please specify a secrets file for registry.redhat.io'
     exit 1
 fi
 
-if [ -z "${E2E_REPO}" ]; then
+if [ -z "$E2E_REPO" ]; then
     echo 'Please specify the location of the e2e-deploy repo'
     exit 1
 fi
@@ -104,7 +92,7 @@ for cmd in "${OC}" "${OCDEPLOYER}" "${IQE}"; do
 done
 
 ### ensure we're logged in
-${OC} login -u ${OCP_USER} -p ${OCP_PASSWORD} ${OPENSHIFT_API_URL}
+${OC} login -u ${OCP_USER} -p ${OCP_PASSWORD} $OPENSHIFT_API_URL
 
 ### create projects
 for project in "${SECRETS_PROJECT}" "${BUILDFACTORY_PROJECT}" "${DEPLOY_PROJECT}"; do
@@ -121,19 +109,36 @@ echo "Adding registry.redhat.io secret."
 # the json distributed by access.redhat.com/terms-based-registry is a nested object.
 # oc wants the contents of the .data object, so we need to unwrap the outer layer
 # in order to load the pull secrets dockerconfigjson object into the secret.
-if [ -f ${REGISTRY_REDHAT_IO_SECRETS} ]; then
-    SECRET=$(cat ${REGISTRY_REDHAT_IO_SECRETS} | \
+if [ -f $REGISTRY_REDHAT_IO_SECRETS ]; then
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # Mac OSX
+        SECRET=$(cat $REGISTRY_REDHAT_IO_SECRETS | \
+             python -c 'import yaml, sys; print(yaml.safe_load(sys.stdin).get("data").get(".dockerconfigjson"))' | \
+             base64 -D)
+    else
+            SECRET=$(cat $REGISTRY_REDHAT_IO_SECRETS | \
              python -c 'import yaml, sys; print(yaml.safe_load(sys.stdin).get("data").get(".dockerconfigjson"))' | \
              base64 -d)
+    fi
     # we need to install the pull secret into multiple projects because setting
     # up a shared secret across projects is not well-supported by OCP <=4.2.
-    for project in "${BUILDFACTORY_PROJECT}" "${DEPLOY_PROJECT}"; do
-        echo ${SECRET} | ${OC} create secret generic registry-redhat-io-secret \
+    for project in "${BUILDFACTORY_PROJECT}" "${DEPLOY_PROJECT}" "${SECRETS_PROJECT}"; do
+        echo ${SECRET} | ${OC} create secret generic rh-registry-pull-secret \
                                     --from-file=.dockerconfigjson=/dev/stdin \
                                     -n ${project} \
                                     --type=kubernetes.io/dockerconfigjson
-        ${OC} secrets link default registry-redhat-io-secret -n ${project} --for=pull
-        ${OC} secrets link builder registry-redhat-io-secret -n ${project}
+        ${OC} secrets link default rh-registry-pull-secret -n ${project} --for=pull
+        ${OC} secrets link builder rh-registry-pull-secret -n ${project}
+    done
+
+    # i'm not sure what the quay secret should be so i copied the above secret and just named it quay-cloudservices-push
+    for project in "${SECRETS_PROJECT}"; do
+        echo ${SECRET} | ${OC} create secret generic quay-cloudservices-push \
+                                    --from-file=.dockerconfigjson=/dev/stdin \
+                                    -n ${project} \
+                                    --type=kubernetes.io/dockerconfigjson
+        ${OC} secrets link default quay-cloudservices-push -n ${project} --for=pull
+        ${OC} secrets link builder quay-cloudservices-push -n ${project}
     done
 fi
 
@@ -168,7 +173,7 @@ done
 
 ### deploy application
 echo "Creating HCCM application."
-${IQE} oc deploy -t templates -s hccm -e ${DEPLOY_ENV} hccm
+${IQE} oc deploy -t templates -s hccm -e dev hccm
 
 ### expose API route
 echo "Exposing API endpoint."
