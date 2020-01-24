@@ -1,23 +1,29 @@
 name: Tag Release
-on:
-  push:
-    branches:
-      - stable
+on: issue_comment
 jobs:
   tag_release:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
-    - name: Tag stable branch for release
-      run: |
-        DATE=$(date +"%Y.%m.%d")
-        PREV_RELEASE=$(git tag --list | tail -1)
-        MINOR_VERSION=0
-        if [[ "$PREV_RELEASE" == *"$DATE"* ]]; then
-            MINOR_VERSION="$PREV_RELEASE" | cut -d'.' -f5
-            let MINOR_VERSION++
-        fi
-        TAG="r.$DATE.$MINOR_VERSION"
-        git log $(git tag --list | tail -1)..$(git rev-parse --abbrev-ref HEAD) | git tag -a $TAG -F -
-        git push origin $TAG
-      shell: bash
+      - name: Check for Command
+        id: command
+        uses: xt0rted/slash-command-action@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          command: release
+          reaction: "true"
+          reaction-type: "eyes"
+          allow-edits: "false"
+          permission-level: admin
+      - name: Tag this release
+        run: |
+          DATE=$(date +"%Y.%m.%d")
+          PREV_RELEASE=$(git tag --list | tail -1)
+          MINOR_VERSION=0
+          if [[ "$PREV_RELEASE" == *"$DATE"* ]]; then
+              MINOR_VERSION="$PREV_RELEASE" | cut -d'.' -f5
+              let MINOR_VERSION++
+          fi
+          TAG="r.$DATE.$MINOR_VERSION"
+          git log $(git tag --list | tail -1)..$(git rev-parse --abbrev-ref HEAD) | git tag -a $TAG -F -
+          git push origin $TAG
+        shell: bash
