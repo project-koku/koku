@@ -1,4 +1,6 @@
 """Test for the Provider model."""
+
+import logging
 from unittest.mock import call, patch
 from uuid import UUID
 
@@ -36,6 +38,7 @@ class ProviderModelTest(MasuTestCase):
         self, mock_delete_archived_data
     ):
         """Assert the delete_archived_data task is not called if Customer is None."""
+        logging.disable(logging.NOTSET)
         with tenant_context(self.tenant), self.assertLogs(
             'api.provider.models', 'WARNING'
         ) as captured_logs:

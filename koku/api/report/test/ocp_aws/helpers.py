@@ -67,7 +67,7 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
         return self._tags
 
     def create_ocp_provider(self, cluster_id, cluster_alias,
-                            infrastructure_type=None):
+                            infrastructure_type='Unknown'):
         """Create OCP test provider."""
         authentication_data = {
             'uuid': uuid4(),

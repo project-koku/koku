@@ -448,7 +448,9 @@ class ProviderManagerTest(IamTestCase):
         data_generator = OCPAWSReportDataGenerator(self.tenant, provider, current_month_only=True)
         data_generator.add_data_to_tenant()
         data_generator.add_aws_data_to_tenant()
-        data_generator.create_ocp_provider(data_generator.cluster_id, data_generator.cluster_alias)
+        data_generator.create_ocp_provider(data_generator.cluster_id,
+                                           data_generator.cluster_alias,
+                                           infrastructure_type=Provider.PROVIDER_AWS)
 
         provider_uuid = data_generator.provider_uuid
         manager = ProviderManager(provider_uuid)
@@ -468,7 +470,9 @@ class ProviderManagerTest(IamTestCase):
 
         data_generator = OCPAzureReportDataGenerator(self.tenant, provider, current_month_only=True)
         data_generator.add_data_to_tenant()
-        data_generator.create_ocp_provider(data_generator.cluster_id, data_generator.cluster_alias)
+        data_generator.create_ocp_provider(data_generator.cluster_id,
+                                           data_generator.cluster_alias,
+                                           infrastructure_type=Provider.PROVIDER_AZURE)
 
         provider_uuid = data_generator.provider_uuid
         manager = ProviderManager(provider_uuid)

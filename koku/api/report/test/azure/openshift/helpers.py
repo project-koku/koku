@@ -24,7 +24,7 @@ from model_bakery import baker
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider, ProviderAuthentication, ProviderBillingSource, Tenant
-from api.provider.models import ProviderInfrastructureMap
+from api.provider.models import Provider, ProviderInfrastructureMap
 from api.report.test.azure.helpers import FakeAzureConfig
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.utils import DateHelper
@@ -167,7 +167,7 @@ class OCPAzureReportDataGenerator(object):
                         )
 
     def create_ocp_provider(self, cluster_id, cluster_alias,
-                            infrastructure_type=None):
+                            infrastructure_type='Unknown'):
         """Create OCP test provider."""
         auth = baker.make(
             ProviderAuthentication,
