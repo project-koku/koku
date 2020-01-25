@@ -37,6 +37,8 @@ def error_obj(key, message):
 class AzureProvider(ProviderInterface):
     """Azure provider defnition."""
 
+    from masu.external.downloader.azure.azure_service import AzureService
+    
     def name(self):
         """
         Return the provider service's name.
@@ -83,6 +85,7 @@ class AzureProvider(ProviderInterface):
         """
         key = 'billing_source.bucket'
         
+        azure_service = AzureService(credential_name.get('subscription_id', {}), credential_name.get('tenant_id', {}), credential_name.get('client_id', {}), credential_name.get('client_secret', {}), storage_resource_name.get('resource_group', {}), storage_resource_name.get('storage_account', {}))
 
         if not (isinstance(credential_name, dict)
                 and isinstance(storage_resource_name, dict)):
@@ -103,7 +106,6 @@ class AzureProvider(ProviderInterface):
         except (AdalError, AzureException, ClientException, TypeError) as exc:
             raise ValidationError(error_obj(key, str(exc)))
         
-        azure_service = AzureService(credential_name.get('subscription_id', {}), credential_name.get('tenant_id', {}), credential_name.get('client_id', {}), credential_name.get('client_secret', {}), storage_resource_name.get('resource_group', {}), storage_resource_name.get('storage_account', {}))
         if not azure_service.describe_cost_management_exports():
             raise ValidationError(error_obj(key, 'No cost report found' + str(exc)))
 

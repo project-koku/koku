@@ -23,6 +23,7 @@ from faker import Faker
 from rest_framework.serializers import ValidationError
 
 from providers.azure.provider import AzureProvider
+#from providers.azure.provider.AzureProvider import AzureService
 
 FAKE = Faker()
 
@@ -88,6 +89,7 @@ class AzureProviderTestCase(TestCase):
     #@patch('providers.azure.provider.describe_cost_management_export', return_value=[])
     #@patch('providers.azure.provider.describe_cost_management_export', return_value=[]) 
     #@patch('masu.external.downloader.azure.azure_report_downloader.AzureService')
+    #@patch('providers.azure.provider.AzureService')
     def test_cost_usage_source_reachable_without_cost_export(self):
         import pdb
         pdb.set_trace()
@@ -103,13 +105,24 @@ class AzureProviderTestCase(TestCase):
                        'client_secret': FAKE.word()}
         source_name = {'resource_group': FAKE.word(),
                        'storage_account': FAKE.word()}
-        azure_provider = AzureProvider()
+        #from provider import AzureService
+        #with patch.object(AzureService, )
+        with patch.object(AzureProvider.AzureService, "__init__", lambda a, b, c, d, e, f, g, h: None): 
+            with patch.object('providers.azure.provider.AzureService', "describe_cost_management_exports", return_value=[]):
+                print('hi')
+                azure_provider = AzureProvider()
+                azure_provider.cost_usage_source_is_reachable(credentials, source_name)
+
+
+
+        
 
         #with patch.object(AzureService, "__init__", lambda a, b, c, d, e, f, g, h: None) as obj:
         #from masu.external.downloader.azure.azure_report_downloader import AzureService
         from masu.external.downloader.azure.azure_service import AzureService
         with patch.object(AzureService, 'describe_cost_management_exports', return_value=[]) as mock_azure_service:
-            with self.assertRaisesMessage(Exception, "Could not create provider because no export is set up."):
-                import pdb
-                pdb.set_trace()
-                azure_provider.cost_usage_source_is_reachable(credentials, source_name)
+            with patch.object(AzureProvider, "__init__", lambda a, b, c, d, e, f, g, h: None) as azure_provider:
+                with self.assertRaisesMessage(Exception, "Could not create provider because no export is set up."):
+                    import pdb
+                    pdb.set_trace()
+                    azure_provider.cost_usage_source_is_reachable(credentials, source_name)
