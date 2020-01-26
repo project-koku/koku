@@ -22,9 +22,10 @@ from msrest.exceptions import ClientException
 from rest_framework.serializers import ValidationError
 
 from api.models import Provider
+from masu.external.downloader.azure.azure_service import AzureService
 from .client import AzureClientFactory
 from ..provider_interface import ProviderInterface
-from masu.external.downloader.azure.azure_service import AzureService
+
 
 def error_obj(key, message):
     """Create an error object."""
@@ -37,8 +38,6 @@ def error_obj(key, message):
 class AzureProvider(ProviderInterface):
     """Azure provider defnition."""
 
-    from masu.external.downloader.azure.azure_service import AzureService
-    
     def name(self):
         """
         Return the provider service's name.
@@ -84,14 +83,18 @@ class AzureProvider(ProviderInterface):
 
         """
         key = 'billing_source.bucket'
-        
-        azure_service = AzureService(credential_name.get('subscription_id', {}), credential_name.get('tenant_id', {}), credential_name.get('client_id', {}), credential_name.get('client_secret', {}), storage_resource_name.get('resource_group', {}), storage_resource_name.get('storage_account', {}))
+
+        azure_service = None
 
         if not (isinstance(credential_name, dict)
                 and isinstance(storage_resource_name, dict)):
             message = f'Resource group and/or Storage account must be a dict'
             raise ValidationError(error_obj(key, message))
 
+        subscription_id = credential_name.get('subscription_id')
+        tenant_id = credential_name.get('tenant_id')
+        client_id = credential_name.get('client_id')
+        client_secret = credential_name.get('client_secret')
         resource_group = storage_resource_name.get('resource_group')
         storage_account = storage_resource_name.get('storage_account')
         if not (resource_group and storage_account):
@@ -103,11 +106,14 @@ class AzureProvider(ProviderInterface):
             storage_accounts = azure_client.storage_client.storage_accounts
             storage_account = storage_accounts.get_properties(resource_group,
                                                               storage_account)
+            azure_service = AzureService(subscription_id, tenant_id, client_id,
+                                         client_secret, resource_group, storage_account)
         except (AdalError, AzureException, ClientException, TypeError) as exc:
             raise ValidationError(error_obj(key, str(exc)))
-        
-        if not azure_service.describe_cost_management_exports():
-            raise ValidationError(error_obj(key, 'No cost report found' + str(exc)))
+
+        if azure_service and not azure_service.describe_cost_management_exports():
+            message = 'No cost management export was found.'
+            raise ValidationError(error_obj(key, message))
 
         return True
 
