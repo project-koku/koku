@@ -90,7 +90,7 @@ The script ``scripts/e2e-deploy.sh`` handles setup and configuration of `crc`_ o
     REGISTRY_REDHAT_IO_SECRETS=PATH_TO_RH_REGISTRY_YAML
     E2E_REPO=PATH_TO_LOCAL_E2E_REPO
 
-**Note:**  If you're using crc the ``OPENSHIFT_API_URL`` will be ``https://api.crc.testing:6443`` and if you're using OKD 3.11 it will be ``https://127.0.0.1:8443/``. The ``REGISTRY_REDHAT_IO_SECRETS`` will be the path to the  file distributed by https://access.redhat.com/terms-based-registry. If your account does not have access to the content, you should file an issue with https://redhat.service-now.com/help and reach out to a teammate to share the file so that you are unblocked.
+If you do not have access to some of the repositories or resources discussed in this document, please contact a member of the Koku development team. Some resources mentioned are internal to Red Hat Associates. If you are unable to access those resources, we will work with you to identify suitable alternatives.
 
 4. Now that you are inside of the IQE virtual environment, change directories to the scripts folder inside of the koku repo (``koku/scripts``). Make sure that you have initiated a bare bones OpenShift cluster (``oc cluster up`` if you are using OKD 3.11) and then run the e2e-deploy script. This will set up your secrets in the secrets project, pull down and build the required images for koku, and deploy the project.
 
