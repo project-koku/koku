@@ -131,14 +131,9 @@ if [ -f $REGISTRY_REDHAT_IO_SECRETS ]; then
         ${OC} secrets link builder rh-registry-pull-secret -n ${project}
     done
 
-    # i'm not sure what the quay secret should be so i copied the above secret and just named it quay-cloudservices-push
+    echo "Adding quay-cloudservices-push secret."
     for project in "${SECRETS_PROJECT}"; do
-        echo ${SECRET} | ${OC} create secret generic quay-cloudservices-push \
-                                    --from-file=.dockerconfigjson=/dev/stdin \
-                                    -n ${project} \
-                                    --type=kubernetes.io/dockerconfigjson
-        ${OC} secrets link default quay-cloudservices-push -n ${project} --for=pull
-        ${OC} secrets link builder quay-cloudservices-push -n ${project}
+        ${OC} create secret generic quay-cloudservices-push --from-file=$REGISTRY_REDHAT_IO_SECRETS -n ${project}
     done
 fi
 
