@@ -111,15 +111,13 @@ echo "Adding registry.redhat.io secret."
 # in order to load the pull secrets dockerconfigjson object into the secret.
 if [ -f $REGISTRY_REDHAT_IO_SECRETS ]; then
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        # Mac OSX
-        SECRET=$(cat $REGISTRY_REDHAT_IO_SECRETS | \
-             python -c 'import yaml, sys; print(yaml.safe_load(sys.stdin).get("data").get(".dockerconfigjson"))' | \
-             base64 -D)
+            BASE64_DECODE='-D'
     else
-            SECRET=$(cat $REGISTRY_REDHAT_IO_SECRETS | \
-             python -c 'import yaml, sys; print(yaml.safe_load(sys.stdin).get("data").get(".dockerconfigjson"))' | \
-             base64 -d)
+            BASE64_DECODE='-d'
     fi
+    SECRET=$(cat $REGISTRY_REDHAT_IO_SECRETS | \
+             python -c 'import yaml, sys; print(yaml.safe_load(sys.stdin).get("data").get(".dockerconfigjson"))' | \
+             base64 $BASE64_DECODE)
     # we need to install the pull secret into multiple projects because setting
     # up a shared secret across projects is not well-supported by OCP <=4.2.
     for project in "${BUILDFACTORY_PROJECT}" "${DEPLOY_PROJECT}" "${SECRETS_PROJECT}"; do
@@ -129,11 +127,6 @@ if [ -f $REGISTRY_REDHAT_IO_SECRETS ]; then
                                     --type=kubernetes.io/dockerconfigjson
         ${OC} secrets link default rh-registry-pull-secret -n ${project} --for=pull
         ${OC} secrets link builder rh-registry-pull-secret -n ${project}
-    done
-
-    echo "Adding quay-cloudservices-push secret."
-    for project in "${SECRETS_PROJECT}"; do
-        ${OC} create secret generic quay-cloudservices-push --from-file=$REGISTRY_REDHAT_IO_SECRETS -n ${project}
     done
 fi
 
@@ -168,7 +161,7 @@ done
 
 ### deploy application
 echo "Creating HCCM application."
-${IQE} oc deploy -t templates -s hccm -e dev hccm
+${IQE} oc deploy -t templates -s hccm -e dev-self-contained hccm
 
 ### expose API route
 echo "Exposing API endpoint."
