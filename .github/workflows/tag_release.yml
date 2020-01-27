@@ -1,0 +1,44 @@
+name: Tag Release
+on:
+  issue_comment:
+    types: [created]
+jobs:
+  tag_release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for Command
+        id: command
+        uses: xt0rted/slash-command-action@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          command: release
+          reaction: "true"
+          reaction-type: "rocket"
+          allow-edits: "false"
+          permission-level: admin
+      - uses: actions/checkout@v2
+        with:
+          ref: stable
+      - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+      - name: Tag this release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(date +"%Y.%m.%d")
+          PREV_RELEASE=$(git tag --list | tail -1)
+          MINOR_VERSION=0
+          case $PREV_RELEASE in
+            *"$DATE"*)
+              MINOR_VERSION="$PREV_RELEASE" | cut -d'.' -f5
+              MINOR_VERSION=$((MINOR_VERSION+1))
+              ;;
+            *)
+              MINOR_VERSION=0
+              ;;
+          esac
+          TAG="r.$DATE.$MINOR_VERSION"
+          git config --local user.email "cost-mgmt@redhat.com"
+          git config --local user.name "Cost Management Release Action"
+          git log $(git tag --list | tail -1)..stable | git tag -a $TAG -F -
+          git push origin $TAG
+        shell: bash

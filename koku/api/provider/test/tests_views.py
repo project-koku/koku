@@ -20,6 +20,7 @@ from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import faker
+from django.db.utils import InterfaceError
 from django.urls import reverse
 from rest_framework import serializers
 from rest_framework import status
@@ -284,6 +285,15 @@ class ProviderViewTest(IamTestCase):
         self.assertEqual(results[0]['uuid'], second_provider_uuid)
         self.assertEqual(len(results[0]['cost_models']), 0)
 
+    @patch('api.provider.view.ProviderViewSet.list')
+    def test_list_provider_exception_return_424(self, mocked_list):
+        """Test that 424 is returned when view raises InterfaceError."""
+        mocked_list.side_effect = InterfaceError('connection already closed')
+        url = reverse('provider-list')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_424_FAILED_DEPENDENCY)
+
     def test_get_provider(self):
         """Test get a provider."""
         # Set up all the data for this test.
@@ -471,6 +481,15 @@ class ProviderViewTest(IamTestCase):
         json_result = response.json()
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(json_result.get('type'), Provider.PROVIDER_OCP)
+
+    def test_create_aws_type_lower_case(self):
+        """Test creating a provider with type camel cased."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn, provider_type='aws')
+        json_result = response.json()
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(json_result.get('type'), Provider.PROVIDER_AWS)
 
     @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
     def test_put_for_aws_provider(self, mock_access):

@@ -25,6 +25,7 @@ from tenant_schemas.utils import schema_context
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_id_from_provider
 
 LOG = logging.getLogger(__name__)
@@ -63,14 +64,19 @@ class OCPReportSummaryUpdater:
             start_date,
             end_date
         )
-        LOG.info('Updating OpenShift report daily tables for \n\tSchema: %s '
-                 '\n\tProvider: %s \n\tCluster: %s \n\tDates: %s - %s',
-                 self._schema, self._provider.uuid, self._cluster_id,
-                 start_date, end_date)
-        with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
-            accessor.populate_line_item_daily_table(start_date, end_date, self._cluster_id)
-        with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
-            accessor.populate_storage_line_item_daily_table(start_date, end_date, self._cluster_id)
+        for start, end in date_range_pair(start_date, end_date):
+            LOG.info(
+                'Updating OpenShift report daily tables for \n\tSchema: %s '
+                '\n\tProvider: %s \n\tCluster: %s \n\tDates: %s - %s',
+                self._schema, self._provider.uuid, self._cluster_id, start, end
+            )
+            with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+                accessor.populate_line_item_daily_table(
+                    start, end, self._cluster_id
+                )
+                accessor.populate_storage_line_item_daily_table(
+                    start, end, self._cluster_id
+                )
 
         return start_date, end_date
 
@@ -89,17 +95,24 @@ class OCPReportSummaryUpdater:
             start_date,
             end_date
         )
-        LOG.info('Updating OpenShift report summary tables for \n\tSchema: %s '
-                 '\n\tProvider: %s \n\tCluster: %s \n\tDates: %s - %s',
-                 self._schema, self._provider.uuid, self._cluster_id,
-                 start_date, end_date)
 
         report_periods = None
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             report_periods = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
-            accessor.populate_line_item_daily_summary_table(start_date, end_date, self._cluster_id)
+            for start, end in date_range_pair(start_date, end_date):
+                LOG.info(
+                    'Updating OpenShift report summary tables for \n\tSchema: %s '
+                    '\n\tProvider: %s \n\tCluster: %s \n\tDates: %s - %s',
+                    self._schema, self._provider.uuid, self._cluster_id,
+                    start, end
+                )
+                accessor.populate_line_item_daily_summary_table(
+                    start, end, self._cluster_id
+                )
+                accessor.populate_storage_line_item_daily_summary_table(
+                    start, end, self._cluster_id
+                )
             accessor.populate_pod_label_summary_table()
-            accessor.populate_storage_line_item_daily_summary_table(start_date, end_date, self._cluster_id)
             accessor.populate_volume_claim_label_summary_table()
             accessor.populate_volume_label_summary_table()
 

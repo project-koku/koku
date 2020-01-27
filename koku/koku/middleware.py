@@ -18,13 +18,14 @@
 """Custom Koku Middleware."""
 import binascii
 import logging
+from http import HTTPStatus
 from json.decoder import JSONDecodeError
 
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.db.utils import IntegrityError
-from django.http import HttpResponse
+from django.db.utils import IntegrityError, InterfaceError, OperationalError
+from django.http import HttpResponse, JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 from prometheus_client import Counter
 from rest_framework.exceptions import ValidationError
@@ -33,24 +34,37 @@ from tenant_schemas.middleware import BaseTenantMiddleware
 from api.common import RH_IDENTITY_HEADER
 from api.iam.models import Customer, Tenant, User
 from api.iam.serializers import UserSerializer, create_schema_name, extract_header
-from koku.rbac import RbacService
+from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
+from koku.rbac import RbacConnectionError, RbacService
 
 
-logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
-unique_account_counter = Counter('hccm_unique_account',  # pylint: disable=invalid-name
-                                 'Unique Account Counter')
-unique_user_counter = Counter('hccm_unique_user',  # pylint: disable=invalid-name
-                              'Unique User Counter',
-                              ['account', 'user'])
+LOG = logging.getLogger(__name__)
+UNIQUE_ACCOUNT_COUNTER = Counter(
+    'hccm_unique_account', 'Unique Account Counter'
+)
+UNIQUE_USER_COUNTER = Counter(
+    'hccm_unique_user',
+    'Unique User Counter',
+    ['account', 'user'],
+)
 
 
 def is_no_auth(request):
     """Check condition for needing to authenticate the user."""
-    no_auth_list = ['status', 'metrics', 'openapi.json',
-                    'download', 'report_data', 'expired_data', 'update_charge',
-                    'upload_normalized_data',
-                    'authentication', 'billing_source', 'cloud-accounts',
-                    'sources']
+    no_auth_list = [
+        'status',
+        'metrics',
+        'openapi.json',
+        'download',
+        'report_data',
+        'expired_data',
+        'update_charge',
+        'upload_normalized_data',
+        'authentication',
+        'billing_source',
+        'cloud-accounts',
+        'sources',
+    ]
     no_auth = any(no_auth_path in request.path for no_auth_path in no_auth_list)
     return no_auth
 
@@ -61,7 +75,24 @@ class HttpResponseUnauthorizedRequest(HttpResponse):
     Used if identity header is not sent.
     """
 
-    status_code = 401
+    status_code = HTTPStatus.UNAUTHORIZED
+
+
+class HttpResponseFailedDependency(JsonResponse):
+    """A subclass of HttpResponse to return a 424."""
+
+    status_code = HTTPStatus.FAILED_DEPENDENCY
+
+    def __init__(self, dikt):
+        """Create JSON response body."""
+        data = {
+            'errors': [{
+                'detail': f'{dikt.get("source")} unavailable. Error: {dikt.get("exception")}',
+                'status': self.status_code,
+                'title': 'Failed Dependency'
+            }]
+        }
+        super().__init__(data)
 
 
 class KokuTenantMiddleware(BaseTenantMiddleware):
@@ -70,6 +101,15 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
     Determines which schema to use based on the customer's schema
     found from the user tied to a request.
     """
+
+    def process_exception(self, request, exception):  # pylint: disable=R0201,R1710
+        """Raise 424 on InterfaceError."""
+        if isinstance(exception, InterfaceError):
+            DB_CONNECTION_ERRORS_COUNTER.inc()
+            LOG.error('KokuTenantMiddleware InterfaceError exception: %s', exception)
+            return HttpResponseFailedDependency(
+                {'source': 'Database', 'exception': exception}
+            )
 
     def process_request(self, request):  # pylint: disable=R1710
         """Check before super."""
@@ -84,7 +124,14 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
                     raise PermissionDenied()
             else:
                 return HttpResponseUnauthorizedRequest()
-        super().process_request(request)
+        try:
+            super().process_request(request)
+        except OperationalError as err:
+            LOG.error('Request resulted in OperationalError: %s', err)
+            DB_CONNECTION_ERRORS_COUNTER.inc()
+            return HttpResponseFailedDependency(
+                {'source': 'Database', 'exception': err}
+            )
 
     def get_tenant(self, model, hostname, request):
         """Override the tenant selection logic."""
@@ -128,8 +175,8 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
                 customer.save()
                 tenant = Tenant(schema_name=schema_name)
                 tenant.save()
-                unique_account_counter.inc()
-                logger.info('Created new customer from account_id %s.', account)
+                UNIQUE_ACCOUNT_COUNTER.inc()
+                LOG.info('Created new customer from account_id %s.', account)
         except IntegrityError:
             customer = Customer.objects.filter(account_id=account).get()
 
@@ -158,9 +205,14 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
                 if serializer.is_valid(raise_exception=True):
                     new_user = serializer.save()
 
-                unique_user_counter.labels(account=customer.account_id, user=username).inc()
-                logger.info('Created new user %s for customer(account_id %s).',
-                            username, customer.account_id)
+                UNIQUE_USER_COUNTER.labels(
+                    account=customer.account_id, user=username
+                ).inc()
+                LOG.info(
+                    'Created new user %s for customer(account_id %s).',
+                    username,
+                    customer.account_id,
+                )
         except (IntegrityError, ValidationError):
             new_user = User.objects.get(username=username)
         return new_user
@@ -173,7 +225,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         access = self.rbac.get_access_for_user(user)
         return access
 
-    # pylint: disable=too-many-locals
+    # pylint: disable=R0914, R1710
     def process_request(self, request):  # noqa: C901
         """Process request for csrf checks.
 
@@ -186,23 +238,27 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             return
         try:
             rh_auth_header, json_rh_auth = extract_header(request, self.header)
-            username = json_rh_auth.get('identity', {}).get('user', {}).get('username')
-            email = json_rh_auth.get('identity', {}).get('user', {}).get('email')
-            account = json_rh_auth.get('identity', {}).get('account_number')
-            is_admin = json_rh_auth.get('identity', {}).get('user', {}).get('is_org_admin')
-            is_cost_management = json_rh_auth.get(
-                'entitlements', {}).get('cost_management', {}).get('is_entitled', False)
-            is_hybrid_cloud = json_rh_auth.get(
-                'entitlements', {}).get('hybrid_cloud', {}).get('is_entitled', False)
-            if not is_hybrid_cloud and not is_cost_management:
-                raise PermissionDenied()
         except (KeyError, JSONDecodeError):
-            logger.warning('Could not obtain identity on request.')
+            LOG.warning('Could not obtain identity on request.')
             return
         except binascii.Error as error:
-            logger.error('Error decoding authentication header: %s', str(error))
+            LOG.error('Error decoding authentication header: %s', str(error))
             raise PermissionDenied()
-        if (username and email and account):
+
+        is_openshift = (
+            json_rh_auth.get('entitlements', {})
+            .get('openshift', {})
+            .get('is_entitled', False)
+        )
+        if not is_openshift:
+            raise PermissionDenied()
+
+        account = json_rh_auth.get('identity', {}).get('account_number')
+        user = json_rh_auth.get('identity', {}).get('user', {})
+        username = user.get('username')
+        email = user.get('email')
+        is_admin = user.get('is_org_admin')
+        if username and email and account:
             # Check for customer creation & user creation
             query_string = ''
             if request.META['QUERY_STRING']:
@@ -211,29 +267,37 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
                 f'API: {request.path}{query_string}'
                 f' -- ACCOUNT: {account} USER: {username}'
             )
-            logger.info(stmt)
+            LOG.info(stmt)
             try:
                 customer = Customer.objects.filter(account_id=account).get()
             except Customer.DoesNotExist:
                 customer = IdentityHeaderMiddleware._create_customer(account)
+            except OperationalError as err:
+                LOG.error('IdentityHeaderMiddleware exception: %s', err)
+                DB_CONNECTION_ERRORS_COUNTER.inc()
+                return HttpResponseFailedDependency(
+                    {'source': 'Database', 'exception': err}
+                )
 
             try:
                 user = User.objects.get(username=username)
             except User.DoesNotExist:
-                user = IdentityHeaderMiddleware._create_user(username,
-                                                             email,
-                                                             customer,
-                                                             request)
-            user.identity_header = {
-                'encoded': rh_auth_header,
-                'decoded': json_rh_auth
-            }
+                user = IdentityHeaderMiddleware._create_user(
+                    username, email, customer, request
+                )
+
+            user.identity_header = {'encoded': rh_auth_header, 'decoded': json_rh_auth}
             user.admin = is_admin
 
             cache = caches['rbac']
             user_access = cache.get(user.uuid)
             if not user_access:
-                user_access = self._get_access(user)
+                try:
+                    user_access = self._get_access(user)
+                except RbacConnectionError as err:
+                    return HttpResponseFailedDependency(
+                        {'source': 'Rbac', 'exception': err}
+                    )
                 cache.set(user.uuid, user_access, self.rbac.cache_ttl)
             user.access = user_access
             request.user = user
