@@ -319,7 +319,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             reports = self._get_reports(table, filters)
             return {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
 
-    def populate_line_item_daily_table(self, start_date, end_date, cluster_id):
+    def populate_line_item_daily_table(self, start_date: datetime.date, end_date: datetime.date, cluster_id) -> None:
         """Populate the daily aggregate of line items table.
 
         Args:
@@ -331,11 +331,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        # Cast start_date and end_date into date object instead of string
+        # # Cast start_date and end_date into date object instead of string
         if isinstance(start_date, str):
+            self.log_date_deprecation_warning(start_date)    
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
         if isinstance(start_date, datetime.datetime):
+            self.log_date_deprecation_warning(start_date)    
             start_date = start_date.date()
             end_date = end_date.date()
 
@@ -359,7 +361,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._execute_raw_sql_query(
             table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
-    def get_ocp_infrastructure_map(self, start_date, end_date, **kwargs):
+    def get_ocp_infrastructure_map(self, start_date: datetime.date, end_date: datetime.date, **kwargs) -> None:
         """Get the OCP on infrastructure map.
 
         Args:
@@ -378,6 +380,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         # In case someone passes this function a string instead of the date object like we asked...
         # Cast the string into a date object, end_date into date object instead of string
         if isinstance(start_date, str):
+            self.log_date_deprecation_warning(start_date)
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
         infra_sql = pkgutil.get_data(
@@ -410,7 +413,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         return db_results
 
-    def populate_storage_line_item_daily_table(self, start_date, end_date, cluster_id):
+    def populate_storage_line_item_daily_table(self, start_date: datetime.date,
+                                               end_date: datetime.date, cluster_id) -> None:
         """Populate the daily storage aggregate of line items table.
 
         Args:
@@ -424,9 +428,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """
         # Cast string to date object
         if isinstance(start_date, str):
+            self.log_date_deprecation_warning(start_date)
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
         if isinstance(start_date, datetime.datetime):
+            self.log_date_deprecation_warning(start_date)
             start_date = start_date.date()
             end_date = end_date.date()
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily']
@@ -505,7 +511,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._execute_raw_sql_query(
             table_name, charge_line_sql, bind_params=list(charge_line_sql_params))
 
-    def populate_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
+    def populate_line_item_daily_summary_table(self, start_date: datetime.date,
+                                               end_date: datetime.date, cluster_id) -> None:
         """Populate the daily aggregate of line items table.
 
         Args:
@@ -519,9 +526,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """
         # Cast start_date to date
         if isinstance(start_date, str):
+            self.log_date_deprecation_warning(start_date)         
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
         if isinstance(start_date, datetime.datetime):
+            self.log_date_deprecation_warning(start_date)
             start_date = start_date.date()
             end_date = end_date.date()
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
@@ -544,7 +553,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
-    def populate_storage_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
+    def populate_storage_line_item_daily_summary_table(self, start_date: datetime.date,
+                                                       end_date: datetime.date, cluster_id) -> None:
         """Populate the daily aggregate of storage line items table.
 
         Args:
@@ -556,6 +566,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         """
         # Cast start_date and end_date to date object, if they aren't already
+        self.log_date_deprecation_warning(start_date)    
         if isinstance(start_date, str):
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
@@ -582,7 +593,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, list(summary_sql_params))
 
-    def update_summary_infrastructure_cost(self, cluster_id, start_date, end_date):
+    def update_summary_infrastructure_cost(self, cluster_id, start_date: datetime.date,
+                                           end_date: datetime.date) -> None:
         """Populate the infrastructure costs on the daily usage summary table.
 
         Args:
@@ -595,9 +607,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """
         # Cast start_date to date object
         if isinstance(start_date, str):
+            self.date_deprecation_helper(start_date)
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
         if isinstance(start_date, datetime.datetime):
+            self.date_deprecation_helper(start_date)
             start_date = start_date.date()
             end_date = end_date.date()
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
@@ -815,3 +829,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     usage_start=first_curr_month,
                     monthly_cost__isnull=False
                 ).delete()
+
+    def log_date_deprecation_warning(self, date) -> None:
+        """A helper method to log that an object should be a date."""
+        if not isinstance(date, datetime.date)
+        LOG.warn(date \
+                     + "is of deprecated type" + type(date) \
+                     + ". This type is deprecated and should be changed to a `date` type instead")
