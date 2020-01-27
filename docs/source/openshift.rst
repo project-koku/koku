@@ -86,15 +86,15 @@ The script ``scripts/e2e-deploy.sh`` handles setup and configuration of `crc`_ o
 
 3. Finally, either export the following environment variables or add them to a .env file and enter the IQE virtual environment::
 
-    OPENSHIFT_API_URL=CRC_OR_OKD_API_URL
+    OPENSHIFT_API_URL=YOUR_OPENSHIFT_API_URL
     REGISTRY_REDHAT_IO_SECRETS=PATH_TO_RH_REGISTRY_YAML
     E2E_REPO=PATH_TO_LOCAL_E2E_REPO
 
-**Note:**  If you're using crc the ``OPENSHIFT_API_URL`` will be ``https://api.crc.testing:6443`` and if you're using OKD 3.11 it will be ``https://127.0.0.1:8443/``. The ``REGISTRY_REDHAT_IO_SECRETS`` will be the path to the  file distributed by https://access.redhat.com/terms-based-registry. If your account does not have access to the content, you should file an issue with https://redhat.service-now.com/help and reach out to a teammate to share the file so that you are unblocked.
+If you do not have access to some of the repositories or resources discussed in this document, please contact a member of the Koku development team. Some resources mentioned are internal to Red Hat Associates. If you are unable to access those resources, we will work with you to identify suitable alternatives.
 
-4. Now that you are inside of the IQE virtual environment, change directories to the scripts folder inside of the koku repo (``koku/scripts``). Make sure that you have initiated a bare bones OpenShift cluster (``oc cluster up`` if you are using OKD 3.11) and then run the e2e-deploy script. This will set up your secrets in the secrets project, pull down and build the required images for koku, and deploy the project.
+4. Once the IQE virtual environment is activated, change directories to the scripts folder inside of the koku repo (``koku/scripts``). Make sure that you have a running OpenShift cluster before proceeding. The setup script handles all configuration once the cluster is running. With your OpenShift cluster running,  execute the e2e-deploy script. This will set up three projects (``secrets``, ``buildfactory``, & ``hccm``); it will pull the required imagestreams and build the container images for koku; once the container pods are built, the script will deploy the project.
 
-**Note:** If you are getting intermittent deployment failures that don't make sense, you could try increasing the memory and CPUs allotted to docker.
+**Note:** If you are getting intermittent deployment failures that don't have an obvious root cause in the pod's runtime logs or in the OpenShift cluster's Event logs, the most common reason is that there are insufficient resources to deploy all pods. Try increasing the memory and CPUs allocated to your openshift cluster or to the individual pods.
 
 5. To delete all of the objects created by running the e2e-deploy script, run ``make oc-delete-e2e``.
 
