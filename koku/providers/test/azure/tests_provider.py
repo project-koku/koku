@@ -48,7 +48,7 @@ class AzureProviderTestCase(TestCase):
             MockHelper.return_value.describe_cost_management_exports.return_value = ['report1']
             obj = AzureProvider()
             self.assertTrue(obj.cost_usage_source_is_reachable(credentials,
-                                                            source_name))
+                                                               source_name))
 
     @patch('providers.azure.provider.AzureClientFactory',
            side_effect=AzureException('test exception'))
