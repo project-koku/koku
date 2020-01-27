@@ -86,7 +86,7 @@ The script ``scripts/e2e-deploy.sh`` handles setup and configuration of `crc`_ o
 
 3. Finally, either export the following environment variables or add them to a .env file and enter the IQE virtual environment::
 
-    OPENSHIFT_API_URL=CRC_OR_OKD_API_URL
+    OPENSHIFT_API_URL=YOUR_OPENSHIFT_API_URL
     REGISTRY_REDHAT_IO_SECRETS=PATH_TO_RH_REGISTRY_YAML
     E2E_REPO=PATH_TO_LOCAL_E2E_REPO
 
