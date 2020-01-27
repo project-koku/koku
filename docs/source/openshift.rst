@@ -94,7 +94,7 @@ If you do not have access to some of the repositories or resources discussed in 
 
 4. Now that you are inside of the IQE virtual environment, change directories to the scripts folder inside of the koku repo (``koku/scripts``). Make sure that you have initiated a bare bones OpenShift cluster (``oc cluster up`` if you are using OKD 3.11) and then run the e2e-deploy script. This will set up your secrets in the secrets project, pull down and build the required images for koku, and deploy the project.
 
-**Note:** If you are getting intermittent deployment failures that don't make sense, you could try increasing the memory and CPUs allotted to docker.
+**Note:** If you are getting intermittent deployment failures that don't have an obvious root cause in the pod's runtime logs or in the OpenShift cluster's Event logs, the most common reason is that there are insufficient resources to deploy all pods. Try increasing the memory and CPUs allocated to your openshift cluster or to the individual pods.
 
 5. To delete all of the objects created by running the e2e-deploy script, run ``make oc-delete-e2e``.
 
