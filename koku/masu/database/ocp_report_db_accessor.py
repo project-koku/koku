@@ -31,7 +31,7 @@ from tenant_schemas.utils import schema_context
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.util.common import month_date_range_tuple
+from masu.util.common import month_date_range_tuple, log_date_deprecation_warning
 from reporting.provider.ocp.models import (OCPUsageLineItemDailySummary,
                                            OCPUsageReport,
                                            OCPUsageReportPeriod)
@@ -106,6 +106,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             if start_date:
                 if isinstance(start_date, str):
                     start_date = parse(start_date)
+                    log_date_deprecation_warning(start_date)
                 report_date = start_date.replace(day=1)
                 report_periods = report_periods.filter(
                     report_period_start=report_date
@@ -333,11 +334,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """
         # # Cast start_date and end_date into date object instead of string
         if isinstance(start_date, str):
-            self.log_date_deprecation_warning(start_date)    
+            log_date_deprecation_warning(start_date)    
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
         if isinstance(start_date, datetime.datetime):
-            self.log_date_deprecation_warning(start_date)    
+            log_date_deprecation_warning(start_date)    
             start_date = start_date.date()
             end_date = end_date.date()
 
@@ -380,7 +381,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         # In case someone passes this function a string instead of the date object like we asked...
         # Cast the string into a date object, end_date into date object instead of string
         if isinstance(start_date, str):
-            self.log_date_deprecation_warning(start_date)
+            log_date_deprecation_warning(start_date)
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
         infra_sql = pkgutil.get_data(
@@ -428,11 +429,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """
         # Cast string to date object
         if isinstance(start_date, str):
-            self.log_date_deprecation_warning(start_date)
+            log_date_deprecation_warning(start_date)
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
         if isinstance(start_date, datetime.datetime):
-            self.log_date_deprecation_warning(start_date)
+            log_date_deprecation_warning(start_date)
             start_date = start_date.date()
             end_date = end_date.date()
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily']
@@ -526,11 +527,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """
         # Cast start_date to date
         if isinstance(start_date, str):
-            self.log_date_deprecation_warning(start_date)         
+            log_date_deprecation_warning(start_date)         
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
         if isinstance(start_date, datetime.datetime):
-            self.log_date_deprecation_warning(start_date)
+            log_date_deprecation_warning(start_date)
             start_date = start_date.date()
             end_date = end_date.date()
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
@@ -566,8 +567,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         """
         # Cast start_date and end_date to date object, if they aren't already
-        self.log_date_deprecation_warning(start_date)    
+        log_date_deprecation_warning(start_date)    
         if isinstance(start_date, str):
+            log_date_deprecation_warning(start_date)
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
         if isinstance(start_date, datetime.datetime):
@@ -832,7 +834,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def log_date_deprecation_warning(self, date) -> None:
         """A helper method to log that an object should be a date."""
-        if not isinstance(date, datetime.date)
-        LOG.warn(date \
-                     + "is of deprecated type" + type(date) \
-                     + ". This type is deprecated and should be changed to a `date` type instead")
+        if not isinstance(date, datetime.date):
+            LOG.warn(date \
+                        + "is of deprecated type" + type(date) \
+                        + ". This type is deprecated and should be changed to a `date` type instead")

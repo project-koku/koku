@@ -44,7 +44,7 @@ from masu.celery.export import table_export_settings
 from masu.external.date_accessor import DateAccessor
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import vacuum_schema
-from masu.util.common import NamedTemporaryGZip, dictify_table_export_settings
+from masu.util.common import NamedTemporaryGZip, dictify_table_export_settings, log_date_deprecation_warning
 from masu.util.upload import get_upload_path
 
 LOG = get_task_logger(__name__)
@@ -266,8 +266,10 @@ def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, sta
     )
     if isinstance(start_date, str):
         start_date = parse(start_date)
+        log_date_deprecation_warning(start_date)
     if isinstance(end_date, str):
         end_date = parse(end_date)
+        log_date_deprecation_warning(end_date)
 
     uploader = AwsS3Uploader(settings.S3_BUCKET_NAME)
     iterate_daily = table_export_setting['iterate_daily']
