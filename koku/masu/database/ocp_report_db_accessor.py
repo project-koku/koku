@@ -609,11 +609,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """
         # Cast start_date to date object
         if isinstance(start_date, str):
-            self.date_deprecation_helper(start_date)
+            log_date_deprecation_warning(start_date)
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
         if isinstance(start_date, datetime.datetime):
-            self.date_deprecation_helper(start_date)
+            log_date_deprecation_warning(start_date)
             start_date = start_date.date()
             end_date = end_date.date()
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']

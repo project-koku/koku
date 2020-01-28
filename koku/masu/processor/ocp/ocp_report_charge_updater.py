@@ -29,6 +29,7 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.util.ocp.common import get_cluster_id_from_provider
+from masu.util.common import log_date_deprecation_warning
 
 LOG = logging.getLogger(__name__)
 
@@ -321,6 +322,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         """
         if isinstance(start_date, str):
             start_date = parse(start_date)
+            log_date_deprecation_warning(start_date)
         if isinstance(end_date, str):
             end_date = parse(end_date)
         self._cluster_id = get_cluster_id_from_provider(self._provider_uuid)

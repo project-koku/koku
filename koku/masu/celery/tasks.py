@@ -269,7 +269,7 @@ def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, sta
         log_date_deprecation_warning(start_date)
     if isinstance(end_date, str):
         end_date = parse(end_date)
-        log_date_deprecation_warning(end_date)
+        log_date_deprecation_warning(start_date)
 
     uploader = AwsS3Uploader(settings.S3_BUCKET_NAME)
     iterate_daily = table_export_setting['iterate_daily']
