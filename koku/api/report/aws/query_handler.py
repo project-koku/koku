@@ -198,6 +198,13 @@ class AWSReportQueryHandler(ReportQueryHandler):
         data = []
 
         with tenant_context(self.tenant):
+
+            if not self.parameters.parameters.get('count'):
+                # Query requests count removal from DB queries
+                self._mapper.report_type_map.get('aggregates').pop('count')
+                self._mapper.report_type_map.get('annotations').pop('count')
+                self._mapper.report_type_map.get('annotations').pop('count_units')
+
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_group_by = ['date'] + self._get_group_by()
@@ -211,8 +218,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 query_data = query_data.annotate(account_alias=Coalesce(
                     F(self._mapper.provider_map.get('alias')), 'usage_account_id'))
 
-            if not self.parameters.parameters.get('count'):
-                self._mapper.report_type_map.get('aggregates').pop('count')
             query_sum = self._build_sum(query)
 
             if self._limit:
