@@ -325,7 +325,6 @@ class SourcesStorageTest(TestCase):
             self.assertIsNone(response)
             mock_db_close.assert_called()
 
-
     def test_add_provider_sources_auth_info(self):
         """Test to add authentication to a source."""
         test_source_id = 3
