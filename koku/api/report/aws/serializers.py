@@ -97,6 +97,7 @@ class QueryParamSerializer(ParamSerializer):
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
     units = serializers.CharField(required=False)
+    count = serializers.NullBooleanField(required=False, default=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the AWS query param serializer."""

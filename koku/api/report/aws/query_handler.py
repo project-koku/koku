@@ -211,6 +211,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 query_data = query_data.annotate(account_alias=Coalesce(
                     F(self._mapper.provider_map.get('alias')), 'usage_account_id'))
 
+            if not self.parameters.parameters.get('count'):
+                self._mapper.report_type_map.get('aggregates').pop('count')
             query_sum = self._build_sum(query)
 
             if self._limit:
