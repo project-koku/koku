@@ -831,10 +831,3 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     usage_start=first_curr_month,
                     monthly_cost__isnull=False
                 ).delete()
-
-    def log_date_deprecation_warning(self, date) -> None:
-        """A helper method to log that an object should be a date."""
-        if not isinstance(date, datetime.date):
-            LOG.warn(date \
-                        + "is of deprecated type" + type(date) \
-                        + ". This type is deprecated and should be changed to a `date` type instead")

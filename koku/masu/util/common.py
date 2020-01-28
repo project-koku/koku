@@ -204,3 +204,10 @@ def date_range_pair(start_date, end_date, step=5):
         start_date = date + timedelta(days=1)
     if len(dates) != 1 and end_date not in dates:
         yield start_date.date(), end_date.date()
+
+def log_date_deprecation_warning(self, date) -> None:
+    """A helper method to log that an object should be a date."""
+    if not isinstance(date, datetime.date):
+        LOG.warn(date \
+                    + "is of deprecated type" + type(date) \
+                    + ". This type is deprecated and should be changed to a `date` type instead")
