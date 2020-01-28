@@ -23,9 +23,8 @@ from rest_framework.serializers import ValidationError
 
 from api.models import Provider
 from masu.external.downloader.azure.azure_service import AzureService, AzureServiceError
-
-from ..provider_interface import ProviderInterface
 from .client import AzureClientFactory
+from ..provider_interface import ProviderInterface
 
 
 def error_obj(key, message):
