@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Red Hat, Inc.
+# Copyright 2020 Red Hat, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -14,79 +14,60 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Test the OCP-on-Azure Report views."""
+"""Test the OCP on All Report views."""
 from urllib.parse import quote_plus, urlencode
 
-from django.test import RequestFactory
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
-from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Provider
 from api.provider.test import create_generic_provider
-from api.report.test.azure.openshift.helpers import OCPAzureReportDataGenerator
+from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.utils import DateHelper
-from reporting.models import OCPAzureCostLineItemDailySummary
+from reporting.models import OCPAWSCostLineItemDailySummary
 
 URLS = [
-    reverse('reports-openshift-azure-costs'),
-    reverse('reports-openshift-azure-storage'),
-    reverse('reports-openshift-azure-instance-type'),
-    # 'openshift-azure-tags',  # TODO: uncomment when we do tagging
+    reverse('reports-openshift-all-costs'),
+    reverse('reports-openshift-all-storage'),
+    reverse('reports-openshift-all-instance-type')
 ]
 
 GROUP_BYS = [
-    'subscription_guid',
-    'resource_location',
-    'instance_type',
-    'service_name',
     'project',
     'cluster',
     'node',
+    'account',
+    'region',
+    'instance_type',
+    'service',
+    'product_family',
 ]
 
 
-class OCPAzureReportViewTest(IamTestCase):
-    """OCP on Azure report view test cases."""
+class OCPAllReportViewTest(IamTestCase):
+    """Tests the report view."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up the test class."""
+        super().setUpClass()
+        cls.dh = DateHelper()
+        cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
 
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
-        self.client = APIClient()
-        self.factory = RequestFactory()
-        self.dh = DateHelper()
-
-    def test_execute_query_w_delta_total(self):
-        """Test that delta=total returns deltas."""
-        query = 'delta=cost'
-        url = reverse('reports-openshift-azure-costs') + '?' + query
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_execute_query_w_delta_bad_choice(self):
-        """Test invalid delta value."""
-        bad_delta = 'Invalid'
-        expected = f'"{bad_delta}" is not a valid choice.'
-        query = f'delta={bad_delta}'
-        url = reverse('reports-openshift-azure-costs') + '?' + query
-        response = self.client.get(url, **self.headers)
-        result = str(response.data.get('delta')[0])
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(result, expected)
+        _, self.provider = create_generic_provider(Provider.PROVIDER_OCP, self.headers)
+        self.data_generator = OCPAWSReportDataGenerator(self.tenant, self.provider)
+        self.data_generator.add_data_to_tenant()
 
     def test_group_bys_with_second_group_by_tag(self):
         """Test that a group by project followed by a group by tag does not error."""
-        _, provider = create_generic_provider(Provider.PROVIDER_OCP, self.headers)
-        data_generator = OCPAzureReportDataGenerator(self.tenant, provider)
-        data_generator.add_data_to_tenant()
         with tenant_context(self.tenant):
-            labels = OCPAzureCostLineItemDailySummary.objects\
+            labels = OCPAWSCostLineItemDailySummary.objects\
                 .filter(usage_start__gte=self.dh.last_month_start)\
                 .filter(usage_start__lte=self.dh.last_month_end)\
                 .values(*['tags'])\
