@@ -157,8 +157,8 @@ def get_source(source_id, err):
         return Sources.objects.get(source_id=source_id)
     except Sources.DoesNotExist:
         LOG.error(err)
-    except InterfaceError as err:
-        LOG.error(f'Closing DB connection. Accessing sources resulted in InterfaceError: {err}')
+    except InterfaceError as error:
+        LOG.error(f'Closing DB connection. Accessing sources resulted in InterfaceError: {error}')
         connection.close()
 
 
@@ -294,6 +294,9 @@ def get_source_from_endpoint(endpoint_id):
         source_id = query.source_id
     except Sources.DoesNotExist:
         LOG.debug('Unable to find Source ID from Endpoint ID: %s', str(endpoint_id))
+    except InterfaceError as error:
+        LOG.error(f'source.storage.get_source_from_endpoint InterfaceError {error}')
+        connection.close()
     return source_id
 
 
