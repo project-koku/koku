@@ -200,7 +200,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         with tenant_context(self.tenant):
 
             if not self.parameters.parameters.get('count'):
-                # Query requests count removal from DB queries
+                # Query parameter indicates count should be removed from DB queries
                 self._mapper.report_type_map.get('aggregates').pop('count')
                 self._mapper.report_type_map.get('annotations').pop('count')
                 self._mapper.report_type_map.get('annotations').pop('count_units')
