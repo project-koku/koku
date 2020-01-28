@@ -92,10 +92,6 @@ class AzureProvider(ProviderInterface):
             message = f'Resource group and/or Storage account must be a dict'
             raise ValidationError(error_obj(key, message))
 
-        subscription_id = credential_name.get('subscription_id')
-        tenant_id = credential_name.get('tenant_id')
-        client_id = credential_name.get('client_id')
-        client_secret = credential_name.get('client_secret')
         resource_group = storage_resource_name.get('resource_group')
         storage_account = storage_resource_name.get('storage_account')
         if not (resource_group and storage_account):
@@ -107,8 +103,8 @@ class AzureProvider(ProviderInterface):
             storage_accounts = azure_client.storage_client.storage_accounts
             storage_account = storage_accounts.get_properties(resource_group,
                                                               storage_account)
-            azure_service = AzureService(subscription_id, tenant_id, client_id,
-                                         client_secret, resource_group, storage_account)
+            azure_service = AzureService(**credential_name, resource_group_name=resource_group,
+                                         storage_account_name=storage_account)
         except (AdalError, AzureException, AzureServiceError, ClientException, TypeError) as exc:
             raise ValidationError(error_obj(key, str(exc)))
 
