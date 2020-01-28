@@ -136,7 +136,7 @@ create-test-customer: run-migrations
 	sleep 1
 	$(DJANGO_MANAGE) runserver > /dev/null 2>&1 &
 	sleep 5
-	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
+	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
 	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
 
 create-test-customer-no-providers: run-migrations
