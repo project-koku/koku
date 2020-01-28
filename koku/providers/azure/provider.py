@@ -22,6 +22,7 @@ from msrest.exceptions import ClientException
 from rest_framework.serializers import ValidationError
 
 from api.models import Provider
+from masu.external.downloader.azure.azure_service import AzureService, AzureServiceError
 from .client import AzureClientFactory
 from ..provider_interface import ProviderInterface
 
@@ -83,6 +84,8 @@ class AzureProvider(ProviderInterface):
         """
         key = 'billing_source.bucket'
 
+        azure_service = None
+
         if not (isinstance(credential_name, dict)
                 and isinstance(storage_resource_name, dict)):
             message = f'Resource group and/or Storage account must be a dict'
@@ -99,8 +102,14 @@ class AzureProvider(ProviderInterface):
             storage_accounts = azure_client.storage_client.storage_accounts
             storage_account = storage_accounts.get_properties(resource_group,
                                                               storage_account)
-        except (AdalError, AzureException, ClientException, TypeError) as exc:
+            azure_service = AzureService(**credential_name, resource_group_name=resource_group,
+                                         storage_account_name=storage_account)
+        except (AdalError, AzureException, AzureServiceError, ClientException, TypeError) as exc:
             raise ValidationError(error_obj(key, str(exc)))
+
+        if azure_service and not azure_service.describe_cost_management_exports():
+            message = 'Cost management export was not found.'
+            raise ValidationError(error_obj(key, message))
 
         return True
 
