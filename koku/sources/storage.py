@@ -270,7 +270,7 @@ def update_endpoint_id(source_id, endpoint_id):
         query.endpoint_id = endpoint_id
         query.save()
     except Sources.DoesNotExist:
-        LOG.error('Unable to get Source Type.  Source ID: %s does not exist', str(source_id))
+        LOG.error('[update_endpoint_id] Unable to get Source Type.  Source ID: %s does not exist', str(source_id))
 
 
 def get_source_type(source_id):
@@ -280,7 +280,7 @@ def get_source_type(source_id):
         query = Sources.objects.get(source_id=source_id)
         source_type = query.source_type
     except Sources.DoesNotExist:
-        LOG.error('Unable to get Source Type.  Source ID: %s does not exist', str(source_id))
+        LOG.error('[get_source_type] Unable to get Source Type.  Source ID: %s does not exist', str(source_id))
     return source_type
 
 
