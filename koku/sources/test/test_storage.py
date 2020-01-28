@@ -20,7 +20,7 @@ from base64 import b64decode
 from json import loads as json_loads
 from unittest.mock import patch
 
-from django.db import InterfaceError, connection
+from django.db import InterfaceError
 from django.test import TestCase
 from faker import Faker
 from sources import storage
