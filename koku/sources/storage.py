@@ -151,12 +151,12 @@ def load_providers_to_delete():
     return providers_to_delete
 
 
-def get_source(source_id, err):
+def get_source(source_id, err_msg):
     """Access Sources, log err on DoesNotExist, close connection on InterfaceError."""
     try:
         return Sources.objects.get(source_id=source_id)
     except Sources.DoesNotExist:
-        LOG.error(err)
+        LOG.error(err_msg)
     except InterfaceError as error:
         LOG.error(f'Closing DB connection. Accessing sources resulted in InterfaceError: {error}')
         connection.close()
