@@ -4,19 +4,19 @@ customer:
   email: test@example.com
   user: test_customer
   providers:
-    aws_provider:
-      provider_name: Test Provider
-      provider_type: 'AWS'
+    - aws_provider:
+      provider_name: Test AWS Provider
+      provider_type: 'AWS-local'
       authentication:
         provider_resource_name: arn:aws:iam::111111111111:role/CostManagement
         credentials:
           provider_resource_name: arn:aws:iam::111111111111:role/CostManagement
       billing_source:
-        bucket: test-bucket
+        bucket: /tmp/local_bucket
         data_source:
-          bucket: test-bucket
-    ocp_provider:
-      provider_name: OCP Test Provider
+          bucket: /tmp/local_bucket
+    - ocp_on_aws_provider:
+      provider_name: Test OCP on AWS
       provider_type: 'OCP'
       authentication:
         provider_resource_name: my-ocp-cluster-1
@@ -26,9 +26,31 @@ customer:
         bucket: ''
         data_source:
           bucket: ''
-    azure_provider:
-      provider_name: Azure Test Provider
-      provider_type: 'Azure'
+    - ocp_on_azure_provider:
+      provider_name: Test OCP on Azure
+      provider_type: 'OCP'
+      authentication:
+        provider_resource_name: my-ocp-cluster-2
+        credentials:
+          provider_resource_name: my-ocp-cluster-2
+      billing_source:
+        bucket: ''
+        data_source:
+          bucket: ''
+    - ocp_on_prem_provider:
+      provider_name: Test OCP - On Premises
+      provider_type: 'OCP'
+      authentication:
+        provider_resource_name: my-ocp-cluster-3
+        credentials:
+          provider_resource_name: my-ocp-cluster-3
+      billing_source:
+        bucket: ''
+        data_source:
+          bucket: ''
+    - azure_provider:
+      provider_name: Test Azure Provider
+      provider_type: 'Azure-local'
       authentication:
         credentials:
           subscription_id: '11111111-1111-1111-1111-11111111'
@@ -37,8 +59,12 @@ customer:
           client_secret: 'MyPassW0rd!'
       billing_source:
         data_source:
-          resource_group: 'MyResourceGroup'
-          storage_account: 'MyStorageAccount'
+          resource_group:
+            directory: ''
+            export_name: 'azure-report'
+          storage_account:
+            local_dir: '/tmp/local_container'
+            container: ''
 koku:
   host: localhost
   port: 8000
