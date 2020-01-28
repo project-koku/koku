@@ -112,7 +112,7 @@ class AzureProvider(ProviderInterface):
             raise ValidationError(error_obj(key, str(exc)))
 
         if azure_service and not azure_service.describe_cost_management_exports():
-            message = 'No cost management export was found.'
+            message = 'Cost management export was not found.'
             raise ValidationError(error_obj(key, message))
 
         return True
