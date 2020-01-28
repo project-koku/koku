@@ -59,6 +59,7 @@ SOURCE_PROVIDER_MAP = {
     SOURCES_AZURE_SOURCE_NAME: Provider.PROVIDER_AZURE,
 }
 
+
 class SourcesIntegrationError(Exception):
     """Sources Integration error."""
 
@@ -563,7 +564,7 @@ async def synchronize_sources(
                 f'Koku provider operation to execute: {msg.get("operation")} '
                 f'for Source ID: {str(msg.get("provider").source_id)} complete.'
             )
-            if msg.get("operation") != "destroy":
+            if msg.get('operation') != 'destroy':
                 storage.clear_update_flag(msg.get('provider').source_id)
         except SourcesIntegrationError as error:
             LOG.error('Re-queueing failed operation. Error: %s', str(error))
