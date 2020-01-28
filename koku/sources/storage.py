@@ -175,7 +175,7 @@ def enqueue_source_delete(source_id):
 
     """
     source = get_source(source_id, f'Unable to enqueue source delete.  {source_id} not found.')
-    if not source.pending_delete:
+    if source and not source.pending_delete:
         source.pending_delete = True
         source.save()
 
@@ -265,6 +265,9 @@ def destroy_provider_event(source_id):
         source.delete()
     except Sources.DoesNotExist:
         LOG.debug('Source ID: %s already removed.', str(source_id))
+    except InterfaceError as error:
+        LOG.error(f'source.storage.destroy_provider_event InterfaceError {error}')
+        connection.close()
 
     return koku_uuid
 
@@ -407,4 +410,7 @@ def is_known_source(source_id):
         source_exists = True
     except Sources.DoesNotExist:
         source_exists = False
+    except InterfaceError as error:
+        LOG.error(f'Closing DB connection. Accessing sources resulted in InterfaceError: {error}')
+        connection.close()
     return source_exists
