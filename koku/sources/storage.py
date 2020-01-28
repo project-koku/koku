@@ -413,4 +413,5 @@ def is_known_source(source_id):
     except InterfaceError as error:
         LOG.error(f'Closing DB connection. Accessing sources resulted in InterfaceError: {error}')
         connection.close()
+        source_exists = False
     return source_exists
