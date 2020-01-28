@@ -22,9 +22,10 @@ from msrest.exceptions import ClientException
 from rest_framework.serializers import ValidationError
 
 from api.models import Provider
-from masu.external.downloader.azure.azure_service import AzureService
-from .client import AzureClientFactory
+from masu.external.downloader.azure.azure_service import AzureService, AzureServiceError
+
 from ..provider_interface import ProviderInterface
+from .client import AzureClientFactory
 
 
 def error_obj(key, message):
@@ -108,7 +109,7 @@ class AzureProvider(ProviderInterface):
                                                               storage_account)
             azure_service = AzureService(subscription_id, tenant_id, client_id,
                                          client_secret, resource_group, storage_account)
-        except (AdalError, AzureException, ClientException, TypeError) as exc:
+        except (AdalError, AzureException, AzureServiceError, ClientException, TypeError) as exc:
             raise ValidationError(error_obj(key, str(exc)))
 
         if azure_service and not azure_service.describe_cost_management_exports():
