@@ -18,7 +18,9 @@
 """Test the Sources Storage access layer."""
 from base64 import b64decode
 from json import loads as json_loads
+from unittest.mock import patch
 
+from django.db import InterfaceError, connection
 from django.test import TestCase
 from faker import Faker
 from sources import storage
@@ -87,6 +89,16 @@ class SourcesStorageTest(TestCase):
         storage.create_provider_event(test_source_id, 'bad', test_offset)
         with self.assertRaises(Sources.DoesNotExist):
             Sources.objects.get(source_id=test_source_id)
+
+    @patch('sources.storage.connection.close')
+    @patch('sources.storage.Sources.objects')
+    def test_create_provider_event_db_down(self, mock_objects, mock_db_close):
+        """Tests creating a source db record with invalid auth_header."""
+        mock_objects.get.side_effect = InterfaceError('test_exception')
+        test_source_id = 2
+        test_offset = 3
+        storage.create_provider_event(test_source_id, Config.SOURCES_FAKE_HEADER, test_offset)
+        mock_db_close.assert_called()
 
     def test_destroy_provider_event(self):
         """Tests that a source can be destroyed."""
