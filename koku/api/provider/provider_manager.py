@@ -24,7 +24,6 @@ from tenant_schemas.utils import tenant_context
 
 from api.provider.models import Provider, Sources
 from cost_models.models import CostModelMap
-from providers.provider_access import ProviderAccessor, ProviderAccessorError
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
@@ -50,8 +49,8 @@ class ProviderManager:
         self._uuid = uuid
         try:
             self.model = Provider.objects.get(uuid=self._uuid)
-        except (ObjectDoesNotExist, ValidationError) as e:
-            raise (ProviderManagerError(str(e)))
+        except (ObjectDoesNotExist, ValidationError) as exc:
+            raise ProviderManagerError(str(exc))
         try:
             self.sources_model = Sources.objects.get(koku_uuid=self._uuid)
         except ObjectDoesNotExist:
@@ -67,15 +66,11 @@ class ProviderManager:
         """Get the name of the provider."""
         return self.model.name
 
-    def get_infrastructure_name(self, tenant):
+    def get_infrastructure_name(self):
         """Get the name of the infrastructure that the provider is running on."""
-        provider_accessor = ProviderAccessor(self.model.type)
-        try:
-            infra_type = provider_accessor.infrastructure_type(self._uuid, tenant)
-        except ProviderAccessorError as error:
-            LOG.error('Unable to determine infrastructure type. Reason: %s', str(error))
-            infra_type = 'Unknown-Error'
-        return infra_type
+        if self.model.infrastructure and self.model.infrastructure.infrastructure_type:
+            return self.model.infrastructure.infrastructure_type
+        return 'Unknown'
 
     def is_removable_by_user(self, current_user):
         """Determine if the current_user can remove the provider."""
@@ -198,5 +193,6 @@ class ProviderManager:
 
             LOG.info('Provider: {} removed by {}'.format(self.model.name, current_user.username))
         else:
-            err_msg = 'User {} does not have permission to delete provider {}'.format(current_user, str(self.model))
+            err_msg = 'User {} does not have permission to delete provider {}'.format(current_user,
+                                                                                      str(self.model))
             raise ProviderManagerError(err_msg)
