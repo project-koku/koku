@@ -27,7 +27,6 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
-from api.iam.models import User
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.models import CostModelMetricsMap
