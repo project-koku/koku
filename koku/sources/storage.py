@@ -21,6 +21,7 @@ from base64 import b64decode
 from json import loads as json_loads
 from json.decoder import JSONDecodeError
 
+from django.db import InterfaceError, connection
 
 from api.provider.models import Provider, Sources
 
@@ -150,6 +151,17 @@ def load_providers_to_delete():
     return providers_to_delete
 
 
+def get_source(source_id, err_msg):
+    """Access Sources, log err on DoesNotExist, close connection on InterfaceError."""
+    try:
+        return Sources.objects.get(source_id=source_id)
+    except Sources.DoesNotExist:
+        LOG.error(err_msg)
+    except InterfaceError as error:
+        LOG.error(f'Closing DB connection. Accessing sources resulted in InterfaceError: {error}')
+        connection.close()
+
+
 def enqueue_source_delete(source_id):
     """
     Queues a source destroy event to be processed by the synchronize_sources method.
@@ -162,13 +174,10 @@ def enqueue_source_delete(source_id):
         None
 
     """
-    try:
-        source = Sources.objects.get(source_id=source_id)
-        if not source.pending_delete:
-            source.pending_delete = True
-            source.save()
-    except Sources.DoesNotExist:
-        LOG.error('Unable to enqueue source delete.  %s not found.', str(source_id))
+    source = get_source(source_id, f'Unable to enqueue source delete.  {source_id} not found.')
+    if source and not source.pending_delete:
+        source.pending_delete = True
+        source.save()
 
 
 def enqueue_source_update(source_id):
@@ -182,13 +191,10 @@ def enqueue_source_update(source_id):
         None
 
     """
-    try:
-        source = Sources.objects.get(source_id=source_id)
-        if source.koku_uuid and not source.pending_delete and not source.pending_update:
-            source.pending_update = True
-            source.save(update_fields=['pending_update'])
-    except Sources.DoesNotExist:
-        LOG.error('Unable to enqueue source update.  %s not found.', str(source_id))
+    source = get_source(source_id, f'Unable to enqueue source update.  {source_id} not found.')
+    if source and source.koku_uuid and not source.pending_delete and not source.pending_update:
+        source.pending_update = True
+        source.save(update_fields=['pending_update'])
 
 
 def clear_update_flag(source_id):
@@ -202,13 +208,10 @@ def clear_update_flag(source_id):
         None
 
     """
-    try:
-        source = Sources.objects.get(source_id=source_id)
-        if source.koku_uuid and source.pending_update:
-            source.pending_update = False
-            source.save()
-    except Sources.DoesNotExist:
-        LOG.error('Unable to clear update flag.  %s not found.', str(source_id))
+    source = get_source(source_id, f'Unable to clear update flag.  {source_id} not found.')
+    if source and source.koku_uuid and source.pending_update:
+        source.pending_update = False
+        source.save()
 
 
 def create_provider_event(source_id, auth_header, offset):
@@ -239,6 +242,9 @@ def create_provider_event(source_id, auth_header, offset):
         new_event = Sources(source_id=source_id, auth_header=auth_header,
                             offset=offset, account_id=account_id)
         new_event.save()
+    except InterfaceError as error:
+        LOG.error(f'source.storage.create_provider_event InterfaceError {error}')
+        connection.close()
 
 
 def destroy_provider_event(source_id):
@@ -254,33 +260,32 @@ def destroy_provider_event(source_id):
     """
     koku_uuid = None
     try:
-        query = Sources.objects.get(source_id=source_id)
-        koku_uuid = query.koku_uuid
-        query.delete()
+        source = Sources.objects.get(source_id=source_id)
+        koku_uuid = source.koku_uuid
+        source.delete()
     except Sources.DoesNotExist:
         LOG.debug('Source ID: %s already removed.', str(source_id))
+    except InterfaceError as error:
+        LOG.error(f'source.storage.destroy_provider_event InterfaceError {error}')
+        connection.close()
 
     return koku_uuid
 
 
 def update_endpoint_id(source_id, endpoint_id):
     """Update Endpoint ID from Source ID."""
-    try:
-        query = Sources.objects.get(source_id=source_id)
-        query.endpoint_id = endpoint_id
-        query.save()
-    except Sources.DoesNotExist:
-        LOG.error('[update_endpoint_id] Unable to get Source Type.  Source ID: %s does not exist', str(source_id))
+    source = get_source(source_id, f'[update_endpoint_id] Unable to get Source Type.  Source ID: {source_id} does not exist')  # noqa
+    if source:
+        source.endpoint_id = endpoint_id
+        source.save()
 
 
 def get_source_type(source_id):
     """Get Source Type from Source ID."""
     source_type = None
-    try:
-        query = Sources.objects.get(source_id=source_id)
-        source_type = query.source_type
-    except Sources.DoesNotExist:
-        LOG.error('[get_source_type] Unable to get Source Type.  Source ID: %s does not exist', str(source_id))
+    source = get_source(source_id, f'[get_source_type] Unable to get Source Type.  Source ID: {source_id} does not exist')  # noqa
+    if source:
+        source_type = source.source_type
     return source_type
 
 
@@ -292,6 +297,9 @@ def get_source_from_endpoint(endpoint_id):
         source_id = query.source_id
     except Sources.DoesNotExist:
         LOG.debug('Unable to find Source ID from Endpoint ID: %s', str(endpoint_id))
+    except InterfaceError as error:
+        LOG.error(f'source.storage.get_source_from_endpoint InterfaceError {error}')
+        connection.close()
     return source_id
 
 
@@ -307,19 +315,17 @@ def add_provider_sources_auth_info(source_id, authentication):
         None
 
     """
-    try:
-        query = Sources.objects.get(source_id=source_id)
-        current_auth_dict = query.authentication
+    source = get_source(source_id, f'Unable to add authentication details.  Source ID: {source_id} does not exist')
+    if source:
+        current_auth_dict = source.authentication
         subscription_id = None
         if current_auth_dict.get('credentials', {}):
             subscription_id = current_auth_dict.get('credentials', {}).get('subscription_id')
         if subscription_id and authentication.get('credentials'):
             authentication['credentials']['subscription_id'] = subscription_id
-        if query.authentication != authentication:
-            query.authentication = authentication
-            query.save()
-    except Sources.DoesNotExist:
-        LOG.error('Unable to add authentication details.  Source ID: %s does not exist', str(source_id))
+        if source.authentication != authentication:
+            source.authentication = authentication
+            source.save()
 
 
 def add_provider_sources_network_info(source_id, source_uuid, name, source_type, endpoint_id):
@@ -336,25 +342,23 @@ def add_provider_sources_network_info(source_id, source_uuid, name, source_type,
         None
 
     """
-    try:
-        save_needed = False
-        query = Sources.objects.get(source_id=source_id)
-        if query.name != name:
-            query.name = name
+    save_needed = False
+    source = get_source(source_id, f'Unable to add network details.  Source ID: {source_id} does not exist')
+    if source:
+        if source.name != name:
+            source.name = name
             save_needed = True
-        if str(query.source_uuid) != source_uuid:
-            query.source_uuid = source_uuid
+        if str(source.source_uuid) != source_uuid:
+            source.source_uuid = source_uuid
             save_needed = True
-        if query.source_type != source_type:
-            query.source_type = source_type
+        if source.source_type != source_type:
+            source.source_type = source_type
             save_needed = True
-        if str(query.endpoint_id) != endpoint_id:
-            query.endpoint_id = endpoint_id
+        if str(source.endpoint_id) != endpoint_id:
+            source.endpoint_id = endpoint_id
             save_needed = True
         if save_needed:
-            query.save()
-    except Sources.DoesNotExist:
-        LOG.error('Unable to add network details.  Source ID: %s does not exist', str(source_id))
+            source.save()
 
 
 def _validate_billing_source(provider_type, billing_source):
@@ -384,13 +388,10 @@ def add_provider_koku_uuid(source_id, koku_uuid):
         None
 
     """
-    try:
-        query = Sources.objects.get(source_id=source_id)
-        if query.koku_uuid != koku_uuid:
-            query.koku_uuid = koku_uuid
-            query.save()
-    except Sources.DoesNotExist:
-        LOG.error('%s does not exist', str(source_id))
+    source = get_source(source_id, f'Source ID {source_id} does not exist.')
+    if source and source.koku_uuid != koku_uuid:
+        source.koku_uuid = koku_uuid
+        source.save()
 
 
 def is_known_source(source_id):
@@ -408,5 +409,9 @@ def is_known_source(source_id):
         Sources.objects.get(source_id=source_id)
         source_exists = True
     except Sources.DoesNotExist:
+        source_exists = False
+    except InterfaceError as error:
+        LOG.error(f'Closing DB connection. Accessing sources resulted in InterfaceError: {error}')
+        connection.close()
         source_exists = False
     return source_exists
