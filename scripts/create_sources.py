@@ -7,14 +7,7 @@ KOKU_API_HOST = os.getenv('KOKU_API_HOST', 'localhost')
 KOKU_API_PORT = os.getenv('KOKU_API_PORT', '8000')
 KOKU_API_PATH_PREFIX = os.getenv('KOKU_API_PATH_PREFIX', '/api/cost-management')
 KOKU_SOURCES_URL = f'http://{KOKU_API_HOST}:{KOKU_API_PORT}{KOKU_API_PATH_PREFIX}/v1/sources'
-KOKU_DEV_HEADER = os.getenv('KOKU_DEV_HEADER', ('eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW'
-                                                '1iZXIiOiAiMTAwMDEiLCAidHlwZSI6ICJV'
-                                                'c2VyIiwgInVzZXIiOiB7InVzZXJuYW1lIj'
-                                                'ogInVzZXJfZGV2IiwgImVtYWlsIjogInVz'
-                                                'ZXJfZGV2QGZvby5jb20iLCAiaXNfb3JnX2'
-                                                'FkbWluIjogdHJ1ZX19LCAiZW50aXRsZW1l'
-                                                'bnRzIjogeyJjb3N0X21hbmFnZW1lbnQiOi'
-                                                'B7ImlzX2VudGl0bGVkIjogdHJ1ZX19fQ=='))
+KOKU_DEV_HEADER = os.getenv('KOKU_DEV_HEADER', ('eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTAwMDEiLCAidHlwZSI6ICJVc2VyIiwgInVzZXIiOiB7InVzZXJuYW1lIjogInVzZXJfZGV2IiwgImVtYWlsIjogInVzZXJfZGV2QGZvby5jb20iLCAiaXNfb3JnX2FkbWluIjogdHJ1ZX19LCAiZW50aXRsZW1lbnRzIjogeyJvcGVuc2hpZnQiOiB7ImlzX2VudGl0bGVkIjogdHJ1ZX19fQ=='))  # noqa
 
 SOURCES_API_HOST = os.getenv('SOURCES_API_HOST', 'localhost')
 SOURCES_API_PORT = os.getenv('SOURCES_API_PORT', '3000')
@@ -137,10 +130,20 @@ class SourcesDataGenerator:
 
         header = {'x-rh-identity': auth_header}
         self._identity_header = header
+        self._source_type_map = self.get_types_map('source_types')
+        self._application_type_map = self.get_types_map('application_types')
+
+    def get_types_map(self, endpoint):
+        type_map = {}
+        url = '{}/{}'.format(self._base_url, endpoint)
+        r = requests.get(url, headers=self._identity_header)
+        response = r.json().get('data')
+        for source in response:
+            type_map[source.get('name')] = source.get('id')
+        return type_map
 
     def create_source(self, source_name, source_type, cluster_id=None):
-        type_map = {'azure': '3', 'aws': '1', 'ocp': '5'}
-        json_data = {'source_type_id': type_map.get(source_type), 'name': source_name}
+        json_data = {'source_type_id': self._source_type_map.get(source_type), 'name': source_name}
         if cluster_id:
             json_data['source_ref'] = cluster_id
 
@@ -189,8 +192,7 @@ class SourcesDataGenerator:
         return response.get('id')
 
     def create_application(self, source_id, source_type):
-        type_map = {'catalog': '1', 'cost_management': '2', 'topo_inv': '3'}
-        json_data = {'source_id': str(source_id), 'application_type_id': type_map.get(source_type)}
+        json_data = {'source_id': str(source_id), 'application_type_id': self._application_type_map.get(source_type)}
 
         url = '{}/{}'.format(self._base_url, 'applications')
         r = requests.post(url, headers=self._identity_header, json=json_data)
@@ -210,7 +212,7 @@ def main(args):
     name = parameters.get('name')
 
     if app_create_source_id:
-        application_id = generator.create_application(app_create_source_id, 'cost_management')
+        application_id = generator.create_application(app_create_source_id, '/insights/platform/cost-management')
         print(f'Attached Cost Management Application ID {application_id} to Source ID {app_create_source_id}')
         return
 
@@ -225,7 +227,7 @@ def main(args):
             print(f'Associating S3 bucket: {billing_source_response.content}')
             return
 
-        source_id = generator.create_source(name, 'aws')
+        source_id = generator.create_source(name, 'amazon')
         print(f'Creating AWS Source. Source ID: {source_id}')
 
         endpoint_id = generator.create_endpoint(source_id)
@@ -235,17 +237,17 @@ def main(args):
             f'AWS Provider Setup Successfully\n\tSource ID: {source_id}\n\tEndpoint ID: {endpoint_id}\n\tAuthentication ID: {authentication_id}')
 
         if create_application:
-            application_id = generator.create_application(source_id, 'cost_management')
+            application_id = generator.create_application(source_id, '/insights/platform/cost-management')
             print(f'Attached Cost Management Application ID {application_id} to Source ID {source_id}')
 
     elif parameters.get('ocp'):
         cluster_id = parameters.get('cluster_id')
-        source_id = generator.create_source(name, 'ocp', cluster_id)
+        source_id = generator.create_source(name, 'openshift', cluster_id)
         print(f'Creating OCP Source. Source ID: {source_id}')
 
         print(f'OCP Provider Setup Successfully\n\tSource ID: {source_id}')
         if create_application:
-            application_id = generator.create_application(source_id, 'cost_management')
+            application_id = generator.create_application(source_id, '/insights/platform/cost-management')
             print(f'Attached Cost Management Application ID {application_id} to Source ID {source_id}')
 
     elif parameters.get('azure'):
@@ -279,7 +281,7 @@ def main(args):
             f'Azure Provider Setup Successfully\n\tSource ID: {source_id}\n\tEndpoint ID: {endpoint_id}\n\tAuthentication ID: {authentication_id}')
 
         if create_application:
-            application_id = generator.create_application(source_id, 'cost_management')
+            application_id = generator.create_application(source_id, '/insights/platform/cost-management')
             print(f'Attached Cost Management Application ID {application_id} to Source ID {source_id}')
 
 
