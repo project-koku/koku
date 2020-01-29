@@ -393,7 +393,7 @@ class AWSReportQueryTest(IamTestCase):
         with tenant_context(self.tenant):
             instance_type = AWSCostEntryProduct.objects.first().instance_type
 
-        url = '?count=true&filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[instance_type]=*'  # noqa: E501
+        url = '?compute_count=true&filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[instance_type]=*'  # noqa: E501
         query_params = self.mocked_query_params(url, AWSInstanceTypeView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
