@@ -296,7 +296,9 @@ class ProviderInfrastructureMap(models.Model):
     """
 
     infrastructure_type = models.CharField(
-        max_length=50, choices=Provider.CLOUD_PROVIDER_CHOICES
+        max_length=50,
+        choices=Provider.CLOUD_PROVIDER_CHOICES,
+        blank=False
     )
     infrastructure_provider = models.ForeignKey(
         'Provider', on_delete=models.CASCADE
