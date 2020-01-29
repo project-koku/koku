@@ -21,7 +21,7 @@ from base64 import b64decode
 from json import loads as json_loads
 from json.decoder import JSONDecodeError
 
-from django.db import InterfaceError, connection
+from django.db import InterfaceError, OperationalError, connection
 
 from api.provider.models import Provider, Sources
 
@@ -158,8 +158,8 @@ def get_source(source_id, err_msg):
     except Sources.DoesNotExist:
         LOG.error(err_msg)
     except InterfaceError as error:
-        LOG.error(f'Closing DB connection. Accessing sources resulted in InterfaceError: {error}')
-        connection.close()
+        LOG.error(f'Accessing sources resulted in InterfaceError: {error}')
+        raise OperationalError(error)
 
 
 def enqueue_source_delete(source_id):
@@ -244,7 +244,7 @@ def create_provider_event(source_id, auth_header, offset):
         new_event.save()
     except InterfaceError as error:
         LOG.error(f'source.storage.create_provider_event InterfaceError {error}')
-        connection.close()
+        raise OperationalError(error)
 
 
 def destroy_provider_event(source_id):
@@ -267,7 +267,7 @@ def destroy_provider_event(source_id):
         LOG.debug('Source ID: %s already removed.', str(source_id))
     except InterfaceError as error:
         LOG.error(f'source.storage.destroy_provider_event InterfaceError {error}')
-        connection.close()
+        raise OperationalError(error)
 
     return koku_uuid
 
@@ -299,7 +299,7 @@ def get_source_from_endpoint(endpoint_id):
         LOG.debug('Unable to find Source ID from Endpoint ID: %s', str(endpoint_id))
     except InterfaceError as error:
         LOG.error(f'source.storage.get_source_from_endpoint InterfaceError {error}')
-        connection.close()
+        raise OperationalError(error)
     return source_id
 
 
@@ -411,7 +411,6 @@ def is_known_source(source_id):
     except Sources.DoesNotExist:
         source_exists = False
     except InterfaceError as error:
-        LOG.error(f'Closing DB connection. Accessing sources resulted in InterfaceError: {error}')
-        connection.close()
-        source_exists = False
+        LOG.error(f'Accessing sources resulted in InterfaceError: {error}')
+        raise OperationalError(error)
     return source_exists
