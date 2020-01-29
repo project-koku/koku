@@ -423,6 +423,29 @@ class AWSReportQueryTest(IamTestCase):
                     actual_count = it['values'][0].get('count', {}).get('value')
                     self.assertEqual(actual_count, expected_count)
 
+    def test_execute_query_without_counts(self):
+        """Test execute_query for without counts of unique resources."""
+        with tenant_context(self.tenant):
+            instance_type = AWSCostEntryProduct.objects.first().instance_type
+
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[instance_type]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSInstanceTypeView)
+        handler = AWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+
+        total = query_output.get('total')
+        self.assertIsNone(total.get('count'))
+
+        for data_item in data:
+            instance_types = data_item.get('instance_types')
+            for it in instance_types:
+                if it['instance_type'] == instance_type:
+                    actual_count = it['values'][0].get('count')
+                    self.assertIsNone(actual_count)
+
     def test_execute_query_curr_month_by_account_w_limit(self):
         """Test execute_query for current month on monthly breakdown by account with limit."""
         self.generator.add_data_to_tenant(FakeAWSCostData(self.provider))
