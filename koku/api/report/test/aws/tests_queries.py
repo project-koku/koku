@@ -389,7 +389,7 @@ class AWSReportQueryTest(IamTestCase):
                 self.assertIsInstance(month_item.get('services'), list)
 
     def test_execute_query_with_counts(self):
-        """Test execute_query for with counts of unique resources."""
+        """Test execute_query with counts of unique resources."""
         with tenant_context(self.tenant):
             instance_type = AWSCostEntryProduct.objects.first().instance_type
 
@@ -424,7 +424,7 @@ class AWSReportQueryTest(IamTestCase):
                     self.assertEqual(actual_count, expected_count)
 
     def test_execute_query_without_counts(self):
-        """Test execute_query for without counts of unique resources."""
+        """Test execute_query without counts of unique resources."""
         with tenant_context(self.tenant):
             instance_type = AWSCostEntryProduct.objects.first().instance_type
 
