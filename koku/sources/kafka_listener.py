@@ -23,6 +23,7 @@ import threading
 import time
 
 from aiokafka import AIOKafkaConsumer
+from django.db import OperationalError, connection
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from kafka.errors import KafkaError
@@ -404,6 +405,11 @@ async def process_messages(msg_pending_queue):  # pragma: no cover
                 KAFKA_AUTHENTICATION_UPDATE,
             ):
                 storage.enqueue_source_update(msg_data.get('source_id'))
+        except OperationalError as error:
+            LOG.error(
+                f'[process_messages] encountered OperationalError. Closing DB connection: {error}'
+            )
+            connection.close()
         except Exception as error:
             # The reason for catching all exceptions is to ensure that the event
             # loop remains active in the event that message processing fails unexpectedly.
