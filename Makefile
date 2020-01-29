@@ -146,6 +146,8 @@ create-test-customer-no-providers: run-migrations
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-providers --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
 	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
 
+load-test-customer-data:
+	$(TOPDIR)/scripts/load_test_customer_data.sh $(TOPDIR) $(start) $(end)
 
 collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
