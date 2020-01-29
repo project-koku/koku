@@ -44,9 +44,11 @@ class AzureProviderTestCase(TestCase):
                        'client_secret': FAKE.word()}
         source_name = {'resource_group': FAKE.word(),
                        'storage_account': FAKE.word()}
-        obj = AzureProvider()
-        self.assertTrue(obj.cost_usage_source_is_reachable(credentials,
-                                                           source_name))
+        with patch('providers.azure.provider.AzureService') as MockHelper:
+            MockHelper.return_value.describe_cost_management_exports.return_value = ['report1']
+            obj = AzureProvider()
+            self.assertTrue(obj.cost_usage_source_is_reachable(credentials,
+                                                               source_name))
 
     @patch('providers.azure.provider.AzureClientFactory',
            side_effect=AzureException('test exception'))
@@ -84,3 +86,19 @@ class AzureProviderTestCase(TestCase):
         obj = AzureProvider()
         self.assertEqual(obj.infra_key_list_implementation(FAKE.uuid4(),
                                                            FAKE.word()), [])
+
+    @patch('providers.azure.provider.AzureClientFactory')
+    def test_cost_usage_source_reachable_without_cost_export(self, _):
+        """Test that cost_usage_source_is_reachable raises an exception when no cost reports exist."""
+        credentials = {'subscription_id': FAKE.uuid4(),
+                       'tenant_id': FAKE.uuid4(),
+                       'client_id': FAKE.uuid4(),
+                       'client_secret': FAKE.word()}
+        source_name = {'resource_group': FAKE.word(),
+                       'storage_account': FAKE.word()}
+
+        with patch('providers.azure.provider.AzureService') as MockHelper:
+            MockHelper.return_value.describe_cost_management_exports.return_value = []
+            azure_provider = AzureProvider()
+            with self.assertRaises(ValidationError):
+                azure_provider.cost_usage_source_is_reachable(credentials, source_name)
