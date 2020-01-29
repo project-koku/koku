@@ -201,9 +201,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
             if not self.parameters.parameters.get('count'):
                 # Query parameter indicates count should be removed from DB queries
-                self._mapper.report_type_map.get('aggregates').pop('count')
-                self._mapper.report_type_map.get('annotations').pop('count')
-                self._mapper.report_type_map.get('annotations').pop('count_units')
+                self._mapper.report_type_map.get('aggregates').pop('count', None)
+                self._mapper.report_type_map.get('annotations').pop('count', None)
+                self._mapper.report_type_map.get('annotations').pop('count_units', None)
 
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
