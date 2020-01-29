@@ -1,7 +1,7 @@
 # OpenShift settings
 OC_VERSION	= v3.11
 OC_DATA_DIR	= ${HOME}/.oc/openshift.local.data
-OC_SOURCE	= registry.access.redhat.com/openshift3/ose
+OC_SOURCE	= registry.redhat.io/openshift3/ose
 
 # PostgreSQL settings
 PGSQL_VERSION   = 9.6
@@ -419,9 +419,7 @@ oc-stop-forwarding-ports:
 oc-up:
 	oc cluster up \
 		--image=$(OC_SOURCE) \
-		--version=$(OC_VERSION) \
-		--host-data-dir=$(OC_DATA_DIR) \
-		--use-existing-config=true
+		--base-dir=$(OC_DATA_DIR)
 	sleep 60
 
 oc-up-all: oc-up oc-create-koku
