@@ -98,14 +98,6 @@ class CostModelViewTests(IamTestCase):
         caches['rbac'].clear()
         self.initialize_request()
 
-    def tearDown(self):
-        """Tear down rate view tests."""
-        with tenant_context(self.tenant):
-            CostModel.objects.all().delete()
-            CostModelMap.objects.all().delete()
-            Provider.objects.all().delete()
-            User.objects.all().delete()
-
     def test_create_cost_model_success(self):
         """Test that we can create a cost model."""
         # create a cost model
