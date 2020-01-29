@@ -16,7 +16,6 @@
 #
 """Test the Provider views."""
 import json
-from unittest.mock import patch
 
 from dateutil import parser
 from django.http import HttpRequest, QueryDict
@@ -34,7 +33,6 @@ from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModelMap
-from providers.provider_access import ProviderAccessor, ProviderAccessorError
 
 
 class MockResponse:
@@ -446,14 +444,17 @@ class ProviderManagerTest(IamTestCase):
                                            created_by=self.user,
                                            customer=self.customer,
                                            authentication=provider_authentication,)
+
         data_generator = OCPAWSReportDataGenerator(self.tenant, provider, current_month_only=True)
         data_generator.add_data_to_tenant()
         data_generator.add_aws_data_to_tenant()
-        data_generator.create_ocp_provider(data_generator.cluster_id, data_generator.cluster_alias)
+        data_generator.create_ocp_provider(data_generator.cluster_id,
+                                           data_generator.cluster_alias,
+                                           infrastructure_type=Provider.PROVIDER_AWS)
 
         provider_uuid = data_generator.provider_uuid
         manager = ProviderManager(provider_uuid)
-        infrastructure_name = manager.get_infrastructure_name(self.tenant)
+        infrastructure_name = manager.get_infrastructure_name()
         self.assertEqual(infrastructure_name, Provider.PROVIDER_AWS)
 
         data_generator.remove_data_from_tenant()
@@ -466,13 +467,16 @@ class ProviderManagerTest(IamTestCase):
                                            created_by=self.user,
                                            customer=self.customer,
                                            authentication=provider_authentication,)
+
         data_generator = OCPAzureReportDataGenerator(self.tenant, provider, current_month_only=True)
         data_generator.add_data_to_tenant()
-        data_generator.create_ocp_provider(data_generator.cluster_id, data_generator.cluster_alias)
+        data_generator.create_ocp_provider(data_generator.cluster_id,
+                                           data_generator.cluster_alias,
+                                           infrastructure_type=Provider.PROVIDER_AZURE)
 
         provider_uuid = data_generator.provider_uuid
         manager = ProviderManager(provider_uuid)
-        infrastructure_name = manager.get_infrastructure_name(self.tenant)
+        infrastructure_name = manager.get_infrastructure_name()
         self.assertEqual(infrastructure_name, Provider.PROVIDER_AZURE)
 
         data_generator.remove_data_from_tenant()
@@ -492,7 +496,7 @@ class ProviderManagerTest(IamTestCase):
 
         provider_uuid = ocp_aws_data_generator.provider_uuid
         manager = ProviderManager(provider_uuid)
-        infrastructure_name = manager.get_infrastructure_name(self.tenant)
+        infrastructure_name = manager.get_infrastructure_name()
         self.assertEqual(infrastructure_name, 'Unknown')
 
         data_generator.remove_data_from_tenant()
@@ -511,8 +515,7 @@ class ProviderManagerTest(IamTestCase):
 
         provider_uuid = data_generator.provider_uuid
         manager = ProviderManager(provider_uuid)
-        with patch.object(ProviderAccessor, 'infrastructure_type', side_effect=ProviderAccessorError('mock_error')):
-            infrastructure_name = manager.get_infrastructure_name(self.tenant)
-            self.assertEqual(infrastructure_name, 'Unknown-Error')
+        infrastructure_name = manager.get_infrastructure_name()
+        self.assertEqual(infrastructure_name, 'Unknown')
 
         data_generator.remove_data_from_tenant()
