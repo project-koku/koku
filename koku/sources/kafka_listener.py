@@ -411,6 +411,8 @@ async def process_messages(msg_pending_queue):  # noqa: C901
                 f'[process_messages] encountered OperationalError. Closing DB connection: {error}'
             )
             connection.close()
+            await asyncio.sleep(30)
+            await msg_pending_queue.put(msg_data)
         except Exception as error:
             # The reason for catching all exceptions is to ensure that the event
             # loop remains active in the event that message processing fails unexpectedly.
