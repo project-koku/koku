@@ -223,7 +223,7 @@ def to_date(date) -> datetime.date:
         (date) the date representation of the argument.
     
     """
-    if is isinstance(datetime.date):
+    if isinstance(datetime.date):
         return date
     # Because date isn't already a date, log it.
     LOG.warn('Date objects should be represented as datetime.date, but it was ' + type(date).__name__)
