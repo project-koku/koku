@@ -12,6 +12,11 @@ TOPDIR  = $(shell pwd)
 PYDIR	= koku
 APIDOC  = apidoc
 
+# Testing directories
+TESTINGDIR = $(TOPDIR)/testing
+PROVIDER_TEMP_DIR = $(TESTINGDIR)/pvc_dir
+OCP_PROVIDER_TEMP_DIR = $(PROVIDER_TEMP_DIR)/insights_local
+
 # How to execute Django's manage.py
 DJANGO_MANAGE = DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py
 
@@ -49,6 +54,7 @@ help:
 	@echo "--- Commands using local services ---"
 	@echo "  create-test-customer                 create a test customer and tenant in the database"
 	@echo "  create-test-customer-no-providers    create a test customer and tenant in the database without test providers"
+	@echo "  large-ocp-provider-testing           create a test OCP provider "large_ocp_1" with a larger volume of data"
 	@echo "  collect-static                       collect static files to host"
 	@echo "  make-migrations                      make migrations for the database"
 	@echo "  requirements                         generate Pipfile.lock, RTD requirements and manifest for product security"
@@ -509,6 +515,45 @@ ifndef bucket
 endif
 	(printenv AWS_RESOURCE_NAME > /dev/null 2>&1) || (echo 'AWS_RESOURCE_NAME is not set in .env' && exit 1)
 	curl -d '{"name": "$(aws_name)", "type": "AWS", "authentication": {"provider_resource_name": "${AWS_RESOURCE_NAME}"}, "billing_source": {"bucket": "$(bucket)"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/providers/
+
+
+###################################################
+#  This section is for larger data volume testing
+###################################################
+
+create-large-ocp-provider-testing-files:
+	make purge-large-testing-ocp-files
+	make ocp-provider-from-yaml cluster_id=large_ocp_1 srf_yaml=../magic_koku/ocp_static_data_large.yml ocp_name=large_ocp_1
+
+
+import-large-ocp-provider-testing-costmodel:
+	curl --header 'Content-Type: application/json' \
+	     --request POST \
+	     --data '{"name": "Cost Management OpenShift Cost Model", "description": "A cost model of on-premises OpenShift clusters.", "source_type": "OCP", "provider_uuids": $(shell make -s find-large-testing-provider-uuid), "rates": [{"metric": {"name": "cpu_core_usage_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.007, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "node_cost_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.2, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "cpu_core_request_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.2, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "memory_gb_usage_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.009, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "memory_gb_request_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.05, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "storage_gb_usage_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.01, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "storage_gb_request_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.01, "usage_start": null, "usage_end": null}]}]}' \
+	     http://127.0.0.1:8000/api/cost-management/v1/costmodels/
+
+import-large-ocp-provider-testing-data:
+	curl --request GET http://127.0.0.1:5000/api/cost-management/v1/download/
+
+# Create a large volume of data for a test OCP provider
+# Will create the files, add the cost model and process the data
+large-ocp-provider-testing:
+	make create-large-ocp-provider-testing-files
+	make import-large-ocp-provider-testing-costmodel
+	make import-large-ocp-provider-testing-data
+
+# Delete the testing large ocp provider local files
+purge-large-testing-ocp-files:
+	rm -rf $(OCP_PROVIDER_TEMP_DIR)/large_ocp_1
+
+# Delete *ALL* local testing files
+purge-all-testing-ocp-files:
+	rm -rf $(OCP_PROVIDER_TEMP_DIR)/*
+
+# currently locked to the large ocp provider
+find-large-testing-provider-uuid:
+	@curl "http://127.0.0.1:8000/api/cost-management/v1/providers/?name=large_ocp_1" | python3 -c "import sys, json; data_list=json.load(sys.stdin)['data']; print([data['uuid'] for data in data_list if data['type']=='OCP']);" | tr "'" '"'
+
 
 ########################
 ### Internal targets ###
