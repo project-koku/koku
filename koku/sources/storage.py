@@ -21,7 +21,7 @@ from base64 import b64decode
 from json import loads as json_loads
 from json.decoder import JSONDecodeError
 
-from django.db import InterfaceError, connection
+from django.db import InterfaceError
 
 from api.provider.models import Provider, Sources
 
