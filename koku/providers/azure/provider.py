@@ -98,12 +98,12 @@ class AzureProvider(ProviderInterface):
             raise ValidationError(error_obj(key, message))
 
         try:
+            azure_service = AzureService(**credential_name, resource_group_name=resource_group,
+                                         storage_account_name=storage_account)
             azure_client = AzureClientFactory(**credential_name)
             storage_accounts = azure_client.storage_client.storage_accounts
             storage_account = storage_accounts.get_properties(resource_group,
                                                               storage_account)
-            azure_service = AzureService(**credential_name, resource_group_name=resource_group,
-                                         storage_account_name=storage_account)
         except (AdalError, AzureException, AzureServiceError, ClientException, TypeError) as exc:
             raise ValidationError(error_obj(key, str(exc)))
 
