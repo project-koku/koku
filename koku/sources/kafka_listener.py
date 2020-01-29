@@ -323,8 +323,7 @@ def sources_network_info(source_id, auth_header):
     save_auth_info(auth_header, source_id)
 
 
-# pragma: no cover
-async def process_messages(msg_pending_queue):  # noqa: C901
+async def process_messages(msg_pending_queue):  # noqa: C901; # pragma: no cover
     """
     Process messages from Platform-Sources kafka service.
 
