@@ -38,7 +38,7 @@ customer:
         data_source:
           bucket: ''
     - ocp_on_prem_provider:
-      provider_name: Test OCP - On Premises
+      provider_name: Test OCP on Premises
       provider_type: 'OCP'
       authentication:
         provider_resource_name: my-ocp-cluster-3
