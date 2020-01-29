@@ -23,6 +23,8 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
+from dateutil.parser import parse
+from masu.util.common import to_date
 
 LOG = logging.getLogger(__name__)
 
@@ -77,13 +79,16 @@ class OCPCloudUpdaterBase:
         """Get the OCP on X infrastructure map.
 
         Args:
-            start_date (str) The date to start populating the table.
-            end_date   (str) The date to end on.
+            start_date (str/date) The date to start populating the table.
+            end_date   (str/date) The date to end on.
 
         Returns:
             infra_map (dict) The OCP infrastructure map.
 
         """
+        start_date = to_date(start_date)
+        end_date = to_date(end_date)
+
         infra_map = {}
         if self._provider.type == Provider.PROVIDER_OCP:
             with OCPReportDBAccessor(self._schema, self._column_map) as accessor:

@@ -332,12 +332,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        # # Cast start_date and end_date into date object instead of string
         if isinstance(start_date, str):
+            # Convert str to date
             log_date_deprecation_warning(start_date)    
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
-            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+            end_date= datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
         if isinstance(start_date, datetime.datetime):
+            # Convert datetime to date
             log_date_deprecation_warning(start_date)    
             start_date = start_date.date()
             end_date = end_date.date()
@@ -384,6 +385,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             log_date_deprecation_warning(start_date)
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+            LOG.warn('Deprecated use of str instead of date.')
         infra_sql = pkgutil.get_data(
             'masu.database',
             'sql/reporting_ocpinfrastructure_provider_map.sql'

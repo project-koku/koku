@@ -31,9 +31,10 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
 from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
-from masu.util.common import date_range_pair
+from masu.util.common import date_range_pair, log_date_deprecation_warning
 from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
+from dateutil.parser import parse
 
 LOG = logging.getLogger(__name__)
 
@@ -45,19 +46,27 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
         """Populate the summary tables for reporting.
 
         Args:
-            start_date (str) The date to start populating the table.
-            end_date   (str) The date to end on.
+            start_date (str/date) The date to start populating the table.
+            end_date   (str/date) The date to end on.
 
         Returns
             None
 
         """
+        start_date_date = start_date
+        end_date_date = end_date
+        if not isinstance(start_date, datetime.date):
+            log_date_deprecation_warning(start_date)
+            if isinstance(start_date, str):
+                start_date_date = parse(start_date).date()
+                end_date_date = parse(end_date).date()
+
         infra_map = self.get_infra_map()
         openshift_provider_uuids, infra_provider_uuids = self.get_openshift_and_infra_providers_lists(infra_map)
 
         if (self._provider.type == Provider.PROVIDER_OCP
                 and self._provider_uuid not in openshift_provider_uuids):
-            infra_map = self._generate_ocp_infra_map_from_sql(start_date, end_date)
+            infra_map = self._generate_ocp_infra_map_from_sql(start_date_date, end_date_date)
         elif (self._provider.type in Provider.CLOUD_PROVIDER_LIST
                 and self._provider_uuid not in infra_provider_uuids):
             # When running for an Infrastructure provider we want all

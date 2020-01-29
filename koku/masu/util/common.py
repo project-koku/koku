@@ -20,6 +20,7 @@ import calendar
 import gzip
 import logging
 import re
+import datetime
 from datetime import timedelta
 from os import remove
 from tempfile import gettempdir
@@ -205,9 +206,28 @@ def date_range_pair(start_date, end_date, step=5):
     if len(dates) != 1 and end_date not in dates:
         yield start_date.date(), end_date.date()
 
-def log_date_deprecation_warning(self, date) -> None:
+def log_date_deprecation_warning(date) -> None:
     """A helper method to log that an object should be a date."""
     if not isinstance(date, datetime.date):
         LOG.warn(date \
-                    + "is of deprecated type" + type(date) \
-                    + ". This type is deprecated and should be changed to a `date` type instead")
+                 + "is of deprecated type" + type(date).__name__
+                 + ". This type is deprecated and should be changed to a `date` type instead")
+
+def to_date(date) -> datetime.date:
+    """
+    Convert incoming date argument into a datetime.date object.
+
+    Args:
+        date (str/date/datetime) a String, date, or datetime to be converted to a date.
+    Returns:
+        (date) the date representation of the argument.
+    
+    """
+    if is isinstance(datetime.date):
+        return date
+    # Because date isn't already a date, log it.
+    LOG.warn('Date objects should be represented as datetime.date, but it was ' + type(date).__name__)
+    if isinstance(date, str):
+        return = parse(date).date()
+    if isinstance(date, datetime.datetime):
+        return date.date()
