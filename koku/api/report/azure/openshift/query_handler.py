@@ -41,22 +41,21 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
         self._mapper = OCPAzureProviderMap(
             provider=self.provider, report_type=parameters.report_type
         )
+        group_by = parameters.parameters.get('group_by', {})
+        # Update which field is used to calculate cost by group by param.
+        if (group_by and group_by.get('project')) or \
+                parameters.parameters.get('filter', {}).get('project'):
+            self._report_type = parameters.report_type + '_by_project'
+            self._mapper = OCPAzureProviderMap(
+                provider=self.provider, report_type=self._report_type
+            )
+
         self.group_by_options = self._mapper.provider_map.get('group_by_options')
         self._limit = parameters.get_filter('limit')
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
         # super() needs to be called before _get_group_by is called
-
-        # Update which field is used to calculate cost by group by param.
-        group_by = self._get_group_by()
-        if (group_by and group_by[0] == 'project') or 'project' in self.parameters.get(
-            'filter', {}
-        ).keys():
-            self._report_type = parameters.report_type + '_by_project'
-            self._mapper = OCPAzureProviderMap(
-                provider=self.provider, report_type=self._report_type
-            )
 
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.

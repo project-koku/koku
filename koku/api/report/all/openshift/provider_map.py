@@ -144,6 +144,7 @@ class OCPAllProviderMap(ProviderMap):
                             'query': OCPAllCostLineItemProjectDailySummary,
                             'total': OCPAllCostLineItemProjectDailySummary
                         },
+                        'tag_column': 'pod_labels',
                         'aggregates': {
                             'cost': Sum(
                                 Coalesce(F('pod_cost'), Value(0, output_field=DecimalField()))\
@@ -238,6 +239,7 @@ class OCPAllProviderMap(ProviderMap):
                             'query': OCPAllCostLineItemProjectDailySummary,
                             'total': OCPAllCostLineItemProjectDailySummary
                         },
+                        'tag_column': 'pod_labels',
                         'aggregates': {
                             'cost': Sum(
                                 Coalesce(F('pod_cost'), Value(0, output_field=DecimalField()))
@@ -264,7 +266,7 @@ class OCPAllProviderMap(ProviderMap):
                             ),
                             'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                             'usage': Sum('usage_amount'),
-                            'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
+                            'usage_units': Coalesce(Max('unit'), Value('GB-Mo')),
                         },
                         'count': None,
                         'delta_key': {'usage': Sum('usage_amount')},
@@ -344,6 +346,7 @@ class OCPAllProviderMap(ProviderMap):
                             'query': OCPAllCostLineItemProjectDailySummary,
                             'total': OCPAllCostLineItemProjectDailySummary
                         },
+                        'tag_column': 'pod_labels',
                         'aggregates': {
                             'cost': Sum(
                                 Coalesce(F('pod_cost'), Value(0, output_field=DecimalField()))
