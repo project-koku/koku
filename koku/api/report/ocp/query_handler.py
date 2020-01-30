@@ -19,9 +19,8 @@ import copy
 from collections import defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 
-from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import F, Value, Window
-from django.db.models.functions import Coalesce, Concat, RowNumber
+from django.db.models.functions import Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider

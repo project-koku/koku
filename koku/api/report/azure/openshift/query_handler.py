@@ -18,7 +18,7 @@
 import copy
 
 from django.db.models import F, Window
-from django.db.models.functions import Coalesce, RowNumber
+from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider

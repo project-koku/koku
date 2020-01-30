@@ -17,7 +17,6 @@
 """OCP Query Handling for Reports."""
 import copy
 
-from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import F, Window
 from django.db.models.functions import (Coalesce, RowNumber)
 from tenant_schemas.utils import tenant_context
