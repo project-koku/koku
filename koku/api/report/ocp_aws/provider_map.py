@@ -126,7 +126,7 @@ class OCPAWSProviderMap(ProviderMap):
                                 Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
                             ),
                             'cost_units': Coalesce(Max('currency_code'), Value('USD')),
-                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluser_id'), distinct=True)
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'count': None,
                         'delta_key': {
@@ -169,7 +169,7 @@ class OCPAWSProviderMap(ProviderMap):
                                 Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
                             ),
                             'cost_units': Coalesce(Max('currency_code'), Value('USD')),
-                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluser_id'), distinct=True)
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'count': None,
                         'delta_key': {
@@ -213,7 +213,7 @@ class OCPAWSProviderMap(ProviderMap):
                             'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                             'usage': Sum(F('usage_amount')),
                             'usage_units': Coalesce(Max('unit'), Value('GB-Mo')),
-                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluser_id'), distinct=True)
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'count': None,
                         'delta_key': {'usage': Sum('usage_amount')},
@@ -263,7 +263,7 @@ class OCPAWSProviderMap(ProviderMap):
                             'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                             'usage': Sum('usage_amount'),
                             'usage_units': Coalesce(Max('unit'), Value('GB-Mo')),
-                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluser_id'), distinct=True)
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'count': None,
                         'delta_key': {'usage': Sum('usage_amount')},
@@ -312,7 +312,7 @@ class OCPAWSProviderMap(ProviderMap):
                             'count_units': Value('instances', output_field=CharField()),
                             'usage': Sum(F('usage_amount')),
                             'usage_units': Coalesce(Max('unit'), Value('Hrs')),
-                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluser_id'), distinct=True)
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'count': 'resource_id',
                         'delta_key': {'usage': Sum('usage_amount')},
@@ -368,7 +368,7 @@ class OCPAWSProviderMap(ProviderMap):
                             'count_units': Value('instances', output_field=CharField()),
                             'usage': Sum('usage_amount'),
                             'usage_units': Coalesce(Max('unit'), Value('Hrs')),
-                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluser_id'), distinct=True)
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'count': 'resource_id',
                         'delta_key': {'usage': Sum('usage_amount')},
