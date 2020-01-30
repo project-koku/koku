@@ -242,6 +242,7 @@ def create_provider_event(source_id, auth_header, offset):
         new_event = Sources(source_id=source_id, auth_header=auth_header,
                             offset=offset, account_id=account_id)
         new_event.save()
+        LOG.info(f'source.storage.create_provider_event created Source ID: {source_id}')
     except InterfaceError as error:
         LOG.error(f'source.storage.create_provider_event InterfaceError {error}')
         connection.close()
