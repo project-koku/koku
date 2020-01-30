@@ -17,6 +17,7 @@
 """OCP Query Handling for Reports."""
 import copy
 
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import F, Window
 from django.db.models.functions import (Coalesce, RowNumber)
 from tenant_schemas.utils import tenant_context
@@ -50,13 +51,12 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
 
             annotations = self._mapper.report_type_map.get('annotations')
             query_data = query_data.values(*query_group_by).annotate(**annotations)
-
             if 'account' in query_group_by:
                 query_data = query_data.annotate(account_alias=Coalesce(
                     F(self._mapper.provider_map.get('alias')), 'usage_account_id'))
-            elif 'cluster' in query_group_by or 'cluster' in self.query_filter:
-                query_data = query_data.annotate(cluster_alias=Coalesce('cluster_alias',
-                                                                        'cluster_id'))
+            elif 'cluster' not in query_group_by:
+                query_data.annotate(cluster=ArrayAgg('cluster_id', distinct=True))
+            query_data.annotate(cluster_alias=ArrayAgg('cluster_alias', distinct=True))
 
             if self._limit:
                 rank_order = getattr(F(self.order_field), self.order_direction)()

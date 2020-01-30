@@ -19,6 +19,7 @@ import copy
 from collections import defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import F, Value, Window
 from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
@@ -81,6 +82,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """Return annotations with the correct capacity field."""
         group_by_value = self._get_group_by()
         annotations = copy.deepcopy(self._mapper.report_type_map.get('annotations'))
+        if 'cluster' not in group_by_value:
+            annotations['cluster'] = ArrayAgg('cluster_id', distinct=True)
+        annotations['cluster_alias'] = ArrayAgg('cluster_alias', distinct=True)
         if 'capacity' not in annotations:
             return annotations
         for group in group_by_value:
@@ -135,10 +139,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
 
-            if 'cluster' in query_group_by or 'cluster' in self.query_filter:
-                query_data = query_data.annotate(cluster_alias=Coalesce('cluster_alias',
-                                                                        'cluster_id'))
-
             if self._limit and group_by_value:
                 rank_by_total = self.get_rank_window_function(group_by_value)
                 query_data = query_data.annotate(rank=rank_by_total)
@@ -152,6 +152,14 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
             query_data, total_capacity = self.get_cluster_capacity(query_data)
+
+            if 'cluster' in group_by_value:
+                for data in query_data:
+                    if isinstance(data.get('cluster', None), str):
+                        data['cluster'] = tuple([data['cluster']])
+            # The value must be immutable because it will be used as a key
+            # value later on in a dicitonary.
+
             if total_capacity:
                 query_sum.update(total_capacity)
 
@@ -189,6 +197,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         self.query_sum = ordered_total
         self.query_data = data
+        # print('cody')
+        # print(self.query_data)
         return self._format_query_response()
 
     def get_rank_window_function(self, group_by_value):
