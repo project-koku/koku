@@ -82,9 +82,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """Return annotations with the correct capacity field."""
         group_by_value = self._get_group_by()
         annotations = copy.deepcopy(self._mapper.report_type_map.get('annotations'))
-        if 'cluster' not in group_by_value:
-            annotations['cluster'] = ArrayAgg('cluster_id', distinct=True)
-        annotations['cluster_alias'] = ArrayAgg('cluster_alias', distinct=True)
         if 'capacity' not in annotations:
             return annotations
         for group in group_by_value:
@@ -152,14 +149,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
             query_data, total_capacity = self.get_cluster_capacity(query_data)
-
-            if 'cluster' in group_by_value:
-                for data in query_data:
-                    if isinstance(data.get('cluster', None), str):
-                        data['cluster'] = tuple([data['cluster']])
-            # The value must be immutable because it will be used as a key
-            # value later on in a dicitonary.
-
             if total_capacity:
                 query_sum.update(total_capacity)
 

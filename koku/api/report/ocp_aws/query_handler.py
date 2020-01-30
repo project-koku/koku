@@ -54,9 +54,6 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
             if 'account' in query_group_by:
                 query_data = query_data.annotate(account_alias=Coalesce(
                     F(self._mapper.provider_map.get('alias')), 'usage_account_id'))
-            elif 'cluster' not in query_group_by:
-                query_data.annotate(cluster=ArrayAgg('cluster_id', distinct=True))
-            query_data.annotate(cluster_alias=ArrayAgg('cluster_alias', distinct=True))
 
             if self._limit:
                 rank_order = getattr(F(self.order_field), self.order_direction)()
