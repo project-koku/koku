@@ -19,6 +19,7 @@
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor
 from reporting_common.models import CostUsageReportStatus
+import datetime
 
 
 class ReportStatsDBAccessor(KokuDBAccess):
@@ -47,7 +48,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
 
         self._obj = self._get_db_obj_query().first()
 
-    def get_completion_time_for_report(self, report_name):
+    def get_completion_time_for_report(self, report_name) -> datetime.datetime:
         """
         Return the completion date for a report name.
 
@@ -96,7 +97,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
         """
         return self._obj.last_completed_datetime
 
-    def get_last_started_datetime(self):
+    def get_last_started_datetime(self) -> datetime.datetime:
         """
         Getter for last_started_datetime.
 

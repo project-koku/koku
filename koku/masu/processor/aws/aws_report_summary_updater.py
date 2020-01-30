@@ -26,6 +26,7 @@ from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.aws.common import get_bills_from_provider
 from masu.util.common import date_range_pair
+from typing import Tuple
 
 LOG = logging.getLogger(__name__)
 
@@ -48,23 +49,23 @@ class AWSReportSummaryUpdater:
             self._column_map = reporting_common.column_map
         self._date_accessor = DateAccessor()
 
-    def update_daily_tables(self, start_date, end_date):
+    def update_daily_tables(self, start_date: datetime.date, end_date: datetime.date) -> Tuple[datetime.date, datetime.date]:
         """Populate the daily tables for reporting.
 
         Args:
-            start_date (str) The date to start populating the table.
-            end_date   (str) The date to end on.
+            start_date (str/datetime.date) The date to start populating the table.
+            end_date   (str/datetime.date) The date to end on.
 
         Returns
-            (str, str): A start date and end date.
+            (str/datetime.date, str/datetime.date): A start date and end date.
 
         """
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
         bills = get_bills_from_provider(
             self._provider.uuid,
             self._schema,
-            datetime.datetime.strptime(start_date, '%Y-%m-%d'),
-            datetime.datetime.strptime(end_date, '%Y-%m-%d')
+            start_date,  # was datetime.datetime.strptime(start_date, '%Y-%m-%d'),
+            end_date  # was atetime.datetime.strptime(end_date, '%Y-%m-%d')
         )
         bill_ids = []
         with schema_context(self._schema):
@@ -81,23 +82,23 @@ class AWSReportSummaryUpdater:
 
         return start_date, end_date
 
-    def update_summary_tables(self, start_date, end_date):
+    def update_summary_tables(self, start_date: datetime.date, end_date: datetime.date) -> Tuple[datetime.date, datetime.date]: # noqa
         """Populate the summary tables for reporting.
 
         Args:
-            start_date (str) The date to start populating the table.
-            end_date   (str) The date to end on.
+            start_date (str/datetime.date) The date to start populating the table.
+            end_date   (str/datetime.date) The date to end on.
 
         Returns
-            (str, str) A start date and end date.
+            (str/datetime.date, str/datetime.date) A start date and end date.
 
         """
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
         bills = get_bills_from_provider(
             self._provider.uuid,
             self._schema,
-            datetime.datetime.strptime(start_date, '%Y-%m-%d'),
-            datetime.datetime.strptime(end_date, '%Y-%m-%d')
+            start_date, # datetime.datetime.strptime(start_date, '%Y-%m-%d'),
+            end_date # datetime.datetime.strptime(end_date, '%Y-%m-%d')
         )
         bill_ids = []
         with schema_context(self._schema):
@@ -124,7 +125,7 @@ class AWSReportSummaryUpdater:
 
         return start_date, end_date
 
-    def _get_sql_inputs(self, start_date, end_date):
+    def _get_sql_inputs(self, start_date: datetime.date, end_date: datetime.date) -> Tuple[datetime.date, datetime.date]: # noqa
         """Get the required inputs for running summary SQL."""
         with AWSReportDBAccessor(self._schema, self._column_map) as accessor:
             # This is the normal processing route
@@ -146,9 +147,9 @@ class AWSReportSummaryUpdater:
                         bill_date.year,
                         bill_date.month
                     )[1]
-                    start_date = bill_date.strftime('%Y-%m-%d')
+                    start_date = bill_date #.strftime('%Y-%m-%d')
                     end_date = bill_date.replace(day=last_day_of_month)
-                    end_date = end_date.strftime('%Y-%m-%d')
+                    end_date = end_date #.strftime('%Y-%m-%d')
                     LOG.info('Overriding start and end date to process full month.')
 
         return start_date, end_date

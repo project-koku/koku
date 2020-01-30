@@ -42,6 +42,7 @@ from masu.processor.report_charge_updater import ReportChargeUpdater
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from reporting.models import AWS_MATERIALIZED_VIEWS
+from typing import Optional
 
 LOG = get_task_logger(__name__)
 
@@ -202,8 +203,8 @@ def summarize_reports(reports_to_summarize):
         # Updater classes for when full-month summarization is
         # required.
         start_date = DateAccessor().today() - datetime.timedelta(days=2)
-        start_date = start_date.strftime('%Y-%m-%d')
-        end_date = DateAccessor().today().strftime('%Y-%m-%d')
+        # start_date = start_date.strftime('%Y-%m-%d')
+        end_date = DateAccessor().today() # .strftime('%Y-%m-%d')
         LOG.info('report to summarize: %s', str(report))
         update_summary_tables.delay(
             report.get('schema_name'),
@@ -217,8 +218,8 @@ def summarize_reports(reports_to_summarize):
 
 @app.task(name='masu.processor.tasks.update_summary_tables', queue_name='reporting')
 def update_summary_tables(
-    schema_name, provider, provider_uuid, start_date, end_date=None, manifest_id=None
-):
+    schema_name, provider, provider_uuid, start_date: datetime.date, end_date: Optional[datetime.date] = None, manifest_id=None # noqa
+) -> None:
     """Populate the summary tables for reporting.
 
     Args:
@@ -226,8 +227,8 @@ def update_summary_tables(
         provider    (str) The provider type.
         provider_uuid (str) The provider uuid.
         report_dict (dict) The report data dict from previous task.
-        start_date  (str) The date to start populating the table.
-        end_date    (str) The date to end on.
+        start_date  (str/date) The date to start populating the table.
+        end_date    (str/date) The date to end on.
 
     Returns
         None
@@ -244,10 +245,10 @@ def update_summary_tables(
         f' manifest_id: {manifest_id}'
     )
     LOG.info(stmt)
-
+    # TODO: FIX DATE
     updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
     if updater.manifest_is_ready():
-        start_date, end_date = updater.update_daily_tables(start_date, end_date)
+        # start_date, end_date = updater.update_daily_tables(start_date, end_date)
         updater.update_summary_tables(start_date, end_date)
     if provider_uuid:
         chain(

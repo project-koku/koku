@@ -192,6 +192,10 @@ def date_range_pair(start_date, end_date, step=5):
         start_date = parser.parse(start_date)
     if isinstance(end_date, str):
         end_date = parser.parse(end_date)
+    if isinstance(start_date, datetime.date):
+        start_date = datetime.datetime(year=start_date.year, month=start_date.month, day=start_date.day)
+    if isinstance(end_date, datetime.date):
+        end_date = datetime.datetime(year=end_date.year, month=end_date.month, day=end_date.day)
     dates = list(
         rrule(freq=DAILY, dtstart=start_date, until=end_date, interval=step)
     )
@@ -213,21 +217,22 @@ def log_date_deprecation_warning(date) -> None:
                  + "is of deprecated type" + type(date).__name__
                  + ". This type is deprecated and should be changed to a `date` type instead")
 
+
 def to_date(date) -> datetime.date:
     """
     Convert incoming date argument into a datetime.date object.
 
     Args:
-        date (str/date/datetime) a String, date, or datetime to be converted to a date.
+        date (str/date/datetime) a String, date, or datetime to be converted to  a date.
     Returns:
         (date) the date representation of the argument.
-    
+
     """
-    if isinstance(datetime.date):
+    if isinstance(date, datetime.date):
         return date
-    # Because date isn't already a date, log it.
-    LOG.warn('Date objects should be represented as datetime.date, but it was ' + type(date).__name__)
-    if isinstance(date, str):
-        return = parse(date).date()
-    if isinstance(date, datetime.datetime):
+    elif isinstance(date, str):
+        return parser.parse(date).date()
+    elif isinstance(date, datetime.datetime):
         return date.date()
+    else:
+        raise ValueError('Could not convert + ' + date + ' to datetime.date')

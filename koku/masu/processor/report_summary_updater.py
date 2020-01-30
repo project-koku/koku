@@ -138,7 +138,7 @@ class ReportSummaryUpdater:
 
         return start_date, end_date
 
-    def update_summary_tables(self, start_date, end_date):
+    def update_summary_tables(self, start_date: datetime.date, end_date: datetime.date) -> None:
         """
         Update report summary tables.
 
@@ -151,7 +151,7 @@ class ReportSummaryUpdater:
             None
 
         """
-        start_date, end_date = self._format_dates(start_date, end_date)
+        # start_date, end_date = self._format_dates(start_date, end_date)
         LOG.info('Using start date: %s', start_date)
         LOG.info('Using end date: %s', end_date)
 

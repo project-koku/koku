@@ -42,7 +42,8 @@ from reporting.provider.ocp_aws.models import (
 )
 
 LOG = logging.getLogger(__name__)
-
+from typing import Optional
+import datetime
 
 # pylint: disable=too-many-public-methods
 class AWSReportDBAccessor(ReportDBAccessorBase):
@@ -87,11 +88,11 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             return self._get_db_obj_query(table_name)\
                 .filter(provider_id=provider_uuid)
 
-    def bills_for_provider_uuid(self, provider_uuid, start_date=None):
+    def bills_for_provider_uuid(self, provider_uuid, start_date: Optional[datetime.date] = None):
         """Return all cost entry bills for provider_uuid on date."""
         bills = self.get_cost_entry_bills_query_by_provider(provider_uuid)
         if start_date:
-            bill_date = parse(start_date).replace(day=1)
+            bill_date = start_date.replace(day=1)
             bills = bills.filter(billing_period_start=bill_date)
         return bills
 
@@ -204,7 +205,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_awscostentrylineitem_daily.sql'
         )
-        daily_sql = daily_sql.decode('utf-8')
+        daily_sql = daily_sql.decode('utf-8')  # pytype: disable=attribute-error
         daily_sql_params = {
             'uuid': str(uuid.uuid4()).replace('-', '_'),
             'start_date': start_date,
@@ -233,7 +234,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_awscostentrylineitem_daily_summary.sql'
         )
-        summary_sql = summary_sql.decode('utf-8')
+        summary_sql = summary_sql.decode('utf-8')  # pytype: disable=attribute-error
         summary_sql_params = {
             'uuid': str(uuid.uuid4()).replace('-', '_'),
             'start_date': start_date,
@@ -266,7 +267,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             f'sql/reporting_awstags_summary.sql'
         )
-        agg_sql = agg_sql.decode('utf-8')
+        agg_sql = agg_sql.decode('utf-8')  # pytype: disable=attribute-error
         agg_sql_params = {
             'schema': self.schema
         }
@@ -290,7 +291,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_ocpawscostlineitem_daily_summary.sql'
         )
-        summary_sql = summary_sql.decode('utf-8')
+        summary_sql = summary_sql.decode('utf-8')  # pytype: disable=attribute-error
         summary_sql_params = {
             'uuid': str(uuid.uuid4()).replace('-', '_'),
             'start_date': start_date,
