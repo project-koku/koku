@@ -1,5 +1,20 @@
+#
+# Copyright 2019 Red Hat, Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
 """Test for the Provider model."""
-
 import logging
 from unittest.mock import call, patch
 from uuid import UUID
@@ -38,14 +53,18 @@ class ProviderModelTest(MasuTestCase):
         self, mock_delete_archived_data
     ):
         """Assert the delete_archived_data task is not called if Customer is None."""
+        # remove filters on logging
         logging.disable(logging.NOTSET)
         with tenant_context(self.tenant), self.assertLogs(
-            'api.provider.models', 'WARNING'
+            'api.provider.provider_manager', 'WARNING'
         ) as captured_logs:
             self.aws_provider.customer = None
             self.aws_provider.delete()
         mock_delete_archived_data.delay.assert_not_called()
         self.assertIn('has no Customer', captured_logs.output[0])
+
+        # restore filters on logging
+        logging.disable(logging.CRITICAL)
 
     @patch('masu.celery.tasks.delete_archived_data')
     def test_delete_all_providers_from_queryset(self, mock_delete_archived_data):
