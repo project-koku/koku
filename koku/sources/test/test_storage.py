@@ -185,18 +185,6 @@ class SourcesStorageTest(TestCase):
         except Exception as error:
             self.fail(str(error))
 
-    def test_update_endpoint_id(self):
-        """Tests that endpoint id is updated for a source."""
-        storage.update_endpoint_id(self.test_source_id, 11)
-        self.assertEqual(Sources.objects.get(source_id=self.test_source_id).endpoint_id, 11)
-
-    def test_update_endpoint_id_source_does_not_exist(self):
-        """Test update endpoint id for non-existant source."""
-        try:
-            storage.update_endpoint_id(self.test_source_id + 1, 11)
-        except Exception as error:
-            self.fail(str(error))
-
     def test_screen_and_build_provider_sync_create_event(self):
         """Tests that provider create events are generated."""
         test_matrix = [{'provider': MockProvider(1, 'AWS Provider', Provider.PROVIDER_AWS,

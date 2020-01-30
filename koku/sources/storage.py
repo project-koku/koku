@@ -273,14 +273,6 @@ def destroy_provider_event(source_id):
     return koku_uuid
 
 
-def update_endpoint_id(source_id, endpoint_id):
-    """Update Endpoint ID from Source ID."""
-    source = get_source(source_id, f'[update_endpoint_id] Unable to get Source Type.  Source ID: {source_id} does not exist')  # noqa
-    if source:
-        source.endpoint_id = endpoint_id
-        source.save()
-
-
 def get_source_type(source_id):
     """Get Source Type from Source ID."""
     source_type = None
