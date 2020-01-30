@@ -186,8 +186,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         self.query_sum = ordered_total
         self.query_data = data
-        # print('cody')
-        # print(self.query_data)
         return self._format_query_response()
 
     def get_rank_window_function(self, group_by_value):
