@@ -26,6 +26,8 @@ from django.db.models.constraints import CheckConstraint
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 
+from api.utils import PrintableModelMixIn
+
 LOG = logging.getLogger(__name__)
 
 
@@ -90,7 +92,7 @@ class ProviderBillingSource(models.Model):
         ]
 
 
-class Provider(models.Model):
+class Provider(PrintableModelMixIn, models.Model):
     """A Koku Provider.
 
     Used for modeling cost providers like AWS Accounts.
@@ -288,7 +290,7 @@ class ProviderStatus(models.Model):
     retries = models.IntegerField(null=False, default=0)
 
 
-class ProviderInfrastructureMap(models.Model):
+class ProviderInfrastructureMap(PrintableModelMixIn, models.Model):
     """A lookup table for OpenShift providers.
 
     Used to determine which underlying instrastructure and

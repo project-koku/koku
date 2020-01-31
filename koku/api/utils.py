@@ -19,8 +19,11 @@
 
 import calendar
 import datetime
+from pprint import pformat
 
 import pint
+from django.conf import settings
+from django.db.models import Model
 from django.utils import timezone
 from pint.errors import UndefinedUnitError
 
@@ -262,3 +265,40 @@ class UnitConverter:
         from_unit = self.validate_unit(from_unit)
         to_unit = self.validate_unit(to_unit)
         return self.Quantity(value, from_unit).to(to_unit)
+
+
+# pylint: disable=protected-access
+def stringify(obj):
+    """Return a human-readable string using a model object's fields."""
+    out = {'class': obj.__class__}
+    for field in obj._meta.fields:
+        # TODO: add a way to redact sensitive fields.
+        attr = str(field).split('.')[-1]
+        out[attr] = getattr(obj, attr)
+    return pformat(out)
+
+
+class PrintableModelMixIn:
+    """Mix-in for enabling django.db.Model classes to print their field names and values.
+
+    Caution: there is no way to exclude fields or field data. This is intended
+    to be used only for development and debugging.
+    """
+
+    def __repr__(self):
+        """Unambiguous object representation.
+
+        Returns: (dict) a representation of the model's fields and data.
+        """
+        if settings.DEVELOPMENT:
+            return stringify(self)
+        return super().__repr__()
+
+    def __str__(self):
+        """Object string representation.
+
+        Returns: (str) a string representation of the model's fields and data.
+        """
+        if settings.DEVELOPMENT:
+            return stringify(self)
+        return super().__str__()
