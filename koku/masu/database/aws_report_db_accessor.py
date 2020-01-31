@@ -15,9 +15,11 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Database accessor for report data."""
+import datetime
 import logging
 import pkgutil
 import uuid
+from typing import Optional
 
 from dateutil.parser import parse
 from django.db.models import F
@@ -28,8 +30,7 @@ from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
-from reporting.provider.aws.models import (AWSCostEntry,
-                                           AWSCostEntryBill,
+from reporting.provider.aws.models import (AWSCostEntry, AWSCostEntryBill,
                                            AWSCostEntryLineItem,
                                            AWSCostEntryLineItemDaily,
                                            AWSCostEntryLineItemDailySummary,
@@ -37,13 +38,9 @@ from reporting.provider.aws.models import (AWSCostEntry,
                                            AWSCostEntryProduct,
                                            AWSCostEntryReservation)
 from reporting.provider.ocp_aws.models import (
-    OCPAWSCostLineItemDailySummary,
-    OCPAWSCostLineItemProjectDailySummary
-)
+    OCPAWSCostLineItemDailySummary, OCPAWSCostLineItemProjectDailySummary)
 
 LOG = logging.getLogger(__name__)
-from typing import Optional
-import datetime
 
 # pylint: disable=too-many-public-methods
 class AWSReportDBAccessor(ReportDBAccessorBase):
