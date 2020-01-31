@@ -161,6 +161,7 @@ class OCPAzureProviderMap(ProviderMap):
                             'query': OCPAzureCostLineItemProjectDailySummary,
                             'total': OCPAzureCostLineItemProjectDailySummary,
                         },
+                        'tag_column': 'pod_labels',
                         'aggregates': {
                             'cost': Sum(
                                 Coalesce(
@@ -304,6 +305,7 @@ class OCPAzureProviderMap(ProviderMap):
                             'query': OCPAzureCostLineItemProjectDailySummary,
                             'total': OCPAzureCostLineItemProjectDailySummary,
                         },
+                        'tag_column': 'pod_labels',
                         'aggregates': {
                             'cost': Sum(
                                 Coalesce(
@@ -466,6 +468,7 @@ class OCPAzureProviderMap(ProviderMap):
                             'query': OCPAzureCostLineItemProjectDailySummary,
                             'total': OCPAzureCostLineItemProjectDailySummary,
                         },
+                        'tag_column': 'pod_labels',
                         'aggregates': {
                             'cost': Sum(
                                 Coalesce(

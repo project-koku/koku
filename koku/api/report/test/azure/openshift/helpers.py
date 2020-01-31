@@ -19,11 +19,13 @@ import random
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
+from django.db import connection
 from faker import Faker
 from model_bakery import baker
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider, ProviderAuthentication, ProviderBillingSource, Tenant
+from api.provider.models import ProviderInfrastructureMap
 from api.report.test.azure.helpers import FakeAzureConfig
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.utils import DateHelper
@@ -164,8 +166,10 @@ class OCPAzureReportDataGenerator(object):
                         self._populate_ocp_azure_cost_line_item_project_daily_summary(
                             li, row, report_date
                         )
+            self._populate_azure_tag_summary()
 
-    def create_ocp_provider(self, cluster_id, cluster_alias):
+    def create_ocp_provider(self, cluster_id, cluster_alias,
+                            infrastructure_type='Unknown'):
         """Create OCP test provider."""
         auth = baker.make(
             ProviderAuthentication,
@@ -184,9 +188,14 @@ class OCPAzureReportDataGenerator(object):
             'customer': None,
             'created_by': None,
             'type': Provider.PROVIDER_OCP,
-            'setup_complete': False
+            'setup_complete': False,
+            'infrastructure': None
         }
         provider = Provider(**provider_data)
+        infrastructure = ProviderInfrastructureMap(infrastructure_provider=provider,
+                                                   infrastructure_type=infrastructure_type)
+        infrastructure.save()
+        provider.infrastructure = infrastructure
         provider.save()
         self.cluster_alias = cluster_alias
         self.provider_uuid = provider_uuid
@@ -285,3 +294,23 @@ class OCPAzureReportDataGenerator(object):
                 k=random.randrange(2, len(self.config.tags.keys())),
             )
         }
+
+    def _populate_azure_tag_summary(self):
+        """Populate the Azure tag summary table."""
+        raw_sql = """
+            INSERT INTO reporting_azuretags_summary
+            SELECT l.key,
+                array_agg(DISTINCT l.value) as values
+            FROM (
+                SELECT key,
+                    value
+                FROM reporting_ocpazurecostlineitem_daily_summary AS li,
+                    jsonb_each_text(li.tags) labels
+            ) l
+            GROUP BY l.key
+            ON CONFLICT (key) DO UPDATE
+            SET values = EXCLUDED.values
+        """
+
+        with connection.cursor() as cursor:
+            cursor.execute(raw_sql)

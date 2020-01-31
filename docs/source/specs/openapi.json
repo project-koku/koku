@@ -3287,12 +3287,7 @@
                     {
                         "type": "object",
                         "required": [
-                            "source_id",
-                            "name",
-                            "source_type",
-                            "authentication",
-                            "billing_source",
-                            "source_uuid"
+                            "source_id"
                         ],
                         "properties": {
                             "source_id": {
