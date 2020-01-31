@@ -20,6 +20,7 @@ import datetime
 import logging
 from decimal import Decimal
 
+from dateutil.parser import parse
 from django.db import connection
 from tenant_schemas.utils import schema_context
 
@@ -29,12 +30,13 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
-from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
-from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
+from masu.util.aws.common import \
+    get_bills_from_provider as aws_get_bills_from_provider
+from masu.util.azure.common import \
+    get_bills_from_provider as azure_get_bills_from_provider
 from masu.util.common import date_range_pair, log_date_deprecation_warning
 from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
-from dateutil.parser import parse
 
 LOG = logging.getLogger(__name__)
 

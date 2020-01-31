@@ -21,6 +21,7 @@
 # we expect this situation to be temporary as we iterate on these details.
 import datetime
 import os
+from typing import Optional
 
 from celery import chain
 from celery.utils.log import get_task_logger
@@ -33,7 +34,8 @@ from api.provider.models import Provider
 from koku.celery import app
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
-from masu.external.accounts_accessor import AccountsAccessor, AccountsAccessorError
+from masu.external.accounts_accessor import (AccountsAccessor,
+                                             AccountsAccessorError)
 from masu.external.date_accessor import DateAccessor
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
@@ -42,7 +44,6 @@ from masu.processor.report_charge_updater import ReportChargeUpdater
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from reporting.models import AWS_MATERIALIZED_VIEWS
-from typing import Optional
 
 LOG = get_task_logger(__name__)
 
@@ -203,8 +204,8 @@ def summarize_reports(reports_to_summarize):
         # Updater classes for when full-month summarization is
         # required.
         start_date = DateAccessor().today() - datetime.timedelta(days=2)
-        # start_date = start_date.strftime('%Y-%m-%d')
-        end_date = DateAccessor().today() # .strftime('%Y-%m-%d')
+        # formerly start_date = start_date.strftime('%Y-%m-%d')
+        end_date = DateAccessor().today()  # formerly  .strftime('%Y-%m-%d')
         LOG.info('report to summarize: %s', str(report))
         update_summary_tables.delay(
             report.get('schema_name'),

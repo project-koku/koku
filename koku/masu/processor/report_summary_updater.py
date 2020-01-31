@@ -97,16 +97,12 @@ class ReportSummaryUpdater:
 
     def _format_dates(self, start_date, end_date):
         """
-        # TODO: remove this line: Convert dates to strings for use in the updater.
-        
+        # Convert dates for use in the updater.
+
         If end_date is None, set it to today.
         """
-        # if isinstance(start_date, datetime.date):
-        #     start_date = start_date  # .strftime('%Y-%m-%d')
-        # if isinstance(end_date, datetime.date):
-        #     end_date = end_date.strftime('%Y-%m-%d')
         if end_date is None:
-            # Run up to the current date: Setting end_date to the current date.
+            # Run up to the current date. Set end_date to the current date.
             end_date = self._date_accessor.today_with_timezone('UTC')
             # end_date = end_date.strftime('%Y-%m-%d')
         return start_date, end_date

@@ -31,7 +31,8 @@ from tenant_schemas.utils import schema_context
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.util.common import month_date_range_tuple, log_date_deprecation_warning
+from masu.util.common import (log_date_deprecation_warning,
+                              month_date_range_tuple)
 from reporting.provider.ocp.models import (OCPUsageLineItemDailySummary,
                                            OCPUsageReport,
                                            OCPUsageReportPeriod)
@@ -320,7 +321,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             reports = self._get_reports(table, filters)
             return {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
 
-    def populate_line_item_daily_table(self, start_date: datetime.date, end_date: datetime.date, cluster_id) -> None:
+    def populate_line_item_daily_table(self, start_date: datetime.date, end_date: datetime.date, cluster_id) -> None:  # noqa: E501 pylint: disable=line-too-long
         """Populate the daily aggregate of line items table.
 
         Args:
@@ -363,7 +364,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._execute_raw_sql_query(
             table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
-    def get_ocp_infrastructure_map(self, start_date: datetime.date, end_date: datetime.date, **kwargs) -> None:
+    def get_ocp_infrastructure_map(self, start_date: datetime.date, end_date: datetime.date, **kwargs) -> None:  # noqa: E501 pylint: disable=line-too-long
         """Get the OCP on infrastructure map.
 
         Args:
@@ -384,7 +385,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         if isinstance(start_date, str):
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
-            LOG.warn('Deprecated use of str instead of date.')
+            LOG.warning('Deprecated use of str instead of date.')
         infra_sql = pkgutil.get_data(
             'masu.database',
             'sql/reporting_ocpinfrastructure_provider_map.sql'
