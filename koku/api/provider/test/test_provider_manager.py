@@ -16,6 +16,7 @@
 #
 """Test the Provider views."""
 import json
+from unittest.mock import patch
 
 from dateutil import parser
 from django.http import HttpRequest, QueryDict
@@ -519,3 +520,29 @@ class ProviderManagerTest(IamTestCase):
         self.assertEqual(infrastructure_name, 'Unknown')
 
         data_generator.remove_data_from_tenant()
+
+    @patch('api.provider.provider_manager.ProviderManager.is_removable_by_user', return_value=False)
+    def test_remove_not_removeable(self, _):
+        """Test error raised if user without capability tries to remove a provider."""
+        # Create Provider
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='arn:aws:iam::2:role/mg')
+        provider_billing = ProviderBillingSource.objects.create(bucket='my_s3_bucket')
+        provider = Provider.objects.create(name='awsprovidername',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,
+                                           billing_source=provider_billing)
+        provider_uuid = provider.uuid
+
+        new_user_dict = self._create_user_data()
+        request_context = self._create_request_context(self.customer_data,
+                                                       new_user_dict, False)
+        user_serializer = UserSerializer(data=new_user_dict, context=request_context)
+        other_user = None
+        if user_serializer.is_valid(raise_exception=True):
+            other_user = user_serializer.save()
+
+        with tenant_context(self.tenant):
+            manager = ProviderManager(provider_uuid)
+            with self.assertRaises(ProviderManagerError):
+                manager.remove(self._create_delete_request(other_user))
