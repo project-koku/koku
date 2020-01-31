@@ -24,6 +24,7 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.report.azure.openshift.provider_map import OCPAzureProviderMap
 from api.report.azure.query_handler import AzureReportQueryHandler
+from api.report.queries import is_grouped_or_filtered_by_project
 
 
 class OCPAzureReportQueryHandler(AzureReportQueryHandler):
@@ -41,10 +42,8 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
         self._mapper = OCPAzureProviderMap(
             provider=self.provider, report_type=parameters.report_type
         )
-        group_by = parameters.parameters.get('group_by', {})
         # Update which field is used to calculate cost by group by param.
-        if (group_by and group_by.get('project')) or \
-                parameters.parameters.get('filter', {}).get('project'):
+        if is_grouped_or_filtered_by_project(parameters):
             self._report_type = parameters.report_type + '_by_project'
             self._mapper = OCPAzureProviderMap(
                 provider=self.provider, report_type=self._report_type
