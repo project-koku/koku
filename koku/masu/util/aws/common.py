@@ -30,7 +30,7 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.util import common as utils
-
+from typing import Optional
 LOG = logging.getLogger(__name__)
 
 
@@ -226,26 +226,28 @@ def get_account_names_by_organization(role_arn, session=None):
     return all_accounts
 
 
-def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=None):
+def get_bills_from_provider(provider_uuid, schema, start_date: Optional[datetime.date]=None, end_date: Optional[datetime.date]=None): # noqa 
     """
     Return the AWS bill IDs given a provider UUID.
+    
+    Starts with the first day of the month.
 
     Args:
         provider_uuid (str): Provider UUID.
         schema (str): Tenant schema
-        start_date (datetime, str): Start date for bill IDs.
-        end_date (datetime, str) End date for bill IDs.
+        start_date (date): Start date for bill IDs.
+        end_date (date) End date for bill IDs.
 
     Returns:
         (list): AWS cost entry bill objects.
 
     """
     if isinstance(start_date, datetime.datetime):
-        start_date = start_date.replace(day=1)
-        start_date = start_date.strftime('%Y-%m-%d')
-
+        start_date = start_date.date() # .strftime('%Y-%m-%d')
     if isinstance(end_date, datetime.datetime):
-        end_date = end_date.strftime('%Y-%m-%d')
+        end_date = end_date.date() #.strftime('%Y-%m-%d')
+    if start_date is not None:
+        start_date = start_date.replace(day=1)
 
     with ReportingCommonDBAccessor() as reporting_common:
         column_map = reporting_common.column_map
@@ -260,14 +262,14 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
 
     with AWSReportDBAccessor(schema, column_map) as report_accessor:
         with schema_context(schema):
-            bills = report_accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
+            bills_1 = report_accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
             if start_date:
-                bills = bills.filter(billing_period_start__gte=start_date)
+                bills_2 = bills_1.filter(billing_period_start__gte=start_date)
             if end_date:
-                bills = bills.filter(billing_period_start__lte=end_date)
-            bills = bills.all()
+                bills_3 = bills_2.filter(billing_period_start__lte=end_date)
+            bills_4 = bills_3.all()
 
-    return bills
+    return bills_4
 
 
 # pylint: disable=too-few-public-methods

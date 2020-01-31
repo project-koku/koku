@@ -102,8 +102,8 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
             bill.summary_data_creation_datetime = start_date
             bill.save()
 
-        start_date_str = start_date.strftime('%Y-%m-%d')
-        end_date_str = end_date.strftime('%Y-%m-%d')
+        start_date_str = start_date.date()  # .strftime('%Y-%m-%d')
+        end_date_str = end_date.date()  # .strftime('%Y-%m-%d')
 
         expected_start_date = start_date.date()
         expected_end_date = end_date.date()
@@ -261,8 +261,8 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         with schema_context(self.schema):
             bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
 
-        start_date_str = start_date.strftime('%Y-%m-%d')
-        end_date_str = end_date.strftime('%Y-%m-%d')
+        start_date_str = start_date.date()  #.strftime('%Y-%m-%d')
+        end_date_str = end_date.date()  # .strftime('%Y-%m-%d')
 
         self.assertIsNone(bill.summary_data_creation_datetime)
         self.assertIsNone(bill.summary_data_updated_datetime)
@@ -355,8 +355,8 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
             bill.finalized_datetime = start_date
             bill.save()
 
-        start_date_str = start_date.strftime('%Y-%m-%d')
-        end_date_str = end_date.strftime('%Y-%m-%d')
+        start_date_str = start_date.date()  # .strftime('%Y-%m-%d')
+        end_date_str = end_date.date()  # .strftime('%Y-%m-%d')
 
         self.assertIsNone(bill.summary_data_creation_datetime)
         self.assertIsNone(bill.summary_data_updated_datetime)
