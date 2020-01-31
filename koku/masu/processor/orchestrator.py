@@ -120,6 +120,10 @@ class Orchestrator():
         """
         Prepare a processing request for each account.
 
+        Scans the database for providers that have reports that need to be processed.
+        Any report it finds is queued to the appropriate celery task to download
+        and process those reports.
+
         Args:
             None
 
