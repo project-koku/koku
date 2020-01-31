@@ -38,6 +38,14 @@ def strip_tag_prefix(tag):
     return tag.replace('tag:', '').replace('and:', '').replace('or:', '')
 
 
+def is_grouped_or_filtered_by_project(parameters):
+    """Determine if grouped or filtered by project."""
+    group_by = list(parameters.parameters.get('group_by', {}).keys())
+    filters = list(parameters.parameters.get('filter', {}).keys())
+    effects = group_by + filters
+    return [key for key in effects if 'project' in key]
+
+
 class ReportQueryHandler(QueryHandler):
     """Handles report queries and responses."""
 
