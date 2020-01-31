@@ -356,7 +356,7 @@ async def process_messages(msg_pending_queue):  # noqa: C901; pragma: no cover
                         msg_data.get('resource_id')
                     )
 
-                storage.create_provider_event(
+                storage.create_source_event(
                     msg_data.get('source_id'),
                     msg_data.get('auth_header'),
                     msg_data.get('offset'),
@@ -512,7 +512,7 @@ def execute_koku_provider_op(msg, cost_management_type_id):
                     LOG.info(
                         f'Koku Provider already removed.  Remove Source ID: {str(provider.source_id)}.'
                     )
-            storage.destroy_provider_event(provider.source_id)
+            storage.destroy_source_event(provider.source_id)
         elif operation == 'update':
             koku_details = koku_client.update_provider(
                 provider.koku_uuid,
