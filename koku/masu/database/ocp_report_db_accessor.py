@@ -382,7 +382,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         # In case someone passes this function a string instead of the date object like we asked...
         # Cast the string into a date object, end_date into date object instead of string
         if isinstance(start_date, str):
-            log_date_deprecation_warning(start_date)
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
             LOG.warn('Deprecated use of str instead of date.')

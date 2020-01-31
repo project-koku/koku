@@ -188,6 +188,7 @@ def date_range_pair(start_date, end_date, step=5):
     and end date over the interval.
 
     """
+    print('DATE_RANGE_PAIR_BEGIN')
     if isinstance(start_date, str):
         start_date = parser.parse(start_date)
     if isinstance(end_date, str):
@@ -200,13 +201,22 @@ def date_range_pair(start_date, end_date, step=5):
         rrule(freq=DAILY, dtstart=start_date, until=end_date, interval=step)
     )
     # Special case with only 1 period
+    print('DATE_RANGE_PAIR CONTINUE')
     if len(dates) == 1:
+        print('DATE RANGE IS ' + start_date.date().strftime('%Y-%m-%d') + ' ' + end_date.date().strftime('%Y-%m-%d'))
         yield start_date.date(), end_date.date()
+    #import pdb
+    #pdb.set_trace()
     for date in dates:
+        #print("The type of start date is "type(start_date))
+        print('DATE RANGE IS  2' + start_date.date().strftime('%Y-%m-%d') + ' ' + end_date.date().strftime('%Y-%m-%d'))
         if date == start_date:
+            print('DATE RANGE IS 3' + start_date.date().strftime('%Y-%m-%d') + ' ' + end_date.date().strftime('%Y-%m-%d'))
             continue
+        print('DATE RANGE IS 4' + start_date.date().strftime('%Y-%m-%d') + ' ' + end_date.date().strftime('%Y-%m-%d'))
         yield start_date.date(), date.date()
         start_date = date + timedelta(days=1)
+    print('DATE_RANGE_PAIR THIRD')
     if len(dates) != 1 and end_date not in dates:
         yield start_date.date(), end_date.date()
 

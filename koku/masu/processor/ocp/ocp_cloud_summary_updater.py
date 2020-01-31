@@ -42,7 +42,7 @@ LOG = logging.getLogger(__name__)
 class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
     """Class to update OCP report summary data."""
 
-    def update_summary_tables(self, start_date, end_date):
+    def update_summary_tables(self, start_date: datetime.date, end_date: datetime.date) -> None:
         """Populate the summary tables for reporting.
 
         Args:

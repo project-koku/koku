@@ -36,6 +36,7 @@ from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUp
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.util.ocp.common import get_cluster_id_from_provider
+from masu.util.common import log_date_deprecation_warning
 from reporting.provider.all.openshift.models import (OCPAllCostLineItemDailySummary,
                                                      OCPAllCostLineItemProjectDailySummary)
 

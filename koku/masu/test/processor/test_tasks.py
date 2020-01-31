@@ -684,7 +684,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self.assertEqual(initial_daily_count, 0)
         self.assertEqual(initial_summary_count, 0)
 
-        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date.date())
+        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date)
 
         with schema_context(self.schema):
             self.assertNotEqual(daily_query.count(), initial_daily_count)
