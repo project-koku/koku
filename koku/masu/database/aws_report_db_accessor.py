@@ -21,7 +21,6 @@ import pkgutil
 import uuid
 from typing import Optional
 
-from dateutil.parser import parse
 from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
@@ -41,6 +40,7 @@ from reporting.provider.ocp_aws.models import (
     OCPAWSCostLineItemDailySummary, OCPAWSCostLineItemProjectDailySummary)
 
 LOG = logging.getLogger(__name__)
+
 
 # pylint: disable=too-many-public-methods
 class AWSReportDBAccessor(ReportDBAccessorBase):

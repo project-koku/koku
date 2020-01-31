@@ -334,12 +334,12 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """
         if isinstance(start_date, str):
             # Convert str to date
-            log_date_deprecation_warning(start_date)    
+            log_date_deprecation_warning(start_date)
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
-            end_date= datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
         if isinstance(start_date, datetime.datetime):
             # Convert datetime to date
-            log_date_deprecation_warning(start_date)    
+            log_date_deprecation_warning(start_date)
             start_date = start_date.date()
             end_date = end_date.date()
 
@@ -528,7 +528,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """
         # Cast start_date to date
         if isinstance(start_date, str):
-            log_date_deprecation_warning(start_date)         
+            log_date_deprecation_warning(start_date)
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
         if isinstance(start_date, datetime.datetime):
@@ -568,7 +568,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         """
         # Cast start_date and end_date to date object, if they aren't already
-        log_date_deprecation_warning(start_date)    
+        log_date_deprecation_warning(start_date)
         if isinstance(start_date, str):
             log_date_deprecation_warning(start_date)
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()

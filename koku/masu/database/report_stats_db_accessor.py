@@ -16,10 +16,11 @@
 #
 """Downloader for cost usage reports."""
 
+import datetime
+
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor
 from reporting_common.models import CostUsageReportStatus
-import datetime
 
 
 class ReportStatsDBAccessor(KokuDBAccess):

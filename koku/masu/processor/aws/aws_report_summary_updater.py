@@ -50,7 +50,7 @@ class AWSReportSummaryUpdater:
             self._column_map = reporting_common.column_map
         self._date_accessor = DateAccessor()
 
-    def update_daily_tables(self, start_date: datetime.date, end_date: datetime.date) -> Tuple[datetime.date, datetime.date]:
+    def update_daily_tables(self, start_date: datetime.date, end_date: datetime.date) -> Tuple[datetime.date, datetime.date]:  # noqa: E501
         """Populate the daily tables for reporting.
 
         Args:
@@ -83,7 +83,7 @@ class AWSReportSummaryUpdater:
 
         return start_date, end_date
 
-    def update_summary_tables(self, start_date: datetime.date, end_date: datetime.date) -> Tuple[datetime.date, datetime.date]: # noqa
+    def update_summary_tables(self, start_date: datetime.date, end_date: datetime.date) -> Tuple[datetime.date, datetime.date]:  # noqa: E501
         """Populate the summary tables for reporting.
 
         Args:
@@ -98,8 +98,8 @@ class AWSReportSummaryUpdater:
         bills = get_bills_from_provider(
             self._provider.uuid,
             self._schema,
-            start_date, # datetime.datetime.strptime(start_date, '%Y-%m-%d'),
-            end_date # datetime.datetime.strptime(end_date, '%Y-%m-%d')
+            start_date,  # formly datetime.datetime.strptime(start_date, '%Y-%m-%d'),
+            end_date  # formerly datetime.datetime.strptime(end_date, '%Y-%m-%d')
         )
         bill_ids = []
         with schema_context(self._schema):
@@ -126,8 +126,12 @@ class AWSReportSummaryUpdater:
 
         return start_date, end_date
 
-    def _get_sql_inputs(self, start_date: datetime.date, end_date: datetime.date) -> Tuple[datetime.date, datetime.date]: # noqa
-        """Get the required inputs for running summary SQL."""
+    def _get_sql_inputs(self, start_date: datetime.date, end_date: datetime.date) -> Tuple[datetime.date, datetime.date]:  # noqa: E501
+        """
+        Get the required inputs for running summary SQL.
+        
+        Set start_date to bill_date, and end_date to the last day of the month of bill_date.
+        """
         with AWSReportDBAccessor(self._schema, self._column_map) as accessor:
             # This is the normal processing route
             if self._manifest:
@@ -148,9 +152,9 @@ class AWSReportSummaryUpdater:
                         bill_date.year,
                         bill_date.month
                     )[1]
-                    start_date = bill_date #.strftime('%Y-%m-%d')
+                    start_date = bill_date  # .strftime('%Y-%m-%d')
                     end_date = bill_date.replace(day=last_day_of_month)
-                    end_date = end_date #.strftime('%Y-%m-%d')
+                    # end_date = end_date.strftime('%Y-%m-%d')
                     LOG.info('Overriding start and end date to process full month.')
 
         return start_date, end_date
