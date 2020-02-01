@@ -185,14 +185,6 @@ class ReportQueryHandler(QueryHandler):
                 for item in list_:
                     q_filter = QueryFilter(parameter=item, **filt)
                     filters.add(q_filter)
-            elif list_ and ReportQueryHandler.has_wildcard(list_):
-                wild_card_filt = {
-                    'field': tag_column,
-                    'operation': 'has_key'
-                }
-                q_filter = QueryFilter(parameter=strip_tag_prefix(tag),
-                                       **wild_card_filt)
-                filters.add(q_filter)
         return filters
 
     def _set_operator_specified_tag_filters(self, filters, operator):
