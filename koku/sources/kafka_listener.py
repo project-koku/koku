@@ -385,15 +385,15 @@ async def process_messages(msg_pending_queue):  # noqa: C901; pragma: no cover
             elif msg_data.get('event_type') in (
                 KAFKA_AUTHENTICATION_UPDATE,
             ):
+                msg_data['source_id'] = storage.get_source_from_endpoint(
+                    msg_data.get('resource_id')
+                )
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     await EVENT_LOOP.run_in_executor(
                         pool,
-                        sources_network_auth_info,
-                        msg_data.get('resource_id'),
+                        save_auth_info,
                         msg_data.get('auth_header'),
-                    )
-                    msg_data['source_id'] = storage.get_source_from_endpoint(
-                        msg_data.get('resource_id')
+                        msg_data.get('source_id'),
                     )
 
             elif msg_data.get('event_type') in (
