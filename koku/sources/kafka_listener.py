@@ -410,7 +410,11 @@ async def process_messages(msg_pending_queue):  # noqa: C901; # pragma: no cover
                 f'[process_messages] Closing DB connection. Encountered {type(error).__name__}: {error}'
             )
             connection.close()
-            await asyncio.sleep(30)
+            await asyncio.sleep(Config.RETRY_SECONDS)
+            LOG.info(
+                f'Requeued failed operation: {msg.get("operation")} '
+                f'for Source ID: {str(msg.get("provider").source_id)}.'
+            )
             await msg_pending_queue.put(msg_data)
         except Exception as error:
             # The reason for catching all exceptions is to ensure that the event
@@ -576,6 +580,16 @@ async def synchronize_sources(
                 storage.clear_update_flag(msg.get('provider').source_id)
         except SourcesIntegrationError as error:
             LOG.error('Re-queueing failed operation. Error: %s', str(error))
+            await asyncio.sleep(Config.RETRY_SECONDS)
+            _log_process_queue_event(process_queue, msg)
+            await process_queue.put(msg)
+            LOG.info(
+                f'Requeue of failed operation: {msg.get("operation")} '
+                f'for Source ID: {str(msg.get("provider").source_id)} complete.'
+            )
+        except (InterfaceError, OperationalError) as error:
+            LOG.error(f'[synchronize_sources] Closing DB connection. Encountered {type(error).__name__}: {error}')  # noqa
+            connection.close()
             await asyncio.sleep(Config.RETRY_SECONDS)
             _log_process_queue_event(process_queue, msg)
             await process_queue.put(msg)
