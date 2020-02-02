@@ -362,7 +362,6 @@ async def process_messages(msg_pending_queue):  # noqa: C901; pragma: no cover
                     msg_data.get('offset'),
                 )
 
-            if msg_data.get('event_type') in (KAFKA_APPLICATION_CREATE,):
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     await EVENT_LOOP.run_in_executor(
                         pool,
@@ -384,7 +383,6 @@ async def process_messages(msg_pending_queue):  # noqa: C901; pragma: no cover
                     )
 
             elif msg_data.get('event_type') in (
-                KAFKA_AUTHENTICATION_CREATE,
                 KAFKA_AUTHENTICATION_UPDATE,
             ):
                 with concurrent.futures.ThreadPoolExecutor() as pool:
