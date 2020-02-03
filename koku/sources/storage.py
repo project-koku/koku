@@ -214,7 +214,7 @@ def clear_update_flag(source_id):
         source.save()
 
 
-def create_provider_event(source_id, auth_header, offset):
+def create_source_event(source_id, auth_header, offset):
     """
     Create a Sources database object.
 
@@ -247,7 +247,7 @@ def create_provider_event(source_id, auth_header, offset):
         raise error
 
 
-def destroy_provider_event(source_id):
+def destroy_source_event(source_id):
     """
     Destroy a Sources database object.
 
@@ -270,14 +270,6 @@ def destroy_provider_event(source_id):
         raise error
 
     return koku_uuid
-
-
-def update_endpoint_id(source_id, endpoint_id):
-    """Update Endpoint ID from Source ID."""
-    source = get_source(source_id, f'[update_endpoint_id] Unable to get Source Type.  Source ID: {source_id} does not exist')  # noqa
-    if source:
-        source.endpoint_id = endpoint_id
-        source.save()
 
 
 def get_source_type(source_id):
