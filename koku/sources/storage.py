@@ -242,6 +242,7 @@ def create_source_event(source_id, auth_header, offset):
         new_event = Sources(source_id=source_id, auth_header=auth_header,
                             offset=offset, account_id=account_id)
         new_event.save()
+        LOG.info(f'source.storage.create_source_event created Source ID: {source_id}')
     except (InterfaceError, OperationalError) as error:
         LOG.error(f'source.storage.create_provider_event {type(error).__name__}: {error}')
         raise error
@@ -263,6 +264,7 @@ def destroy_source_event(source_id):
         source = Sources.objects.get(source_id=source_id)
         koku_uuid = source.koku_uuid
         source.delete()
+        LOG.info(f'source.storage.destroy_source_event destroyed Source ID: {source_id}')
     except Sources.DoesNotExist:
         LOG.debug('Source ID: %s already removed.', str(source_id))
     except (InterfaceError, OperationalError) as error:
