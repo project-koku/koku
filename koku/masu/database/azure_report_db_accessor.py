@@ -18,7 +18,7 @@
 import logging
 import pkgutil
 import uuid
-
+import datetime
 from dateutil.parser import parse
 from django.db.models import F
 from jinjasql import JinjaSql
@@ -191,8 +191,8 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             summary_item_query = base_query.filter(cost_entry_bill_id=bill_id)
             return summary_item_query
 
-    def populate_ocp_on_azure_cost_daily_summary(self, start_date, end_date,
-                                                 cluster_id, bill_ids):
+    def populate_ocp_on_azure_cost_daily_summary(self, start_date: datetime.date, end_date: datetime.date,
+                                                 cluster_id, bill_ids) -> None:
         """Populate the daily cost aggregated summary for OCP on AWS.
 
         Args:

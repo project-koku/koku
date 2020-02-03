@@ -18,12 +18,15 @@
 # pylint: skip-file
 
 import calendar
+import datetime
 import logging
+from typing import Tuple
 
 from tenant_schemas.utils import schema_context
 
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
+from masu.database.reporting_common_db_accessor import \
+    ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_id_from_provider
@@ -49,15 +52,15 @@ class OCPReportSummaryUpdater:
             self._column_map = reporting_common.column_map
         self._date_accessor = DateAccessor()
 
-    def update_daily_tables(self, start_date, end_date):
+    def update_daily_tables(self, start_date: datetime.date, end_date: datetime.date):
         """Populate the daily tables for reporting.
 
         Args:
-            start_date (str) The date to start populating the table.
-            end_date   (str) The date to end on.
+            start_date (datetime.date) The date to start populating the table.
+            end_date   (datetime.date) The date to end on.
 
         Returns
-            (str, str) A start date and end date.
+            (datetime.date, datetime.date) A start date and end date.
 
         """
         start_date, end_date = self._get_sql_inputs(
@@ -126,7 +129,7 @@ class OCPReportSummaryUpdater:
 
         return start_date, end_date
 
-    def _get_sql_inputs(self, start_date, end_date):
+    def _get_sql_inputs(self, start_date: datetime.date, end_date: datetime.date) -> Tuple[datetime.date, datetime.date]: # noqa E501
         """Get the required inputs for running summary SQL."""
         # Default to this month's bill
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
@@ -150,9 +153,9 @@ class OCPReportSummaryUpdater:
                         bill_date.year,
                         bill_date.month
                     )[1]
-                    start_date = bill_date.strftime('%Y-%m-%d')
+                    start_date = bill_date
                     end_date = bill_date.replace(day=last_day_of_month)
-                    end_date = end_date.strftime('%Y-%m-%d')
+                    end_date = end_date
                     LOG.info('Overriding start and end date to process full month.')
                 LOG.info('Returning start: %s, end: %s', str(start_date), str(end_date))
         return start_date, end_date

@@ -36,7 +36,7 @@ from masu.util.common import (log_date_deprecation_warning,
 from reporting.provider.ocp.models import (OCPUsageLineItemDailySummary,
                                            OCPUsageReport,
                                            OCPUsageReportPeriod)
-
+from typing import Optional
 LOG = logging.getLogger(__name__)
 
 
@@ -100,14 +100,14 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             return self._get_db_obj_query(table_name)\
                 .filter(provider_id=provider_uuid)
 
-    def report_periods_for_provider_uuid(self, provider_uuid, start_date=None):
+    def report_periods_for_provider_uuid(self, provider_uuid, start_date: Optional[datetime.datetime] = None):
         """Return all report periods for provider_uuid on date."""
         report_periods = self.get_usage_period_query_by_provider(provider_uuid)
         with schema_context(self.schema):
             if start_date:
                 if isinstance(start_date, str):
-                    start_date = parse(start_date)
-                    log_date_deprecation_warning(start_date)
+                    start_date = parse(start_date).date()
+                    LOG.debug('start_date was a string instead of a date', stack_info=True)
                 report_date = start_date.replace(day=1)
                 report_periods = report_periods.filter(
                     report_period_start=report_date
@@ -750,7 +750,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 )
             )
 
-    def populate_monthly_cost(self, node_cost, start_date, end_date):
+    def populate_monthly_cost(self, node_cost, start_date: datetime.date, end_date: datetime.date) -> None:
         """
         Populate the monthly cost of a customer.
 
@@ -759,28 +759,29 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         args:
             node_cost (Decimal): The node cost per month
-            start_date (datetime, str): The start_date to calculate monthly_cost.
-            end_date (datetime, str): The end_date to calculate monthly_cost.
+            start_date (datetime.date): The start_date to calculate monthly_cost.
+            end_date (datetime.date): The end_date to calculate monthly_cost.
 
         """
         if isinstance(start_date, str):
-            start_date = parse(start_date)
+            start_date = parse(start_date).date()
+            LOG.debug('start_date was a string instead of a datetime.date', stack_info=True)
         if isinstance(end_date, str):
-            end_date = parse(end_date)
+            end_date = parse(end_date).date()
         if not start_date:
             # If start_date is not provided, recalculate from the first month
             start_date = OCPUsageLineItemDailySummary.objects.aggregate(
                 Min('usage_start')
-            )['usage_start__min']
+            )['usage_start__min'].date()
         if not end_date:
             # If end_date is not provided, recalculate till the latest month
             end_date = OCPUsageLineItemDailySummary.objects.aggregate(
                 Max('usage_end')
-            )['usage_end__max']
+            )['usage_end__max'].date()
 
         LOG.info('Populating Monthly cost from %s to %s.', start_date, end_date)
 
-        first_month = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        first_month = start_date.replace(day=1)
 
         with schema_context(self.schema):
             # Calculate monthly cost for every month

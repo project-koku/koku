@@ -22,6 +22,7 @@
 import calendar
 import csv
 import math
+import datetime
 from datetime import date
 
 import boto3
@@ -71,7 +72,7 @@ def remove_expired_data():
 def upload_normalized_data():
     """Scheduled task to export normalized data to s3."""
     LOG.info('Beginning upload_normalized_data')
-    curr_date = DateAccessor().today()
+    curr_date = DateAccessor().today().date()
     curr_month_range = calendar.monthrange(curr_date.year, curr_date.month)
     curr_month_first_day = date(year=curr_date.year, month=curr_date.month, day=1)
     curr_month_last_day = date(year=curr_date.year, month=curr_date.month, day=curr_month_range[1])
@@ -245,7 +246,7 @@ def sync_data_to_customer(dump_request_uuid):
 
 
 @app.task(name='masu.celery.tasks.query_and_upload_to_s3', queue_name='query_upload')
-def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, start_date, end_date):
+def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, start_date: datetime.date, end_date: datetime.date) -> None:
     """
     Query the database and upload the results to s3.
 
@@ -253,8 +254,8 @@ def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, sta
         schema_name (str): Account schema name in which to execute the query.
         provider_uuid (UUID): Provider UUID for filtering the query.
         table_export_setting (dict): Settings for the table export.
-        start_date (string): start date (inclusive)
-        end_date (string): end date (inclusive)
+        start_date (datetime.date): start date (inclusive)
+        end_date (datetime.date): end date (inclusive)
 
     """
     LOG.info(
@@ -264,12 +265,6 @@ def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, sta
         table_export_setting['output_name'],
         (start_date, end_date),
     )
-    if isinstance(start_date, str):
-        start_date = parse(start_date)
-        log_date_deprecation_warning(start_date)
-    if isinstance(end_date, str):
-        end_date = parse(end_date)
-        log_date_deprecation_warning(start_date)
 
     uploader = AwsS3Uploader(settings.S3_BUCKET_NAME)
     iterate_daily = table_export_setting['iterate_daily']

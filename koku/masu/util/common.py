@@ -210,11 +210,9 @@ def date_range_pair(start_date, end_date, step=5):
         yield start_date.date(), end_date.date()
 
 
-def log_date_deprecation_warning(date) -> None:
-    """Log that an object should be a date."""
-    if not isinstance(date, datetime.date):
-        LOG.warn(date
-                 + 'is of deprecated type" + type(date).__name__')
+def log_date_deprecation_warning(object_) -> None:
+    """Log the type of an object."""
+    LOG.debug(object_ + 'is of type" + type(date).__name__', stack_info=True)
 
 
 def to_date(date) -> datetime.date:

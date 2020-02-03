@@ -97,7 +97,7 @@ class Orchestrator():
             (String) provider uuid to determine if initial setup is complete.
 
         Returns:
-            (List) List of datetime objects.
+            (List) List of datetime.date objects.
 
         """
         with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
@@ -109,7 +109,7 @@ class Orchestrator():
             number_of_months = 2
 
         months = []
-        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1).date()
         for month in reversed(range(number_of_months)):
             calculated_month = current_month + relativedelta(months=-month)
             months.append(calculated_month.date())
