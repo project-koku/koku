@@ -814,13 +814,17 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.accessor.populate_line_item_daily_summary_table(
             start_date, end_date, self.cluster_id
         )
-        self.accessor.populate_monthly_cost(node_cost, start_date, end_date, self.cluster_id)
+        cluster_alias = 'test_cluster_alias'
+        self.accessor.populate_monthly_cost(node_cost, start_date, end_date,
+                                            self.cluster_id, cluster_alias)
 
-        monthly_cost_row = self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary).filter(
+        monthly_cost_rows = self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary).filter(
             usage_start=first_month,
             monthly_cost__isnull=False
-        ).first()
-        self.assertEquals(monthly_cost_row.monthly_cost, 6 * node_cost)
+        ).all()
+        self.assertEquals(monthly_cost_rows.count(), 6)
+        for monthly_cost_row in monthly_cost_rows:
+            self.assertEquals(monthly_cost_row.monthly_cost, node_cost)
 
     def test_remove_monthly_cost(self):
         """Test that the monthly cost row in the summary table is removed."""
@@ -843,7 +847,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.accessor.populate_line_item_daily_summary_table(
             start_date, end_date, self.cluster_id
         )
-        self.accessor.populate_monthly_cost(node_cost, start_date, end_date, self.cluster_id)
+        cluster_alias = 'test_cluster_alias'
+        self.accessor.populate_monthly_cost(node_cost, start_date, end_date,
+                                            self.cluster_id, cluster_alias)
 
         first_month, _ = month_date_range_tuple(start_date)
         monthly_cost = self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary).filter(

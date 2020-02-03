@@ -742,6 +742,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 )
             )
 
+    # pylint: disable=too-many-arguments
     def populate_monthly_cost(self, node_cost, start_date, end_date, cluster_id, cluster_alias):
         """
         Populate the monthly cost of a customer.
