@@ -1147,7 +1147,6 @@ class AWSReportQueryTest(IamTestCase):
                 AWSCostEntryLineItemDailySummary.objects.filter(
                     usage_start__gte=self.dh.this_month_start
                 )
-                .filter(**{'tags__has_key': filter_key})
                 .aggregate(**{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
             )
 
@@ -1174,7 +1173,6 @@ class AWSReportQueryTest(IamTestCase):
                 AWSCostEntryLineItemDailySummary.objects.filter(
                     usage_start__gte=self.dh.this_month_start
                 )
-                .filter(**{'tags__has_key': group_by_key})
                 .aggregate(**{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
             )
 
