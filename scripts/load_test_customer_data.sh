@@ -50,15 +50,15 @@ if [ -z "$NISE_REPO_PATH" ]; then
   exit
 fi
 
-CHECK=$(curl -s -w "%{http_code}\n" -L "localhost:${KOKU_PORT}$API_PATH_PREFIX/v1/status/" -o /dev/null)
+CHECK=$(curl -s -w "%{http_code}\n" -L "$KOKU_API$API_PATH_PREFIX/v1/status/" -o /dev/null)
 if [[ $CHECK != 200 ]];then
-    echo "Koku server is not available at localhost:${KOKU_PORT}. Exiting."
+    echo "Koku server is not available at $KOKU_API. Exiting."
     exit 0
 fi
 
-CHECK=$(curl -s -w "%{http_code}\n" -L "localhost:${MASU_PORT}$API_PATH_PREFIX/v1/status/" -o /dev/null)
+CHECK=$(curl -s -w "%{http_code}\n" -L "$MASU_API$API_PATH_PREFIX/v1/status/" -o /dev/null)
 if [[ $CHECK != 200 ]];then
-    echo "Masu server is not available at localhost:${MASU_PORT}. Exiting."
+    echo "Masu server is not available at $MASU_API. Exiting."
     exit 0
 fi
 
