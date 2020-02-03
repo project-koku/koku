@@ -932,11 +932,10 @@
         },
         "coveralls": {
             "hashes": [
-                "sha256:25522a50cdf720d956601ca6ef480786e655ae2f0c94270c77e1a23d742de558",
-                "sha256:8e3315e8620bb6b3c6f3179a75f498e7179c93b3ddc440352404f941b1f70524"
+                "sha256:2da39aeaef986757653f0a442ba2bef22a8ec602c8bacbc69d39f468dfae12ec",
+                "sha256:906e07a12b2ac04b8ad782d06173975fe5ff815fe9df3bfedd2c099bc5791aec"
             ],
-            "index": "pypi",
-            "version": "==1.9.2"
+            "version": "==1.10.0"
         },
         "django": {
             "hashes": [
