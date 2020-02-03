@@ -582,7 +582,7 @@ async def synchronize_sources(
             if msg.get('operation') != 'destroy':
                 storage.clear_update_flag(msg.get('provider').source_id)
         except SourcesIntegrationError as error:
-            LOG.error('[synchronize_sources] Re-queueing failed operation. Error: %s', str(error))
+            LOG.error(f'[synchronize_sources] Re-queueing failed operation. Error: {error}')
             await asyncio.sleep(Config.RETRY_SECONDS)
             _log_process_queue_event(process_queue, msg)
             await process_queue.put(msg)
@@ -591,8 +591,11 @@ async def synchronize_sources(
                 f'for Source ID: {str(msg.get("provider").source_id)} complete.'
             )
         except (InterfaceError, OperationalError) as error:
-            LOG.error(f'[synchronize_sources] Closing DB connection. Encountered {type(error).__name__}: {error}')  # noqa
             connection.close()
+            LOG.error(
+                f'[synchronize_sources] Closing DB connection and re-queueing failed operation.'
+                f' Encountered {type(error).__name__}: {error}'
+            )
             await asyncio.sleep(Config.RETRY_SECONDS)
             _log_process_queue_event(process_queue, msg)
             await process_queue.put(msg)
