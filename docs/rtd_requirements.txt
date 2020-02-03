@@ -26,7 +26,7 @@ cryptography==2.8
 django-cors-headers==3.2.1
 django-environ==0.4.5
 django-filter==2.2.0
-django-prometheus==1.1.0
+django-prometheus==2.0.0
 django-redis==4.10.0
 django-tenant-schemas==1.10.0
 django==2.2.9
