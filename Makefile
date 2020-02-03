@@ -49,6 +49,7 @@ help:
 	@echo "--- Commands using local services ---"
 	@echo "  create-test-customer                 create a test customer and tenant in the database"
 	@echo "  create-test-customer-no-providers    create a test customer and tenant in the database without test providers"
+	@echo "  load-test-customer-data              load test data for the default providers created in create-test-customer"
 	@echo "  collect-static                       collect static files to host"
 	@echo "  make-migrations                      make migrations for the database"
 	@echo "  requirements                         generate Pipfile.lock, RTD requirements and manifest for product security"
@@ -136,7 +137,7 @@ create-test-customer: run-migrations
 	sleep 1
 	$(DJANGO_MANAGE) runserver > /dev/null 2>&1 &
 	sleep 5
-	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
+	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
 	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
 
 create-test-customer-no-providers: run-migrations
@@ -146,6 +147,8 @@ create-test-customer-no-providers: run-migrations
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-providers --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
 	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
 
+load-test-customer-data:
+	$(TOPDIR)/scripts/load_test_customer_data.sh $(TOPDIR) $(start) $(end)
 
 collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
