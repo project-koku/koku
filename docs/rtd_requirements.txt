@@ -56,7 +56,7 @@ mccabe==0.6.1
 more-itertools==8.2.0
 msrest==0.6.11
 msrestazure==0.6.2
-numpy==1.17.4
+numpy==1.18.1
 oauthlib==3.1.0
 ordered-set==3.1.1
 pandas==0.25.3
