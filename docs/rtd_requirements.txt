@@ -37,7 +37,7 @@ drf-nested-routers==0.91
 entrypoints==0.3
 flake8==3.7.9
 google-api-core==1.16.0
-google-auth==1.10.0
+google-auth==1.11.0
 google-cloud-core==1.1.0
 google-cloud-storage==1.19.1
 google-resumable-media==0.4.1
