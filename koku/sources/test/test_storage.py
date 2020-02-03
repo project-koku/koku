@@ -88,55 +88,55 @@ class SourcesStorageTest(TestCase):
         storage.get_source(test_source_id, 'error')
         mock_db_close.assert_called()
 
-    def test_create_provider_event(self):
+    def test_create_source_event(self):
         """Tests that a source can be created."""
         test_source_id = 2
         test_offset = 3
-        storage.create_provider_event(test_source_id, Config.SOURCES_FAKE_HEADER, test_offset)
+        storage.create_source_event(test_source_id, Config.SOURCES_FAKE_HEADER, test_offset)
         db_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEqual(db_obj.source_id, test_source_id)
         self.assertEqual(db_obj.auth_header, Config.SOURCES_FAKE_HEADER)
         self.assertEqual(db_obj.offset, test_offset)
         self.assertEqual(db_obj.account_id, self.account_id)
 
-    def test_create_provider_event_invalid_auth_header(self):
+    def test_create_source_event_invalid_auth_header(self):
         """Tests creating a source db record with invalid auth_header."""
         test_source_id = 2
         test_offset = 3
-        storage.create_provider_event(test_source_id, 'bad', test_offset)
+        storage.create_source_event(test_source_id, 'bad', test_offset)
         with self.assertRaises(Sources.DoesNotExist):
             Sources.objects.get(source_id=test_source_id)
 
     @patch('sources.storage.connection.close')
-    def test_create_provider_event_db_down(self, mock_db_close):
+    def test_create_source_event_db_down(self, mock_db_close):
         """Tests creating a source db record with invalid auth_header."""
         test_source_id = 2
         test_offset = 3
         with patch('sources.storage.Sources.objects') as mock_objects:
             mock_objects.get.side_effect = InterfaceError('Test exception')
-            storage.create_provider_event(test_source_id, Config.SOURCES_FAKE_HEADER, test_offset)
+            storage.create_source_event(test_source_id, Config.SOURCES_FAKE_HEADER, test_offset)
         mock_db_close.assert_called()
 
-    def test_destroy_provider_event(self):
+    def test_destroy_source_event(self):
         """Tests that a source can be destroyed."""
         test_uuid = faker.uuid4()
         self.assertIsNotNone(self.test_obj)
         storage.add_provider_koku_uuid(self.test_source_id, test_uuid)
-        response = storage.destroy_provider_event(self.test_source_id)
+        response = storage.destroy_source_event(self.test_source_id)
         self.assertFalse(Sources.objects.filter(source_id=self.test_source_id).exists())
         self.assertEqual(response, test_uuid)
 
-    def test_destroy_provider_event_not_found(self):
+    def test_destroy_source_event_not_found(self):
         """Tests when destroying a non-existent source."""
-        response = storage.destroy_provider_event(self.test_source_id + 1)
+        response = storage.destroy_source_event(self.test_source_id + 1)
         self.assertIsNone(response)
 
     @patch('sources.storage.connection.close')
-    def test_destroy_provider_event_db_down(self, mock_db_close):
+    def test_destroy_source_event_db_down(self, mock_db_close):
         """Tests when destroying a source when DB is down."""
         with patch('sources.storage.Sources.objects') as mock_objects:
             mock_objects.get.side_effect = InterfaceError('Test exception')
-            response = storage.destroy_provider_event(self.test_source_id)
+            response = storage.destroy_source_event(self.test_source_id)
         self.assertIsNone(response)
         mock_db_close.assert_called()
 
@@ -182,18 +182,6 @@ class SourcesStorageTest(TestCase):
         test_uuid = faker.uuid4()
         try:
             storage.add_provider_koku_uuid(self.test_source_id + 1, test_uuid)
-        except Exception as error:
-            self.fail(str(error))
-
-    def test_update_endpoint_id(self):
-        """Tests that endpoint id is updated for a source."""
-        storage.update_endpoint_id(self.test_source_id, 11)
-        self.assertEqual(Sources.objects.get(source_id=self.test_source_id).endpoint_id, 11)
-
-    def test_update_endpoint_id_source_does_not_exist(self):
-        """Test update endpoint id for non-existant source."""
-        try:
-            storage.update_endpoint_id(self.test_source_id + 1, 11)
         except Exception as error:
             self.fail(str(error))
 
