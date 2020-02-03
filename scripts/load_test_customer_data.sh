@@ -2,7 +2,7 @@
 
 # This script assumes you have the nise command installed in your environment
 # See: https://pypi.org/project/koku-nise/
-# It also assumes you have the repo locally with example files:
+# It also assumes you have the Nise git repository cloned locally with its example files:
 # See: https://github.com/project-koku/nise
 # Once a local copy of the repo is available set it's path using the
 # NISE_REPO_PATH environment variable
