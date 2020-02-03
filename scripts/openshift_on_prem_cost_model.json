@@ -1,0 +1,61 @@
+{
+    "name": "Cost Management OpenShift Cost Model",
+    "description": "A cost model of on-premises OpenShift clusters.",
+    "source_type": "OCP",
+    "provider_uuids": ["PROVIDER_UUID"],
+    "rates": [{
+        "metric": {"name": "cpu_core_usage_per_hour"},
+        "tiered_rates": [{
+            "unit": "USD",
+            "value": 0.0070000000,
+            "usage_start": null,
+            "usage_end": null
+        }]
+    },
+    {
+        "metric": {"name": "cpu_core_request_per_hour"},
+        "tiered_rates": [{
+            "unit": "USD",
+            "value": 0.2000000000,
+            "usage_start": null,
+            "usage_end": null
+        }]
+    },
+    {
+        "metric": {"name": "memory_gb_usage_per_hour"},
+        "tiered_rates": [{
+            "unit": "USD",
+            "value": 0.0090000000,
+            "usage_start": null,
+            "usage_end": null
+        }]
+    },
+    {
+        "metric": {"name": "memory_gb_request_per_hour"},
+        "tiered_rates": [{
+            "unit": "USD",
+            "value": 0.0500000000,
+            "usage_start": null,
+            "usage_end": null
+        }]
+    },
+    {
+        "metric": {"name": "storage_gb_usage_per_month"},
+        "tiered_rates": [{
+            "unit": "USD",
+            "value": 0.01,
+            "usage_start": null,
+            "usage_end": null
+        }]
+    },
+    {
+        "metric": {"name": "storage_gb_request_per_month"},
+        "tiered_rates": [{
+            "unit": "USD",
+            "value": 0.01,
+            "usage_start": null,
+            "usage_end": null
+        }]
+    }
+    ]
+}
