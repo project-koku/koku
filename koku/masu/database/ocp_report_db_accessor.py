@@ -776,7 +776,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             # Calculate monthly cost for every month
             for curr_month in rrule(freq=MONTHLY, until=end_date, dtstart=first_month):
                 first_curr_month, first_next_month = month_date_range_tuple(curr_month)
-                LOG.info('Populating Monthly node cost from %s to %s.', first_curr_month, first_next_month)
+                LOG.info('Populating Monthly node cost from %s to %s.',
+                         first_curr_month, first_next_month)
 
                 unique_nodes = OCPUsageLineItemDailySummary.objects.\
                     filter(usage_start__gte=first_curr_month,
@@ -791,24 +792,24 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 for node in unique_nodes:
                     LOG.info('Node (%s) has a monthly cost of %s.', node[0], node_cost)
                     # delete node cost per month
-                    OCPUsageLineItemDailySummary.objects.filter(
-                    usage_start=first_curr_month,
-                    usage_end=first_curr_month,
-                    monthly_cost=node_cost,
-                    report_period=report_period,
-                    cluster_id=cluster_id,
-                    cluster_alias=cluster_alias,
-                    monthly_cost__isnull=False,
-                    node=node[0]).delete()
+                    OCPUsageLineItemDailySummary.objects.\
+                        filter(usage_start=first_curr_month,
+                               usage_end=first_curr_month,
+                               monthly_cost=node_cost,
+                               report_period=report_period,
+                               cluster_id=cluster_id,
+                               cluster_alias=cluster_alias,
+                               monthly_cost__isnull=False,
+                               node=node[0]).delete()
                     # add node cost per month
                     OCPUsageLineItemDailySummary.objects.create(
-                    usage_start=first_curr_month,
-                    usage_end=first_curr_month,
-                    monthly_cost=node_cost,
-                    report_period=report_period,
-                    cluster_id=cluster_id,
-                    cluster_alias=cluster_alias,
-                    node=node[0])
+                        usage_start=first_curr_month,
+                        usage_end=first_curr_month,
+                        monthly_cost=node_cost,
+                        report_period=report_period,
+                        cluster_id=cluster_id,
+                        cluster_alias=cluster_alias,
+                        node=node[0])
 
     def remove_monthly_cost(self):
         """Delete all the monthly costs of a customer."""
