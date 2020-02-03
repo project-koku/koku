@@ -49,6 +49,7 @@ help:
 	@echo "--- Commands using local services ---"
 	@echo "  create-test-customer                 create a test customer and tenant in the database"
 	@echo "  create-test-customer-no-providers    create a test customer and tenant in the database without test providers"
+	@echo "  load-test-customer-data              load test data for the default providers created in create-test-customer"
 	@echo "  collect-static                       collect static files to host"
 	@echo "  make-migrations                      make migrations for the database"
 	@echo "  requirements                         generate Pipfile.lock, RTD requirements and manifest for product security"
