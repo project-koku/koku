@@ -1,9 +1,12 @@
 [[source]]
+
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
 
+
 [packages]
+
 aiokafka = "==0.5.2"
 django-environ = ">=0.4.0"
 djangorestframework = ">=3.8.0"
@@ -33,7 +36,7 @@ bs4 = "*"
 azure-mgmt-costmanagement = "==0.1.0"
 azure-mgmt-resource = "*"
 azure-mgmt-storage = "*"
-azure-storage-blob = "==2.1.0"
+azure-storage-blob = "==12.1.0"
 azure-storage = "==0.36.0"
 google-cloud-storage = "~=1.19.1"
 jinjasql = "*"
@@ -42,7 +45,9 @@ pandas = "~=0.25.1"
 sentry-sdk = "~=0.13.2"
 ujson = "*"
 
+
 [dev-packages]
+
 astroid = "==2.3.2"
 pylint = "==2.4.3"
 sphinx-rtd-theme = ">=0.3.0"
@@ -61,5 +66,7 @@ coveralls = "*"
 python-coveralls = "*"
 model-bakery = "*"
 
+
 [requires]
+
 python_version = "3.6"
