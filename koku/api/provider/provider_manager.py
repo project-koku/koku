@@ -17,9 +17,13 @@
 """Management capabilities for Provider functionality."""
 
 import logging
+from functools import partial
 
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 from tenant_schemas.utils import tenant_context
 
 from api.provider.models import Provider, Sources
@@ -172,27 +176,52 @@ class ProviderManager:
             raise ProviderManagerError(err_msg)
 
         if self.is_removable_by_user(current_user):
-            authentication_model = self.model.authentication
-            billing_source = self.model.billing_source
-            provider_rate_objs = CostModelMap.objects.filter(provider_uuid=self._uuid)
-            auth_count = Provider.objects.exclude(uuid=self._uuid) \
-                .filter(authentication=authentication_model).count()
-            billing_count = Provider.objects.exclude(uuid=self._uuid) \
-                .filter(billing_source=billing_source).count()
-            # Multiple providers can use the same role or bucket.
-            # This will only delete the associated records if it is the
-            # only provider using them.
-            if auth_count == 0:
-                authentication_model.delete()
-            if billing_source and billing_count == 0:
-                billing_source.delete()
-            if provider_rate_objs:
-                provider_rate_objs.delete()
-
             self.model.delete()
-
             LOG.info('Provider: {} removed by {}'.format(self.model.name, current_user.username))
         else:
-            err_msg = 'User {} does not have permission to delete provider {}'.format(current_user,
-                                                                                      str(self.model))
+            err_msg = 'User {} does not have permission to delete provider {}'.format(
+                current_user.username, str(self.model))
             raise ProviderManagerError(err_msg)
+
+
+@receiver(post_delete, sender=Provider)
+def provider_post_delete_callback(*args, **kwargs):
+    """
+    Asynchronously delete this Provider's archived data.
+
+    Note: Signal receivers must accept keyword arguments (**kwargs).
+    """
+    provider = kwargs['instance']
+    if provider.authentication:
+        auth_count = Provider.objects.exclude(uuid=provider.uuid) \
+            .filter(authentication=provider.authentication).count()
+        if auth_count == 0:
+            provider.authentication.delete()
+    if provider.billing_source:
+        billing_count = Provider.objects.exclude(uuid=provider.uuid) \
+            .filter(billing_source=provider.billing_source).count()
+        if provider.billing_source and billing_count == 0:
+            provider.billing_source.delete()
+
+    provider_rate_objs = CostModelMap.objects.filter(provider_uuid=provider.uuid)
+    if provider_rate_objs:
+        provider_rate_objs.delete()
+
+    if not provider.customer:
+        LOG.warning(
+            'Provider %s has no Customer; we cannot call delete_archived_data.',
+            provider.uuid,
+        )
+        return
+
+    if settings.ENABLE_S3_ARCHIVING:
+        # Local import of task function to avoid potential import cycle.
+        from masu.celery.tasks import delete_archived_data
+
+        delete_func = partial(
+            delete_archived_data.delay,
+            provider.customer.schema_name,
+            provider.type,
+            provider.uuid,
+        )
+        transaction.on_commit(delete_func)

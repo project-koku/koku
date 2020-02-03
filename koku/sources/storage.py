@@ -214,7 +214,7 @@ def clear_update_flag(source_id):
         source.save()
 
 
-def create_provider_event(source_id, auth_header, offset):
+def create_source_event(source_id, auth_header, offset):
     """
     Create a Sources database object.
 
@@ -242,12 +242,13 @@ def create_provider_event(source_id, auth_header, offset):
         new_event = Sources(source_id=source_id, auth_header=auth_header,
                             offset=offset, account_id=account_id)
         new_event.save()
+        LOG.info(f'source.storage.create_source_event created Source ID: {source_id}')
     except InterfaceError as error:
-        LOG.error(f'source.storage.create_provider_event InterfaceError {error}')
+        LOG.error(f'source.storage.create_source_event InterfaceError {error}')
         connection.close()
 
 
-def destroy_provider_event(source_id):
+def destroy_source_event(source_id):
     """
     Destroy a Sources database object.
 
@@ -266,18 +267,10 @@ def destroy_provider_event(source_id):
     except Sources.DoesNotExist:
         LOG.debug('Source ID: %s already removed.', str(source_id))
     except InterfaceError as error:
-        LOG.error(f'source.storage.destroy_provider_event InterfaceError {error}')
+        LOG.error(f'source.storage.destroy_source_event InterfaceError {error}')
         connection.close()
 
     return koku_uuid
-
-
-def update_endpoint_id(source_id, endpoint_id):
-    """Update Endpoint ID from Source ID."""
-    source = get_source(source_id, f'[update_endpoint_id] Unable to get Source Type.  Source ID: {source_id} does not exist')  # noqa
-    if source:
-        source.endpoint_id = endpoint_id
-        source.save()
 
 
 def get_source_type(source_id):
