@@ -46,7 +46,7 @@ gunicorn==20.0.4
 idna==2.8
 importlib-metadata==1.5.0; python_version < '3.8'
 isodate==0.6.0
-jinja2==2.10.3
+jinja2==2.11.1
 jinjasql==0.1.7
 jmespath==0.9.4
 kafka-python==1.4.6
