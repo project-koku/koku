@@ -105,7 +105,7 @@ class SourcesStorageTest(TestCase):
         with self.assertRaises(Sources.DoesNotExist):
             Sources.objects.get(source_id=test_source_id)
 
-    def test_create_source_event_db_down(self, mock_db_close):
+    def test_create_source_event_db_down(self):
         """Tests creating a source db record with invalid auth_header."""
         test_source_id = 2
         test_offset = 3
