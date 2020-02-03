@@ -60,7 +60,7 @@ tblib = "*"
 coveralls = "*"
 python-coveralls = "*"
 model-bakery = "*"
-koku-nise = "*"
+koku-nise = "~=1.0"
 
 [requires]
 python_version = "3.6"
