@@ -814,7 +814,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.accessor.populate_line_item_daily_summary_table(
             start_date, end_date, self.cluster_id
         )
-        self.accessor.populate_monthly_cost(node_cost, start_date, end_date)
+        self.accessor.populate_monthly_cost(node_cost, start_date, end_date, self.cluster_id)
 
         monthly_cost_row = self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary).filter(
             usage_start=first_month,
@@ -843,7 +843,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.accessor.populate_line_item_daily_summary_table(
             start_date, end_date, self.cluster_id
         )
-        self.accessor.populate_monthly_cost(node_cost, start_date, end_date)
+        self.accessor.populate_monthly_cost(node_cost, start_date, end_date, self.cluster_id)
 
         first_month, _ = month_date_range_tuple(start_date)
         monthly_cost = self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary).filter(

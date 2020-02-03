@@ -130,6 +130,25 @@ def get_cluster_id_from_provider(provider_uuid):
 
     return cluster_id
 
+def get_cluster_alias_from_cluster_id(cluster_id):
+    """
+    Return the cluster alias of a given cluster id.
+
+    Args:
+        cluster_id (String): OpenShift Cluster ID
+
+    Returns:
+        (String): OpenShift Cluster Alias
+
+    """
+    cluster_alias = None
+    auth_id = None
+    with ProviderAuthDBAccessor(provider_resource_name=cluster_id) as auth_accessor:
+        auth_id = auth_accessor.get_auth_id()
+        if auth_id:
+            with ProviderDBAccessor(auth_id=auth_id) as provider_accessor:
+                cluster_alias = provider_accessor.get_provider_name()
+    return cluster_alias
 
 def get_provider_uuid_from_cluster_id(cluster_id):
     """
