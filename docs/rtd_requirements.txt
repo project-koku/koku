@@ -71,7 +71,7 @@ pycodestyle==2.5.0
 pycparser==2.19
 pyflakes==2.1.1
 pyjwt==1.7.1
-python-dateutil==2.8.0
+python-dateutil==2.8.1
 pytz==2019.3
 querystring-parser==1.2.4
 redis==3.3.11
