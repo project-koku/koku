@@ -18,8 +18,9 @@
 """Test the AzureReportSummaryUpdater object."""
 import calendar
 import datetime
-from unittest.mock import patch
+from unittest.mock import call, patch
 
+from dateutil.rrule import DAILY, rrule
 from tenant_schemas.utils import schema_context
 
 from masu.database import AZURE_REPORT_TABLE_MAP
@@ -62,9 +63,9 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
             'provider_uuid': self.azure_provider_uuid,
         }
 
-        today = DateAccessor().today_with_timezone('UTC')
+        self.today = DateAccessor().today_with_timezone('UTC')
         bill = self.creator.create_azure_cost_entry_bill(
-            provider_uuid=self.azure_provider_uuid, bill_date=today
+            provider_uuid=self.azure_provider_uuid, bill_date=self.today
         )
         product = self.creator.create_azure_cost_entry_product(
             provider_uuid=self.azure_provider_uuid
@@ -98,8 +99,8 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
 
-        expected_start_date = start_date.strftime('%Y-%m-%d')
-        expected_end_date = end_date.strftime('%Y-%m-%d')
+        expected_start_date = start_date.date()
+        expected_end_date = end_date.date()
 
         self.assertIsNone(bill.summary_data_updated_datetime)
 
@@ -132,8 +133,22 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
 
-        expected_start_date = start_date.replace(day=1).strftime('%Y-%m-%d')
-        expected_end_date = end_date.replace(day=last_day_of_month).strftime('%Y-%m-%d')
+        expected_start_date = start_date.replace(day=1)
+        expected_end_date = end_date.replace(day=last_day_of_month)
+
+        dates = list(
+            rrule(freq=DAILY, dtstart=expected_start_date, until=expected_end_date, interval=5)
+        )
+        if expected_end_date not in dates:
+            dates.append(expected_end_date)
+        # Remove the first date since it's the start date
+        dates.pop(0)
+        expected_calls = []
+        for date in dates:
+            expected_calls.append(
+                call(expected_start_date.date(), date.date(), [str(bill.id)])
+            )
+            expected_start_date = date + datetime.timedelta(days=1)
 
         self.assertIsNone(bill.summary_data_creation_datetime)
         self.assertIsNone(bill.summary_data_updated_datetime)
@@ -142,7 +157,7 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         mock_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_summary.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
+        self.assertEqual(mock_summary.call_args_list, expected_calls)
 
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]

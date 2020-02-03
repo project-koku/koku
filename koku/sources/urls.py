@@ -27,8 +27,8 @@ from sources.kafka_listener import initialize_sources_integration
 
 from koku.env import ENVIRONMENT
 
-is_sources = ENVIRONMENT.bool('SOURCES', default=False)
-if is_sources:
+IS_SOURCES = ENVIRONMENT.bool('SOURCES', default=False)
+if IS_SOURCES:
     initialize_sources_integration()
 
 API_PATH_PREFIX = settings.API_PATH_PREFIX

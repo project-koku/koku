@@ -19,9 +19,10 @@
 
 import calendar
 import datetime
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from dateutil.relativedelta import relativedelta
+from dateutil.rrule import DAILY, rrule
 from tenant_schemas.utils import schema_context
 
 from masu.database import AWS_CUR_TABLE_MAP
@@ -65,11 +66,11 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
             'provider_uuid': self.aws_provider_uuid,
         }
 
-        today = DateAccessor().today_with_timezone('UTC')
+        self.today = DateAccessor().today_with_timezone('UTC')
         bill = self.creator.create_cost_entry_bill(
-            provider_uuid=self.aws_provider_uuid, bill_date=today
+            provider_uuid=self.aws_provider_uuid, bill_date=self.today
         )
-        cost_entry = self.creator.create_cost_entry(bill, today)
+        cost_entry = self.creator.create_cost_entry(bill, self.today)
         product = self.creator.create_cost_entry_product()
         pricing = self.creator.create_cost_entry_pricing()
         reservation = self.creator.create_cost_entry_reservation()
@@ -104,8 +105,8 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
 
-        expected_start_date = start_date.strftime('%Y-%m-%d')
-        expected_end_date = end_date.strftime('%Y-%m-%d')
+        expected_start_date = start_date.date()
+        expected_end_date = end_date.date()
 
         self.assertIsNone(bill.summary_data_updated_datetime)
 
@@ -142,18 +143,32 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
 
-        expected_start_date = start_date.replace(day=1).strftime('%Y-%m-%d')
-        expected_end_date = end_date.replace(day=last_day_of_month).strftime('%Y-%m-%d')
+        expected_start_date = start_date.replace(day=1)
+        expected_end_date = end_date.replace(day=last_day_of_month)
+
+        dates = list(
+            rrule(freq=DAILY, dtstart=expected_start_date, until=expected_end_date, interval=5)
+        )
+        if expected_end_date not in dates:
+            dates.append(expected_end_date)
+        # Remove the first date since it's the start date
+        expected_start_date = dates.pop(0)
+        expected_calls = []
+        for date in dates:
+            expected_calls.append(
+                call(expected_start_date.date(), date.date(), [str(bill.id)])
+            )
+            expected_start_date = date + datetime.timedelta(days=1)
 
         self.assertIsNone(bill.summary_data_creation_datetime)
         self.assertIsNone(bill.summary_data_updated_datetime)
 
         self.updater.update_daily_tables(start_date_str, end_date_str)
-        mock_daily.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
+        self.assertEqual(mock_daily.call_args_list, expected_calls)
         mock_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_summary.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
+        self.assertEqual(mock_summary.call_args_list, expected_calls)
 
         with AWSReportDBAccessor('acct10001', self.column_map) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
@@ -199,18 +214,30 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
 
-        expected_start_date = bill_date.strftime('%Y-%m-%d')
-        expected_end_date = bill_date.replace(day=last_day_of_month).strftime('%Y-%m-%d')
+        expected_start_date = billing_start
+        expected_end_date = billing_start.replace(day=last_day_of_month)
+
+        dates = list(
+            rrule(freq=DAILY, dtstart=expected_start_date, until=expected_end_date, interval=5)
+        )
+        # Remove the first date since it's the start date
+        expected_start_date = dates.pop(0)
+        expected_calls = []
+        for date in dates:
+            expected_calls.append(
+                call(expected_start_date.date(), date.date(), [str(bill.id)])
+            )
+            expected_start_date = date + datetime.timedelta(days=1)
 
         self.assertIsNone(bill.summary_data_creation_datetime)
         self.assertIsNone(bill.summary_data_updated_datetime)
 
         self.updater.update_daily_tables(start_date_str, end_date_str)
-        mock_daily.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
+        self.assertEqual(mock_daily.call_args_list, expected_calls)
         mock_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_summary.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
+        self.assertEqual(mock_summary.call_args_list, expected_calls)
 
         with AWSReportDBAccessor('acct10001', self.column_map) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
@@ -280,18 +307,32 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
 
-        expected_start_date = start_date.replace(day=1).strftime('%Y-%m-%d')
-        expected_end_date = end_date.replace(day=last_day_of_month).strftime('%Y-%m-%d')
+        expected_start_date = start_date.replace(day=1)
+        expected_end_date = end_date.replace(day=last_day_of_month)
+
+        dates = list(
+            rrule(freq=DAILY, dtstart=expected_start_date, until=expected_end_date, interval=5)
+        )
+        if expected_end_date not in dates:
+            dates.append(expected_end_date)
+        # Remove the first date since it's the start date
+        expected_start_date = dates.pop(0)
+        expected_calls = []
+        for date in dates:
+            expected_calls.append(
+                call(expected_start_date.date(), date.date(), [str(bill.id)])
+            )
+            expected_start_date = date + datetime.timedelta(days=1)
 
         self.assertIsNone(bill.summary_data_creation_datetime)
         self.assertIsNone(bill.summary_data_updated_datetime)
 
         self.updater.update_daily_tables(start_date_str, end_date_str)
-        mock_daily.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
+        self.assertEqual(mock_daily.call_args_list, expected_calls)
         mock_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_summary.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
+        self.assertEqual(mock_summary.call_args_list, expected_calls)
 
         with AWSReportDBAccessor('acct10001', self.column_map) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
@@ -347,7 +388,9 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         """Test that summary tables are properly run without a manifest."""
         self.updater = AWSReportSummaryUpdater('acct10001', self.provider, None)
 
-        start_date = DateAccessor().today_with_timezone('UTC')
+        start_date = datetime.datetime(
+            year=self.today.year, month=self.today.month, day=self.today.day
+        )
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
 
@@ -359,8 +402,8 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
 
-        expected_start_date = start_date.strftime('%Y-%m-%d')
-        expected_end_date = end_date.strftime('%Y-%m-%d')
+        expected_start_date = start_date.date()
+        expected_end_date = end_date.date()
         self.updater.update_daily_tables(start_date_str, end_date_str)
         mock_daily.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
         mock_summary.assert_not_called()
@@ -371,4 +414,4 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         with AWSReportDBAccessor('acct10001', self.column_map) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             self.assertIsNotNone(bill.summary_data_creation_datetime)
-            self.assertGreater(bill.summary_data_updated_datetime, start_date)
+            self.assertGreater(bill.summary_data_updated_datetime, self.today)
