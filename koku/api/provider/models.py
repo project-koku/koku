@@ -99,7 +99,7 @@ class Provider(models.Model):
         """Meta for Provider."""
 
         ordering = ['name']
-        unique_together = ('authentication', 'billing_source')
+        unique_together = ('authentication', 'billing_source', 'customer')
 
     PROVIDER_AWS = 'AWS'
     PROVIDER_OCP = 'OCP'
