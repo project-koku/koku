@@ -185,14 +185,6 @@ class ReportQueryHandler(QueryHandler):
                 for item in list_:
                     q_filter = QueryFilter(parameter=item, **filt)
                     filters.add(q_filter)
-            elif list_ and ReportQueryHandler.has_wildcard(list_):
-                wild_card_filt = {
-                    'field': tag_column,
-                    'operation': 'has_key'
-                }
-                q_filter = QueryFilter(parameter=strip_tag_prefix(tag),
-                                       **wild_card_filt)
-                filters.add(q_filter)
         return filters
 
     def _set_operator_specified_tag_filters(self, filters, operator):
@@ -503,9 +495,9 @@ class ReportQueryHandler(QueryHandler):
         for field in reversed(order_fields):
             reverse = False
             field = field.replace('delta', 'delta_percent')
-            if '-' in field:
+            if field.startswith('-'):
                 reverse = True
-                field = field.replace('-', '')
+                field = field[1:]
             if field in numeric_ordering:
                 sorted_data = sorted(sorted_data, key=lambda entry: (entry[field] is None, entry[field]),
                                      reverse=reverse)
