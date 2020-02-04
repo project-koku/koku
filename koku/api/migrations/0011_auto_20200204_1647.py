@@ -10,11 +10,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterField(
-            model_name='sources',
-            name='koku_uuid',
-            field=models.CharField(max_length=512, null=True, unique=True),
-        ),
         migrations.AlterUniqueTogether(
             name='provider',
             unique_together={('authentication', 'billing_source', 'customer')},
