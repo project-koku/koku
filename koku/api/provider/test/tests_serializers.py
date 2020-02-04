@@ -540,6 +540,8 @@ class ProviderSerializerTest(IamTestCase):
                 instance2 = serializer.save()
 
         self.assertNotEqual(instance1.uuid, instance2.uuid)
+        self.assertEqual(instance1.billing_source_id, instance2.billing_source_id)
+        self.assertEqual(instance1.authentication_id, instance2.authentication_id)
 
 
 class AdminProviderSerializerTest(IamTestCase):
