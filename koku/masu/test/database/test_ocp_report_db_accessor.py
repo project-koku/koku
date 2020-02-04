@@ -190,6 +190,28 @@ class OCPReportDBAccessorTest(MasuTestCase):
             periods = self.accessor.get_usage_periods_by_date(prev_period_start.date())
             self.assertIn(prev_reporting_period, periods)
 
+    def test_get_usage_period_by_dates_and_cluster(self):
+        """Test that report periods are returned by dates & cluster filter."""
+        period_start = DateAccessor().today_with_timezone('UTC').replace(day=1)
+        period_end = period_start + relativedelta.relativedelta(months=1)
+        prev_period_start = period_start - relativedelta.relativedelta(months=1)
+        prev_period_end = prev_period_start + relativedelta.relativedelta(months=1)
+        reporting_period = self.creator.create_ocp_report_period(
+            self.ocp_provider_uuid, period_date=period_start, cluster_id='0001'
+        )
+        prev_reporting_period = self.creator.create_ocp_report_period(
+            self.ocp_provider_uuid, period_date=prev_period_start, cluster_id='0002'
+        )
+        with schema_context(self.schema):
+            periods = self.accessor.get_usage_period_by_dates_and_cluster(period_start.date(),
+                                                                          period_end.date(),
+                                                                          '0001')
+            self.assertEqual(reporting_period, periods)
+            periods = self.accessor.get_usage_period_by_dates_and_cluster(prev_period_start.date(),
+                                                                          prev_period_end.date(),
+                                                                          '0002')
+            self.assertEqual(prev_reporting_period, periods)
+
     def test_get_usage_period_query_by_provider(self):
         """Test that periods are returned filtered by provider."""
         provider_uuid = self.ocp_provider_uuid
