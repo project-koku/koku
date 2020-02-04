@@ -389,12 +389,16 @@ class ReportQueryHandler(QueryHandler):
             (Dict): Data updated with no-group labels
 
         """
+        tag_prefix = self._mapper.tag_column + '__'
         if groupby is None:
             return data
 
         for group in groupby:
             if group in data and data.get(group) is None:
-                group_label = 'no-{}'.format(group)
+                value = group
+                if group.startswith(tag_prefix):
+                    value = group[len(tag_prefix):]
+                group_label = 'no-{}'.format(value)
                 data[group] = group_label
 
         return data
@@ -435,6 +439,7 @@ class ReportQueryHandler(QueryHandler):
 
     def _pack_data_object(self, data, **kwargs):
         """Pack data into object format."""
+        tag_prefix = self._mapper.tag_column + '__'
         if not isinstance(data, dict):
             return data
         for pack_def in kwargs.values():
@@ -447,10 +452,21 @@ class ReportQueryHandler(QueryHandler):
                     data[key] = {'value': value, 'units': units}
             if units is not None:
                 del data[key_units]
+        delete_keys = []
+        new_data = {}
+        for data_key in data.keys():
+            if data_key.startswith(tag_prefix):
+                new_tag = data_key[len(tag_prefix):]
+                new_data[new_tag] = data[data_key]
+                delete_keys.append(data_key)
+        for del_key in delete_keys:
+            del data[del_key]
+        data.update(new_data)
         return data
 
     def _transform_data(self, groups, group_index, data):
         """Transform dictionary data points to lists."""
+        tag_prefix = self._mapper.tag_column + '__'
         groups_len = len(groups)
         if not groups or group_index >= groups_len:
             pack = self._mapper.PACK_DEFINITIONS
@@ -465,12 +481,17 @@ class ReportQueryHandler(QueryHandler):
 
         if next_group_index < groups_len:
             label = groups[next_group_index] + 's'
+            if label.startswith(tag_prefix):
+                label = label[len(tag_prefix):]
 
         for group, group_value in data.items():
+            group_title = group_type
+            if group_type.startswith(tag_prefix):
+                group_title = group_type[len(tag_prefix):]
             group_label = group
             if group is None:
-                group_label = 'no-{}'.format(group_type)
-            cur = {group_type: group_label,
+                group_label = 'no-{}'.format(group_title)
+            cur = {group_title: group_label,
                    label: self._transform_data(groups, next_group_index,
                                                group_value)}
             out_data.append(cur)
@@ -491,6 +512,8 @@ class ReportQueryHandler(QueryHandler):
         numeric_ordering = ['date', 'rank', 'delta', 'delta_percent',
                             'total', 'usage', 'request', 'limit',
                             'cost', 'infrastructure_cost', 'derived_cost']
+        tag_str = 'tag:'
+        db_tag_prefix = self._mapper.tag_column + '__'
         sorted_data = data
         for field in reversed(order_fields):
             reverse = False
@@ -501,8 +524,9 @@ class ReportQueryHandler(QueryHandler):
             if field in numeric_ordering:
                 sorted_data = sorted(sorted_data, key=lambda entry: (entry[field] is None, entry[field]),
                                      reverse=reverse)
-            elif 'tag:' in field:
-                tag = field[4:]
+            elif tag_str in field:
+                tag_index = field.index(tag_str) + len(tag_str)
+                tag = db_tag_prefix + field[tag_index:]
                 sorted_data = sorted(sorted_data, key=lambda entry: (entry[tag] is None, entry[tag]),
                                      reverse=reverse)
             else:
@@ -764,21 +788,3 @@ class ReportQueryHandler(QueryHandler):
                                 key=lambda x: (x['delta_percent'] is None, x['delta_percent']),
                                 reverse=reverse)
         return query_data
-
-    def strip_label_column_name(self, data, group_by):
-        """Remove the column name from tags."""
-        tag_column = self._mapper.tag_column
-        val_to_strip = tag_column + '__'
-        new_data = []
-        for entry in data:
-            new_entry = {}
-            for key, value in entry.items():
-                key = key.replace(val_to_strip, '')
-                new_entry[key] = value
-
-            new_data.append(new_entry)
-
-        for i, group in enumerate(group_by):
-            group_by[i] = group.replace(val_to_strip, '')
-
-        return new_data, group_by
