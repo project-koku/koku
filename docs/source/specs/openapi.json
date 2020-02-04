@@ -1249,6 +1249,9 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryComputeCount"
                     }
                 ],
                 "responses": {
@@ -2652,6 +2655,16 @@
     ],
     "components": {
         "parameters": {
+            "QueryComputeCount": {
+                "name": "compute_count",
+                "required": false,
+                "in": "query",
+                "description": "Toggle to include count values in report.",
+                "schema": {
+                    "type": "boolean",
+                    "default": false
+                }
+            },
             "QueryDelta": {
                 "name": "delta",
                 "required": false,
@@ -4668,10 +4681,6 @@
                                                             "value": 5,
                                                             "units": "Hrs"
                                                         },
-                                                        "count": {
-                                                            "value": 1,
-                                                            "units": "instances"
-                                                        },
                                                         "infrastructure_cost": {
                                                             "value": 14.34,
                                                             "units": "USD"
@@ -4694,10 +4703,6 @@
                                                         "usage": {
                                                             "value": 29,
                                                             "units": "Hrs"
-                                                        },
-                                                        "count": {
-                                                            "value": 3,
-                                                            "units": "instances"
                                                         },
                                                         "infrastructure_cost": {
                                                             "value": 27.73,
