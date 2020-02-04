@@ -18,7 +18,7 @@
 import copy
 
 from django.db.models import F, Window
-from django.db.models.functions import RowNumber
+from django.db.models.functions import Coalesce, RowNumber
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
@@ -77,6 +77,11 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
 
             annotations = self._mapper.report_type_map.get('annotations')
             query_data = query_data.values(*query_group_by).annotate(**annotations)
+
+            if 'cluster' in query_group_by or 'cluster' in self.query_filter:
+                query_data = query_data.annotate(
+                    cluster_alias=Coalesce('cluster_alias', 'cluster_id')
+                )
 
             if self._limit:
                 rank_order = getattr(F(self.order_field), self.order_direction)()

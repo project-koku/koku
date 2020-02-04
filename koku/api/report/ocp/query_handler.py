@@ -20,7 +20,7 @@ from collections import defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 
 from django.db.models import F, Value, Window
-from django.db.models.functions import Concat, RowNumber
+from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
@@ -132,6 +132,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_order_by.extend([self.order])
 
             query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
+
+            if 'cluster' in query_group_by or 'cluster' in self.query_filter:
+                query_data = query_data.annotate(cluster_alias=Coalesce('cluster_alias',
+                                                                        'cluster_id'))
 
             if self._limit and group_by_value:
                 rank_by_total = self.get_rank_window_function(group_by_value)
