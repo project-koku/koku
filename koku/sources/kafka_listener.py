@@ -23,7 +23,7 @@ import threading
 import time
 
 from aiokafka import AIOKafkaConsumer
-from django.db import OperationalError, connection
+from django.db import InterfaceError, OperationalError, connection
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from kafka.errors import KafkaError
@@ -407,11 +407,18 @@ async def process_messages(msg_pending_queue):  # noqa: C901; pragma: no cover
                 KAFKA_AUTHENTICATION_UPDATE,
             ):
                 storage.enqueue_source_update(msg_data.get('source_id'))
-        except OperationalError as error:
+        except (InterfaceError, OperationalError) as error:
             LOG.error(
-                f'[process_messages] encountered OperationalError. Closing DB connection: {error}'
+                f'[process_messages] Closing DB connection and re-queueing failed operation.'
+                f' Encountered {type(error).__name__}: {error}'
             )
             connection.close()
+            await asyncio.sleep(Config.RETRY_SECONDS)
+            await msg_pending_queue.put(msg_data)
+            LOG.info(
+                f'Requeued failed operation: {msg_data.get("event_type")} '
+                f'for Source ID: {str(msg_data.get("source_id"))}.'
+            )
         except Exception as error:
             # The reason for catching all exceptions is to ensure that the event
             # loop remains active in the event that message processing fails unexpectedly.
@@ -575,7 +582,20 @@ async def synchronize_sources(
             if msg.get('operation') != 'destroy':
                 storage.clear_update_flag(msg.get('provider').source_id)
         except SourcesIntegrationError as error:
-            LOG.error('Re-queueing failed operation. Error: %s', str(error))
+            LOG.error(f'[synchronize_sources] Re-queueing failed operation. Error: {error}')
+            await asyncio.sleep(Config.RETRY_SECONDS)
+            _log_process_queue_event(process_queue, msg)
+            await process_queue.put(msg)
+            LOG.info(
+                f'Requeue of failed operation: {msg.get("operation")} '
+                f'for Source ID: {str(msg.get("provider").source_id)} complete.'
+            )
+        except (InterfaceError, OperationalError) as error:
+            connection.close()
+            LOG.error(
+                f'[synchronize_sources] Closing DB connection and re-queueing failed operation.'
+                f' Encountered {type(error).__name__}: {error}'
+            )
             await asyncio.sleep(Config.RETRY_SECONDS)
             _log_process_queue_event(process_queue, msg)
             await process_queue.put(msg)
