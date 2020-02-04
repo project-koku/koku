@@ -541,6 +541,7 @@ class ProviderSerializerTest(IamTestCase):
 
         self.assertNotEqual(instance1.uuid, instance2.uuid)
 
+
 class AdminProviderSerializerTest(IamTestCase):
     """Tests for the admin customer serializer."""
 
