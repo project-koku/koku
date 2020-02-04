@@ -178,8 +178,8 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         """Test that summary tables are properly run for an OCP provider."""
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
-        start_date_str = start_date.strftime('%Y-%m-%d')
-        end_date_str = end_date.strftime('%Y-%m-%d')
+        start_date_str = start_date # .strftime('%Y-%m-%d')
+        end_date_str = end_date #.strftime('%Y-%m-%d')
         with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
             cluster_id = provider_accessor.get_authentication()
@@ -208,8 +208,8 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         mock_utility.return_value = fake_bills
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
-        start_date_str = start_date.strftime('%Y-%m-%d')
-        end_date_str = end_date.strftime('%Y-%m-%d')
+        start_date_str = start_date # .strftime('%Y-%m-%d')
+        end_date_str = end_date # .strftime('%Y-%m-%d')
         with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
         with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
@@ -236,8 +236,8 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         for provider_uuid in test_provider_list:
             start_date = self.date_accessor.today_with_timezone('UTC')
             end_date = start_date + datetime.timedelta(days=1)
-            start_date_str = start_date.strftime('%Y-%m-%d')
-            end_date_str = end_date.strftime('%Y-%m-%d')
+            start_date_str = start_date # .strftime('%Y-%m-%d')
+            end_date_str = end_date # .strftime('%Y-%m-%d')
 
             with ProviderDBAccessor(provider_uuid) as provider_accessor:
                 provider = provider_accessor.get_provider()
@@ -260,8 +260,8 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
         start_date = start_date - relativedelta(months=1)
-        start_date_str = start_date.strftime('%Y-%m-%d')
-        end_date_str = end_date.strftime('%Y-%m-%d')
+        start_date_str = start_date # .strftime('%Y-%m-%d')
+        end_date_str = end_date # .strftime('%Y-%m-%d')
         with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
         updater = OCPCloudReportSummaryUpdater(schema='acct10001', provider=provider, manifest=None)
@@ -289,8 +289,8 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
         start_date = start_date - relativedelta(months=1)
-        start_date_str = start_date.strftime('%Y-%m-%d')
-        end_date_str = end_date.strftime('%Y-%m-%d')
+        start_date_str = start_date # .strftime('%Y-%m-%d')
+        end_date_str = end_date # .strftime('%Y-%m-%d')
         with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
         updater = OCPCloudReportSummaryUpdater(schema='acct10001', provider=provider, manifest=None)
@@ -329,8 +329,8 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
         start_date = start_date - relativedelta(months=1)
-        start_date_str = start_date.strftime('%Y-%m-%d')
-        end_date_str = end_date.strftime('%Y-%m-%d')
+        start_date_str = start_date # .strftime('%Y-%m-%d')
+        end_date_str = end_date # .strftime('%Y-%m-%d')
         with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
         updater = OCPCloudReportSummaryUpdater(schema='acct10001', provider=provider, manifest=None)
@@ -405,8 +405,8 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
         start_date = start_date - relativedelta(months=1)
-        start_date_str = start_date.strftime('%Y-%m-%d')
-        end_date_str = end_date.strftime('%Y-%m-%d')
+        start_date_str = start_date # .strftime('%Y-%m-%d')
+        end_date_str = end_date # .strftime('%Y-%m-%d')
 
         with ProviderDBAccessor(self.azure_test_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
@@ -459,8 +459,8 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
         start_date = start_date - relativedelta(months=1)
-        start_date_str = start_date.strftime('%Y-%m-%d')
-        end_date_str = end_date.strftime('%Y-%m-%d')
+        start_date_str = start_date # .strftime('%Y-%m-%d')
+        end_date_str = end_date # .strftime('%Y-%m-%d')
 
         with ProviderDBAccessor(self.azure_test_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()

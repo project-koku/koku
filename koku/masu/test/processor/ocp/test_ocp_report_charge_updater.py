@@ -415,8 +415,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_charge_info(
-            str(usage_period.report_period_start),
-            str(usage_period.report_period_end)
+            usage_period.report_period_start,
+            usage_period.report_period_end
         )
 
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
@@ -467,8 +467,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_charge_info(
-            str(usage_period.report_period_start),
-            str(usage_period.report_period_end)
+            usage_period.report_period_start,
+            usage_period.report_period_end
         )
 
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
@@ -508,8 +508,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_charge_info(
-            str(usage_period.report_period_start),
-            str(usage_period.report_period_end)
+            usage_period.report_period_start,
+            usage_period.report_period_end
         )
 
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
@@ -554,8 +554,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
             start_date, end_date, self.cluster_id
         )
         self.updater.update_summary_charge_info(
-            str(usage_period.report_period_start),
-            str(usage_period.report_period_end)
+            usage_period.report_period_start,
+            usage_period.report_period_end
         )
 
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
@@ -594,8 +594,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_charge_info(
-            str(usage_period.report_period_start),
-            str(usage_period.report_period_end)
+            usage_period.report_period_start,
+            usage_period.report_period_end
         )
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
         with OCPReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
@@ -643,8 +643,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 item.project_infra_cost = Decimal(0.5)
                 item.save()
         self.updater.update_summary_charge_info(
-            str(usage_period.report_period_start),
-            str(usage_period.report_period_end)
+            usage_period.report_period_start,
+            usage_period.report_period_end
         )
         with OCPReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
             self.assertIsNotNone(accessor.get_current_usage_period().derived_cost_datetime)
@@ -746,8 +746,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_charge_info(
-            str(usage_period.report_period_start),
-            str(usage_period.report_period_end)
+            usage_period.report_period_start,
+            usage_period.report_period_end
         )
 
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
@@ -787,8 +787,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_charge_info(
-            str(usage_period.report_period_start),
-            str(usage_period.report_period_end)
+            usage_period.report_period_start,
+            usage_period.report_period_end
         )
 
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
@@ -826,8 +826,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_charge_info(
-            str(usage_period.report_period_start),
-            str(usage_period.report_period_end)
+            usage_period.report_period_start,
+            usage_period.report_period_end
         )
 
         with OCPReportDBAccessor(schema='acct10001', column_map=self.column_map) as accessor:
@@ -857,8 +857,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_charge_info(
-            str(usage_period.report_period_start),
-            str(usage_period.report_period_end)
+            usage_period.report_period_start,
+            usage_period.report_period_end
         )
 
         with schema_context(self.schema):

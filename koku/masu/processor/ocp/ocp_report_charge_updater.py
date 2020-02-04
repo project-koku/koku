@@ -17,9 +17,11 @@
 """Updates report summary tables in the database with charge information."""
 
 import csv
+import datetime
 import io
 import logging
 from decimal import Decimal
+from typing import Optional
 
 from dateutil.parser import parse
 from tenant_schemas.utils import schema_context
@@ -28,7 +30,6 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
-from masu.util.common import log_date_deprecation_warning
 from masu.util.ocp.common import get_cluster_id_from_provider
 
 LOG = logging.getLogger(__name__)
@@ -309,22 +310,19 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         except OCPReportChargeUpdaterError as error:
             LOG.error('Unable to update monthly costs. Error: %s', str(error))
 
-    def update_summary_charge_info(self, start_date, end_date):
+    def update_summary_charge_info(self, start_date: Optional[datetime.date], end_date: Optional[datetime.date]):
         """Update the OCP summary table with the charge information.
 
         Args:
-            start_date (str, Optional) - Start date of range to update derived cost.
-            end_date (str, Optional) - End date of range to update derived cost.
+            start_date (datetime.date, Optional) - Start date of range to update derived cost.
+            end_date (datetime.date, Optional) - End date of range to update derived cost.
 
         Returns
             None
 
         """
-        if isinstance(start_date, str):
-            start_date = parse(start_date)
-            log_date_deprecation_warning(start_date)
-        if isinstance(end_date, str):
-            end_date = parse(end_date)
+        if not isinstance(start_date, datetime.date):
+            raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
         self._cluster_id = get_cluster_id_from_provider(self._provider_uuid)
 
         LOG.info('Starting charge calculation updates for provider: %s. Cluster ID: %s.',

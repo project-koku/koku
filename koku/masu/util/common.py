@@ -208,28 +208,3 @@ def date_range_pair(start_date, end_date, step=5):
         start_date = date + timedelta(days=1)
     if len(dates) != 1 and end_date not in dates:
         yield start_date.date(), end_date.date()
-
-
-def log_date_deprecation_warning(object_) -> None:
-    """Log the type of an object."""
-    LOG.debug(object_ + 'is of type" + type(date).__name__', stack_info=True)
-
-
-def to_date(date) -> datetime.date:
-    """
-    Convert incoming date argument into a datetime.date object.
-
-    Args:
-        date (str/date/datetime) a String, date, or datetime to be converted to  a date.
-    Returns:
-        (date) the date representation of the argument.
-
-    """
-    if isinstance(date, datetime.date):
-        return date
-    elif isinstance(date, str):
-        return parser.parse(date).date()
-    elif isinstance(date, datetime.datetime):
-        return date.date()
-    else:
-        raise ValueError('Could not convert + ' + date + ' to datetime.date')

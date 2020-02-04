@@ -45,7 +45,7 @@ from masu.celery.export import table_export_settings
 from masu.external.date_accessor import DateAccessor
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import vacuum_schema
-from masu.util.common import NamedTemporaryGZip, dictify_table_export_settings, log_date_deprecation_warning
+from masu.util.common import NamedTemporaryGZip, dictify_table_export_settings
 from masu.util.upload import get_upload_path
 
 LOG = get_task_logger(__name__)

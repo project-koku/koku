@@ -15,6 +15,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Updater base for OpenShift on Cloud Infrastructures."""
+import datetime
 # pylint: skip-file
 import logging
 
@@ -24,7 +25,6 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import \
     ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
-from masu.util.common import to_date
 
 LOG = logging.getLogger(__name__)
 
@@ -75,20 +75,19 @@ class OCPCloudUpdaterBase:
                     infra_map[str(provider.uuid)] = (self._provider_uuid, self._provider.type)
         return infra_map
 
-    def _generate_ocp_infra_map_from_sql(self, start_date, end_date):
+    def _generate_ocp_infra_map_from_sql(self, start_date: datetime.date, end_date: datetime.date):
         """Get the OCP on X infrastructure map.
 
         Args:
-            start_date (str/date) The date to start populating the table.
-            end_date   (str/date) The date to end on.
+            start_date (date) The date to start populating the table.
+            end_date   (date) The date to end on.
 
         Returns:
             infra_map (dict) The OCP infrastructure map.
 
         """
-        start_date = to_date(start_date)
-        end_date = to_date(end_date)
-
+        if not isinstance(start_date, datetime.date):
+            raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
         infra_map = {}
         if self._provider.type == Provider.PROVIDER_OCP:
             with OCPReportDBAccessor(self._schema, self._column_map) as accessor:

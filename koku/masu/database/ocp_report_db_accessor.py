@@ -31,8 +31,7 @@ from tenant_schemas.utils import schema_context
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.util.common import (log_date_deprecation_warning,
-                              month_date_range_tuple)
+from masu.util.common import month_date_range_tuple
 from reporting.provider.ocp.models import (OCPUsageLineItemDailySummary,
                                            OCPUsageReport,
                                            OCPUsageReportPeriod)
@@ -105,9 +104,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         report_periods = self.get_usage_period_query_by_provider(provider_uuid)
         with schema_context(self.schema):
             if start_date:
-                if isinstance(start_date, str):
-                    start_date = parse(start_date).date()
-                    LOG.debug('start_date was a string instead of a date', stack_info=True)
+                if not isinstance(start_date, datetime.date):
+                    raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
                 report_date = start_date.replace(day=1)
                 report_periods = report_periods.filter(
                     report_period_start=report_date
@@ -333,16 +331,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        if isinstance(start_date, str):
-            # Convert str to date
-            log_date_deprecation_warning(start_date)
-            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
-            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
-        if isinstance(start_date, datetime.datetime):
-            # Convert datetime to date
-            log_date_deprecation_warning(start_date)
-            start_date = start_date.date()
-            end_date = end_date.date()
+        if not isinstance(start_date, datetime.date):
+            raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
 
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily']
 
@@ -382,10 +372,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         azure_provider_uuid = kwargs.get('azure_provider_uuid')
         # In case someone passes this function a string instead of the date object like we asked...
         # Cast the string into a date object, end_date into date object instead of string
-        if isinstance(start_date, str):
-            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
-            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
-            LOG.warning('Deprecated use of str instead of date.')
+        if not isinstance(start_date, datetime.date):
+            raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
         infra_sql = pkgutil.get_data(
             'masu.database',
             'sql/reporting_ocpinfrastructure_provider_map.sql'
@@ -429,15 +417,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        # Cast string to date object
-        if isinstance(start_date, str):
-            log_date_deprecation_warning(start_date)
-            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
-            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
-        if isinstance(start_date, datetime.datetime):
-            log_date_deprecation_warning(start_date)
-            start_date = start_date.date()
-            end_date = end_date.date()
+        if not isinstance(start_date, datetime.date):
+            raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily']
 
         daily_sql = pkgutil.get_data(
@@ -527,15 +508,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        # Cast start_date to date
-        if isinstance(start_date, str):
-            log_date_deprecation_warning(start_date)
-            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
-            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
-        if isinstance(start_date, datetime.datetime):
-            log_date_deprecation_warning(start_date)
-            start_date = start_date.date()
-            end_date = end_date.date()
+        if not isinstance(start_date, datetime.date):
+            raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         summary_sql = pkgutil.get_data(
@@ -569,14 +543,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         """
         # Cast start_date and end_date to date object, if they aren't already
-        log_date_deprecation_warning(start_date)
-        if isinstance(start_date, str):
-            log_date_deprecation_warning(start_date)
-            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
-            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
-        if isinstance(start_date, datetime.datetime):
-            start_date = start_date.date()
-            end_date = end_date.date()
+        if not isinstance(start_date, datetime.date):
+            raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         summary_sql = pkgutil.get_data(
@@ -609,15 +577,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        # Cast start_date to date object
-        if isinstance(start_date, str):
-            log_date_deprecation_warning(start_date)
-            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
-            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
-        if isinstance(start_date, datetime.datetime):
-            log_date_deprecation_warning(start_date)
-            start_date = start_date.date()
-            end_date = end_date.date()
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
         if start_date is None:
             start_date_qry = self._get_db_obj_query(table_name).order_by('usage_start').first()
@@ -763,11 +722,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             end_date (datetime.date): The end_date to calculate monthly_cost.
 
         """
-        if isinstance(start_date, str):
-            start_date = parse(start_date).date()
-            LOG.debug('start_date was a string instead of a datetime.date', stack_info=True)
-        if isinstance(end_date, str):
-            end_date = parse(end_date).date()
+        if not isinstance(start_date, datetime.date):
+            raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
         if not start_date:
             # If start_date is not provided, recalculate from the first month
             start_date = OCPUsageLineItemDailySummary.objects.aggregate(

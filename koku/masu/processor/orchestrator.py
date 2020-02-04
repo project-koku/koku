@@ -112,7 +112,7 @@ class Orchestrator():
         current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1).date()
         for month in reversed(range(number_of_months)):
             calculated_month = current_month + relativedelta(months=-month)
-            months.append(calculated_month.date())
+            months.append(calculated_month)
 
         return months
 
