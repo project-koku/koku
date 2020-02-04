@@ -513,6 +513,33 @@ class ProviderSerializerTest(IamTestCase):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
 
+    def test_create_same_provider_different_customers(self):
+        """Test that the same provider can be created for 2 different customers."""
+        user_data = self._create_user_data()
+        alt_request_context = self._create_request_context(
+            self.create_mock_customer_data(),
+            user_data,
+            create_tenant=True)
+        alt_request = alt_request_context['request']
+        serializer = UserSerializer(data=user_data, context=alt_request_context)
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.save()
+            alt_request.user = user
+        alt_request_context['request'] = alt_request
+
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            serializer = ProviderSerializer(data=self.generic_providers[Provider.PROVIDER_AZURE],
+                                            context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance1 = serializer.save()
+
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            serializer = ProviderSerializer(data=self.generic_providers[Provider.PROVIDER_AZURE],
+                                            context=alt_request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance2 = serializer.save()
+
+        self.assertNotEqual(instance1.uuid, instance2.uuid)
 
 class AdminProviderSerializerTest(IamTestCase):
     """Tests for the admin customer serializer."""
