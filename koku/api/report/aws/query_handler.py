@@ -155,10 +155,14 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         return output
 
-    def _build_sum(self, query):
+    def _build_sum(self, query, annotations):
         """Build the sum results for the query."""
         sum_units = {}
+
         query_sum = self.initialize_totals()
+        if not self.parameters.parameters.get('compute_count'):
+            query_sum.pop('count', None)
+
         cost_units_fallback = self._mapper.report_type_map.get('cost_units_fallback')
         usage_units_fallback = self._mapper.report_type_map.get('usage_units_fallback')
         count_units_fallback = self._mapper.report_type_map.get('count_units_fallback')
@@ -175,14 +179,14 @@ class AWSReportQueryHandler(ReportQueryHandler):
             if self._mapper.usage_units_key:
                 units_value = sum_query.values('usage_units').first().get('usage_units', usage_units_fallback)
                 sum_units['usage_units'] = units_value
-            if self._mapper.report_type_map.get('annotations', {}).get('count_units'):
+            if annotations.get('count_units'):
                 sum_units['count_units'] = count_units_fallback
             query_sum = self.calculate_total(**sum_units)
         else:
             sum_units['cost_units'] = cost_units_fallback
-            if self._mapper.report_type_map.get('annotations', {}).get('count_units'):
+            if annotations.get('count_units'):
                 sum_units['count_units'] = count_units_fallback
-            if self._mapper.report_type_map.get('annotations', {}).get('usage_units'):
+            if annotations.get('usage_units'):
                 sum_units['usage_units'] = usage_units_fallback
             query_sum.update(sum_units)
             self._pack_data_object(query_sum, **self._mapper.PACK_DEFINITIONS)
@@ -198,20 +202,26 @@ class AWSReportQueryHandler(ReportQueryHandler):
         data = []
 
         with tenant_context(self.tenant):
+
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_group_by = ['date'] + self._get_group_by()
             query_order_by = ['-date', ]
             query_order_by.extend([self.order])
 
-            annotations = self._mapper.report_type_map.get('annotations')
+            annotations = copy.deepcopy(self._mapper.report_type_map.get('annotations', {}))
+            if not self.parameters.parameters.get('compute_count'):
+                # Query parameter indicates count should be removed from DB queries
+                annotations.pop('count', None)
+                annotations.pop('count_units', None)
+
             query_data = query_data.values(*query_group_by).annotate(**annotations)
 
             if 'account' in query_group_by:
                 query_data = query_data.annotate(account_alias=Coalesce(
                     F(self._mapper.provider_map.get('alias')), 'usage_account_id'))
 
-            query_sum = self._build_sum(query)
+            query_sum = self._build_sum(query, annotations)
 
             if self._limit:
                 rank_order = getattr(F(self.order_field), self.order_direction)()
@@ -269,7 +279,12 @@ class AWSReportQueryHandler(ReportQueryHandler):
         query = self.query_table.objects.filter(self.query_filter)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
-        aggregates = self._mapper.report_type_map.get('aggregates')
+
+        aggregates = copy.deepcopy(self._mapper.report_type_map.get('aggregates', {}))
+        if not self.parameters.parameters.get('compute_count'):
+            # Query parameter indicates count should be removed from DB queries
+            aggregates.pop('count', None)
+
         counts = None
 
         if 'count' in aggregates:
