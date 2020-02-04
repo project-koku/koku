@@ -56,7 +56,7 @@ import requests
 
 BASEDIR = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_CONFIG = BASEDIR + '/test_customer.yaml'
-SUPPORTED_PROVIDERS = ['aws', 'ocp', 'azure']
+SUPPORTED_PROVIDERS = ['AWS', 'AWS-local', 'Azure', 'Azure-local', 'OCP']
 
 
 class KokuCustomerOnboarder:
@@ -88,13 +88,10 @@ class KokuCustomerOnboarder:
 
     def create_provider_api(self):
         """Create a Koku Provider using the Koku API."""
-        providers = []
-        for prov in SUPPORTED_PROVIDERS:
-            providers.append(self.customer.get('providers')
-                             .get(f'{prov}_provider'))
-
-        for provider in providers:
-            if not provider:
+        for provider in self.customer.get('providers', []):
+            provider_type = provider.get('provider_type')
+            if provider_type not in SUPPORTED_PROVIDERS:
+                print(f'{provider_type} is not a valid provider type. Skipping.')
                 continue
 
             print(f'\nAdding {provider}...')
