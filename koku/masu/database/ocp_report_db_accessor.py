@@ -783,6 +783,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 unique_nodes = OCPUsageLineItemDailySummary.objects.\
                     filter(usage_start__gte=first_curr_month,
                            usage_start__lt=first_next_month,
+                           cluster_id=cluster_id,
                            node__isnull=False
                            ).values_list('node').distinct()
 
