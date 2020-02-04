@@ -468,6 +468,10 @@ docker-up:
 
 docker-up-db:
 	docker-compose up -d db
+	@until pg_isready -h localhost -p 15432 ; do \
+	    sleep 0.5 ; \
+        done
+	@PGPASSWD=postgres psql -h localhost -p 15432 -d postgres -U postgres -c "create extension if not exists pg_stat_statements;"
 
 docker-iqe-smokes-tests:
 	$(MAKE) docker-reinitdb
