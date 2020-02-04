@@ -252,6 +252,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             self.assertEqual(response.get('event_type'), event)
             self.assertEqual(response.get('resource_id'), 1)
             self.assertEqual(response.get('auth_header'), test_auth_header)
+            self.assertEqual(response.get('offset'), test_offset)
 
     def test_get_sources_msg_data_other(self):
         """Test to get sources details from other message."""
