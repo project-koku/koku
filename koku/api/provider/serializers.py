@@ -305,7 +305,7 @@ class ProviderSerializer(serializers.ModelSerializer):
 
         # We can re-use a billing source or a auth, but not the same combination.
         unique_count = Provider.objects.filter(authentication=auth)\
-            .filter(billing_source=bill).count()
+            .filter(billing_source=bill).filter(customer=customer).count()
         if unique_count != 0:
             error = {'Error': 'A Provider already exists with that Authentication and Billing Source'}
             raise serializers.ValidationError(error)
