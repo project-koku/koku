@@ -522,9 +522,14 @@ endif
 ###################################################
 
 create-large-ocp-provider-testing-files:
+ifndef nise_config_dir
+	$(error param nise_config_dir is not set)
+endif
 	make purge-large-testing-ocp-files
-	make ocp-provider-from-yaml cluster_id=large_ocp_1 srf_yaml=../magic_koku/ocp_static_data_large.yml ocp_name=large_ocp_1
-
+	@for FILE in $(foreach f, $(wildcard $(nise_config_dir)/*.yml), $(f)) ; \
+    do \
+        make ocp-provider-from-yaml cluster_id=large_ocp_1 srf_yaml=$$FILE ocp_name=large_ocp_1 ; \
+	done
 
 import-large-ocp-provider-testing-costmodel:
 	curl --header 'Content-Type: application/json' \
@@ -538,7 +543,10 @@ import-large-ocp-provider-testing-data:
 # Create a large volume of data for a test OCP provider
 # Will create the files, add the cost model and process the data
 large-ocp-provider-testing:
-	make create-large-ocp-provider-testing-files
+ifndef nise_config_dir
+	$(error param nise_config_dir is not set)
+endif
+	make create-large-ocp-provider-testing-files nise_config_dir="$(nise_config_dir)"
 	make import-large-ocp-provider-testing-costmodel
 	make import-large-ocp-provider-testing-data
 
