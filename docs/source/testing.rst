@@ -1,5 +1,6 @@
 .. _`tox`: https://tox.readthedocs.io/en/latest/
 .. _`nise`: https://github.com/project-koku/nise
+.. _`.env.example`: https://github.com/project-koku/koku/blob/master/.env.example
 
 ~~~~~~~~~~~~
 Testing Koku
@@ -57,15 +58,6 @@ If you observe the following error when running the unit tests, it may be a fals
     self.aws_provider.delete()
     AssertionError: no logs of level WARNING or higher triggered on api.provider.models
 
-
-Loading test data into the database
------------------------------------
-
-Before running any functional testing, you will need to populate your database
-with test data.
-
-Using `nise`_ for generating test data is recommended.
-
 Testing using OpenShift
 -----------------------
 
@@ -120,6 +112,50 @@ The following are examples of valid module paths:
 
     - masu.test.external
     - masu.test.external.downloader.azure.test_azure_services.AzureServiceTest.specific_test
+
+Functional Testing
+==================
+
+It is often necessary to load test data into a local development environment to test functionality of a new feature.
+
+Using default test data
+-----------------------
+Within the koku repo there are scripts to automate the creation of a test customer with a default set of sources. This will create one AWS, one Azure, and three OpenShift sources to simulate the following scenarios.
+
+    - OpenShift running on AWS
+    - OpenShift running on Azure
+    - OpenShift on premises
+
+There is a complementary script to subsequently load test data for each source. The `nise`_ project is used to generate this test data. Nise is a dev dependency of koku, so a working copy of the nise command line tool shoudl be availble after running `pipenv install --dev`. A local clone of the nise repository is also required as it contains static YAML files used by this script. Before using this script, make sure the following variables are defined in your environment. See `.env.example`_ for example values.
+
+    - API_PATH_PREFIX
+    - NISE_REPO_PATH
+    - KOKU_API_HOSTNAME
+    - MASU_API_HOSTNAME
+    - KOKU_PORT (if using docker-compose)
+    - MASU_PORT (if using docker-compose)
+
+Examples
+++++++++
+
+Example 1. Using docker-compose to wipe and rebuild the local database with test data::
+
+    make docker-reinitdb-with-providers
+    make load-test-customer-data
+
+Example 2. Assuming the database is already clean and does not need to be rebuilt::
+
+    make create-test-customer
+    make load-test-customer-data
+
+Manually loading test data into the database
+--------------------------------------------
+
+Before running any functional testing, you will need to populate your database
+with test data.
+
+Using `nise`_ for generating test data is recommended.
+
 
 Debugging Options
 =================
