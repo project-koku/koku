@@ -71,22 +71,20 @@ class SourcesStorageTest(TestCase):
         self.assertTrue(storage.is_known_source(self.test_source_id))
         self.assertFalse(storage.is_known_source(self.test_source_id + 1))
 
-    @patch('sources.storage.connection.close')
     @patch('sources.storage.Sources.objects')
-    def test_is_known_souce_db_down(self, mock_objects, mock_db_close):
+    def test_is_known_souce_db_down(self, mock_objects):
         """Test InterfaceError in is_known_souce."""
         mock_objects.get.side_effect = InterfaceError('test_exception')
-        self.assertFalse(storage.is_known_source(self.test_source_id))
-        mock_db_close.assert_called()
+        with self.assertRaises(InterfaceError):
+            storage.is_known_source(self.test_source_id)
 
-    @patch('sources.storage.connection.close')
     @patch('sources.storage.Sources.objects')
-    def test_get_source_db_down(self, mock_objects, mock_db_close):
+    def test_get_source_db_down(self, mock_objects):
         """Tests creating a source db record with invalid auth_header."""
         mock_objects.get.side_effect = InterfaceError('test_exception')
         test_source_id = 2
-        storage.get_source(test_source_id, 'error')
-        mock_db_close.assert_called()
+        with self.assertRaises(InterfaceError):
+            storage.get_source(test_source_id, 'error')
 
     def test_create_source_event(self):
         """Tests that a source can be created."""
@@ -107,15 +105,14 @@ class SourcesStorageTest(TestCase):
         with self.assertRaises(Sources.DoesNotExist):
             Sources.objects.get(source_id=test_source_id)
 
-    @patch('sources.storage.connection.close')
-    def test_create_source_event_db_down(self, mock_db_close):
+    def test_create_source_event_db_down(self):
         """Tests creating a source db record with invalid auth_header."""
         test_source_id = 2
         test_offset = 3
         with patch('sources.storage.Sources.objects') as mock_objects:
             mock_objects.get.side_effect = InterfaceError('Test exception')
-            storage.create_source_event(test_source_id, Config.SOURCES_FAKE_HEADER, test_offset)
-        mock_db_close.assert_called()
+            with self.assertRaises(InterfaceError):
+                storage.create_source_event(test_source_id, Config.SOURCES_FAKE_HEADER, test_offset)
 
     def test_destroy_source_event(self):
         """Tests that a source can be destroyed."""
@@ -131,14 +128,12 @@ class SourcesStorageTest(TestCase):
         response = storage.destroy_source_event(self.test_source_id + 1)
         self.assertIsNone(response)
 
-    @patch('sources.storage.connection.close')
-    def test_destroy_source_event_db_down(self, mock_db_close):
+    def test_destroy_source_event_db_down(self):
         """Tests when destroying a source when DB is down."""
         with patch('sources.storage.Sources.objects') as mock_objects:
             mock_objects.get.side_effect = InterfaceError('Test exception')
-            response = storage.destroy_source_event(self.test_source_id)
-        self.assertIsNone(response)
-        mock_db_close.assert_called()
+            with self.assertRaises(InterfaceError):
+                storage.destroy_source_event(self.test_source_id)
 
     def test_add_provider_network_info(self):
         """Tests that adding information retrieved from the sources network API is successful."""
@@ -289,8 +284,7 @@ class SourcesStorageTest(TestCase):
         self.assertEquals(response, Provider.PROVIDER_OCP)
         self.assertEquals(storage.get_source_type(test_source_id + 1), None)
 
-    @patch('sources.storage.connection.close')
-    def test_get_source_from_endpoint(self, mock_db_close):
+    def test_get_source_from_endpoint(self):
         """Test to source from endpoint id."""
         test_source_id = 3
         test_endpoint_id = 4
@@ -309,9 +303,8 @@ class SourcesStorageTest(TestCase):
         self.assertEquals(storage.get_source_from_endpoint(test_source_id + 10), None)
         with patch('sources.storage.Sources.objects') as mock_objects:
             mock_objects.get.side_effect = InterfaceError('Test exception')
-            response = storage.get_source_from_endpoint(test_endpoint_id)
-            self.assertIsNone(response)
-            mock_db_close.assert_called()
+            with self.assertRaises(InterfaceError):
+                storage.get_source_from_endpoint(test_endpoint_id)
 
     def test_add_provider_sources_auth_info(self):
         """Test to add authentication to a source."""
