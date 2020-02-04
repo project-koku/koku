@@ -21,7 +21,7 @@ from base64 import b64decode
 from json import loads as json_loads
 from json.decoder import JSONDecodeError
 
-from django.db import InterfaceError, connection
+from django.db import InterfaceError, OperationalError
 
 from api.provider.models import Provider, Sources
 
@@ -157,9 +157,9 @@ def get_source(source_id, err_msg):
         return Sources.objects.get(source_id=source_id)
     except Sources.DoesNotExist:
         LOG.error(err_msg)
-    except InterfaceError as error:
-        LOG.error(f'Closing DB connection. Accessing sources resulted in InterfaceError: {error}')
-        connection.close()
+    except (InterfaceError, OperationalError) as error:
+        LOG.error(f'Accessing sources resulted in {type(error).__name__}: {error}')
+        raise error
 
 
 def enqueue_source_delete(source_id):
@@ -214,7 +214,7 @@ def clear_update_flag(source_id):
         source.save()
 
 
-def create_provider_event(source_id, auth_header, offset):
+def create_source_event(source_id, auth_header, offset):
     """
     Create a Sources database object.
 
@@ -242,12 +242,13 @@ def create_provider_event(source_id, auth_header, offset):
         new_event = Sources(source_id=source_id, auth_header=auth_header,
                             offset=offset, account_id=account_id)
         new_event.save()
-    except InterfaceError as error:
-        LOG.error(f'source.storage.create_provider_event InterfaceError {error}')
-        connection.close()
+        LOG.info(f'source.storage.create_source_event created Source ID: {source_id}')
+    except (InterfaceError, OperationalError) as error:
+        LOG.error(f'source.storage.create_provider_event {type(error).__name__}: {error}')
+        raise error
 
 
-def destroy_provider_event(source_id):
+def destroy_source_event(source_id):
     """
     Destroy a Sources database object.
 
@@ -263,21 +264,14 @@ def destroy_provider_event(source_id):
         source = Sources.objects.get(source_id=source_id)
         koku_uuid = source.koku_uuid
         source.delete()
+        LOG.info(f'source.storage.destroy_source_event destroyed Source ID: {source_id}')
     except Sources.DoesNotExist:
         LOG.debug('Source ID: %s already removed.', str(source_id))
-    except InterfaceError as error:
-        LOG.error(f'source.storage.destroy_provider_event InterfaceError {error}')
-        connection.close()
+    except (InterfaceError, OperationalError) as error:
+        LOG.error(f'source.storage.destroy_provider_event {type(error).__name__}: {error}')
+        raise error
 
     return koku_uuid
-
-
-def update_endpoint_id(source_id, endpoint_id):
-    """Update Endpoint ID from Source ID."""
-    source = get_source(source_id, f'[update_endpoint_id] Unable to get Source Type.  Source ID: {source_id} does not exist')  # noqa
-    if source:
-        source.endpoint_id = endpoint_id
-        source.save()
 
 
 def get_source_type(source_id):
@@ -297,9 +291,9 @@ def get_source_from_endpoint(endpoint_id):
         source_id = query.source_id
     except Sources.DoesNotExist:
         LOG.debug('Unable to find Source ID from Endpoint ID: %s', str(endpoint_id))
-    except InterfaceError as error:
-        LOG.error(f'source.storage.get_source_from_endpoint InterfaceError {error}')
-        connection.close()
+    except (InterfaceError, OperationalError) as error:
+        LOG.error(f'source.storage.get_source_from_endpoint {type(error).__name__}: {error}')
+        raise error
     return source_id
 
 
@@ -410,8 +404,7 @@ def is_known_source(source_id):
         source_exists = True
     except Sources.DoesNotExist:
         source_exists = False
-    except InterfaceError as error:
-        LOG.error(f'Closing DB connection. Accessing sources resulted in InterfaceError: {error}')
-        connection.close()
-        source_exists = False
+    except (InterfaceError, OperationalError) as error:
+        LOG.error(f'Accessing Sources resulting in {type(error).__name__}: {error}')
+        raise error
     return source_exists

@@ -1044,7 +1044,6 @@ class OCPReportViewTest(IamTestCase):
         with tenant_context(self.tenant):
             totals = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__gte=self.ten_days_ago)\
-                .filter(**{'pod_labels__has_key': filter_key})\
                 .aggregate(
                     **{
                         'usage': Sum('pod_usage_cpu_core_hours'),
