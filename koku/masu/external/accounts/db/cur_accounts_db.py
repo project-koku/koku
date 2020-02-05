@@ -46,6 +46,18 @@ class CURAccountsDB(CURAccountsInterface):
                 return provider.billing_source.data_source
         return None
 
+    def get_account_information(self, provider):
+        """Return account information in dictionary."""
+        account = {
+            'authentication': self.get_authentication(provider),
+            'customer_name': provider.customer.schema_name,
+            'billing_source': self.get_billing_source(provider),
+            'provider_type': provider.type,
+            'schema_name': provider.customer.schema_name,
+            'provider_uuid': provider.uuid
+        }
+        return account
+
     def get_accounts_from_source(self, provider_uuid=None):
         """
         Retrieve all accounts from the Koku database.
@@ -61,20 +73,15 @@ class CURAccountsDB(CURAccountsInterface):
         """
         accounts = []
         with ProviderCollector() as collector:
-            all_providers = collector.get_providers()
-            for provider in all_providers:
+            all_providers = collector.get_provider_uuid_map()
+            if provider_uuid and all_providers.get(provider_uuid):
+                return [self.get_account_information(all_providers.get(provider_uuid))]
+            else:
+                return []
+
+            for _, provider in all_providers.items():
                 if provider.active is False:
                     LOG.info(f'Provider {provider.uuid} is not active. Processing suspended...')
                     continue
-                if provider_uuid and str(provider.uuid) != provider_uuid:
-                    continue
-                account = {
-                    'authentication': self.get_authentication(provider),
-                    'customer_name': provider.customer.schema_name,
-                    'billing_source': self.get_billing_source(provider),
-                    'provider_type': provider.type,
-                    'schema_name': provider.customer.schema_name,
-                    'provider_uuid': provider.uuid
-                }
-                accounts.append(account)
+                accounts.append(self.get_account_information(provider))
         return accounts

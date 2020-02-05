@@ -43,7 +43,7 @@ class Orchestrator():
 
     """
 
-    def __init__(self, billing_source=None):
+    def __init__(self, billing_source=None, provider_uuid=None):
         """
         Orchestrator for processing.
 
@@ -51,10 +51,10 @@ class Orchestrator():
             billing_source (String): Individual account to retrieve.
 
         """
-        self._accounts, self._polling_accounts = self.get_accounts(billing_source)
+        self._accounts, self._polling_accounts = self.get_accounts(billing_source, provider_uuid)
 
     @staticmethod
-    def get_accounts(billing_source=None):
+    def get_accounts(billing_source=None, provider_uuid=None):
         """
         Prepare a list of accounts for the orchestrator to get CUR from.
 
@@ -73,7 +73,7 @@ class Orchestrator():
         all_accounts = []
         polling_accounts = []
         try:
-            all_accounts = AccountsAccessor().get_accounts()
+            all_accounts = AccountsAccessor().get_accounts(provider_uuid)
         except AccountsAccessorError as error:
             LOG.error('Unable to get accounts. Error: %s', str(error))
 

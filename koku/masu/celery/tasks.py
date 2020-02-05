@@ -52,9 +52,9 @@ _DB_FETCH_BATCH_SIZE = 2000
 
 
 @app.task(name='masu.celery.tasks.check_report_updates')
-def check_report_updates():
+def check_report_updates(*args, **kwargs):
     """Scheduled task to initiate scanning process on a regular interval."""
-    orchestrator = Orchestrator()
+    orchestrator = Orchestrator(*args, **kwargs)
     orchestrator.prepare()
 
 
