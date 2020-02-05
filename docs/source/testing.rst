@@ -148,6 +148,10 @@ Example 2. Assuming the database is already clean and does not need to be rebuil
     make create-test-customer
     make load-test-customer-data
 
+Example 3. Using custom date ranges::
+
+    make load-test-customer-data start=2020-01-01 end=2020-02-29
+
 Manually loading test data into the database
 --------------------------------------------
 
