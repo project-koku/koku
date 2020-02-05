@@ -115,6 +115,7 @@ help:
 	@echo "  oc-up                                initialize an openshift cluster"
 	@echo "  oc-up-all                            run app in openshift cluster"
 	@echo "  oc-up-db                             run Postgres in an openshift cluster"
+	@echo "  oc-delete-e2e                        delete projects/configmaps/secrets created when running e2e-deploy script"
 	@echo ""
 	@echo "--- Create Providers ---"
 	@echo "  ocp-provider-from-yaml               Create ocp provider using a yaml file."
@@ -434,6 +435,8 @@ oc-up-all: oc-up oc-create-koku
 
 oc-up-db: oc-up oc-create-db
 
+oc-delete-e2e: oc-nuke-from-orbit
+	oc delete project/hccm project/buildfactory project/secrets
 
 ###############################
 ### Docker-compose Commands ###
