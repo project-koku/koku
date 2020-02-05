@@ -75,9 +75,10 @@ class CURAccountsDB(CURAccountsInterface):
         with ProviderCollector() as collector:
             all_providers = collector.get_provider_uuid_map()
             provider = all_providers.get(str(provider_uuid))
-            if provider_uuid and provider:
+            if provider_uuid and provider and provider.active:
                 return [self.get_account_information(provider)]
-            elif provider_uuid:
+            elif provider_uuid and not provider.active:
+                LOG.info(f'Provider {provider.uuid} is not active. Processing suspended...')
                 return []
 
             for _, provider in all_providers.items():
