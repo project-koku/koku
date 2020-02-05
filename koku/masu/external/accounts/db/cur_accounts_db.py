@@ -77,7 +77,7 @@ class CURAccountsDB(CURAccountsInterface):
             provider = all_providers.get(str(provider_uuid))
             if provider_uuid and provider and provider.active:
                 return [self.get_account_information(provider)]
-            elif provider_uuid and not provider.active:
+            elif provider_uuid and provider and not provider.active:
                 LOG.info(f'Provider {provider.uuid} is not active. Processing suspended...')
                 return []
 
