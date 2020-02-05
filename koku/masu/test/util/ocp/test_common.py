@@ -64,6 +64,12 @@ class OCPUtilTests(MasuTestCase):
         cluster_id = utils.get_cluster_id_from_provider(self.aws_provider_uuid)
         self.assertIsNone(cluster_id)
 
+    def test_get_cluster_alias_from_cluster_id(self):
+        """Test that the cluster alias is returned from cluster_id."""
+        cluster_id = self.ocp_provider_resource_name
+        cluster_alias = utils.get_cluster_alias_from_cluster_id((cluster_id))
+        self.assertIsNotNone(cluster_alias)
+
     def test_get_provider_uuid_from_cluster_id(self):
         """Test that the provider uuid is returned for a cluster ID."""
         cluster_id = self.ocp_provider_resource_name
