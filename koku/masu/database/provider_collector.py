@@ -58,7 +58,7 @@ class ProviderCollector(KokuDBAccess):
             ([sqlalchemy.ext.automap.api_provider]): ["Provider1", "Provider2"]
 
         """
-        return [provider for provider in self._get_db_obj_query()]
+        return self._get_db_obj_query()
 
     def get_provider_uuid_map(self):
         """
