@@ -446,6 +446,8 @@ oc-up-all: oc-up oc-create-koku
 
 oc-up-db: oc-up oc-create-db
 
+oc-delete-e2e: oc-nuke-from-orbit
+	oc delete project/hccm project/buildfactory project/secrets
 
 ###############################
 ### Docker-compose Commands ###
