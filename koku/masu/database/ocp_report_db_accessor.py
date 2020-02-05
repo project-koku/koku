@@ -82,6 +82,16 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 .filter(report_period_start=start_date)\
                 .all()
 
+    def get_usage_period_by_dates_and_cluster(self, start_date, end_date, cluster_id):
+        """Return all report period entries for the specified start date."""
+        table_name = OCP_REPORT_TABLE_MAP['report_period']
+        with schema_context(self.schema):
+            return self._get_db_obj_query(table_name)\
+                .filter(report_period_start=start_date,
+                        report_period_end=end_date,
+                        cluster_id=cluster_id)\
+                .first()
+
     def get_usage_period_before_date(self, date):
         """Get the usage report period objects before provided date."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
@@ -732,7 +742,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 )
             )
 
-    def populate_monthly_cost(self, node_cost, start_date, end_date):
+    # pylint: disable=too-many-arguments
+    def populate_monthly_cost(self, node_cost, start_date, end_date, cluster_id, cluster_alias):
         """
         Populate the monthly cost of a customer.
 
@@ -760,35 +771,47 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 Max('usage_end')
             )['usage_end__max']
 
-        LOG.info('Populating Monthly cost from %s to %s.', start_date, end_date)
-
         first_month = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
         with schema_context(self.schema):
             # Calculate monthly cost for every month
             for curr_month in rrule(freq=MONTHLY, until=end_date, dtstart=first_month):
                 first_curr_month, first_next_month = month_date_range_tuple(curr_month)
+                LOG.info('Populating Monthly node cost from %s to %s.',
+                         first_curr_month, first_next_month)
 
                 unique_nodes = OCPUsageLineItemDailySummary.objects.\
                     filter(usage_start__gte=first_curr_month,
                            usage_start__lt=first_next_month,
+                           cluster_id=cluster_id,
                            node__isnull=False
-                           ).values_list('node').distinct().count()
-                total_cost = node_cost * unique_nodes
-                LOG.info('Total Cost is %s for %s nodes.', total_cost, unique_nodes)
+                           ).values_list('node').distinct()
 
-                # Remove existing monthly costs
-                OCPUsageLineItemDailySummary.objects.filter(
-                    usage_start=first_curr_month,
-                    monthly_cost__isnull=False
-                ).delete()
+                report_period = self.get_usage_period_by_dates_and_cluster(first_curr_month,
+                                                                           first_next_month,
+                                                                           cluster_id)
 
-                # Create new monthly cost
-                OCPUsageLineItemDailySummary.objects.create(
-                    usage_start=first_curr_month,
-                    usage_end=first_curr_month,
-                    monthly_cost=total_cost
-                )
+                for node in unique_nodes:
+                    LOG.info('Node (%s) has a monthly cost of %s.', node[0], node_cost)
+                    # delete node cost per month
+                    OCPUsageLineItemDailySummary.objects.\
+                        filter(usage_start=first_curr_month,
+                               usage_end=first_curr_month,
+                               monthly_cost=node_cost,
+                               report_period=report_period,
+                               cluster_id=cluster_id,
+                               cluster_alias=cluster_alias,
+                               monthly_cost__isnull=False,
+                               node=node[0]).delete()
+                    # add node cost per month
+                    OCPUsageLineItemDailySummary.objects.create(
+                        usage_start=first_curr_month,
+                        usage_end=first_curr_month,
+                        monthly_cost=node_cost,
+                        report_period=report_period,
+                        cluster_id=cluster_id,
+                        cluster_alias=cluster_alias,
+                        node=node[0])
 
     def remove_monthly_cost(self):
         """Delete all the monthly costs of a customer."""

@@ -48,22 +48,38 @@ class Migration(migrations.Migration):
                 'ordering': ['schema_name'],
             },
         ),
+
+
         migrations.CreateModel(
             name='ProviderAuthentication',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('uuid', models.UUIDField(default=uuid.uuid4, editable=False, unique=True)),
-                ('provider_resource_name', models.TextField(unique=True)),
+                ('provider_resource_name', models.TextField(null=True, unique=True)),
+                ('credentials', django.contrib.postgres.fields.jsonb.JSONField(default=dict, null=True)),
             ],
         ),
+        migrations.AddConstraint(
+            model_name='providerauthentication',
+            constraint=models.CheckConstraint(check=models.Q(models.Q(('provider_resource_name', None), ('credentials', {})), _negated=True), name='credentials_and_resource_name_both_null'),
+        ),
+
+
         migrations.CreateModel(
             name='ProviderBillingSource',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('uuid', models.UUIDField(default=uuid.uuid4, editable=False, unique=True)),
-                ('bucket', models.CharField(max_length=63)),
+                ('bucket', models.CharField(max_length=63, null=True)),
+                ('data_source', django.contrib.postgres.fields.jsonb.JSONField(default=dict, null=True)),
             ],
         ),
+        migrations.AddConstraint(
+            model_name='providerbillingsource',
+            constraint=models.CheckConstraint(check=models.Q(models.Q(('bucket', None), ('data_source', {})), _negated=True), name='bucket_and_data_source_both_null'),
+        ),
+
+
         migrations.CreateModel(
             name='Tenant',
             fields=[
@@ -74,6 +90,8 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
         ),
+
+
         migrations.CreateModel(
             name='User',
             fields=[
@@ -89,12 +107,14 @@ class Migration(migrations.Migration):
                 'ordering': ['username'],
             },
         ),
+
+
         migrations.CreateModel(
             name='UserPreference',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('uuid', models.UUIDField(default=uuid.uuid4, editable=False, unique=True)),
-                ('preference', django.contrib.postgres.fields.jsonb.JSONField(default=dict)),
+                ('preference', django.contrib.postgres.fields.jsonb.JSONField()),
                 ('name', models.CharField(default=uuid.uuid4, max_length=255)),
                 ('description', models.CharField(max_length=255, null=True)),
                 ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.User')),
@@ -104,30 +124,73 @@ class Migration(migrations.Migration):
                 'unique_together': {('name', 'user')},
             },
         ),
+
+
         migrations.CreateModel(
             name='Provider',
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('uuid', models.UUIDField(default=uuid.uuid4, editable=False, unique=True)),
+                ('id', models.IntegerField(serialize=False, verbose_name='ID')), # RESTORED THIS COL AFTER EXAMINING MASTER, PROD
+                ('uuid', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('name', models.CharField(max_length=256)),
-                ('type', models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AWS-local', 'AWS-local'), ('OCP-local', 'OCP-local')], default='AWS', max_length=50)),
+                ('type', models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('Azure', 'Azure'), ('GCP', 'GCP'), ('AWS-local', 'AWS-local'), ('Azure-local', 'Azure-local'), ('GCP-local', 'GCP-local')], default='AWS', max_length=50)),
                 ('setup_complete', models.BooleanField(default=False)),
                 ('authentication', models.ForeignKey(null=True, on_delete=django.db.models.deletion.DO_NOTHING, to='api.ProviderAuthentication')),
                 ('billing_source', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.DO_NOTHING, to='api.ProviderBillingSource')),
                 ('created_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='api.User')),
                 ('customer', models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to='api.Customer')),
+                ('created_timestamp', models.DateTimeField(auto_now_add=True, null=True)),
+                ('active', models.BooleanField(default=True)),
             ],
             options={
                 'ordering': ['name'],
                 'unique_together': {('authentication', 'billing_source')},
             },
         ),
+
+        # Making things look like master and production from the migrations squash branch
+        # This ensures that primary key constraint name matches then name used on the master branch
+        # This also ensures that the sequence for the (unused) id column is created. 
+        # This id column appears to be unused, but it does exist on master and production and feels beyond
+        # the scope of this ticket to change.
+        migrations.RunSQL (
+            sql="""
+            do $$
+            declare
+                provider_pk_name text = null;
+            begin
+                select constraint_name
+                  into provider_pk_name
+                  from information_schema.table_constraints
+                 where table_schema = 'public'
+                   and table_name = 'api_provider'
+                   and constraint_type = 'PRIMARY KEY';
+                
+                if ( provider_pk_name is not null )
+                then
+                    execute 'alter table public.api_provider drop constraint ' 
+                            || quote_ident(provider_pk_name) 
+                            || ';';
+                end if;
+            end;
+            $$;
+            alter table public.api_provider
+              add constraint api_provider_uuid_7aa7496c_pk primary key (uuid);
+            
+            create sequence public.api_provider_id_seq
+                   start with 1
+                   increment by 1
+                   no maxvalue
+                   cache 1;
+            alter sequence public.api_provider_id_seq owned by api_provider.id;
+            alter table public.api_provider
+                  alter column id set default nextval('public.api_provider_id_seq'::regclass);
+            """,
+        ),
+
+
         migrations.RunPython(
             code=migrate_customer_schema_name,
         ),
-        migrations.AlterField(
-            model_name='userpreference',
-            name='preference',
-            field=django.contrib.postgres.fields.jsonb.JSONField(),
-        ),
+
+
     ]

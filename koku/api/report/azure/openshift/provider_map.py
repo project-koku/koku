@@ -16,6 +16,7 @@
 #
 """Provider Mapper for OCP on Azure Reports."""
 
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField, Count, DecimalField, F, Max, Sum, Value
 from django.db.models.functions import Coalesce
 
@@ -131,6 +132,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 )
                             ),
                             'cost_units': Coalesce(Max('currency'), Value('USD')),
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'count': None,
                         'delta_key': {
@@ -161,6 +163,7 @@ class OCPAzureProviderMap(ProviderMap):
                             'query': OCPAzureCostLineItemProjectDailySummary,
                             'total': OCPAzureCostLineItemProjectDailySummary,
                         },
+                        'tag_column': 'pod_labels',
                         'aggregates': {
                             'cost': Sum(
                                 Coalesce(
@@ -199,6 +202,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 )
                             ),
                             'cost_units': Coalesce(Max('currency'), Value('USD')),
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'count': None,
                         'delta_key': {
@@ -276,6 +280,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 Max('unit_of_measure'),
                                 Value('Storage Type Placeholder'),
                             ),
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'count': None,
                         'delta_key': {'usage': Sum('usage_quantity')},
@@ -304,6 +309,7 @@ class OCPAzureProviderMap(ProviderMap):
                             'query': OCPAzureCostLineItemProjectDailySummary,
                             'total': OCPAzureCostLineItemProjectDailySummary,
                         },
+                        'tag_column': 'pod_labels',
                         'aggregates': {
                             'cost': Sum(
                                 Coalesce(
@@ -354,6 +360,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 Max('unit_of_measure'),
                                 Value('Storage Type Placeholder'),
                             ),
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'count': None,
                         'delta_key': {'usage': Sum('usage_quantity')},
@@ -435,6 +442,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 Max('unit_of_measure'),
                                 Value('Instance Type Placeholder'),
                             ),
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'count': 'resource_id',
                         'delta_key': {'usage': Sum('usage_quantity')},
@@ -466,6 +474,7 @@ class OCPAzureProviderMap(ProviderMap):
                             'query': OCPAzureCostLineItemProjectDailySummary,
                             'total': OCPAzureCostLineItemProjectDailySummary,
                         },
+                        'tag_column': 'pod_labels',
                         'aggregates': {
                             'cost': Sum(
                                 Coalesce(
@@ -521,6 +530,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 Max('unit_of_measure'),
                                 Value('Instance Type Placeholder'),
                             ),
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'count': 'resource_id',
                         'delta_key': {'usage': Sum('usage_quantity')},

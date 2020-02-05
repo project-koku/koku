@@ -17,14 +17,12 @@
 """Models for provider management."""
 
 import logging
-from functools import partial
 from uuid import uuid4
 
 from django.contrib.postgres.fields import JSONField
-from django.db import models, transaction
+from django.db import models
 from django.db.models.constraints import CheckConstraint
-from django.db.models.signals import post_delete
-from django.dispatch import receiver
+
 
 LOG = logging.getLogger(__name__)
 
@@ -101,7 +99,7 @@ class Provider(models.Model):
         """Meta for Provider."""
 
         ordering = ['name']
-        unique_together = ('authentication', 'billing_source')
+        unique_together = ('authentication', 'billing_source', 'customer')
 
     PROVIDER_AWS = 'AWS'
     PROVIDER_OCP = 'OCP'
@@ -169,32 +167,6 @@ class Provider(models.Model):
     # which (if any) cloud provider the cluster is on
     infrastructure = models.ForeignKey('ProviderInfrastructureMap', null=True,
                                        on_delete=models.SET_NULL)
-
-
-@receiver(post_delete, sender=Provider)
-def provider_post_delete_callback(*args, **kwargs):
-    """
-    Asynchronously delete this Provider's archived data.
-
-    Note: Signal receivers must accept keyword arguments (**kwargs).
-    """
-    provider = kwargs['instance']
-    if not provider.customer:
-        LOG.warning(
-            'Provider %s has no Customer; we cannot call delete_archived_data.',
-            provider.uuid,
-        )
-        return
-    # Local import of task function to avoid potential import cycle.
-    from masu.celery.tasks import delete_archived_data
-
-    delete_func = partial(
-        delete_archived_data.delay,
-        provider.customer.schema_name,
-        provider.type,
-        provider.uuid,
-    )
-    transaction.on_commit(delete_func)
 
 
 class Sources(models.Model):
@@ -296,7 +268,9 @@ class ProviderInfrastructureMap(models.Model):
     """
 
     infrastructure_type = models.CharField(
-        max_length=50, choices=Provider.CLOUD_PROVIDER_CHOICES
+        max_length=50,
+        choices=Provider.CLOUD_PROVIDER_CHOICES,
+        blank=False
     )
     infrastructure_provider = models.ForeignKey(
         'Provider', on_delete=models.CASCADE

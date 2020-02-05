@@ -15,25 +15,42 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the OCP-on-Azure Report views."""
+from urllib.parse import quote_plus, urlencode
 
 from django.test import RequestFactory
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
+from tenant_schemas.utils import tenant_context
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
+from api.models import Provider
+from api.provider.test import create_generic_provider
+from api.report.test.azure.openshift.helpers import OCPAzureReportDataGenerator
+from api.utils import DateHelper
+from reporting.models import OCPAzureCostLineItemDailySummary
+
+URLS = [
+    reverse('reports-openshift-azure-costs'),
+    reverse('reports-openshift-azure-storage'),
+    reverse('reports-openshift-azure-instance-type'),
+    # 'openshift-azure-tags',  # TODO: uncomment when we do tagging
+]
+
+GROUP_BYS = [
+    'subscription_guid',
+    'resource_location',
+    'instance_type',
+    'service_name',
+    'project',
+    'cluster',
+    'node',
+]
 
 
-class AzureReportViewTest(IamTestCase):
-    """Azure report view test cases."""
-
-    NAMES = [
-        'reports-openshift-azure-costs',
-        'reports-openshift-azure-storage',
-        'reports-openshift-azure-instance-type',
-        # 'openshift-azure-tags',  # TODO: uncomment when we do tagging
-    ]
+class OCPAzureReportViewTest(IamTestCase):
+    """OCP on Azure report view test cases."""
 
     def setUp(self):
         """Set up the customer view tests."""
@@ -43,6 +60,7 @@ class AzureReportViewTest(IamTestCase):
             serializer.save()
         self.client = APIClient()
         self.factory = RequestFactory()
+        self.dh = DateHelper()
 
     def test_execute_query_w_delta_total(self):
         """Test that delta=total returns deltas."""
@@ -61,3 +79,32 @@ class AzureReportViewTest(IamTestCase):
         result = str(response.data.get('delta')[0])
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(result, expected)
+
+    def test_group_bys_with_second_group_by_tag(self):
+        """Test that a group by project followed by a group by tag does not error."""
+        _, provider = create_generic_provider(Provider.PROVIDER_OCP, self.headers)
+        data_generator = OCPAzureReportDataGenerator(self.tenant, provider)
+        data_generator.add_data_to_tenant()
+        with tenant_context(self.tenant):
+            labels = OCPAzureCostLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.dh.last_month_start)\
+                .filter(usage_start__lte=self.dh.last_month_end)\
+                .values(*['tags'])\
+                .first()
+
+            tags = labels.get('tags')
+            group_by_key = list(tags.keys())[0]
+
+        client = APIClient()
+        for url in URLS:
+            for group_by in GROUP_BYS:
+                params = {
+                    'filter[resolution]': 'monthly',
+                    'filter[time_scope_value]': '-2',
+                    'filter[time_scope_units]': 'month',
+                    f'group_by[{group_by}]': '*',
+                    f'group_by[tag:{group_by_key}]': '*',
+                }
+                url = url + '?' + urlencode(params, quote_via=quote_plus)
+                response = client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)

@@ -19,10 +19,12 @@
 
 import gzip
 import json
-from datetime import datetime
+import types
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from os.path import exists
 
+from dateutil import parser
 from django.test import TestCase
 
 import masu.util.common as common_utils
@@ -118,6 +120,69 @@ class CommonUtilTests(MasuTestCase):
 
         self.assertEquals(start_month, expected_start_month)
         self.assertEquals(first_next_month, expected_start_next_month)
+
+    def test_date_range(self):
+        """Test that a date range generator is returned."""
+        start_date = '2020-01-01'
+        end_date = '2020-02-29'
+
+        date_generator = common_utils.date_range(start_date, end_date)
+
+        start_date = parser.parse(start_date)
+        end_date = parser.parse(end_date)
+
+        self.assertIsInstance(date_generator, types.GeneratorType)
+
+        first_date = next(date_generator)
+        self.assertEqual(first_date, start_date.date())
+        for day in date_generator:
+            self.assertIsInstance(day, date)
+            self.assertGreater(day, start_date.date())
+            self.assertLessEqual(day, end_date.date())
+        self.assertEqual(day, end_date.date())
+
+    def test_date_range_pair(self):
+        """Test that start and end dates are returned by this generator."""
+        start_date = '2020-01-01'
+        end_date = '2020-02-29'
+        step = 3
+
+        date_generator = common_utils.date_range_pair(start_date, end_date, step=step)
+
+        start_date = parser.parse(start_date)
+        end_date = parser.parse(end_date)
+
+        self.assertIsInstance(date_generator, types.GeneratorType)
+
+        first_start, first_end = next(date_generator)
+        self.assertEqual(first_start, start_date.date())
+        self.assertEqual(first_end, start_date.date() + timedelta(days=step))
+
+        for start, end in date_generator:
+            self.assertIsInstance(start, date)
+            self.assertIsInstance(end, date)
+            self.assertGreater(start, start_date.date())
+            self.assertLessEqual(end, end_date.date())
+        self.assertEqual(end, end_date.date())
+
+    def test_date_range_pair_one_day(self):
+        """Test that generator works for a single day."""
+        start_date = '2020-01-01'
+        end_date = start_date
+        step = 3
+
+        date_generator = common_utils.date_range_pair(start_date, end_date, step=step)
+
+        start_date = parser.parse(start_date)
+        end_date = parser.parse(end_date)
+
+        self.assertIsInstance(date_generator, types.GeneratorType)
+
+        first_start, first_end = next(date_generator)
+        self.assertEqual(first_start, start_date.date())
+        self.assertEqual(first_end, end_date.date())
+        with self.assertRaises(StopIteration):
+            next(date_generator)
 
 
 class NamedTemporaryGZipTests(TestCase):

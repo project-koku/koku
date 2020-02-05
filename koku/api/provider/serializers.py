@@ -238,7 +238,7 @@ class ProviderSerializer(serializers.ModelSerializer):
 
         provider_type = None
         if data and data != empty:
-            provider_type = data.get('type').lower()
+            provider_type = data.get('type')
 
         if provider_type and provider_type.lower() not in LCASE_PROVIDER_CHOICE_LIST:
             key = 'type'
@@ -246,6 +246,7 @@ class ProviderSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(error_obj(key, message))
 
         if provider_type:
+            provider_type = provider_type.lower()
             self.fields['authentication'] = AUTHENTICATION_SERIALIZERS.get(
                 Provider.PROVIDER_CASE_MAPPING.get(provider_type))()
             self.fields['billing_source'] = BILLING_SOURCE_SERIALIZERS.get(
@@ -304,7 +305,7 @@ class ProviderSerializer(serializers.ModelSerializer):
 
         # We can re-use a billing source or a auth, but not the same combination.
         unique_count = Provider.objects.filter(authentication=auth)\
-            .filter(billing_source=bill).count()
+            .filter(billing_source=bill).filter(customer=customer).count()
         if unique_count != 0:
             error = {'Error': 'A Provider already exists with that Authentication and Billing Source'}
             raise serializers.ValidationError(error)
