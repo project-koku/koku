@@ -15,14 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test Case extension to collect common test data."""
-import functools
 from base64 import b64encode
 from json import dumps as json_dumps
 from unittest.mock import Mock
 from uuid import UUID
 
-from django.conf import settings
-from django.dispatch import receiver
 from django.db import connection
 from django.db.models.signals import post_save
 from django.test import RequestFactory, TestCase
@@ -31,8 +28,8 @@ from faker import Faker
 from api.common import RH_IDENTITY_HEADER
 from api.iam.serializers import create_schema_name
 from api.models import Customer, Provider, Tenant
-from api.query_params import QueryParameters
 from api.provider.provider_manager import provider_post_save_callback
+from api.query_params import QueryParameters
 from koku.koku_test_runner import KokuTestRunner
 
 
@@ -154,31 +151,3 @@ class IamTestCase(TestCase):
             m_request.path = path
         query_params = QueryParameters(m_request, view)
         return query_params
-
-
-def suspendingreceiver(signal, **decorator_kwargs):
-    """
-    A wrapper around the standard django receiver that prevents the receiver
-    from running if the setting `SUSPEND_SIGNALS` is `True`.
-    This is particularly useful if you want to prevent signals running during
-    unit testing.
-    @override_settings(SUSPEND_SIGNALS=True)
-    class MyTestCase(TestCase):
-        def test_method(self):
-            Model.objects.create()  # post_save_receiver won't execute
-    @suspendingreceiver(post_save, sender=Model)
-    def post_save_receiver(sender, instance=None, **kwargs):
-        work(instance)
-    """
-
-    def our_wrapper(func):
-        @receiver(signal, **decorator_kwargs)
-        @functools.wraps(func)
-        def fake_receiver(sender, **kwargs):
-            if settings.SUSPEND_SIGNALS:
-                return
-            return func(sender, **kwargs)
-
-        return fake_receiver
-
-    return our_wrapper
