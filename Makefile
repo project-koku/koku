@@ -71,6 +71,9 @@ help:
 	@echo "  docker-shell                         run Django and database containers with shell access to server (for pdb)"
 	@echo "  docker-logs                          connect to console logs for all services"
 	@echo "  docker-test-all                      run unittests"
+	@echo "  docker-iqe-smokes-tests              run smoke tests"
+	@echo "  docker-iqe-api-tests                 run api tests"
+	@echo "  docker-iqe-vortex-tests              run vortex tests"
 	@echo ""
 	@echo "--- Commands using an OpenShift Cluster ---"
 	@echo "  oc-clean                             stop openshift cluster & remove local config data"
@@ -112,6 +115,7 @@ help:
 	@echo "  oc-up                                initialize an openshift cluster"
 	@echo "  oc-up-all                            run app in openshift cluster"
 	@echo "  oc-up-db                             run Postgres in an openshift cluster"
+	@echo "  oc-delete-e2e                        delete projects/configmaps/secrets created when running e2e-deploy script"
 	@echo ""
 	@echo "--- Create Providers ---"
 	@echo "  ocp-provider-from-yaml               Create ocp provider using a yaml file."
@@ -431,6 +435,8 @@ oc-up-all: oc-up oc-create-koku
 
 oc-up-db: oc-up oc-create-db
 
+oc-delete-e2e: oc-nuke-from-orbit
+	oc delete project/hccm project/buildfactory project/secrets
 
 ###############################
 ### Docker-compose Commands ###
@@ -499,9 +505,6 @@ endif
 	mkdir -p testing/pvc_dir/insights_local
 	nise --ocp --ocp-cluster-id $(cluster_id) --insights-upload testing/pvc_dir/insights_local --static-report-file $(srf_yaml)
 	curl -d '{"name": "$(ocp_name)", "type": "OCP", "authentication": {"provider_resource_name": "$(cluster_id)"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/providers/
-# These csv could be cleaned up when [https://github.com/project-koku/nise/issues/176](https://github.com/project-koku/nise/issues/176) is resolved.
-	rm *ocp_pod_usage.csv
-	rm *ocp_storage_usage.csv
 # From here you can hit the http://127.0.0.1:5000/api/cost-management/v1/download/ endpoint to start running masu.
 # After masu has run these endpoints should have data in them: (v1/reports/openshift/memory, v1/reports/openshift/compute/, v1/reports/openshift/volumes/)
 
