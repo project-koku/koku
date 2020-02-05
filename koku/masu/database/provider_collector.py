@@ -60,7 +60,6 @@ class ProviderCollector(KokuDBAccess):
         """
         return [provider for provider in self._get_db_obj_query()]
 
-
     def get_provider_uuid_map(self):
         """
         Return all providers.
