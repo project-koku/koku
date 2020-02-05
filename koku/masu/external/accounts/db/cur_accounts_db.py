@@ -74,9 +74,10 @@ class CURAccountsDB(CURAccountsInterface):
         accounts = []
         with ProviderCollector() as collector:
             all_providers = collector.get_provider_uuid_map()
-            if provider_uuid and all_providers.get(provider_uuid):
-                return [self.get_account_information(all_providers.get(provider_uuid))]
-            else:
+            provider = all_providers.get(str(provider_uuid))
+            if provider_uuid and provider:
+                return [self.get_account_information(provider)]
+            elif provider_uuid:
                 return []
 
             for _, provider in all_providers.items():
