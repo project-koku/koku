@@ -11,6 +11,10 @@ PYTHON	= $(shell which python)
 TOPDIR  = $(shell pwd)
 PYDIR	= koku
 APIDOC  = apidoc
+KOKU_SERVER = $(shell echo "${KOKU_API_HOST:-localhost})
+KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000})
+MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost})
+MASU_SERVER_PORT = $(shell echo "${MASU_SERVICE_PORT:-5000})
 
 # Testing directories
 TESTINGDIR = $(TOPDIR)/testing
@@ -561,10 +565,10 @@ import-large-ocp-provider-testing-costmodel:
 	curl --header 'Content-Type: application/json' \
 	     --request POST \
 	     --data '{"name": "Cost Management OpenShift Cost Model", "description": "A cost model of on-premises OpenShift clusters.", "source_type": "OCP", "provider_uuids": $(shell make -s find-large-testing-provider-uuid), "rates": [{"metric": {"name": "cpu_core_usage_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.007, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "node_cost_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.2, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "cpu_core_request_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.2, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "memory_gb_usage_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.009, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "memory_gb_request_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.05, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "storage_gb_usage_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.01, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "storage_gb_request_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.01, "usage_start": null, "usage_end": null}]}]}' \
-	     http://127.0.0.1:8000/api/cost-management/v1/costmodels/
+	     http://$(KOKU_SERVER):$(KOKU_SERVER_PORT)/api/cost-management/v1/costmodels/
 
 import-large-ocp-provider-testing-data:
-	curl --request GET http://127.0.0.1:5000/api/cost-management/v1/download/
+	curl --request GET http://$(MASU_SERVER):$(MASU_SERVER_PORT)/api/cost-management/v1/download/
 
 # Create a large volume of data for a test OCP provider
 # Will create the files, add the cost model and process the data
@@ -586,7 +590,7 @@ purge-all-testing-ocp-files:
 
 # currently locked to the large ocp provider
 find-large-testing-provider-uuid:
-	@curl "http://127.0.0.1:8000/api/cost-management/v1/providers/?name=large_ocp_1" | python3 -c "import sys, json; data_list=json.load(sys.stdin)['data']; print([data['uuid'] for data in data_list if data['type']=='OCP']);" | tr "'" '"'
+	@curl "http://$(KOKU_SERVER):$(KOKU_SERVER_PORT)/api/cost-management/v1/providers/?name=large_ocp_1" | python3 -c "import sys, json; data_list=json.load(sys.stdin)['data']; print([data['uuid'] for data in data_list if data['type']=='OCP']);" | tr "'" '"'
 
 
 # Dump local database
