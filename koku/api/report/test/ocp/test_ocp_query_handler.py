@@ -582,7 +582,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 self.assertIn('cluster', cluster_data)
                 self.assertIn('values', cluster_data)
                 for cluster_value in cluster_data.get('values'):
-                    self.assertIn('cluster', cluster_value)
-                    self.assertIn('cluster_alias', cluster_value)
-                    self.assertIsNotNone('cluster', cluster_value)
-                    self.assertIsNotNone('cluster_alias', cluster_value)
+                    # cluster_value is a dictionary
+                    self.assertIn('cluster', cluster_value.keys())
+                    self.assertIn('clusters', cluster_value.keys())
+                    self.assertIsNotNone(cluster_value['cluster'])
+                    self.assertIsNotNone(cluster_value['clusters'])
