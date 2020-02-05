@@ -139,6 +139,8 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         dates = list(
             rrule(freq=DAILY, dtstart=expected_start_date, until=expected_end_date, interval=5)
         )
+        if expected_end_date not in dates:
+            dates.append(expected_end_date)
         # Remove the first date since it's the start date
         dates.pop(0)
         expected_calls = []

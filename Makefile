@@ -46,86 +46,93 @@ help:
 	@echo "Please use \`make <target>' where <target> is one of:"
 	@echo ""
 	@echo "--- General Commands ---"
-	@echo "  clean                                clean the project directory of any scratch files, bytecode, logs, etc"
-	@echo "  help                                 show this message"
-	@echo "  html                                 create html documentation for the project"
-	@echo "  lint                                 run linting against the project"
+	@echo "  clean                                 clean the project directory of any scratch files, bytecode, logs, etc"
+	@echo "  help                                  show this message"
+	@echo "  html                                  create html documentation for the project"
+	@echo "  lint                                  run linting against the project"
 	@echo ""
 	@echo "--- Commands using local services ---"
-	@echo "  create-test-customer                 create a test customer and tenant in the database"
-	@echo "  create-test-customer-no-providers    create a test customer and tenant in the database without test providers"
-	@echo "  large-ocp-provider-testing           create a test OCP provider "large_ocp_1" with a larger volume of data"
-	@echo "  collect-static                       collect static files to host"
-	@echo "  make-migrations                      make migrations for the database"
-	@echo "  requirements                         generate Pipfile.lock, RTD requirements and manifest for product security"
-	@echo "  manifest                             create/update manifest for product security"
-	@echo "  check-manifest                       check that the manifest is up to date"
-	@echo "  remove-db                            remove local directory $(TOPDIR)/pg_data"
-	@echo "  run-migrations                       run migrations against database"
-	@echo "  serve                                run the Django app on localhost"
-	@echo "  superuser                            create a Django super user"
-	@echo "  unittest                             run unittests"
+	@echo "  create-test-customer                  create a test customer and tenant in the database"
+	@echo "  create-test-customer-no-providers     create a test customer and tenant in the database without test providers"
+	@echo "  create-large-ocp-provider-config-file create a config file for nise to generate a large data sample"
+	@echo "                                          @param generator_config_file - config for the generator
+	@echo "                                          @param generator_template_file - jinja2 template to render output"
+	@echo "                                          @param output_file_name - file name for output
+	@echo "                                          @param generator_flags - (optional) additional cli flags and args"
+	@echo "  large-ocp-provider-testing            create a test OCP provider "large_ocp_1" with a larger volume of data"
+	@echo "                                          @param nise_config_dir - directory of nise config files to use"
+	@echo "  load-test-customer-data               load test data for the default providers created in create-test-customer"
+	@echo "  collect-static                        collect static files to host"
+	@echo "  make-migrations                       make migrations for the database"
+	@echo "  requirements                          generate Pipfile.lock, RTD requirements and manifest for product security"
+	@echo "  manifest                              create/update manifest for product security"
+	@echo "  check-manifest                        check that the manifest is up to date"
+	@echo "  remove-db                             remove local directory $(TOPDIR)/pg_data"
+	@echo "  run-migrations                        run migrations against database"
+	@echo "  serve                                 run the Django app on localhost"
+	@echo "  superuser                             create a Django super user"
+	@echo "  unittest                              run unittests"
 	@echo ""
 	@echo "--- Commands using Docker Compose ---"
-	@echo "  docker-up                            run django and database"
-	@echo "  docker-up-db                         run database only"
-	@echo "  docker-down                          shut down all containers"
-	@echo "  docker-rabbit                        run RabbitMQ container"
-	@echo "  docker-reinitdb                      drop and recreate the database"
-	@echo "  docker-reinitdb-with-providers       drop and recreate the database with fake providers"
-	@echo "  docker-shell                         run Django and database containers with shell access to server (for pdb)"
-	@echo "  docker-logs                          connect to console logs for all services"
-	@echo "  docker-test-all                      run unittests"
+	@echo "  docker-up                             run django and database"
+	@echo "  docker-up-db                          run database only"
+	@echo "  docker-down                           shut down all containers"
+	@echo "  docker-rabbit                         run RabbitMQ container"
+	@echo "  docker-reinitdb                       drop and recreate the database"
+	@echo "  docker-reinitdb-with-providers        drop and recreate the database with fake providers"
+	@echo "  docker-shell                          run Django and database containers with shell access to server (for pdb)"
+	@echo "  docker-logs                           connect to console logs for all services"
+	@echo "  docker-test-all                       run unittests"
 	@echo ""
 	@echo "--- Commands using an OpenShift Cluster ---"
-	@echo "  oc-clean                             stop openshift cluster & remove local config data"
-	@echo "  oc-create-all                        create all application pods"
-	@echo "  oc-create-celery-exporter            create the Celery Prometheus exporter pod"
-	@echo "  oc-create-celery-scheduler           create the Celery scheduler pod"
-	@echo "  oc-create-celery-worker              create the Celery worker pod"
-	@echo "  oc-create-configmap                  create the ConfigMaps"
-	@echo "  oc-create-database                   create the PostgreSQL DB pod"
-	@echo "  oc-create-flower                     create the Celery Flower pod"
-	@echo "  oc-create-imagestream                create ImageStreams"
-	@echo "  oc-create-koku-api                   create the Koku API pod"
-	@echo "  oc-create-koku-auth-cache            create the Redis pod for auth caching"
-	@echo "  oc-create-listener                   create Masu Listener pod (deprecated)"
-	@echo "  oc-create-masu                       create Masu pod (deprecated)"
-	@echo "  oc-create-rabbitmq                   create RabbitMQ pod"
-	@echo "  oc-create-route                      create routes for Koku APIs"
-	@echo "  oc-create-secret                     create Secrets"
-	@echo "  oc-create-worker                     create Celery worker pod"
-	@echo "  oc-delete-all                        delete most Openshift objects without a cluster restart"
-	@echo "  oc-delete-celery-worker              delete the Celery worker pod"
-	@echo "  oc-delete-configmap                  delete the ConfigMaps"
-	@echo "  oc-delete-database                   delete the PostgreSQL DB pod"
-	@echo "  oc-delete-flower                     delete the Celery Flower pod"
-	@echo "  oc-delete-imagestream                delete ImageStreams"
-	@echo "  oc-delete-koku-api                   delete the Koku API pod"
-	@echo "  oc-delete-koku-auth-cache            delete the Redis pod for auth caching"
-	@echo "  oc-delete-listener                   delete Masu Listener pod (deprecated)"
-	@echo "  oc-delete-masu                       delete Masu pod (deprecated)"
-	@echo "  oc-delete-rabbitmq                   delete RabbitMQ pod"
-	@echo "  oc-delete-secret                     delete Secrets"
-	@echo "  oc-delete-worker                     delete Celery worker pod"
-	@echo "  oc-down                              stop app & openshift cluster"
-	@echo "  oc-forward-ports                     port forward the DB to localhost"
-	@echo "  oc-login-dev                         login to an openshift cluster as 'developer'"
-	@echo "  oc-reinit                            remove existing app and restart app in initialized openshift cluster"
-	@echo "  oc-run-migrations                    run Django migrations in the Openshift DB"
-	@echo "  oc-stop-forwarding-ports             stop port forwarding the DB to localhost"
-	@echo "  oc-up                                initialize an openshift cluster"
-	@echo "  oc-up-all                            run app in openshift cluster"
-	@echo "  oc-up-db                             run Postgres in an openshift cluster"
+	@echo "  oc-clean                              stop openshift cluster & remove local config data"
+	@echo "  oc-create-all                         create all application pods"
+	@echo "  oc-create-celery-exporter             create the Celery Prometheus exporter pod"
+	@echo "  oc-create-celery-scheduler            create the Celery scheduler pod"
+	@echo "  oc-create-celery-worker               create the Celery worker pod"
+	@echo "  oc-create-configmap                   create the ConfigMaps"
+	@echo "  oc-create-database                    create the PostgreSQL DB pod"
+	@echo "  oc-create-flower                      create the Celery Flower pod"
+	@echo "  oc-create-imagestream                 create ImageStreams"
+	@echo "  oc-create-koku-api                    create the Koku API pod"
+	@echo "  oc-create-koku-auth-cache             create the Redis pod for auth caching"
+	@echo "  oc-create-listener                    create Masu Listener pod (deprecated)"
+	@echo "  oc-create-masu                        create Masu pod (deprecated)"
+	@echo "  oc-create-rabbitmq                    create RabbitMQ pod"
+	@echo "  oc-create-route                       create routes for Koku APIs"
+	@echo "  oc-create-secret                      create Secrets"
+	@echo "  oc-create-worker                      create Celery worker pod"
+	@echo "  oc-delete-all                         delete most Openshift objects without a cluster restart"
+	@echo "  oc-delete-celery-worker               delete the Celery worker pod"
+	@echo "  oc-delete-configmap                   delete the ConfigMaps"
+	@echo "  oc-delete-database                    delete the PostgreSQL DB pod"
+	@echo "  oc-delete-flower                      delete the Celery Flower pod"
+	@echo "  oc-delete-imagestream                 delete ImageStreams"
+	@echo "  oc-delete-koku-api                    delete the Koku API pod"
+	@echo "  oc-delete-koku-auth-cache             delete the Redis pod for auth caching"
+	@echo "  oc-delete-listener                    delete Masu Listener pod (deprecated)"
+	@echo "  oc-delete-masu                        delete Masu pod (deprecated)"
+	@echo "  oc-delete-rabbitmq                    delete RabbitMQ pod"
+	@echo "  oc-delete-secret                      delete Secrets"
+	@echo "  oc-delete-worker                      delete Celery worker pod"
+	@echo "  oc-down                               stop app & openshift cluster"
+	@echo "  oc-forward-ports                      port forward the DB to localhost"
+	@echo "  oc-login-dev                          login to an openshift cluster as 'developer'"
+	@echo "  oc-reinit                             remove existing app and restart app in initialized openshift cluster"
+	@echo "  oc-run-migrations                     run Django migrations in the Openshift DB"
+	@echo "  oc-stop-forwarding-ports              stop port forwarding the DB to localhost"
+	@echo "  oc-up                                 initialize an openshift cluster"
+	@echo "  oc-up-all                             run app in openshift cluster"
+	@echo "  oc-up-db                              run Postgres in an openshift cluster"
 	@echo ""
 	@echo "--- Create Providers ---"
-	@echo "  ocp-provider-from-yaml               Create ocp provider using a yaml file."
-	@echo "      cluster_id=<cluster_name>            @param - Required. The name of your cluster (ex. my-ocp-cluster-0)"
-	@echo "      srf_yaml=<filename>                  @param - Required. Path of static-report-file yaml (ex. '/ocp_static_report.yml')"
-	@echo "      ocp_name=<provider_name>             @param - Required. The name of the provider. (ex. 'OCPprovider')"
-	@echo "  aws-provider                        Create aws provider using environment variables"
-	@echo "      aws_name=<provider_name>             @param - Required. Name of the provider"
-	@echo "      bucket=<bucket_name>                 @param - Required. Name of the bucket"
+	@echo "  ocp-provider-from-yaml                Create ocp provider using a yaml file."
+	@echo "      cluster_id=<cluster_name>           @param - Required. The name of your cluster (ex. my-ocp-cluster-0)"
+	@echo "      srf_yaml=<filename>                 @param - Required. Path of static-report-file yaml (ex. '/ocp_static_report.yml')"
+	@echo "      ocp_name=<provider_name>            @param - Required. The name of the provider. (ex. 'OCPprovider')"
+	@echo "  aws-provider                          Create aws provider using environment variables"
+	@echo "      aws_name=<provider_name>            @param - Required. Name of the provider"
+	@echo "      bucket=<bucket_name>                @param - Required. Name of the bucket"
 
 ### General Commands ###
 
@@ -142,7 +149,7 @@ create-test-customer: run-migrations
 	sleep 1
 	$(DJANGO_MANAGE) runserver > /dev/null 2>&1 &
 	sleep 5
-	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
+	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
 	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
 
 create-test-customer-no-providers: run-migrations
@@ -152,6 +159,8 @@ create-test-customer-no-providers: run-migrations
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-providers --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
 	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
 
+load-test-customer-data:
+	$(TOPDIR)/scripts/load_test_customer_data.sh $(TOPDIR) $(start) $(end)
 
 collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
@@ -453,7 +462,7 @@ docker-rabbit:
 	docker-compose up -d rabbit
 
 docker-reinitdb: docker-down-db remove-db docker-up-db
-	sleep 5
+	sleep 5	
 	$(MAKE) create-test-customer-no-providers
 
 docker-reinitdb-with-providers: docker-down-db remove-db docker-up-db
@@ -521,6 +530,21 @@ endif
 #  This section is for larger data volume testing
 ###################################################
 
+create-large-ocp-provider-config-file:
+ifndef output_file_name
+	$(error param output_file_name is not set)
+endif
+ifndef generator_config_file
+	$(error param generator_config_file is not set)
+endif
+ifndef generator_template_file
+	$(error param generator_template_file is not set)
+endif
+	@../nise/utility/generate_static_ocp_settings.py -c $(generator_config_file) \
+	                                                 -t $(generator_template_file) \
+													 -o $(output_file_name) $(generator_flags)
+
+
 create-large-ocp-provider-testing-files:
 ifndef nise_config_dir
 	$(error param nise_config_dir is not set)
@@ -561,6 +585,32 @@ purge-all-testing-ocp-files:
 # currently locked to the large ocp provider
 find-large-testing-provider-uuid:
 	@curl "http://127.0.0.1:8000/api/cost-management/v1/providers/?name=large_ocp_1" | python3 -c "import sys, json; data_list=json.load(sys.stdin)['data']; print([data['uuid'] for data in data_list if data['type']=='OCP']);" | tr "'" '"'
+
+
+# Dump local database
+dump-local-db:
+ifndef dump_outfile
+	$(error param dump_outfile not set)
+endif
+	@if [ ! -x "$(shell which pg_dump)" ]; then \
+	    echo "ERROR :: Cannot find 'pg_dump' program" >&2 ; \
+		false ; \
+	else \
+		PGPASSWORD=postgres pg_dump -h localhost -p 15432 -d postgres -U postgres --clean --if-exists --verbose --file=$(dump_outfile) ; \
+	fi
+
+
+# Restore local database
+restore-local-db:
+ifndef dump_outfile
+	$(error param dump_outfile not set)
+endif
+	@if [ ! -x "$(shell which psql)" ]; then \
+	    echo "ERROR :: Cannot find 'psql' program" >&2 ; \
+		false ; \
+	else \
+		PGPASSWORD=postgres psql -h localhost -p 15432 -d postgres -U postgres --file=$(dump_outfile) ; \
+	fi
 
 
 ########################
