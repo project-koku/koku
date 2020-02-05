@@ -14,7 +14,7 @@ shared_preload_libraries = 'pg_stat_statements'		# (change requires restart)
 
 pg_stat_statements.max = 5000          # max number of statements to track
 pg_stat_statements.track = top         # top = statements issued by clients; all = top + statements in functions; none = disable stats
-pg_stat_statements.track_utility = on  # on = track statements other than SELECT INSERT UPDATE DELETE; off = no tracking
+pg_stat_statements.track_utility = off # on = track statements other than SELECT INSERT UPDATE DELETE; off = no tracking
 pg_stat_statements.save = off          # on = save stats between restarts; off = do not save
 
 log_min_error_statement = error	# values in order of decreasing detail:
