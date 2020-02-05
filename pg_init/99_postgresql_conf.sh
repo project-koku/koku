@@ -40,3 +40,5 @@ track_functions = pl			# none, pl, all
 
 EOF
 
+psql -U postgres -c "create extension if not exists pg_stat_statements;" 2>/dev/null
+

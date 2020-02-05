@@ -440,8 +440,7 @@ docker-down:
 	docker-compose down
 
 docker-down-db:
-	docker-compose stop db
-	docker ps -a -f name=koku_db -q | xargs docker container rm
+	docker-compose rm -s -v -f db
 
 docker-logs:
 	docker-compose logs -f
@@ -450,11 +449,9 @@ docker-rabbit:
 	docker-compose up -d rabbit
 
 docker-reinitdb: docker-down-db remove-db docker-up-db
-	sleep 5
 	$(MAKE) create-test-customer-no-providers
 
 docker-reinitdb-with-providers: docker-down-db remove-db docker-up-db
-	sleep 5
 	$(MAKE) create-test-customer
 
 docker-shell:
@@ -468,10 +465,11 @@ docker-up:
 
 docker-up-db:
 	docker-compose up -d db
-	@until pg_isready -h localhost -p 15432 ; do \
+	@until pg_isready -h $$POSTGRES_SQL_SERVICE_HOST -p $$POSTGRES_SQL_SERVICE_PORT >/dev/null ; do \
+	    echo -n '.' ; \
 	    sleep 0.5 ; \
-        done
-	@PGPASSWD=postgres psql -h localhost -p 15432 -d postgres -U postgres -c "create extension if not exists pg_stat_statements;"
+    done
+	@echo ' PostgreSQL is available!'
 
 docker-iqe-smokes-tests:
 	$(MAKE) docker-reinitdb
