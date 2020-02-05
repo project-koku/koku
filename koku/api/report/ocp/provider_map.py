@@ -16,6 +16,7 @@
 #
 """Provider Mapper for OCP Reports."""
 
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField, DecimalField, F, Max, Sum, Value
 from django.db.models.functions import Coalesce
 
@@ -129,7 +130,8 @@ class OCPProviderMap(ProviderMap):
                             'markup_cost': Sum(
                                 Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
                             ),
-                            'cost_units': Value('USD', output_field=CharField())
+                            'cost_units': Value('USD', output_field=CharField()),
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'capacity_aggregate': {},
                         'delta_key': {
@@ -199,7 +201,8 @@ class OCPProviderMap(ProviderMap):
                             'markup_cost': Sum(
                                 Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
                             ),
-                            'cost_units': Value('USD', output_field=CharField())
+                            'cost_units': Value('USD', output_field=CharField()),
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'capacity_aggregate': {},
                         'delta_key': {
@@ -241,7 +244,8 @@ class OCPProviderMap(ProviderMap):
                             'infrastructure_cost': Value(0, output_field=DecimalField()),
                             'derived_cost': Sum('pod_charge_cpu_core_hours'),
                             'cost_units': Value('USD', output_field=CharField()),
-                            'usage_units': Value('Core-Hours', output_field=CharField())
+                            'usage_units': Value('Core-Hours', output_field=CharField()),
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'delta_key': {
                             'usage': Sum('pod_usage_cpu_core_hours'),
@@ -285,7 +289,8 @@ class OCPProviderMap(ProviderMap):
                             'infrastructure_cost': Value(0, output_field=DecimalField()),
                             'derived_cost': Sum('pod_charge_memory_gigabyte_hours'),
                             'cost_units': Value('USD', output_field=CharField()),
-                            'usage_units': Value('GB-Hours', output_field=CharField())
+                            'usage_units': Value('GB-Hours', output_field=CharField()),
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'delta_key': {
                             'usage': Sum('pod_usage_memory_gigabyte_hours'),
@@ -329,6 +334,7 @@ class OCPProviderMap(ProviderMap):
                             'derived_cost': Sum('persistentvolumeclaim_charge_gb_month'),
                             'cost_units': Value('USD', output_field=CharField()),
                             'usage_units': Value('GB-Mo', output_field=CharField()),
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'delta_key': {
                             'usage': Sum('persistentvolumeclaim_usage_gigabyte_months'),
