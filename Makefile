@@ -595,11 +595,16 @@ ifndef dump_outfile
 	$(error param dump_outfile not set)
 endif
 	@if [ ! -x "$(shell which pg_dump)" ]; then \
-	    echo "ERROR :: Cannot find 'pg_dump' program" >&2 ; \
-		false ; \
-	else \
-		PGPASSWORD=postgres pg_dump -h localhost -p 15432 -d postgres -U postgres --clean --if-exists --verbose --file=$(dump_outfile) ; \
-	fi
+        echo "ERROR :: Cannot find 'pg_dump' program" >&2 ; \
+        false ; \
+    else \
+	    PGPASSWORD=$$DATABASE_PASSWORD pg_dump -h $$POSTGRES_SQL_SERVICE_HOST \
+                                               -p $$POSTGRES_SQL_SERVICE_PORT \
+                                               -d $$DATABASE_NAME \
+                                               -U $$DATABASE_USER \
+                                               --clean --if-exists --verbose \
+                                               --file=$(dump_outfile) ; \
+    fi
 
 
 # Restore local database
@@ -611,7 +616,11 @@ endif
 	    echo "ERROR :: Cannot find 'psql' program" >&2 ; \
 		false ; \
 	else \
-		PGPASSWORD=postgres psql -h localhost -p 15432 -d postgres -U postgres --file=$(dump_outfile) ; \
+	    PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
+                                            -p $$POSTGRES_SQL_SERVICE_PORT \
+                                            -d $$DATABASE_NAME \
+                                            -U $$DATABASE_USER \
+                                            --file=$(dump_outfile) ; \
 	fi
 
 
