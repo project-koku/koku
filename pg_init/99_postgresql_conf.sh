@@ -38,6 +38,8 @@ log_min_duration_statement = 5000	# -1 is disabled, 0 logs all statements
 
 track_functions = pl			# none, pl, all
 
+track_activity_query_size = 4096   # max statement length in pg_stat_activity
+
 EOF
 
 psql -U postgres -c "create extension if not exists pg_stat_statements;" 2>/dev/null
