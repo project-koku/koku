@@ -49,6 +49,7 @@ help:
 	@echo "--- Commands using local services ---"
 	@echo "  create-test-customer                 create a test customer and tenant in the database"
 	@echo "  create-test-customer-no-providers    create a test customer and tenant in the database without test providers"
+	@echo "  load-test-customer-data              load test data for the default providers created in create-test-customer"
 	@echo "  collect-static                       collect static files to host"
 	@echo "  make-migrations                      make migrations for the database"
 	@echo "  requirements                         generate Pipfile.lock, RTD requirements and manifest for product security"
@@ -70,6 +71,9 @@ help:
 	@echo "  docker-shell                         run Django and database containers with shell access to server (for pdb)"
 	@echo "  docker-logs                          connect to console logs for all services"
 	@echo "  docker-test-all                      run unittests"
+	@echo "  docker-iqe-smokes-tests              run smoke tests"
+	@echo "  docker-iqe-api-tests                 run api tests"
+	@echo "  docker-iqe-vortex-tests              run vortex tests"
 	@echo ""
 	@echo "--- Commands using an OpenShift Cluster ---"
 	@echo "  oc-clean                             stop openshift cluster & remove local config data"
@@ -137,7 +141,7 @@ create-test-customer: run-migrations
 	sleep 1
 	$(DJANGO_MANAGE) runserver > /dev/null 2>&1 &
 	sleep 5
-	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
+	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
 	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
 
 create-test-customer-no-providers: run-migrations
@@ -147,6 +151,8 @@ create-test-customer-no-providers: run-migrations
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-providers --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
 	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
 
+load-test-customer-data:
+	$(TOPDIR)/scripts/load_test_customer_data.sh $(TOPDIR) $(start) $(end)
 
 collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
@@ -497,9 +503,6 @@ endif
 	mkdir -p testing/pvc_dir/insights_local
 	nise --ocp --ocp-cluster-id $(cluster_id) --insights-upload testing/pvc_dir/insights_local --static-report-file $(srf_yaml)
 	curl -d '{"name": "$(ocp_name)", "type": "OCP", "authentication": {"provider_resource_name": "$(cluster_id)"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/providers/
-# These csv could be cleaned up when [https://github.com/project-koku/nise/issues/176](https://github.com/project-koku/nise/issues/176) is resolved.
-	rm *ocp_pod_usage.csv
-	rm *ocp_storage_usage.csv
 # From here you can hit the http://127.0.0.1:5000/api/cost-management/v1/download/ endpoint to start running masu.
 # After masu has run these endpoints should have data in them: (v1/reports/openshift/memory, v1/reports/openshift/compute/, v1/reports/openshift/volumes/)
 

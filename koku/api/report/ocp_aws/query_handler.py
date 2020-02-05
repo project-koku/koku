@@ -24,6 +24,7 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.ocp_aws.provider_map import OCPAWSProviderMap
+from api.report.queries import is_grouped_or_filtered_by_project
 
 
 class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
@@ -135,19 +136,18 @@ class OCPAWSReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
             parameters    (QueryParameters): parameter object for query
 
         """
-        self._mapper = OCPAWSProviderMap(provider=self.provider,
-                                         report_type=parameters.report_type)
+        self._mapper = OCPAWSProviderMap(
+            provider=self.provider, report_type=parameters.report_type
+        )
+        # Update which field is used to calculate cost by group by param.
+        if is_grouped_or_filtered_by_project(parameters):
+            self._report_type = parameters.report_type + '_by_project'
+            self._mapper = OCPAWSProviderMap(
+                provider=self.provider, report_type=self._report_type
+            )
         self.group_by_options = self._mapper.provider_map.get('group_by_options')
         self._limit = parameters.get_filter('limit')
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
         # super() needs to be called before _get_group_by is called
-
-        # Update which field is used to calculate cost by group by param.
-        group_by = self._get_group_by()
-        if (group_by and group_by[0] == 'project') or \
-                'project' in self.parameters.get('filter', {}).keys():
-            self._report_type = parameters.report_type + '_by_project'
-            self._mapper = OCPAWSProviderMap(provider=self.provider,
-                                             report_type=self._report_type)

@@ -16,6 +16,7 @@
 #
 """Provider Mapper for OCP on AWS Reports."""
 
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField, Count, DecimalField, F, Max, Sum, Value
 from django.db.models.functions import Coalesce
 
@@ -124,7 +125,8 @@ class OCPAllProviderMap(ProviderMap):
                             'markup_cost': Sum(
                                 Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
                             ),
-                            'cost_units': Coalesce(Max('currency_code'), Value('USD'))
+                            'cost_units': Coalesce(Max('currency_code'), Value('USD')),
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'count': None,
                         'delta_key': {
@@ -144,6 +146,7 @@ class OCPAllProviderMap(ProviderMap):
                             'query': OCPAllCostLineItemProjectDailySummary,
                             'total': OCPAllCostLineItemProjectDailySummary
                         },
+                        'tag_column': 'pod_labels',
                         'aggregates': {
                             'cost': Sum(
                                 Coalesce(F('pod_cost'), Value(0, output_field=DecimalField()))\
@@ -165,7 +168,8 @@ class OCPAllProviderMap(ProviderMap):
                             'markup_cost': Sum(
                                 Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
                             ),
-                            'cost_units': Coalesce(Max('currency_code'), Value('USD'))
+                            'cost_units': Coalesce(Max('currency_code'), Value('USD')),
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'count': None,
                         'delta_key': {
@@ -208,7 +212,8 @@ class OCPAllProviderMap(ProviderMap):
                             ),
                             'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                             'usage': Sum(F('usage_amount')),
-                            'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
+                            'usage_units': Coalesce(Max('unit'), Value('GB-Mo')),
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'count': None,
                         'delta_key': {'usage': Sum('usage_amount')},
@@ -238,6 +243,7 @@ class OCPAllProviderMap(ProviderMap):
                             'query': OCPAllCostLineItemProjectDailySummary,
                             'total': OCPAllCostLineItemProjectDailySummary
                         },
+                        'tag_column': 'pod_labels',
                         'aggregates': {
                             'cost': Sum(
                                 Coalesce(F('pod_cost'), Value(0, output_field=DecimalField()))
@@ -264,7 +270,8 @@ class OCPAllProviderMap(ProviderMap):
                             ),
                             'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                             'usage': Sum('usage_amount'),
-                            'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
+                            'usage_units': Coalesce(Max('unit'), Value('GB-Mo')),
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'count': None,
                         'delta_key': {'usage': Sum('usage_amount')},
@@ -320,7 +327,8 @@ class OCPAllProviderMap(ProviderMap):
                             'count': Count('resource_id', distinct=True),
                             'count_units': Value('instances', output_field=CharField()),
                             'usage': Sum(F('usage_amount')),
-                            'usage_units': Coalesce(Max('unit'), Value('Hrs'))
+                            'usage_units': Coalesce(Max('unit'), Value('Hrs')),
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'count': 'resource_id',
                         'delta_key': {'usage': Sum('usage_amount')},
@@ -344,6 +352,7 @@ class OCPAllProviderMap(ProviderMap):
                             'query': OCPAllCostLineItemProjectDailySummary,
                             'total': OCPAllCostLineItemProjectDailySummary
                         },
+                        'tag_column': 'pod_labels',
                         'aggregates': {
                             'cost': Sum(
                                 Coalesce(F('pod_cost'), Value(0, output_field=DecimalField()))
@@ -374,7 +383,8 @@ class OCPAllProviderMap(ProviderMap):
                             'count': Count('resource_id', distinct=True),
                             'count_units': Value('instances', output_field=CharField()),
                             'usage': Sum('usage_amount'),
-                            'usage_units': Coalesce(Max('unit'), Value('Hrs'))
+                            'usage_units': Coalesce(Max('unit'), Value('Hrs')),
+                            'clusters': ArrayAgg(Coalesce('cluster_alias', 'cluster_id'), distinct=True)
                         },
                         'count': 'resource_id',
                         'delta_key': {'usage': Sum('usage_amount')},
