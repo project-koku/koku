@@ -185,10 +185,11 @@ class ProviderManager:
             raise ProviderManagerError(err_msg)
 
 
-@receiver(post_save, sender=Provider)
-def provider_post_save_callback(sender, instance, created, **kwargs):
-    """Kickoff report download on Provider.save."""
-    check_report_updates.delay(provider_uuid=instance.uuid)
+# @receiver(post_save, sender=Provider)
+# def provider_post_save_callback(sender, instance, created, **kwargs):
+#     """Kickoff report download on Provider.save."""
+#     if created:
+#         async_download_result = check_report_updates.delay(provider_uuid=instance.uuid)
 
 
 @receiver(post_delete, sender=Provider)

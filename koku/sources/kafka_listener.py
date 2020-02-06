@@ -27,6 +27,9 @@ from django.db import InterfaceError, OperationalError, connection
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from kafka.errors import KafkaError
+
+from api.provider.models import Provider, Sources
+from masu.celery.tasks import check_report_updates
 from sources import storage
 from sources.config import Config
 from sources.koku_http_client import (
@@ -35,8 +38,6 @@ from sources.koku_http_client import (
     KokuHTTPClientNonRecoverableError,
 )
 from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientError
-
-from api.provider.models import Provider, Sources
 
 LOG = logging.getLogger(__name__)
 
@@ -131,6 +132,12 @@ def storage_callback(sender, instance, **kwargs):
             _log_process_queue_event(PROCESS_QUEUE, update_event)
             LOG.debug(f'Update Event Queued for:\n{str(instance)}')
             PROCESS_QUEUE.put_nowait(update_event)
+
+
+    if instance.koku_uuid and not instance.pending_delete:
+        time.sleep(1)
+        async_download_result = check_report_updates.delay(provider_uuid=instance.koku_uuid)
+
 
     if instance.pending_delete:
         delete_event = {'operation': 'destroy', 'provider': instance}
