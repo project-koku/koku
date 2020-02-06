@@ -47,7 +47,7 @@ def create_filter(data_source, start_date, end_date, cluster_id):
     if end_date:
         filters['usage_start__lte'] = end_date
     if cluster_id:
-            filters['cluster_id'] = cluster_id
+        filters['cluster_id'] = cluster_id
     return filters
 
 
