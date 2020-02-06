@@ -259,13 +259,16 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         email = user.get('email')
         is_admin = user.get('is_org_admin')
         if username and email and account:
+            # Get request ID
+            req_id = request.META.get('HTTP_X_RH_INSIGHTS_REQUEST_ID')
             # Check for customer creation & user creation
             query_string = ''
             if request.META['QUERY_STRING']:
                 query_string = '?{}'.format(request.META['QUERY_STRING'])
             stmt = (
-                f'API: {request.path}{query_string}'
+                f'{request.method}: {request.path}{query_string}'
                 f' -- ACCOUNT: {account} USER: {username}'
+                f' ORG_ADMIN: {is_admin} REQ_ID: {req_id}'
             )
             LOG.info(stmt)
             try:
@@ -288,6 +291,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
 
             user.identity_header = {'encoded': rh_auth_header, 'decoded': json_rh_auth}
             user.admin = is_admin
+            user.req_id = req_id
 
             cache = caches['rbac']
             user_access = cache.get(user.uuid)
@@ -301,6 +305,39 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
                 cache.set(user.uuid, user_access, self.rbac.cache_ttl)
             user.access = user_access
             request.user = user
+
+    def process_response(self, request, response):  # pylint: disable=no-self-use
+        """Process response for identity middleware.
+
+        Args:
+            request (object): The request object
+            response (object): The response object
+
+        """
+        context = ''
+        query_string = ''
+        is_admin = False
+        customer = None
+        username = None
+        req_id = None
+        if request.META.get('QUERY_STRING'):
+            query_string = '?{}'.format(request.META['QUERY_STRING'])
+
+        if hasattr(request, 'user') and request.user and request.user.customer:
+            is_admin = request.user.admin
+            customer = request.user.customer.account_id
+            username = request.user.username
+            req_id = request.user.req_id
+        if customer:
+            context = f' -- ACCOUNT: {customer} USER: {username}' \
+                f' ORG_ADMIN: {is_admin} REQ_ID: {req_id}'
+
+        stmt = (
+            f'{request.method}: {request.path}{query_string}'
+            f' {response.status_code}{context}'
+        )
+        LOG.info(stmt)
+        return response
 
 
 class DisableCSRF(MiddlewareMixin):  # pylint: disable=too-few-public-methods
