@@ -111,6 +111,7 @@ services:
       - "15432:5432"
     volumes:
       - ./pg_data:/var/lib/pgsql/data
+      - ./pg_init:/docker-entrypoint-initdb.d
 
   pgadmin:
     container_name: pgAdmin
