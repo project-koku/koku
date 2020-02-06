@@ -19,7 +19,7 @@
 import logging
 from unittest.mock import Mock, patch
 
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, ParamValidationError
 from django.test import TestCase
 from django.utils.translation import ugettext as _
 from faker import Faker
@@ -98,6 +98,23 @@ class AWSProviderTestCase(TestCase):
         sts_client.assume_role.side_effect = _mock_boto3_kwargs_exception
         mock_boto3_client.return_value = sts_client
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        with self.assertLogs(level=logging.CRITICAL):
+            credentials = _get_sts_access(iam_arn)
+            self.assertIn('aws_access_key_id', credentials)
+            self.assertIn('aws_secret_access_key', credentials)
+            self.assertIn('aws_session_token', credentials)
+            self.assertIsNone(credentials.get('aws_access_key_id'))
+            self.assertIsNone(credentials.get('aws_secret_access_key'))
+            self.assertIsNone(credentials.get('aws_session_token'))
+
+    @patch('providers.aws.provider.boto3.client')
+    def test_parm_val_exception(self, mock_boto3_client):
+        """Test _get_sts_access fail."""
+        logging.disable(logging.NOTSET)
+        sts_client = Mock()
+        sts_client.assume_role.side_effect = ParamValidationError(report='test')
+        mock_boto3_client.return_value = sts_client
+        iam_arn = 'BAD'
         with self.assertLogs(level=logging.CRITICAL):
             credentials = _get_sts_access(iam_arn)
             self.assertIn('aws_access_key_id', credentials)
