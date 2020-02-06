@@ -22,20 +22,19 @@ import logging
 
 import ciso8601
 from dateutil.relativedelta import relativedelta
-from tenant_schemas.utils import schema_context
-
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.processor import ALLOWED_COMPRESSIONS
+from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 
 
 # pylint: disable=too-few-public-methods
-class ReportProcessorBase():
+class ReportProcessorBase:
     """
     Download cost reports from a provider.
 
@@ -53,7 +52,7 @@ class ReportProcessorBase():
 
         """
         if compression.upper() not in ALLOWED_COMPRESSIONS:
-            err_msg = f'Compression {compression} is not supported.'
+            err_msg = f"Compression {compression} is not supported."
             raise MasuProcessingError(err_msg)
 
         self._schema = schema_name
@@ -67,7 +66,7 @@ class ReportProcessorBase():
     @property
     def data_cutoff_date(self):
         """Determine the date we should use to process and delete data."""
-        today = self.date_accessor.today_with_timezone('UTC').date()
+        today = self.date_accessor.today_with_timezone("UTC").date()
         data_cutoff_date = today - relativedelta(days=2)
         if today.month != data_cutoff_date.month:
             data_cutoff_date = today.replace(day=1)
@@ -86,9 +85,7 @@ class ReportProcessorBase():
         """
         column_map = self.column_map[table_name]
 
-        return {column_map[key]: value
-                for key, value in row.items()
-                if key in column_map}
+        return {column_map[key]: value for key, value in row.items() if key in column_map}
 
     @staticmethod
     def _get_file_opener(compression):
@@ -103,21 +100,15 @@ class ReportProcessorBase():
 
         """
         if compression == GZIP_COMPRESSED:
-            return gzip.open, 'rt'
-        return open, 'r'    # assume uncompressed by default
+            return gzip.open, "rt"
+        return open, "r"  # assume uncompressed by default
 
     def _write_processed_rows_to_csv(self):
         """Output CSV content to file stream object."""
-        values = [tuple(item.values())
-                  for item in self.processed_report.line_items]
+        values = [tuple(item.values()) for item in self.processed_report.line_items]
 
         file_obj = io.StringIO()
-        writer = csv.writer(
-            file_obj,
-            delimiter='\t',
-            quoting=csv.QUOTE_NONE,
-            quotechar=''
-        )
+        writer = csv.writer(file_obj, delimiter="\t", quoting=csv.QUOTE_NONE, quotechar="")
         writer.writerows(values)
         file_obj.seek(0)
 
@@ -128,10 +119,7 @@ class ReportProcessorBase():
         columns = tuple(self.processed_report.line_items[0].keys())
         csv_file = self._write_processed_rows_to_csv()
 
-        report_db_accessor.bulk_insert_rows(
-            csv_file,
-            temp_table,
-            columns)
+        report_db_accessor.bulk_insert_rows(csv_file, temp_table, columns)
 
     def _should_process_row(self, row, date_column, is_full_month, is_finalized=None):
         """Determine if we want to process this row.
@@ -159,11 +147,11 @@ class ReportProcessorBase():
         """Determine if we should process the full month of data."""
         if not self._manifest_id:
             log_statement = (
-                f'No manifest provided, processing as a new billing period.\n'
-                f' Processing entire month.\n'
-                f' schema_name: {self._schema},\n'
-                f' provider_uuid: {self._provider_uuid},\n'
-                f' manifest_id: {self._manifest_id}'
+                f"No manifest provided, processing as a new billing period.\n"
+                f" Processing entire month.\n"
+                f" schema_name: {self._schema},\n"
+                f" provider_uuid: {self._provider_uuid},\n"
+                f" manifest_id: {self._manifest_id}"
             )
             LOG.info(log_statement)
             return True
@@ -174,22 +162,20 @@ class ReportProcessorBase():
             provider_uuid = manifest.provider_id
 
         log_statement = (
-            f'Processing bill starting on {bill_date}.\n'
-            f' Processing entire month.\n'
-            f' schema_name: {self._schema},\n'
-            f' provider_uuid: {self._provider_uuid},\n'
-            f' manifest_id: {self._manifest_id}'
+            f"Processing bill starting on {bill_date}.\n"
+            f" Processing entire month.\n"
+            f" schema_name: {self._schema},\n"
+            f" provider_uuid: {self._provider_uuid},\n"
+            f" manifest_id: {self._manifest_id}"
         )
 
-        if ((bill_date.month != self.data_cutoff_date.month)
-                or (bill_date.year != self.data_cutoff_date.year and bill_date.month == self.data_cutoff_date.month)):
+        if (bill_date.month != self.data_cutoff_date.month) or (
+            bill_date.year != self.data_cutoff_date.year and bill_date.month == self.data_cutoff_date.month
+        ):
             LOG.info(log_statement)
             return True
 
-        manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
-            provider_uuid,
-            bill_date
-        )
+        manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(provider_uuid, bill_date)
 
         if len(manifest_list) == 1:
             # This is the first manifest for this bill and we are currently
@@ -200,11 +186,11 @@ class ReportProcessorBase():
         for manifest in manifest_list:
             if manifest.num_processed_files >= manifest.num_total_files:
                 log_statement = (
-                    f'Processing bill starting on {bill_date}.\n'
-                    f' Processing data on or after {self.data_cutoff_date}.\n'
-                    f' schema_name: {self._schema},\n'
-                    f' provider_uuid: {self._provider_uuid},\n'
-                    f' manifest_id: {self._manifest_id}'
+                    f"Processing bill starting on {bill_date}.\n"
+                    f" Processing data on or after {self.data_cutoff_date}.\n"
+                    f" schema_name: {self._schema},\n"
+                    f" provider_uuid: {self._provider_uuid},\n"
+                    f" manifest_id: {self._manifest_id}"
                 )
                 LOG.info(log_statement)
                 # We have fully processed a manifest for this provider
@@ -244,12 +230,12 @@ class ReportProcessorBase():
                         # and only need to delete a small window of data
                         line_item_query = line_item_query.filter(**date_filter)
                     log_statement = (
-                        f'Deleting data for:\n'
-                        f' schema_name: {self._schema}\n'
-                        f' provider_uuid: {provider_uuid}\n'
-                        f' bill date: {str(bill_date)}\n'
-                        f' bill ID: {bill.id}\n'
-                        f' on or after {delete_date}.'
+                        f"Deleting data for:\n"
+                        f" schema_name: {self._schema}\n"
+                        f" provider_uuid: {provider_uuid}\n"
+                        f" bill date: {str(bill_date)}\n"
+                        f" bill ID: {bill.id}\n"
+                        f" on or after {delete_date}."
                     )
                     LOG.info(log_statement)
                     line_item_query.delete()
@@ -260,10 +246,10 @@ class ReportProcessorBase():
         """Return a filter using the provider-appropriate column."""
         with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
             type = provider_accessor.get_type().lower()
-        if type == 'azure':
-            return {'usage_date_time__gte': self.data_cutoff_date}
+        if type == "azure":
+            return {"usage_date_time__gte": self.data_cutoff_date}
         else:
-            return {'usage_start__gte': self.data_cutoff_date}
+            return {"usage_start__gte": self.data_cutoff_date}
 
     @staticmethod
     def remove_temp_cur_files(report_path):

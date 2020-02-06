@@ -16,7 +16,6 @@
 #
 """Update reporting summary tables."""
 # pylint: skip-file
-
 import datetime
 import logging
 
@@ -66,9 +65,8 @@ class ReportSummaryUpdater:
             raise ReportSummaryUpdaterError(err)
 
         if not self._updater:
-            raise ReportSummaryUpdaterError('Invalid provider type specified.')
-        LOG.info('Starting report data summarization for provider uuid: %s.',
-                 self._provider.uuid)
+            raise ReportSummaryUpdaterError("Invalid provider type specified.")
+        LOG.info("Starting report data summarization for provider uuid: %s.", self._provider.uuid)
 
     def _set_updater(self):
         """
@@ -84,36 +82,45 @@ class ReportSummaryUpdater:
 
         """
         if self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            return (AWSReportSummaryUpdater(self._schema, self._provider, self._manifest),
-                    OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest))
+            return (
+                AWSReportSummaryUpdater(self._schema, self._provider, self._manifest),
+                OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
+            )
         if self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            return (AzureReportSummaryUpdater(self._schema, self._provider, self._manifest),
-                    OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest))
-        if self._provider.type in (Provider.PROVIDER_OCP, ):
-            return (OCPReportSummaryUpdater(self._schema, self._provider, self._manifest),
-                    OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest))
+            return (
+                AzureReportSummaryUpdater(self._schema, self._provider, self._manifest),
+                OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
+            )
+        if self._provider.type in (Provider.PROVIDER_OCP,):
+            return (
+                OCPReportSummaryUpdater(self._schema, self._provider, self._manifest),
+                OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
+            )
 
         return (None, None)
 
     def _format_dates(self, start_date, end_date):
         """Convert dates to strings for use in the updater."""
         if isinstance(start_date, datetime.date):
-            start_date = start_date.strftime('%Y-%m-%d')
+            start_date = start_date.strftime("%Y-%m-%d")
         if isinstance(end_date, datetime.date):
-            end_date = end_date.strftime('%Y-%m-%d')
+            end_date = end_date.strftime("%Y-%m-%d")
         elif end_date is None:
             # Run up to the current date
-            end_date = self._date_accessor.today_with_timezone('UTC')
-            end_date = end_date.strftime('%Y-%m-%d')
+            end_date = self._date_accessor.today_with_timezone("UTC")
+            end_date = end_date.strftime("%Y-%m-%d")
         return start_date, end_date
 
     def manifest_is_ready(self):
         """Check if processing should continue."""
         if self._manifest and self._manifest.num_processed_files != self._manifest.num_total_files:
             # Bail if all manifest files have not been processed
-            LOG.error('Not all manifest files have completed processing.'
-                      'Summary deferred. Processed Files: %s, Total Files: %s',
-                      str(self._manifest.num_processed_files), str(self._manifest.num_total_files))
+            LOG.error(
+                "Not all manifest files have completed processing."
+                "Summary deferred. Processed Files: %s, Total Files: %s",
+                str(self._manifest.num_processed_files),
+                str(self._manifest.num_total_files),
+            )
         return True
 
     def update_daily_tables(self, start_date, end_date):
@@ -131,10 +138,7 @@ class ReportSummaryUpdater:
         """
         start_date, end_date = self._format_dates(start_date, end_date)
 
-        start_date, end_date = self._updater.update_daily_tables(
-            start_date,
-            end_date
-        )
+        start_date, end_date = self._updater.update_daily_tables(start_date, end_date)
 
         return start_date, end_date
 
@@ -152,18 +156,12 @@ class ReportSummaryUpdater:
 
         """
         start_date, end_date = self._format_dates(start_date, end_date)
-        LOG.info('Using start date: %s', start_date)
-        LOG.info('Using end date: %s', end_date)
+        LOG.info("Using start date: %s", start_date)
+        LOG.info("Using end date: %s", end_date)
 
-        start_date, end_date = self._updater.update_summary_tables(
-            start_date,
-            end_date
-        )
+        start_date, end_date = self._updater.update_summary_tables(start_date, end_date)
 
-        self._ocp_cloud_updater.update_summary_tables(
-            start_date,
-            end_date
-        )
+        self._ocp_cloud_updater.update_summary_tables(start_date, end_date)
 
     def update_cost_summary_table(self, start_date, end_date):
         """
@@ -179,7 +177,4 @@ class ReportSummaryUpdater:
         """
         start_date, end_date = self._format_dates(start_date, end_date)
 
-        self._ocp_cloud_updater.update_cost_summary_table(
-            start_date,
-            end_date
-        )
+        self._ocp_cloud_updater.update_cost_summary_table(start_date, end_date)

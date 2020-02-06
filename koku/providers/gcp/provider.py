@@ -1,12 +1,13 @@
 """GCP provider implementation to be used by Koku."""
 import logging
 
+from api.models import Provider
 from google.cloud import storage
 from google.cloud.exceptions import GoogleCloudError
 from rest_framework import serializers
 
-from api.models import Provider
-from ..provider_interface import ProviderInterface, error_obj
+from ..provider_interface import error_obj
+from ..provider_interface import ProviderInterface
 
 LOG = logging.getLogger(__name__)
 
@@ -28,17 +29,17 @@ class GCPProvider(ProviderInterface):
 
         """
         storage_client = storage.Client()
-        bucket = data_source['bucket']
+        bucket = data_source["bucket"]
         try:
             bucket_info = storage_client.lookup_bucket(bucket)
             if not bucket_info:
                 # if the lookup does not return anything, then this is an nonexistent bucket
-                key = 'billing_source.bucket'
-                message = f'The provided GCP bucket {bucket} does not exist'
+                key = "billing_source.bucket"
+                message = f"The provided GCP bucket {bucket} does not exist"
                 raise serializers.ValidationError(error_obj(key, message))
 
         except GoogleCloudError as e:
-            key = 'billing_source.bucket'
+            key = "billing_source.bucket"
             raise serializers.ValidationError(error_obj(key, e.message))
 
         return True

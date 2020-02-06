@@ -14,18 +14,16 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Common util functions."""
 import datetime
 import logging
 import re
 
-from tenant_schemas.utils import schema_context
-
 from api.models import Provider
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
+from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 
@@ -41,7 +39,7 @@ def extract_uuids_from_string(source_string):
         ([]) List of UUIDs found in the source string
 
     """
-    uuid_regex = '[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
+    uuid_regex = "[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
     found_uuid = re.findall(uuid_regex, source_string, re.IGNORECASE)
     return found_uuid
 
@@ -65,7 +63,7 @@ def get_local_file_name(cur_key):
                 Without AssemblyID: "koku-Manifest.json"
 
     """
-    local_file_name = cur_key.split('/')[-1]
+    local_file_name = cur_key.split("/")[-1]
 
     return local_file_name
 
@@ -86,10 +84,10 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     """
     if isinstance(start_date, datetime.datetime):
         start_date = start_date.replace(day=1)
-        start_date = start_date.strftime('%Y-%m-%d')
+        start_date = start_date.strftime("%Y-%m-%d")
 
     if isinstance(end_date, datetime.datetime):
-        end_date = end_date.strftime('%Y-%m-%d')
+        end_date = end_date.strftime("%Y-%m-%d")
 
     with ReportingCommonDBAccessor() as reporting_common:
         column_map = reporting_common.column_map
@@ -98,7 +96,7 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
         provider = provider_accessor.get_provider()
 
     if provider.type not in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-        err_msg = 'Provider UUID is not an Azure type.  It is {}'.format(provider.type)
+        err_msg = f"Provider UUID is not an Azure type.  It is {provider.type}"
         LOG.warning(err_msg)
         return []
 

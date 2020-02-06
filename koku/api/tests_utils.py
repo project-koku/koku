@@ -15,17 +15,16 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the API utils module."""
-
 import datetime
 import random
 
 import pint
+from api.utils import DateHelper
+from api.utils import UnitConverter
 from dateutil.relativedelta import relativedelta
 from django.test import TestCase
 from django.utils import timezone
 from pint.errors import UndefinedUnitError
-
-from api.utils import DateHelper, UnitConverter
 
 
 class DateHelperTest(TestCase):
@@ -100,24 +99,19 @@ class DateHelperTest(TestCase):
 
     def test_next_month(self):
         """Test the next_month method."""
-        current_month = datetime.datetime.now().replace(microsecond=0, second=0,
-                                                        minute=0, hour=0, day=1)
+        current_month = datetime.datetime.now().replace(microsecond=0, second=0, minute=0, hour=0, day=1)
         last_month = current_month - relativedelta(months=1)
-        self.assertEqual(current_month,
-                         DateHelper().next_month(last_month))
+        self.assertEqual(current_month, DateHelper().next_month(last_month))
 
     def test_previous_month(self):
         """Test the previous_month method."""
-        current_month = datetime.datetime.now().replace(microsecond=0, second=0,
-                                                        minute=0, hour=0, day=1)
+        current_month = datetime.datetime.now().replace(microsecond=0, second=0, minute=0, hour=0, day=1)
         last_month = current_month - relativedelta(months=1)
-        self.assertEqual(last_month,
-                         DateHelper().previous_month(current_month))
+        self.assertEqual(last_month, DateHelper().previous_month(current_month))
 
     def test_list_days(self):
         """Test the list_days method."""
-        first = datetime.datetime.now().replace(microsecond=0, second=0,
-                                                minute=0, hour=0, day=1)
+        first = datetime.datetime.now().replace(microsecond=0, second=0, minute=0, hour=0, day=1)
         second = first.replace(day=2)
         third = first.replace(day=3)
         expected = [first, second, third]
@@ -134,11 +128,9 @@ class DateHelperTest(TestCase):
     def test_n_days_ago(self):
         """Test the n_days_ago method."""
         delta_day = datetime.timedelta(days=1)
-        today = timezone.now().replace(microsecond=0, second=0,
-                                       minute=0, hour=0)
+        today = timezone.now().replace(microsecond=0, second=0, minute=0, hour=0)
         two_days_ago = (today - delta_day) - delta_day
-        self.assertEqual(self.date_helper.n_days_ago(today, 2),
-                         two_days_ago)
+        self.assertEqual(self.date_helper.n_days_ago(today, 2), two_days_ago)
 
 
 class APIUtilsUnitConverterTest(TestCase):
@@ -152,27 +144,24 @@ class APIUtilsUnitConverterTest(TestCase):
 
     def test_initializer(self):
         """Test that the UnitConverter starts properly."""
-        self.assertIsInstance(
-            self.converter.unit_registry,
-            pint.registry.UnitRegistry
-        )
+        self.assertIsInstance(self.converter.unit_registry, pint.registry.UnitRegistry)
 
-        self.assertTrue(hasattr(self.converter.Quantity, 'units'))
-        self.assertTrue(hasattr(self.converter.Quantity, 'magnitude'))
+        self.assertTrue(hasattr(self.converter.Quantity, "units"))
+        self.assertTrue(hasattr(self.converter.Quantity, "magnitude"))
 
     def test_validate_unit_success(self):
         """Test that unit validation succeeds with known units."""
-        unit = 'GB'
+        unit = "GB"
         result = self.converter.validate_unit(unit)
         self.assertEqual(unit, result)
 
-        unit = 'Hrs'
+        unit = "Hrs"
         result = self.converter.validate_unit(unit)
         self.assertEqual(unit.lower(), result)
 
     def test_validate_unit_failure(self):
         """Test that an exception is thrown with an invalid unit."""
-        unit = 'Gigglebots'
+        unit = "Gigglebots"
 
         with self.assertRaises(UndefinedUnitError):
             self.converter.validate_unit(unit)
@@ -180,10 +169,10 @@ class APIUtilsUnitConverterTest(TestCase):
     def test_unit_converter(self):
         """Test that unit conversion succeeds."""
         value = random.randint(1, 9)
-        from_unit = 'gigabyte'
-        to_unit = 'byte'
+        from_unit = "gigabyte"
+        to_unit = "byte"
 
-        expected_value = value * 1E9
+        expected_value = value * 1e9
 
         result = self.converter.convert_quantity(value, from_unit, to_unit)
 

@@ -14,13 +14,10 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Models for shared reporting tables."""
-
+from api.provider.models import Provider
 from django.db import models
 from django.utils import timezone
-
-from api.provider.models import Provider
 
 
 class CostUsageReportManifest(models.Model):
@@ -29,19 +26,17 @@ class CostUsageReportManifest(models.Model):
     class Meta:
         """Meta for CostUsageReportManifest."""
 
-        unique_together = ('provider', 'assembly_id')
+        unique_together = ("provider", "assembly_id")
 
     assembly_id = models.TextField()
-    manifest_creation_datetime = models.DateTimeField(null=True,
-                                                      default=timezone.now)
-    manifest_updated_datetime = models.DateTimeField(null=True,
-                                                     default=timezone.now)
+    manifest_creation_datetime = models.DateTimeField(null=True, default=timezone.now)
+    manifest_updated_datetime = models.DateTimeField(null=True, default=timezone.now)
     # Completed should indicate that our reporting materialzed views have refreshed
     manifest_completed_datetime = models.DateTimeField(null=True)
     billing_period_start_datetime = models.DateTimeField()
     num_processed_files = models.IntegerField(default=0)
     num_total_files = models.IntegerField()
-    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE)
+    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
     task = models.UUIDField(null=True)
 
 
@@ -51,10 +46,9 @@ class CostUsageReportStatus(models.Model):
     class Meta:
         """Meta for CostUsageReportStatus."""
 
-        unique_together = ('manifest', 'report_name')
+        unique_together = ("manifest", "report_name")
 
-    manifest = models.ForeignKey('CostUsageReportManifest', null=True,
-                                 on_delete=models.CASCADE)
+    manifest = models.ForeignKey("CostUsageReportManifest", null=True, on_delete=models.CASCADE)
     report_name = models.CharField(max_length=128, null=False)
     last_completed_datetime = models.DateTimeField(null=True)
     last_started_datetime = models.DateTimeField(null=True)
@@ -72,22 +66,15 @@ class ReportColumnMap(models.Model):
     class Meta:
         """Meta for ReportColumnMap."""
 
-        unique_together = ('report_type', 'provider_column_name',)
+        unique_together = ("report_type", "provider_column_name")
 
     report_type = models.CharField(max_length=50, null=True)
 
     provider_type = models.CharField(
-        max_length=50,
-        null=False,
-        choices=Provider.PROVIDER_CHOICES,
-        default=Provider.PROVIDER_AWS
+        max_length=50, null=False, choices=Provider.PROVIDER_CHOICES, default=Provider.PROVIDER_AWS
     )
 
-    provider_column_name = models.CharField(
-        max_length=128,
-        null=False,
-        unique=False
-    )
+    provider_column_name = models.CharField(max_length=128, null=False, unique=False)
 
     database_table = models.CharField(max_length=50, null=False)
 
@@ -100,7 +87,7 @@ class SIUnitScale(models.Model):
     class Meta:
         """Meta for SIUnitScale."""
 
-        db_table = 'si_unit_scale'
+        db_table = "si_unit_scale"
 
     prefix = models.CharField(max_length=12, null=False, unique=True)
     prefix_symbol = models.CharField(max_length=1, null=False)
@@ -119,7 +106,7 @@ class RegionMapping(models.Model):
     class Meta:
         """Meta for RegionMapping."""
 
-        db_table = 'region_mapping'
+        db_table = "region_mapping"
 
     region = models.CharField(max_length=32, null=False, unique=True)
     region_name = models.CharField(max_length=64, null=False, unique=True)

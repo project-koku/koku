@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the AzureReportProcessor object."""
 import copy
 import csv
@@ -26,8 +25,6 @@ from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from django.db.utils import InternalError
-from tenant_schemas.utils import schema_context
-
 from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
@@ -37,6 +34,7 @@ from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.processor.azure.azure_report_processor import AzureReportProcessor
 from masu.test import MasuTestCase
+from tenant_schemas.utils import schema_context
 
 
 class AzureReportProcessorTest(MasuTestCase):
@@ -46,9 +44,7 @@ class AzureReportProcessorTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        cls.test_report_path = (
-            './koku/masu/test/data/azure/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv'
-        )
+        cls.test_report_path = "./koku/masu/test/data/azure/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv"
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
 
@@ -56,13 +52,13 @@ class AzureReportProcessorTest(MasuTestCase):
             cls.column_map = report_common_db.column_map
 
         _report_tables = copy.deepcopy(AZURE_REPORT_TABLE_MAP)
-        _report_tables.pop('line_item_daily_summary', None)
-        _report_tables.pop('tags_summary', None)
-        _report_tables.pop('ocp_on_azure_daily_summary', None)
-        _report_tables.pop('ocp_on_azure_project_daily_summary', None)
+        _report_tables.pop("line_item_daily_summary", None)
+        _report_tables.pop("tags_summary", None)
+        _report_tables.pop("ocp_on_azure_daily_summary", None)
+        _report_tables.pop("ocp_on_azure_project_daily_summary", None)
         cls.report_tables = list(_report_tables.values())
         # Grab a single row of test data to work with
-        with open(cls.test_report_path, 'r', encoding='utf-8-sig') as f:
+        with open(cls.test_report_path, "r", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             cls.row = next(reader)
 
@@ -70,11 +66,11 @@ class AzureReportProcessorTest(MasuTestCase):
         """Set up each test."""
         super().setUp()
         self.temp_dir = tempfile.mkdtemp()
-        self.test_report = f'{self.temp_dir}/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv'
+        self.test_report = f"{self.temp_dir}/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv"
 
         shutil.copy2(self.test_report_path, self.test_report)
 
-        self.assembly_id = '1234'
+        self.assembly_id = "1234"
         self.processor = AzureReportProcessor(
             schema_name=self.schema,
             report_path=self.test_report,
@@ -82,15 +78,15 @@ class AzureReportProcessorTest(MasuTestCase):
             provider_uuid=self.azure_provider_uuid,
         )
 
-        billing_start = self.date_accessor.today_with_timezone('UTC').replace(
+        billing_start = self.date_accessor.today_with_timezone("UTC").replace(
             year=2018, month=6, day=1, hour=0, minute=0, second=0
         )
-        self.assembly_id = '1234'
+        self.assembly_id = "1234"
         self.manifest_dict = {
-            'assembly_id': self.assembly_id,
-            'billing_period_start_datetime': billing_start,
-            'num_total_files': 1,
-            'provider_uuid': self.azure_provider_uuid,
+            "assembly_id": self.assembly_id,
+            "billing_period_start_datetime": billing_start,
+            "num_total_files": 1,
+            "provider_uuid": self.azure_provider_uuid,
         }
 
         self.accessor = AzureReportDBAccessor(self.schema, self.column_map)
@@ -122,13 +118,11 @@ class AzureReportProcessorTest(MasuTestCase):
             with schema_context(self.schema):
                 count = table.objects.count()
             counts[table_name] = count
-        logging.disable(
-            logging.NOTSET
-        )  # We are currently disabling all logging below CRITICAL in masu/__init__.py
-        with self.assertLogs('masu.processor.azure.azure_report_processor', level='INFO') as logger:
+        logging.disable(logging.NOTSET)  # We are currently disabling all logging below CRITICAL in masu/__init__.py
+        with self.assertLogs("masu.processor.azure.azure_report_processor", level="INFO") as logger:
             self.processor.process()
-            self.assertIn('INFO:masu.processor.azure.azure_report_processor', logger.output[0])
-            self.assertIn('costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv', logger.output[0])
+            self.assertIn("INFO:masu.processor.azure.azure_report_processor", logger.output[0])
+            self.assertIn("costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv", logger.output[0])
 
         for table_name in self.report_tables:
             table = getattr(report_schema, table_name)
@@ -139,7 +133,7 @@ class AzureReportProcessorTest(MasuTestCase):
 
     def test_process_azure_small_batches(self):
         """Test the processing of an uncompressed azure file in small batches."""
-        with patch.object(Config, 'REPORT_PROCESSING_BATCH_SIZE', 1):
+        with patch.object(Config, "REPORT_PROCESSING_BATCH_SIZE", 1):
             # Re-init processor so that REPORT_PROCESSING_BATCH_SIZE is 1.
             self.processor = AzureReportProcessor(
                 schema_name=self.schema,
@@ -153,7 +147,7 @@ class AzureReportProcessorTest(MasuTestCase):
 
     def notest_process_azure_small_batches(self):
         """Test the processing of an uncompressed azure file in small batches."""
-        with patch.object(Config, 'REPORT_PROCESSING_BATCH_SIZE', 1):
+        with patch.object(Config, "REPORT_PROCESSING_BATCH_SIZE", 1):
             counts = {}
 
             processor = AzureReportProcessor(
@@ -172,14 +166,10 @@ class AzureReportProcessorTest(MasuTestCase):
             logging.disable(
                 logging.NOTSET
             )  # We are currently disabling all logging below CRITICAL in masu/__init__.py
-            with self.assertLogs(
-                'masu.processor.azure.azure_report_processor', level='INFO'
-            ) as logger:
+            with self.assertLogs("masu.processor.azure.azure_report_processor", level="INFO") as logger:
                 processor.process()
-                self.assertIn('INFO:masu.processor.azure.azure_report_processor', logger.output[0])
-                self.assertIn(
-                    'costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv', logger.output[0]
-                )
+                self.assertIn("INFO:masu.processor.azure.azure_report_processor", logger.output[0])
+                self.assertIn("costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv", logger.output[0])
 
             for table_name in self.report_tables:
                 table = getattr(report_schema, table_name)
@@ -210,7 +200,7 @@ class AzureReportProcessorTest(MasuTestCase):
 
         # Wipe stale data
         with schema_context(self.schema):
-            self.accessor._get_db_obj_query(AZURE_REPORT_TABLE_MAP['line_item']).delete()
+            self.accessor._get_db_obj_query(AZURE_REPORT_TABLE_MAP["line_item"]).delete()
 
         shutil.copy2(self.test_report_path, self.test_report)
 
@@ -245,43 +235,43 @@ class AzureReportProcessorTest(MasuTestCase):
         try:
             processor.process()
         except InternalError:
-            self.fail('failed to call process twice.')
+            self.fail("failed to call process twice.")
 
     def test_azure_create_cost_entry_bill(self):
         """Test that a cost entry bill id is returned."""
-        table_name = AZURE_REPORT_TABLE_MAP['bill']
+        table_name = AZURE_REPORT_TABLE_MAP["bill"]
         bill_id = self.processor._create_cost_entry_bill(self.row, self.accessor)
 
         self.assertIsNotNone(bill_id)
 
         query = self.accessor._get_db_obj_query(table_name)
-        id_in_db = query.order_by('-id').first().id
-        provider_uuid = query.order_by('-id').first().provider_id
+        id_in_db = query.order_by("-id").first().id
+        provider_uuid = query.order_by("-id").first().provider_id
 
         self.assertEqual(bill_id, id_in_db)
         self.assertIsNotNone(provider_uuid)
 
     def test_azure_create_product(self):
         """Test that a product id is returned."""
-        table_name = AZURE_REPORT_TABLE_MAP['product']
+        table_name = AZURE_REPORT_TABLE_MAP["product"]
         product_id = self.processor._create_cost_entry_product(self.row, self.accessor)
 
         self.assertIsNotNone(product_id)
 
         query = self.accessor._get_db_obj_query(table_name)
-        id_in_db = query.order_by('-id').first().id
+        id_in_db = query.order_by("-id").first().id
 
         self.assertEqual(product_id, id_in_db)
 
     def test_azure_create_meter(self):
         """Test that a meter id is returned."""
-        table_name = AZURE_REPORT_TABLE_MAP['meter']
+        table_name = AZURE_REPORT_TABLE_MAP["meter"]
         meter_id = self.processor._create_meter(self.row, self.accessor)
 
         self.assertIsNotNone(meter_id)
 
         query = self.accessor._get_db_obj_query(table_name)
-        id_in_db = query.order_by('-id').first().id
+        id_in_db = query.order_by("-id").first().id
 
         self.assertEqual(meter_id, id_in_db)
 
@@ -291,26 +281,24 @@ class AzureReportProcessorTest(MasuTestCase):
         product_id = self.processor._create_cost_entry_product(self.row, self.accessor)
         meter_id = self.processor._create_meter(self.row, self.accessor)
 
-        self.processor._create_cost_entry_line_item(
-            self.row, bill_id, product_id, meter_id, self.accessor,
-        )
+        self.processor._create_cost_entry_line_item(self.row, bill_id, product_id, meter_id, self.accessor)
 
         line_item = None
         if self.processor.processed_report.line_items:
             line_item = self.processor.processed_report.line_items[-1]
 
         self.assertIsNotNone(line_item)
-        self.assertIn('tags', line_item)
-        self.assertEqual(line_item.get('cost_entry_bill_id'), bill_id)
-        self.assertEqual(line_item.get('cost_entry_product_id'), product_id)
-        self.assertEqual(line_item.get('meter_id'), meter_id)
+        self.assertIn("tags", line_item)
+        self.assertEqual(line_item.get("cost_entry_bill_id"), bill_id)
+        self.assertEqual(line_item.get("cost_entry_product_id"), product_id)
+        self.assertEqual(line_item.get("meter_id"), meter_id)
 
         self.assertIsNotNone(self.processor.line_item_columns)
 
     def test_should_process_row_within_cuttoff_date(self):
         """Test that we correctly determine a row should be processed."""
-        today = self.date_accessor.today_with_timezone('UTC')
-        row = {'UsageDateTime': today.isoformat()}
+        today = self.date_accessor.today_with_timezone("UTC")
+        row = {"UsageDateTime": today.isoformat()}
 
         processor = AzureReportProcessor(
             schema_name=self.schema,
@@ -319,15 +307,15 @@ class AzureReportProcessorTest(MasuTestCase):
             provider_uuid=self.azure_provider_uuid,
         )
 
-        should_process = processor._should_process_row(row, 'UsageDateTime', False)
+        should_process = processor._should_process_row(row, "UsageDateTime", False)
 
         self.assertTrue(should_process)
 
     def test_should_process_row_outside_cuttoff_date(self):
         """Test that we correctly determine a row should be processed."""
-        today = self.date_accessor.today_with_timezone('UTC')
+        today = self.date_accessor.today_with_timezone("UTC")
         usage_start = today - relativedelta(days=10)
-        row = {'UsageDateTime': usage_start.isoformat()}
+        row = {"UsageDateTime": usage_start.isoformat()}
 
         processor = AzureReportProcessor(
             schema_name=self.schema,
@@ -336,7 +324,7 @@ class AzureReportProcessorTest(MasuTestCase):
             provider_uuid=self.azure_provider_uuid,
         )
 
-        should_process = processor._should_process_row(row, 'UsageDateTime', False)
+        should_process = processor._should_process_row(row, "UsageDateTime", False)
 
         self.assertFalse(should_process)
 
@@ -350,4 +338,4 @@ class AzureReportProcessorTest(MasuTestCase):
         )
         date_filter = processor.get_date_column_filter()
 
-        self.assertIn('usage_date_time__gte', date_filter)
+        self.assertIn("usage_date_time__gte", date_filter)

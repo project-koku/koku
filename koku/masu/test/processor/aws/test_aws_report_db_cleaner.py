@@ -14,22 +14,18 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the AWSReportDBCleaner utility object."""
 import datetime
 
 from dateutil import relativedelta
-from tenant_schemas.utils import schema_context
-
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.processor.aws.aws_report_db_cleaner import (
-    AWSReportDBCleaner,
-    AWSReportDBCleanerError,
-)
+from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleaner
+from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleanerError
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
+from tenant_schemas.utils import schema_context
 
 
 class AWSReportDBCleanerTest(MasuTestCase):
@@ -46,10 +42,10 @@ class AWSReportDBCleanerTest(MasuTestCase):
         cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
         cls.foreign_key_tables = [
-            AWS_CUR_TABLE_MAP['bill'],
-            AWS_CUR_TABLE_MAP['product'],
-            AWS_CUR_TABLE_MAP['pricing'],
-            AWS_CUR_TABLE_MAP['reservation'],
+            AWS_CUR_TABLE_MAP["bill"],
+            AWS_CUR_TABLE_MAP["product"],
+            AWS_CUR_TABLE_MAP["pricing"],
+            AWS_CUR_TABLE_MAP["reservation"],
         ]
 
     def setUp(self):
@@ -60,9 +56,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
         product_id = self.creator.create_cost_entry_product()
         pricing_id = self.creator.create_cost_entry_pricing()
         reservation_id = self.creator.create_cost_entry_reservation()
-        self.creator.create_cost_entry_line_item(
-            bill_id, cost_entry_id, product_id, pricing_id, reservation_id
-        )
+        self.creator.create_cost_entry_line_item(bill_id, cost_entry_id, product_id, pricing_id, reservation_id)
 
     def test_initializer(self):
         """Test initializer."""
@@ -70,9 +64,9 @@ class AWSReportDBCleanerTest(MasuTestCase):
 
     def test_purge_expired_report_data_on_date(self):
         """Test to remove report data on a provided date."""
-        bill_table_name = AWS_CUR_TABLE_MAP['bill']
-        line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
-        cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
+        bill_table_name = AWS_CUR_TABLE_MAP["bill"]
+        line_item_table_name = AWS_CUR_TABLE_MAP["line_item"]
+        cost_entry_table_name = AWS_CUR_TABLE_MAP["cost_entry"]
 
         cleaner = AWSReportDBCleaner(self.schema)
         with schema_context(self.schema):
@@ -87,10 +81,8 @@ class AWSReportDBCleanerTest(MasuTestCase):
         removed_data = cleaner.purge_expired_report_data(cutoff_date)
 
         self.assertEqual(len(removed_data), 1)
-        self.assertEqual(removed_data[0].get('account_payer_id'), first_bill.payer_account_id)
-        self.assertEqual(
-            removed_data[0].get('billing_period_start'), str(first_bill.billing_period_start),
-        )
+        self.assertEqual(removed_data[0].get("account_payer_id"), first_bill.payer_account_id)
+        self.assertEqual(removed_data[0].get("billing_period_start"), str(first_bill.billing_period_start))
 
         with schema_context(self.schema):
             self.assertIsNone(self.accessor._get_db_obj_query(bill_table_name).first())
@@ -99,9 +91,9 @@ class AWSReportDBCleanerTest(MasuTestCase):
 
     def test_purge_expired_report_data_before_date(self):
         """Test to remove report data before a provided date."""
-        bill_table_name = AWS_CUR_TABLE_MAP['bill']
-        line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
-        cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
+        bill_table_name = AWS_CUR_TABLE_MAP["bill"]
+        line_item_table_name = AWS_CUR_TABLE_MAP["line_item"]
+        cost_entry_table_name = AWS_CUR_TABLE_MAP["cost_entry"]
 
         cleaner = AWSReportDBCleaner(self.schema)
 
@@ -126,9 +118,9 @@ class AWSReportDBCleanerTest(MasuTestCase):
 
     def test_purge_expired_report_data_after_date(self):
         """Test to remove report data after a provided date."""
-        bill_table_name = AWS_CUR_TABLE_MAP['bill']
-        line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
-        cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
+        bill_table_name = AWS_CUR_TABLE_MAP["bill"]
+        line_item_table_name = AWS_CUR_TABLE_MAP["line_item"]
+        cost_entry_table_name = AWS_CUR_TABLE_MAP["cost_entry"]
 
         cleaner = AWSReportDBCleaner(self.schema)
 
@@ -146,10 +138,8 @@ class AWSReportDBCleanerTest(MasuTestCase):
         removed_data = cleaner.purge_expired_report_data(later_cutoff)
 
         self.assertEqual(len(removed_data), 1)
-        self.assertEqual(removed_data[0].get('account_payer_id'), first_bill.payer_account_id)
-        self.assertEqual(
-            removed_data[0].get('billing_period_start'), str(first_bill.billing_period_start),
-        )
+        self.assertEqual(removed_data[0].get("account_payer_id"), first_bill.payer_account_id)
+        self.assertEqual(removed_data[0].get("billing_period_start"), str(first_bill.billing_period_start))
         with schema_context(self.schema):
             self.assertIsNone(self.accessor._get_db_obj_query(bill_table_name).first())
             self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
@@ -157,9 +147,9 @@ class AWSReportDBCleanerTest(MasuTestCase):
 
     def test_purge_expired_report_data_on_date_simulate(self):
         """Test to simulate removing report data on a provided date."""
-        bill_table_name = AWS_CUR_TABLE_MAP['bill']
-        line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
-        cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
+        bill_table_name = AWS_CUR_TABLE_MAP["bill"]
+        line_item_table_name = AWS_CUR_TABLE_MAP["line_item"]
+        cost_entry_table_name = AWS_CUR_TABLE_MAP["cost_entry"]
 
         cleaner = AWSReportDBCleaner(self.schema)
 
@@ -175,10 +165,8 @@ class AWSReportDBCleanerTest(MasuTestCase):
         removed_data = cleaner.purge_expired_report_data(cutoff_date, simulate=True)
 
         self.assertEqual(len(removed_data), 1)
-        self.assertEqual(removed_data[0].get('account_payer_id'), first_bill.payer_account_id)
-        self.assertEqual(
-            removed_data[0].get('billing_period_start'), str(first_bill.billing_period_start),
-        )
+        self.assertEqual(removed_data[0].get("account_payer_id"), first_bill.payer_account_id)
+        self.assertEqual(removed_data[0].get("billing_period_start"), str(first_bill.billing_period_start))
 
         with schema_context(self.schema):
             self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
@@ -187,9 +175,9 @@ class AWSReportDBCleanerTest(MasuTestCase):
 
     def test_purge_expired_report_data_for_provider(self):
         """Test that the provider_uuid deletes all data for the provider."""
-        bill_table_name = AWS_CUR_TABLE_MAP['bill']
-        line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
-        cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
+        bill_table_name = AWS_CUR_TABLE_MAP["bill"]
+        line_item_table_name = AWS_CUR_TABLE_MAP["line_item"]
+        cost_entry_table_name = AWS_CUR_TABLE_MAP["cost_entry"]
 
         cleaner = AWSReportDBCleaner(self.schema)
 
@@ -204,10 +192,8 @@ class AWSReportDBCleanerTest(MasuTestCase):
         removed_data = cleaner.purge_expired_report_data(provider_uuid=self.aws_provider_uuid)
 
         self.assertEqual(len(removed_data), 1)
-        self.assertEqual(removed_data[0].get('account_payer_id'), first_bill.payer_account_id)
-        self.assertEqual(
-            removed_data[0].get('billing_period_start'), str(first_bill.billing_period_start),
-        )
+        self.assertEqual(removed_data[0].get("account_payer_id"), first_bill.payer_account_id)
+        self.assertEqual(removed_data[0].get("billing_period_start"), str(first_bill.billing_period_start))
 
         with schema_context(self.schema):
             self.assertIsNone(self.accessor._get_db_obj_query(bill_table_name).first())
@@ -225,6 +211,4 @@ class AWSReportDBCleanerTest(MasuTestCase):
         now = datetime.datetime.utcnow()
         cleaner = AWSReportDBCleaner(self.schema)
         with self.assertRaises(AWSReportDBCleanerError):
-            cleaner.purge_expired_report_data(
-                expired_date=now, provider_uuid=self.aws_provider_uuid
-            )
+            cleaner.purge_expired_report_data(expired_date=now, provider_uuid=self.aws_provider_uuid)

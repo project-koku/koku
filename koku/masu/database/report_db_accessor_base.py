@@ -15,17 +15,16 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Database accessor for report data."""
-
 import logging
 import uuid
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
+from decimal import InvalidOperation
 
 import django.apps
 from django.db import connection
-from tenant_schemas.utils import schema_context
-
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
+from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 
@@ -50,12 +49,11 @@ class ReportSchema:
         """
         column_types = {}
         for model in models:
-            if 'django' in model._meta.db_table:
+            if "django" in model._meta.db_table:
                 continue
             setattr(self, model._meta.db_table, model)
             columns = column_map[model._meta.db_table].values()
-            types = {column: model._meta.get_field(column).get_internal_type()
-                     for column in columns}
+            types = {column: model._meta.get_field(column).get_internal_type() for column in columns}
             column_types.update({model._meta.db_table: types})
             self.column_types = column_types
 
@@ -74,38 +72,33 @@ class ReportDBAccessorBase(KokuDBAccess):
         """
         super().__init__(schema)
         self.column_map = column_map
-        self.report_schema = ReportSchema(django.apps.apps.get_models(),
-                                          self.column_map)
+        self.report_schema = ReportSchema(django.apps.apps.get_models(), self.column_map)
 
     @property
     def decimal_precision(self):
         """Return database precision for decimal values."""
-        return f'0E-{Config.REPORTING_DECIMAL_PRECISION}'
+        return f"0E-{Config.REPORTING_DECIMAL_PRECISION}"
 
     def create_temp_table(self, table_name, drop_column=None):
         """Create a temporary table and return the table name."""
-        temp_table_name = table_name + '_' + str(uuid.uuid4()).replace('-', '_')
+        temp_table_name = table_name + "_" + str(uuid.uuid4()).replace("-", "_")
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
-            cursor.execute(
-                f'CREATE TEMPORARY TABLE {temp_table_name} (LIKE {table_name})'
-            )
+            cursor.execute(f"CREATE TEMPORARY TABLE {temp_table_name} (LIKE {table_name})")
             if drop_column:
-                cursor.execute(
-                    f'ALTER TABLE {temp_table_name} DROP COLUMN {drop_column}'
-                )
+                cursor.execute(f"ALTER TABLE {temp_table_name} DROP COLUMN {drop_column}")
         return temp_table_name
 
     def create_new_temp_table(self, table_name, columns):
         """Create a temporary table and return the table name."""
-        temp_table_name = table_name + '_' + str(uuid.uuid4()).replace('-', '_')
-        base_sql = f'CREATE TEMPORARY TABLE {temp_table_name} '
-        column_types = f''
+        temp_table_name = table_name + "_" + str(uuid.uuid4()).replace("-", "_")
+        base_sql = f"CREATE TEMPORARY TABLE {temp_table_name} "
+        column_types = f""
         for column in columns:
             for name, column_type in column.items():
-                column_types += f'{name} {column_type}, '
-        column_types = column_types.strip().rstrip(',')
-        column_sql = '({})'.format(column_types)
+                column_types += f"{name} {column_type}, "
+        column_types = column_types.strip().rstrip(",")
+        column_sql = f"({column_types})"
         table_sql = base_sql + column_sql
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
@@ -113,8 +106,7 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         return temp_table_name
 
-    def merge_temp_table(self, table_name, temp_table_name, columns,
-                         conflict_columns):
+    def merge_temp_table(self, table_name, temp_table_name, columns, conflict_columns):
         """INSERT temp table rows into the primary table specified.
 
         Args:
@@ -126,11 +118,10 @@ class ReportDBAccessorBase(KokuDBAccess):
             (None)
 
         """
-        column_str = ','.join(columns)
-        conflict_col_str = ','.join(conflict_columns)
+        column_str = ",".join(columns)
+        conflict_col_str = ",".join(conflict_columns)
 
-        set_clause = ','.join([f'{column} = excluded.{column}'
-                               for column in columns])
+        set_clause = ",".join([f"{column} = excluded.{column}" for column in columns])
         upsert_sql = f"""
             INSERT INTO {table_name} ({column_str})
                 SELECT {column_str}
@@ -142,11 +133,11 @@ class ReportDBAccessorBase(KokuDBAccess):
             cursor.db.set_schema(self.schema)
             cursor.execute(upsert_sql)
 
-            delete_sql = f'DELETE FROM {temp_table_name}'
+            delete_sql = f"DELETE FROM {temp_table_name}"
             cursor.execute(delete_sql)
 
     # pylint: disable=too-many-arguments
-    def bulk_insert_rows(self, file_obj, table, columns, sep='\t', null=''):
+    def bulk_insert_rows(self, file_obj, table, columns, sep="\t", null=""):
         r"""Insert many rows using Postgres copy functionality.
 
         Args:
@@ -159,13 +150,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         """
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
-            cursor.copy_from(
-                file_obj,
-                table,
-                sep=sep,
-                columns=columns,
-                null=null
-            )
+            cursor.copy_from(file_obj, table, sep=sep, columns=columns, null=null)
 
     # pylint: disable=arguments-differ
     def _get_db_obj_query(self, table, columns=None):
@@ -209,10 +194,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             model_object.save()
             return model_object
 
-    def insert_on_conflict_do_nothing(self,
-                                      table,
-                                      data,
-                                      conflict_columns=None):
+    def insert_on_conflict_do_nothing(self, table, data, conflict_columns=None):
         """Write an INSERT statement with an ON CONFLICT clause.
 
         This is useful to avoid duplicate row inserts. Intended for
@@ -229,31 +211,26 @@ class ReportDBAccessorBase(KokuDBAccess):
         """
         table_name = table()._meta.db_table
         data = self.clean_data(data, table_name)
-        columns_formatted = ', '.join(str(value) for value in data.keys())
+        columns_formatted = ", ".join(str(value) for value in data.keys())
         values = list(data.values())
-        val_str = ','.join(['%s' for _ in data])
+        val_str = ",".join(["%s" for _ in data])
         insert_sql = f"""
             INSERT INTO {self.schema}.{table_name}({columns_formatted}) VALUES({val_str})
             """
         if conflict_columns:
-            conflict_columns_formatted = ', '.join(conflict_columns)
-            insert_sql = insert_sql + f' ON CONFLICT ({conflict_columns_formatted}) DO NOTHING;'
+            conflict_columns_formatted = ", ".join(conflict_columns)
+            insert_sql = insert_sql + f" ON CONFLICT ({conflict_columns_formatted}) DO NOTHING;"
         else:
-            insert_sql = insert_sql + ' ON CONFLICT DO NOTHING;'
+            insert_sql = insert_sql + " ON CONFLICT DO NOTHING;"
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             cursor.execute(insert_sql, values)
         if conflict_columns:
-            data = {key: value for key, value in data.items()
-                    if key in conflict_columns}
+            data = {key: value for key, value in data.items() if key in conflict_columns}
 
         return self._get_primary_key(table, data)
 
-    def insert_on_conflict_do_update(self,
-                                     table,
-                                     data,
-                                     conflict_columns,
-                                     set_columns):
+    def insert_on_conflict_do_update(self, table, data, conflict_columns, set_columns):
         """Write an INSERT statement with an ON CONFLICT clause.
 
         This is useful to update rows on insert. Intended for
@@ -272,13 +249,12 @@ class ReportDBAccessorBase(KokuDBAccess):
         table_name = table()._meta.db_table
         data = self.clean_data(data, table_name)
 
-        set_clause = ','.join([f'{column} = excluded.{column}'
-                               for column in set_columns])
+        set_clause = ",".join([f"{column} = excluded.{column}" for column in set_columns])
 
-        columns_formatted = ', '.join(str(value) for value in data.keys())
+        columns_formatted = ", ".join(str(value) for value in data.keys())
         values = list(data.values())
-        val_str = ','.join(['%s' for _ in data])
-        conflict_columns_formatted = ', '.join(conflict_columns)
+        val_str = ",".join(["%s" for _ in data])
+        conflict_columns_formatted = ", ".join(conflict_columns)
 
         insert_sql = f"""
         INSERT INTO {self.schema}.{table_name}({columns_formatted}) VALUES ({val_str})
@@ -289,8 +265,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             cursor.db.set_schema(self.schema)
             cursor.execute(insert_sql, values)
 
-        data = {key: value for key, value in data.items()
-                if key in conflict_columns}
+        data = {key: value for key, value in data.items() if key in conflict_columns}
 
         return self._get_primary_key(table_name, data)
 
@@ -302,8 +277,8 @@ class ReportDBAccessorBase(KokuDBAccess):
             try:
                 row_id = query.first().id
             except AttributeError as err:
-                LOG.error('Row in %s does not exist in database.', table_name)
-                LOG.error('Failed row data: %s', data)
+                LOG.error("Row in %s does not exist in database.", table_name)
+                LOG.error("Failed row data: %s", data)
                 raise err
             else:
                 return row_id
@@ -322,10 +297,10 @@ class ReportDBAccessorBase(KokuDBAccess):
         column_types = self.report_schema.column_types[table_name]
 
         for key, value in data.items():
-            if value is None or value == '':
+            if value is None or value == "":
                 data[key] = None
                 continue
-            if column_types.get(key) == int or column_types.get(key) == 'BigIntegerField':
+            if column_types.get(key) == int or column_types.get(key) == "BigIntegerField":
                 data[key] = self._convert_value(value, int)
             elif column_types.get(key) == float:
                 data[key] = self._convert_value(value, float)
@@ -361,12 +336,11 @@ class ReportDBAccessorBase(KokuDBAccess):
     def _execute_raw_sql_query(self, table, sql, start=None, end=None, bind_params=None):
         """Run a SQL statement via a cursor."""
         if start and end:
-            LOG.info('Updating %s from %s to %s.',
-                     table, start, end)
+            LOG.info("Updating %s from %s to %s.", table, start, end)
         else:
-            LOG.info('Updating %s', table)
+            LOG.info("Updating %s", table)
 
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             cursor.execute(sql, params=bind_params)
-        LOG.info('Finished updating %s.', table)
+        LOG.info("Finished updating %s.", table)

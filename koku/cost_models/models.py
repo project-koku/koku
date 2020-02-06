@@ -14,18 +14,18 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Models for cost models."""
 import logging
 from functools import partial
 from uuid import uuid4
 
-from django.contrib.postgres.fields import ArrayField, JSONField
-from django.core.serializers.json import DjangoJSONEncoder
-from django.db import models, transaction
-from django.dispatch import receiver
-
 from api.provider.models import Provider
+from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.fields import JSONField
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db import models
+from django.db import transaction
+from django.dispatch import receiver
 
 
 LOG = logging.getLogger(__name__)
@@ -37,12 +37,12 @@ class CostModel(models.Model):
     class Meta:
         """Meta for CostModel."""
 
-        db_table = 'cost_model'
-        ordering = ['name']
+        db_table = "cost_model"
+        ordering = ["name"]
         indexes = [
-            models.Index(fields=['name'], name='name_idx'),
-            models.Index(fields=['source_type'], name='source_type_idx'),
-            models.Index(fields=['updated_timestamp'], name='updated_timestamp_idx'),
+            models.Index(fields=["name"], name="name_idx"),
+            models.Index(fields=["source_type"], name="source_type_idx"),
+            models.Index(fields=["updated_timestamp"], name="updated_timestamp_idx"),
         ]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
@@ -51,11 +51,7 @@ class CostModel(models.Model):
 
     description = models.TextField()
 
-    source_type = models.CharField(
-        max_length=50,
-        null=False,
-        choices=Provider.PROVIDER_CHOICES
-    )
+    source_type = models.CharField(max_length=50, null=False, choices=Provider.PROVIDER_CHOICES)
 
     created_timestamp = models.DateTimeField(auto_now_add=True)
 
@@ -73,7 +69,7 @@ def cost_model_pre_delete_callback(*args, **kwargs):
 
     Note: Signal receivers must accept keyword arguments (**kwargs).
     """
-    cost_model = kwargs['instance']
+    cost_model = kwargs["instance"]
 
     # Local import of task function to avoid potential import cycle.
     from masu.processor.tasks import update_charge_info
@@ -83,22 +79,15 @@ def cost_model_pre_delete_callback(*args, **kwargs):
         try:
             provider = Provider.objects.get(uuid=cost_model_map.provider_uuid)
             if not provider.customer:
-                LOG.warning(
-                    'Provider %s has no Customer; we cannot call update_charge_info.',
-                    provider.uuid,
-                )
+                LOG.warning("Provider %s has no Customer; we cannot call update_charge_info.", provider.uuid)
                 continue
             schema_name = provider.customer.schema_name
-            delete_func = partial(
-                update_charge_info.delay,
-                schema_name,
-                cost_model_map.provider_uuid,
-            )
+            delete_func = partial(update_charge_info.delay, schema_name, cost_model_map.provider_uuid)
             transaction.on_commit(delete_func)
         except Provider.DoesNotExist:
-            LOG.warning('Cost model map %s refers to invalid provider id %s.',
-                        cost_model_map.id,
-                        cost_model_map.provider_uuid)
+            LOG.warning(
+                "Cost model map %s refers to invalid provider id %s.", cost_model_map.id, cost_model_map.provider_uuid
+            )
 
 
 class CostModelAudit(models.Model):
@@ -107,7 +96,7 @@ class CostModelAudit(models.Model):
     class Meta:
         """Meta for CostModel."""
 
-        db_table = 'cost_model_audit'
+        db_table = "cost_model_audit"
 
     operation = models.CharField(max_length=16)
 
@@ -121,11 +110,7 @@ class CostModelAudit(models.Model):
 
     description = models.TextField()
 
-    source_type = models.CharField(
-        max_length=50,
-        null=False,
-        choices=Provider.PROVIDER_CHOICES
-    )
+    source_type = models.CharField(max_length=50, null=False, choices=Provider.PROVIDER_CHOICES)
 
     created_timestamp = models.DateTimeField()
 
@@ -139,15 +124,13 @@ class CostModelAudit(models.Model):
 class CostModelMap(models.Model):
     """Map for provider and rate objects."""
 
-    provider_uuid = models.UUIDField(editable=False,
-                                     unique=False, null=False)
+    provider_uuid = models.UUIDField(editable=False, unique=False, null=False)
 
-    cost_model = models.ForeignKey('CostModel', null=True, blank=True,
-                                   on_delete=models.CASCADE)
+    cost_model = models.ForeignKey("CostModel", null=True, blank=True, on_delete=models.CASCADE)
 
     class Meta:
         """Meta for CostModelMap."""
 
-        ordering = ['-id']
-        unique_together = ('provider_uuid', 'cost_model')
-        db_table = 'cost_model_map'
+        ordering = ["-id"]
+        unique_together = ("provider_uuid", "cost_model")
+        db_table = "cost_model_map"

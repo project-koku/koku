@@ -15,8 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider interface to be used by Koku."""
-
-from abc import ABC, abstractmethod
+from abc import ABC
+from abc import abstractmethod
 
 from django.utils.translation import ugettext as _
 
@@ -104,7 +104,5 @@ class ProviderInterface(ABC):
 
 def error_obj(key, message):
     """Create an error object."""
-    error = {
-        key: [_(message)]
-    }
+    error = {key: [_(message)]}
     return error

@@ -15,13 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the OCP-on-Azure Report views."""
-from urllib.parse import quote_plus, urlencode
-
-from django.test import RequestFactory
-from django.urls import reverse
-from rest_framework import status
-from rest_framework.test import APIClient
-from tenant_schemas.utils import tenant_context
+from urllib.parse import quote_plus
+from urllib.parse import urlencode
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
@@ -29,24 +24,21 @@ from api.models import Provider
 from api.provider.test import create_generic_provider
 from api.report.test.azure.openshift.helpers import OCPAzureReportDataGenerator
 from api.utils import DateHelper
+from django.test import RequestFactory
+from django.urls import reverse
 from reporting.models import OCPAzureCostLineItemDailySummary
+from rest_framework import status
+from rest_framework.test import APIClient
+from tenant_schemas.utils import tenant_context
 
 URLS = [
-    reverse('reports-openshift-azure-costs'),
-    reverse('reports-openshift-azure-storage'),
-    reverse('reports-openshift-azure-instance-type'),
+    reverse("reports-openshift-azure-costs"),
+    reverse("reports-openshift-azure-storage"),
+    reverse("reports-openshift-azure-instance-type"),
     # 'openshift-azure-tags',  # TODO: uncomment when we do tagging
 ]
 
-GROUP_BYS = [
-    'subscription_guid',
-    'resource_location',
-    'instance_type',
-    'service_name',
-    'project',
-    'cluster',
-    'node',
-]
+GROUP_BYS = ["subscription_guid", "resource_location", "instance_type", "service_name", "project", "cluster", "node"]
 
 
 class OCPAzureReportViewTest(IamTestCase):
@@ -64,19 +56,19 @@ class OCPAzureReportViewTest(IamTestCase):
 
     def test_execute_query_w_delta_total(self):
         """Test that delta=total returns deltas."""
-        query = 'delta=cost'
-        url = reverse('reports-openshift-azure-costs') + '?' + query
+        query = "delta=cost"
+        url = reverse("reports-openshift-azure-costs") + "?" + query
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_execute_query_w_delta_bad_choice(self):
         """Test invalid delta value."""
-        bad_delta = 'Invalid'
+        bad_delta = "Invalid"
         expected = f'"{bad_delta}" is not a valid choice.'
-        query = f'delta={bad_delta}'
-        url = reverse('reports-openshift-azure-costs') + '?' + query
+        query = f"delta={bad_delta}"
+        url = reverse("reports-openshift-azure-costs") + "?" + query
         response = self.client.get(url, **self.headers)
-        result = str(response.data.get('delta')[0])
+        result = str(response.data.get("delta")[0])
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(result, expected)
 
@@ -86,25 +78,26 @@ class OCPAzureReportViewTest(IamTestCase):
         data_generator = OCPAzureReportDataGenerator(self.tenant, provider)
         data_generator.add_data_to_tenant()
         with tenant_context(self.tenant):
-            labels = OCPAzureCostLineItemDailySummary.objects\
-                .filter(usage_start__gte=self.dh.last_month_start)\
-                .filter(usage_start__lte=self.dh.last_month_end)\
-                .values(*['tags'])\
+            labels = (
+                OCPAzureCostLineItemDailySummary.objects.filter(usage_start__gte=self.dh.last_month_start)
+                .filter(usage_start__lte=self.dh.last_month_end)
+                .values(*["tags"])
                 .first()
+            )
 
-            tags = labels.get('tags')
+            tags = labels.get("tags")
             group_by_key = list(tags.keys())[0]
 
         client = APIClient()
         for url in URLS:
             for group_by in GROUP_BYS:
                 params = {
-                    'filter[resolution]': 'monthly',
-                    'filter[time_scope_value]': '-2',
-                    'filter[time_scope_units]': 'month',
-                    f'group_by[{group_by}]': '*',
-                    f'group_by[tag:{group_by_key}]': '*',
+                    "filter[resolution]": "monthly",
+                    "filter[time_scope_value]": "-2",
+                    "filter[time_scope_units]": "month",
+                    f"group_by[{group_by}]": "*",
+                    f"group_by[tag:{group_by_key}]": "*",
                 }
-                url = url + '?' + urlencode(params, quote_via=quote_plus)
+                url = url + "?" + urlencode(params, quote_via=quote_plus)
                 response = client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)

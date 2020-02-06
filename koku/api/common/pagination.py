@@ -14,17 +14,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Common pagination class."""
 import logging
 
+from api import API_VERSION
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework.utils.urls import replace_query_param
 
-from api import API_VERSION
-
-PATH_INFO = 'PATH_INFO'
+PATH_INFO = "PATH_INFO"
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
@@ -38,17 +36,16 @@ class StandardResultsSetPagination(LimitOffsetPagination):
     def link_rewrite(request, link):
         """Rewrite the link based on the path header to only provide partial url."""
         url = link
-        version = 'v{}/'.format(API_VERSION)
+        version = f"v{API_VERSION}/"
         if PATH_INFO in request.META:
             try:
                 local_api_index = link.index(version)
                 path = request.META.get(PATH_INFO)
                 path_api_index = path.index(version)
-                path_link = '{}{}'
-                url = path_link.format(path[:path_api_index],
-                                       link[local_api_index:])
+                path_link = "{}{}"
+                url = path_link.format(path[:path_api_index], link[local_api_index:])
             except ValueError:
-                logger.warning('Unable to rewrite link as "{}" was not found.'.format(version))
+                logger.warning(f'Unable to rewrite link as "{version}" was not found.')
         return url
 
     def get_first_link(self):
@@ -83,18 +80,18 @@ class StandardResultsSetPagination(LimitOffsetPagination):
 
     def get_paginated_response(self, data):
         """Override pagination output."""
-        return Response({
-            'meta': {
-                'count': self.count,
-            },
-            'links': {
-                'first': self.get_first_link(),
-                'next': self.get_next_link(),
-                'previous': self.get_previous_link(),
-                'last': self.get_last_link()
-            },
-            'data': data
-        })
+        return Response(
+            {
+                "meta": {"count": self.count},
+                "links": {
+                    "first": self.get_first_link(),
+                    "next": self.get_next_link(),
+                    "previous": self.get_previous_link(),
+                    "last": self.get_last_link(),
+                },
+                "data": data,
+            }
+        )
 
 
 class ReportPagination(StandardResultsSetPagination):
@@ -104,7 +101,7 @@ class ReportPagination(StandardResultsSetPagination):
 
     def get_count(self, queryset):
         """Determine a report data's count."""
-        return len(queryset.get('data', []))
+        return len(queryset.get("data", []))
 
     def paginate_queryset(self, queryset, request, view=None):
         """Override queryset pagination."""
@@ -118,28 +115,28 @@ class ReportPagination(StandardResultsSetPagination):
             self.display_page_controls = True
 
         if self.count == 0 or self.offset > self.count:
-            queryset['data'] = []
+            queryset["data"] = []
             return queryset
 
-        query_data = queryset.get('data', [])[self.offset:self.offset + self.limit]
-        queryset['data'] = query_data
+        query_data = queryset.get("data", [])[self.offset : self.offset + self.limit]  # noqa
+        queryset["data"] = query_data
 
         return queryset
 
     def get_paginated_response(self, data):
         """Override pagination output."""
-        paginated_data = data.pop('data', [])
+        paginated_data = data.pop("data", [])
         response = {
-            'meta': {'count': self.count},
-            'links': {
-                'first': self.get_first_link(),
-                'next': self.get_next_link(),
-                'previous': self.get_previous_link(),
-                'last': self.get_last_link()
+            "meta": {"count": self.count},
+            "links": {
+                "first": self.get_first_link(),
+                "next": self.get_next_link(),
+                "previous": self.get_previous_link(),
+                "last": self.get_last_link(),
             },
-            'data': paginated_data
+            "data": paginated_data,
         }
-        response['meta'].update(data)
+        response["meta"].update(data)
         return Response(response)
 
 
@@ -147,8 +144,8 @@ class ReportRankedPagination(ReportPagination):
     """A specialty paginator for ranked report data."""
 
     default_limit = 5
-    limit_query_param = 'filter[limit]'
-    offset_query_param = 'filter[offset]'
+    limit_query_param = "filter[limit]"
+    offset_query_param = "filter[offset]"
 
     def get_count(self, queryset):
         """Determine a report data's count."""

@@ -18,7 +18,6 @@
 import logging
 
 from django.core.management.base import BaseCommand
-
 from masu.external.kafka_msg_handler import initialize_kafka_handler
 
 LOG = logging.getLogger(__name__)
@@ -29,6 +28,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         """Initialize listener."""
-        LOG.info('Starting Kafka handler')
-        LOG.debug('handle args: %s, kwargs: %s', str(args), str(kwargs))
+        LOG.info("Starting Kafka handler")
+        LOG.debug("handle args: %s, kwargs: %s", str(args), str(kwargs))
         initialize_kafka_handler()

@@ -14,15 +14,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the AzureService object."""
 from datetime import datetime
 from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from faker import Faker
-
-from masu.external.downloader.azure.azure_service import AzureCostReportNotFound, AzureService
+from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
+from masu.external.downloader.azure.azure_service import AzureService
 from masu.test import MasuTestCase
 
 FAKE = Faker()
@@ -39,35 +38,21 @@ class MockBlobProperties:
 class MockContainer:
     """Mock an azure container."""
 
-    def __init__(
-            self,
-            container_name,
-            export_directory,
-            subscription_id,
-            resource_group,
-            storage_account_name,
-    ):
+    def __init__(self, container_name, export_directory, subscription_id, resource_group, storage_account_name):
         """Initialize a mocked azure container."""
         self.container = container_name
         self.root_folder_path = export_directory
         self.resource_id = (
-            f'/subscriptions/{subscription_id}/resourceGroups/'
-            f'{resource_group}/providers/Microsoft.Storage/'
-            f'storageAccounts/{storage_account_name}'
+            f"/subscriptions/{subscription_id}/resourceGroups/"
+            f"{resource_group}/providers/Microsoft.Storage/"
+            f"storageAccounts/{storage_account_name}"
         )
 
 
 class MockBlobDeliveryInfo:
     """Mock an azure blob's delivery information."""
 
-    def __init__(
-            self,
-            container_name,
-            export_directory,
-            subscription_id,
-            resource_group,
-            storage_account_name,
-    ):
+    def __init__(self, container_name, export_directory, subscription_id, resource_group, storage_account_name):
         """Initialize a mocked azure blob delivery info."""
         self.destination = MockContainer(
             container_name, export_directory, subscription_id, resource_group, storage_account_name
@@ -78,16 +63,10 @@ class MockBlob:
     """Mock an azure blob."""
 
     def __init__(
-            self,
-            container_name,
-            last_modified,
-            export_directory,
-            subscription_id,
-            resource_group,
-            storage_account_name,
+        self, container_name, last_modified, export_directory, subscription_id, resource_group, storage_account_name
     ):
         """Initialize a mocked azure blob."""
-        self.name = '{}_{}_day_{}'.format(container_name, 'blob', last_modified.day)
+        self.name = "{}_{}_day_{}".format(container_name, "blob", last_modified.day)
         self.delivery_info = MockBlobDeliveryInfo(
             container_name, export_directory, subscription_id, resource_group, storage_account_name
         )
@@ -98,13 +77,13 @@ class MockBlobService:
     """Mock an azure blob service."""
 
     def __init__(
-            self,
-            context_container_name,
-            current_day_time,
-            export_directory,
-            subscription_id,
-            resource_group,
-            storage_account_name,
+        self,
+        context_container_name,
+        current_day_time,
+        export_directory,
+        subscription_id,
+        resource_group,
+        storage_account_name,
     ):
         """Initialize a mocked azure blob service."""
         self._container_name = context_container_name
@@ -143,20 +122,20 @@ class MockBlobService:
 
     def get_blob_to_path(self, container_name, export_name, file_path):
         """Get the blob path."""
-        return '/to/my/export'
+        return "/to/my/export"
 
 
 class MockStorageAccount:
     """Mock an azure storage account."""
 
     def __init__(
-            self,
-            context_container_name,
-            current_date_time,
-            export_directory,
-            subscription_id,
-            resource_group,
-            storage_account_name,
+        self,
+        context_container_name,
+        current_date_time,
+        export_directory,
+        subscription_id,
+        resource_group,
+        storage_account_name,
     ):
         """Initialize a mocked azure storage account."""
         self._container_name = context_container_name
@@ -182,13 +161,13 @@ class MockLists:
     """Mock an azure list."""
 
     def __init__(
-            self,
-            context_container_name,
-            current_day_time,
-            export_directory,
-            subscription_id,
-            storage_group,
-            storage_account_name,
+        self,
+        context_container_name,
+        current_day_time,
+        export_directory,
+        subscription_id,
+        storage_group,
+        storage_account_name,
     ):
         """Initialize a mocked azure list."""
         self.value = MockBlobService(
@@ -205,13 +184,13 @@ class MockExports:
     """Mock an azure export."""
 
     def __init__(
-            self,
-            context_container_name,
-            current_day_time,
-            export_directory,
-            subscription_id,
-            storage_group,
-            storage_account_name,
+        self,
+        context_container_name,
+        current_day_time,
+        export_directory,
+        subscription_id,
+        storage_group,
+        storage_account_name,
     ):
         """Initialize a mocked azure export."""
         self._container_name = context_container_name
@@ -237,13 +216,13 @@ class MockCostManagementClient:
     """Mock an azure cost management client."""
 
     def __init__(
-            self,
-            context_container_name,
-            current_day_time,
-            export_directory,
-            subscription_id,
-            storage_group,
-            storage_account_name,
+        self,
+        context_container_name,
+        current_day_time,
+        export_directory,
+        subscription_id,
+        storage_group,
+        storage_account_name,
     ):
         """Initialize a mocked azure cost management client."""
         self.exports = MockExports(
@@ -260,13 +239,7 @@ class MockAzureClientFactory:
     """Mock an azure client factory."""
 
     def __init__(
-            self,
-            subscription_id,
-            container_name,
-            current_date_time,
-            export_directory,
-            storage_group,
-            storage_account_name,
+        self, subscription_id, container_name, current_date_time, export_directory, storage_group, storage_account_name
     ):
         """Initialize a mocked azure client factory."""
         self._subscription_id = subscription_id
@@ -278,9 +251,7 @@ class MockAzureClientFactory:
 
     def describe_cost_management_exports(self):
         """Describe cost management exports."""
-        return [
-            {'name': self.export_name, 'container': self.container, 'directory': self.directory}
-        ]
+        return [{"name": self.export_name, "container": self.container, "directory": self.directory}]
 
     def cloud_storage_account(self, resource_group_name, storage_account_name):
         """Create mocked storage account."""
@@ -296,7 +267,7 @@ class MockAzureClientFactory:
     @property
     def credentials(self):
         """Service Principal Credentials property."""
-        creds = 'secretcreds'
+        creds = "secretcreds"
         return creds
 
     @property
@@ -320,7 +291,7 @@ class MockAzureClientFactory:
 class AzureServiceTest(MasuTestCase):
     """Test Cases for the AzureService object."""
 
-    @patch('masu.external.downloader.azure.azure_service.AzureClientFactory')
+    @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
     def setUp(self, mock_factory):
         """Set up each test."""
         super().setUp()
@@ -362,19 +333,16 @@ class AzureServiceTest(MasuTestCase):
         today = self.current_date_time
         yesterday = today - relativedelta(days=1)
         test_matrix = [
+            {"key": "{}_{}_day_{}".format(self.container_name, "blob", today.day), "expected_date": today.date()},
             {
-                'key': '{}_{}_day_{}'.format(self.container_name, 'blob', today.day),
-                'expected_date': today.date(),
-            },
-            {
-                'key': '{}_{}_day_{}'.format(self.container_name, 'blob', yesterday.day),
-                'expected_date': yesterday.date(),
+                "key": "{}_{}_day_{}".format(self.container_name, "blob", yesterday.day),
+                "expected_date": yesterday.date(),
             },
         ]
 
         for test in test_matrix:
-            key = test.get('key')
-            expected_modified_date = test.get('expected_date')
+            key = test.get("key")
+            expected_modified_date = test.get("expected_date")
             cost_export = self.client.get_cost_export_for_key(key, self.container_name)
             self.assertIsNotNone(cost_export)
             self.assertEquals(cost_export.name, key)
@@ -382,17 +350,15 @@ class AzureServiceTest(MasuTestCase):
 
     def test_get_cost_export_for_missing_key(self):
         """Test that a cost export is not retrieved by an incorrect key."""
-        key = '{}_{}_wrong'.format(self.container_name, 'blob')
+        key = "{}_{}_wrong".format(self.container_name, "blob")
         with self.assertRaises(AzureCostReportNotFound):
             self.client.get_cost_export_for_key(key, self.container_name)
 
     def test_get_latest_cost_export_for_path(self):
         """Test that the latest cost export is returned for a given path."""
-        report_path = '{}_{}'.format(self.container_name, 'blob')
+        report_path = "{}_{}".format(self.container_name, "blob")
         cost_export = self.client.get_latest_cost_export_for_path(report_path, self.container_name)
-        self.assertEquals(
-            cost_export.properties.last_modified.date(), self.current_date_time.date()
-        )
+        self.assertEquals(cost_export.properties.last_modified.date(), self.current_date_time.date())
 
     def test_get_latest_cost_export_for_path_missing(self):
         """Test that the no cost export is returned for a missing path."""
@@ -405,11 +371,11 @@ class AzureServiceTest(MasuTestCase):
         exports = self.client.describe_cost_management_exports()
         self.assertEquals(len(exports), 2)
         for export in exports:
-            self.assertEquals(export.get('container'), self.container_name)
-            self.assertEquals(export.get('directory'), self.export_directory)
-            self.assertIn('{}_{}'.format(self.container_name, 'blob'), export.get('name'))
+            self.assertEquals(export.get("container"), self.container_name)
+            self.assertEquals(export.get("directory"), self.export_directory)
+            self.assertIn("{}_{}".format(self.container_name, "blob"), export.get("name"))
 
-    @patch('masu.external.downloader.azure.azure_service.AzureClientFactory')
+    @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
     def test_describe_cost_management_exports_wrong_account(self, mock_factory):
         """Test that cost management exports are not returned from incorrect account."""
         mock_factory.return_value = MockAzureClientFactory(
@@ -427,7 +393,7 @@ class AzureServiceTest(MasuTestCase):
             client_id=self.client_id,
             client_secret=self.client_secret,
             resource_group_name=self.resource_group_name,
-            storage_account_name='wrongaccount',
+            storage_account_name="wrongaccount",
         )
 
         exports = client.describe_cost_management_exports()
@@ -435,6 +401,6 @@ class AzureServiceTest(MasuTestCase):
 
     def test_download_cost_export(self):
         """Test that cost management exports are downloaded."""
-        key = '{}_{}_day_{}'.format(self.container_name, 'blob', self.current_date_time.day)
+        key = "{}_{}_day_{}".format(self.container_name, "blob", self.current_date_time.day)
         file_path = self.client.download_cost_export(key, self.container_name)
-        self.assertTrue(file_path.endswith('.csv'))
+        self.assertTrue(file_path.endswith(".csv"))

@@ -15,13 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Access the current date for masu to use."""
-
 import logging
-from datetime import datetime, tzinfo
+from datetime import datetime
+from datetime import tzinfo
 
 import pytz
 from dateutil import parser
-
 from masu.config import Config
 
 LOG = logging.getLogger(__name__)
@@ -33,7 +32,7 @@ class DateAccessorError(Exception):
 
 # pylint: disable=too-few-public-methods
 # pylint: disable=no-self-use
-class DateAccessor():
+class DateAccessor:
     """Accessor to get date time."""
 
     mock_date_time = None
@@ -47,7 +46,7 @@ class DateAccessor():
             DateAccessor.mock_date_time = parser.parse(Config.MASU_DATE_OVERRIDE)
             if DateAccessor.mock_date_time.tzinfo is None:
                 DateAccessor.mock_date_time = DateAccessor.mock_date_time.replace(tzinfo=pytz.UTC)
-            LOG.info('Initializing masu date/time to %s', str(DateAccessor.mock_date_time))
+            LOG.info("Initializing masu date/time to %s", str(DateAccessor.mock_date_time))
 
     def today(self):
         """
@@ -67,7 +66,7 @@ class DateAccessor():
         """
         current_date = datetime.now(tz=pytz.UTC)
         if Config.DEBUG and DateAccessor.mock_date_time:
-            seconds_delta = (current_date - DateAccessor.date_time_last_accessed)
+            seconds_delta = current_date - DateAccessor.date_time_last_accessed
             DateAccessor.date_time_last_accessed = current_date
 
             DateAccessor.mock_date_time = DateAccessor.mock_date_time + seconds_delta
@@ -99,13 +98,12 @@ class DateAccessor():
                 LOG.error(err)
                 raise DateAccessorError(err)
         elif not isinstance(timezone, tzinfo):
-            err = ('timezone must be a valid timezone string or subclass '
-                   'of datetime.tzinfo')
+            err = "timezone must be a valid timezone string or subclass " "of datetime.tzinfo"
             raise DateAccessorError(err)
 
         current_date = datetime.now(tz=timezone)
         if Config.DEBUG and DateAccessor.mock_date_time:
-            seconds_delta = (current_date - DateAccessor.date_time_last_accessed)
+            seconds_delta = current_date - DateAccessor.date_time_last_accessed
             DateAccessor.date_time_last_accessed = current_date
 
             DateAccessor.mock_date_time = DateAccessor.mock_date_time + seconds_delta

@@ -14,27 +14,27 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Processor for OCP Usage Reports."""
-
 # pylint: skip-file
 # Disabling for now since there are overlaps with AWSReportProcessor.
 # Addressing all lint errors would impact both report processors.
-
 import csv
 import json
 import logging
 from datetime import datetime
 from enum import Enum
-from os import path, remove
+from os import path
+from os import remove
 
 from django.conf import settings
-
 from masu.config import Config
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
-from reporting.provider.ocp.models import OCPStorageLineItem, OCPUsageLineItem, OCPUsageReport, OCPUsageReportPeriod
+from reporting.provider.ocp.models import OCPStorageLineItem
+from reporting.provider.ocp.models import OCPUsageLineItem
+from reporting.provider.ocp.models import OCPUsageReport
+from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 LOG = logging.getLogger(__name__)
 
@@ -71,25 +71,48 @@ class ProcessedOCPReport:
         self.line_items = []
 
 
-class OCPReportProcessor():
+class OCPReportProcessor:
     """OCP Usage Report processor."""
 
-    storage_columns = ['report_period_start', 'report_period_end', 'interval_start',
-                       'interval_end', 'namespace', 'pod', 'persistentvolumeclaim',
-                       'persistentvolume', 'storageclass', 'persistentvolumeclaim_capacity_bytes',
-                       'persistentvolumeclaim_capacity_byte_seconds',
-                       'volume_request_storage_byte_seconds',
-                       'persistentvolumeclaim_usage_byte_seconds', 'persistentvolume_labels',
-                       'persistentvolumeclaim_labels']
+    storage_columns = [
+        "report_period_start",
+        "report_period_end",
+        "interval_start",
+        "interval_end",
+        "namespace",
+        "pod",
+        "persistentvolumeclaim",
+        "persistentvolume",
+        "storageclass",
+        "persistentvolumeclaim_capacity_bytes",
+        "persistentvolumeclaim_capacity_byte_seconds",
+        "volume_request_storage_byte_seconds",
+        "persistentvolumeclaim_usage_byte_seconds",
+        "persistentvolume_labels",
+        "persistentvolumeclaim_labels",
+    ]
 
-    cpu_mem_usage_columns = ['report_period_start', 'report_period_end', 'pod', 'namespace',
-                             'node', 'resource_id', 'interval_start', 'interval_end',
-                             'pod_usage_cpu_core_seconds', 'pod_request_cpu_core_seconds',
-                             'pod_limit_cpu_core_seconds', 'pod_usage_memory_byte_seconds',
-                             'pod_request_memory_byte_seconds', 'pod_limit_memory_byte_seconds',
-                             'node_capacity_cpu_cores', 'node_capacity_cpu_core_seconds',
-                             'node_capacity_memory_bytes', 'node_capacity_memory_byte_seconds',
-                             'pod_labels']
+    cpu_mem_usage_columns = [
+        "report_period_start",
+        "report_period_end",
+        "pod",
+        "namespace",
+        "node",
+        "resource_id",
+        "interval_start",
+        "interval_end",
+        "pod_usage_cpu_core_seconds",
+        "pod_request_cpu_core_seconds",
+        "pod_limit_cpu_core_seconds",
+        "pod_usage_memory_byte_seconds",
+        "pod_request_memory_byte_seconds",
+        "pod_limit_memory_byte_seconds",
+        "node_capacity_cpu_cores",
+        "node_capacity_cpu_core_seconds",
+        "node_capacity_memory_bytes",
+        "node_capacity_memory_byte_seconds",
+        "pod_labels",
+    ]
 
     def __init__(self, schema_name, report_path, compression, provider_uuid):
         """Initialize the report processor.
@@ -104,13 +127,11 @@ class OCPReportProcessor():
         self._processor = None
         self.report_type = self._detect_report_type(report_path)
         if self.report_type == OCPReportTypes.CPU_MEM_USAGE:
-            self._processor = OCPCpuMemReportProcessor(schema_name, report_path,
-                                                       compression, provider_uuid)
+            self._processor = OCPCpuMemReportProcessor(schema_name, report_path, compression, provider_uuid)
         elif self.report_type == OCPReportTypes.STORAGE:
-            self._processor = OCPStorageProcessor(schema_name, report_path,
-                                                  compression, provider_uuid)
+            self._processor = OCPStorageProcessor(schema_name, report_path, compression, provider_uuid)
         elif self.report_type == OCPReportTypes.UNKNOWN:
-            raise OCPReportProcessorError('Unknown OCP report type.')
+            raise OCPReportProcessorError("Unknown OCP report type.")
 
     def _detect_report_type(self, report_path):
         """Detect OCP report type."""
@@ -144,11 +165,11 @@ class OCPReportProcessorBase(ReportProcessorBase):
             compression=compression,
             provider_uuid=provider_uuid,
             manifest_id=None,
-            processed_report=ProcessedOCPReport()
+            processed_report=ProcessedOCPReport(),
         )
 
         self._report_name = path.basename(report_path)
-        self._cluster_id = report_path.split('/')[-2]
+        self._cluster_id = report_path.split("/")[-2]
 
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
@@ -174,8 +195,8 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
         """
         table_name = OCPUsageReport
-        start = datetime.strptime(row.get('interval_start'), Config.OCP_DATETIME_STR_FORMAT)
-        end = datetime.strptime(row.get('interval_end'), Config.OCP_DATETIME_STR_FORMAT)
+        start = datetime.strptime(row.get("interval_start"), Config.OCP_DATETIME_STR_FORMAT)
+        end = datetime.strptime(row.get("interval_end"), Config.OCP_DATETIME_STR_FORMAT)
 
         key = (report_period_id, start)
         if key in self.processed_report.reports:
@@ -184,15 +205,9 @@ class OCPReportProcessorBase(ReportProcessorBase):
         if key in self.existing_report_map:
             return self.existing_report_map[key]
 
-        data = {
-            'report_period_id': report_period_id,
-            'interval_start': start,
-            'interval_end': end
-        }
+        data = {"report_period_id": report_period_id, "interval_start": start, "interval_end": end}
         report_id = report_db_accessor.insert_on_conflict_do_nothing(
-            table_name,
-            data,
-            conflict_columns=['report_period_id', 'interval_start']
+            table_name, data, conflict_columns=["report_period_id", "interval_start"]
         )
 
         self.processed_report.reports[key] = report_id
@@ -211,8 +226,8 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
         """
         table_name = OCPUsageReportPeriod
-        start = datetime.strptime(row.get('report_period_start'), Config.OCP_DATETIME_STR_FORMAT)
-        end = datetime.strptime(row.get('report_period_end'), Config.OCP_DATETIME_STR_FORMAT)
+        start = datetime.strptime(row.get("report_period_start"), Config.OCP_DATETIME_STR_FORMAT)
+        end = datetime.strptime(row.get("report_period_end"), Config.OCP_DATETIME_STR_FORMAT)
 
         key = (cluster_id, start, self._provider_uuid)
         if key in self.processed_report.report_periods:
@@ -222,16 +237,14 @@ class OCPReportProcessorBase(ReportProcessorBase):
             return self.existing_report_periods_map[key]
 
         data = {
-            'cluster_id': cluster_id,
-            'report_period_start': start,
-            'report_period_end': end,
-            'provider_id': self._provider_uuid
+            "cluster_id": cluster_id,
+            "report_period_start": start,
+            "report_period_end": end,
+            "provider_id": self._provider_uuid,
         }
 
         report_period_id = report_db_accessor.insert_on_conflict_do_nothing(
-            table_name,
-            data,
-            conflict_columns=['cluster_id', 'report_period_start', 'provider_id']
+            table_name, data, conflict_columns=["cluster_id", "report_period_start", "provider_id"]
         )
 
         self.processed_report.report_periods[key] = report_period_id
@@ -248,17 +261,17 @@ class OCPReportProcessorBase(ReportProcessorBase):
             (dict): The JSON dictionary made from the label string
 
         """
-        labels = label_string.split('|') if label_string else []
+        labels = label_string.split("|") if label_string else []
         label_dict = {}
 
         for label in labels:
             try:
-                key, value = label.split(':')
-                key = key.replace('label_', '')
+                key, value = label.split(":")
+                key = key.replace("label_", "")
                 label_dict[key] = value
             except ValueError as err:
                 LOG.warning(err)
-                LOG.warning('%s could not be properly split', label)
+                LOG.warning("%s could not be properly split", label)
                 continue
 
         return json.dumps(label_dict)
@@ -281,11 +294,8 @@ class OCPReportProcessorBase(ReportProcessorBase):
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode) as f:
             with OCPReportDBAccessor(self._schema, self.column_map) as report_db:
-                temp_table = report_db.create_temp_table(
-                    self.table_name._meta.db_table,
-                    drop_column='id'
-                )
-                LOG.info('File %s opened for processing', str(f))
+                temp_table = report_db.create_temp_table(self.table_name._meta.db_table, drop_column="id")
+                LOG.info("File %s opened for processing", str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
                     report_period_id = self._create_report_period(row, self._cluster_id, report_db)
@@ -298,11 +308,14 @@ class OCPReportProcessorBase(ReportProcessorBase):
                             self.table_name._meta.db_table,
                             temp_table,
                             self.line_item_columns,
-                            self.line_item_conflict_columns
+                            self.line_item_conflict_columns,
                         )
-                        LOG.info('Saving report rows %d to %d for %s', row_count,
-                                 row_count + len(self.processed_report.line_items),
-                                 self._report_name)
+                        LOG.info(
+                            "Saving report rows %d to %d for %s",
+                            row_count,
+                            row_count + len(self.processed_report.line_items),
+                            self._report_name,
+                        )
                         row_count += len(self.processed_report.line_items)
 
                         self._update_mappings()
@@ -313,19 +326,21 @@ class OCPReportProcessorBase(ReportProcessorBase):
                         self.table_name._meta.db_table,
                         temp_table,
                         self.line_item_columns,
-                        self.line_item_conflict_columns
+                        self.line_item_conflict_columns,
                     )
-                    LOG.info('Saving report rows %d to %d for %s', row_count,
-                             row_count + len(self.processed_report.line_items),
-                             self._report_name)
+                    LOG.info(
+                        "Saving report rows %d to %d for %s",
+                        row_count,
+                        row_count + len(self.processed_report.line_items),
+                        self._report_name,
+                    )
 
                     row_count += len(self.processed_report.line_items)
 
-        LOG.info('Completed report processing for file: %s and schema: %s',
-                 self._report_path, self._schema)
+        LOG.info("Completed report processing for file: %s and schema: %s", self._report_path, self._schema)
 
         if not settings.DEVELOPMENT:
-            LOG.info('Removing processed file: %s', self._report_path)
+            LOG.info("Removing processed file: %s", self._report_path)
             remove(self._report_path)
 
 
@@ -343,25 +358,18 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
 
         """
         super().__init__(
-            schema_name=schema_name,
-            report_path=report_path,
-            compression=compression,
-            provider_uuid=provider_uuid
+            schema_name=schema_name, report_path=report_path, compression=compression, provider_uuid=provider_uuid
         )
         self.table_name = OCPUsageLineItem()
         stmt = (
-            f'Initialized report processor for:\n'
-            f' schema_name: {self._schema}\n'
-            f' provider_uuid: {provider_uuid}\n'
-            f' file: {self._report_path}'
+            f"Initialized report processor for:\n"
+            f" schema_name: {self._schema}\n"
+            f" provider_uuid: {provider_uuid}\n"
+            f" file: {self._report_path}"
         )
         LOG.info(stmt)
 
-    def _create_usage_report_line_item(self,
-                                       row,
-                                       report_period_id,
-                                       report_id,
-                                       report_db_accessor):
+    def _create_usage_report_line_item(self, row, report_period_id, report_id, report_db_accessor):
         """Create a cost entry line item object.
 
         Args:
@@ -374,21 +382,17 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
 
         """
         data = self._get_data_for_table(row, self.table_name._meta.db_table)
-        pod_label_str = ''
-        if 'pod_labels' in data:
-            pod_label_str = data.pop('pod_labels')
+        pod_label_str = ""
+        if "pod_labels" in data:
+            pod_label_str = data.pop("pod_labels")
 
-        data = report_db_accessor.clean_data(
-            data,
-            self.table_name._meta.db_table
-        )
+        data = report_db_accessor.clean_data(data, self.table_name._meta.db_table)
 
-        data['report_period_id'] = report_period_id
-        data['report_id'] = report_id
-        data['pod_labels'] = self._process_pod_labels(pod_label_str)
+        data["report_period_id"] = report_period_id
+        data["report_id"] = report_id
+        data["pod_labels"] = self._process_pod_labels(pod_label_str)
         # Deduplicate potential repeated rows in data
-        key = tuple(data.get(column)
-                    for column in self.line_item_conflict_columns)
+        key = tuple(data.get(column) for column in self.line_item_conflict_columns)
         if key in self.processed_report.line_item_keys:
             return
 
@@ -401,7 +405,7 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
     @property
     def line_item_conflict_columns(self):
         """Create a property to check conflict on line items."""
-        return ['report_id', 'namespace', 'pod', 'node']
+        return ["report_id", "namespace", "pod", "node"]
 
 
 class OCPStorageProcessor(OCPReportProcessorBase):
@@ -418,25 +422,18 @@ class OCPStorageProcessor(OCPReportProcessorBase):
 
         """
         super().__init__(
-            schema_name=schema_name,
-            report_path=report_path,
-            compression=compression,
-            provider_uuid=provider_uuid
+            schema_name=schema_name, report_path=report_path, compression=compression, provider_uuid=provider_uuid
         )
         self.table_name = OCPStorageLineItem()
         stmt = (
-            f'Initialized report processor for:\n'
-            f' schema_name: {self._schema}\n'
-            f' provider_uuid: {provider_uuid}\n'
-            f' file: {self._report_path}'
+            f"Initialized report processor for:\n"
+            f" schema_name: {self._schema}\n"
+            f" provider_uuid: {provider_uuid}\n"
+            f" file: {self._report_path}"
         )
         LOG.info(stmt)
 
-    def _create_usage_report_line_item(self,
-                                       row,
-                                       report_period_id,
-                                       report_id,
-                                       report_db_accessor):
+    def _create_usage_report_line_item(self, row, report_period_id, report_id, report_db_accessor):
         """Create a cost entry line item object.
 
         Args:
@@ -450,27 +447,23 @@ class OCPStorageProcessor(OCPReportProcessorBase):
         """
         data = self._get_data_for_table(row, self.table_name._meta.db_table)
 
-        persistentvolume_labels_str = ''
-        if 'persistentvolume_labels' in data:
-            persistentvolume_labels_str = data.pop('persistentvolume_labels')
+        persistentvolume_labels_str = ""
+        if "persistentvolume_labels" in data:
+            persistentvolume_labels_str = data.pop("persistentvolume_labels")
 
-        persistentvolumeclaim_labels_str = ''
-        if 'persistentvolumeclaim_labels' in data:
-            persistentvolumeclaim_labels_str = data.pop('persistentvolumeclaim_labels')
+        persistentvolumeclaim_labels_str = ""
+        if "persistentvolumeclaim_labels" in data:
+            persistentvolumeclaim_labels_str = data.pop("persistentvolumeclaim_labels")
 
-        data = report_db_accessor.clean_data(
-            data,
-            self.table_name._meta.db_table
-        )
+        data = report_db_accessor.clean_data(data, self.table_name._meta.db_table)
 
-        data['report_period_id'] = report_period_id
-        data['report_id'] = report_id
-        data['persistentvolume_labels'] = self._process_pod_labels(persistentvolume_labels_str)
-        data['persistentvolumeclaim_labels'] = self._process_pod_labels(persistentvolumeclaim_labels_str)
+        data["report_period_id"] = report_period_id
+        data["report_id"] = report_id
+        data["persistentvolume_labels"] = self._process_pod_labels(persistentvolume_labels_str)
+        data["persistentvolumeclaim_labels"] = self._process_pod_labels(persistentvolumeclaim_labels_str)
 
         # Deduplicate potential repeated rows in data
-        key = tuple(data.get(column)
-                    for column in self.line_item_conflict_columns)
+        key = tuple(data.get(column) for column in self.line_item_conflict_columns)
         if key in self.processed_report.line_item_keys:
             return
 
@@ -483,4 +476,4 @@ class OCPStorageProcessor(OCPReportProcessorBase):
     @property
     def line_item_conflict_columns(self):
         """Create a property to check conflict on line items."""
-        return ['report_id', 'namespace', 'persistentvolumeclaim']
+        return ["report_id", "namespace", "persistentvolumeclaim"]

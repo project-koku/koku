@@ -15,12 +15,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider external interface for koku to consume."""
-
 import logging
 
-from dateutil.relativedelta import relativedelta
-
 from api.models import Provider
+from dateutil.relativedelta import relativedelta
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
@@ -43,8 +41,9 @@ class ReportDownloaderError(Exception):
 class ReportDownloader:
     """Interface for masu to use to get CUR accounts."""
 
-    def __init__(self, task, customer_name, access_credential, report_source,
-                 provider_type, provider_uuid, report_name=None):
+    def __init__(
+        self, task, customer_name, access_credential, report_source, provider_type, provider_uuid, report_name=None
+    ):
         """Set the downloader based on the backend cloud provider."""
         self.task = task
         self.customer_name = customer_name
@@ -59,7 +58,7 @@ class ReportDownloader:
             raise ReportDownloaderError(str(err))
 
         if not self._downloader:
-            raise ReportDownloaderError('Invalid provider type specified.')
+            raise ReportDownloaderError("Invalid provider type specified.")
 
     def _set_downloader(self):
         """
@@ -75,52 +74,64 @@ class ReportDownloader:
 
         """
         if self.provider_type == Provider.PROVIDER_AWS:
-            return AWSReportDownloader(task=self.task,
-                                       customer_name=self.customer_name,
-                                       auth_credential=self.credential,
-                                       bucket=self.cur_source,
-                                       report_name=self.report_name,
-                                       provider_uuid=self.provider_uuid)
+            return AWSReportDownloader(
+                task=self.task,
+                customer_name=self.customer_name,
+                auth_credential=self.credential,
+                bucket=self.cur_source,
+                report_name=self.report_name,
+                provider_uuid=self.provider_uuid,
+            )
 
         if self.provider_type == Provider.PROVIDER_AWS_LOCAL:
-            return AWSLocalReportDownloader(task=self.task,
-                                            customer_name=self.customer_name,
-                                            auth_credential=self.credential,
-                                            bucket=self.cur_source,
-                                            report_name=self.report_name,
-                                            provider_uuid=self.provider_uuid)
+            return AWSLocalReportDownloader(
+                task=self.task,
+                customer_name=self.customer_name,
+                auth_credential=self.credential,
+                bucket=self.cur_source,
+                report_name=self.report_name,
+                provider_uuid=self.provider_uuid,
+            )
 
         if self.provider_type == Provider.PROVIDER_AZURE:
-            return AzureReportDownloader(task=self.task,
-                                         customer_name=self.customer_name,
-                                         auth_credential=self.credential,
-                                         billing_source=self.cur_source,
-                                         report_name=self.report_name,
-                                         provider_uuid=self.provider_uuid)
+            return AzureReportDownloader(
+                task=self.task,
+                customer_name=self.customer_name,
+                auth_credential=self.credential,
+                billing_source=self.cur_source,
+                report_name=self.report_name,
+                provider_uuid=self.provider_uuid,
+            )
 
         if self.provider_type == Provider.PROVIDER_AZURE_LOCAL:
-            return AzureLocalReportDownloader(task=self.task,
-                                              customer_name=self.customer_name,
-                                              auth_credential=self.credential,
-                                              billing_source=self.cur_source,
-                                              report_name=self.report_name,
-                                              provider_uuid=self.provider_uuid)
+            return AzureLocalReportDownloader(
+                task=self.task,
+                customer_name=self.customer_name,
+                auth_credential=self.credential,
+                billing_source=self.cur_source,
+                report_name=self.report_name,
+                provider_uuid=self.provider_uuid,
+            )
 
         if self.provider_type == Provider.PROVIDER_OCP:
-            return OCPReportDownloader(task=self.task,
-                                       customer_name=self.customer_name,
-                                       auth_credential=self.credential,
-                                       bucket=self.cur_source,
-                                       report_name=self.report_name,
-                                       provider_uuid=self.provider_uuid)
+            return OCPReportDownloader(
+                task=self.task,
+                customer_name=self.customer_name,
+                auth_credential=self.credential,
+                bucket=self.cur_source,
+                report_name=self.report_name,
+                provider_uuid=self.provider_uuid,
+            )
 
         if self.provider_type == Provider.PROVIDER_GCP:
-            return GCPReportDownloader(task=self.task,
-                                       customer_name=self.customer_name,
-                                       auth_credential=self.credential,
-                                       billing_source=self.cur_source,
-                                       report_name=self.report_name,
-                                       provider_uuid=self.provider_uuid)
+            return GCPReportDownloader(
+                task=self.task,
+                customer_name=self.customer_name,
+                auth_credential=self.credential,
+                billing_source=self.cur_source,
+                report_name=self.report_name,
+                provider_uuid=self.provider_uuid,
+            )
         return None
 
     def get_reports(self, number_of_months=2):
@@ -155,10 +166,10 @@ class ReportDownloader:
             ([{}]) List of dictionaries containing file path and compression.
 
         """
-        LOG.info('Attempting to get %s manifest for %s...', self.provider_type, str(date_time))
+        LOG.info("Attempting to get %s manifest for %s...", self.provider_type, str(date_time))
         report_context = self._downloader.get_report_context_for_date(date_time)
-        manifest_id = report_context.get('manifest_id')
-        reports = report_context.get('files', [])
+        manifest_id = report_context.get("manifest_id")
+        reports = report_context.get("files", [])
         cur_reports = []
         for report in reports:
             report_dictionary = {}
@@ -168,12 +179,12 @@ class ReportDownloader:
                 file_name, etag = self._downloader.download_file(report, stored_etag)
                 stats_recorder.update(etag=etag)
 
-            report_dictionary['file'] = file_name
-            report_dictionary['compression'] = report_context.get('compression')
-            report_dictionary['start_date'] = date_time
-            report_dictionary['assembly_id'] = report_context.get('assembly_id')
-            report_dictionary['manifest_id'] = manifest_id
-            report_dictionary['provider_uuid'] = self.provider_uuid
+            report_dictionary["file"] = file_name
+            report_dictionary["compression"] = report_context.get("compression")
+            report_dictionary["start_date"] = date_time
+            report_dictionary["assembly_id"] = report_context.get("assembly_id")
+            report_dictionary["manifest_id"] = manifest_id
+            report_dictionary["provider_uuid"] = self.provider_uuid
 
             cur_reports.append(report_dictionary)
         return cur_reports

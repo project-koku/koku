@@ -18,14 +18,15 @@
 import datetime
 import logging
 
-from dateutil import relativedelta
-from django.db.models.functions import TruncDay, TruncMonth
-
-from api.query_filter import QueryFilter, QueryFilterCollection
+from api.query_filter import QueryFilter
+from api.query_filter import QueryFilterCollection
 from api.utils import DateHelper
+from dateutil import relativedelta
+from django.db.models.functions import TruncDay
+from django.db.models.functions import TruncMonth
 
 LOG = logging.getLogger(__name__)
-WILDCARD = '*'
+WILDCARD = "*"
 
 
 # pylint: disable=abstract-method, too-many-ancestors
@@ -35,7 +36,7 @@ class TruncMonthString(TruncMonth):
     def convert_value(self, value, expression, connection):
         """Convert value to a string after super."""
         value = super().convert_value(value, expression, connection)
-        return value.strftime('%Y-%m')
+        return value.strftime("%Y-%m")
 
 
 # pylint: disable=abstract-method, too-many-ancestors
@@ -45,7 +46,7 @@ class TruncDayString(TruncDay):
     def convert_value(self, value, expression, connection):
         """Convert value to a string after super."""
         value = super().convert_value(value, expression, connection)
-        return value.strftime('%Y-%m-%d')
+        return value.strftime("%Y-%m-%d")
 
 
 class QueryHandler:
@@ -58,12 +59,12 @@ class QueryHandler:
             parameters    (QueryParameters): parameter object for query
 
         """
-        LOG.debug(f'Query Params: {parameters}')
+        LOG.debug(f"Query Params: {parameters}")
         parameters = self.filter_to_order_by(parameters)
         self.tenant = parameters.tenant
         self.access = parameters.access
 
-        self.default_ordering = self._mapper._report_type_map.get('default_ordering')
+        self.default_ordering = self._mapper._report_type_map.get("default_ordering")
 
         self.parameters = parameters
         self.resolution = None
@@ -103,8 +104,8 @@ class QueryHandler:
             `order_by[total]=desc` returns `-total`
 
         """
-        order_map = {'asc': '', 'desc': '-'}
-        return f'{order_map[self.order_direction]}{self.order_field}'
+        order_map = {"asc": "", "desc": "-"}
+        return f"{order_map[self.order_direction]}{self.order_field}"
 
     @property
     def order_field(self):
@@ -112,7 +113,7 @@ class QueryHandler:
 
         The default is 'total'
         """
-        order_by = self.parameters.get('order_by', self.default_ordering)
+        order_by = self.parameters.get("order_by", self.default_ordering)
         return list(order_by.keys()).pop()
 
     @property
@@ -123,7 +124,7 @@ class QueryHandler:
             (str) 'asc' or 'desc'; default is 'desc'
 
         """
-        order_by = self.parameters.get('order_by', self.default_ordering)
+        order_by = self.parameters.get("order_by", self.default_ordering)
         return list(order_by.values()).pop()
 
     @property
@@ -146,17 +147,16 @@ class QueryHandler:
         if self.resolution:
             return self.resolution
 
-        self.resolution = self.parameters.get_filter('resolution',
-                                                     default='daily')
+        self.resolution = self.parameters.get_filter("resolution", default="daily")
 
-        if self.resolution == 'monthly':
-            self.date_to_string = lambda dt: dt.strftime('%Y-%m')
-            self.string_to_date = lambda dt: datetime.datetime.strptime(dt, '%Y-%m').date()
+        if self.resolution == "monthly":
+            self.date_to_string = lambda dt: dt.strftime("%Y-%m")
+            self.string_to_date = lambda dt: datetime.datetime.strptime(dt, "%Y-%m").date()
             self.date_trunc = TruncMonthString
             self.gen_time_interval = DateHelper().list_months
         else:
-            self.date_to_string = lambda dt: dt.strftime('%Y-%m-%d')
-            self.string_to_date = lambda dt: datetime.datetime.strptime(dt, '%Y-%m-%d').date()
+            self.date_to_string = lambda dt: dt.strftime("%Y-%m-%d")
+            self.string_to_date = lambda dt: datetime.datetime.strptime(dt, "%Y-%m-%d").date()
             self.date_trunc = TruncDayString
             self.gen_time_interval = DateHelper().list_days
 
@@ -173,8 +173,7 @@ class QueryHandler:
             (Boolean): True if they keys given appear in given query parameters.
 
         """
-        return (self.parameters and key in self.parameters and  # noqa: W504
-                in_key in self.parameters.get(key))
+        return self.parameters and key in self.parameters and in_key in self.parameters.get(key)  # noqa: W504
 
     def get_time_scope_units(self):
         """Extract time scope units or provide default.
@@ -186,8 +185,7 @@ class QueryHandler:
         if self.time_scope_units:
             return self.time_scope_units
 
-        time_scope_units = self.parameters.get_filter('time_scope_units',
-                                                      default='day')
+        time_scope_units = self.parameters.get_filter("time_scope_units", default="day")
         self.time_scope_units = time_scope_units
         return self.time_scope_units
 
@@ -201,8 +199,7 @@ class QueryHandler:
         if self.time_scope_value:
             return self.time_scope_value
 
-        time_scope_value = self.parameters.get_filter('time_scope_value',
-                                                      default=-10)
+        time_scope_value = self.parameters.get_filter("time_scope_value", default=-10)
         self.time_scope_value = int(time_scope_value)
         return self.time_scope_value
 
@@ -220,7 +217,7 @@ class QueryHandler:
         start = None
         end = None
         dh = DateHelper()
-        if time_scope_units == 'month':
+        if time_scope_units == "month":
             if time_scope_value == -1:
                 # get current month
                 start = dh.this_month_start
@@ -251,9 +248,7 @@ class QueryHandler:
             (List[DateTime]): List of all interval slices by resolution
 
         """
-        self.time_interval = sorted(self.gen_time_interval(
-            self.start_datetime,
-            self.end_datetime))
+        self.time_interval = sorted(self.gen_time_interval(self.start_datetime, self.end_datetime))
         return self.time_interval
 
     def _get_date_delta(self):
@@ -275,10 +270,8 @@ class QueryHandler:
             start = self.start_datetime
             end = self.end_datetime
 
-        start_filter = QueryFilter(field='usage_start__date', operation='gte',
-                                   parameter=start)
-        end_filter = QueryFilter(field='usage_end__date', operation='lte',
-                                 parameter=end)
+        start_filter = QueryFilter(field="usage_start__date", operation="gte", parameter=start)
+        end_filter = QueryFilter(field="usage_end__date", operation="lte", parameter=end)
         return start_filter, end_filter
 
     def _get_filter(self, delta=False):
@@ -326,12 +319,12 @@ class QueryHandler:
             parameters (QueryParameters): The parameters object
 
         """
-        for group_by_key in parameters.parameters.get('group_by', {}):
-            for group_by_value in parameters.parameters['group_by'][group_by_key]:
-                if group_by_value == '*':
+        for group_by_key in parameters.parameters.get("group_by", {}):
+            for group_by_value in parameters.parameters["group_by"][group_by_key]:
+                if group_by_value == "*":
                     # find if there is a filter[X]=Y that matches this group_by[X]=*
                     # get filter value for current group_by_key
-                    filter_value = parameters.parameters.get('filter', {}).get(group_by_key)
+                    filter_value = parameters.parameters.get("filter", {}).get(group_by_key)
                     if filter_value:
-                        parameters.parameters['group_by'][group_by_key] = filter_value
+                        parameters.parameters["group_by"][group_by_key] = filter_value
         return parameters

@@ -14,16 +14,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the DateAccessor object."""
 from datetime import datetime
 
 import dateutil
 import pytz
 from faker import Faker
-
 from masu.config import Config
-from masu.external.date_accessor import DateAccessor, DateAccessorError
+from masu.external.date_accessor import DateAccessor
+from masu.external.date_accessor import DateAccessorError
 from masu.test import MasuTestCase
 
 
@@ -35,14 +34,14 @@ class DateAccessorTest(MasuTestCase):
     @classmethod
     def setUpClass(cls):
         """Class initialization."""
-        super(DateAccessorTest, cls).setUpClass()
+        super().setUpClass()
         cls.initial_debug = Config.DEBUG
         cls.initial_override = Config.MASU_DATE_OVERRIDE
 
     @classmethod
     def tearDownClass(cls):
         """Class Teardown."""
-        super(DateAccessorTest, cls).tearDownClass()
+        super().tearDownClass()
         Config.DEBUG = cls.initial_debug
         Config.MASU_DATE_OVERRIDE = cls.initial_override
 
@@ -56,7 +55,7 @@ class DateAccessorTest(MasuTestCase):
         """Test today() with override."""
         fake_dt = self.fake.date_time(tzinfo=pytz.UTC)
         Config.DEBUG = True
-        Config.MASU_DATE_OVERRIDE = fake_dt.strftime('%Y-%m-%d %H:%M:%S')
+        Config.MASU_DATE_OVERRIDE = fake_dt.strftime("%Y-%m-%d %H:%M:%S")
 
         accessor = DateAccessor()
         today = accessor.today()
@@ -125,14 +124,12 @@ class DateAccessorTest(MasuTestCase):
         self.assertEqual(today.month, fake_dt.month)
         self.assertEqual(today.day, fake_dt.day)
 
-        expected_offset = dateutil.tz.tzoffset(
-            fake_tz_name, fake_tz.utcoffset(fake_dt, is_dst=False)
-        )
+        expected_offset = dateutil.tz.tzoffset(fake_tz_name, fake_tz.utcoffset(fake_dt, is_dst=False))
         self.assertEqual(today.tzinfo, expected_offset)
 
     def test_today_with_timezone_string(self):
         """Test that a timezone string works as expected."""
-        string_tz = 'UTC'
+        string_tz = "UTC"
         current_utc_time = datetime.utcnow()
         accessor = DateAccessor()
         result_time = accessor.today_with_timezone(string_tz)
@@ -158,7 +155,7 @@ class DateAccessorTest(MasuTestCase):
 
     def test_today_with_timezone_error_raised(self):
         """Test that an error is raised with an invalid timezone."""
-        string_tz = 'Moon/Mare Tranquillitatis'
+        string_tz = "Moon/Mare Tranquillitatis"
         accessor = DateAccessor()
 
         with self.assertRaises(DateAccessorError):

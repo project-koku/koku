@@ -18,22 +18,26 @@
 import json
 from unittest.mock import patch
 
-from dateutil import parser
-from django.http import HttpRequest, QueryDict
-from rest_framework.request import Request
-from tenant_schemas.utils import tenant_context
-
 from api.iam.models import Customer
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.models import CostModelMetricsMap
-from api.provider.models import Provider, ProviderAuthentication, ProviderBillingSource, Sources
-from api.provider.provider_manager import ProviderManager, ProviderManagerError
+from api.provider.models import Provider
+from api.provider.models import ProviderAuthentication
+from api.provider.models import ProviderBillingSource
+from api.provider.models import Sources
+from api.provider.provider_manager import ProviderManager
+from api.provider.provider_manager import ProviderManagerError
 from api.report.test.azure.openshift.helpers import OCPAzureReportDataGenerator
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModelMap
+from dateutil import parser
+from django.http import HttpRequest
+from django.http import QueryDict
+from rest_framework.request import Request
+from tenant_schemas.utils import tenant_context
 
 
 class MockResponse:
@@ -55,9 +59,7 @@ class ProviderManagerTest(IamTestCase):
     def setUp(self):
         """Set up the provider manager tests."""
         super().setUp()
-        self.customer = Customer.objects.get(
-            account_id=self.customer_data['account_id']
-        )
+        self.customer = Customer.objects.get(account_id=self.customer_data["account_id"])
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             self.user = serializer.save()
@@ -87,10 +89,8 @@ class ProviderManagerTest(IamTestCase):
     def test_get_name(self):
         """Can the provider name be returned."""
         # Create Provider
-        provider_name = 'sample_provider'
-        provider = Provider.objects.create(name=provider_name,
-                                           created_by=self.user,
-                                           customer=self.customer)
+        provider_name = "sample_provider"
+        provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
 
         # Get Provider UUID
         provider_uuid = provider.uuid
@@ -105,12 +105,8 @@ class ProviderManagerTest(IamTestCase):
         self.assertFalse(ProviderManager.get_providers_queryset_for_customer(self.customer).exists())
 
         # Create Providers
-        provider_1 = Provider.objects.create(name='provider1',
-                                             created_by=self.user,
-                                             customer=self.customer)
-        provider_2 = Provider.objects.create(name='provider2',
-                                             created_by=self.user,
-                                             customer=self.customer)
+        provider_1 = Provider.objects.create(name="provider1", created_by=self.user, customer=self.customer)
+        provider_2 = Provider.objects.create(name="provider2", created_by=self.user, customer=self.customer)
 
         providers = ProviderManager.get_providers_queryset_for_customer(self.customer)
         # Verify providers are returned
@@ -130,13 +126,10 @@ class ProviderManagerTest(IamTestCase):
     def test_is_removable_by_user(self):
         """Can current user remove provider."""
         # Create Provider
-        provider = Provider.objects.create(name='providername',
-                                           created_by=self.user,
-                                           customer=self.customer)
+        provider = Provider.objects.create(name="providername", created_by=self.user, customer=self.customer)
         provider_uuid = provider.uuid
         user_data = self._create_user_data()
-        request_context = self._create_request_context(self.create_mock_customer_data(),
-                                                       user_data)
+        request_context = self._create_request_context(self.create_mock_customer_data(), user_data)
         new_user = None
         serializer = UserSerializer(data=user_data, context=request_context)
         if serializer.is_valid(raise_exception=True):
@@ -149,26 +142,29 @@ class ProviderManagerTest(IamTestCase):
     def test_provider_manager_error(self):
         """Raise ProviderManagerError."""
         with self.assertRaises(ProviderManagerError):
-            ProviderManager(uuid='4216c8c7-8809-4381-9a24-bd965140efe2')
+            ProviderManager(uuid="4216c8c7-8809-4381-9a24-bd965140efe2")
 
         with self.assertRaises(ProviderManagerError):
-            ProviderManager(uuid='abc')
+            ProviderManager(uuid="abc")
 
     def test_remove_aws(self):
         """Remove aws provider."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='arn:aws:iam::2:role/mg')
-        provider_billing = ProviderBillingSource.objects.create(bucket='my_s3_bucket')
-        provider = Provider.objects.create(name='awsprovidername',
-                                           created_by=self.user,
-                                           customer=self.customer,
-                                           authentication=provider_authentication,
-                                           billing_source=provider_billing)
+        provider_authentication = ProviderAuthentication.objects.create(
+            provider_resource_name="arn:aws:iam::2:role/mg"
+        )
+        provider_billing = ProviderBillingSource.objects.create(bucket="my_s3_bucket")
+        provider = Provider.objects.create(
+            name="awsprovidername",
+            created_by=self.user,
+            customer=self.customer,
+            authentication=provider_authentication,
+            billing_source=provider_billing,
+        )
         provider_uuid = provider.uuid
 
         new_user_dict = self._create_user_data()
-        request_context = self._create_request_context(self.customer_data,
-                                                       new_user_dict, False)
+        request_context = self._create_request_context(self.customer_data, new_user_dict, False)
         user_serializer = UserSerializer(data=new_user_dict, context=request_context)
         other_user = None
         if user_serializer.is_valid(raise_exception=True):
@@ -188,27 +184,32 @@ class ProviderManagerTest(IamTestCase):
     def test_remove_aws_auth_billing_remain(self):
         """Remove aws provider."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='arn:aws:iam::2:role/mg')
-        provider_authentication2 = ProviderAuthentication.objects.create(
-            provider_resource_name='arn:aws:iam::3:role/mg'
+        provider_authentication = ProviderAuthentication.objects.create(
+            provider_resource_name="arn:aws:iam::2:role/mg"
         )
-        provider_billing = ProviderBillingSource.objects.create(bucket='my_s3_bucket')
-        provider = Provider.objects.create(name='awsprovidername',
-                                           created_by=self.user,
-                                           customer=self.customer,
-                                           authentication=provider_authentication,
-                                           billing_source=provider_billing)
-        provider2 = Provider.objects.create(name='awsprovidername2',
-                                            created_by=self.user,
-                                            customer=self.customer,
-                                            authentication=provider_authentication2,
-                                            billing_source=provider_billing)
+        provider_authentication2 = ProviderAuthentication.objects.create(
+            provider_resource_name="arn:aws:iam::3:role/mg"
+        )
+        provider_billing = ProviderBillingSource.objects.create(bucket="my_s3_bucket")
+        provider = Provider.objects.create(
+            name="awsprovidername",
+            created_by=self.user,
+            customer=self.customer,
+            authentication=provider_authentication,
+            billing_source=provider_billing,
+        )
+        provider2 = Provider.objects.create(
+            name="awsprovidername2",
+            created_by=self.user,
+            customer=self.customer,
+            authentication=provider_authentication2,
+            billing_source=provider_billing,
+        )
         provider_uuid = provider2.uuid
 
         self.assertNotEqual(provider.uuid, provider2.uuid)
         new_user_dict = self._create_user_data()
-        request_context = self._create_request_context(self.customer_data,
-                                                       new_user_dict, False)
+        request_context = self._create_request_context(self.customer_data, new_user_dict, False)
         user_serializer = UserSerializer(data=new_user_dict, context=request_context)
         other_user = None
         if user_serializer.is_valid(raise_exception=True):
@@ -228,16 +229,17 @@ class ProviderManagerTest(IamTestCase):
     def test_remove_ocp(self):
         """Remove ocp provider."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
-        provider = Provider.objects.create(name='ocpprovidername',
-                                           created_by=self.user,
-                                           customer=self.customer,
-                                           authentication=provider_authentication,)
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        provider = Provider.objects.create(
+            name="ocpprovidername",
+            created_by=self.user,
+            customer=self.customer,
+            authentication=provider_authentication,
+        )
         provider_uuid = provider.uuid
 
         new_user_dict = self._create_user_data()
-        request_context = self._create_request_context(self.customer_data,
-                                                       new_user_dict, False)
+        request_context = self._create_request_context(self.customer_data, new_user_dict, False)
         user_serializer = UserSerializer(data=new_user_dict, context=request_context)
         other_user = None
         if user_serializer.is_valid(raise_exception=True):
@@ -246,18 +248,14 @@ class ProviderManagerTest(IamTestCase):
         with tenant_context(self.tenant):
             ocp_metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
             ocp_source_type = Provider.PROVIDER_OCP
-            tiered_rates = [{'unit': 'USD', 'value': 0.22}]
+            tiered_rates = [{"unit": "USD", "value": 0.22}]
             ocp_data = {
-                'name': 'Test Cost Model',
-                'description': 'Test',
-                'provider_uuids': [],
-                'rates': [
-                    {
-                        'metric': {'name': ocp_metric},
-                        'source_type': ocp_source_type,
-                        'tiered_rates': tiered_rates
-                    }
-                ]
+                "name": "Test Cost Model",
+                "description": "Test",
+                "provider_uuids": [],
+                "rates": [
+                    {"metric": {"name": ocp_metric}, "source_type": ocp_source_type, "tiered_rates": tiered_rates}
+                ],
             }
             manager = CostModelManager()
             manager.create(**ocp_data)
@@ -272,19 +270,18 @@ class ProviderManagerTest(IamTestCase):
     def test_remove_ocp_added_via_sources(self):
         """Remove ocp provider added via sources."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
-        provider = Provider.objects.create(name='ocpprovidername',
-                                           created_by=self.user,
-                                           customer=self.customer,
-                                           authentication=provider_authentication,)
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        provider = Provider.objects.create(
+            name="ocpprovidername",
+            created_by=self.user,
+            customer=self.customer,
+            authentication=provider_authentication,
+        )
         provider_uuid = provider.uuid
 
-        sources = Sources.objects.create(source_id=1,
-                                         auth_header='testheader',
-                                         offset=1,
-                                         koku_uuid=provider_uuid)
+        sources = Sources.objects.create(source_id=1, auth_header="testheader", offset=1, koku_uuid=provider_uuid)
         sources.save()
-        delete_request = self._create_delete_request(self.user, {'Sources-Client': 'True'})
+        delete_request = self._create_delete_request(self.user, {"Sources-Client": "True"})
         with tenant_context(self.tenant):
             manager = ProviderManager(provider_uuid)
             manager.remove(delete_request)
@@ -294,17 +291,16 @@ class ProviderManagerTest(IamTestCase):
     def test_direct_remove_ocp_added_via_sources(self):
         """Remove ocp provider added via sources directly."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
-        provider = Provider.objects.create(name='ocpprovidername',
-                                           created_by=self.user,
-                                           customer=self.customer,
-                                           authentication=provider_authentication,)
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        provider = Provider.objects.create(
+            name="ocpprovidername",
+            created_by=self.user,
+            customer=self.customer,
+            authentication=provider_authentication,
+        )
         provider_uuid = provider.uuid
 
-        sources = Sources.objects.create(source_id=1,
-                                         auth_header='testheader',
-                                         offset=1,
-                                         koku_uuid=provider_uuid)
+        sources = Sources.objects.create(source_id=1, auth_header="testheader", offset=1, koku_uuid=provider_uuid)
         sources.save()
         delete_request = self._create_delete_request(self.user)
         with tenant_context(self.tenant):
@@ -315,17 +311,16 @@ class ProviderManagerTest(IamTestCase):
     def test_update_ocp_added_via_sources(self):
         """Raise error on update to ocp provider added via sources."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
-        provider = Provider.objects.create(name='ocpprovidername',
-                                           created_by=self.user,
-                                           customer=self.customer,
-                                           authentication=provider_authentication,)
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        provider = Provider.objects.create(
+            name="ocpprovidername",
+            created_by=self.user,
+            customer=self.customer,
+            authentication=provider_authentication,
+        )
         provider_uuid = provider.uuid
 
-        sources = Sources.objects.create(source_id=1,
-                                         auth_header='testheader',
-                                         offset=1,
-                                         koku_uuid=provider_uuid)
+        sources = Sources.objects.create(source_id=1, auth_header="testheader", offset=1, koku_uuid=provider_uuid)
         sources.save()
         put_request = self._create_put_request(self.user)
         with tenant_context(self.tenant):
@@ -336,11 +331,13 @@ class ProviderManagerTest(IamTestCase):
     def test_update_ocp_not_added_via_sources(self):
         """Return None on update to ocp provider not added via sources."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
-        provider = Provider.objects.create(name='ocpprovidername',
-                                           created_by=self.user,
-                                           customer=self.customer,
-                                           authentication=provider_authentication,)
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        provider = Provider.objects.create(
+            name="ocpprovidername",
+            created_by=self.user,
+            customer=self.customer,
+            authentication=provider_authentication,
+        )
         provider_uuid = provider.uuid
 
         put_request = self._create_put_request(self.user)
@@ -351,15 +348,17 @@ class ProviderManagerTest(IamTestCase):
     def test_provider_statistics(self):
         """Test that the provider statistics method returns report stats."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
-        provider = Provider.objects.create(name='ocpprovidername',
-                                           type=Provider.PROVIDER_OCP,
-                                           created_by=self.user,
-                                           customer=self.customer,
-                                           authentication=provider_authentication,)
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        provider = Provider.objects.create(
+            name="ocpprovidername",
+            type=Provider.PROVIDER_OCP,
+            created_by=self.user,
+            customer=self.customer,
+            authentication=provider_authentication,
+        )
 
         data_generator = OCPReportDataGenerator(self.tenant, provider)
-        data_generator.add_data_to_tenant(**{'provider_uuid': provider.uuid})
+        data_generator.add_data_to_tenant(**{"provider_uuid": provider.uuid})
 
         provider_uuid = provider.uuid
         manager = ProviderManager(provider_uuid)
@@ -373,25 +372,27 @@ class ProviderManagerTest(IamTestCase):
             key_date_obj = parser.parse(key)
             value_data = value.pop()
 
-            self.assertIsNotNone(value_data.get('assembly_id'))
-            self.assertIsNotNone(value_data.get('files_processed'))
-            self.assertEqual(value_data.get('billing_period_start'), key_date_obj.date())
-            self.assertGreater(parser.parse(value_data.get('last_process_start_date')), key_date_obj)
-            self.assertGreater(parser.parse(value_data.get('last_process_complete_date')), key_date_obj)
-            self.assertGreater(parser.parse(value_data.get('last_manifest_complete_date')), key_date_obj)
-            self.assertGreater(parser.parse(value_data.get('summary_data_creation_datetime')), key_date_obj)
-            self.assertGreater(parser.parse(value_data.get('summary_data_updated_datetime')), key_date_obj)
-            self.assertGreater(parser.parse(value_data.get('derived_cost_datetime')), key_date_obj)
+            self.assertIsNotNone(value_data.get("assembly_id"))
+            self.assertIsNotNone(value_data.get("files_processed"))
+            self.assertEqual(value_data.get("billing_period_start"), key_date_obj.date())
+            self.assertGreater(parser.parse(value_data.get("last_process_start_date")), key_date_obj)
+            self.assertGreater(parser.parse(value_data.get("last_process_complete_date")), key_date_obj)
+            self.assertGreater(parser.parse(value_data.get("last_manifest_complete_date")), key_date_obj)
+            self.assertGreater(parser.parse(value_data.get("summary_data_creation_datetime")), key_date_obj)
+            self.assertGreater(parser.parse(value_data.get("summary_data_updated_datetime")), key_date_obj)
+            self.assertGreater(parser.parse(value_data.get("derived_cost_datetime")), key_date_obj)
 
     def test_provider_statistics_no_report_data(self):
         """Test that the provider statistics method returns no report stats with no report data."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
-        provider = Provider.objects.create(name='ocpprovidername',
-                                           type=Provider.PROVIDER_OCP,
-                                           created_by=self.user,
-                                           customer=self.customer,
-                                           authentication=provider_authentication,)
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        provider = Provider.objects.create(
+            name="ocpprovidername",
+            type=Provider.PROVIDER_OCP,
+            created_by=self.user,
+            customer=self.customer,
+            authentication=provider_authentication,
+        )
 
         data_generator = OCPReportDataGenerator(self.tenant, provider)
         data_generator.remove_data_from_reporting_common()
@@ -406,15 +407,17 @@ class ProviderManagerTest(IamTestCase):
     def test_provider_statistics_negative_case(self):
         """Test that the provider statistics method returns None for tenant misalignment."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
-        provider = Provider.objects.create(name='ocpprovidername',
-                                           type=Provider.PROVIDER_AWS,
-                                           created_by=self.user,
-                                           customer=self.customer,
-                                           authentication=provider_authentication,)
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        provider = Provider.objects.create(
+            name="ocpprovidername",
+            type=Provider.PROVIDER_AWS,
+            created_by=self.user,
+            customer=self.customer,
+            authentication=provider_authentication,
+        )
 
         data_generator = OCPReportDataGenerator(self.tenant, provider)
-        data_generator.add_data_to_tenant(**{'provider_uuid': provider.uuid})
+        data_generator.add_data_to_tenant(**{"provider_uuid": provider.uuid})
 
         provider_uuid = provider.uuid
         manager = ProviderManager(provider_uuid)
@@ -428,30 +431,32 @@ class ProviderManagerTest(IamTestCase):
             key_date_obj = parser.parse(key)
             value_data = value.pop()
 
-            self.assertIsNotNone(value_data.get('assembly_id'))
-            self.assertIsNotNone(value_data.get('files_processed'))
-            self.assertEqual(value_data.get('billing_period_start'), key_date_obj.date())
-            self.assertGreater(parser.parse(value_data.get('last_process_start_date')), key_date_obj)
-            self.assertGreater(parser.parse(value_data.get('last_process_complete_date')), key_date_obj)
-            self.assertIsNone(value_data.get('summary_data_creation_datetime'))
-            self.assertIsNone(value_data.get('summary_data_updated_datetime'))
-            self.assertIsNone(value_data.get('derived_cost_datetime'))
+            self.assertIsNotNone(value_data.get("assembly_id"))
+            self.assertIsNotNone(value_data.get("files_processed"))
+            self.assertEqual(value_data.get("billing_period_start"), key_date_obj.date())
+            self.assertGreater(parser.parse(value_data.get("last_process_start_date")), key_date_obj)
+            self.assertGreater(parser.parse(value_data.get("last_process_complete_date")), key_date_obj)
+            self.assertIsNone(value_data.get("summary_data_creation_datetime"))
+            self.assertIsNone(value_data.get("summary_data_updated_datetime"))
+            self.assertIsNone(value_data.get("derived_cost_datetime"))
 
     def test_ocp_on_aws_infrastructure_type(self):
         """Test that the provider infrastructure returns AWS when running on AWS."""
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
-        provider = Provider.objects.create(name='ocpprovidername',
-                                           type=Provider.PROVIDER_AWS,
-                                           created_by=self.user,
-                                           customer=self.customer,
-                                           authentication=provider_authentication,)
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        provider = Provider.objects.create(
+            name="ocpprovidername",
+            type=Provider.PROVIDER_AWS,
+            created_by=self.user,
+            customer=self.customer,
+            authentication=provider_authentication,
+        )
 
         data_generator = OCPAWSReportDataGenerator(self.tenant, provider, current_month_only=True)
         data_generator.add_data_to_tenant()
         data_generator.add_aws_data_to_tenant()
-        data_generator.create_ocp_provider(data_generator.cluster_id,
-                                           data_generator.cluster_alias,
-                                           infrastructure_type=Provider.PROVIDER_AWS)
+        data_generator.create_ocp_provider(
+            data_generator.cluster_id, data_generator.cluster_alias, infrastructure_type=Provider.PROVIDER_AWS
+        )
 
         provider_uuid = data_generator.provider_uuid
         manager = ProviderManager(provider_uuid)
@@ -462,18 +467,20 @@ class ProviderManagerTest(IamTestCase):
 
     def test_ocp_on_azure_infrastructure_type(self):
         """Test that the provider infrastructure returns Azure when running on Azure."""
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1002')
-        provider = Provider.objects.create(name='ocpprovidername',
-                                           type=Provider.PROVIDER_AZURE,
-                                           created_by=self.user,
-                                           customer=self.customer,
-                                           authentication=provider_authentication,)
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1002")
+        provider = Provider.objects.create(
+            name="ocpprovidername",
+            type=Provider.PROVIDER_AZURE,
+            created_by=self.user,
+            customer=self.customer,
+            authentication=provider_authentication,
+        )
 
         data_generator = OCPAzureReportDataGenerator(self.tenant, provider, current_month_only=True)
         data_generator.add_data_to_tenant()
-        data_generator.create_ocp_provider(data_generator.cluster_id,
-                                           data_generator.cluster_alias,
-                                           infrastructure_type=Provider.PROVIDER_AZURE)
+        data_generator.create_ocp_provider(
+            data_generator.cluster_id, data_generator.cluster_alias, infrastructure_type=Provider.PROVIDER_AZURE
+        )
 
         provider_uuid = data_generator.provider_uuid
         manager = ProviderManager(provider_uuid)
@@ -484,12 +491,14 @@ class ProviderManagerTest(IamTestCase):
 
     def test_ocp_infrastructure_type(self):
         """Test that the provider infrastructure returns Unknown when running stand alone."""
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
-        provider = Provider.objects.create(name='ocpprovidername',
-                                           type=Provider.PROVIDER_OCP,
-                                           created_by=self.user,
-                                           customer=self.customer,
-                                           authentication=provider_authentication,)
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        provider = Provider.objects.create(
+            name="ocpprovidername",
+            type=Provider.PROVIDER_OCP,
+            created_by=self.user,
+            customer=self.customer,
+            authentication=provider_authentication,
+        )
         ocp_aws_data_generator = OCPAWSReportDataGenerator(self.tenant, provider, current_month_only=True)
         data_generator = OCPReportDataGenerator(self.tenant, provider, current_month_only=True)
         data_generator.add_data_to_tenant()
@@ -498,45 +507,50 @@ class ProviderManagerTest(IamTestCase):
         provider_uuid = ocp_aws_data_generator.provider_uuid
         manager = ProviderManager(provider_uuid)
         infrastructure_name = manager.get_infrastructure_name()
-        self.assertEqual(infrastructure_name, 'Unknown')
+        self.assertEqual(infrastructure_name, "Unknown")
 
         data_generator.remove_data_from_tenant()
         ocp_aws_data_generator.remove_data_from_tenant()
 
     def test_ocp_infrastructure_type_error(self):
         """Test that the provider infrastructure returns Unknown when running stand alone."""
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
-        provider = Provider.objects.create(name='ocpprovidername',
-                                           type=Provider.PROVIDER_OCP,
-                                           created_by=self.user,
-                                           customer=self.customer,
-                                           authentication=provider_authentication,)
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name="cluster_id_1001")
+        provider = Provider.objects.create(
+            name="ocpprovidername",
+            type=Provider.PROVIDER_OCP,
+            created_by=self.user,
+            customer=self.customer,
+            authentication=provider_authentication,
+        )
         data_generator = OCPAWSReportDataGenerator(self.tenant, provider, current_month_only=True)
-        data_generator.create_ocp_provider('cool-cluster-id', 'awesome-alias')
+        data_generator.create_ocp_provider("cool-cluster-id", "awesome-alias")
 
         provider_uuid = data_generator.provider_uuid
         manager = ProviderManager(provider_uuid)
         infrastructure_name = manager.get_infrastructure_name()
-        self.assertEqual(infrastructure_name, 'Unknown')
+        self.assertEqual(infrastructure_name, "Unknown")
 
         data_generator.remove_data_from_tenant()
 
-    @patch('api.provider.provider_manager.ProviderManager.is_removable_by_user', return_value=False)
+    @patch("api.provider.provider_manager.ProviderManager.is_removable_by_user", return_value=False)
     def test_remove_not_removeable(self, _):
         """Test error raised if user without capability tries to remove a provider."""
         # Create Provider
-        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='arn:aws:iam::2:role/mg')
-        provider_billing = ProviderBillingSource.objects.create(bucket='my_s3_bucket')
-        provider = Provider.objects.create(name='awsprovidername',
-                                           created_by=self.user,
-                                           customer=self.customer,
-                                           authentication=provider_authentication,
-                                           billing_source=provider_billing)
+        provider_authentication = ProviderAuthentication.objects.create(
+            provider_resource_name="arn:aws:iam::2:role/mg"
+        )
+        provider_billing = ProviderBillingSource.objects.create(bucket="my_s3_bucket")
+        provider = Provider.objects.create(
+            name="awsprovidername",
+            created_by=self.user,
+            customer=self.customer,
+            authentication=provider_authentication,
+            billing_source=provider_billing,
+        )
         provider_uuid = provider.uuid
 
         new_user_dict = self._create_user_data()
-        request_context = self._create_request_context(self.customer_data,
-                                                       new_user_dict, False)
+        request_context = self._create_request_context(self.customer_data, new_user_dict, False)
         user_serializer = UserSerializer(data=new_user_dict, context=request_context)
         other_user = None
         if user_serializer.is_valid(raise_exception=True):

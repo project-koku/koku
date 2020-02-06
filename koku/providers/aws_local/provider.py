@@ -17,10 +17,10 @@
 """AWS-local service provider implementation to be used by Koku."""
 import logging
 
+from api.models import Provider
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
-from api.models import Provider
 from ..aws.provider import AWSProvider
 
 LOG = logging.getLogger(__name__)
@@ -28,9 +28,7 @@ LOG = logging.getLogger(__name__)
 
 def error_obj(key, message):
     """Create an error object."""
-    error = {
-        key: [_(message)]
-    }
+    error = {key: [_(message)]}
     return error
 
 
@@ -44,7 +42,7 @@ class AWSLocalProvider(AWSProvider):
     def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
         """Verify that the cost usage source exists and is reachable."""
         if not storage_resource_name:
-            key = 'bucket'
-            message = 'Bucket is a required parameter for AWS.'
+            key = "bucket"
+            message = "Bucket is a required parameter for AWS."
             raise serializers.ValidationError(error_obj(key, message))
         return True

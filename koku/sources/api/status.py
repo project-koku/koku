@@ -14,63 +14,61 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """View for server status."""
-
 import logging
 import os
 import platform
 import subprocess
 import sys
 
-from django.db import (InterfaceError,
-                       NotSupportedError,
-                       OperationalError,
-                       ProgrammingError,
-                       connection)
-from rest_framework.decorators import (api_view,
-                                       permission_classes,
-                                       renderer_classes)
+from django.db import connection
+from django.db import InterfaceError
+from django.db import NotSupportedError
+from django.db import OperationalError
+from django.db import ProgrammingError
+from masu.config import Config
+from masu.external.date_accessor import DateAccessor
+from rest_framework.decorators import api_view
+from rest_framework.decorators import permission_classes
+from rest_framework.decorators import renderer_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from sources.config import Config as SourcesConfig
-from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientError
-
-from masu.config import Config
-from masu.external.date_accessor import DateAccessor
+from sources.sources_http_client import SourcesHTTPClient
+from sources.sources_http_client import SourcesHTTPClientError
 
 
 LOG = logging.getLogger(__name__)
 
-BROKER_CONNECTION_ERROR = 'Unable to establish connection with broker.'
-CELERY_WORKER_NOT_FOUND = 'No running Celery workers were found.'
+BROKER_CONNECTION_ERROR = "Unable to establish connection with broker."
+CELERY_WORKER_NOT_FOUND = "No running Celery workers were found."
 
 
-@api_view(http_method_names=['GET'])
+@api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def get_status(request):
     """Packages response for class-based view."""
-    if 'liveness' in request.query_params:
-        return Response({'alive': True})
+    if "liveness" in request.query_params:
+        return Response({"alive": True})
 
     app_status = ApplicationStatus()
     response = {
-        'commit': app_status.commit,
-        'current_datetime': app_status.current_datetime,
-        'database_status': app_status.database_status,
-        'debug': app_status.debug,
-        'modules': app_status.modules,
-        'platform_info': app_status.platform_info,
-        'python_version': app_status.python_version,
-        'sources_status': app_status.sources_backend
+        "commit": app_status.commit,
+        "current_datetime": app_status.current_datetime,
+        "database_status": app_status.database_status,
+        "debug": app_status.debug,
+        "modules": app_status.modules,
+        "platform_info": app_status.platform_info,
+        "python_version": app_status.python_version,
+        "sources_status": app_status.sources_backend,
     }
     return Response(response)
 
 
 # pylint: disable=too-few-public-methods, no-self-use
-class ApplicationStatus():
+class ApplicationStatus:
     """A view that returns status JSON."""
 
     def __init__(self):
@@ -86,14 +84,11 @@ class ApplicationStatus():
         :returns: A build number
 
         """
-        commit_info = os.environ.get('OPENSHIFT_BUILD_COMMIT', None)
+        commit_info = os.environ.get("OPENSHIFT_BUILD_COMMIT", None)
         if not commit_info:
-            commit_info = subprocess.run(['git',
-                                          'describe',
-                                          '--always'],
-                                         stdout=subprocess.PIPE)
+            commit_info = subprocess.run(["git", "describe", "--always"], stdout=subprocess.PIPE)
             if commit_info.stdout:
-                commit_info = commit_info.stdout.decode('utf-8').strip()
+                commit_info = commit_info.stdout.decode("utf-8").strip()
         return commit_info
 
     @property
@@ -115,12 +110,9 @@ class ApplicationStatus():
 
                 # get pg_stat_database column names
                 names = [desc[0] for desc in cursor.description]
-        except (InterfaceError,
-                NotSupportedError,
-                OperationalError,
-                ProgrammingError) as exc:
-            LOG.warning('Unable to connect to DB: %s', str(exc))
-            return {'ERROR': str(exc)}
+        except (InterfaceError, NotSupportedError, OperationalError, ProgrammingError) as exc:
+            LOG.warning("Unable to connect to DB: %s", str(exc))
+            return {"ERROR": str(exc)}
 
         # transform list-of-lists into list-of-dicts including column names.
         result = [dict(zip(names, row)) for row in raw]
@@ -141,7 +133,7 @@ class ApplicationStatus():
 
         :returns: The python version string.
         """
-        return sys.version.replace('\n', '')
+        return sys.version.replace("\n", "")
 
     @property
     def modules(self):
@@ -156,7 +148,7 @@ class ApplicationStatus():
     def modules(self, value):
         module_data = {}
         for name, module in sorted(sys.modules.items()):
-            if hasattr(module, '__version__'):
+            if hasattr(module, "__version__"):
                 module_data[str(name)] = str(module.__version__)
         # pylint: disable=attribute-defined-outside-init
         self._modules = module_data
@@ -181,30 +173,31 @@ class ApplicationStatus():
     def sources_backend(self):
         """Return Sources Backend connection status."""
         try:
-            cost_management_type_id = SourcesHTTPClient(SourcesConfig.SOURCES_FAKE_HEADER).\
-                get_cost_management_application_type_id()
-            return f'Cost Management Application ID: {cost_management_type_id}'
+            cost_management_type_id = SourcesHTTPClient(
+                SourcesConfig.SOURCES_FAKE_HEADER
+            ).get_cost_management_application_type_id()
+            return f"Cost Management Application ID: {cost_management_type_id}"
 
         except SourcesHTTPClientError:
-            return 'Not connected'
+            return "Not connected"
 
     def startup(self):
         """Log startup information."""
-        LOG.info('Commit: %s', self.commit)
-        LOG.info('Current Date: %s', self.current_datetime)
-        LOG.info('DEBUG enabled: %s', str(self.debug))
-        LOG.info('Database: %s', self.database_status)
+        LOG.info("Commit: %s", self.commit)
+        LOG.info("Current Date: %s", self.current_datetime)
+        LOG.info("DEBUG enabled: %s", str(self.debug))
+        LOG.info("Database: %s", self.database_status)
 
-        LOG.info('Platform:')
+        LOG.info("Platform:")
         for name, value in self.platform_info.items():
-            LOG.info('%s - %s', name, value)
+            LOG.info("%s - %s", name, value)
 
-        LOG.info('Python: %s', self.python_version)
+        LOG.info("Python: %s", self.python_version)
         module_list = []
         for mod, version in list(self.modules.items()):
-            module_list.append(f'{mod} - {version}')
+            module_list.append(f"{mod} - {version}")
 
         if module_list:
-            LOG.info('Modules: %s', ', '.join(module_list))
+            LOG.info("Modules: %s", ", ".join(module_list))
         else:
-            LOG.info('Modules: None')
+            LOG.info("Modules: None")

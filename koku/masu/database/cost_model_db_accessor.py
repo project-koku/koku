@@ -15,13 +15,11 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Database accessor for OCP rate data."""
-
 import logging
-
-from tenant_schemas.utils import schema_context
 
 from cost_models.models import CostModel
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 
@@ -50,9 +48,7 @@ class CostModelDBAccessor(ReportDBAccessorBase):
         """Get the cost model for a provider."""
         if self.cost_model is None:
             with schema_context(self.schema):
-                self.cost_model = CostModel.objects.filter(
-                    costmodelmap__provider_uuid=self.provider_uuid
-                ).first()
+                self.cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
         return self.cost_model
 
     def _make_rate_by_metric_map(self):
@@ -64,7 +60,7 @@ class CostModelDBAccessor(ReportDBAccessorBase):
         if not rates:
             return {}
         for rate in rates:
-            metric_rate_map[rate.get('metric', {}).get('name')] = rate
+            metric_rate_map[rate.get("metric", {}).get("name")] = rate
         return metric_rate_map
 
     def get_markup(self):
@@ -83,42 +79,42 @@ class CostModelDBAccessor(ReportDBAccessorBase):
 
     def get_cpu_core_usage_per_hour_rates(self):
         """Get cpu usage rates."""
-        cpu_usage_rates = self.get_rates('cpu_core_usage_per_hour')
-        LOG.info('OCP CPU usage rates: %s', str(cpu_usage_rates))
+        cpu_usage_rates = self.get_rates("cpu_core_usage_per_hour")
+        LOG.info("OCP CPU usage rates: %s", str(cpu_usage_rates))
         return cpu_usage_rates
 
     def get_memory_gb_usage_per_hour_rates(self):
         """Get the memory usage rates."""
-        mem_usage_rates = self.get_rates('memory_gb_usage_per_hour')
-        LOG.info('OCP Memory usage rates: %s', str(mem_usage_rates))
+        mem_usage_rates = self.get_rates("memory_gb_usage_per_hour")
+        LOG.info("OCP Memory usage rates: %s", str(mem_usage_rates))
         return mem_usage_rates
 
     def get_cpu_core_request_per_hour_rates(self):
         """Get cpu request rates."""
-        cpu_request_rates = self.get_rates('cpu_core_request_per_hour')
-        LOG.info('OCP CPU request rates: %s', str(cpu_request_rates))
+        cpu_request_rates = self.get_rates("cpu_core_request_per_hour")
+        LOG.info("OCP CPU request rates: %s", str(cpu_request_rates))
         return cpu_request_rates
 
     def get_memory_gb_request_per_hour_rates(self):
         """Get the memory request rates."""
-        mem_request_rates = self.get_rates('memory_gb_request_per_hour')
-        LOG.info('OCP Memory request rates: %s', str(mem_request_rates))
+        mem_request_rates = self.get_rates("memory_gb_request_per_hour")
+        LOG.info("OCP Memory request rates: %s", str(mem_request_rates))
         return mem_request_rates
 
     def get_storage_gb_usage_per_month_rates(self):
         """Get the storage usage rates."""
-        storage_usage_rates = self.get_rates('storage_gb_usage_per_month')
-        LOG.info('OCP Storage usage rates: %s', str(storage_usage_rates))
+        storage_usage_rates = self.get_rates("storage_gb_usage_per_month")
+        LOG.info("OCP Storage usage rates: %s", str(storage_usage_rates))
         return storage_usage_rates
 
     def get_storage_gb_request_per_month_rates(self):
         """Get the storage request rates."""
-        storage_request_rates = self.get_rates('storage_gb_request_per_month')
-        LOG.info('OCP Storage request rates: %s', str(storage_request_rates))
+        storage_request_rates = self.get_rates("storage_gb_request_per_month")
+        LOG.info("OCP Storage request rates: %s", str(storage_request_rates))
         return storage_request_rates
 
     def get_node_per_month_rates(self):
         """Get the storage request rates."""
-        node_rates = self.get_rates('node_cost_per_month')
-        LOG.info('OCP Node rate: %s', str(node_rates))
+        node_rates = self.get_rates("node_cost_per_month")
+        LOG.info("OCP Node rate: %s", str(node_rates))
         return node_rates

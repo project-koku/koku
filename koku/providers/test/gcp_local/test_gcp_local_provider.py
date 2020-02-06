@@ -1,9 +1,8 @@
 """Tests the GCPLocalProvider."""
-from django.test import TestCase
-from rest_framework.exceptions import ValidationError
-
 from api.models import Provider
+from django.test import TestCase
 from providers.gcp_local.provider import GCPLocalProvider
+from rest_framework.exceptions import ValidationError
 
 
 class GCPLocalProviderTestCase(TestCase):
@@ -17,7 +16,7 @@ class GCPLocalProviderTestCase(TestCase):
     def test_cost_usage_source_is_reachable(self):
         """Verify that the file where local gcp ifles are stored is reachable."""
         authentication = {}
-        bucket_name = '/tmp/path/to/bucket'
+        bucket_name = "/tmp/path/to/bucket"
 
         provider = GCPLocalProvider()
 

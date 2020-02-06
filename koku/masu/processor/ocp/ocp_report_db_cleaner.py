@@ -15,13 +15,11 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Removes report data from database."""
-
 import logging
-
-from tenant_schemas.utils import schema_context
 
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
+from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 
@@ -31,7 +29,7 @@ class OCPReportDBCleanerError(Exception):
 
 
 # pylint: disable=too-few-public-methods
-class OCPReportDBCleaner():
+class OCPReportDBCleaner:
     """Class to remove report data."""
 
     def __init__(self, schema):
@@ -44,8 +42,7 @@ class OCPReportDBCleaner():
         self._schema = schema
 
     # pylint: disable=too-many-locals
-    def purge_expired_report_data(self, expired_date=None, provider_uuid=None,
-                                  simulate=False):
+    def purge_expired_report_data(self, expired_date=None, provider_uuid=None, simulate=False):
         """Remove usage data with a report period before specified date.
 
         Args:
@@ -61,9 +58,10 @@ class OCPReportDBCleaner():
             column_map = reporting_common.column_map
 
         with OCPReportDBAccessor(self._schema, column_map) as accessor:
-            if ((expired_date is not None and provider_uuid is not None) or  # noqa: W504
-                    (expired_date is None and provider_uuid is None)):
-                err = 'This method must be called with expired_date or provider_uuid'
+            if (expired_date is not None and provider_uuid is not None) or (  # noqa: W504
+                expired_date is None and provider_uuid is None
+            ):
+                err = "This method must be called with expired_date or provider_uuid"
                 raise OCPReportDBCleanerError(err)
             removed_items = []
 
@@ -79,53 +77,43 @@ class OCPReportDBCleaner():
 
                     if not simulate:
                         qty = accessor.get_item_query_report_period_id(report_period_id).delete()
-                        LOG.info('Removing %s usage period line items for usage period id %s',
-                                 qty, report_period_id)
+                        LOG.info("Removing %s usage period line items for usage period id %s", qty, report_period_id)
 
                         qty = accessor.get_daily_usage_query_for_clusterid(cluster_id).delete()
-                        LOG.info('Removing %s usage daily items for cluster id %s',
-                                 qty, cluster_id)
+                        LOG.info("Removing %s usage daily items for cluster id %s", qty, cluster_id)
 
                         qty = accessor.get_summary_usage_query_for_clusterid(cluster_id).delete()
-                        LOG.info('Removing %s usage summary items for cluster id %s',
-                                 qty, cluster_id)
+                        LOG.info("Removing %s usage summary items for cluster id %s", qty, cluster_id)
 
                         qty = accessor.get_cost_summary_for_clusterid(cluster_id).delete()
-                        LOG.info('Removing %s cost summary items for cluster id %s',
-                                 qty, cluster_id)
+                        LOG.info("Removing %s cost summary items for cluster id %s", qty, cluster_id)
 
-                        qty = accessor.get_storage_item_query_report_period_id(report_period_id).\
-                            delete()
-                        LOG.info('Removing %s storage line items for usage period id %s',
-                                 qty, report_period_id)
+                        qty = accessor.get_storage_item_query_report_period_id(report_period_id).delete()
+                        LOG.info("Removing %s storage line items for usage period id %s", qty, report_period_id)
 
-                        qty = accessor.get_daily_storage_item_query_cluster_id(cluster_id).\
-                            delete()
-                        LOG.info('Removing %s storage dailyitems for cluster id %s',
-                                 qty, cluster_id)
+                        qty = accessor.get_daily_storage_item_query_cluster_id(cluster_id).delete()
+                        LOG.info("Removing %s storage dailyitems for cluster id %s", qty, cluster_id)
 
-                        qty = accessor.get_storage_summary_query_cluster_id(cluster_id).\
-                            delete()
-                        LOG.info('Removing %s storage summary for cluster id %s',
-                                 qty, cluster_id)
+                        qty = accessor.get_storage_summary_query_cluster_id(cluster_id).delete()
+                        LOG.info("Removing %s storage summary for cluster id %s", qty, cluster_id)
 
                         qty = accessor.get_report_query_report_period_id(report_period_id).delete()
-                        LOG.info('Removing %s usage period items for usage period id %s',
-                                 qty, report_period_id)
+                        LOG.info("Removing %s usage period items for usage period id %s", qty, report_period_id)
 
                         qty = accessor.get_ocp_aws_summary_query_for_cluster_id(cluster_id).delete()
-                        LOG.info('Removing %s OCP-on-AWS summary items for cluster id %s',
-                                 qty, cluster_id)
+                        LOG.info("Removing %s OCP-on-AWS summary items for cluster id %s", qty, cluster_id)
                         # pylint: disable=line-too-long
-                        qty = accessor.get_ocp_aws_project_summary_query_for_cluster_id(cluster_id).\
-                            delete()
-                        LOG.info('Removing %s OCP-on-AWS project summary items for cluster id %s',
-                                 qty, cluster_id)
+                        qty = accessor.get_ocp_aws_project_summary_query_for_cluster_id(cluster_id).delete()
+                        LOG.info("Removing %s OCP-on-AWS project summary items for cluster id %s", qty, cluster_id)
 
-                    LOG.info('Report data removed for usage period ID: %s with interval start: %s',
-                             report_period_id, removed_usage_start_period)
-                    removed_items.append({'usage_period_id': report_period_id,
-                                          'interval_start': str(removed_usage_start_period)})
+                    LOG.info(
+                        "Report data removed for usage period ID: %s with interval start: %s",
+                        report_period_id,
+                        removed_usage_start_period,
+                    )
+                    removed_items.append(
+                        {"usage_period_id": report_period_id, "interval_start": str(removed_usage_start_period)}
+                    )
 
                 if not simulate:
                     usage_period_objs.delete()

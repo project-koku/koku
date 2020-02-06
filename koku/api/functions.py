@@ -21,6 +21,6 @@ from django.db.models.aggregates import Func
 class JSONBObjectKeys(Func):
     """Helper to get json keys."""
 
-    function = 'jsonb_object_keys'
-    template = '%(function)s(%(expressions)s)'
+    function = "jsonb_object_keys"
+    template = "%(function)s(%(expressions)s)"
     arity = 1

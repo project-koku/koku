@@ -17,26 +17,23 @@
 """CostModelMetricMap Model Serializer."""
 import logging
 
-from django.utils.translation import ugettext as _
-from rest_framework import serializers
-
 from api.metrics.models import CostModelMetricsMap
 from api.models import Provider
+from django.utils.translation import ugettext as _
+from rest_framework import serializers
 
 LOG = logging.getLogger(__name__)
 
 SOURCE_TYPE_MAP = {
-    Provider.PROVIDER_OCP: 'OpenShift Container Platform',
-    Provider.PROVIDER_AWS: 'Amazon Web Services',
-    Provider.PROVIDER_AZURE: 'Microsoft Azure',
+    Provider.PROVIDER_OCP: "OpenShift Container Platform",
+    Provider.PROVIDER_AWS: "Amazon Web Services",
+    Provider.PROVIDER_AZURE: "Microsoft Azure",
 }
 
 
 def error_obj(key, message):
     """Create an error object."""
-    error = {
-        key: [_(message)]
-    }
+    error = {key: [_(message)]}
     return error
 
 
@@ -47,10 +44,10 @@ class CostModelMetricMapSerializer(serializers.ModelSerializer):
         """Metadata for the serializer."""
 
         model = CostModelMetricsMap
-        exclude = ('id',)
+        exclude = ("id",)
 
     def to_representation(self, instance):
         """Convert our internal source name to full source name."""
         metric_map = super().to_representation(instance)
-        metric_map['source_type'] = SOURCE_TYPE_MAP[metric_map['source_type']]
+        metric_map["source_type"] = SOURCE_TYPE_MAP[metric_map["source_type"]]
         return metric_map

@@ -14,16 +14,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """View for tags."""
-
-from rest_framework.permissions import AllowAny
-
 from api.report.view import ReportView
+from rest_framework.permissions import AllowAny
 
 
 class TagView(ReportView):
     """Base Tag View."""
 
     permission_classes = [AllowAny]
-    report = 'tags'
+    report = "tags"

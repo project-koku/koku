@@ -15,14 +15,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """AWS Account aliases resolver."""
-
 from masu.database.account_alias_accessor import AccountAliasAccessor
-from masu.util.aws.common import (get_account_alias_from_role_arn,
-                                  get_account_names_by_organization)
+from masu.util.aws.common import get_account_alias_from_role_arn
+from masu.util.aws.common import get_account_names_by_organization
 
 
 # pylint: disable=too-few-public-methods
-class AWSAccountAlias():
+class AWSAccountAlias:
     """AWS account alias resolver."""
 
     def __init__(self, role_arn, schema_name):
@@ -52,8 +51,8 @@ class AWSAccountAlias():
 
         accounts = get_account_names_by_organization(self._role_arn)
         for account in accounts:
-            acct_id = account.get('id')
-            acct_alias = account.get('name')
+            acct_id = account.get("id")
+            acct_alias = account.get("name")
             if acct_id and acct_alias:
                 with AccountAliasAccessor(acct_id, self._schema) as alias_accessor:
                     alias_accessor.set_account_alias(acct_alias)

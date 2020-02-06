@@ -15,15 +15,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Tests the AWSLocalProvider implementation for the Koku interface."""
-
 import os
 import tempfile
 
-from django.test import TestCase
-from rest_framework.exceptions import ValidationError
-
 from api.models import Provider
+from django.test import TestCase
 from providers.aws_local.provider import AWSLocalProvider
+from rest_framework.exceptions import ValidationError
 
 
 class AWSLocalProviderTestCase(TestCase):
@@ -46,7 +44,7 @@ class AWSLocalProviderTestCase(TestCase):
 
     def test_cost_usage_source_is_reachable(self):
         """Verify that the cost usage source is authenticated and created."""
-        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        iam_arn = "arn:aws:s3:::my_s3_bucket"
         bucket_name = self.cur_source
 
         provider_interface = AWSLocalProvider()
@@ -54,11 +52,11 @@ class AWSLocalProviderTestCase(TestCase):
         try:
             provider_interface.cost_usage_source_is_reachable(iam_arn, bucket_name)
         except Exception as error:
-            self.fail('Unexpected Error: {}'.format(str(error)))
+            self.fail("Unexpected Error: {}".format(str(error)))
 
     def test_cost_usage_source_is_reachable_no_bucket(self):
         """Verify that the cost usage source is not authenticated and created when no bucket is provided."""
-        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        iam_arn = "arn:aws:s3:::my_s3_bucket"
         bucket_name = None
 
         provider_interface = AWSLocalProvider()

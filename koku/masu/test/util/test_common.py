@@ -14,25 +14,22 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the common util functions."""
-
 import gzip
 import json
 import types
-from datetime import date, datetime, timedelta
+from datetime import date
+from datetime import datetime
+from datetime import timedelta
 from decimal import Decimal
 from os.path import exists
 
-from dateutil import parser
-from django.test import TestCase
-
 import masu.util.common as common_utils
 from api.models import Provider
-from masu.external import (
-    LISTEN_INGEST,
-    POLL_INGEST,
-)
+from dateutil import parser
+from django.test import TestCase
+from masu.external import LISTEN_INGEST
+from masu.external import POLL_INGEST
 from masu.test import MasuTestCase
 
 
@@ -41,8 +38,8 @@ class CommonUtilTests(MasuTestCase):
 
     def test_extract_uuids_from_string(self):
         """Test that a uuid is extracted from a string."""
-        assembly_id = '882083b7-ea62-4aab-aa6a-f0d08d65ee2b'
-        cur_key = '/koku/20180701-20180801/{}/koku-1.csv.gz'.format(assembly_id)
+        assembly_id = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
+        cur_key = f"/koku/20180701-20180801/{assembly_id}/koku-1.csv.gz"
 
         uuids = common_utils.extract_uuids_from_string(cur_key)
         self.assertEqual(len(uuids), 1)
@@ -50,8 +47,8 @@ class CommonUtilTests(MasuTestCase):
 
     def test_extract_uuids_from_string_capitals(self):
         """Test that a uuid is extracted from a string with capital letters."""
-        assembly_id = '882083B7-EA62-4AAB-aA6a-f0d08d65Ee2b'
-        cur_key = '/koku/20180701-20180801/{}/koku-1.csv.gz'.format(assembly_id)
+        assembly_id = "882083B7-EA62-4AAB-aA6a-f0d08d65Ee2b"
+        cur_key = f"/koku/20180701-20180801/{assembly_id}/koku-1.csv.gz"
 
         uuids = common_utils.extract_uuids_from_string(cur_key)
         self.assertEqual(len(uuids), 1)
@@ -59,56 +56,47 @@ class CommonUtilTests(MasuTestCase):
 
     def test_stringify_json_data_list(self):
         """Test that each element of JSON is returned as a string."""
-        data = [
-            {'datetime': datetime.utcnow(), 'float': 1.2, 'int': 1, 'str': 'string'},
-            {'Decimal': Decimal('1.2')},
-        ]
+        data = [{"datetime": datetime.utcnow(), "float": 1.2, "int": 1, "str": "string"}, {"Decimal": Decimal("1.2")}]
 
         with self.assertRaises(TypeError):
             json.dumps(data)
 
         result = common_utils.stringify_json_data(data)
 
-        self.assertIsInstance(result[0]['datetime'], str)
-        self.assertIsInstance(result[0]['float'], str)
-        self.assertIsInstance(result[0]['int'], str)
-        self.assertIsInstance(result[0]['str'], str)
-        self.assertIsInstance(result[1]['Decimal'], str)
+        self.assertIsInstance(result[0]["datetime"], str)
+        self.assertIsInstance(result[0]["float"], str)
+        self.assertIsInstance(result[0]["int"], str)
+        self.assertIsInstance(result[0]["str"], str)
+        self.assertIsInstance(result[1]["Decimal"], str)
 
     def test_stringify_json_data_dict(self):
         """Test that the dict block is covered."""
-        data = {
-            'datetime': datetime.utcnow(),
-            'float': 1.2,
-            'int': 1,
-            'str': 'string',
-            'Decimal': Decimal('1.2'),
-        }
+        data = {"datetime": datetime.utcnow(), "float": 1.2, "int": 1, "str": "string", "Decimal": Decimal("1.2")}
 
         with self.assertRaises(TypeError):
             json.dumps(data)
 
         result = common_utils.stringify_json_data(data)
 
-        self.assertIsInstance(result['datetime'], str)
-        self.assertIsInstance(result['float'], str)
-        self.assertIsInstance(result['int'], str)
-        self.assertIsInstance(result['str'], str)
-        self.assertIsInstance(result['Decimal'], str)
+        self.assertIsInstance(result["datetime"], str)
+        self.assertIsInstance(result["float"], str)
+        self.assertIsInstance(result["int"], str)
+        self.assertIsInstance(result["str"], str)
+        self.assertIsInstance(result["Decimal"], str)
 
     def test_ingest_method_type(self):
         """Test that the correct ingest method is returned for provider type."""
         test_matrix = [
-            {'provider_type': Provider.PROVIDER_AWS, 'expected_ingest': POLL_INGEST},
-            {'provider_type': Provider.PROVIDER_AWS_LOCAL, 'expected_ingest': POLL_INGEST},
-            {'provider_type': Provider.PROVIDER_OCP, 'expected_ingest': LISTEN_INGEST},
-            {'provider_type': Provider.PROVIDER_AZURE_LOCAL, 'expected_ingest': POLL_INGEST},
-            {'provider_type': 'NEW_TYPE', 'expected_ingest': None}
+            {"provider_type": Provider.PROVIDER_AWS, "expected_ingest": POLL_INGEST},
+            {"provider_type": Provider.PROVIDER_AWS_LOCAL, "expected_ingest": POLL_INGEST},
+            {"provider_type": Provider.PROVIDER_OCP, "expected_ingest": LISTEN_INGEST},
+            {"provider_type": Provider.PROVIDER_AZURE_LOCAL, "expected_ingest": POLL_INGEST},
+            {"provider_type": "NEW_TYPE", "expected_ingest": None},
         ]
 
         for test in test_matrix:
-            ingest_method = common_utils.ingest_method_for_provider(test.get('provider_type'))
-            self.assertEqual(ingest_method, test.get('expected_ingest'))
+            ingest_method = common_utils.ingest_method_for_provider(test.get("provider_type"))
+            self.assertEqual(ingest_method, test.get("expected_ingest"))
 
     def test_month_date_range_tuple(self):
         """Test month_date_range_tuple returns first of the month and first of next month."""
@@ -123,8 +111,8 @@ class CommonUtilTests(MasuTestCase):
 
     def test_date_range(self):
         """Test that a date range generator is returned."""
-        start_date = '2020-01-01'
-        end_date = '2020-02-29'
+        start_date = "2020-01-01"
+        end_date = "2020-02-29"
 
         date_generator = common_utils.date_range(start_date, end_date)
 
@@ -143,8 +131,8 @@ class CommonUtilTests(MasuTestCase):
 
     def test_date_range_pair(self):
         """Test that start and end dates are returned by this generator."""
-        start_date = '2020-01-01'
-        end_date = '2020-02-29'
+        start_date = "2020-01-01"
+        end_date = "2020-02-29"
         step = 3
 
         date_generator = common_utils.date_range_pair(start_date, end_date, step=step)
@@ -167,7 +155,7 @@ class CommonUtilTests(MasuTestCase):
 
     def test_date_range_pair_one_day(self):
         """Test that generator works for a single day."""
-        start_date = '2020-01-01'
+        start_date = "2020-01-01"
         end_date = start_date
         step = 3
 
@@ -198,13 +186,13 @@ class NamedTemporaryGZipTests(TestCase):
 
     def test_gzip_is_readable(self):
         """Test the the written gzip file is readable."""
-        test_data = 'Test Read Gzip'
+        test_data = "Test Read Gzip"
         with common_utils.NamedTemporaryGZip() as temp_gzip:
 
             temp_gzip.write(test_data)
             temp_gzip.close()
 
-            with gzip.open(temp_gzip.name, 'rt') as f:
+            with gzip.open(temp_gzip.name, "rt") as f:
                 read_data = f.read()
 
         self.assertEquals(test_data, read_data)

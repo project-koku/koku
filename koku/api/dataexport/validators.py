@@ -1,9 +1,7 @@
 """Validators for user-initiated data exports."""
-
+from api.dataexport.models import DataExportRequest
 from django.utils.translation import gettext_lazy as _
 from rest_framework.exceptions import ValidationError
-
-from api.dataexport.models import DataExportRequest
 
 
 class DataExportRequestValidator:
@@ -15,8 +13,8 @@ class DataExportRequestValidator:
 
         This hook is called by the serializer instance prior to the validation call being made.
         """
-        self.queryset = serializer.context['view'].get_queryset()
-        self.instance = getattr(serializer, 'instance', None)
+        self.queryset = serializer.context["view"].get_queryset()
+        self.instance = getattr(serializer, "instance", None)
 
     def pending_instance_exists(self, start_date, end_date):
         """Check for a pending or processing instance that matches the requested dates."""
@@ -32,17 +30,16 @@ class DataExportRequestValidator:
 
     def __call__(self, attrs):
         """Enforce validation of all relevant fields."""
-        start_date = attrs['start_date']
-        end_date = attrs['end_date']
+        start_date = attrs["start_date"]
+        end_date = attrs["end_date"]
         if end_date < start_date:
             bad_items = {
-                'start_date': _('"start_date" must be older than "end_date".'),
-                'end_date': _('"end_date" must not be older than "start_date".'),
+                "start_date": _('"start_date" must be older than "end_date".'),
+                "end_date": _('"end_date" must not be older than "start_date".'),
             }
-            raise ValidationError(bad_items, code='bad_request')
+            raise ValidationError(bad_items, code="bad_request")
         if self.pending_instance_exists(start_date, end_date):
             exists_message = _(
-                'A pending or processing data export already exists with the given '
-                '"start_date" and "end_date".'
+                "A pending or processing data export already exists with the given " '"start_date" and "end_date".'
             )
-            raise ValidationError(exists_message, code='bad_request')
+            raise ValidationError(exists_message, code="bad_request")

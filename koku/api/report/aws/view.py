@@ -1,4 +1,3 @@
-
 #
 # Copyright 2018 Red Hat, Inc.
 #
@@ -120,7 +119,7 @@ class AWSCostView(AWSView):
 
     """
 
-    report = 'costs'
+    report = "costs"
 
 
 class AWSInstanceTypeView(AWSView):
@@ -244,7 +243,7 @@ class AWSInstanceTypeView(AWSView):
 
     """
 
-    report = 'instance_type'
+    report = "instance_type"
 
 
 class AWSStorageView(AWSView):
@@ -360,4 +359,4 @@ class AWSStorageView(AWSView):
 
     """
 
-    report = 'storage'
+    report = "storage"

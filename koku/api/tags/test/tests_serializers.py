@@ -17,14 +17,13 @@
 """Test the tag serializer."""
 from unittest import TestCase
 
+from api.tags.serializers import AWSFilterSerializer
+from api.tags.serializers import AWSTagsQueryParamSerializer
+from api.tags.serializers import FilterSerializer
+from api.tags.serializers import OCPFilterSerializer
+from api.tags.serializers import OCPTagsQueryParamSerializer
+from api.tags.serializers import TagsQueryParamSerializer
 from rest_framework import serializers
-
-from api.tags.serializers import (AWSFilterSerializer,
-                                  AWSTagsQueryParamSerializer,
-                                  FilterSerializer,
-                                  OCPFilterSerializer,
-                                  OCPTagsQueryParamSerializer,
-                                  TagsQueryParamSerializer)
 
 
 class FilterSerializerTest(TestCase):
@@ -32,9 +31,7 @@ class FilterSerializerTest(TestCase):
 
     def test_parse_filter_params_success(self):
         """Test parse of a filter param successfully."""
-        filter_params = {'resolution': 'daily',
-                         'time_scope_value': '-10',
-                         'time_scope_units': 'day'}
+        filter_params = {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"}
         serializer = FilterSerializer(data=filter_params)
         self.assertTrue(serializer.is_valid())
 
@@ -46,37 +43,33 @@ class FilterSerializerTest(TestCase):
 
     def test_filter_params_invalid_fields(self):
         """Test parse of filter params for invalid fields."""
-        filter_params = {'resolution': 'daily',
-                         'time_scope_value': '-10',
-                         'time_scope_units': 'day',
-                         'invalid': 'param'}
+        filter_params = {
+            "resolution": "daily",
+            "time_scope_value": "-10",
+            "time_scope_units": "day",
+            "invalid": "param",
+        }
         serializer = FilterSerializer(data=filter_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_filter_params_invalid_time_scope_daily(self):
         """Test parse of filter params for invalid daily time_scope_units."""
-        filter_params = {'resolution': 'daily',
-                         'time_scope_value': '-1',
-                         'time_scope_units': 'day'}
+        filter_params = {"resolution": "daily", "time_scope_value": "-1", "time_scope_units": "day"}
         serializer = FilterSerializer(data=filter_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_filter_params_invalid_time_scope_monthly(self):
         """Test parse of filter params for invalid month time_scope_units."""
-        filter_params = {'resolution': 'monthly',
-                         'time_scope_value': '-10',
-                         'time_scope_units': 'month'}
+        filter_params = {"resolution": "monthly", "time_scope_value": "-10", "time_scope_units": "month"}
         serializer = FilterSerializer(data=filter_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_filter_params_invalid_limit_time_scope_resolution(self):
         """Test parse of filter params for invalid resolution time_scope_units."""
-        filter_params = {'resolution': 'monthly',
-                         'time_scope_value': '-10',
-                         'time_scope_units': 'day'}
+        filter_params = {"resolution": "monthly", "time_scope_value": "-10", "time_scope_units": "day"}
         serializer = FilterSerializer(data=filter_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
@@ -87,31 +80,27 @@ class AWSFilterSerializerTest(TestCase):
 
     def test_parse_filter_params_w_project_success(self):
         """Test parse of a filter param with project successfully."""
-        filter_params = {'resolution': 'daily',
-                         'time_scope_value': '-10',
-                         'time_scope_units': 'day',
-                         'account': 'myaccount'}
+        filter_params = {
+            "resolution": "daily",
+            "time_scope_value": "-10",
+            "time_scope_units": "day",
+            "account": "myaccount",
+        }
         serializer = AWSFilterSerializer(data=filter_params)
         self.assertTrue(serializer.is_valid())
 
     def test_parse_filter_params_w_project_failure(self):
         """Test parse of a filter param with an invalid project."""
-        filter_params = {'resolution': 'daily',
-                         'time_scope_value': '-10',
-                         'time_scope_units': 'day',
-                         'account': 3}
+        filter_params = {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day", "account": 3}
         serializer = AWSFilterSerializer(data=filter_params)
         self.assertFalse(serializer.is_valid())
 
     def test_parse_filter_params_type_fail(self):
         """Test parse of a filter param with type for invalid type."""
-        types = ['aws_tags', 'pod', 'storage']
+        types = ["aws_tags", "pod", "storage"]
         for tag_type in types:
-            filter_params = {'resolution': 'daily',
-                             'time_scope_value': '-10',
-                             'time_scope_units': 'day',
-                             'type': None}
-            filter_params['type'] = tag_type
+            filter_params = {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day", "type": None}
+            filter_params["type"] = tag_type
             serializer = AWSFilterSerializer(data=filter_params)
             self.assertFalse(serializer.is_valid())
 
@@ -121,43 +110,36 @@ class OCPFilterSerializerTest(TestCase):
 
     def test_parse_filter_params_w_project_success(self):
         """Test parse of a filter param with project successfully."""
-        filter_params = {'resolution': 'daily',
-                         'time_scope_value': '-10',
-                         'time_scope_units': 'day',
-                         'project': 'myproject'}
+        filter_params = {
+            "resolution": "daily",
+            "time_scope_value": "-10",
+            "time_scope_units": "day",
+            "project": "myproject",
+        }
         serializer = OCPFilterSerializer(data=filter_params)
         self.assertTrue(serializer.is_valid())
 
     def test_parse_filter_params_w_project_failure(self):
         """Test parse of a filter param with an invalid project."""
-        filter_params = {'resolution': 'daily',
-                         'time_scope_value': '-10',
-                         'time_scope_units': 'day',
-                         'project': 3}
+        filter_params = {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day", "project": 3}
         serializer = OCPFilterSerializer(data=filter_params)
         self.assertFalse(serializer.is_valid())
 
     def test_parse_filter_params_type_success(self):
         """Test parse of a filter param with type successfully."""
-        types = ['pod', 'storage']
+        types = ["pod", "storage"]
         for tag_type in types:
-            filter_params = {'resolution': 'daily',
-                             'time_scope_value': '-10',
-                             'time_scope_units': 'day',
-                             'type': None}
-            filter_params['type'] = tag_type
+            filter_params = {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day", "type": None}
+            filter_params["type"] = tag_type
             serializer = OCPFilterSerializer(data=filter_params)
             self.assertTrue(serializer.is_valid())
 
     def test_parse_filter_params_type_fail(self):
         """Test parse of a filter param with type for invalid type."""
-        types = ['bad1', 'aws_tags']
+        types = ["bad1", "aws_tags"]
         for tag_type in types:
-            filter_params = {'resolution': 'daily',
-                             'time_scope_value': '-10',
-                             'time_scope_units': 'day',
-                             'type': None}
-            filter_params['type'] = tag_type
+            filter_params = {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day", "type": None}
+            filter_params["type"] = tag_type
             serializer = OCPFilterSerializer(data=filter_params)
             self.assertFalse(serializer.is_valid())
 
@@ -167,29 +149,24 @@ class TagsQueryParamSerializerTest(TestCase):
 
     def test_parse_query_params_success(self):
         """Test parse of a query params successfully."""
-        query_params = {'filter': {'resolution': 'daily',
-                                   'time_scope_value': '-10',
-                                   'time_scope_units': 'day'},
-                        }
+        query_params = {"filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"}}
         serializer = TagsQueryParamSerializer(data=query_params)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_ocp_invalid_fields(self):
         """Test parse of query params for invalid fields."""
-        query_params = {'filter': {'resolution': 'daily',
-                                   'time_scope_value': '-10',
-                                   'time_scope_units': 'day',
-                        'invalid': 'param'}}
+        query_params = {
+            "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day", "invalid": "param"}
+        }
         serializer = OCPTagsQueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_query_params_aws_invalid_fields(self):
         """Test parse of query params for invalid fields."""
-        query_params = {'filter': {'resolution': 'daily',
-                                   'time_scope_value': '-10',
-                                   'time_scope_units': 'day',
-                                   'invalid': 'param'}}
+        query_params = {
+            "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day", "invalid": "param"}
+        }
         serializer = AWSTagsQueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)

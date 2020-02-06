@@ -14,10 +14,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Models for OCP on Azure tables."""
-
-from django.contrib.postgres.fields import ArrayField, JSONField
+from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
@@ -28,43 +27,20 @@ class OCPAzureCostLineItemDailySummary(models.Model):
     class Meta:
         """Meta for OCPAzureCostLineItemDailySummary."""
 
-        db_table = 'reporting_ocpazurecostlineitem_daily_summary'
+        db_table = "reporting_ocpazurecostlineitem_daily_summary"
 
         indexes = [
-            models.Index(
-                fields=['usage_start'],
-                name='ocpazure_usage_start_idx',
-            ),
-            models.Index(
-                fields=['namespace'],
-                name='ocpazure_namespace_idx',
-            ),
-            models.Index(
-                fields=['node'],
-                name='ocpazure_node_idx',
-            ),
-            models.Index(
-                fields=['resource_id'],
-                name='ocpazure_resource_idx',
-            ),
-            GinIndex(
-                fields=['tags'],
-                name='ocpazure_tags_idx',
-            ),
-            models.Index(
-                fields=['service_name'],
-                name='ocpazure_service_name_idx',
-            ),
-            models.Index(
-                fields=['instance_type'],
-                name='ocpazure_instance_type_idx',
-            ),
+            models.Index(fields=["usage_start"], name="ocpazure_usage_start_idx"),
+            models.Index(fields=["namespace"], name="ocpazure_namespace_idx"),
+            models.Index(fields=["node"], name="ocpazure_node_idx"),
+            models.Index(fields=["resource_id"], name="ocpazure_resource_idx"),
+            GinIndex(fields=["tags"], name="ocpazure_tags_idx"),
+            models.Index(fields=["service_name"], name="ocpazure_service_name_idx"),
+            models.Index(fields=["instance_type"], name="ocpazure_instance_type_idx"),
         ]
 
     # OCP Fields
-    report_period = models.ForeignKey(
-        'OCPUsageReportPeriod', on_delete=models.CASCADE, null=True
-    )
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
 
     cluster_id = models.CharField(max_length=50, null=True)
 
@@ -84,7 +60,7 @@ class OCPAzureCostLineItemDailySummary(models.Model):
     usage_end = models.DateTimeField(null=False)
 
     # Azure Fields
-    cost_entry_bill = models.ForeignKey('AzureCostEntryBill', on_delete=models.CASCADE)
+    cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
 
     subscription_guid = models.CharField(max_length=50, null=False)
 
@@ -109,7 +85,7 @@ class OCPAzureCostLineItemDailySummary(models.Model):
 
     offer_id = models.PositiveIntegerField(null=True)
 
-    currency = models.CharField(max_length=10, null=False, default='USD')
+    currency = models.CharField(max_length=10, null=False, default="USD")
 
     unit_of_measure = models.CharField(max_length=63, null=True)
 
@@ -128,43 +104,20 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
     class Meta:
         """Meta for OCPAzureCostLineItemProjectDailySummary."""
 
-        db_table = 'reporting_ocpazurecostlineitem_project_daily_summary'
+        db_table = "reporting_ocpazurecostlineitem_project_daily_summary"
 
         indexes = [
-            models.Index(
-                fields=['usage_start'],
-                name='ocpazure_proj_usage_start_idx',
-            ),
-            models.Index(
-                fields=['namespace'],
-                name='ocpazure_proj_namespace_idx',
-            ),
-            models.Index(
-                fields=['node'],
-                name='ocpazure_proj_node_idx',
-            ),
-            models.Index(
-                fields=['resource_id'],
-                name='ocpazure_proj_resource_id_idx',
-            ),
-            GinIndex(
-                fields=['pod_labels'],
-                name='ocpazure_proj_pod_labels_idx',
-            ),
-            models.Index(
-                fields=['service_name'],
-                name='ocpazure_proj_service_name_idx',
-            ),
-            models.Index(
-                fields=['instance_type'],
-                name='ocpazure_proj_inst_type_idx',
-            ),
+            models.Index(fields=["usage_start"], name="ocpazure_proj_usage_start_idx"),
+            models.Index(fields=["namespace"], name="ocpazure_proj_namespace_idx"),
+            models.Index(fields=["node"], name="ocpazure_proj_node_idx"),
+            models.Index(fields=["resource_id"], name="ocpazure_proj_resource_id_idx"),
+            GinIndex(fields=["pod_labels"], name="ocpazure_proj_pod_labels_idx"),
+            models.Index(fields=["service_name"], name="ocpazure_proj_service_name_idx"),
+            models.Index(fields=["instance_type"], name="ocpazure_proj_inst_type_idx"),
         ]
 
     # OCP Fields
-    report_period = models.ForeignKey(
-        'OCPUsageReportPeriod', on_delete=models.CASCADE, null=True
-    )
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
 
     cluster_id = models.CharField(max_length=50, null=True)
 
@@ -189,7 +142,7 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
     usage_end = models.DateTimeField(null=False)
 
     # Azure Fields
-    cost_entry_bill = models.ForeignKey('AzureCostEntryBill', on_delete=models.CASCADE)
+    cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
 
     subscription_guid = models.CharField(max_length=50, null=False)
 
@@ -205,18 +158,10 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
 
     offer_id = models.PositiveIntegerField(null=True)
 
-    currency = models.CharField(max_length=10, null=False, default='USD')
+    currency = models.CharField(max_length=10, null=False, default="USD")
 
     pretax_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
 
-    project_markup_cost = models.DecimalField(
-        max_digits=17,
-        decimal_places=9,
-        null=True
-    )
+    project_markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
 
-    pod_cost = models.DecimalField(
-        max_digits=24,
-        decimal_places=6,
-        null=True
-    )
+    pod_cost = models.DecimalField(max_digits=24, decimal_places=6, null=True)

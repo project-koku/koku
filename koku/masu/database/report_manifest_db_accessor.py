@@ -15,11 +15,11 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Report manifest database accessor for cost usage reports."""
-from tenant_schemas.utils import schema_context
-
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor
-from reporting_common.models import CostUsageReportManifest, CostUsageReportStatus
+from reporting_common.models import CostUsageReportManifest
+from reporting_common.models import CostUsageReportStatus
+from tenant_schemas.utils import schema_context
 
 
 class ReportManifestDBAccessor(KokuDBAccess):
@@ -27,7 +27,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def __init__(self):
         """Access the AWS report manifest database table."""
-        self._schema = 'public'
+        self._schema = "public"
         super().__init__(self._schema)
         self._table = CostUsageReportManifest
         self.date_accessor = DateAccessor()
@@ -35,8 +35,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
     def get_manifest(self, assembly_id, provider_uuid):
         """Get the manifest associated with the provided provider and id."""
         query = self._get_db_obj_query()
-        return query.filter(provider_id=provider_uuid)\
-            .filter(assembly_id=assembly_id).first()
+        return query.filter(provider_id=provider_uuid).filter(assembly_id=assembly_id).first()
 
     def get_manifest_by_id(self, manifest_id):
         """Get the manifest by id."""
@@ -46,14 +45,12 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def mark_manifest_as_updated(self, manifest):
         """Update the updated timestamp."""
-        manifest.manifest_updated_datetime = \
-            self.date_accessor.today_with_timezone('UTC')
+        manifest.manifest_updated_datetime = self.date_accessor.today_with_timezone("UTC")
         manifest.save()
 
     def mark_manifest_as_completed(self, manifest):
         """Update the updated timestamp."""
-        manifest.manifest_completed_datetime = \
-            self.date_accessor.today_with_timezone('UTC')
+        manifest.manifest_completed_datetime = self.date_accessor.today_with_timezone("UTC")
         manifest.save()
 
     # pylint: disable=arguments-differ
@@ -72,25 +69,25 @@ class ReportManifestDBAccessor(KokuDBAccess):
             None
 
         """
-        if 'manifest_creation_datetime' not in kwargs:
-            kwargs['manifest_creation_datetime'] = \
-                self.date_accessor.today_with_timezone('UTC')
+        if "manifest_creation_datetime" not in kwargs:
+            kwargs["manifest_creation_datetime"] = self.date_accessor.today_with_timezone("UTC")
 
-        if 'num_processed_files' not in kwargs:
-            kwargs['num_processed_files'] = 0
+        if "num_processed_files" not in kwargs:
+            kwargs["num_processed_files"] = 0
 
         # The Django model insists on calling this field provider_id
-        if 'provider_uuid' in kwargs:
-            uuid = kwargs.pop('provider_uuid')
-            kwargs['provider_id'] = uuid
+        if "provider_uuid" in kwargs:
+            uuid = kwargs.pop("provider_uuid")
+            kwargs["provider_id"] = uuid
 
         return super().add(**kwargs)
 
     # pylint: disable=no-self-use
     def get_last_report_completed_datetime(self, manifest_id):
         """Get the most recent report processing completion time for a manifest."""
-        result = CostUsageReportStatus.objects.\
-            filter(manifest_id=manifest_id).order_by('-last_completed_datetime').first()
+        result = (
+            CostUsageReportStatus.objects.filter(manifest_id=manifest_id).order_by("-last_completed_datetime").first()
+        )
         return result.last_completed_datetime
 
     def reset_manifest(self, manifest_id):
@@ -111,9 +108,5 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def get_manifest_list_for_provider_and_bill_date(self, provider_uuid, bill_date):
         """Return all manifests for a provider and bill date."""
-        filters = {
-            'provider_id': provider_uuid,
-            'billing_period_start_datetime__date': bill_date
-        }
-        return CostUsageReportManifest.objects.\
-            filter(**filters).all()
+        filters = {"provider_id": provider_uuid, "billing_period_start_datetime__date": bill_date}
+        return CostUsageReportManifest.objects.filter(**filters).all()

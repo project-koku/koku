@@ -15,20 +15,19 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Tests the ProviderAccessor implementation for the Koku consumption."""
-
 from unittest.mock import patch
 
+from api.models import Provider
 from django.test import TestCase
 from django.utils.translation import ugettext as _
-from rest_framework.serializers import ValidationError
-
-from api.models import Provider
 from providers.aws.provider import AWSProvider
 from providers.aws_local.provider import AWSLocalProvider
 from providers.azure.provider import AzureProvider
 from providers.azure_local.provider import AzureLocalProvider
 from providers.ocp.provider import OCPProvider
-from providers.provider_access import ProviderAccessor, ProviderAccessorError
+from providers.provider_access import ProviderAccessor
+from providers.provider_access import ProviderAccessorError
+from rest_framework.serializers import ValidationError
 
 
 class ProviderAccessorTestCase(TestCase):
@@ -77,7 +76,7 @@ class ProviderAccessorTestCase(TestCase):
 
     def test_establish_invalid_provider(self):
         """Verify that an invalid service is created."""
-        provider_name = 'BAD'
+        provider_name = "BAD"
         interface = ProviderAccessor(provider_name)
         self.assertIsNone(interface.service)
 
@@ -98,11 +97,11 @@ class ProviderAccessorTestCase(TestCase):
         provider = Provider.PROVIDER_AWS
         interface = ProviderAccessor(provider)
 
-        credential = 'arn:aws:s3:::my_s3_bucket'
-        source_name = 'my_s3_bucket'
+        credential = "arn:aws:s3:::my_s3_bucket"
+        source_name = "my_s3_bucket"
 
         source_ready = False
-        with patch.object(AWSProvider, 'cost_usage_source_is_reachable', return_value=True):
+        with patch.object(AWSProvider, "cost_usage_source_is_reachable", return_value=True):
             source_ready = interface.cost_usage_source_ready(credential, source_name)
         self.assertTrue(source_ready)
 
@@ -111,42 +110,41 @@ class ProviderAccessorTestCase(TestCase):
         provider = Provider.PROVIDER_AWS
         interface = ProviderAccessor(provider)
 
-        credential = 'arn:aws:s3:::my_s3_bucket'
-        source_name = 'my_s3_bucket'
+        credential = "arn:aws:s3:::my_s3_bucket"
+        source_name = "my_s3_bucket"
 
-        with patch.object(AWSProvider, 'cost_usage_source_is_reachable', return_value=True):
+        with patch.object(AWSProvider, "cost_usage_source_is_reachable", return_value=True):
             status = interface.availability_status(credential, source_name)
-            self.assertEquals(status.get('availability_status'), 'available')
-            self.assertEquals(status.get('availability_status_error'), '')
+            self.assertEquals(status.get("availability_status"), "available")
+            self.assertEquals(status.get("availability_status_error"), "")
 
     def test_availability_status_unavailable(self):
         """Get availability_status for a provider that is unavailable."""
+
         def error_obj(key, message):
             """Create an error object."""
-            error = {
-                key: [_(message)]
-            }
+            error = {key: [_(message)]}
             return error
 
-        detail_msg = 'Error Msg'
-        mock_error = ValidationError(error_obj('err.key', detail_msg))
+        detail_msg = "Error Msg"
+        mock_error = ValidationError(error_obj("err.key", detail_msg))
         provider = Provider.PROVIDER_AWS
         interface = ProviderAccessor(provider)
 
-        credential = 'arn:aws:s3:::my_s3_bucket'
-        source_name = 'my_s3_bucket'
+        credential = "arn:aws:s3:::my_s3_bucket"
+        source_name = "my_s3_bucket"
 
-        with patch.object(AWSProvider, 'cost_usage_source_is_reachable', side_effect=mock_error):
+        with patch.object(AWSProvider, "cost_usage_source_is_reachable", side_effect=mock_error):
             status = interface.availability_status(credential, source_name)
-            self.assertEquals(status.get('availability_status'), 'unavailable')
-            self.assertEquals(status.get('availability_status_error'), detail_msg)
+            self.assertEquals(status.get("availability_status"), "unavailable")
+            self.assertEquals(status.get("availability_status_error"), detail_msg)
 
     def test_get_infrastructure_type_exception(self):
         """Get infrastructure type with exception."""
         provider = OCPProvider()
         interface = ProviderAccessor(provider.name())
         with self.assertRaises(ProviderAccessorError):
-            with patch.object(OCPProvider, 'infra_type_implementation', side_effect=Exception('test')):
+            with patch.object(OCPProvider, "infra_type_implementation", side_effect=Exception("test")):
                 interface.infrastructure_type(None, None)
 
     def test_get_infrastructure_key_list_exception(self):
@@ -154,5 +152,5 @@ class ProviderAccessorTestCase(TestCase):
         provider = OCPProvider()
         interface = ProviderAccessor(provider.name())
         with self.assertRaises(ProviderAccessorError):
-            with patch.object(OCPProvider, 'infra_key_list_implementation', side_effect=Exception('test')):
+            with patch.object(OCPProvider, "infra_key_list_implementation", side_effect=Exception("test")):
                 interface.infrastructure_type(None, None)

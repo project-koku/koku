@@ -16,17 +16,17 @@
 #
 """Test for the Provider model."""
 import logging
-from unittest.mock import call, patch
+from unittest.mock import call
+from unittest.mock import patch
 from uuid import UUID
-
-from faker import Faker
-from tenant_schemas.utils import tenant_context
 
 from api.iam.models import Tenant
 from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModelMap
+from faker import Faker
 from masu.test import MasuTestCase
+from tenant_schemas.utils import tenant_context
 
 FAKE = Faker()
 
@@ -38,30 +38,26 @@ class ProviderModelTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class."""
         super().setUpClass()
-        if not getattr(cls, 'tenant', None):
+        if not getattr(cls, "tenant", None):
             cls.tenant = Tenant.objects.get_or_create(schema_name=cls.schema)[0]
 
-    @patch('masu.celery.tasks.delete_archived_data')
+    @patch("masu.celery.tasks.delete_archived_data")
     def test_delete_single_provider_instance(self, mock_delete_archived_data):
         """Assert the delete_archived_data task is called upon instance delete."""
         with tenant_context(self.tenant):
             self.aws_provider.delete()
-        mock_delete_archived_data.delay.assert_called_with(
-            self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid
-        )
+        mock_delete_archived_data.delay.assert_called_with(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid)
 
-    @patch('masu.celery.tasks.delete_archived_data')
+    @patch("masu.celery.tasks.delete_archived_data")
     def test_delete_single_provider_with_cost_model(self, mock_delete_archived_data):
         """Assert the cost models are deleted upon provider instance delete."""
         provider_uuid = self.aws_provider.uuid
         data = {
-            'name': 'Test Cost Model',
-            'description': 'Test',
-            'rates': [],
-            'markup': {
-                'value': FAKE.pyint() % 100, 'unit': 'percent'
-            },
-            'provider_uuids': [provider_uuid]
+            "name": "Test Cost Model",
+            "description": "Test",
+            "rates": [],
+            "markup": {"value": FAKE.pyint() % 100, "unit": "percent"},
+            "provider_uuids": [provider_uuid],
         }
         with tenant_context(self.tenant):
             manager = CostModelManager()
@@ -70,37 +66,31 @@ class ProviderModelTest(MasuTestCase):
             self.assertIsNotNone(cost_model_map)
             self.aws_provider.delete()
             self.assertEquals(0, CostModelMap.objects.filter(provider_uuid=provider_uuid).count())
-        mock_delete_archived_data.delay.assert_called_with(
-            self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid
-        )
+        mock_delete_archived_data.delay.assert_called_with(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid)
 
-    @patch('masu.celery.tasks.delete_archived_data')
+    @patch("masu.celery.tasks.delete_archived_data")
     def test_delete_single_provider_no_archiving(self, mock_delete_archived_data):
         """Assert the delete_archived_data task is not called if archiving is not enabled."""
-        with patch('api.provider.provider_manager.settings', ENABLE_S3_ARCHIVING=False):
+        with patch("api.provider.provider_manager.settings", ENABLE_S3_ARCHIVING=False):
             with tenant_context(self.tenant):
                 self.aws_provider.delete()
         mock_delete_archived_data.delay.assert_not_called()
 
-    @patch('masu.celery.tasks.delete_archived_data')
-    def test_delete_single_provider_skips_delete_archived_data_if_customer_is_none(
-        self, mock_delete_archived_data
-    ):
+    @patch("masu.celery.tasks.delete_archived_data")
+    def test_delete_single_provider_skips_delete_archived_data_if_customer_is_none(self, mock_delete_archived_data):
         """Assert the delete_archived_data task is not called if Customer is None."""
         # remove filters on logging
         logging.disable(logging.NOTSET)
-        with tenant_context(self.tenant), self.assertLogs(
-            'api.provider.provider_manager', 'WARNING'
-        ) as captured_logs:
+        with tenant_context(self.tenant), self.assertLogs("api.provider.provider_manager", "WARNING") as captured_logs:
             self.aws_provider.customer = None
             self.aws_provider.delete()
         mock_delete_archived_data.delay.assert_not_called()
-        self.assertIn('has no Customer', captured_logs.output[0])
+        self.assertIn("has no Customer", captured_logs.output[0])
 
         # restore filters on logging
         logging.disable(logging.CRITICAL)
 
-    @patch('masu.celery.tasks.delete_archived_data')
+    @patch("masu.celery.tasks.delete_archived_data")
     def test_delete_all_providers_from_queryset(self, mock_delete_archived_data):
         """Assert the delete_archived_data task is called upon queryset delete."""
         mock_delete_archived_data.reset_mock()

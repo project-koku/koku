@@ -15,79 +15,61 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """OCP Report Serializers."""
+from api.models import Provider
+from api.report.serializers import FilterSerializer as BaseFilterSerializer
+from api.report.serializers import GroupSerializer
+from api.report.serializers import OrderSerializer
+from api.report.serializers import ParamSerializer
+from api.report.serializers import StringOrListField
+from api.report.serializers import validate_field
+from api.utils import UnitConverter
 from django.utils.translation import ugettext as _
 from pint.errors import UndefinedUnitError
 from rest_framework import serializers
-
-from api.models import Provider
-from api.report.serializers import (FilterSerializer as BaseFilterSerializer,
-                                    GroupSerializer,
-                                    OrderSerializer,
-                                    ParamSerializer,
-                                    StringOrListField,
-                                    validate_field)
-from api.utils import UnitConverter
 
 
 class GroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
-    _opfields = ('project', 'cluster', 'node')
+    _opfields = ("project", "cluster", "node")
 
-    cluster = StringOrListField(child=serializers.CharField(),
-                                required=False)
-    project = StringOrListField(child=serializers.CharField(),
-                                required=False)
-    node = StringOrListField(child=serializers.CharField(),
-                             required=False)
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    node = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class OrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ('project', 'cluster', 'node')
+    _opfields = ("project", "cluster", "node")
 
-    cluster = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
-                                      required=False)
-    project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
-                                      required=False)
-    node = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
-                                   required=False)
+    cluster = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    node = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
 
 class InventoryOrderBySerializer(OrderBySerializer):
     """Order By Serializer for CPU and Memory endpoints."""
 
-    _opfields = ('project', 'cluster', 'node', 'usage', 'request', 'limit')
+    _opfields = ("project", "cluster", "node", "usage", "request", "limit")
 
-    usage = serializers.ChoiceField(choices=OrderBySerializer.ORDER_CHOICES,
-                                    required=False)
-    request = serializers.ChoiceField(choices=OrderBySerializer.ORDER_CHOICES,
-                                      required=False)
-    limit = serializers.ChoiceField(choices=OrderBySerializer.ORDER_CHOICES,
-                                    required=False)
+    usage = serializers.ChoiceField(choices=OrderBySerializer.ORDER_CHOICES, required=False)
+    request = serializers.ChoiceField(choices=OrderBySerializer.ORDER_CHOICES, required=False)
+    limit = serializers.ChoiceField(choices=OrderBySerializer.ORDER_CHOICES, required=False)
 
 
 class FilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
 
-    INFRASTRUCTURE_CHOICES = (
-        ('aws', 'aws'),
-        ('azure', 'azure'),
-    )
+    INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"))
 
-    _opfields = ('project', 'cluster', 'node', 'pod', 'infrastructures')
+    _opfields = ("project", "cluster", "node", "pod", "infrastructures")
 
-    project = StringOrListField(child=serializers.CharField(),
-                                required=False)
-    cluster = StringOrListField(child=serializers.CharField(),
-                                required=False)
-    pod = StringOrListField(child=serializers.CharField(),
-                            required=False)
-    node = StringOrListField(child=serializers.CharField(),
-                             required=False)
-    infrastructures = serializers.ChoiceField(choices=INFRASTRUCTURE_CHOICES,
-                                              required=False)
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
+    pod = StringOrListField(child=serializers.CharField(), required=False)
+    node = StringOrListField(child=serializers.CharField(), required=False)
+    infrastructures = serializers.ChoiceField(choices=INFRASTRUCTURE_CHOICES, required=False)
 
     def validate(self, data):
         """Validate incoming data.
@@ -102,9 +84,9 @@ class FilterSerializer(BaseFilterSerializer):
         """
         super().validate(data)
 
-        if data.get('infrastructures'):
-            infra_value = data['infrastructures']
-            data['infrastructures'] = [Provider.PROVIDER_CASE_MAPPING.get(infra_value.lower())]
+        if data.get("infrastructures"):
+            infra_value = data["infrastructures"]
+            data["infrastructures"] = [Provider.PROVIDER_CASE_MAPPING.get(infra_value.lower())]
 
         return data
 
@@ -118,9 +100,7 @@ class OCPQueryParamSerializer(ParamSerializer):
     def __init__(self, *args, **kwargs):
         """Initialize the OCP query param serializer."""
         super().__init__(*args, **kwargs)
-        self._init_tagged_fields(filter=FilterSerializer,
-                                 group_by=GroupBySerializer,
-                                 order_by=OrderBySerializer)
+        self._init_tagged_fields(filter=FilterSerializer, group_by=GroupBySerializer, order_by=OrderBySerializer)
 
     def validate(self, data):
         """Validate incoming data.
@@ -135,8 +115,8 @@ class OCPQueryParamSerializer(ParamSerializer):
         """
         super().validate(data)
         error = {}
-        if 'delta' in data.get('order_by', {}) and 'delta' not in data:
-            error['order_by'] = _('Cannot order by delta without a delta param')
+        if "delta" in data.get("order_by", {}) and "delta" not in data:
+            error["order_by"] = _("Cannot order by delta without a delta param")
             raise serializers.ValidationError(error)
         return data
 
@@ -151,8 +131,7 @@ class OCPQueryParamSerializer(ParamSerializer):
             (ValidationError): if group_by field inputs are invalid
 
         """
-        validate_field(self, 'group_by', GroupBySerializer, value,
-                       tag_keys=self.tag_keys)
+        validate_field(self, "group_by", GroupBySerializer, value, tag_keys=self.tag_keys)
         return value
 
     def validate_filter(self, value):
@@ -166,8 +145,7 @@ class OCPQueryParamSerializer(ParamSerializer):
             (ValidationError): if filter field inputs are invalid
 
         """
-        validate_field(self, 'filter', FilterSerializer, value,
-                       tag_keys=self.tag_keys)
+        validate_field(self, "filter", FilterSerializer, value, tag_keys=self.tag_keys)
         return value
 
     def validate_units(self, value):
@@ -185,7 +163,7 @@ class OCPQueryParamSerializer(ParamSerializer):
         try:
             unit_converter.validate_unit(value)
         except (AttributeError, UndefinedUnitError):
-            error = {'units': f'{value} is not a supported unit'}
+            error = {"units": f"{value} is not a supported unit"}
             raise serializers.ValidationError(error)
 
         return value
@@ -194,27 +172,18 @@ class OCPQueryParamSerializer(ParamSerializer):
 class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling inventory query parameters."""
 
-    delta_choices = (
-        'cost',
-        'usage',
-        'request',
-    )
+    delta_choices = ("cost", "usage", "request")
 
-    delta_fields = (
-        'usage',
-        'request',
-        'limit',
-        'capacity'
-    )
+    delta_fields = ("usage", "request", "limit", "capacity")
 
     delta = serializers.CharField(required=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the OCP query param serializer."""
         super().__init__(*args, **kwargs)
-        self._init_tagged_fields(filter=FilterSerializer,
-                                 group_by=GroupBySerializer,
-                                 order_by=InventoryOrderBySerializer)
+        self._init_tagged_fields(
+            filter=FilterSerializer, group_by=GroupBySerializer, order_by=InventoryOrderBySerializer
+        )
 
     def validate_order_by(self, value):
         """Validate incoming order_by data.
@@ -228,24 +197,24 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
 
         """
         super().validate_order_by(value)
-        validate_field(self, 'order_by', InventoryOrderBySerializer, value)
+        validate_field(self, "order_by", InventoryOrderBySerializer, value)
         return value
 
     def validate_delta(self, value):
         """Validate delta is valid."""
         error = {}
-        if '__' in value:
-            values = value.split('__')
+        if "__" in value:
+            values = value.split("__")
             if len(values) != 2:
-                error[value] = _('Only two fields may be compared')
+                error[value] = _("Only two fields may be compared")
                 raise serializers.ValidationError(error)
             for val in values:
                 if val not in self.delta_fields:
-                    error[value] = _('Unsupported parameter')
+                    error[value] = _("Unsupported parameter")
                     raise serializers.ValidationError(error)
         else:
             if value not in self.delta_choices:
-                error[value] = _('Unsupported parameter')
+                error[value] = _("Unsupported parameter")
                 raise serializers.ValidationError(error)
         return value
 
@@ -253,7 +222,7 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
 class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling cost query parameters."""
 
-    DELTA_CHOICES = (('cost', 'cost'))
+    DELTA_CHOICES = ("cost", "cost")
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
 
@@ -269,5 +238,5 @@ class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
 
         """
         super().validate_order_by(value)
-        validate_field(self, 'order_by', OrderBySerializer, value)
+        validate_field(self, "order_by", OrderBySerializer, value)
         return value

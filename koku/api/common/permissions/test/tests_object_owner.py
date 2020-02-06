@@ -15,14 +15,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Tests for Permissions."""
-
 from unittest.mock import Mock
 from uuid import uuid4
 
-from django.test import TestCase
-
 from api.common.permissions.object_owner import IsObjectOwner
-from api.iam.models import User, UserPreference
+from api.iam.models import User
+from api.iam.models import UserPreference
+from django.test import TestCase
 
 
 class IsObjectOwnerTest(TestCase):

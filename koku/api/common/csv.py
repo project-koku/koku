@@ -14,9 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """API views for CSV output."""
-
 from rest_framework_csv.renderers import CSVRenderer
 
 
@@ -27,10 +25,10 @@ class PaginatedCSVRenderer(CSVRenderer):
     To be used with views that paginate data.
     """
 
-    results_field = 'data'
+    results_field = "data"
 
     def render(self, data, *args, **kwargs):
         """Render a paginated CSV."""
         if not isinstance(data, list):
             data = data.get(self.results_field, [])
-        return super(PaginatedCSVRenderer, self).render(data, *args, **kwargs)
+        return super().render(data, *args, **kwargs)

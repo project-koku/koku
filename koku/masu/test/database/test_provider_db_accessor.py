@@ -14,9 +14,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the ProviderDBAccessor utility object."""
-from api.provider.models import Provider, ProviderInfrastructureMap
+from api.provider.models import Provider
+from api.provider.models import ProviderInfrastructureMap
 from masu.database.customer_db_accessor import CustomerDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.test import MasuTestCase
@@ -66,7 +66,7 @@ class ProviderDBAccessorTest(MasuTestCase):
         """Test provider name getter."""
         uuid = self.aws_provider_uuid
         with ProviderDBAccessor(uuid) as accessor:
-            self.assertEqual('Test Provider', accessor.get_provider_name())
+            self.assertEqual("Test Provider", accessor.get_provider_name())
 
     def test_get_type(self):
         """Test provider type getter."""
@@ -84,7 +84,7 @@ class ProviderDBAccessorTest(MasuTestCase):
     def test_get_billing_source(self):
         """Test provider billing_source getter."""
         uuid = self.aws_provider_uuid
-        expected_billing_source = 'test-bucket'
+        expected_billing_source = "test-bucket"
         with ProviderDBAccessor(uuid) as accessor:
             self.assertEqual(expected_billing_source, accessor.get_billing_source())
 
@@ -146,8 +146,7 @@ class ProviderDBAccessorTest(MasuTestCase):
             accessor.set_infrastructure(self.aws_provider_uuid, infrastructure_type)
 
         mapping = ProviderInfrastructureMap.objects.filter(
-            infrastructure_provider_id=self.aws_provider_uuid,
-            infrastructure_type=infrastructure_type,
+            infrastructure_provider_id=self.aws_provider_uuid, infrastructure_type=infrastructure_type
         ).first()
 
         mapping_on_provider = Provider.objects.filter(infrastructure=mapping).first()

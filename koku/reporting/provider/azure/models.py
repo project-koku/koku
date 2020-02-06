@@ -14,10 +14,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Models for Azure cost and usage entry tables."""
-
-from django.contrib.postgres.fields import ArrayField, JSONField
+from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.fields import JSONField
 from django.db import models
 
 
@@ -31,7 +30,7 @@ class AzureCostEntryBill(models.Model):
     class Meta:
         """Meta for AzureCostEntryBill."""
 
-        unique_together = ('billing_period_start', 'provider')
+        unique_together = ("billing_period_start", "provider")
 
     billing_period_start = models.DateTimeField(null=False)
     billing_period_end = models.DateTimeField(null=False)
@@ -40,7 +39,7 @@ class AzureCostEntryBill(models.Model):
     finalized_datetime = models.DateTimeField(null=True)
     derived_cost_datetime = models.DateTimeField(null=True)
 
-    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE)
+    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
 
 
 class AzureCostEntryProductService(models.Model):
@@ -49,7 +48,7 @@ class AzureCostEntryProductService(models.Model):
     class Meta:
         """Meta for AzureCostEntryProductService."""
 
-        unique_together = ('instance_id', 'instance_type', 'service_tier', 'service_name')
+        unique_together = ("instance_id", "instance_type", "service_tier", "service_name")
 
     instance_id = models.TextField(max_length=512, null=False)
     resource_location = models.TextField(null=False)
@@ -63,7 +62,7 @@ class AzureCostEntryProductService(models.Model):
     service_info2 = models.TextField(null=True)
     instance_type = models.TextField(null=True)
 
-    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE, null=True)
+    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE, null=True)
 
 
 class AzureMeter(models.Model):
@@ -78,7 +77,7 @@ class AzureMeter(models.Model):
     currency = models.CharField(max_length=10, null=False)
     unit_of_measure = models.CharField(max_length=63, null=True)
 
-    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE, null=True)
+    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE, null=True)
 
 
 class AzureCostEntryLineItemDaily(models.Model):
@@ -91,14 +90,12 @@ class AzureCostEntryLineItemDaily(models.Model):
     class Meta:
         """Meta for AzureCostEntryLineItemDaily."""
 
-        db_table = 'reporting_azurecostentrylineitem_daily'
+        db_table = "reporting_azurecostentrylineitem_daily"
 
     id = models.BigAutoField(primary_key=True)
-    cost_entry_bill = models.ForeignKey('AzureCostEntryBill', on_delete=models.CASCADE)
-    cost_entry_product = models.ForeignKey(
-        'AzureCostEntryProductService', on_delete=models.SET_NULL, null=True
-    )
-    meter = models.ForeignKey('AzureMeter', on_delete=models.SET_NULL, null=True)
+    cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
+    cost_entry_product = models.ForeignKey("AzureCostEntryProductService", on_delete=models.SET_NULL, null=True)
+    meter = models.ForeignKey("AzureMeter", on_delete=models.SET_NULL, null=True)
     subscription_guid = models.CharField(max_length=50, null=False)
     tags = JSONField(null=True)
     usage_date_time = models.DateTimeField(null=False)
@@ -117,11 +114,11 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     class Meta:
         """Meta for AzureCostEntryLineItemDailySummary."""
 
-        db_table = 'reporting_azurecostentrylineitem_daily_summary'
+        db_table = "reporting_azurecostentrylineitem_daily_summary"
 
     id = models.BigAutoField(primary_key=True)
-    cost_entry_bill = models.ForeignKey('AzureCostEntryBill', on_delete=models.CASCADE)
-    meter = models.ForeignKey('AzureMeter', on_delete=models.SET_NULL, null=True)
+    cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
+    meter = models.ForeignKey("AzureMeter", on_delete=models.SET_NULL, null=True)
     subscription_guid = models.CharField(max_length=50, null=False)
     instance_type = models.CharField(max_length=50, null=True)
     service_name = models.CharField(max_length=50, null=False)
@@ -133,7 +130,7 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     offer_id = models.PositiveIntegerField(null=True)
-    currency = models.CharField(max_length=10, null=False, default='USD')
+    currency = models.CharField(max_length=10, null=False, default="USD")
     instance_ids = ArrayField(models.CharField(max_length=256), null=True)
     instance_count = models.IntegerField(null=True)
     unit_of_measure = models.CharField(max_length=63, null=True)
@@ -145,7 +142,7 @@ class AzureTagsSummary(models.Model):
     class Meta:
         """Meta for AzureTagsSummary."""
 
-        db_table = 'reporting_azuretags_summary'
+        db_table = "reporting_azuretags_summary"
 
     key = models.CharField(primary_key=True, max_length=253)
     values = ArrayField(models.CharField(max_length=253))

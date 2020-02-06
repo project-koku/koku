@@ -15,10 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Serializer for CloudAccount."""
-
-from rest_framework import serializers
-
 from api.cloud_accounts.models import CloudAccount
+from rest_framework import serializers
 
 
 class CloudAccountSerializer(serializers.ModelSerializer):
@@ -26,4 +24,4 @@ class CloudAccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CloudAccount
-        fields = ('name', 'value', 'description', 'updated_timestamp')
+        fields = ("name", "value", "description", "updated_timestamp")

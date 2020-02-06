@@ -14,14 +14,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the ProviderStatus object."""
-
 import random
 from datetime import timedelta
 
 from faker import Faker
-
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.external.date_accessor import DateAccessor
@@ -48,11 +45,11 @@ class ProviderStatusTest(MasuTestCase):
         facilitate testing the case where there is no status in the DB.
         """
         self.test_status = {
-            'provider_id': self.provider_uuid,
-            'status': random.choice(list(ProviderStatusCode)),
-            'last_message': self.FAKE.word(),
-            'timestamp': DateAccessor().today(),
-            'retries': random.randint(0, 10),
+            "provider_id": self.provider_uuid,
+            "status": random.choice(list(ProviderStatusCode)),
+            "last_message": self.FAKE.word(),
+            "timestamp": DateAccessor().today(),
+            "retries": random.randint(0, 10),
         }
 
         with ProviderStatus(self.aws_provider_uuid) as accessor:
@@ -61,11 +58,11 @@ class ProviderStatusTest(MasuTestCase):
     def _setup_ready_status(self):
         """Set status to READY state."""
         ready_status = {
-            'provider_id': self.provider_uuid,
-            'status': ProviderStatusCode.READY,
-            'last_message': 'none',
-            'timestamp': DateAccessor().today(),
-            'retries': 0,
+            "provider_id": self.provider_uuid,
+            "status": ProviderStatusCode.READY,
+            "last_message": "none",
+            "timestamp": DateAccessor().today(),
+            "retries": 0,
         }
         with ProviderStatus(self.aws_provider_uuid) as accessor:
             accessor.add(**ready_status)
@@ -78,7 +75,7 @@ class ProviderStatusTest(MasuTestCase):
 
         with ProviderStatus(self.aws_provider_uuid) as new_accessor:
             self.assertEqual(new_accessor.get_status(), ProviderStatusCode.READY)
-            self.assertEqual(new_accessor.get_last_message(), 'none')
+            self.assertEqual(new_accessor.get_last_message(), "none")
             self.assertEqual(new_accessor.get_retries(), 0)
 
     def test_set_error(self):
@@ -129,11 +126,11 @@ class ProviderStatusTest(MasuTestCase):
     def test_is_valid_warn(self):
         """Test is_valid() should be True when status is WARNING."""
         status = {
-            'provider_id': self.provider_uuid,
-            'status': ProviderStatusCode.WARNING,
-            'last_message': self.FAKE.word(),
-            'timestamp': DateAccessor().today(),
-            'retries': 3,
+            "provider_id": self.provider_uuid,
+            "status": ProviderStatusCode.WARNING,
+            "last_message": self.FAKE.word(),
+            "timestamp": DateAccessor().today(),
+            "retries": 3,
         }
         with ProviderStatus(self.aws_provider_uuid) as accessor:
             accessor.add(**status)
@@ -144,11 +141,11 @@ class ProviderStatusTest(MasuTestCase):
     def test_is_valid_disabled(self):
         """Test when is_valid() should be False when status is DISABLED."""
         status = {
-            'provider_id': self.provider_uuid,
-            'status': ProviderStatusCode.DISABLED_ERROR,
-            'last_message': self.FAKE.word(),
-            'timestamp': DateAccessor().today(),
-            'retries': 3,
+            "provider_id": self.provider_uuid,
+            "status": ProviderStatusCode.DISABLED_ERROR,
+            "last_message": self.FAKE.word(),
+            "timestamp": DateAccessor().today(),
+            "retries": 3,
         }
         with ProviderStatus(self.aws_provider_uuid) as accessor:
             accessor.add(**status)
@@ -159,11 +156,11 @@ class ProviderStatusTest(MasuTestCase):
     def test_is_valid_new(self):
         """Test when is_valid() should be False when status is NEW."""
         status = {
-            'provider_id': self.provider_uuid,
-            'status': ProviderStatusCode.NEW,
-            'last_message': self.FAKE.word(),
-            'timestamp': DateAccessor().today(),
-            'retries': 3,
+            "provider_id": self.provider_uuid,
+            "status": ProviderStatusCode.NEW,
+            "last_message": self.FAKE.word(),
+            "timestamp": DateAccessor().today(),
+            "retries": 3,
         }
         with ProviderStatus(self.aws_provider_uuid) as accessor:
             accessor.add(**status)
@@ -175,11 +172,11 @@ class ProviderStatusTest(MasuTestCase):
         """Test is_backing_off() is true within the appropriate time window."""
         two_hours_ago = DateAccessor().today() - timedelta(hours=2)
         status = {
-            'provider_id': self.provider_uuid,
-            'status': ProviderStatusCode.WARNING,
-            'last_message': self.FAKE.word(),
-            'timestamp': two_hours_ago,
-            'retries': 1,
+            "provider_id": self.provider_uuid,
+            "status": ProviderStatusCode.WARNING,
+            "last_message": self.FAKE.word(),
+            "timestamp": two_hours_ago,
+            "retries": 1,
         }
         with ProviderStatus(self.aws_provider_uuid) as accessor:
             accessor.add(**status)
@@ -191,11 +188,11 @@ class ProviderStatusTest(MasuTestCase):
         """Test is_backing_off() is false outside the appropriate time window."""
         three_hours_ago = DateAccessor().today() - timedelta(hours=3)
         status = {
-            'provider_id': self.provider_uuid,
-            'status': ProviderStatusCode.WARNING,
-            'last_message': self.FAKE.word(),
-            'timestamp': str(three_hours_ago),
-            'retries': 1,
+            "provider_id": self.provider_uuid,
+            "status": ProviderStatusCode.WARNING,
+            "last_message": self.FAKE.word(),
+            "timestamp": str(three_hours_ago),
+            "retries": 1,
         }
 
         with ProviderStatus(self.aws_provider_uuid) as accessor:
