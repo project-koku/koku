@@ -442,10 +442,13 @@ class ReportQueryHandler(QueryHandler):
         tag_prefix = self._mapper.tag_column + '__'
         if not isinstance(data, dict):
             return data
+
+        all_pack_keys = ['date', 'delta_value', 'delta_percent']
         for pack_def in kwargs.values():
             key_items = pack_def.get('keys')
             key_units = pack_def.get('units')
             units = data.get(key_units)
+            all_pack_keys += key_items
             for key in key_items:
                 value = data.get(key)
                 if value is not None and units is not None:
@@ -457,7 +460,10 @@ class ReportQueryHandler(QueryHandler):
         for data_key in data.keys():
             if data_key.startswith(tag_prefix):
                 new_tag = data_key[len(tag_prefix):]
-                new_data[new_tag] = data[data_key]
+                if new_tag in all_pack_keys:
+                    new_data['tag:' + new_tag] = data[data_key]
+                else: 
+                    new_data[new_tag] = data[data_key]
                 delete_keys.append(data_key)
         for del_key in delete_keys:
             del data[del_key]
