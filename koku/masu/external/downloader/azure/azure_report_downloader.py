@@ -124,7 +124,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
         except AzureCostReportNotFound as ex:
-            LOG.error('Unable to find manifest. Error: %s', str(ex))
+            LOG.info('Unable to find manifest. Error: %s', str(ex))
             return manifest
         report_name = blob.name
 
