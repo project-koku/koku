@@ -462,7 +462,7 @@ class ReportQueryHandler(QueryHandler):
                 new_tag = data_key[len(tag_prefix):]
                 if new_tag in all_pack_keys:
                     new_data['tag:' + new_tag] = data[data_key]
-                else: 
+                else:
                     new_data[new_tag] = data[data_key]
                 delete_keys.append(data_key)
         for del_key in delete_keys:
