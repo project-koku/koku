@@ -128,3 +128,7 @@ pgadmin_servers.json
 
 # Testing
 testing/
+
+# Local OpenShift folders
+openshift.local.clusterup/
+scripts/openshift.local.clusterup/
