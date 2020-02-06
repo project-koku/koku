@@ -43,6 +43,7 @@ def _get_sts_access(provider_resource_name):
     sts_client = boto3.client('sts')
 
     credentials = dict()
+    error_message = 'Unable to assume role with ARN {}.'.format(provider_resource_name)
     try:
         # Call the assume_role method of the STSConnection object and pass the role
         # ARN and a role session name.
@@ -51,10 +52,14 @@ def _get_sts_access(provider_resource_name):
             RoleSessionName='AccountCreationSession'
         )
         credentials = assumed_role.get('Credentials')
-    except (ClientError, BotoConnectionError, NoCredentialsError, ParamValidationError) as boto_error:
-        message = 'Unable to assume role ' \
-                  'with ARN {}.'.format(provider_resource_name)
-        LOG.warn(msg=message, exc_info=boto_error)
+    except ParamValidationError as param_error:
+        LOG.warn(msg=error_message)
+        LOG.info(param_error)
+        # We can't use the exc_info here because it will print
+        # a traceback that gets picked up by sentry:
+        # https://github.com/project-koku/koku/issues/1483
+    except (ClientError, BotoConnectionError, NoCredentialsError) as boto_error:
+        LOG.warn(msg=error_message, exc_info=boto_error)
 
     # return a kwargs-friendly format
     return dict(aws_access_key_id=credentials.get('AccessKeyId'),
