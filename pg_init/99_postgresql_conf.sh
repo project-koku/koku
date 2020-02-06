@@ -42,5 +42,4 @@ track_activity_query_size = 4096   # max statement length in pg_stat_activity
 
 EOF
 
-psql -U postgres -c "create extension if not exists pg_stat_statements;" 2>/dev/null
-
+psql $POSTGRES_DB -U $POSTGRES_USER -c "create extension if not exists pg_stat_statements;" 2>/dev/null
