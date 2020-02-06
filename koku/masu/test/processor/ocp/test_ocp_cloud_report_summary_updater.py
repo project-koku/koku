@@ -147,11 +147,8 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
                 report_entry = report_table.objects.all().aggregate(
                     Min('interval_start'), Max('interval_start')
                 )
-                start_date = report_entry['interval_start__min']
-                end_date = report_entry['interval_start__max']
-
-                start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-                end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                start_date = report_entry['interval_start__min'].date()
+                end_date = report_entry['interval_start__max'].date()
 
             ocp_accessor.populate_line_item_daily_table(
                 start_date, end_date, cluster_id

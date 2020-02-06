@@ -588,11 +588,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
             ce_entry = ce_table.objects.all().aggregate(
                 Min('interval_start'), Max('interval_start')
             )
-            start_date = ce_entry['interval_start__min']
-            end_date = ce_entry['interval_start__max']
-
-            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-            end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            start_date = ce_entry['interval_start__min'].date()
+            end_date = ce_entry['interval_start__max'].date()
 
             query = self.accessor._get_db_obj_query(daily_table_name)
             initial_count = query.count()
@@ -605,8 +602,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
             daily_entry = daily_table.objects.all().aggregate(
                 Min('usage_start'), Max('usage_start')
             )
-            result_start_date = daily_entry['usage_start__min']
-            result_end_date = daily_entry['usage_start__max']
+            result_start_date = daily_entry['usage_start__min'].date()
+            result_end_date = daily_entry['usage_start__max'].date()
 
             self.assertEqual(result_start_date, start_date)
             self.assertEqual(result_end_date, end_date)
@@ -666,11 +663,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
             ce_entry = ce_table.objects.all().aggregate(
                 Min('interval_start'), Max('interval_start')
             )
-            start_date = ce_entry['interval_start__min']
-            end_date = ce_entry['interval_start__max']
-
-            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-            end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            start_date = ce_entry['interval_start__min'].date()
+            end_date = ce_entry['interval_start__max'].date()
 
             query = self.accessor._get_db_obj_query(daily_table_name)
             initial_count = query.count()
@@ -683,8 +677,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
             daily_entry = daily_table.objects.all().aggregate(
                 Min('usage_start'), Max('usage_start')
             )
-            result_start_date = daily_entry['usage_start__min']
-            result_end_date = daily_entry['usage_start__max']
+            result_start_date = daily_entry['usage_start__min'].date()
+            result_end_date = daily_entry['usage_start__max'].date()
 
             self.assertEqual(result_start_date, start_date)
             self.assertEqual(result_end_date, end_date)
@@ -754,11 +748,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
             ce_entry = ce_table.objects.all().aggregate(
                 Min('interval_start'), Max('interval_start')
             )
-            start_date = ce_entry['interval_start__min']
-            end_date = ce_entry['interval_start__max']
-
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            start_date = ce_entry['interval_start__min'].date()
+            end_date = ce_entry['interval_start__max'].date()
 
         query = self.accessor._get_db_obj_query(summary_table_name)
         with schema_context(self.schema):
@@ -772,8 +763,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
             summary_entry = summary_table.objects.all().aggregate(
                 Min('usage_start'), Max('usage_start')
             )
-            result_start_date = summary_entry['usage_start__min']
-            result_end_date = summary_entry['usage_start__max']
+            result_start_date = summary_entry['usage_start__min'].date()
+            result_end_date = summary_entry['usage_start__max'].date()
 
             self.assertEqual(result_start_date, start_date)
             self.assertEqual(result_end_date, end_date)
@@ -847,11 +838,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
             ce_entry = ce_table.objects.all().aggregate(
                 Min('interval_start'), Max('interval_start')
             )
-            start_date = ce_entry['interval_start__min']
-            end_date = ce_entry['interval_start__max']
-
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            start_date = ce_entry['interval_start__min'].date()
+            end_date = ce_entry['interval_start__max'].date()
 
         query = self.accessor._get_db_obj_query(summary_table_name)
         with schema_context(self.schema):
@@ -865,8 +853,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
             summary_entry = summary_table.objects.all().aggregate(
                 Min('usage_start'), Max('usage_start')
             )
-            result_start_date = summary_entry['usage_start__min']
-            result_end_date = summary_entry['usage_start__max']
+            result_start_date = summary_entry['usage_start__min'].date()
+            result_end_date = summary_entry['usage_start__max'].date()
 
             self.assertEqual(result_start_date, start_date)
             self.assertEqual(result_end_date, end_date)
@@ -1023,11 +1011,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 report_entry = report_table.objects.all().aggregate(
                     Min('interval_start'), Max('interval_start')
                 )
-                start_date = report_entry['interval_start__min']
-                end_date = report_entry['interval_start__max']
-
-                start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-                end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                start_date = report_entry['interval_start__min'].date()
+                end_date = report_entry['interval_start__max'].date() 
 
             ocp_accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
             ocp_accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id)
@@ -1098,11 +1083,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
             ce_entry = ce_table.objects.all().aggregate(
                 Min('interval_start'), Max('interval_start')
             )
-            start_date = ce_entry['interval_start__min']
-            end_date = ce_entry['interval_start__max']
-
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            start_date = ce_entry['interval_start__min'].date()
+            end_date = ce_entry['interval_start__max'].date()
 
         query = self.accessor._get_db_obj_query(summary_table_name)
 
@@ -1146,11 +1128,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
             ce_entry = ce_table.objects.all().aggregate(
                 Min('interval_start'), Max('interval_start')
             )
-            start_date = ce_entry['interval_start__min']
-            end_date = ce_entry['interval_start__max']
-
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            start_date = ce_entry['interval_start__min'].date()
+            end_date = ce_entry['interval_start__max'].date()
 
         query = self.accessor._get_db_obj_query(summary_table_name)
 
