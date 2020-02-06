@@ -862,14 +862,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         )
 
         with schema_context(self.schema):
-            unique_nodes = OCPUsageLineItemDailySummary.objects.filter(
-                usage_start__gte=usage_period.report_period_start,
-                usage_start__lt=usage_period.report_period_end,
-                node__isnull=False
-            ).values_list('node').distinct().count()
-
             monthly_cost_row = OCPUsageLineItemDailySummary.objects.filter(
                 monthly_cost__isnull=False
             ).first()
             self.assertGreater(monthly_cost_row.monthly_cost, 0)
-            self.assertEquals(monthly_cost_row.monthly_cost, unique_nodes * node_cost)
+            self.assertEquals(monthly_cost_row.monthly_cost, node_cost)

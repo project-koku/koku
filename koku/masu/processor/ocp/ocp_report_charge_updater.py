@@ -30,7 +30,7 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
-from masu.util.ocp.common import get_cluster_id_from_provider
+from masu.util.ocp.common import get_cluster_alias_from_cluster_id, get_cluster_id_from_provider
 
 LOG = logging.getLogger(__name__)
 
@@ -52,6 +52,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         """
         super().__init__(schema, provider, None)
         self._cluster_id = None
+        self._cluster_alias = None
 
     @staticmethod
     def _normalize_tier(input_tier):
@@ -294,14 +295,23 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
                     OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
                 rates = cost_model_accessor.get_node_per_month_rates()
                 if rates:
-                    tiers = self._normalize_tier(rates.get('tiered_rates', []))
+                    # tiers = self._normalize_tier(rates.get('tiered_rates', []))
+                    # FIXME: The _normalize_tier function is currently return two
+                    # rates, one for the first of the current month & one for the
+                    # first of the next month.
+                    # example: [{'unit': 'USD', 'value': '0.2'}, {'unit': 'USD', 'value': '0.2'}]
+                    tiers = rates.get('tiered_rates', [])
                     for tier in tiers:
                         LOG.info('Updating Monthly Cost for'
                                  '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s',
                                  self._schema, self._provider_uuid, start_date, end_date)
 
                         node_rate = Decimal(tier.get('value'))
-                        report_accessor.populate_monthly_cost(node_rate, start_date, end_date)
+                        report_accessor.populate_monthly_cost(node_rate,
+                                                              start_date,
+                                                              end_date,
+                                                              self._cluster_id,
+                                                              self._cluster_alias)
                 else:
                     LOG.info('Removing Monthly Cost for'
                              'Schema: %s, Provider: %s ',
@@ -324,6 +334,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         if not isinstance(start_date, datetime.date):
             raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
         self._cluster_id = get_cluster_id_from_provider(self._provider_uuid)
+        self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
 
         LOG.info('Starting charge calculation updates for provider: %s. Cluster ID: %s.',
                  self._provider_uuid, self._cluster_id)

@@ -399,26 +399,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
             self.assertIsNotNone(handler.query_delta['value'])
             self.assertIsNone(handler.query_delta['percent'])
 
-    def test_strip_label_column_name(self):
-        """Test that the tag column name is stripped from results."""
-        url = '?'
-        query_params = self.mocked_query_params(url, OCPCpuView)
-        handler = OCPReportQueryHandler(query_params)
-        tag_column = handler._mapper.provider_map.get('tag_column')
-        data = [
-            {f'{tag_column}__tag_key1': 'value'},
-            {f'{tag_column}__tag_key2': 'value'},
-        ]
-        group_by = ['date', f'{tag_column}__tag_key1', f'{tag_column}__tag_key2']
-
-        expected_data = [{'tag_key1': 'value'}, {'tag_key2': 'value'}]
-        expected_group_by = ['date', 'tag_key1', 'tag_key2']
-
-        result_data, result_group_by = handler.strip_label_column_name(data, group_by)
-
-        self.assertEqual(result_data, expected_data)
-        self.assertEqual(result_group_by, expected_group_by)
-
     def test_get_tag_filter_keys(self):
         """Test that filter params with tag keys are returned."""
         url = '?'
@@ -602,7 +582,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 self.assertIn('cluster', cluster_data)
                 self.assertIn('values', cluster_data)
                 for cluster_value in cluster_data.get('values'):
-                    self.assertIn('cluster', cluster_value)
-                    self.assertIn('cluster_alias', cluster_value)
-                    self.assertIsNotNone('cluster', cluster_value)
-                    self.assertIsNotNone('cluster_alias', cluster_value)
+                    # cluster_value is a dictionary
+                    self.assertIn('cluster', cluster_value.keys())
+                    self.assertIn('clusters', cluster_value.keys())
+                    self.assertIsNotNone(cluster_value['cluster'])
+                    self.assertIsNotNone(cluster_value['clusters'])
