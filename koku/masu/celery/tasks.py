@@ -21,15 +21,14 @@
 # we expect this situation to be temporary as we iterate on these details.
 import calendar
 import csv
-import math
 import datetime
+import math
 from datetime import date
 
 import boto3
 from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
-from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
 from dateutil.rrule import DAILY, rrule
 from django.conf import settings
@@ -246,7 +245,7 @@ def sync_data_to_customer(dump_request_uuid):
 
 
 @app.task(name='masu.celery.tasks.query_and_upload_to_s3', queue_name='query_upload')
-def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, start_date: datetime.date, end_date: datetime.date) -> None:
+def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, start_date: datetime.date, end_date: datetime.date) -> None:  # noqa: E501
     """
     Query the database and upload the results to s3.
 

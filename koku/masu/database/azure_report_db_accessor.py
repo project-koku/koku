@@ -15,10 +15,11 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Database accessor for Azure report data."""
+import datetime
 import logging
 import pkgutil
 import uuid
-import datetime
+
 from dateutil.parser import parse
 from django.db.models import F
 from jinjasql import JinjaSql
@@ -28,13 +29,12 @@ from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
-from reporting.provider.azure.models import (AzureCostEntryBill,
-                                             AzureCostEntryLineItemDaily,
-                                             AzureCostEntryLineItemDailySummary,
-                                             AzureCostEntryProductService,
-                                             AzureMeter)
-from reporting.provider.azure.openshift.models import (OCPAzureCostLineItemDailySummary,
-                                                       OCPAzureCostLineItemProjectDailySummary)
+from reporting.provider.azure.models import (
+    AzureCostEntryBill, AzureCostEntryLineItemDaily,
+    AzureCostEntryLineItemDailySummary, AzureCostEntryProductService,
+    AzureMeter)
+from reporting.provider.azure.openshift.models import (
+    OCPAzureCostLineItemDailySummary, OCPAzureCostLineItemProjectDailySummary)
 
 LOG = logging.getLogger(__name__)
 

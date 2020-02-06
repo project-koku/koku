@@ -68,7 +68,7 @@ class ReportObjectCreator:
         if entry_datetime:
             start_datetime = entry_datetime
         else:
-            start_datetime = self.fake.past_datetime(start_date='-60d')  # pylint: ignore=no-member
+            start_datetime = self.fake.past_datetime(start_date='-60d')
         end_datetime = start_datetime + datetime.timedelta(hours=1)
         data = {'bill_id': bill.id, 'interval_start': start_datetime, 'interval_end': end_datetime}
         with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
@@ -141,7 +141,7 @@ class ReportObjectCreator:
         with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
-    def create_ocp_report_period(self, provider_uuid, period_date: datetime.date =None, cluster_id=None):
+    def create_ocp_report_period(self, provider_uuid, period_date: datetime.date = None, cluster_id=None):
         """Create an OCP report database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
 

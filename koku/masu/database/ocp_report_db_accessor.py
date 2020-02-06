@@ -19,8 +19,8 @@ import datetime
 import logging
 import pkgutil
 import uuid
+from typing import Optional
 
-from dateutil.parser import parse
 from dateutil.rrule import MONTHLY, rrule
 from django.db import connection
 from django.db.models import DecimalField, F, Max, Min, Value
@@ -35,7 +35,7 @@ from masu.util.common import month_date_range_tuple
 from reporting.provider.ocp.models import (OCPUsageLineItemDailySummary,
                                            OCPUsageReport,
                                            OCPUsageReportPeriod)
-from typing import Optional
+
 LOG = logging.getLogger(__name__)
 
 
@@ -109,13 +109,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             return self._get_db_obj_query(table_name)\
                 .filter(provider_id=provider_uuid)
 
-    def report_periods_for_provider_uuid(self, provider_uuid, start_date: Optional[datetime.datetime] = None):
+    def report_periods_for_provider_uuid(self, provider_uuid, start_date: Optional[datetime.datetime] = None): # noqa E501
         """Return all report periods for provider_uuid on date."""
         report_periods = self.get_usage_period_query_by_provider(provider_uuid)
         with schema_context(self.schema):
             if start_date:
-                if not isinstance(start_date, datetime.date):
-                    raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
                 report_date = start_date.replace(day=1)
                 report_periods = report_periods.filter(
                     report_period_start=report_date
@@ -341,9 +339,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        if isinstance(start_date, datetime.datetime):
-            raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
-
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily']
 
         daily_sql = pkgutil.get_data(
@@ -380,10 +375,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         ocp_provider_uuid = kwargs.get('ocp_provider_uuid')
         aws_provider_uuid = kwargs.get('aws_provider_uuid')
         azure_provider_uuid = kwargs.get('azure_provider_uuid')
-        # In case someone passes this function a string instead of the date object like we asked...
-        # Cast the string into a date object, end_date into date object instead of string
-        if not isinstance(start_date, datetime.date):
-            raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
+
         infra_sql = pkgutil.get_data(
             'masu.database',
             'sql/reporting_ocpinfrastructure_provider_map.sql'
@@ -427,8 +419,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        if not isinstance(start_date, datetime.date):
-            raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily']
 
         daily_sql = pkgutil.get_data(
@@ -518,8 +508,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        if not isinstance(start_date, datetime.date):
-            raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         summary_sql = pkgutil.get_data(
@@ -552,9 +540,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        # Cast start_date and end_date to date object, if they aren't already
-        if not isinstance(start_date, datetime.date):
-            raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         summary_sql = pkgutil.get_data(
@@ -719,9 +704,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 )
             )
 
-
     # pylint: disable=too-many-arguments
-    def populate_monthly_cost(self, node_cost, start_date: datetime.date, end_date: datetime.date, cluster_id, cluster_alias):
+    def populate_monthly_cost(self, node_cost, start_date: datetime.date, end_date: datetime.date, cluster_id, cluster_alias):  # noqa: E501
         """
         Populate the monthly cost of a customer.
 
@@ -734,8 +718,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             end_date (datetime.date): The end_date to calculate monthly_cost.
 
         """
-        if not isinstance(start_date, datetime.date):
-            raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
         if not start_date:
             # If start_date is not provided, recalculate from the first month
             start_date = OCPUsageLineItemDailySummary.objects.aggregate(

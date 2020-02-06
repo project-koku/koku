@@ -1012,7 +1012,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
                     Min('interval_start'), Max('interval_start')
                 )
                 start_date = report_entry['interval_start__min'].date()
-                end_date = report_entry['interval_start__max'].date() 
+                end_date = report_entry['interval_start__max'].date()
 
             ocp_accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
             ocp_accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id)

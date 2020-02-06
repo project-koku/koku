@@ -20,7 +20,6 @@ import datetime
 import logging
 from decimal import Decimal
 
-from dateutil.parser import parse
 from django.db import connection
 from tenant_schemas.utils import schema_context
 
@@ -55,8 +54,6 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
             None
 
         """
-        if not isinstance(start_date, datetime.date):
-            raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
         infra_map = self.get_infra_map()
         openshift_provider_uuids, infra_provider_uuids = self.get_openshift_and_infra_providers_lists(infra_map)
 

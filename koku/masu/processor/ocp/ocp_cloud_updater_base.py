@@ -86,8 +86,6 @@ class OCPCloudUpdaterBase:
             infra_map (dict) The OCP infrastructure map.
 
         """
-        if not isinstance(start_date, datetime.date):
-            raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
         infra_map = {}
         if self._provider.type == Provider.PROVIDER_OCP:
             with OCPReportDBAccessor(self._schema, self._column_map) as accessor:

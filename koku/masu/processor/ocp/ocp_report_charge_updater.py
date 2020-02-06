@@ -23,7 +23,6 @@ import logging
 from decimal import Decimal
 from typing import Optional
 
-from dateutil.parser import parse
 from tenant_schemas.utils import schema_context
 
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -331,8 +330,6 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
             None
 
         """
-        if not isinstance(start_date, datetime.date):
-            raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
         self._cluster_id = get_cluster_id_from_provider(self._provider_uuid)
         self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
 
