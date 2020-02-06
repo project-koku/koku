@@ -331,7 +331,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        if not isinstance(start_date, datetime.date):
+        if isinstance(start_date, datetime.datetime):
             raise TypeError("start_date should be of type datetime.date, instead it was" + str(type(start_date)))
 
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily']

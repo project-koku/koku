@@ -49,7 +49,7 @@ class DateAccessor():
                 DateAccessor.mock_date_time = DateAccessor.mock_date_time.replace(tzinfo=pytz.UTC)
             LOG.info('Initializing masu date/time to %s', str(DateAccessor.mock_date_time))
 
-    def today(self):
+    def today(self) -> datetime.date:
         """
         Return the current date and time.
 
@@ -61,7 +61,7 @@ class DateAccessor():
             (None)
 
         Returns:
-            (datetime.datetime): Current datetime object
+            (datetime.date): Current datetime object
             example: 2018-07-24 15:47:33
 
         """

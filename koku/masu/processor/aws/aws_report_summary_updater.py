@@ -65,8 +65,8 @@ class AWSReportSummaryUpdater:
         bills = get_bills_from_provider(
             self._provider.uuid,
             self._schema,
-            start_date,  # was datetime.datetime.strptime(start_date, '%Y-%m-%d'),
-            end_date  # was atetime.datetime.strptime(end_date, '%Y-%m-%d')
+            start_date,
+            end_date
         )
         bill_ids = []
         with schema_context(self._schema):
@@ -98,8 +98,8 @@ class AWSReportSummaryUpdater:
         bills = get_bills_from_provider(
             self._provider.uuid,
             self._schema,
-            start_date,  # formly datetime.datetime.strptime(start_date, '%Y-%m-%d'),
-            end_date  # formerly datetime.datetime.strptime(end_date, '%Y-%m-%d')
+            start_date,
+            end_date
         )
         bill_ids = []
         with schema_context(self._schema):

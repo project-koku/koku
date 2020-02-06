@@ -141,7 +141,7 @@ class ReportObjectCreator:
         with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
-    def create_ocp_report_period(self, provider_uuid, period_date=None, cluster_id=None):
+    def create_ocp_report_period(self, provider_uuid, period_date: datetime.date =None, cluster_id=None):
         """Create an OCP report database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
 
@@ -155,7 +155,7 @@ class ReportObjectCreator:
         }
 
         if period_date:
-            period_start = period_date.replace(day=1).date()
+            period_start = period_date.replace(day=1)
             period_end = period_start + relativedelta.relativedelta(months=1)
 
             data['report_period_start'] = period_start

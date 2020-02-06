@@ -70,9 +70,9 @@ class AzureReportSummaryUpdater:
                         bill_date.year,
                         bill_date.month
                     )[1]
-                    start_date = bill_date.strftime('%Y-%m-%d')
+                    start_date = bill_date
                     end_date = bill_date.replace(day=last_day_of_month)
-                    end_date = end_date.strftime('%Y-%m-%d')
+                    end_date = end_date
                     LOG.info('Overriding start and end date to process full month.')
 
         return start_date, end_date
@@ -109,8 +109,8 @@ class AzureReportSummaryUpdater:
         bills = get_bills_from_provider(
             self._provider.uuid,
             self._schema,
-            datetime.datetime.strptime(start_date, '%Y-%m-%d'),
-            datetime.datetime.strptime(end_date, '%Y-%m-%d')
+            datetime.datetime,
+            datetime.datetime
         )
         bill_ids = []
         with schema_context(self._schema):

@@ -72,7 +72,7 @@ def remove_expired_data():
 def upload_normalized_data():
     """Scheduled task to export normalized data to s3."""
     LOG.info('Beginning upload_normalized_data')
-    curr_date = DateAccessor().today().date()
+    curr_date = DateAccessor().today()
     curr_month_range = calendar.monthrange(curr_date.year, curr_date.month)
     curr_month_first_day = date(year=curr_date.year, month=curr_date.month, day=1)
     curr_month_last_day = date(year=curr_date.year, month=curr_date.month, day=curr_month_range[1])
