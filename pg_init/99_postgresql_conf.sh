@@ -31,7 +31,7 @@ log_min_error_statement = error	# values in order of decreasing detail:
 					#   fatal
 					#   panic (effectively off)
 
-log_min_duration_statement = 5000	# -1 is disabled, 0 logs all statements
+log_min_duration_statement = 2000	# -1 is disabled, 0 logs all statements
 					# and their durations, > 0 logs only
 					# statements running at least this number
 					# of milliseconds
