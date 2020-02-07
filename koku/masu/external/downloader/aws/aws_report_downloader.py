@@ -15,11 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """AWS Report Downloader."""
-
 # pylint: disable=fixme
 # disabled until we get travis to not fail on warnings, or the fixme is
 # resolved.
-
 import datetime
 import json
 import logging
@@ -56,7 +54,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
     https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/billing-reports-costusage.html
     """
 
-    empty_manifest = {'reportKeys': []}
+    empty_manifest = {"reportKeys": []}
 
     # Disabling until we can refactor
     # pylint: disable=too-many-arguments
@@ -74,21 +72,20 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         super().__init__(task, **kwargs)
 
-        self.customer_name = customer_name.replace(' ', '_')
-        self._provider_uuid = kwargs.get('provider_uuid')
+        self.customer_name = customer_name.replace(" ", "_")
+        self._provider_uuid = kwargs.get("provider_uuid")
 
-        LOG.debug('Connecting to AWS...')
-        session = utils.get_assume_role_session(utils.AwsArn(auth_credential),
-                                                'MasuDownloaderSession')
-        self.cur = session.client('cur')
+        LOG.debug("Connecting to AWS...")
+        session = utils.get_assume_role_session(utils.AwsArn(auth_credential), "MasuDownloaderSession")
+        self.cur = session.client("cur")
 
         # fetch details about the report from the cloud provider
         defs = self.cur.describe_report_definitions()
         if not report_name:
             report_names = []
-            for report in defs.get('ReportDefinitions', []):
-                if bucket == report.get('S3Bucket'):
-                    report_names.append(report['ReportName'])
+            for report in defs.get("ReportDefinitions", []):
+                if bucket == report.get("S3Bucket"):
+                    report_names.append(report["ReportName"])
 
             # FIXME: Get the first report in the bucket until Koku can specify
             # which report the user wants
@@ -96,19 +93,19 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 report_name = report_names[0]
         self.report_name = report_name
         self.bucket = bucket
-        report_defs = defs.get('ReportDefinitions', [])
-        report = [rep for rep in report_defs if rep['ReportName'] == self.report_name]
+        report_defs = defs.get("ReportDefinitions", [])
+        report = [rep for rep in report_defs if rep["ReportName"] == self.report_name]
 
         if not report:
-            raise MasuProviderError('Cost and Usage Report definition not found.')
+            raise MasuProviderError("Cost and Usage Report definition not found.")
 
         self.report = report.pop()
-        self.s3_client = session.client('s3')
+        self.s3_client = session.client("s3")
 
     @property
     def manifest_date_format(self):
         """Set the AWS manifest date format."""
-        return '%Y%m%dT000000.000Z'
+        return "%Y%m%dT000000.000Z"
 
     def _check_size(self, s3key, check_inflate=False):
         """Check the size of an S3 file.
@@ -126,33 +123,29 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         size_ok = False
 
-        s3fileobj = self.s3_client.get_object(Bucket=self.report.get('S3Bucket'),
-                                              Key=s3key)
-        size = int(s3fileobj.get('ContentLength', -1))
+        s3fileobj = self.s3_client.get_object(Bucket=self.report.get("S3Bucket"), Key=s3key)
+        size = int(s3fileobj.get("ContentLength", -1))
 
         if size < 1:
-            raise AWSReportDownloaderError(f'Invalid size for S3 object: {s3fileobj}')
+            raise AWSReportDownloaderError(f"Invalid size for S3 object: {s3fileobj}")
 
         free_space = shutil.disk_usage(self.download_path)[2]
         if size < free_space:
             size_ok = True
 
-        LOG.debug('%s is %s bytes; Download path has %s free',
-                  s3key, size, free_space)
+        LOG.debug("%s is %s bytes; Download path has %s free", s3key, size, free_space)
 
         ext = os.path.splitext(s3key)[1]
-        if ext == '.gz' and check_inflate and size_ok:
+        if ext == ".gz" and check_inflate and size_ok:
             # isize block is the last 4 bytes of the file; see: RFC1952
-            resp = self.s3_client.get_object(Bucket=self.report.get('S3Bucket'),
-                                             Key=s3key,
-                                             Range='bytes={}-{}'.format(size - 4,
-                                                                        size))
-            isize = struct.unpack('<I', resp['Body'].read(4))[0]
+            resp = self.s3_client.get_object(
+                Bucket=self.report.get("S3Bucket"), Key=s3key, Range="bytes={}-{}".format(size - 4, size)
+            )
+            isize = struct.unpack("<I", resp["Body"].read(4))[0]
             if isize > free_space:
                 size_ok = False
 
-            LOG.debug('%s is %s bytes uncompressed; Download path has %s free',
-                      s3key, isize, free_space)
+            LOG.debug("%s is %s bytes uncompressed; Download path has %s free", s3key, isize, free_space)
 
         return size_ok
 
@@ -167,18 +160,17 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (Dict): A dict-like object serialized from JSON data.
 
         """
-        manifest = '{}/{}-Manifest.json'.format(self._get_report_path(date_time),
-                                                self.report_name)
-        LOG.info('Will attempt to download manifest: %s', manifest)
+        manifest = "{}/{}-Manifest.json".format(self._get_report_path(date_time), self.report_name)
+        LOG.info("Will attempt to download manifest: %s", manifest)
 
         try:
             manifest_file, _ = self.download_file(manifest)
         except AWSReportDownloaderNoFileError as err:
-            LOG.info('Unable to get report manifest. Reason: %s', str(err))
-            return '', self.empty_manifest
+            LOG.info("Unable to get report manifest. Reason: %s", str(err))
+            return "", self.empty_manifest
 
         manifest_json = None
-        with open(manifest_file, 'r') as manifest_file_handle:
+        with open(manifest_file, "r") as manifest_file_handle:
             manifest_json = json.load(manifest_file_handle)
 
         return manifest_file, manifest_json
@@ -187,9 +179,9 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """Clean up the manifest file after extracting information."""
         try:
             os.remove(manifest_file)
-            LOG.info('Deleted manifest file at %s', manifest_file)
+            LOG.info("Deleted manifest file at %s", manifest_file)
         except OSError:
-            LOG.info('Could not delete manifest file at %s', manifest_file)
+            LOG.info("Could not delete manifest file at %s", manifest_file)
 
         return None
 
@@ -206,9 +198,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         report_date_range = utils.month_date_range(date_time)
-        return '{}/{}/{}'.format(self.report.get('S3Prefix'),
-                                 self.report_name,
-                                 report_date_range)
+        return "{}/{}/{}".format(self.report.get("S3Prefix"), self.report_name, report_date_range)
 
     def download_bucket(self):
         """
@@ -218,8 +208,8 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (List) List of filenames downloaded.
 
         """
-        s3_resource = boto3.resource('s3')
-        bucket = s3_resource.Bucket(self.report.get('S3Bucket'))
+        s3_resource = boto3.resource("s3")
+        bucket = s3_resource.Bucket(self.report.get("S3Bucket"))
         files = []
         for s3obj in bucket.objects.all():
             file_name, _ = self.download_file(s3obj.key)
@@ -237,35 +227,34 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (String): The path and file name of the saved file
 
         """
-        s3_filename = key.split('/')[-1]
-        directory_path = f'{DATA_DIR}/{self.customer_name}/aws/{self.bucket}'
+        s3_filename = key.split("/")[-1]
+        directory_path = f"{DATA_DIR}/{self.customer_name}/aws/{self.bucket}"
 
         local_s3_filename = utils.get_local_file_name(key)
-        LOG.info('Local S3 filename: %s', local_s3_filename)
-        full_file_path = f'{directory_path}/{local_s3_filename}'
+        LOG.info("Local S3 filename: %s", local_s3_filename)
+        full_file_path = f"{directory_path}/{local_s3_filename}"
 
         # Make sure the data directory exists
         os.makedirs(directory_path, exist_ok=True)
         s3_etag = None
         try:
-            s3_file = self.s3_client.get_object(Bucket=self.report.get('S3Bucket'), Key=key)
-            s3_etag = s3_file.get('ETag')
+            s3_file = self.s3_client.get_object(Bucket=self.report.get("S3Bucket"), Key=key)
+            s3_etag = s3_file.get("ETag")
         except ClientError as ex:
-            if ex.response['Error']['Code'] == 'NoSuchKey':
-                log_msg = 'Unable to find {} in S3 Bucket: {}'.format(s3_filename,
-                                                                      self.report.get('S3Bucket'))
+            if ex.response["Error"]["Code"] == "NoSuchKey":
+                log_msg = "Unable to find {} in S3 Bucket: {}".format(s3_filename, self.report.get("S3Bucket"))
                 LOG.info(log_msg)
                 raise AWSReportDownloaderNoFileError(log_msg)
 
-            LOG.error('Error downloading file: Error: %s', str(ex))
+            LOG.error("Error downloading file: Error: %s", str(ex))
             raise AWSReportDownloaderError(str(ex))
 
         if not self._check_size(key, check_inflate=True):
-            raise AWSReportDownloaderError(f'Insufficient disk space to download file: {s3_file}')
+            raise AWSReportDownloaderError(f"Insufficient disk space to download file: {s3_file}")
 
         if s3_etag != stored_etag or not os.path.isfile(full_file_path):
-            LOG.info('Downloading %s to %s', key, full_file_path)
-            self.s3_client.download_file(self.report.get('S3Bucket'), key, full_file_path)
+            LOG.info("Downloading %s to %s", key, full_file_path)
+            self.s3_client.download_file(self.report.get("S3Bucket"), key, full_file_path)
         return full_file_path, s3_etag
 
     def get_report_context_for_date(self, date_time):
@@ -289,33 +278,29 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest_file, manifest = self._get_manifest(date_time)
         if manifest != self.empty_manifest:
             manifest_dict = self._prepare_db_manifest_record(manifest)
-            should_download = self.check_if_manifest_should_be_downloaded(
-                manifest_dict.get('assembly_id')
-            )
+            should_download = self.check_if_manifest_should_be_downloaded(manifest_dict.get("assembly_id"))
         self._remove_manifest_file(manifest_file)
 
         if not should_download:
-            manifest_id = self._get_existing_manifest_db_id(manifest_dict.get('assembly_id'))
+            manifest_id = self._get_existing_manifest_db_id(manifest_dict.get("assembly_id"))
             stmt = (
-                f'This manifest has already been downloaded and processed:\n'
-                f' schema_name: {self.customer_name},\n'
-                f' provider_uuid: {self._provider_uuid},\n'
-                f' manifest_id: {manifest_id}'
+                f"This manifest has already been downloaded and processed:\n"
+                f" schema_name: {self.customer_name},\n"
+                f" provider_uuid: {self._provider_uuid},\n"
+                f" manifest_id: {manifest_id}"
             )
             LOG.info(stmt)
             return report_dict
 
         if manifest_dict:
             manifest_id = self._process_manifest_db_record(
-                manifest_dict.get('assembly_id'),
-                manifest_dict.get('billing_start'),
-                manifest_dict.get('num_of_files')
+                manifest_dict.get("assembly_id"), manifest_dict.get("billing_start"), manifest_dict.get("num_of_files")
             )
 
-            report_dict['manifest_id'] = manifest_id
-            report_dict['assembly_id'] = manifest.get('assemblyId')
-            report_dict['compression'] = self.report.get('Compression')
-            report_dict['files'] = manifest.get('reportKeys')
+            report_dict["manifest_id"] = manifest_id
+            report_dict["assembly_id"] = manifest.get("assemblyId")
+            report_dict["compression"] = self.report.get("Compression")
+            report_dict["files"] = manifest.get("reportKeys")
         return report_dict
 
     def get_local_file_for_report(self, report):
@@ -324,15 +309,8 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     def _prepare_db_manifest_record(self, manifest):
         """Prepare to insert or update the manifest DB record."""
-        assembly_id = manifest.get('assemblyId')
-        billing_str = manifest.get('billingPeriod', {}).get('start')
-        billing_start = datetime.datetime.strptime(
-            billing_str,
-            self.manifest_date_format
-        )
-        num_of_files = len(manifest.get('reportKeys', []))
-        return {
-            'assembly_id': assembly_id,
-            'billing_start': billing_start,
-            'num_of_files': num_of_files
-        }
+        assembly_id = manifest.get("assemblyId")
+        billing_str = manifest.get("billingPeriod", {}).get("start")
+        billing_start = datetime.datetime.strptime(billing_str, self.manifest_date_format)
+        num_of_files = len(manifest.get("reportKeys", []))
+        return {"assembly_id": assembly_id, "billing_start": billing_start, "num_of_files": num_of_files}

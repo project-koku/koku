@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Report processor external interface."""
-
 import logging
 
 from api.models import Provider
@@ -37,8 +36,7 @@ class ReportProcessorError(Exception):
 class ReportProcessor:
     """Interface for masu to use to processor CUR."""
 
-    def __init__(self, schema_name, report_path, compression, provider,
-                 provider_uuid, manifest_id):
+    def __init__(self, schema_name, report_path, compression, provider, provider_uuid, manifest_id):
         """Set the processor based on the data provider."""
         self.schema_name = schema_name
         self.report_path = report_path
@@ -52,7 +50,7 @@ class ReportProcessor:
             raise ReportProcessorError(str(err))
 
         if not self._processor:
-            raise ReportProcessorError('Invalid provider type specified.')
+            raise ReportProcessorError("Invalid provider type specified.")
 
     def _set_processor(self):
         """
@@ -68,29 +66,37 @@ class ReportProcessor:
 
         """
         if self.provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            return AWSReportProcessor(schema_name=self.schema_name,
-                                      report_path=self.report_path,
-                                      compression=self.compression,
-                                      provider_uuid=self.provider_uuid,
-                                      manifest_id=self.manifest_id)
+            return AWSReportProcessor(
+                schema_name=self.schema_name,
+                report_path=self.report_path,
+                compression=self.compression,
+                provider_uuid=self.provider_uuid,
+                manifest_id=self.manifest_id,
+            )
 
         if self.provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            return AzureReportProcessor(schema_name=self.schema_name,
-                                        report_path=self.report_path,
-                                        compression=self.compression,
-                                        provider_uuid=self.provider_uuid,
-                                        manifest_id=self.manifest_id)
+            return AzureReportProcessor(
+                schema_name=self.schema_name,
+                report_path=self.report_path,
+                compression=self.compression,
+                provider_uuid=self.provider_uuid,
+                manifest_id=self.manifest_id,
+            )
 
-        if self.provider_type in (Provider.PROVIDER_OCP, ):
-            return OCPReportProcessor(schema_name=self.schema_name,
-                                      report_path=self.report_path,
-                                      compression=self.compression,
-                                      provider_uuid=self.provider_uuid)
+        if self.provider_type in (Provider.PROVIDER_OCP,):
+            return OCPReportProcessor(
+                schema_name=self.schema_name,
+                report_path=self.report_path,
+                compression=self.compression,
+                provider_uuid=self.provider_uuid,
+            )
         if self.provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-            return GCPReportProcessor(schema_name=self.schema_name,
-                                      report_path=self.report_path,
-                                      compression=self.compression,
-                                      provider_uuid=self.provider_uuid)
+            return GCPReportProcessor(
+                schema_name=self.schema_name,
+                report_path=self.report_path,
+                compression=self.compression,
+                provider_uuid=self.provider_uuid,
+            )
         return None
 
     def process(self):

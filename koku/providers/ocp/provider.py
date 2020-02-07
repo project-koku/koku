@@ -17,24 +17,23 @@
 """OCP service provider implementation to be used by Koku."""
 import logging
 
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 from tenant_schemas.utils import tenant_context
 
+from ..provider_interface import ProviderInterface
 from api.provider.models import Provider
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
-from ..provider_interface import ProviderInterface
 
 LOG = logging.getLogger(__name__)
 
 
 def error_obj(key, message):
     """Create an error object."""
-    error = {
-        key: [_(message)]
-    }
+    error = {key: [_(message)]}
     return error
 
 
@@ -56,19 +55,18 @@ class OCPProvider(ProviderInterface):
     def cost_usage_source_is_reachable(self, cluster_id, storage_resource_name):
         """Verify that the cost usage source exists and is reachable."""
         if not cluster_id or len(cluster_id) == 0:
-            key = 'authentication.provider_resource_name'
-            message = 'Provider resource name is a required parameter for OCP.'
+            key = "authentication.provider_resource_name"
+            message = "Provider resource name is a required parameter for OCP."
             LOG.info(message)
             raise serializers.ValidationError(error_obj(key, message))
         if storage_resource_name:
-            key = 'billing_source.bucket'
-            message = 'Bucket is an invalid parameter for OCP.'
+            key = "billing_source.bucket"
+            message = "Bucket is an invalid parameter for OCP."
             LOG.error(message)
             raise serializers.ValidationError(error_obj(key, message))
 
         # TODO: Add storage_resource_name existance check once Insights integration is complete.
-        message = 'Stub to verify that OCP report for cluster {} is accessible.'.format(
-                  cluster_id)
+        message = f"Stub to verify that OCP report for cluster {cluster_id} is accessible."
         LOG.info(message)
 
         return True
@@ -89,7 +87,7 @@ class OCPProvider(ProviderInterface):
             provider_model = Provider.objects.get(uuid=provider_uuid)
             resource_name = provider_model.authentication.provider_resource_name
         except (ObjectDoesNotExist, ValidationError) as e:
-            raise(OCPProviderError(str(e)))
+            raise (OCPProviderError(str(e)))
 
         if self._is_on_aws(tenant, resource_name):
             return Provider.PROVIDER_AWS
@@ -101,14 +99,14 @@ class OCPProvider(ProviderInterface):
     def _aws_clusters(self, tenant):
         """Return a list of OCP clusters running on AWS."""
         with tenant_context(tenant):
-            objects = OCPAWSCostLineItemDailySummary.objects.values_list('cluster_id', flat=True)
+            objects = OCPAWSCostLineItemDailySummary.objects.values_list("cluster_id", flat=True)
             clusters = list(objects.distinct())
         return clusters
 
     def _azure_clusters(self, tenant):
         """Return a list of OCP clusters running on Azure."""
         with tenant_context(tenant):
-            objects = OCPAzureCostLineItemDailySummary.objects.values_list('cluster_id', flat=True)
+            objects = OCPAzureCostLineItemDailySummary.objects.values_list("cluster_id", flat=True)
             clusters = list(objects.distinct())
         return clusters
 

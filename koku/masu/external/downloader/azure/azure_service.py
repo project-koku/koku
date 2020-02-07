@@ -37,8 +37,16 @@ class AzureCostReportNotFound(Exception):
 class AzureService:
     """A class to handle interactions with the Azure services."""
 
-    def __init__(self, subscription_id, tenant_id, client_id, client_secret,
-                 resource_group_name, storage_account_name, cloud='public'):
+    def __init__(
+        self,
+        subscription_id,
+        tenant_id,
+        client_id,
+        client_secret,
+        resource_group_name,
+        storage_account_name,
+        cloud="public",
+    ):
         """Establish connection information."""
         self._resource_group_name = resource_group_name
         self._storage_account_name = storage_account_name
@@ -47,10 +55,10 @@ class AzureService:
         try:
             self._blockblob_service = self._cloud_storage_account.create_block_blob_service()
         except AzureException as error:
-            raise AzureServiceError('Unable to create block blob service. Error: %s', str(error))
+            raise AzureServiceError("Unable to create block blob service. Error: %s", str(error))
 
         if not self._factory.credentials:
-            raise AzureServiceError('Azure Service credentials are not configured.')
+            raise AzureServiceError("Azure Service credentials are not configured.")
 
     def get_cost_export_for_key(self, key, container_name):
         """Get the latest cost export file from given storage account container."""
@@ -61,7 +69,7 @@ class AzureService:
                 report = blob
                 break
         if not report:
-            message = f'No cost report for report name {key} found in container {container_name}.'
+            message = f"No cost report for report name {key} found in container {container_name}."
             raise AzureCostReportNotFound(message)
         return report
 
@@ -71,12 +79,12 @@ class AzureService:
 
         file_path = destination
         if not destination:
-            temp_file = NamedTemporaryFile(delete=False, suffix='.csv')
+            temp_file = NamedTemporaryFile(delete=False, suffix=".csv")
             file_path = temp_file.name
         try:
             self._blockblob_service.get_blob_to_path(container_name, cost_export.name, file_path)
         except AzureException as error:
-            raise AzureServiceError('Failed to download cost export. Error: ', str(error))
+            raise AzureServiceError("Failed to download cost export. Error: ", str(error))
         return file_path
 
     def get_latest_cost_export_for_path(self, report_path, container_name):
@@ -89,23 +97,27 @@ class AzureService:
             elif report_path in blob.name and blob.properties.last_modified > latest_report.properties.last_modified:
                 latest_report = blob
         if not latest_report:
-            message = f'No cost report found in container {container_name} for '\
-                      f'path {report_path}.'
+            message = f"No cost report found in container {container_name} for " f"path {report_path}."
             raise AzureCostReportNotFound(message)
         return latest_report
 
     def describe_cost_management_exports(self):
         """List cost management export."""
         cost_management_client = self._factory.cost_management_client
-        scope = f'/subscriptions/{self._factory.subscription_id}'
+        scope = f"/subscriptions/{self._factory.subscription_id}"
         management_reports = cost_management_client.exports.list(scope)
-        expected_resource_id = (f'/subscriptions/{self._factory.subscription_id}/resourceGroups/'
-                                f'{self._resource_group_name}/providers/Microsoft.Storage/'
-                                f'storageAccounts/{self._storage_account_name}')
+        expected_resource_id = (
+            f"/subscriptions/{self._factory.subscription_id}/resourceGroups/"
+            f"{self._resource_group_name}/providers/Microsoft.Storage/"
+            f"storageAccounts/{self._storage_account_name}"
+        )
         export_reports = []
         for report in management_reports.value:
             if report.delivery_info.destination.resource_id == expected_resource_id:
-                report_def = {'name': report.name, 'container': report.delivery_info.destination.container,
-                              'directory': report.delivery_info.destination.root_folder_path}
+                report_def = {
+                    "name": report.name,
+                    "container": report.delivery_info.destination.container,
+                    "directory": report.delivery_info.destination.root_folder_path,
+                }
                 export_reports.append(report_def)
         return export_reports

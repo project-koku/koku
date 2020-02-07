@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Defines the Owner Permissions class."""
-
 from rest_framework import permissions
 
 
@@ -24,15 +23,15 @@ class IsObjectOwner(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         """Permissions are only allowed to the owner of the object."""
-        o_user = getattr(obj, 'user', None)
-        r_user = getattr(request, 'user', None)
+        o_user = getattr(obj, "user", None)
+        r_user = getattr(request, "user", None)
 
-        if hasattr(o_user, 'uuid') and hasattr(r_user, 'uuid'):
-            o_id = getattr(o_user, 'uuid', None)
-            r_id = getattr(r_user, 'uuid', None)
+        if hasattr(o_user, "uuid") and hasattr(r_user, "uuid"):
+            o_id = getattr(o_user, "uuid", None)
+            r_id = getattr(r_user, "uuid", None)
         else:
-            o_id = getattr(o_user, 'id', None)
-            r_id = getattr(r_user, 'id', None)
+            o_id = getattr(o_user, "id", None)
+            r_id = getattr(r_user, "id", None)
 
         if o_id and r_id:
             return o_id == r_id

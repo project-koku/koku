@@ -15,7 +15,6 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Removes report data from database."""
-
 import logging
 
 from tenant_schemas.utils import schema_context
@@ -31,7 +30,7 @@ class AWSReportDBCleanerError(Exception):
 
 
 # pylint: disable=too-few-public-methods
-class AWSReportDBCleaner():
+class AWSReportDBCleaner:
     """Class to remove report data."""
 
     def __init__(self, schema):
@@ -60,9 +59,10 @@ class AWSReportDBCleaner():
             column_map = reporting_common.column_map
 
         with AWSReportDBAccessor(self._schema, column_map) as accessor:
-            if ((expired_date is None and provider_uuid is None) or  # noqa: W504
-                    (expired_date is not None and provider_uuid is not None)):
-                err = 'This method must be called with either expired_date or provider_uuid'
+            if (expired_date is None and provider_uuid is None) or (  # noqa: W504
+                expired_date is not None and provider_uuid is not None
+            ):
+                err = "This method must be called with either expired_date or provider_uuid"
                 raise AWSReportDBCleanerError(err)
             removed_items = []
 
@@ -78,35 +78,34 @@ class AWSReportDBCleaner():
 
                     if not simulate:
                         del_count = accessor.get_ocp_aws_summary_query_for_billid(bill_id).delete()
-                        LOG.info('Removing %s OCP-on-AWS summary items for bill id %s',
-                                 del_count, bill_id)
+                        LOG.info("Removing %s OCP-on-AWS summary items for bill id %s", del_count, bill_id)
 
-                        del_count = accessor.get_ocp_aws_project_summary_query_for_billid(bill_id).\
-                            delete()
-                        LOG.info('Removing %s OCP-on-AWS project summary items for bill id %s',
-                                 del_count, bill_id)
+                        del_count = accessor.get_ocp_aws_project_summary_query_for_billid(bill_id).delete()
+                        LOG.info("Removing %s OCP-on-AWS project summary items for bill id %s", del_count, bill_id)
 
                         del_count = accessor.get_lineitem_query_for_billid(bill_id).delete()
-                        LOG.info('Removing %s cost entry line items for bill id %s',
-                                 del_count, bill_id)
+                        LOG.info("Removing %s cost entry line items for bill id %s", del_count, bill_id)
 
                         del_count = accessor.get_daily_query_for_billid(bill_id).delete()
-                        LOG.info('Removing %s cost entry daily items for bill id %s',
-                                 del_count, bill_id)
+                        LOG.info("Removing %s cost entry daily items for bill id %s", del_count, bill_id)
 
                         del_count = accessor.get_summary_query_for_billid(bill_id).delete()
-                        LOG.info('Removing %s cost entry summary items for bill id %s',
-                                 del_count, bill_id)
+                        LOG.info("Removing %s cost entry summary items for bill id %s", del_count, bill_id)
 
                         del_count = accessor.get_cost_entry_query_for_billid(bill_id).delete()
-                        LOG.info('Removing %s cost entry items for bill id %s',
-                                 del_count, bill_id)
+                        LOG.info("Removing %s cost entry items for bill id %s", del_count, bill_id)
 
-                    LOG.info('Report data removed for Account Payer ID: %s with billing period: %s',
-                             removed_payer_account_id, removed_billing_period_start)
-                    removed_items.append({'account_payer_id': removed_payer_account_id,
-                                          'billing_period_start':
-                                              str(removed_billing_period_start)})
+                    LOG.info(
+                        "Report data removed for Account Payer ID: %s with billing period: %s",
+                        removed_payer_account_id,
+                        removed_billing_period_start,
+                    )
+                    removed_items.append(
+                        {
+                            "account_payer_id": removed_payer_account_id,
+                            "billing_period_start": str(removed_billing_period_start),
+                        }
+                    )
 
                 if not simulate:
                     bill_objects.delete()

@@ -15,11 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """AWS Local Report Downloader."""
-
 # pylint: skip-file
 # Having trouble disabling the lint warning for duplicate-code (AWSReportDownloader..)
 # Disabling pylint on this file since AWSLocalReportDownloader is a DEBUG feature.
-
 import datetime
 import hashlib
 import json
@@ -46,7 +44,7 @@ class AWSReportDownloaderNoFileError(Exception):
 class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """Local Cost and Usage Report Downloader."""
 
-    empty_manifest = {'reportKeys': []}
+    empty_manifest = {"reportKeys": []}
 
     # Disabling this linter until we can refactor
     # pylint: disable=too-many-arguments
@@ -64,9 +62,9 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         super().__init__(task, **kwargs)
 
-        self.customer_name = customer_name.replace(' ', '_')
+        self.customer_name = customer_name.replace(" ", "_")
 
-        LOG.debug('Connecting to local service provider...')
+        LOG.debug("Connecting to local service provider...")
         prefix, name = self._extract_names(bucket)
 
         if report_name:
@@ -75,19 +73,19 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.report_name = name
         self.report_prefix = prefix
 
-        LOG.info('Found report name: %s, report prefix: %s', self.report_name, self.report_prefix)
+        LOG.info("Found report name: %s, report prefix: %s", self.report_name, self.report_prefix)
         if self.report_prefix:
-            self.base_path = '{}/{}/'.format(bucket, self.report_prefix)
+            self.base_path = f"{bucket}/{self.report_prefix}/"
         else:
             self.base_path = bucket
         self.bucket_path = bucket
-        self.bucket = bucket.replace('/', '_')
+        self.bucket = bucket.replace("/", "_")
         self.credential = auth_credential
 
     @property
     def manifest_date_format(self):
         """Set the AWS manifest date format."""
-        return '%Y%m%dT000000.000Z'
+        return "%Y%m%dT000000.000Z"
 
     def _extract_names(self, bucket):
         """
@@ -100,19 +98,19 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (String, String) report_prefix, report_name
 
         """
-        daterange = '\d{8}-\d{8}'  # noqa: W605
-        full_path = ''
+        daterange = r"\d{8}-\d{8}"  # noqa: W605
+        full_path = ""
         for item in os.walk(bucket, followlinks=True):
             if not item[2]:
                 if any(re.findall(daterange, date) for date in item[1]):
                     full_path = item[0]
                     break
-        directories = full_path[len(bucket):]
+        directories = full_path[len(bucket) :]  # noqa
 
         report_prefix = None
         report_name = None
         if directories:
-            parts = directories.strip('/').split('/')
+            parts = directories.strip("/").split("/")
             report_name = parts.pop()
             report_prefix = parts.pop() if parts else None
         return report_prefix, report_name
@@ -128,17 +126,16 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (Dict): A dict-like object serialized from JSON data.
 
         """
-        manifest = '{}/{}-Manifest.json'.format(self._get_report_path(date_time),
-                                                self.report_name)
+        manifest = "{}/{}-Manifest.json".format(self._get_report_path(date_time), self.report_name)
 
         try:
             manifest_file, _ = self.download_file(manifest)
         except AWSReportDownloaderNoFileError as err:
-            LOG.error('Unable to get report manifest. Reason: %s', str(err))
-            return '', self.empty_manifest
+            LOG.error("Unable to get report manifest. Reason: %s", str(err))
+            return "", self.empty_manifest
 
         manifest_json = None
-        with open(manifest_file, 'r') as manifest_file_handle:
+        with open(manifest_file, "r") as manifest_file_handle:
             manifest_json = json.load(manifest_file_handle)
 
         return manifest_file, manifest_json
@@ -147,9 +144,9 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """Clean up the manifest file after extracting information."""
         try:
             os.remove(manifest_file)
-            LOG.info('Deleted manifest file at %s', manifest_file)
+            LOG.info("Deleted manifest file at %s", manifest_file)
         except OSError:
-            LOG.info('Could not delete manifest file at %s', manifest_file)
+            LOG.info("Could not delete manifest file at %s", manifest_file)
 
         return None
 
@@ -166,9 +163,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         report_date_range = utils.month_date_range(date_time)
-        return '{}/{}/{}'.format(self.base_path,
-                                 self.report_name,
-                                 report_date_range)
+        return f"{self.base_path}/{self.report_name}/{report_date_range}"
 
     def download_file(self, key, stored_etag=None):
         """
@@ -183,21 +178,21 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         local_s3_filename = utils.get_local_file_name(key)
 
-        directory_path = f'{DATA_DIR}/{self.customer_name}/aws-local/{self.bucket}'
-        full_file_path = f'{directory_path}/{local_s3_filename}'
+        directory_path = f"{DATA_DIR}/{self.customer_name}/aws-local/{self.bucket}"
+        full_file_path = f"{directory_path}/{local_s3_filename}"
 
         if not os.path.isfile(key):
-            log_msg = 'Unable to locate {} in {}'.format(key, self.bucket_path)
+            log_msg = f"Unable to locate {key} in {self.bucket_path}"
             raise AWSReportDownloaderNoFileError(log_msg)
 
         # Make sure the data directory exists
         os.makedirs(directory_path, exist_ok=True)
-        s3_etag_hasher = hashlib.new('ripemd160')
-        s3_etag_hasher.update(bytes(local_s3_filename, 'utf-8'))
+        s3_etag_hasher = hashlib.new("ripemd160")
+        s3_etag_hasher.update(bytes(local_s3_filename, "utf-8"))
         s3_etag = s3_etag_hasher.hexdigest()
 
         if s3_etag != stored_etag or not os.path.isfile(full_file_path):
-            LOG.info('Downloading %s to %s', key, full_file_path)
+            LOG.info("Downloading %s to %s", key, full_file_path)
             shutil.copy2(key, full_file_path)
         return full_file_path, s3_etag
 
@@ -224,13 +219,13 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         self._remove_manifest_file(manifest_file)
 
-        report_dict['manifest_id'] = manifest_id
-        report_dict['assembly_id'] = manifest.get('assemblyId')
-        report_dict['compression'] = 'GZIP'
-        report_dict['files'] = []
-        for report in manifest.get('reportKeys'):
-            report_path = self.bucket_path + '/' + report
-            report_dict['files'].append(report_path)
+        report_dict["manifest_id"] = manifest_id
+        report_dict["assembly_id"] = manifest.get("assemblyId")
+        report_dict["compression"] = "GZIP"
+        report_dict["files"] = []
+        for report in manifest.get("reportKeys"):
+            report_path = self.bucket_path + "/" + report
+            report_dict["files"].append(report_path)
         return report_dict
 
     def get_local_file_for_report(self, report):
@@ -239,11 +234,8 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     def _prepare_db_manifest_record(self, manifest):
         """Prepare to insert or update the manifest DB record."""
-        assembly_id = manifest.get('assemblyId')
-        billing_str = manifest.get('billingPeriod', {}).get('start')
-        billing_start = datetime.datetime.strptime(
-            billing_str,
-            self.manifest_date_format
-        )
-        num_of_files = len(manifest.get('reportKeys', []))
+        assembly_id = manifest.get("assemblyId")
+        billing_str = manifest.get("billingPeriod", {}).get("start")
+        billing_start = datetime.datetime.strptime(billing_str, self.manifest_date_format)
+        num_of_files = len(manifest.get("reportKeys", []))
         return self._process_manifest_db_record(assembly_id, billing_start, num_of_files)

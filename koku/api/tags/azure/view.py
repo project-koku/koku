@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for AWS tags."""
-
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.serializers import AzureTagsQueryParamSerializer
 from api.tags.view import TagView
@@ -56,7 +55,7 @@ class AzureTagView(TagView):
 
     """
 
-    provider = 'azure'
+    provider = "azure"
     serializer = AzureTagsQueryParamSerializer
     query_handler = AzureTagQueryHandler
     tag_handler = [AzureTagsSummary]

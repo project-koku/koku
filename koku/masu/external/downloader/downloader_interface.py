@@ -15,8 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Downloader interface to be used by Masu."""
-
-from abc import ABC, abstractmethod
+from abc import ABC
+from abc import abstractmethod
 
 
 # pylint: disable=too-few-public-methods

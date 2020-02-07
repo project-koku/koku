@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Asynchronous tasks."""
-
 # pylint: disable=too-many-arguments, too-many-function-args
 # disabled module-wide due to current state of task signature.
 # we expect this situation to be temporary as we iterate on these details.
@@ -33,7 +32,8 @@ from api.provider.models import Provider
 from koku.celery import app
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
-from masu.external.accounts_accessor import AccountsAccessor, AccountsAccessorError
+from masu.external.accounts_accessor import AccountsAccessor
+from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
@@ -47,16 +47,10 @@ LOG = get_task_logger(__name__)
 
 
 # pylint: disable=too-many-locals
-@app.task(name='masu.processor.tasks.get_report_files', queue_name='download',
-          bind=True)
-def get_report_files(self,
-                     customer_name,
-                     authentication,
-                     billing_source,
-                     provider_type,
-                     schema_name,
-                     provider_uuid,
-                     report_month):
+@app.task(name="masu.processor.tasks.get_report_files", queue_name="download", bind=True)
+def get_report_files(
+    self, customer_name, authentication, billing_source, provider_type, schema_name, provider_uuid, report_month
+):
     """
     Task to download a Report and process the report.
 
@@ -78,28 +72,24 @@ def get_report_files(self,
     """
     worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
     month = parser.parse(report_month)
-    reports = _get_report_files(self,
-                                customer_name,
-                                authentication,
-                                billing_source,
-                                provider_type,
-                                provider_uuid,
-                                month)
+    reports = _get_report_files(
+        self, customer_name, authentication, billing_source, provider_type, provider_uuid, month
+    )
 
     try:
         stmt = (
-            f'Reports to be processed:\n'
-            f' schema_name: {customer_name}\n'
-            f' provider: {provider_type}\n'
-            f' provider_uuid: {provider_uuid}\n'
+            f"Reports to be processed:\n"
+            f" schema_name: {customer_name}\n"
+            f" provider: {provider_type}\n"
+            f" provider_uuid: {provider_uuid}\n"
         )
         for report in reports:
-            stmt += ' file: ' + str(report['file']) + '\n'
+            stmt += " file: " + str(report["file"]) + "\n"
         LOG.info(stmt[:-1])
         reports_to_summarize = []
         for report_dict in reports:
-            manifest_id = report_dict.get('manifest_id')
-            file_name = os.path.basename(report_dict.get('file'))
+            manifest_id = report_dict.get("manifest_id")
+            file_name = os.path.basename(report_dict.get("file"))
             with ReportStatsDBAccessor(file_name, manifest_id) as stats:
                 started_date = stats.get_last_started_datetime()
                 completed_date = stats.get_last_completed_datetime()
@@ -107,18 +97,16 @@ def get_report_files(self,
             # Skip processing if already in progress.
             if started_date and not completed_date:
                 expired_start_date = started_date + datetime.timedelta(hours=2)
-                if DateAccessor().today_with_timezone('UTC') < expired_start_date:
+                if DateAccessor().today_with_timezone("UTC") < expired_start_date:
                     LOG.info(
-                        'Skipping processing task for %s since it was started at: %s.',
-                        file_name,
-                        str(started_date),
+                        "Skipping processing task for %s since it was started at: %s.", file_name, str(started_date)
                     )
                     continue
 
             # Skip processing if complete.
             if started_date and completed_date:
                 LOG.info(
-                    'Skipping processing task for %s. Started on: %s and completed on: %s.',
+                    "Skipping processing task for %s. Started on: %s and completed on: %s.",
                     file_name,
                     str(started_date),
                     str(completed_date),
@@ -126,38 +114,32 @@ def get_report_files(self,
                 continue
 
             stmt = (
-                f'Processing starting:\n'
-                f' schema_name: {customer_name}\n'
-                f' provider: {provider_type}\n'
-                f' provider_uuid: {provider_uuid}\n'
+                f"Processing starting:\n"
+                f" schema_name: {customer_name}\n"
+                f" provider: {provider_type}\n"
+                f" provider_uuid: {provider_uuid}\n"
                 f' file: {report_dict.get("file")}'
             )
             LOG.info(stmt)
-            worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(
-                provider_type=provider_type
-            ).inc()
+            worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
             _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
             report_meta = {}
-            known_manifest_ids = [
-                report.get('manifest_id') for report in reports_to_summarize
-            ]
-            if report_dict.get('manifest_id') not in known_manifest_ids:
-                report_meta['schema_name'] = schema_name
-                report_meta['provider_type'] = provider_type
-                report_meta['provider_uuid'] = provider_uuid
-                report_meta['manifest_id'] = report_dict.get('manifest_id')
+            known_manifest_ids = [report.get("manifest_id") for report in reports_to_summarize]
+            if report_dict.get("manifest_id") not in known_manifest_ids:
+                report_meta["schema_name"] = schema_name
+                report_meta["provider_type"] = provider_type
+                report_meta["provider_uuid"] = provider_uuid
+                report_meta["manifest_id"] = report_dict.get("manifest_id")
                 reports_to_summarize.append(report_meta)
     except ReportProcessorError as processing_error:
-        worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(
-            provider_type=provider_type
-        ).inc()
+        worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
         LOG.error(str(processing_error))
         raise processing_error
 
     return reports_to_summarize
 
 
-@app.task(name='masu.processor.tasks.remove_expired_data', queue_name='remove_expired')
+@app.task(name="masu.processor.tasks.remove_expired_data", queue_name="remove_expired")
 def remove_expired_data(schema_name, provider, simulate, provider_uuid=None):
     """
     Remove expired report data.
@@ -172,17 +154,17 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None):
 
     """
     stmt = (
-        f'remove_expired_data called with args:\n'
-        f' schema_name: {schema_name},\n'
-        f' provider: {provider},\n'
-        f' simulate: {simulate},\n'
-        f' provider_uuid: {provider_uuid}'
+        f"remove_expired_data called with args:\n"
+        f" schema_name: {schema_name},\n"
+        f" provider: {provider},\n"
+        f" simulate: {simulate},\n"
+        f" provider_uuid: {provider_uuid}"
     )
     LOG.info(stmt)
     _remove_expired_data(schema_name, provider, simulate, provider_uuid)
 
 
-@app.task(name='masu.processor.tasks.summarize_reports', queue_name='process')
+@app.task(name="masu.processor.tasks.summarize_reports", queue_name="process")
 def summarize_reports(reports_to_summarize):
     """
     Summarize reports returned from line summary task.
@@ -202,23 +184,21 @@ def summarize_reports(reports_to_summarize):
         # Updater classes for when full-month summarization is
         # required.
         start_date = DateAccessor().today() - datetime.timedelta(days=2)
-        start_date = start_date.strftime('%Y-%m-%d')
-        end_date = DateAccessor().today().strftime('%Y-%m-%d')
-        LOG.info('report to summarize: %s', str(report))
+        start_date = start_date.strftime("%Y-%m-%d")
+        end_date = DateAccessor().today().strftime("%Y-%m-%d")
+        LOG.info("report to summarize: %s", str(report))
         update_summary_tables.delay(
-            report.get('schema_name'),
-            report.get('provider_type'),
-            report.get('provider_uuid'),
+            report.get("schema_name"),
+            report.get("provider_type"),
+            report.get("provider_uuid"),
             start_date=start_date,
             end_date=end_date,
-            manifest_id=report.get('manifest_id'),
+            manifest_id=report.get("manifest_id"),
         )
 
 
-@app.task(name='masu.processor.tasks.update_summary_tables', queue_name='reporting')
-def update_summary_tables(
-    schema_name, provider, provider_uuid, start_date, end_date=None, manifest_id=None
-):
+@app.task(name="masu.processor.tasks.update_summary_tables", queue_name="reporting")
+def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_date=None, manifest_id=None):
     """Populate the summary tables for reporting.
 
     Args:
@@ -236,12 +216,12 @@ def update_summary_tables(
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
 
     stmt = (
-        f'update_summary_tables called with args:\n'
-        f' schema_name: {schema_name},\n'
-        f' provider: {provider},\n'
-        f' start_date: {start_date},\n'
-        f' end_date: {end_date},\n'
-        f' manifest_id: {manifest_id}'
+        f"update_summary_tables called with args:\n"
+        f" schema_name: {schema_name},\n"
+        f" provider: {provider},\n"
+        f" start_date: {start_date},\n"
+        f" end_date: {end_date},\n"
+        f" manifest_id: {manifest_id}"
     )
     LOG.info(stmt)
 
@@ -252,13 +232,13 @@ def update_summary_tables(
     if provider_uuid:
         chain(
             update_charge_info.s(schema_name, provider_uuid, start_date, end_date),
-            refresh_materialized_views.si(schema_name, provider, manifest_id)
+            refresh_materialized_views.si(schema_name, provider, manifest_id),
         ).apply_async()
     else:
         refresh_materialized_views.delay(schema_name, provider, manifest_id)
 
 
-@app.task(name='masu.processor.tasks.update_all_summary_tables', queue_name='reporting')
+@app.task(name="masu.processor.tasks.update_all_summary_tables", queue_name="reporting")
 def update_all_summary_tables(start_date, end_date=None):
     """Populate all the summary tables for reporting.
 
@@ -276,23 +256,21 @@ def update_all_summary_tables(start_date, end_date=None):
         all_accounts = AccountsAccessor().get_accounts()
         for account in all_accounts:
             log_statement = (
-                f'Gathering data for for\n'
+                f"Gathering data for for\n"
                 f' schema_name: {account.get("schema_name")}\n'
                 f' provider: {account.get("provider_type")}\n'
                 f' account (provider uuid): {account.get("provider_uuid")}'
             )
             LOG.info(log_statement)
-            schema_name = account.get('schema_name')
-            provider = account.get('provider_type')
-            provider_uuid = account.get('provider_uuid')
-            update_summary_tables.delay(
-                schema_name, provider, provider_uuid, str(start_date), end_date
-            )
+            schema_name = account.get("schema_name")
+            provider = account.get("provider_type")
+            provider_uuid = account.get("provider_uuid")
+            update_summary_tables.delay(schema_name, provider, provider_uuid, str(start_date), end_date)
     except AccountsAccessorError as error:
-        LOG.error('Unable to get accounts. Error: %s', str(error))
+        LOG.error("Unable to get accounts. Error: %s", str(error))
 
 
-@app.task(name='masu.processor.tasks.update_charge_info', queue_name='reporting')
+@app.task(name="masu.processor.tasks.update_charge_info", queue_name="reporting")
 def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=None):
     """Update usage charge information.
 
@@ -309,9 +287,7 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
     worker_stats.CHARGE_UPDATE_ATTEMPTS_COUNTER.inc()
 
     stmt = (
-        f'update_charge_info called with args:\n'
-        f' schema_name: {schema_name},\n'
-        f' provider_uuid: {provider_uuid}'
+        f"update_charge_info called with args:\n" f" schema_name: {schema_name},\n" f" provider_uuid: {provider_uuid}"
     )
     LOG.info(stmt)
 
@@ -319,7 +295,7 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
     updater.update_charge_info(start_date, end_date)
 
 
-@app.task(name='masu.processor.tasks.refresh_materialized_views', queue_name='reporting')
+@app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name="reporting")
 def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
     """Refresh the database's materialized views for reporting."""
     materialized_views = ()
@@ -329,10 +305,8 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
         for view in materialized_views:
             table_name = view._meta.db_table
             with connection.cursor() as cursor:
-                cursor.execute(
-                    f'REFRESH MATERIALIZED VIEW CONCURRENTLY {table_name}'
-                )
-                LOG.info(f'Refreshed {table_name}.')
+                cursor.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {table_name}")
+                LOG.info(f"Refreshed {table_name}.")
 
     if manifest_id:
         # Processing for this monifest should be complete after this step
@@ -341,7 +315,7 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
             manifest_accessor.mark_manifest_as_completed(manifest)
 
 
-@app.task(name='masu.processor.tasks.vacuum_schema', queue_name='reporting')
+@app.task(name="masu.processor.tasks.vacuum_schema", queue_name="reporting")
 def vacuum_schema(schema_name):
     """Vacuum the reporting tables in the specified schema."""
     table_sql = """
@@ -358,7 +332,7 @@ def vacuum_schema(schema_name):
             tables = cursor.fetchall()
             tables = [table[0] for table in tables]
             for table in tables:
-                sql = 'VACUUM ANALYZE {}.{}'.format(schema_name, table)
+                sql = f"VACUUM ANALYZE {schema_name}.{table}"
                 cursor.execute(sql)
                 LOG.info(sql)
                 LOG.info(cursor.statusmessage)

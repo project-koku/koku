@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Common util functions."""
 import calendar
 import gzip
@@ -26,11 +25,12 @@ from tempfile import gettempdir
 from uuid import uuid4
 
 from dateutil import parser
-from dateutil.rrule import DAILY, rrule
+from dateutil.rrule import DAILY
+from dateutil.rrule import rrule
 
 from api.models import Provider
-from masu.external import (LISTEN_INGEST,
-                           POLL_INGEST)
+from masu.external import LISTEN_INGEST
+from masu.external import POLL_INGEST
 
 LOG = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ def extract_uuids_from_string(source_string):
         ([]) List of UUIDs found in the source string
 
     """
-    uuid_regex = '[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
+    uuid_regex = "[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
     found_uuid = re.findall(uuid_regex, source_string, re.IGNORECASE)
     return found_uuid
 
@@ -73,7 +73,7 @@ def ingest_method_for_provider(provider):
         Provider.PROVIDER_AZURE: POLL_INGEST,
         Provider.PROVIDER_AZURE_LOCAL: POLL_INGEST,
         Provider.PROVIDER_GCP: POLL_INGEST,
-        Provider.PROVIDER_OCP: LISTEN_INGEST
+        Provider.PROVIDER_OCP: LISTEN_INGEST,
     }
     return ingest_map.get(provider)
 
@@ -119,10 +119,8 @@ def month_date_range(for_date_time):
     start_month = for_date_time.replace(day=1, second=1, microsecond=1)
     _, num_days = calendar.monthrange(for_date_time.year, for_date_time.month)
     end_month = start_month.replace(day=num_days)
-    timeformat = '%Y%m%d'
-    return '{}-{}'.format(
-        start_month.strftime(timeformat), end_month.strftime(timeformat)
-    )
+    timeformat = "%Y%m%d"
+    return "{}-{}".format(start_month.strftime(timeformat), end_month.strftime(timeformat))
 
 
 class NamedTemporaryGZip:
@@ -137,11 +135,11 @@ class NamedTemporaryGZip:
 
     def __init__(self):
         """Generate a random temporary file name."""
-        self.file_name = f'{gettempdir()}/{uuid4()}.gz'
+        self.file_name = f"{gettempdir()}/{uuid4()}.gz"
 
     def __enter__(self):
         """Open a gz file as a fileobject."""
-        self.file = gzip.open(self.file_name, 'wt')
+        self.file = gzip.open(self.file_name, "wt")
         return self.file
 
     def __exit__(self, *exc):
@@ -153,10 +151,10 @@ class NamedTemporaryGZip:
 def dictify_table_export_settings(table_export_settings):
     """Return a dict representation of a table_export_settings named tuple."""
     return {
-        'provider': table_export_settings.provider,
-        'output_name': table_export_settings.output_name,
-        'iterate_daily': table_export_settings.iterate_daily,
-        'sql': table_export_settings.sql
+        "provider": table_export_settings.provider,
+        "output_name": table_export_settings.output_name,
+        "iterate_daily": table_export_settings.iterate_daily,
+        "sql": table_export_settings.sql,
     }
 
 
@@ -191,9 +189,7 @@ def date_range_pair(start_date, end_date, step=5):
         start_date = parser.parse(start_date)
     if isinstance(end_date, str):
         end_date = parser.parse(end_date)
-    dates = list(
-        rrule(freq=DAILY, dtstart=start_date, until=end_date, interval=step)
-    )
+    dates = list(rrule(freq=DAILY, dtstart=start_date, until=end_date, interval=step))
     # Special case with only 1 period
     if len(dates) == 1:
         yield start_date.date(), end_date.date()

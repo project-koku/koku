@@ -25,25 +25,32 @@ class AzureTagQueryHandlerTest(IamTestCase):
 
     def test_merge_tags(self):
         """Test the _merge_tags functionality."""
-        url = '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily'
+        url = "?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, AzureTagView)
 
         tagHandler = AzureTagQueryHandler(query_params)
 
         # Test no source type
         source = {}
-        tag_keys = [{'ms-resource-usage': 'azure-cloud-shell'},
-                    {'project': 'p1'}, {'cost': 'management', 'project': 'p2'}]
-        expected = [{'key': 'ms-resource-usage', 'values': ['azure-cloud-shell']},
-                    {'key': 'project', 'values': ['p1', 'p2']},
-                    {'key': 'cost', 'values': ['management']}]
+        tag_keys = [
+            {"ms-resource-usage": "azure-cloud-shell"},
+            {"project": "p1"},
+            {"cost": "management", "project": "p2"},
+        ]
+        expected = [
+            {"key": "ms-resource-usage", "values": ["azure-cloud-shell"]},
+            {"key": "project", "values": ["p1", "p2"]},
+            {"key": "cost", "values": ["management"]},
+        ]
         merged_data = tagHandler._merge_tags(source, tag_keys)
         self.assertEqual(merged_data, expected)
 
         # Test with source type
-        source = {'type': 'storage'}
+        source = {"type": "storage"}
         merged_data = tagHandler._merge_tags(source, tag_keys)
-        expected = [{'key': 'ms-resource-usage', 'values': ['azure-cloud-shell'], 'type': 'storage'},
-                    {'key': 'project', 'values': ['p1', 'p2'], 'type': 'storage'},
-                    {'key': 'cost', 'values': ['management'], 'type': 'storage'}]
+        expected = [
+            {"key": "ms-resource-usage", "values": ["azure-cloud-shell"], "type": "storage"},
+            {"key": "project", "values": ["p1", "p2"], "type": "storage"},
+            {"key": "cost", "values": ["management"], "type": "storage"},
+        ]
         self.assertEqual(merged_data, expected)

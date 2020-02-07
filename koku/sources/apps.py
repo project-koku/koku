@@ -25,7 +25,7 @@ LOG = logging.getLogger(__name__)
 class SourcesConfig(AppConfig):
     """Sources application configuration."""
 
-    name = 'sources'
+    name = "sources"
 
     def ready(self):
         """Determine if app is ready on application startup."""
