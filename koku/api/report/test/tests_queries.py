@@ -15,13 +15,22 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
-from django.test import TestCase
+from unittest.mock import Mock
 
+from django.db.models import Q
+from django.test import TestCase
+from faker import Faker
+
+from api.query_params import QueryParameters
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.azure.openshift.query_handler import OCPAzureReportQueryHandler
 from api.report.azure.query_handler import AzureReportQueryHandler
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp_aws.query_handler import OCPAWSReportQueryHandler
+from api.report.provider_map import ProviderMap
+from api.report.queries import ReportQueryHandler
+
+FAKE = Faker()
 
 
 class ReportQueryUtilsTest(TestCase):
@@ -105,3 +114,162 @@ class ReportQueryUtilsTest(TestCase):
                     ],
                 }
                 self.assertEqual(expected, out_data)
+
+
+def create_test_handler(mapper=None, params=None):
+    """Create a TestableReportQueryHandler using the supplied args."""
+    if not mapper:
+        mapper = {'filter': {}, 'filters': {}}
+
+    if not params:
+        params = {
+            'filter': {},
+            'group_by': {},
+            'order_by': {},
+        }
+
+    class TestableReportQueryHandler(ReportQueryHandler):
+        """ A testable minimal implementation of ReportQueryHandler.
+
+             ReportQueryHandler can't be instantiated directly without first setting
+             a few attributes that are required by QueryHandler.__init__().
+         """
+
+        _mapper = Mock(
+            spec=ProviderMap,
+            _report_type_map=Mock(return_value=mapper, get=lambda x, y=None: mapper.get(x, y)),
+            _provider_map=Mock(return_value=mapper, get=lambda x, y=None: mapper.get(x, y)),
+        )
+
+    mock_params = Mock(
+        spec=QueryParameters,
+        parameters=Mock(return_value=params, get=lambda x, y=None: params.get(x, y)),
+        get_filter=lambda x, default: params.get('filter').get(x, default),
+        get_group_by=lambda x, default: params.get('group_by').get(x, default),
+        get=lambda x, default: params.get(x, default),
+        tag_keys=[],
+    )
+    return TestableReportQueryHandler(mock_params)
+
+
+class ReportQueryHandlerTest(TestCase):
+    """Test the report query handler functions."""
+
+    def test_init(self):
+        """Test that we can instantiate a minimal ReportQueryHandler."""
+        rqh = create_test_handler()
+        self.assertIsInstance(rqh, ReportQueryHandler)
+
+    def test_set_operator_specified_filters_and(self):
+        """Test that AND/OR terms are correctly applied to param filters."""
+        operator = 'and'
+
+        fake_group = FAKE.word()
+        mapper = {
+            'filter': {},
+            'filters': {},
+        }
+        params = {
+            'filter': {},
+            'group_by': {fake_group: ['and:' + FAKE.word(), 'and:' + FAKE.word()]},
+            'order_by': {},
+        }
+
+        rqh = create_test_handler(mapper, params)
+        output = rqh._set_operator_specified_filters(operator)
+        self.assertIsNotNone(output)
+
+        expected = Q(**{})
+        self.assertEqual(output, expected)
+
+    def test_set_operator_specified_filters_or(self):
+        """Test that AND/OR terms are correctly applied to param filters."""
+        operator = 'or'
+
+        fake_group = FAKE.word()
+        mapper = {
+            'filter': {},
+            'filters': {},
+            'group_by_options': [fake_group],
+        }
+        params = {
+            'filter': {},
+            'group_by': {fake_group: ['or:' + FAKE.word(), 'or:' + FAKE.word()]},
+            'order_by': {},
+        }
+
+        rqh = create_test_handler(mapper, params)
+        output = rqh._set_operator_specified_filters(operator)
+        self.assertIsNotNone(output)
+
+        expected = Q(**{})
+        self.assertEqual(output, expected)
+
+    def test_set_operator_specified_tag_filters_and(self):
+        """Test that AND/OR terms are correctly applied to tag filters."""
+        operator = 'and'
+
+        fake_group = FAKE.word()
+        mapper = {
+            'filter': {},
+            'filters': {},
+        }
+        params = {
+            'filter': {},
+            'group_by': {fake_group: ['and:tag:' + FAKE.word(), 'and:tag:' + FAKE.word()]},
+            'order_by': {},
+        }
+
+        rqh = create_test_handler(mapper, params)
+        output = rqh._set_operator_specified_tag_filters({}, operator)
+        self.assertIsNotNone(output)
+
+        self.assertEqual(output, {})
+
+    def test_set_operator_specified_tag_filters_or(self):
+        """Test that AND/OR terms are correctly applied to tag filters."""
+        operator = 'or'
+
+        fake_group = FAKE.word()
+        mapper = {
+            'filter': {},
+            'filters': {},
+        }
+        params = {
+            'filter': {},
+            'group_by': {fake_group: ['or:tag:' + FAKE.word(), 'or:tag:' + FAKE.word()]},
+            'order_by': {},
+        }
+
+        rqh = create_test_handler(mapper, params)
+        output = rqh._set_operator_specified_tag_filters({}, operator)
+        self.assertIsNotNone(output)
+
+        self.assertEqual(output, {})
+
+    # FIXME: need test for _apply_group_by
+    # FIXME: need test for _apply_group_null_label
+    # FIXME: need test for _build_custom_filter_list  }
+    # FIXME: need test for _create_previous_totals
+    # FIXME: need test for _get_filter
+    # FIXME: need test for _get_group_by
+    # FIXME: need test for _get_previous_totals_filter
+    # FIXME: need test for _get_search_filter
+    # FIXME: need test for _get_tag_group_by
+    # FIXME: need test for _group_data_by_list
+    # FIXME: need test for _pack_data_object
+    # FIXME: need test for _percent_delta
+    # FIXME: need test for _perform_rank_summation
+    # FIXME: need test for _ranked_list
+    # FIXME: need test for _set_or_filters
+    # FIXME: need test for _set_tag_filters
+    # FIXME: need test for _transform_data
+    # FIXME: need test for add_deltas
+    # FIXME: need test for annotations
+    # FIXME: need test for date_group_data
+    # FIXME: need test for get_tag_filter_keys
+    # FIXME: need test for get_tag_group_by_keys
+    # FIXME: need test for get_tag_order_by
+    # FIXME: need test for initialize_totals
+    # FIXME: need test for order_by
+    # FIXME: need test for unpack_date_grouped_data
