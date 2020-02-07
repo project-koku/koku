@@ -6,8 +6,10 @@ python:
 
 dist: xenial # needed for py37
 
-cache: pip
-
+cache:
+  - pip
+  - directories:
+    - $HOME/.cache/pre-commit/
 services:
   - postgresql
 
