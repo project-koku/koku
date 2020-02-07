@@ -3,16 +3,17 @@ import json
 import os
 import pkgutil
 
+from django.core.management import call_command
+from django.db import connection
+from django.db import connections
+from django.test import TransactionTestCase
+
 from api.models import CostModelMetricsMap
 from api.models import Customer
 from api.models import Tenant
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
-from django.core.management import call_command
-from django.db import connection
-from django.db import connections
-from django.test import TransactionTestCase
 from reporting_common import package_directory
 from reporting_common.models import ReportColumnMap
 

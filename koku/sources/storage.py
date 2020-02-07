@@ -21,10 +21,11 @@ from base64 import b64decode
 from json import loads as json_loads
 from json.decoder import JSONDecodeError
 
-from api.provider.models import Provider
-from api.provider.models import Sources
 from django.db import InterfaceError
 from django.db import OperationalError
+
+from api.provider.models import Provider
+from api.provider.models import Sources
 
 
 LOG = logging.getLogger(__name__)

@@ -17,11 +17,12 @@
 """Test the download endpoint view."""
 from unittest.mock import patch
 
-from api.iam.models import Tenant
 from celery.result import AsyncResult
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
+
+from api.iam.models import Tenant
 
 
 @override_settings(ROOT_URLCONF="masu.urls")

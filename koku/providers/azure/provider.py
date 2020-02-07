@@ -16,16 +16,16 @@
 #
 """Azure provider."""
 from adal.adal_error import AdalError
-from api.models import Provider
 from azure.common import AzureException
 from django.utils.translation import ugettext as _
-from masu.external.downloader.azure.azure_service import AzureService
-from masu.external.downloader.azure.azure_service import AzureServiceError
 from msrest.exceptions import ClientException
 from rest_framework.serializers import ValidationError
 
 from ..provider_interface import ProviderInterface
 from .client import AzureClientFactory
+from api.models import Provider
+from masu.external.downloader.azure.azure_service import AzureService
+from masu.external.downloader.azure.azure_service import AzureServiceError
 
 
 def error_obj(key, message):

@@ -31,6 +31,7 @@ from django.db import InterfaceError
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
+
 from sources.api.status import ApplicationStatus
 from sources.sources_http_client import SourcesHTTPClientError
 

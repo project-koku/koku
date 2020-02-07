@@ -15,13 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the CostModelDBAccessor utility object."""
+from tenant_schemas.utils import schema_context
+
 from api.models import Provider
 from cost_models.models import CostModel
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from tenant_schemas.utils import schema_context
 
 
 class CostModelDBAccessorTest(MasuTestCase):

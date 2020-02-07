@@ -17,10 +17,12 @@
 """Test the AzureReportDBCleaner object."""
 import datetime
 
+from dateutil import relativedelta
+from tenant_schemas.utils import schema_context
+
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
-from dateutil import relativedelta
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
@@ -28,7 +30,6 @@ from masu.processor.azure.azure_report_db_cleaner import AzureReportDBCleaner
 from masu.processor.azure.azure_report_db_cleaner import AzureReportDBCleanerError
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from tenant_schemas.utils import schema_context
 
 
 class AzureReportDBCleanerTest(MasuTestCase):

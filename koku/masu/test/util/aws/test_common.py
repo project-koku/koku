@@ -25,6 +25,8 @@ import boto3
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
 from faker import Faker
+from tenant_schemas.utils import schema_context
+
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
@@ -36,7 +38,6 @@ from masu.test.external.downloader.aws import fake_arn
 from masu.test.external.downloader.aws import fake_aws_account_id
 from masu.test.external.downloader.aws.test_aws_report_downloader import FakeSession
 from masu.util.aws import common as utils
-from tenant_schemas.utils import schema_context
 
 # the cn endpoints aren't supported by moto, so filter them out
 AWS_REGIONS = list(filter(lambda reg: not reg.startswith("cn-"), AWS_REGIONS))

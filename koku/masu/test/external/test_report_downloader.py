@@ -19,8 +19,9 @@ from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import uuid4
 
-from api.models import Provider
 from faker import Faker
+
+from api.models import Provider
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderError
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader

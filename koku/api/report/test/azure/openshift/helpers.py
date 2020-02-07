@@ -18,6 +18,12 @@
 import random
 from uuid import uuid4
 
+from dateutil.relativedelta import relativedelta
+from django.db import connection
+from faker import Faker
+from model_bakery import baker
+from tenant_schemas.utils import tenant_context
+
 from api.models import Provider
 from api.models import ProviderAuthentication
 from api.models import ProviderBillingSource
@@ -26,14 +32,9 @@ from api.provider.models import ProviderInfrastructureMap
 from api.report.test.azure.helpers import FakeAzureConfig
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.utils import DateHelper
-from dateutil.relativedelta import relativedelta
-from django.db import connection
-from faker import Faker
-from model_bakery import baker
 from reporting.models import AzureCostEntryBill
 from reporting.models import OCPAzureCostLineItemDailySummary
 from reporting.models import OCPAzureCostLineItemProjectDailySummary
-from tenant_schemas.utils import tenant_context
 
 
 class OCPAzureReportDataGenerator:

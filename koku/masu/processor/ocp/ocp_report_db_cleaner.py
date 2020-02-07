@@ -17,9 +17,10 @@
 """Removes report data from database."""
 import logging
 
+from tenant_schemas.utils import schema_context
+
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 

@@ -18,6 +18,7 @@
 import logging
 
 from django.core.management.base import BaseCommand
+
 from masu.external.kafka_msg_handler import initialize_kafka_handler
 
 LOG = logging.getLogger(__name__)

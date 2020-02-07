@@ -20,13 +20,6 @@ import logging
 from http import HTTPStatus
 from json.decoder import JSONDecodeError
 
-from api.common import RH_IDENTITY_HEADER
-from api.iam.models import Customer
-from api.iam.models import Tenant
-from api.iam.models import User
-from api.iam.serializers import create_schema_name
-from api.iam.serializers import extract_header
-from api.iam.serializers import UserSerializer
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
@@ -40,6 +33,13 @@ from prometheus_client import Counter
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.middleware import BaseTenantMiddleware
 
+from api.common import RH_IDENTITY_HEADER
+from api.iam.models import Customer
+from api.iam.models import Tenant
+from api.iam.models import User
+from api.iam.serializers import create_schema_name
+from api.iam.serializers import extract_header
+from api.iam.serializers import UserSerializer
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService

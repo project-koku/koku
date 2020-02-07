@@ -20,8 +20,10 @@ import string
 from decimal import Decimal
 from unittest.mock import patch
 
-from api.models import Provider
 from dateutil.relativedelta import relativedelta
+from tenant_schemas.utils import schema_context
+
+from api.models import Provider
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -31,7 +33,6 @@ from masu.processor.ocp.ocp_report_charge_updater import OCPReportChargeUpdaterE
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
-from tenant_schemas.utils import schema_context
 
 
 class OCPReportChargeUpdaterTest(MasuTestCase):

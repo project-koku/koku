@@ -18,12 +18,13 @@
 import datetime
 import logging
 
-from api.query_filter import QueryFilter
-from api.query_filter import QueryFilterCollection
-from api.utils import DateHelper
 from dateutil import relativedelta
 from django.db.models.functions import TruncDay
 from django.db.models.functions import TruncMonth
+
+from api.query_filter import QueryFilter
+from api.query_filter import QueryFilterCollection
+from api.utils import DateHelper
 
 LOG = logging.getLogger(__name__)
 WILDCARD = "*"

@@ -18,10 +18,11 @@
 import copy
 import logging
 
+from django.db import transaction
+
 from api.provider.models import Provider
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
-from django.db import transaction
 
 
 LOG = logging.getLogger(__name__)

@@ -18,6 +18,7 @@
 import watchtower
 from boto3.session import Session
 from botocore.exceptions import ClientError
+
 from masu.config import Config
 
 

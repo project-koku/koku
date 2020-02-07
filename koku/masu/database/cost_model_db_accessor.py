@@ -17,9 +17,10 @@
 """Database accessor for OCP rate data."""
 import logging
 
+from tenant_schemas.utils import schema_context
+
 from cost_models.models import CostModel
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 

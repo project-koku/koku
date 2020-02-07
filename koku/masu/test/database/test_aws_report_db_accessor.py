@@ -28,6 +28,8 @@ from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
 from django.db.models.query import QuerySet
+from tenant_schemas.utils import schema_context
+
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -42,7 +44,6 @@ from masu.test.database.helpers import map_django_field_type_to_python_type
 from masu.test.database.helpers import ReportObjectCreator
 from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
-from tenant_schemas.utils import schema_context
 
 
 class ReportSchemaTest(MasuTestCase):

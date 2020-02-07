@@ -20,6 +20,10 @@ import uuid
 from itertools import permutations
 from unittest.mock import patch
 
+from faker import Faker
+from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+
 from api.iam.serializers import create_schema_name
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
@@ -28,10 +32,7 @@ from api.provider.models import Sources
 from api.provider.serializers import AdminProviderSerializer
 from api.provider.serializers import ProviderSerializer
 from api.provider.serializers import REPORT_PREFIX_MAX_LENGTH
-from faker import Faker
 from providers.provider_access import ProviderAccessor
-from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 
 FAKE = Faker()
 

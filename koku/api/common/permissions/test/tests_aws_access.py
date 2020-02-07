@@ -17,9 +17,10 @@
 """Tests for AWS Access Permissions."""
 from unittest.mock import Mock
 
+from django.test import TestCase
+
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.iam.models import User
-from django.test import TestCase
 
 
 class AwsAccessPermissionTest(TestCase):

@@ -18,18 +18,19 @@
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
 
+from django.test import RequestFactory
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APIClient
+from tenant_schemas.utils import tenant_context
+
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Provider
 from api.provider.test import create_generic_provider
 from api.report.test.azure.openshift.helpers import OCPAzureReportDataGenerator
 from api.utils import DateHelper
-from django.test import RequestFactory
-from django.urls import reverse
 from reporting.models import OCPAzureCostLineItemDailySummary
-from rest_framework import status
-from rest_framework.test import APIClient
-from tenant_schemas.utils import tenant_context
 
 URLS = [
     reverse("reports-openshift-azure-costs"),

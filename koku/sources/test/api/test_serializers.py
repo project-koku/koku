@@ -15,10 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the sources serializer."""
+from faker import Faker
+
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
-from faker import Faker
 from sources.api.serializers import SourcesSerializer
 from sources.storage import SourcesStorageError
 

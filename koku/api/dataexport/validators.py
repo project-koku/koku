@@ -1,7 +1,8 @@
 """Validators for user-initiated data exports."""
-from api.dataexport.models import DataExportRequest
 from django.utils.translation import gettext_lazy as _
 from rest_framework.exceptions import ValidationError
+
+from api.dataexport.models import DataExportRequest
 
 
 class DataExportRequestValidator:

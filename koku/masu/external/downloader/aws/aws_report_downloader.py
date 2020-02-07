@@ -27,6 +27,7 @@ import struct
 
 import boto3
 from botocore.exceptions import ClientError
+
 from masu.config import Config
 from masu.exceptions import MasuProviderError
 from masu.external.downloader.downloader_interface import DownloaderInterface

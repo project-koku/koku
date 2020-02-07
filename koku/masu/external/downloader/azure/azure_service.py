@@ -18,6 +18,7 @@
 from tempfile import NamedTemporaryFile
 
 from azure.common import AzureException
+
 from providers.azure.client import AzureClientFactory
 
 

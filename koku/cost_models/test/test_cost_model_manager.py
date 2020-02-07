@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Cost Model Manager."""
+from tenant_schemas.utils import tenant_context
+
 from api.iam.models import Customer
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
@@ -23,7 +25,6 @@ from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
-from tenant_schemas.utils import tenant_context
 
 
 class MockResponse:

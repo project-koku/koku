@@ -17,10 +17,11 @@
 """Common pagination class."""
 import logging
 
-from api import API_VERSION
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework.utils.urls import replace_query_param
+
+from api import API_VERSION
 
 PATH_INFO = "PATH_INFO"
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name

@@ -21,6 +21,7 @@ import requests
 import requests_mock
 from django.test import TestCase
 from faker import Faker
+
 from sources.config import Config
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError

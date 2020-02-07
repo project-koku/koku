@@ -17,10 +17,11 @@
 """Test the AccountAliasAccessor utility object."""
 import uuid
 
+from tenant_schemas.utils import schema_context
+
 from api.iam.test.iam_test_case import IamTestCase
 from masu.database.account_alias_accessor import AccountAliasAccessor
 from reporting.models import AWSAccountAlias
-from tenant_schemas.utils import schema_context
 
 
 class AccountAliasAccessorTest(IamTestCase):

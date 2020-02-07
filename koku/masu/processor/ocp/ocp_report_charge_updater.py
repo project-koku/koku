@@ -21,13 +21,14 @@ import logging
 from decimal import Decimal
 
 from dateutil.parser import parse
+from tenant_schemas.utils import schema_context
+
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
-from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 

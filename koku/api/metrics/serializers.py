@@ -17,10 +17,11 @@
 """CostModelMetricMap Model Serializer."""
 import logging
 
-from api.metrics.models import CostModelMetricsMap
-from api.models import Provider
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
+
+from api.metrics.models import CostModelMetricsMap
+from api.models import Provider
 
 LOG = logging.getLogger(__name__)
 

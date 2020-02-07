@@ -7,11 +7,13 @@ from datetime import datetime
 
 import numpy as np
 import pytz
+from dateutil import parser
+from faker import Faker
+from tenant_schemas.utils import schema_context
+
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
-from dateutil import parser
-from faker import Faker
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
@@ -23,7 +25,6 @@ from masu.util import common as utils
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDaily
 from reporting.provider.gcp.models import GCPProject
-from tenant_schemas.utils import schema_context
 
 fake = Faker()
 

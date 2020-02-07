@@ -19,13 +19,14 @@ import calendar
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
 
-from api.iam.serializers import UserSerializer
-from api.iam.test.iam_test_case import IamTestCase
-from api.utils import DateHelper
 from dateutil.relativedelta import relativedelta
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
+
+from api.iam.serializers import UserSerializer
+from api.iam.test.iam_test_case import IamTestCase
+from api.utils import DateHelper
 
 
 class AWSTagsViewTest(IamTestCase):

@@ -21,11 +21,11 @@ from unittest import mock
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from api.iam.test.iam_test_case import IamTestCase
 from django.db import OperationalError
 from faker import Faker
 from prometheus_client import REGISTRY
 
+from api.iam.test.iam_test_case import IamTestCase
 from koku.metrics import collect_metrics
 from koku.metrics import DatabaseStatus
 

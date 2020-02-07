@@ -17,13 +17,14 @@
 """Test the Report serializers."""
 from unittest import TestCase
 
+from rest_framework import serializers
+
 from api.report.ocp.serializers import FilterSerializer
 from api.report.ocp.serializers import GroupBySerializer
 from api.report.ocp.serializers import OCPCostQueryParamSerializer
 from api.report.ocp.serializers import OCPInventoryQueryParamSerializer
 from api.report.ocp.serializers import OCPQueryParamSerializer
 from api.report.ocp.serializers import OrderBySerializer
-from rest_framework import serializers
 
 
 class OCPFilterSerializerTest(TestCase):

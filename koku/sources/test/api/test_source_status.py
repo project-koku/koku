@@ -18,15 +18,16 @@
 from unittest.mock import create_autospec
 from unittest.mock import patch
 
-from api.provider.models import Provider
-from api.provider.models import Sources
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 from faker import Faker
-from providers.provider_access import ProviderAccessor
 from rest_framework import status
 from rest_framework.test import APIClient
+
+from api.provider.models import Provider
+from api.provider.models import Sources
+from providers.provider_access import ProviderAccessor
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 

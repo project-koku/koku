@@ -20,10 +20,6 @@
 import logging
 
 from django.views.decorators.cache import never_cache
-from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.processor.tasks import remove_expired_data
-from masu.processor.tasks import update_all_summary_tables
-from masu.processor.tasks import update_summary_tables
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
@@ -31,6 +27,11 @@ from rest_framework.decorators import renderer_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+
+from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.processor.tasks import remove_expired_data
+from masu.processor.tasks import update_all_summary_tables
+from masu.processor.tasks import update_summary_tables
 
 LOG = logging.getLogger(__name__)
 REPORT_DATA_KEY = "Report Data Task ID"

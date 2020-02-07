@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
+from tenant_schemas.utils import tenant_context
+
 from api.functions import JSONBObjectKeys
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Provider
@@ -24,7 +26,6 @@ from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
 from reporting.models import OCPUsageLineItemDailySummary
-from tenant_schemas.utils import tenant_context
 
 
 class OCPTagQueryHandlerTest(IamTestCase):

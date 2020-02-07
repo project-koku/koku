@@ -18,17 +18,17 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from api.iam.models import Customer
-from api.iam.models import Tenant
-from api.iam.models import User
-from api.iam.serializers import UserSerializer
-from api.iam.test.iam_test_case import IamTestCase
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 from django.db.utils import OperationalError
 from requests.exceptions import ConnectionError  # pylint: disable=W0622
 from rest_framework import status
 
+from api.iam.models import Customer
+from api.iam.models import Tenant
+from api.iam.models import User
+from api.iam.serializers import UserSerializer
+from api.iam.test.iam_test_case import IamTestCase
 from koku.middleware import HttpResponseUnauthorizedRequest
 from koku.middleware import IdentityHeaderMiddleware
 from koku.middleware import KokuTenantMiddleware

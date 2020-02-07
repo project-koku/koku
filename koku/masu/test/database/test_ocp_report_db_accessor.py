@@ -23,6 +23,8 @@ from django.db import connection
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models.query import QuerySet
+from tenant_schemas.utils import schema_context
+
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -32,7 +34,6 @@ from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.util.common import month_date_range_tuple
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
-from tenant_schemas.utils import schema_context
 
 
 class OCPReportDBAccessorTest(MasuTestCase):

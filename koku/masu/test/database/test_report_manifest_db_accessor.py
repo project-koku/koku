@@ -18,11 +18,12 @@
 import copy
 import datetime
 
+from tenant_schemas.utils import schema_context
+
 from api.iam.test.iam_test_case import IamTestCase
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
-from tenant_schemas.utils import schema_context
 
 
 class ReportManifestDBAccessorTest(IamTestCase):

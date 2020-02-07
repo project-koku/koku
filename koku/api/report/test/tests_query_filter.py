@@ -17,11 +17,12 @@
 """Test the QueryFilter."""
 from collections import Iterable
 
-from api.query_filter import QueryFilter
-from api.query_filter import QueryFilterCollection
 from django.db.models import Q
 from django.test import TestCase
 from faker import Faker
+
+from api.query_filter import QueryFilter
+from api.query_filter import QueryFilterCollection
 
 
 class QueryFilterTest(TestCase):

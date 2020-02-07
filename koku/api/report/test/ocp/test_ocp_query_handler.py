@@ -19,6 +19,10 @@ from collections import defaultdict
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.db.models import Max
+from django.db.models.expressions import OrderBy
+from tenant_schemas.utils import tenant_context
+
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Provider
 from api.provider.test import create_generic_provider
@@ -32,10 +36,7 @@ from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
-from django.db.models import Max
-from django.db.models.expressions import OrderBy
 from reporting.models import OCPUsageLineItemDailySummary
-from tenant_schemas.utils import tenant_context
 
 
 class OCPReportQueryHandlerTest(IamTestCase):

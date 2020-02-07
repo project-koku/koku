@@ -15,13 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the AWS Report views."""
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APIClient
+
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.view import _convert_units
 from api.utils import UnitConverter
-from django.urls import reverse
-from rest_framework import status
-from rest_framework.test import APIClient
 
 
 class AWSReportViewTest(IamTestCase):

@@ -15,11 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Tests the AzureLocalProvider implementation for the Koku interface."""
-from api.models import Provider
 from django.test import TestCase
 from faker import Faker
-from providers.azure_local.provider import AzureLocalProvider
 from rest_framework.exceptions import ValidationError
+
+from api.models import Provider
+from providers.azure_local.provider import AzureLocalProvider
 
 FAKE = Faker()
 

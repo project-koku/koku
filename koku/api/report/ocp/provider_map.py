@@ -15,8 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider Mapper for OCP Reports."""
-from api.models import Provider
-from api.report.provider_map import ProviderMap
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
 from django.db.models import DecimalField
@@ -25,6 +23,9 @@ from django.db.models import Max
 from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
+
+from api.models import Provider
+from api.report.provider_map import ProviderMap
 from providers.provider_access import ProviderAccessor
 from reporting.models import OCPUsageLineItemDailySummary
 

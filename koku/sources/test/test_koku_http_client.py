@@ -19,9 +19,10 @@ from unittest.mock import patch
 
 import requests
 import requests_mock
-from api.models import Provider
 from django.test import TestCase
 from faker import Faker
+
+from api.models import Provider
 from sources.config import Config
 from sources.koku_http_client import KokuHTTPClient
 from sources.koku_http_client import KokuHTTPClientError

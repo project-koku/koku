@@ -18,13 +18,14 @@
 import copy
 import logging
 
+from django.db.models import F
+from django.db.models import Q
+from tenant_schemas.utils import tenant_context
+
 from api.functions import JSONBObjectKeys
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
-from django.db.models import F
-from django.db.models import Q
-from tenant_schemas.utils import tenant_context
 
 LOG = logging.getLogger(__name__)
 

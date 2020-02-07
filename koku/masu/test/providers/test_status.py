@@ -19,6 +19,7 @@ import random
 from datetime import timedelta
 
 from faker import Faker
+
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.external.date_accessor import DateAccessor

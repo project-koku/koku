@@ -20,16 +20,16 @@ from json import dumps as json_dumps
 from unittest.mock import Mock
 from uuid import UUID
 
-from api.common import RH_IDENTITY_HEADER
-from api.iam.serializers import create_schema_name
-from api.models import Customer
-from api.models import Tenant
-from api.query_params import QueryParameters
 from django.db import connection
 from django.test import RequestFactory
 from django.test import TestCase
 from faker import Faker
 
+from api.common import RH_IDENTITY_HEADER
+from api.iam.serializers import create_schema_name
+from api.models import Customer
+from api.models import Tenant
+from api.query_params import QueryParameters
 from koku.koku_test_runner import KokuTestRunner
 
 

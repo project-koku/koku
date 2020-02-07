@@ -20,6 +20,7 @@ from datetime import datetime
 import dateutil
 import pytz
 from faker import Faker
+
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
 from masu.external.date_accessor import DateAccessorError

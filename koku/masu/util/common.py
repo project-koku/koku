@@ -24,10 +24,11 @@ from os import remove
 from tempfile import gettempdir
 from uuid import uuid4
 
-from api.models import Provider
 from dateutil import parser
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
+
+from api.models import Provider
 from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
 

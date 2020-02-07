@@ -17,6 +17,7 @@
 """Sources HTTP Client."""
 import requests
 from requests.exceptions import RequestException
+
 from sources.config import Config
 
 

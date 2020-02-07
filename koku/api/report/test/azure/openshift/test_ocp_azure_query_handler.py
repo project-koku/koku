@@ -20,6 +20,12 @@ from decimal import ROUND_HALF_UP
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
+from dateutil.relativedelta import relativedelta
+from django.db.models import F
+from django.db.models import Sum
+from django.urls import reverse
+from tenant_schemas.utils import tenant_context
+
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Provider
 from api.provider.test import create_generic_provider
@@ -31,12 +37,7 @@ from api.report.azure.openshift.view import OCPAzureStorageView
 from api.report.test.azure.helpers import AZURE_SERVICES
 from api.report.test.azure.openshift.helpers import OCPAzureReportDataGenerator
 from api.utils import DateHelper
-from dateutil.relativedelta import relativedelta
-from django.db.models import F
-from django.db.models import Sum
-from django.urls import reverse
 from reporting.models import OCPAzureCostLineItemDailySummary
-from tenant_schemas.utils import tenant_context
 
 
 class OCPAWSQueryHandlerTestNoData(IamTestCase):

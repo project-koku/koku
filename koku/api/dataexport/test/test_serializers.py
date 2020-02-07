@@ -5,6 +5,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import faker
+
 from api.common import RH_IDENTITY_HEADER
 from api.dataexport.models import DataExportRequest
 from api.dataexport.serializers import DataExportRequestSerializer

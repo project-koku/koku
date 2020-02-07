@@ -17,11 +17,6 @@
 """View for Reports."""
 import logging
 
-from api.common import RH_IDENTITY_HEADER
-from api.common.pagination import ReportPagination
-from api.common.pagination import ReportRankedPagination
-from api.query_params import QueryParameters
-from api.utils import UnitConverter
 from django.utils.translation import ugettext as _
 from django.views.decorators.vary import vary_on_headers
 from pint.errors import DimensionalityError
@@ -30,6 +25,12 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
+
+from api.common import RH_IDENTITY_HEADER
+from api.common.pagination import ReportPagination
+from api.common.pagination import ReportRankedPagination
+from api.query_params import QueryParameters
+from api.utils import UnitConverter
 
 LOG = logging.getLogger(__name__)
 

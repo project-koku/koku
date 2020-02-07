@@ -17,14 +17,15 @@
 """OCP Query Handling for Reports."""
 import copy
 
-from api.models import Provider
-from api.report.azure.openshift.provider_map import OCPAzureProviderMap
-from api.report.azure.query_handler import AzureReportQueryHandler
-from api.report.queries import is_grouped_or_filtered_by_project
 from django.db.models import F
 from django.db.models import Window
 from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
+
+from api.models import Provider
+from api.report.azure.openshift.provider_map import OCPAzureProviderMap
+from api.report.azure.query_handler import AzureReportQueryHandler
+from api.report.queries import is_grouped_or_filtered_by_project
 
 
 class OCPAzureReportQueryHandler(AzureReportQueryHandler):

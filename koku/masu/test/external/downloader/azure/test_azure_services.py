@@ -20,6 +20,7 @@ from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from faker import Faker
+
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
 from masu.test import MasuTestCase

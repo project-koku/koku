@@ -22,6 +22,12 @@ from unittest.mock import patch
 from unittest.mock import PropertyMock
 from uuid import UUID
 
+from dateutil.relativedelta import relativedelta
+from django.db.models import F
+from django.db.models import Sum
+from django.urls import reverse
+from tenant_schemas.utils import tenant_context
+
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Provider
 from api.provider.test import create_generic_provider
@@ -35,13 +41,8 @@ from api.report.test.azure.helpers import AzureReportDataGenerator
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.azure.view import AzureTagView
 from api.utils import DateHelper
-from dateutil.relativedelta import relativedelta
-from django.db.models import F
-from django.db.models import Sum
-from django.urls import reverse
 from reporting.models import AzureCostEntryLineItemDailySummary
 from reporting.models import AzureCostEntryProductService
-from tenant_schemas.utils import tenant_context
 
 
 class AzureReportQueryHandlerTest(IamTestCase):

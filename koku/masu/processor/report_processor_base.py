@@ -22,13 +22,14 @@ import logging
 
 import ciso8601
 from dateutil.relativedelta import relativedelta
+from tenant_schemas.utils import schema_context
+
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.processor import ALLOWED_COMPRESSIONS
-from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 

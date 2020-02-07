@@ -15,10 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Sources Model Serializers."""
-from api.provider.models import Provider
-from api.provider.models import Sources
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
+
+from api.provider.models import Provider
+from api.provider.models import Sources
 from sources.storage import SourcesStorageError
 
 

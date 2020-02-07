@@ -19,10 +19,9 @@ import datetime
 import logging
 from tempfile import mkdtemp
 
+from koku.celery import app
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
-
-from koku.celery import app
 
 LOG = logging.getLogger(__name__)
 

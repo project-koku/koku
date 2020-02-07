@@ -15,11 +15,12 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Report manifest database accessor for cost usage reports."""
+from tenant_schemas.utils import schema_context
+
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
-from tenant_schemas.utils import schema_context
 
 
 class ReportManifestDBAccessor(KokuDBAccess):

@@ -24,6 +24,7 @@ from datetime import datetime
 from datetime import timedelta
 
 import pytz
+
 from api.models import Provider
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor

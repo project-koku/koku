@@ -15,9 +15,10 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Accessor for Account alias information from koku database."""
+from tenant_schemas.utils import schema_context
+
 from masu.database.koku_database_access import KokuDBAccess
 from reporting.models import AWSAccountAlias
-from tenant_schemas.utils import schema_context
 
 
 class AccountAliasAccessor(KokuDBAccess):

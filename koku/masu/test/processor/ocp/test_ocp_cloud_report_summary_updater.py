@@ -20,11 +20,13 @@ import decimal
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from api.models import Provider
 from dateutil.relativedelta import relativedelta
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
+from tenant_schemas.utils import schema_context
+
+from api.models import Provider
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -40,7 +42,6 @@ from masu.test.database.helpers import ReportObjectCreator
 from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummary
 from reporting.provider.all.openshift.models import OCPAllCostLineItemProjectDailySummary
-from tenant_schemas.utils import schema_context
 
 
 class OCPCloudReportSummaryUpdaterTest(MasuTestCase):

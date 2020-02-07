@@ -27,6 +27,7 @@ from dateutil import parser
 from dateutil import relativedelta
 from django.utils import timezone
 from faker import Faker
+
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import AZURE_REPORT_TABLE_MAP

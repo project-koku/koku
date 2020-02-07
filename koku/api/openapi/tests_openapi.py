@@ -20,11 +20,11 @@ import os
 from tempfile import NamedTemporaryFile
 from unittest.mock import patch
 
-from api.openapi.view import get_json
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 
+from api.openapi.view import get_json
 from koku import settings
 
 

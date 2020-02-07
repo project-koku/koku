@@ -20,11 +20,12 @@ from unittest.mock import patch
 
 import requests
 import requests_mock
+from django.test import TestCase
+from faker import Faker
+
 import sources.kafka_listener as source_integration
 from api.provider.models import Provider
 from api.provider.models import Sources
-from django.test import TestCase
-from faker import Faker
 from sources.config import Config
 from sources.sources_http_client import SourcesHTTPClientError
 

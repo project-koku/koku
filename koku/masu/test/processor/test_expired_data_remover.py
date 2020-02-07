@@ -19,6 +19,7 @@ from datetime import datetime
 from unittest.mock import patch
 
 import pytz
+
 from api.models import Provider
 from masu.external.date_accessor import DateAccessor
 from masu.processor.expired_data_remover import ExpiredDataRemover

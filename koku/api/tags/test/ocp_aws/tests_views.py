@@ -18,11 +18,12 @@
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
 
-from api.iam.serializers import UserSerializer
-from api.iam.test.iam_test_case import IamTestCase
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
+
+from api.iam.serializers import UserSerializer
+from api.iam.test.iam_test_case import IamTestCase
 
 
 class OCPAWSTagsViewTest(IamTestCase):

@@ -15,8 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Serializer for CloudAccount."""
-from api.cloud_accounts.models import CloudAccount
 from rest_framework import serializers
+
+from api.cloud_accounts.models import CloudAccount
 
 
 class CloudAccountSerializer(serializers.ModelSerializer):

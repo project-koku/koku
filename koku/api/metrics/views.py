@@ -17,13 +17,14 @@
 """Views for CostModelMetricsMap."""
 import logging
 
-from api.common import RH_IDENTITY_HEADER
-from api.metrics.models import CostModelMetricsMap
-from api.metrics.serializers import CostModelMetricMapSerializer
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import mixins
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
+
+from api.common import RH_IDENTITY_HEADER
+from api.metrics.models import CostModelMetricsMap
+from api.metrics.serializers import CostModelMetricMapSerializer
 
 LOG = logging.getLogger(__name__)
 

@@ -19,12 +19,13 @@ import calendar
 import datetime
 import logging
 
+from tenant_schemas.utils import schema_context
+
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.azure.common import get_bills_from_provider
 from masu.util.common import date_range_pair
-from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 

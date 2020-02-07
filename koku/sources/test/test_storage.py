@@ -19,11 +19,12 @@ from base64 import b64decode
 from json import loads as json_loads
 from unittest.mock import patch
 
-from api.provider.models import Provider
-from api.provider.models import Sources
 from django.db import InterfaceError
 from django.test import TestCase
 from faker import Faker
+
+from api.provider.models import Provider
+from api.provider.models import Sources
 from sources import storage
 from sources.config import Config
 from sources.storage import SourcesStorageError

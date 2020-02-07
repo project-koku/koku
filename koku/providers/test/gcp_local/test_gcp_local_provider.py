@@ -1,8 +1,9 @@
 """Tests the GCPLocalProvider."""
-from api.models import Provider
 from django.test import TestCase
-from providers.gcp_local.provider import GCPLocalProvider
 from rest_framework.exceptions import ValidationError
+
+from api.models import Provider
+from providers.gcp_local.provider import GCPLocalProvider
 
 
 class GCPLocalProviderTestCase(TestCase):

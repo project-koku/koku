@@ -1,9 +1,10 @@
 """Serializers for user-initiated data exports."""
+from django.db import transaction
+from rest_framework import serializers
+
 from api.dataexport.models import DataExportRequest
 from api.dataexport.validators import DataExportRequestValidator
-from django.db import transaction
 from masu.celery.tasks import sync_data_to_customer
-from rest_framework import serializers
 
 
 class DataExportRequestSerializer(serializers.ModelSerializer):

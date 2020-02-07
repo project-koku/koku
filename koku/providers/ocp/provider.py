@@ -17,16 +17,16 @@
 """OCP service provider implementation to be used by Koku."""
 import logging
 
-from api.provider.models import Provider
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext as _
-from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
-from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
 from rest_framework import serializers
 from tenant_schemas.utils import tenant_context
 
 from ..provider_interface import ProviderInterface
+from api.provider.models import Provider
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
+from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
 

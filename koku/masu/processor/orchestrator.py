@@ -18,6 +18,7 @@
 import logging
 
 from dateutil.relativedelta import relativedelta
+
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.account_label import AccountLabel

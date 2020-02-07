@@ -18,9 +18,10 @@
 from unittest.mock import Mock
 from uuid import uuid4
 
+from django.test import TestCase
+
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
 from api.iam.models import User
-from django.test import TestCase
 
 
 class CostModelsAccessPermissionTest(TestCase):

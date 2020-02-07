@@ -3,6 +3,7 @@ import uuid
 from datetime import date
 
 from django.test import TestCase
+
 from masu.util.upload import get_upload_path
 
 

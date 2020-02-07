@@ -19,11 +19,12 @@ import datetime
 import logging
 import re
 
+from tenant_schemas.utils import schema_context
+
 from api.models import Provider
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 

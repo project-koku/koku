@@ -15,9 +15,10 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Accessor for Provider information from koku database."""
+from django.db import transaction
+
 from api.provider.models import Provider
 from api.provider.models import ProviderInfrastructureMap
-from django.db import transaction
 from masu.database.koku_database_access import KokuDBAccess
 
 

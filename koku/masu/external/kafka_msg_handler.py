@@ -32,6 +32,7 @@ import requests
 from aiokafka import AIOKafkaConsumer
 from aiokafka import AIOKafkaProducer
 from kafka.errors import KafkaError
+
 from masu.config import Config
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError

@@ -17,11 +17,6 @@
 """View for Providers."""
 import logging
 
-from api.common.filters import CharListFilter
-from api.iam.models import Customer
-from api.provider import serializers
-from api.provider.models import Provider
-from api.query_params import get_tenant
 from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
@@ -37,6 +32,11 @@ from rest_framework.serializers import UUIDField
 
 from .provider_manager import ProviderManager
 from .provider_manager import ProviderManagerError
+from api.common.filters import CharListFilter
+from api.iam.models import Customer
+from api.provider import serializers
+from api.provider.models import Provider
+from api.query_params import get_tenant
 
 
 LOG = logging.getLogger(__name__)

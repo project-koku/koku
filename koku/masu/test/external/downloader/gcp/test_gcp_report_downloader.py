@@ -6,13 +6,14 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from faker import Faker
+from rest_framework.exceptions import ValidationError
+
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.gcp.gcp_report_downloader import DATA_DIR
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderNoFileError
 from masu.test import MasuTestCase
-from rest_framework.exceptions import ValidationError
 
 FAKE = Faker()
 

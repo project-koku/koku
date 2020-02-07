@@ -20,13 +20,14 @@ from unittest.mock import call
 from unittest.mock import patch
 from uuid import UUID
 
+from faker import Faker
+from tenant_schemas.utils import tenant_context
+
 from api.iam.models import Tenant
 from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModelMap
-from faker import Faker
 from masu.test import MasuTestCase
-from tenant_schemas.utils import tenant_context
 
 FAKE = Faker()
 

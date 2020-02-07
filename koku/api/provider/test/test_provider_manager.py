@@ -18,6 +18,12 @@
 import json
 from unittest.mock import patch
 
+from dateutil import parser
+from django.http import HttpRequest
+from django.http import QueryDict
+from rest_framework.request import Request
+from tenant_schemas.utils import tenant_context
+
 from api.iam.models import Customer
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
@@ -33,11 +39,6 @@ from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModelMap
-from dateutil import parser
-from django.http import HttpRequest
-from django.http import QueryDict
-from rest_framework.request import Request
-from tenant_schemas.utils import tenant_context
 
 
 class MockResponse:

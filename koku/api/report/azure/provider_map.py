@@ -15,8 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider Mapper for Azure Reports."""
-from api.models import Provider
-from api.report.provider_map import ProviderMap
 from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
@@ -24,6 +22,9 @@ from django.db.models import Max
 from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
+
+from api.models import Provider
+from api.report.provider_map import ProviderMap
 from reporting.models import AzureCostEntryLineItemDailySummary
 
 

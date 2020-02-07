@@ -19,6 +19,7 @@ import random
 import uuid
 
 from faker import Faker
+
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.provider_status_accessor import ProviderStatusAccessor
 from masu.database.provider_status_accessor import ProviderStatusCode

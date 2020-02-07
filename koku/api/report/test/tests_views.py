@@ -15,6 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report views."""
+from django.test import RequestFactory
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APIClient
+from rest_framework_csv.renderers import CSVRenderer
+
 from api.common.pagination import ReportPagination
 from api.common.pagination import ReportRankedPagination
 from api.iam.serializers import UserSerializer
@@ -22,11 +28,6 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.report.view import _fill_in_missing_units
 from api.report.view import _find_unit
 from api.report.view import get_paginator
-from django.test import RequestFactory
-from django.urls import reverse
-from rest_framework import status
-from rest_framework.test import APIClient
-from rest_framework_csv.renderers import CSVRenderer
 
 
 class ReportViewTest(IamTestCase):

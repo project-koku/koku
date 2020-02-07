@@ -17,11 +17,11 @@
 """AWS-local service provider implementation to be used by Koku."""
 import logging
 
-from api.models import Provider
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
 from ..aws.provider import AWSProvider
+from api.models import Provider
 
 LOG = logging.getLogger(__name__)
 

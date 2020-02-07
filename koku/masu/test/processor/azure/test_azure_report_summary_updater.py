@@ -22,6 +22,8 @@ from unittest.mock import patch
 
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
+from tenant_schemas.utils import schema_context
+
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -31,7 +33,6 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor.azure.azure_report_summary_updater import AzureReportSummaryUpdater
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from tenant_schemas.utils import schema_context
 
 
 class AzureReportSummaryUpdaterTest(MasuTestCase):

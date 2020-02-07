@@ -18,11 +18,12 @@
 from unittest import TestCase
 from unittest.mock import Mock
 
+from rest_framework import serializers
+
 from api.report.aws.serializers import FilterSerializer
 from api.report.aws.serializers import GroupBySerializer
 from api.report.aws.serializers import OrderBySerializer
 from api.report.aws.serializers import QueryParamSerializer
-from rest_framework import serializers
 
 
 class FilterSerializerTest(TestCase):

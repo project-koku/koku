@@ -18,8 +18,9 @@
 from base64 import b64encode
 from json import dumps as json_dumps
 
-from api.common import RH_IDENTITY_HEADER
 from django.utils.deprecation import MiddlewareMixin
+
+from api.common import RH_IDENTITY_HEADER
 
 
 class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=too-few-public-methods

@@ -19,9 +19,10 @@ import json
 import logging
 import os
 
-from api.models import Provider
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
+
+from api.models import Provider
 from masu.config import Config
 from masu.database.provider_auth_db_accessor import ProviderAuthDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor

@@ -21,18 +21,19 @@ from uuid import UUID
 from uuid import uuid4
 
 import faker
+from django.db.utils import InterfaceError
+from django.urls import reverse
+from rest_framework import serializers
+from rest_framework import status
+from rest_framework.test import APIClient
+
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
 from api.provider.test import create_generic_provider
 from api.provider.test import PROVIDERS
-from django.db.utils import InterfaceError
-from django.urls import reverse
 from providers.provider_access import ProviderAccessor
-from rest_framework import serializers
-from rest_framework import status
-from rest_framework.test import APIClient
 
 fields = ["name", "type", "authentication", "billing_source"]
 FAKE = faker.Faker()

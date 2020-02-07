@@ -26,6 +26,7 @@ from azure.mgmt.storage import StorageManagementClient
 from azure.storage import CloudStorageAccount
 from django.test import TestCase
 from faker import Faker
+
 from providers.azure.client import AzureClientFactory
 
 FAKE = Faker()

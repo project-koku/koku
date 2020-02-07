@@ -18,6 +18,8 @@
 import datetime
 
 from dateutil import relativedelta
+from tenant_schemas.utils import schema_context
+
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
@@ -25,7 +27,6 @@ from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleaner
 from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleanerError
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from tenant_schemas.utils import schema_context
 
 
 class AWSReportDBCleanerTest(MasuTestCase):

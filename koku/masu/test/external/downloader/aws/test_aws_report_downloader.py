@@ -23,9 +23,10 @@ import shutil
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from api.models import Provider
 from botocore.exceptions import ClientError
 from faker import Faker
+
+from api.models import Provider
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProviderError

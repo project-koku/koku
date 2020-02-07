@@ -15,8 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for tags."""
-from api.report.view import ReportView
 from rest_framework.permissions import AllowAny
+
+from api.report.view import ReportView
 
 
 class TagView(ReportView):

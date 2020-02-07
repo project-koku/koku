@@ -1,9 +1,9 @@
 """GCP provider implementation to be used by Koku."""
-from api.models import Provider
 from rest_framework import serializers
 
 from ..gcp.provider import GCPProvider
 from ..provider_interface import error_obj
+from api.models import Provider
 
 
 class GCPLocalProvider(GCPProvider):

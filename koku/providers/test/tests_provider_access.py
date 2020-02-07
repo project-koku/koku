@@ -17,9 +17,11 @@
 """Tests the ProviderAccessor implementation for the Koku consumption."""
 from unittest.mock import patch
 
-from api.models import Provider
 from django.test import TestCase
 from django.utils.translation import ugettext as _
+from rest_framework.serializers import ValidationError
+
+from api.models import Provider
 from providers.aws.provider import AWSProvider
 from providers.aws_local.provider import AWSLocalProvider
 from providers.azure.provider import AzureProvider
@@ -27,7 +29,6 @@ from providers.azure_local.provider import AzureLocalProvider
 from providers.ocp.provider import OCPProvider
 from providers.provider_access import ProviderAccessor
 from providers.provider_access import ProviderAccessorError
-from rest_framework.serializers import ValidationError
 
 
 class ProviderAccessorTestCase(TestCase):

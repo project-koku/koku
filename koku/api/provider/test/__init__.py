@@ -17,10 +17,11 @@
 """Utility for provider testing."""
 from unittest.mock import patch
 
-from api.provider.models import Provider
 from django.urls import reverse
-from providers.provider_access import ProviderAccessor
 from rest_framework.test import APIClient
+
+from api.provider.models import Provider
+from providers.provider_access import ProviderAccessor
 
 
 PROVIDERS = {

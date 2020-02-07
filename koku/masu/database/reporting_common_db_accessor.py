@@ -18,6 +18,7 @@
 from collections import defaultdict
 
 import django.apps
+
 from masu.database.koku_database_access import KokuDBAccess
 from reporting_common.models import ReportColumnMap
 

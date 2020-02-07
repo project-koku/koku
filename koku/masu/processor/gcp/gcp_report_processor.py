@@ -9,6 +9,7 @@ import pandas
 import pytz
 from dateutil import parser
 from django.conf import settings
+
 from masu.config import Config
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor

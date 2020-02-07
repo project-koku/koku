@@ -19,8 +19,9 @@ import logging
 import random
 import re
 
-from api.utils import DateHelper
 from faker import Faker
+
+from api.utils import DateHelper
 
 LOG = logging.getLogger(__name__)
 

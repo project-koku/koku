@@ -20,6 +20,13 @@ import random
 from decimal import Decimal
 from uuid import uuid4
 
+from django.db import connection
+from django.db.models import DateTimeField
+from django.db.models import Max
+from django.db.models import Sum
+from django.db.models.functions import Cast
+from tenant_schemas.utils import tenant_context
+
 from api.models import Provider
 from api.models import ProviderAuthentication
 from api.models import ProviderBillingSource
@@ -27,11 +34,6 @@ from api.provider.models import ProviderInfrastructureMap
 from api.report.test import FakeAWSCostData
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.utils import DateHelper
-from django.db import connection
-from django.db.models import DateTimeField
-from django.db.models import Max
-from django.db.models import Sum
-from django.db.models.functions import Cast
 from reporting.models import AWSAccountAlias
 from reporting.models import AWSCostEntry
 from reporting.models import AWSCostEntryBill
@@ -41,7 +43,6 @@ from reporting.models import AWSCostEntryPricing
 from reporting.models import AWSCostEntryProduct
 from reporting.models import OCPAWSCostLineItemDailySummary
 from reporting.models import OCPAWSCostLineItemProjectDailySummary
-from tenant_schemas.utils import tenant_context
 
 
 class OCPAWSReportDataGenerator(OCPReportDataGenerator):

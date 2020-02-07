@@ -18,8 +18,6 @@
 import copy
 from decimal import Decimal
 
-from api.report.test import FakeAWSCostData
-from api.utils import DateHelper
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import connection
 from django.db.models import Count
@@ -30,6 +28,10 @@ from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Cast
 from django.db.models.functions import Concat
+from tenant_schemas.utils import tenant_context
+
+from api.report.test import FakeAWSCostData
+from api.utils import DateHelper
 from masu.processor.tasks import refresh_materialized_views
 from reporting.models import AWSAccountAlias
 from reporting.models import AWSCostEntry
@@ -39,7 +41,6 @@ from reporting.models import AWSCostEntryLineItemDaily
 from reporting.models import AWSCostEntryLineItemDailySummary
 from reporting.models import AWSCostEntryPricing
 from reporting.models import AWSCostEntryProduct
-from tenant_schemas.utils import tenant_context
 
 
 class AWSReportDataGenerator:

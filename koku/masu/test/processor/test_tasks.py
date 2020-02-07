@@ -26,12 +26,14 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import faker
-from api.models import Provider
-from api.report.test import FakeAWSCostData
-from api.report.test.aws.helpers import AWSReportDataGenerator
 from dateutil import relativedelta
 from django.db.models import Max
 from django.db.models import Min
+from tenant_schemas.utils import schema_context
+
+from api.models import Provider
+from api.report.test import FakeAWSCostData
+from api.report.test.aws.helpers import AWSReportDataGenerator
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -60,7 +62,6 @@ from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.test.external.downloader.aws import fake_arn
 from reporting.models import AWS_MATERIALIZED_VIEWS
-from tenant_schemas.utils import schema_context
 
 
 class FakeDownloader(Mock):

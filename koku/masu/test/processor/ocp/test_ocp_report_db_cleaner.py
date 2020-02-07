@@ -18,6 +18,8 @@
 import datetime
 
 from dateutil import relativedelta
+from tenant_schemas.utils import schema_context
+
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
@@ -25,7 +27,6 @@ from masu.processor.ocp.ocp_report_db_cleaner import OCPReportDBCleaner
 from masu.processor.ocp.ocp_report_db_cleaner import OCPReportDBCleanerError
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from tenant_schemas.utils import schema_context
 
 
 class OCPReportDBCleanerTest(MasuTestCase):

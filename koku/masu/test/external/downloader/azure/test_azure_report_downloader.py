@@ -22,6 +22,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from faker import Faker
+
 from masu.config import Config
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderError

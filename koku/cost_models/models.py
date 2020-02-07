@@ -19,13 +19,14 @@ import logging
 from functools import partial
 from uuid import uuid4
 
-from api.provider.models import Provider
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import JSONField
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db import transaction
 from django.dispatch import receiver
+
+from api.provider.models import Provider
 
 
 LOG = logging.getLogger(__name__)

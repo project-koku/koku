@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
+from tenant_schemas.utils import tenant_context
+
 from api.functions import JSONBObjectKeys
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Provider
@@ -23,7 +25,6 @@ from api.report.test.azure.helpers import AzureReportDataGenerator
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.azure.view import AzureTagView
 from reporting.models import AzureCostEntryLineItemDailySummary
-from tenant_schemas.utils import tenant_context
 
 
 class AzureTagQueryHandlerTest(IamTestCase):

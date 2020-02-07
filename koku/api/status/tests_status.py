@@ -22,11 +22,12 @@ from unittest.mock import Mock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
-from api.iam.models import Tenant
-from api.status.models import Status
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
+
+from api.iam.models import Tenant
+from api.status.models import Status
 
 
 class StatusModelTest(TestCase):

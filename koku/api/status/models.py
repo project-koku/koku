@@ -22,7 +22,6 @@ import subprocess
 import sys
 
 from api import API_VERSION
-
 from koku.rbac import RbacService
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name

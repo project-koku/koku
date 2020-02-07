@@ -20,10 +20,11 @@ from unittest.mock import PropertyMock
 
 import requests
 import requests_mock
-from api.sources.view import SourcesProxyViewSet
 from django.test import TestCase
 from django.urls import reverse
 from faker import Faker
+
+from api.sources.view import SourcesProxyViewSet
 
 faker = Faker()
 

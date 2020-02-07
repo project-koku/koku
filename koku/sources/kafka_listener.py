@@ -23,14 +23,15 @@ import threading
 import time
 
 from aiokafka import AIOKafkaConsumer
-from api.provider.models import Provider
-from api.provider.models import Sources
 from django.db import connection
 from django.db import InterfaceError
 from django.db import OperationalError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from kafka.errors import KafkaError
+
+from api.provider.models import Provider
+from api.provider.models import Sources
 from sources import storage
 from sources.config import Config
 from sources.koku_http_client import KokuHTTPClient

@@ -15,8 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """TestCase for seeded Cloud Account data."""
-from api.cloud_accounts.models import CloudAccount
 from django.test import TestCase
+
+from api.cloud_accounts.models import CloudAccount
 
 
 class CloudAccountSeedDataTest(TestCase):

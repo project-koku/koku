@@ -14,6 +14,10 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Describes the urls and patterns for the API application."""
+from django.conf.urls import include
+from django.conf.urls import url
+from rest_framework.routers import DefaultRouter
+
 from api.views import AWSCostView
 from api.views import AWSInstanceTypeView
 from api.views import AWSStorageView
@@ -47,9 +51,6 @@ from api.views import ProviderViewSet
 from api.views import SourcesProxyViewSet
 from api.views import StatusView
 from api.views import UserPreferenceViewSet
-from django.conf.urls import include
-from django.conf.urls import url
-from rest_framework.routers import DefaultRouter
 
 
 ROUTER = DefaultRouter()

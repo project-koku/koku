@@ -20,8 +20,9 @@ from unittest.mock import patch
 from azure.common import AzureException
 from django.test import TestCase
 from faker import Faker
-from providers.azure.provider import AzureProvider
 from rest_framework.serializers import ValidationError
+
+from providers.azure.provider import AzureProvider
 
 FAKE = Faker()
 

@@ -19,10 +19,11 @@ import datetime
 from unittest.mock import patch
 from urllib.parse import urlencode
 
-from api.models import Provider
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
+
+from api.models import Provider
 
 
 @override_settings(ROOT_URLCONF="masu.urls")

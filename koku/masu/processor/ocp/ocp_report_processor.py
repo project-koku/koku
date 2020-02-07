@@ -27,6 +27,7 @@ from os import path
 from os import remove
 
 from django.conf import settings
+
 from masu.config import Config
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor

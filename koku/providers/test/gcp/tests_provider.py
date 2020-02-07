@@ -1,12 +1,13 @@
 """Test GCP Provider."""
 from unittest.mock import patch
 
-from api.models import Provider
 from django.test import TestCase
 from faker import Faker
 from google.cloud.exceptions import GoogleCloudError
-from providers.gcp.provider import GCPProvider
 from rest_framework.serializers import ValidationError
+
+from api.models import Provider
+from providers.gcp.provider import GCPProvider
 
 FAKE = Faker()
 

@@ -2,9 +2,10 @@
 from datetime import date
 
 import faker
+from django.test import TestCase
+
 from api.dataexport.models import DataExportRequest
 from api.iam.models import User
-from django.test import TestCase
 
 fake = faker.Faker()
 

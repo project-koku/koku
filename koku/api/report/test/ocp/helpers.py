@@ -21,7 +21,6 @@ import random
 from decimal import Decimal
 from uuid import uuid4
 
-from api.utils import DateHelper
 from dateutil.relativedelta import relativedelta
 from django.db import connection
 from django.db.models import CharField
@@ -33,6 +32,9 @@ from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from faker import Faker
+from tenant_schemas.utils import tenant_context
+
+from api.utils import DateHelper
 from reporting.models import CostSummary
 from reporting.models import OCPStorageLineItem
 from reporting.models import OCPStorageLineItemDaily
@@ -43,7 +45,6 @@ from reporting.models import OCPUsageReport
 from reporting.models import OCPUsageReportPeriod
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
-from tenant_schemas.utils import tenant_context
 
 
 class OCPReportDataGenerator:

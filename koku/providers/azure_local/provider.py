@@ -17,11 +17,11 @@
 """Azure-local service provider implementation to be used by Koku."""
 import logging
 
-from api.models import Provider
 from django.utils.translation import ugettext as _
 from rest_framework.serializers import ValidationError
 
 from ..azure.provider import AzureProvider
+from api.models import Provider
 
 LOG = logging.getLogger(__name__)
 

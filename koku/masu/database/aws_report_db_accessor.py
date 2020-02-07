@@ -22,6 +22,8 @@ import uuid
 from dateutil.parser import parse
 from django.db.models import F
 from jinjasql import JinjaSql
+from tenant_schemas.utils import schema_context
+
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
@@ -36,7 +38,6 @@ from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemProjectDailySummary
-from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 

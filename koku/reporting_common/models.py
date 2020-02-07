@@ -15,9 +15,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Models for shared reporting tables."""
-from api.provider.models import Provider
 from django.db import models
 from django.utils import timezone
+
+from api.provider.models import Provider
 
 
 class CostUsageReportManifest(models.Model):

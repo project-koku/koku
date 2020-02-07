@@ -20,14 +20,15 @@ import logging
 import re
 
 import boto3
-from api.models import Provider
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
+from tenant_schemas.utils import schema_context
+
+from api.models import Provider
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.util import common as utils
-from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 

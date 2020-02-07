@@ -18,6 +18,7 @@
 from datetime import datetime
 
 from dateutil import parser
+
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.test import MasuTestCase

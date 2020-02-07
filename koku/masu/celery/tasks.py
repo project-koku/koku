@@ -24,11 +24,6 @@ import math
 from datetime import date
 
 import boto3
-from api.dataexport.models import DataExportRequest
-from api.dataexport.syncer import AwsS3Syncer
-from api.dataexport.syncer import SyncedFileInColdStorageError
-from api.dataexport.uploader import AwsS3Uploader
-from api.iam.models import Tenant
 from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
@@ -39,6 +34,13 @@ from dateutil.rrule import rrule
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
+
+from api.dataexport.models import DataExportRequest
+from api.dataexport.syncer import AwsS3Syncer
+from api.dataexport.syncer import SyncedFileInColdStorageError
+from api.dataexport.uploader import AwsS3Uploader
+from api.iam.models import Tenant
+from koku.celery import app
 from masu.celery.export import table_export_settings
 from masu.external.date_accessor import DateAccessor
 from masu.processor.orchestrator import Orchestrator
@@ -46,8 +48,6 @@ from masu.processor.tasks import vacuum_schema
 from masu.util.common import dictify_table_export_settings
 from masu.util.common import NamedTemporaryGZip
 from masu.util.upload import get_upload_path
-
-from koku.celery import app
 
 LOG = get_task_logger(__name__)
 _DB_FETCH_BATCH_SIZE = 2000

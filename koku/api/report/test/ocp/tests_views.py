@@ -22,6 +22,22 @@ from unittest.mock import patch
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
 
+from dateutil import relativedelta
+from django.db.models import Count
+from django.db.models import DecimalField
+from django.db.models import F
+from django.db.models import Sum
+from django.db.models import Value
+from django.db.models.functions import Coalesce
+from django.http import HttpRequest
+from django.http import QueryDict
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.test import APIClient
+from tenant_schemas.utils import tenant_context
+
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Provider
 from api.models import User
@@ -33,22 +49,7 @@ from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
-from dateutil import relativedelta
-from django.db.models import Count
-from django.db.models import DecimalField
-from django.db.models import F
-from django.db.models import Sum
-from django.db.models import Value
-from django.db.models.functions import Coalesce
-from django.http import HttpRequest
-from django.http import QueryDict
-from django.urls import reverse
 from reporting.models import OCPUsageLineItemDailySummary
-from rest_framework import status
-from rest_framework.request import Request
-from rest_framework.response import Response
-from rest_framework.test import APIClient
-from tenant_schemas.utils import tenant_context
 
 
 class OCPReportViewTest(IamTestCase):

@@ -18,7 +18,6 @@
 import logging
 
 import requests
-from api.provider.models import Sources
 from django.conf import settings
 from django.http import HttpResponse
 from django.utils.encoding import force_text
@@ -29,6 +28,8 @@ from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.exceptions import APIException
 from rest_framework.permissions import AllowAny
+
+from api.provider.models import Sources
 from sources.api.serializers import SourcesSerializer
 
 

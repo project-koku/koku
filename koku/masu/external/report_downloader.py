@@ -17,8 +17,9 @@
 """Provider external interface for koku to consume."""
 import logging
 
-from api.models import Provider
 from dateutil.relativedelta import relativedelta
+
+from api.models import Provider
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader

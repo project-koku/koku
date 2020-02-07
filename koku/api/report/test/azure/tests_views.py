@@ -17,12 +17,6 @@
 """Test the Azure Report views."""
 from unittest.mock import patch
 
-from api.iam.serializers import UserSerializer
-from api.iam.test.iam_test_case import IamTestCase
-from api.models import User
-from api.report.azure.view import AzureCostView
-from api.report.view import _convert_units
-from api.utils import UnitConverter
 from django.http import HttpRequest
 from django.http import QueryDict
 from django.urls import reverse
@@ -31,6 +25,13 @@ from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.test import APIClient
+
+from api.iam.serializers import UserSerializer
+from api.iam.test.iam_test_case import IamTestCase
+from api.models import User
+from api.report.azure.view import AzureCostView
+from api.report.view import _convert_units
+from api.utils import UnitConverter
 
 FAKE = Faker()
 

@@ -31,6 +31,8 @@ from django.db.models import Min
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from jinjasql import JinjaSql
+from tenant_schemas.utils import schema_context
+
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -39,7 +41,6 @@ from masu.util.common import month_date_range_tuple
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
-from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 

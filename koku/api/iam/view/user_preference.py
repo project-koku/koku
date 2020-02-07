@@ -15,15 +15,16 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for User Preferences."""
-import api.iam.models as models
-import api.iam.serializers as serializers
-from api.common.permissions.object_owner import IsObjectOwner
 from django.views.decorators.cache import never_cache
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import exceptions
 from rest_framework import mixins
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
+
+import api.iam.models as models
+import api.iam.serializers as serializers
+from api.common.permissions.object_owner import IsObjectOwner
 
 
 class UserPreferenceViewSet(

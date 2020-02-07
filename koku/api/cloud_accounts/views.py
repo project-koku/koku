@@ -15,10 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for Cloud Account."""
-from api.cloud_accounts.models import CloudAccount
-from api.cloud_accounts.serializers import CloudAccountSerializer
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
+
+from api.cloud_accounts.models import CloudAccount
+from api.cloud_accounts.serializers import CloudAccountSerializer
 
 
 class CloudAccountViewSet(viewsets.ReadOnlyModelViewSet):

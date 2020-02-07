@@ -21,12 +21,15 @@
 import datetime
 import os
 
-import masu.prometheus_stats as worker_stats
-from api.provider.models import Provider
 from celery import chain
 from celery.utils.log import get_task_logger
 from dateutil import parser
 from django.db import connection
+from tenant_schemas.utils import schema_context
+
+import masu.prometheus_stats as worker_stats
+from api.provider.models import Provider
+from koku.celery import app
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.accounts_accessor import AccountsAccessor
@@ -39,9 +42,6 @@ from masu.processor.report_charge_updater import ReportChargeUpdater
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from reporting.models import AWS_MATERIALIZED_VIEWS
-from tenant_schemas.utils import schema_context
-
-from koku.celery import app
 
 LOG = get_task_logger(__name__)
 

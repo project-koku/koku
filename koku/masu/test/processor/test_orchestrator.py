@@ -20,6 +20,7 @@ import random
 from unittest.mock import patch
 
 import faker
+
 from api.models import Provider
 from masu.config import Config
 from masu.external.accounts_accessor import AccountsAccessor

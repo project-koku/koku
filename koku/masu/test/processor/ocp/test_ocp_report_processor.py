@@ -24,6 +24,8 @@ import shutil
 import tempfile
 from unittest.mock import patch
 
+from tenant_schemas.utils import schema_context
+
 from masu.config import Config
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -38,7 +40,6 @@ from masu.processor.ocp.ocp_report_processor import OCPReportProcessorError
 from masu.processor.ocp.ocp_report_processor import OCPReportTypes
 from masu.processor.ocp.ocp_report_processor import ProcessedOCPReport
 from masu.test import MasuTestCase
-from tenant_schemas.utils import schema_context
 
 
 class ProcessedOCPReportTest(MasuTestCase):

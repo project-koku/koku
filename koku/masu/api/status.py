@@ -28,10 +28,6 @@ from django.db import NotSupportedError
 from django.db import OperationalError
 from django.db import ProgrammingError
 from django.views.decorators.cache import never_cache
-from masu.api import API_VERSION
-from masu.config import Config
-from masu.external.date_accessor import DateAccessor
-from masu.prometheus_stats import CELERY_ERRORS_COUNTER
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
@@ -40,6 +36,10 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from koku.celery import app as celery_app
+from masu.api import API_VERSION
+from masu.config import Config
+from masu.external.date_accessor import DateAccessor
+from masu.prometheus_stats import CELERY_ERRORS_COUNTER
 
 LOG = logging.getLogger(__name__)
 

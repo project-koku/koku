@@ -31,6 +31,7 @@ from django.db import InterfaceError
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
+
 from masu.api import API_VERSION
 from masu.api.status import ApplicationStatus
 from masu.api.status import BROKER_CONNECTION_ERROR

@@ -25,6 +25,8 @@ from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from django.db.utils import InternalError
+from tenant_schemas.utils import schema_context
+
 from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
@@ -34,7 +36,6 @@ from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.processor.azure.azure_report_processor import AzureReportProcessor
 from masu.test import MasuTestCase
-from tenant_schemas.utils import schema_context
 
 
 class AzureReportProcessorTest(MasuTestCase):

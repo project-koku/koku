@@ -27,12 +27,13 @@ from decimal import InvalidOperation
 from itertools import groupby
 from urllib.parse import quote_plus
 
-from api.query_filter import QueryFilter
-from api.query_filter import QueryFilterCollection
-from api.query_handler import QueryHandler
 from django.db.models import Q
 from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
+
+from api.query_filter import QueryFilter
+from api.query_filter import QueryFilterCollection
+from api.query_handler import QueryHandler
 
 LOG = logging.getLogger(__name__)
 

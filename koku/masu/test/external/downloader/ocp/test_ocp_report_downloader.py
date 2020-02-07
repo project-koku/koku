@@ -22,8 +22,9 @@ from datetime import datetime
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from api.models import Provider
 from faker import Faker
+
+from api.models import Provider
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader

@@ -17,15 +17,16 @@
 """OCP Query Handling for Reports."""
 import copy
 
-from api.models import Provider
-from api.report.aws.query_handler import AWSReportQueryHandler
-from api.report.ocp_aws.provider_map import OCPAWSProviderMap
-from api.report.queries import is_grouped_or_filtered_by_project
 from django.db.models import F
 from django.db.models import Window
 from django.db.models.functions import Coalesce
 from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
+
+from api.models import Provider
+from api.report.aws.query_handler import AWSReportQueryHandler
+from api.report.ocp_aws.provider_map import OCPAWSProviderMap
+from api.report.queries import is_grouped_or_filtered_by_project
 
 
 class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):

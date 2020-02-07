@@ -17,9 +17,10 @@
 """Tests for OpenShift Access Permissions."""
 from unittest.mock import Mock
 
+from django.test import TestCase
+
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.iam.models import User
-from django.test import TestCase
 
 
 class OpenShiftAccessPermissionTest(TestCase):

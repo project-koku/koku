@@ -18,12 +18,13 @@
 from collections import defaultdict
 from decimal import Decimal
 
+from rest_framework import serializers
+
 from api.metrics.models import CostModelMetricsMap
 from api.metrics.serializers import SOURCE_TYPE_MAP
 from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
-from rest_framework import serializers
 
 CURRENCY_CHOICES = (("USD", "USD"),)
 MARKUP_CHOICES = (("percent", "%"),)

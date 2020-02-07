@@ -19,14 +19,15 @@ import logging
 from collections import OrderedDict
 from pprint import pformat
 
-from api.models import Tenant
-from api.models import User
-from api.report.queries import ReportQueryHandler
 from django.core.exceptions import PermissionDenied
 from django.utils.translation import ugettext as _
 from querystring_parser import parser
 from rest_framework.serializers import ValidationError
 from tenant_schemas.utils import tenant_context
+
+from api.models import Tenant
+from api.models import User
+from api.report.queries import ReportQueryHandler
 
 LOG = logging.getLogger(__name__)
 

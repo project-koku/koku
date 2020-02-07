@@ -24,6 +24,13 @@ from decimal import Decimal
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
+from django.db.models import Count
+from django.db.models import F
+from django.db.models import Sum
+from django.urls import reverse
+from rest_framework.exceptions import ValidationError
+from tenant_schemas.utils import tenant_context
+
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Provider
 from api.provider.test import create_generic_provider
@@ -37,15 +44,9 @@ from api.report.test.aws.helpers import AWSReportDataGenerator
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
-from django.db.models import Count
-from django.db.models import F
-from django.db.models import Sum
-from django.urls import reverse
 from reporting.models import AWSCostEntryLineItemDaily
 from reporting.models import AWSCostEntryLineItemDailySummary
 from reporting.models import AWSCostEntryProduct
-from rest_framework.exceptions import ValidationError
-from tenant_schemas.utils import tenant_context
 
 
 class AWSReportQueryTest(IamTestCase):

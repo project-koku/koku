@@ -21,6 +21,13 @@ from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import uuid4
 
+from django.core.exceptions import PermissionDenied
+from django.http import HttpRequest
+from django.test import TestCase
+from faker import Faker
+from querystring_parser import parser
+from rest_framework.serializers import ValidationError
+
 from api.models import Provider
 from api.models import Tenant
 from api.models import User
@@ -28,12 +35,6 @@ from api.query_params import get_tenant
 from api.query_params import QueryParameters
 from api.report.serializers import ParamSerializer
 from api.report.view import ReportView
-from django.core.exceptions import PermissionDenied
-from django.http import HttpRequest
-from django.test import TestCase
-from faker import Faker
-from querystring_parser import parser
-from rest_framework.serializers import ValidationError
 
 LOG = logging.getLogger(__name__)
 PROVIDERS = [Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE, Provider.PROVIDER_OCP, Provider.OCP_AWS, Provider.OCP_ALL]

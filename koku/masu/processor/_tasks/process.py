@@ -20,6 +20,7 @@ from os import path
 import psutil
 from celery.utils.log import get_task_logger
 from django.db import transaction
+
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor

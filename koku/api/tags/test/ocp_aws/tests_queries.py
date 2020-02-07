@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the OCP-on-AWS tag query handler."""
+from tenant_schemas.utils import tenant_context
+
 from api.functions import JSONBObjectKeys
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Provider
@@ -24,7 +26,6 @@ from api.tags.ocp_aws.queries import OCPAWSTagQueryHandler
 from api.tags.ocp_aws.view import OCPAWSTagView
 from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummary
-from tenant_schemas.utils import tenant_context
 
 
 # pylint: disable=no-member

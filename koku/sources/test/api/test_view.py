@@ -19,11 +19,12 @@ import json
 from unittest.mock import PropertyMock
 
 import requests_mock
+from django.test.utils import override_settings
+from django.urls import reverse
+
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
-from django.test.utils import override_settings
-from django.urls import reverse
 from sources.api.view import SourcesViewSet
 
 

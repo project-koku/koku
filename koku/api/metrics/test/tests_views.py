@@ -18,12 +18,13 @@
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
 
-from api.iam.test.iam_test_case import IamTestCase
-from api.metrics.serializers import SOURCE_TYPE_MAP
-from api.models import Provider
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
+
+from api.iam.test.iam_test_case import IamTestCase
+from api.metrics.serializers import SOURCE_TYPE_MAP
+from api.models import Provider
 
 
 class CostModelMetricsMapViewTest(IamTestCase):

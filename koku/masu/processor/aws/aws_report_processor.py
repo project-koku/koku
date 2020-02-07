@@ -22,6 +22,7 @@ from os import path
 from os import remove
 
 from django.conf import settings
+
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor

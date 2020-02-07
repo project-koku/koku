@@ -17,9 +17,10 @@
 """Tests for Azure Access Permissions."""
 from unittest.mock import Mock
 
+from django.test import TestCase
+
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.iam.models import User
-from django.test import TestCase
 
 
 class AzureAccessPermissionTest(TestCase):

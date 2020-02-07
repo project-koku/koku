@@ -18,8 +18,9 @@
 import json
 
 import requests
-from api.models import Provider
 from requests.exceptions import RequestException
+
+from api.models import Provider
 from sources.config import Config
 
 

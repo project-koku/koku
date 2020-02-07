@@ -3,9 +3,10 @@ import logging
 from unittest.mock import patch
 
 import faker
-from api.dataexport.uploader import AwsS3Uploader
 from django.conf import settings
 from django.test import TestCase
+
+from api.dataexport.uploader import AwsS3Uploader
 
 fake = faker.Faker()
 

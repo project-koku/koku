@@ -15,10 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Tests the OCPProvider implementation for the Koku interface."""
-from api.models import Provider
 from django.test import TestCase
-from providers.ocp.provider import OCPProvider
 from rest_framework.serializers import ValidationError
+
+from api.models import Provider
+from providers.ocp.provider import OCPProvider
 
 
 class OCPProviderTestCase(TestCase):

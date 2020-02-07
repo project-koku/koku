@@ -19,6 +19,9 @@ import random
 from decimal import Decimal
 
 import faker
+from rest_framework import serializers
+from tenant_schemas.utils import tenant_context
+
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.models import CostModelMetricsMap
@@ -29,8 +32,6 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from cost_models.serializers import CostModelSerializer
 from cost_models.serializers import UUIDKeyRelatedField
-from rest_framework import serializers
-from tenant_schemas.utils import tenant_context
 
 
 class CostModelSerializerTest(IamTestCase):

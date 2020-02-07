@@ -15,9 +15,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """TestCase for Cloud Account Model."""
+from django.test import TestCase
+
 from api.cloud_accounts.models import CloudAccount
 from api.cloud_accounts.tests.cloud_account_common_test_utilities import CloudAccountCommonTestUtilities
-from django.test import TestCase
 
 
 class CloudAccountTest(TestCase):

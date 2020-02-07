@@ -17,10 +17,11 @@
 """Koku Test Runner."""
 import logging
 
-from api.models import Tenant
 from django.db import connections
 from django.test.runner import DiscoverRunner
 from django.test.utils import get_unique_databases_and_mirrors
+
+from api.models import Tenant
 
 LOG = logging.getLogger(__name__)
 

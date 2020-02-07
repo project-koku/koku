@@ -5,7 +5,6 @@ from datetime import timedelta
 from itertools import product
 
 import boto3
-from api.provider.models import Provider
 from botocore.exceptions import ClientError
 from celery.utils.log import get_task_logger
 from dateutil.rrule import DAILY
@@ -13,6 +12,8 @@ from dateutil.rrule import MONTHLY
 from dateutil.rrule import rrule
 from django.conf import settings
 from django.utils.translation import gettext as _
+
+from api.provider.models import Provider
 
 LOG = get_task_logger(__name__)
 

@@ -21,15 +21,16 @@ import shutil
 import tempfile
 from unittest.mock import patch
 
-import masu.external.kafka_msg_handler as msg_handler
 import requests_mock
+from requests.exceptions import HTTPError
+
+import masu.external.kafka_msg_handler as msg_handler
 from api.models import Provider
 from masu.config import Config
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
-from requests.exceptions import HTTPError
 
 
 class KafkaMsg:

@@ -11,15 +11,16 @@ from unittest.mock import patch
 
 import faker
 import pytz
-from api.dataexport.models import DataExportRequest as APIExportRequest
-from api.dataexport.syncer import SyncedFileInColdStorageError
-from api.models import Provider
 from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from celery.exceptions import Retry
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
 from django.test import override_settings
+
+from api.dataexport.models import DataExportRequest as APIExportRequest
+from api.dataexport.syncer import SyncedFileInColdStorageError
+from api.models import Provider
 from masu.celery import tasks
 from masu.celery.export import TableExportSetting
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor

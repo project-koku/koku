@@ -15,9 +15,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Asynchronous tasks."""
-import masu.prometheus_stats as worker_stats
 import psutil
 from celery.utils.log import get_task_logger
+
+import masu.prometheus_stats as worker_stats
 from masu.config import Config
 from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.exceptions import MasuProcessingError

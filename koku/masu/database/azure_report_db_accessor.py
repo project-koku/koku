@@ -22,6 +22,8 @@ import uuid
 from dateutil.parser import parse
 from django.db.models import F
 from jinjasql import JinjaSql
+from tenant_schemas.utils import schema_context
+
 from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
@@ -33,7 +35,6 @@ from reporting.provider.azure.models import AzureCostEntryProductService
 from reporting.provider.azure.models import AzureMeter
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
-from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 

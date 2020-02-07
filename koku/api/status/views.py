@@ -15,12 +15,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for server status."""
-from api.status.models import Status
-from api.status.serializers import StatusSerializer
 from django.views.decorators.cache import never_cache
 from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from api.status.models import Status
+from api.status.serializers import StatusSerializer
 
 
 class StatusView(APIView):

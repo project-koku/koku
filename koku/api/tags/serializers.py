@@ -15,11 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Tag serializers."""
+from rest_framework import serializers
+
 from api.report.serializers import add_operator_specified_fields
 from api.report.serializers import handle_invalid_fields
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
-from rest_framework import serializers
 
 OCP_FILTER_OP_FIELDS = ["project"]
 AWS_FILTER_OP_FIELDS = ["account"]

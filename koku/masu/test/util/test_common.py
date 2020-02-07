@@ -24,10 +24,11 @@ from datetime import timedelta
 from decimal import Decimal
 from os.path import exists
 
-import masu.util.common as common_utils
-from api.models import Provider
 from dateutil import parser
 from django.test import TestCase
+
+import masu.util.common as common_utils
+from api.models import Provider
 from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
 from masu.test import MasuTestCase

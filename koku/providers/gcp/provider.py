@@ -1,13 +1,13 @@
 """GCP provider implementation to be used by Koku."""
 import logging
 
-from api.models import Provider
 from google.cloud import storage
 from google.cloud.exceptions import GoogleCloudError
 from rest_framework import serializers
 
 from ..provider_interface import error_obj
 from ..provider_interface import ProviderInterface
+from api.models import Provider
 
 LOG = logging.getLogger(__name__)
 

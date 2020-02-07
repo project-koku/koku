@@ -22,6 +22,8 @@ from dateutil.relativedelta import relativedelta
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
+from tenant_schemas.utils import schema_context
+
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
@@ -31,7 +33,6 @@ from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from tenant_schemas.utils import schema_context
 
 
 class AzureReportDBAccessorTest(MasuTestCase):

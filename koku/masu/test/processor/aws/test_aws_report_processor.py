@@ -30,6 +30,8 @@ from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from django.db.models import Max
+from tenant_schemas.utils import schema_context
+
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -42,7 +44,6 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_processor import AWSReportProcessor
 from masu.processor.aws.aws_report_processor import ProcessedReport
 from masu.test import MasuTestCase
-from tenant_schemas.utils import schema_context
 
 
 class ProcessedReportTest(MasuTestCase):

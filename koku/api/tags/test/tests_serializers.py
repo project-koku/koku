@@ -17,13 +17,14 @@
 """Test the tag serializer."""
 from unittest import TestCase
 
+from rest_framework import serializers
+
 from api.tags.serializers import AWSFilterSerializer
 from api.tags.serializers import AWSTagsQueryParamSerializer
 from api.tags.serializers import FilterSerializer
 from api.tags.serializers import OCPFilterSerializer
 from api.tags.serializers import OCPTagsQueryParamSerializer
 from api.tags.serializers import TagsQueryParamSerializer
-from rest_framework import serializers
 
 
 class FilterSerializerTest(TestCase):

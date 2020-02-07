@@ -21,6 +21,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from faker import Faker
+
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor

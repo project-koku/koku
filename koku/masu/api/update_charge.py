@@ -18,7 +18,6 @@
 import logging
 
 from django.views.decorators.cache import never_cache
-from masu.processor.tasks import update_charge_info
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
@@ -26,6 +25,8 @@ from rest_framework.decorators import renderer_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+
+from masu.processor.tasks import update_charge_info
 
 LOG = logging.getLogger(__name__)
 

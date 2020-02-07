@@ -24,12 +24,13 @@ from botocore.exceptions import ParamValidationError
 from django.test import TestCase
 from django.utils.translation import ugettext as _
 from faker import Faker
+from rest_framework.exceptions import ValidationError
+
 from providers.aws.provider import _check_cost_report_access
 from providers.aws.provider import _check_s3_access
 from providers.aws.provider import _get_sts_access
 from providers.aws.provider import AWSProvider
 from providers.aws.provider import error_obj
-from rest_framework.exceptions import ValidationError
 
 FAKE = Faker()
 

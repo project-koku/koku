@@ -21,7 +21,6 @@ from base64 import b64decode
 from json import loads as json_loads
 from json.decoder import JSONDecodeError
 
-from api.provider.models import Sources
 from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
 from django_filters.rest_framework import DjangoFilterBackend
@@ -31,6 +30,8 @@ from rest_framework import viewsets
 from rest_framework.exceptions import APIException
 from rest_framework.exceptions import ParseError
 from rest_framework.permissions import AllowAny
+
+from api.provider.models import Sources
 from sources.api.serializers import SourcesSerializer
 from sources.storage import SourcesStorageError
 

@@ -16,6 +16,7 @@
 #
 """Remove expired data asynchronous tasks."""
 from celery.utils.log import get_task_logger
+
 from masu.processor.expired_data_remover import ExpiredDataRemover
 
 LOG = get_task_logger(__name__)

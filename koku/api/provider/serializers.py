@@ -15,19 +15,20 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider Model Serializers."""
+from django.conf import settings
+from django.db import IntegrityError
+from django.db import transaction
+from django.utils.translation import ugettext as _
+from rest_framework import serializers
+from rest_framework.fields import empty
+
 from api.iam.serializers import AdminCustomerSerializer
 from api.iam.serializers import CustomerSerializer
 from api.iam.serializers import UserSerializer
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
-from django.conf import settings
-from django.db import IntegrityError
-from django.db import transaction
-from django.utils.translation import ugettext as _
 from providers.provider_access import ProviderAccessor
-from rest_framework import serializers
-from rest_framework.fields import empty
 
 PROVIDER_CHOICE_LIST = [
     provider[0]

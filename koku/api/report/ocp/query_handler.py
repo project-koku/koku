@@ -21,16 +21,17 @@ from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
 
-from api.models import Provider
-from api.report.ocp.provider_map import OCPProviderMap
-from api.report.queries import is_grouped_or_filtered_by_project
-from api.report.queries import ReportQueryHandler
 from django.db.models import F
 from django.db.models import Value
 from django.db.models import Window
 from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
+
+from api.models import Provider
+from api.report.ocp.provider_map import OCPProviderMap
+from api.report.queries import is_grouped_or_filtered_by_project
+from api.report.queries import ReportQueryHandler
 
 
 class OCPReportQueryHandler(ReportQueryHandler):

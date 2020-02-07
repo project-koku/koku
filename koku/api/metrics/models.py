@@ -15,8 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Model for our cost model metric map."""
-from api.provider.models import Provider
 from django.db import models
+
+from api.provider.models import Provider
 
 
 class CostModelMetricsMap(models.Model):

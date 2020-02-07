@@ -15,12 +15,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
+from django.test import TestCase
+
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.azure.openshift.query_handler import OCPAzureReportQueryHandler
 from api.report.azure.query_handler import AzureReportQueryHandler
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp_aws.query_handler import OCPAWSReportQueryHandler
-from django.test import TestCase
 
 
 class ReportQueryUtilsTest(TestCase):

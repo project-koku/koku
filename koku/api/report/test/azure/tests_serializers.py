@@ -18,12 +18,13 @@
 from unittest import TestCase
 from unittest.mock import Mock
 
+from faker import Faker
+from rest_framework import serializers
+
 from api.report.azure.serializers import AzureFilterSerializer
 from api.report.azure.serializers import AzureGroupBySerializer
 from api.report.azure.serializers import AzureOrderBySerializer
 from api.report.azure.serializers import AzureQueryParamSerializer
-from faker import Faker
-from rest_framework import serializers
 
 FAKE = Faker()
 

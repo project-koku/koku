@@ -19,10 +19,6 @@ import logging
 from functools import reduce
 from operator import and_
 
-from api.common.filters import CharListFilter
-from api.common.permissions.cost_models_access import CostModelsAccessPermission
-from cost_models.models import CostModel
-from cost_models.serializers import CostModelSerializer
 from django.core.exceptions import FieldError
 from django.core.exceptions import ValidationError
 from django.db.models import Q
@@ -37,6 +33,11 @@ from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.exceptions import APIException
 from rest_framework.filters import OrderingFilter
+
+from api.common.filters import CharListFilter
+from api.common.permissions.cost_models_access import CostModelsAccessPermission
+from cost_models.models import CostModel
+from cost_models.serializers import CostModelSerializer
 
 LOG = logging.getLogger(__name__)
 

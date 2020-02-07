@@ -15,6 +15,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """OCP Report Serializers."""
+from django.utils.translation import ugettext as _
+from pint.errors import UndefinedUnitError
+from rest_framework import serializers
+
 from api.models import Provider
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
@@ -23,9 +27,6 @@ from api.report.serializers import ParamSerializer
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 from api.utils import UnitConverter
-from django.utils.translation import ugettext as _
-from pint.errors import UndefinedUnitError
-from rest_framework import serializers
 
 
 class GroupBySerializer(GroupSerializer):

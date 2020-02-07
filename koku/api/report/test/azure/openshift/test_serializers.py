@@ -18,12 +18,13 @@
 from unittest import TestCase
 from unittest.mock import Mock
 
+from faker import Faker
+from rest_framework import serializers
+
 from api.report.azure.openshift.serializers import OCPAzureFilterSerializer
 from api.report.azure.openshift.serializers import OCPAzureGroupBySerializer
 from api.report.azure.openshift.serializers import OCPAzureOrderBySerializer
 from api.report.azure.openshift.serializers import OCPAzureQueryParamSerializer
-from faker import Faker
-from rest_framework import serializers
 
 FAKE = Faker()
 

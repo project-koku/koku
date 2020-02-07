@@ -18,10 +18,11 @@
 from unittest.mock import Mock
 from uuid import uuid4
 
+from django.test import TestCase
+
 from api.common.permissions.object_owner import IsObjectOwner
 from api.iam.models import User
 from api.iam.models import UserPreference
-from django.test import TestCase
 
 
 class IsObjectOwnerTest(TestCase):

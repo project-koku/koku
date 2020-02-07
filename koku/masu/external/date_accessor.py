@@ -21,6 +21,7 @@ from datetime import tzinfo
 
 import pytz
 from dateutil import parser
+
 from masu.config import Config
 
 LOG = logging.getLogger(__name__)

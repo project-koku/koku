@@ -15,8 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider Mapper for AWS Reports."""
-from api.models import Provider
-from api.report.provider_map import ProviderMap
 from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
@@ -25,6 +23,9 @@ from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
+
+from api.models import Provider
+from api.report.provider_map import ProviderMap
 from reporting.provider.aws.models import AWSComputeSummary
 from reporting.provider.aws.models import AWSComputeSummaryByAccount
 from reporting.provider.aws.models import AWSComputeSummaryByRegion

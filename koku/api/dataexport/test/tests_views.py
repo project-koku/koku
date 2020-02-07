@@ -1,9 +1,10 @@
 """Collection of tests for customer-initiated data export requests API."""
 from unittest.mock import patch
 
-from api.iam.test.iam_test_case import IamTestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
+
+from api.iam.test.iam_test_case import IamTestCase
 
 
 class DataExportRequestViewSetTest(IamTestCase):

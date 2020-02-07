@@ -19,6 +19,10 @@ import random
 import uuid
 
 import faker
+from django.db.utils import IntegrityError
+from rest_framework.exceptions import ValidationError
+
+from .iam_test_case import IamTestCase
 from api.iam.models import UserPreference
 from api.iam.serializers import _currency_symbols
 from api.iam.serializers import AdminCustomerSerializer
@@ -26,10 +30,6 @@ from api.iam.serializers import create_schema_name
 from api.iam.serializers import CustomerSerializer
 from api.iam.serializers import UserPreferenceSerializer
 from api.iam.serializers import UserSerializer
-from django.db.utils import IntegrityError
-from rest_framework.exceptions import ValidationError
-
-from .iam_test_case import IamTestCase
 
 
 class CustomerSerializerTest(IamTestCase):

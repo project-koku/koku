@@ -7,14 +7,15 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import faker
-from api.dataexport.syncer import AwsS3Syncer
-from api.dataexport.syncer import SyncedFileInColdStorageError
 from botocore.exceptions import ClientError
 from dateutil.rrule import DAILY
 from dateutil.rrule import MONTHLY
 from dateutil.rrule import rrule
 from django.conf import settings
 from django.test import TestCase
+
+from api.dataexport.syncer import AwsS3Syncer
+from api.dataexport.syncer import SyncedFileInColdStorageError
 from masu.test import MasuTestCase
 
 fake = faker.Faker()

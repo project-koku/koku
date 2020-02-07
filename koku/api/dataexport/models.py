@@ -1,8 +1,9 @@
 """Models for user-initiated data exports."""
 from uuid import uuid4
 
-from api.iam.models import User
 from django.db import models
+
+from api.iam.models import User
 
 
 class DataExportRequest(models.Model):

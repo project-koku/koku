@@ -23,6 +23,8 @@ from unittest.mock import patch
 from dateutil.relativedelta import relativedelta
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
+from tenant_schemas.utils import schema_context
+
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -33,7 +35,6 @@ from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdate
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from tenant_schemas.utils import schema_context
 
 
 class AWSReportSummaryUpdaterTest(MasuTestCase):

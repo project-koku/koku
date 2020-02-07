@@ -18,9 +18,6 @@
 import copy
 import logging
 
-from api.models import Provider
-from api.report.aws.provider_map import AWSProviderMap
-from api.report.queries import ReportQueryHandler
 from django.db.models import F
 from django.db.models import Value
 from django.db.models import Window
@@ -29,6 +26,10 @@ from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
+
+from api.models import Provider
+from api.report.aws.provider_map import AWSProviderMap
+from api.report.queries import ReportQueryHandler
 
 LOG = logging.getLogger(__name__)
 
