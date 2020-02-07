@@ -4,7 +4,7 @@ aiokafka==0.5.2
 amqp==2.5.2
 azure-common==1.1.24
 azure-mgmt-costmanagement==0.1.0
-azure-mgmt-resource==8.0.0
+azure-mgmt-resource==8.0.1
 azure-mgmt-storage==7.1.0
 azure-nspkg==3.0.2
 azure-storage-blob==2.1.0
@@ -61,7 +61,7 @@ ordered-set==3.1.1
 pandas==0.25.3
 pint==0.9
 prometheus-client==0.7.1
-protobuf==3.11.2
+protobuf==3.11.3
 psutil==5.6.3
 psycopg2-binary==2.8.4
 pyasn1-modules==0.2.8

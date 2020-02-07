@@ -14,9 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """TestCase for Cloud Account Model."""
-
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -30,7 +28,7 @@ class CloudAccountViewTest(IamTestCase):
 
     def testCloudAccountViewSet(self):
         """Test that /cloud_accounts endpoint returns 200 HTTP_OK."""
-        url = reverse('cloud_accounts-list')
+        url = reverse("cloud_accounts-list")
         client = APIClient()
 
         response = client.get(url)
@@ -44,7 +42,7 @@ class CloudAccountViewTest(IamTestCase):
         """
         CloudAccountCommonTestUtilities.create_cloud_account(self)
 
-        url = reverse('cloud_accounts-list')
+        url = reverse("cloud_accounts-list")
         client = APIClient()
 
         response = client.get(url)
@@ -58,13 +56,13 @@ class CloudAccountViewTest(IamTestCase):
         """
         CloudAccountCommonTestUtilities.create_cloud_account(self)
 
-        url = reverse('cloud_accounts-list')
+        url = reverse("cloud_accounts-list")
         client = APIClient()
-        response = client.get(url + '?name=TEST_AWS_ACCOUNT_ID')
-        actualName = response.data['data'][0]['name']
+        response = client.get(url + "?name=TEST_AWS_ACCOUNT_ID")
+        actualName = response.data["data"][0]["name"]
 
-        expectedName = 'TEST_AWS_ACCOUNT_ID'
+        expectedName = "TEST_AWS_ACCOUNT_ID"
         self.assertEqual(expectedName, actualName)
-        actualValue = response.data['data'][0]['value']
-        expectedValue = 'TEST_12345678910'
+        actualValue = response.data["data"][0]["value"]
+        expectedValue = "TEST_12345678910"
         self.assertEqual(expectedValue, actualValue)

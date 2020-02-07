@@ -14,16 +14,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """View for update_charge endpoint."""
-
 import logging
 
 from django.views.decorators.cache import never_cache
 from rest_framework import status
-from rest_framework.decorators import (api_view,
-                                       permission_classes,
-                                       renderer_classes)
+from rest_framework.decorators import api_view
+from rest_framework.decorators import permission_classes
+from rest_framework.decorators import renderer_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
@@ -34,25 +32,22 @@ LOG = logging.getLogger(__name__)
 
 
 @never_cache
-@api_view(http_method_names=['GET', 'DELETE'])
+@api_view(http_method_names=["GET", "DELETE"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def update_charge(request):
     """Update report summary tables in the database."""
     params = request.query_params
 
-    provider_uuid = params.get('provider_uuid')
-    schema_name = params.get('schema')
+    provider_uuid = params.get("provider_uuid")
+    schema_name = params.get("schema")
 
     if provider_uuid is None or schema_name is None:
-        errmsg = 'provider_uuid and schema_name are required parameters.'
-        return Response({'Error': errmsg}, status=status.HTTP_400_BAD_REQUEST)
+        errmsg = "provider_uuid and schema_name are required parameters."
+        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-    LOG.info('Calling update_charge_info async task.')
+    LOG.info("Calling update_charge_info async task.")
 
-    async_result = update_charge_info.delay(
-        schema_name,
-        provider_uuid,
-    )
+    async_result = update_charge_info.delay(schema_name, provider_uuid)
 
-    return Response({'Update Charge Task ID': str(async_result)})
+    return Response({"Update Charge Task ID": str(async_result)})

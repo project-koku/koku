@@ -6,8 +6,10 @@ python:
 
 dist: xenial # needed for py37
 
-cache: pip
-
+cache:
+  - pip
+  - directories:
+    - $HOME/.cache/pre-commit/
 services:
   - postgresql
 
@@ -30,7 +32,7 @@ before_install:
   - chmod +x ./cc-test-reporter
 
 install:
-  - pip install tox-travis codecov python-coveralls coveralls "coverage<5.0"
+  - pip install tox-travis codecov python-coveralls coveralls "coverage<5.0" pre-commit
 
 before_script:
   - psql -c "create database ${DATABASE_NAME};" -U postgres
@@ -38,6 +40,7 @@ before_script:
 
 script:
   - .travis/check_manifest.sh
+  - pre-commit run --all-files
   - tox
 
 after_success:

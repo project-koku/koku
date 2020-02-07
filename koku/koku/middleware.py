@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Custom Koku Middleware."""
 import binascii
 import logging
@@ -24,46 +23,48 @@ from json.decoder import JSONDecodeError
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.db.utils import IntegrityError, InterfaceError, OperationalError
-from django.http import HttpResponse, JsonResponse
+from django.db.utils import IntegrityError
+from django.db.utils import InterfaceError
+from django.db.utils import OperationalError
+from django.http import HttpResponse
+from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 from prometheus_client import Counter
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.middleware import BaseTenantMiddleware
 
 from api.common import RH_IDENTITY_HEADER
-from api.iam.models import Customer, Tenant, User
-from api.iam.serializers import UserSerializer, create_schema_name, extract_header
+from api.iam.models import Customer
+from api.iam.models import Tenant
+from api.iam.models import User
+from api.iam.serializers import create_schema_name
+from api.iam.serializers import extract_header
+from api.iam.serializers import UserSerializer
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
-from koku.rbac import RbacConnectionError, RbacService
+from koku.rbac import RbacConnectionError
+from koku.rbac import RbacService
 
 
 LOG = logging.getLogger(__name__)
-UNIQUE_ACCOUNT_COUNTER = Counter(
-    'hccm_unique_account', 'Unique Account Counter'
-)
-UNIQUE_USER_COUNTER = Counter(
-    'hccm_unique_user',
-    'Unique User Counter',
-    ['account', 'user'],
-)
+UNIQUE_ACCOUNT_COUNTER = Counter("hccm_unique_account", "Unique Account Counter")
+UNIQUE_USER_COUNTER = Counter("hccm_unique_user", "Unique User Counter", ["account", "user"])
 
 
 def is_no_auth(request):
     """Check condition for needing to authenticate the user."""
     no_auth_list = [
-        'status',
-        'metrics',
-        'openapi.json',
-        'download',
-        'report_data',
-        'expired_data',
-        'update_charge',
-        'upload_normalized_data',
-        'authentication',
-        'billing_source',
-        'cloud-accounts',
-        'sources',
+        "status",
+        "metrics",
+        "openapi.json",
+        "download",
+        "report_data",
+        "expired_data",
+        "update_charge",
+        "upload_normalized_data",
+        "authentication",
+        "billing_source",
+        "cloud-accounts",
+        "sources",
     ]
     no_auth = any(no_auth_path in request.path for no_auth_path in no_auth_list)
     return no_auth
@@ -86,11 +87,13 @@ class HttpResponseFailedDependency(JsonResponse):
     def __init__(self, dikt):
         """Create JSON response body."""
         data = {
-            'errors': [{
-                'detail': f'{dikt.get("source")} unavailable. Error: {dikt.get("exception")}',
-                'status': self.status_code,
-                'title': 'Failed Dependency'
-            }]
+            "errors": [
+                {
+                    "detail": f'{dikt.get("source")} unavailable. Error: {dikt.get("exception")}',
+                    "status": self.status_code,
+                    "title": "Failed Dependency",
+                }
+            ]
         }
         super().__init__(data)
 
@@ -106,15 +109,13 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
         """Raise 424 on InterfaceError."""
         if isinstance(exception, InterfaceError):
             DB_CONNECTION_ERRORS_COUNTER.inc()
-            LOG.error('KokuTenantMiddleware InterfaceError exception: %s', exception)
-            return HttpResponseFailedDependency(
-                {'source': 'Database', 'exception': exception}
-            )
+            LOG.error("KokuTenantMiddleware InterfaceError exception: %s", exception)
+            return HttpResponseFailedDependency({"source": "Database", "exception": exception})
 
     def process_request(self, request):  # pylint: disable=R1710
         """Check before super."""
         if not is_no_auth(request):
-            if hasattr(request, 'user') and hasattr(request.user, 'username'):
+            if hasattr(request, "user") and hasattr(request.user, "username"):
                 username = request.user.username
                 try:
                     User.objects.get(username=username)
@@ -127,15 +128,13 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
         try:
             super().process_request(request)
         except OperationalError as err:
-            LOG.error('Request resulted in OperationalError: %s', err)
+            LOG.error("Request resulted in OperationalError: %s", err)
             DB_CONNECTION_ERRORS_COUNTER.inc()
-            return HttpResponseFailedDependency(
-                {'source': 'Database', 'exception': err}
-            )
+            return HttpResponseFailedDependency({"source": "Database", "exception": err})
 
     def get_tenant(self, model, hostname, request):
         """Override the tenant selection logic."""
-        schema_name = 'public'
+        schema_name = "public"
         if not is_no_auth(request):
             user = User.objects.get(username=request.user.username)
             customer = user.customer
@@ -176,7 +175,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
                 tenant = Tenant(schema_name=schema_name)
                 tenant.save()
                 UNIQUE_ACCOUNT_COUNTER.inc()
-                LOG.info('Created new customer from account_id %s.', account)
+                LOG.info("Created new customer from account_id %s.", account)
         except IntegrityError:
             customer = Customer.objects.filter(account_id=account).get()
 
@@ -199,20 +198,14 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         new_user = None
         try:
             with transaction.atomic():
-                user_data = {'username': username, 'email': email}
-                context = {'request': request}
+                user_data = {"username": username, "email": email}
+                context = {"request": request}
                 serializer = UserSerializer(data=user_data, context=context)
                 if serializer.is_valid(raise_exception=True):
                     new_user = serializer.save()
 
-                UNIQUE_USER_COUNTER.labels(
-                    account=customer.account_id, user=username
-                ).inc()
-                LOG.info(
-                    'Created new user %s for customer(account_id %s).',
-                    username,
-                    customer.account_id,
-                )
+                UNIQUE_USER_COUNTER.labels(account=customer.account_id, user=username).inc()
+                LOG.info("Created new user %s for customer(account_id %s).", username, customer.account_id)
         except (IntegrityError, ValidationError):
             new_user = User.objects.get(username=username)
         return new_user
@@ -234,41 +227,37 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
 
         """
         if is_no_auth(request):
-            request.user = User('', '')
+            request.user = User("", "")
             return
         try:
             rh_auth_header, json_rh_auth = extract_header(request, self.header)
         except (KeyError, JSONDecodeError):
-            LOG.warning('Could not obtain identity on request.')
+            LOG.warning("Could not obtain identity on request.")
             return
         except binascii.Error as error:
-            LOG.error('Error decoding authentication header: %s', str(error))
+            LOG.error("Error decoding authentication header: %s", str(error))
             raise PermissionDenied()
 
-        is_openshift = (
-            json_rh_auth.get('entitlements', {})
-            .get('openshift', {})
-            .get('is_entitled', False)
-        )
+        is_openshift = json_rh_auth.get("entitlements", {}).get("openshift", {}).get("is_entitled", False)
         if not is_openshift:
             raise PermissionDenied()
 
-        account = json_rh_auth.get('identity', {}).get('account_number')
-        user = json_rh_auth.get('identity', {}).get('user', {})
-        username = user.get('username')
-        email = user.get('email')
-        is_admin = user.get('is_org_admin')
+        account = json_rh_auth.get("identity", {}).get("account_number")
+        user = json_rh_auth.get("identity", {}).get("user", {})
+        username = user.get("username")
+        email = user.get("email")
+        is_admin = user.get("is_org_admin")
         if username and email and account:
             # Get request ID
-            req_id = request.META.get('HTTP_X_RH_INSIGHTS_REQUEST_ID')
+            req_id = request.META.get("HTTP_X_RH_INSIGHTS_REQUEST_ID")
             # Check for customer creation & user creation
-            query_string = ''
-            if request.META['QUERY_STRING']:
-                query_string = '?{}'.format(request.META['QUERY_STRING'])
+            query_string = ""
+            if request.META["QUERY_STRING"]:
+                query_string = "?{}".format(request.META["QUERY_STRING"])
             stmt = (
-                f'{request.method}: {request.path}{query_string}'
-                f' -- ACCOUNT: {account} USER: {username}'
-                f' ORG_ADMIN: {is_admin} REQ_ID: {req_id}'
+                f"{request.method}: {request.path}{query_string}"
+                f" -- ACCOUNT: {account} USER: {username}"
+                f" ORG_ADMIN: {is_admin} REQ_ID: {req_id}"
             )
             LOG.info(stmt)
             try:
@@ -276,32 +265,26 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             except Customer.DoesNotExist:
                 customer = IdentityHeaderMiddleware._create_customer(account)
             except OperationalError as err:
-                LOG.error('IdentityHeaderMiddleware exception: %s', err)
+                LOG.error("IdentityHeaderMiddleware exception: %s", err)
                 DB_CONNECTION_ERRORS_COUNTER.inc()
-                return HttpResponseFailedDependency(
-                    {'source': 'Database', 'exception': err}
-                )
+                return HttpResponseFailedDependency({"source": "Database", "exception": err})
 
             try:
                 user = User.objects.get(username=username)
             except User.DoesNotExist:
-                user = IdentityHeaderMiddleware._create_user(
-                    username, email, customer, request
-                )
+                user = IdentityHeaderMiddleware._create_user(username, email, customer, request)
 
-            user.identity_header = {'encoded': rh_auth_header, 'decoded': json_rh_auth}
+            user.identity_header = {"encoded": rh_auth_header, "decoded": json_rh_auth}
             user.admin = is_admin
             user.req_id = req_id
 
-            cache = caches['rbac']
+            cache = caches["rbac"]
             user_access = cache.get(user.uuid)
             if not user_access:
                 try:
                     user_access = self._get_access(user)
                 except RbacConnectionError as err:
-                    return HttpResponseFailedDependency(
-                        {'source': 'Rbac', 'exception': err}
-                    )
+                    return HttpResponseFailedDependency({"source": "Rbac", "exception": err})
                 cache.set(user.uuid, user_access, self.rbac.cache_ttl)
             user.access = user_access
             request.user = user
@@ -314,28 +297,24 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             response (object): The response object
 
         """
-        context = ''
-        query_string = ''
+        context = ""
+        query_string = ""
         is_admin = False
         customer = None
         username = None
         req_id = None
-        if request.META.get('QUERY_STRING'):
-            query_string = '?{}'.format(request.META['QUERY_STRING'])
+        if request.META.get("QUERY_STRING"):
+            query_string = "?{}".format(request.META["QUERY_STRING"])
 
-        if hasattr(request, 'user') and request.user and request.user.customer:
+        if hasattr(request, "user") and request.user and request.user.customer:
             is_admin = request.user.admin
             customer = request.user.customer.account_id
             username = request.user.username
             req_id = request.user.req_id
         if customer:
-            context = f' -- ACCOUNT: {customer} USER: {username}' \
-                f' ORG_ADMIN: {is_admin} REQ_ID: {req_id}'
+            context = f" -- ACCOUNT: {customer} USER: {username}" f" ORG_ADMIN: {is_admin} REQ_ID: {req_id}"
 
-        stmt = (
-            f'{request.method}: {request.path}{query_string}'
-            f' {response.status_code}{context}'
-        )
+        stmt = f"{request.method}: {request.path}{query_string}" f" {response.status_code}{context}"
         LOG.info(stmt)
         return response
 
@@ -350,4 +329,4 @@ class DisableCSRF(MiddlewareMixin):  # pylint: disable=too-few-public-methods
             request (object): The request object
 
         """
-        setattr(request, '_dont_enforce_csrf_checks', True)
+        setattr(request, "_dont_enforce_csrf_checks", True)

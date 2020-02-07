@@ -25,9 +25,9 @@ class CostModelsAccessPermission(permissions.BasePermission):
 
     def get_uuid_from_url(self, request):
         """Get the uuid from the request url."""
-        url_parts = request.META.get('PATH_INFO').split('/')
+        url_parts = request.META.get("PATH_INFO").split("/")
         try:
-            given_uuid = str(UUID(url_parts[url_parts.index('costmodels') + 1]))
+            given_uuid = str(UUID(url_parts[url_parts.index("costmodels") + 1]))
         except ValueError:
             given_uuid = None
         return given_uuid
@@ -41,12 +41,12 @@ class CostModelsAccessPermission(permissions.BasePermission):
             return False
 
         if request.method in permissions.SAFE_METHODS:
-            rates_read = request.user.access.get('rate', {}).get('read', [])
+            rates_read = request.user.access.get("rate", {}).get("read", [])
             if rates_read:
                 return True
         else:
-            rates_write = request.user.access.get('rate', {}).get('write', [])
-            if '*' in rates_write:
+            rates_write = request.user.access.get("rate", {}).get("write", [])
+            if "*" in rates_write:
                 return True
             if self.get_uuid_from_url(request) in rates_write:
                 return True

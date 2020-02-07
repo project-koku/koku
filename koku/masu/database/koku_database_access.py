@@ -15,7 +15,6 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Accessor for Customer information from koku database."""
-
 import logging
 
 from django.db import transaction

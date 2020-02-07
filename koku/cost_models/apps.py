@@ -15,11 +15,10 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Rates application configuration module."""
-
 from django.apps import AppConfig
 
 
 class CostModelsConfig(AppConfig):
     """Rates application configuration."""
 
-    name = 'cost_models'
+    name = "cost_models"

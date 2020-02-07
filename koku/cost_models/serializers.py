@@ -26,8 +26,8 @@ from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 
-CURRENCY_CHOICES = (('USD', 'USD'),)
-MARKUP_CHOICES = (('percent', '%'),)
+CURRENCY_CHOICES = (("USD", "USD"),)
+MARKUP_CHOICES = (("percent", "%"),)
 
 
 class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
@@ -55,8 +55,7 @@ class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
 class MarkupSerializer(serializers.Serializer):
     """Serializer for cost markup."""
 
-    value = serializers.DecimalField(required=False, max_digits=19,
-                                     decimal_places=10, coerce_to_string=True)
+    value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10, coerce_to_string=True)
     unit = serializers.ChoiceField(choices=MARKUP_CHOICES, required=False)
 
 
@@ -70,28 +69,28 @@ class TieredRateSerializer(serializers.Serializer):
     def validate_value(self, value):
         """Check that value is a positive value."""
         if value <= 0:
-            raise serializers.ValidationError('A tiered rate value must be positive.')
+            raise serializers.ValidationError("A tiered rate value must be positive.")
         return str(value)
 
     def validate_usage(self, usage):
         """Check that usage_start is a positive value."""
-        usage_start = usage.get('usage_start')
-        usage_end = usage.get('usage_end')
+        usage_start = usage.get("usage_start")
+        usage_end = usage.get("usage_end")
 
         if usage_start and usage_start < 0:
-            raise serializers.ValidationError('A tiered rate usage_start must be positive.')
+            raise serializers.ValidationError("A tiered rate usage_start must be positive.")
 
         if usage_end and usage_end <= 0:
-            raise serializers.ValidationError('A tiered rate usage_end must be positive.')
+            raise serializers.ValidationError("A tiered rate usage_end must be positive.")
         return usage
 
     def validate(self, data):
         """Validate that usage_end is greater than usage_start."""
-        usage_start = data.get('usage', {}).get('usage_start')
-        usage_end = data.get('usage', {}).get('usage_end')
+        usage_start = data.get("usage", {}).get("usage_start")
+        usage_end = data.get("usage", {}).get("usage_end")
         if usage_start is not None and usage_end is not None:
             if Decimal(usage_start) >= Decimal(usage_end):
-                raise serializers.ValidationError('A tiered rate usage_start must be less than usage_end.')
+                raise serializers.ValidationError("A tiered rate usage_start must be less than usage_end.")
             return data
         else:
             return data
@@ -100,8 +99,8 @@ class TieredRateSerializer(serializers.Serializer):
 class RateSerializer(serializers.Serializer):
     """Rate Serializer."""
 
-    DECIMALS = ('value', 'usage_start', 'usage_end')
-    RATE_TYPES = ('tiered_rates',)
+    DECIMALS = ("value", "usage_start", "usage_end")
+    RATE_TYPES = ("tiered_rates",)
 
     metric = serializers.DictField(required=True)
     tiered_rates = serializers.ListField(required=False)
@@ -121,14 +120,17 @@ class RateSerializer(serializers.Serializer):
         """Validate that the tiers has no gaps."""
         next_tier = None
         for tier in sorted_tiers:
-            usage_start = tier.get('usage', {}).get('usage_start')
-            usage_end = tier.get('usage', {}).get('usage_end')
+            usage_start = tier.get("usage", {}).get("usage_start")
+            usage_end = tier.get("usage", {}).get("usage_end")
 
-            if (next_tier is not None and usage_start is not None
-                    and Decimal(usage_start) > Decimal(next_tier)):  # noqa:W503
-                error_msg = 'tiered_rate must not have gaps between tiers.' \
-                    'usage_start of {} should be less than or equal to the' \
-                    ' usage_end {} of the previous tier.'.format(usage_start, next_tier)
+            if (
+                next_tier is not None and usage_start is not None and Decimal(usage_start) > Decimal(next_tier)
+            ):  # noqa:W503
+                error_msg = (
+                    "tiered_rate must not have gaps between tiers."
+                    "usage_start of {} should be less than or equal to the"
+                    " usage_end {} of the previous tier.".format(usage_start, next_tier)
+                )
                 raise serializers.ValidationError(error_msg)
             next_tier = usage_end
 
@@ -137,35 +139,35 @@ class RateSerializer(serializers.Serializer):
         """Validate that the tiers have no overlaps."""
         for i, tier in enumerate(sorted_tiers):
             next_bucket = sorted_tiers[(i + 1) % len(sorted_tiers)]
-            next_bucket_usage_start = next_bucket.get('usage', {}).get('usage_start')
-            usage_end = tier.get('usage', {}).get('usage_end')
+            next_bucket_usage_start = next_bucket.get("usage", {}).get("usage_start")
+            usage_end = tier.get("usage", {}).get("usage_end")
 
-            if (usage_end != next_bucket_usage_start):
-                error_msg = 'tiered_rate must not have overlapping tiers.' \
-                    ' usage_start value {} should equal to the' \
-                    ' usage_end value of the next tier, not {}.'.format(usage_end,
-                                                                        next_bucket_usage_start)
+            if usage_end != next_bucket_usage_start:
+                error_msg = (
+                    "tiered_rate must not have overlapping tiers."
+                    " usage_start value {} should equal to the"
+                    " usage_end value of the next tier, not {}.".format(usage_end, next_bucket_usage_start)
+                )
                 raise serializers.ValidationError(error_msg)
 
     @staticmethod
     def _validate_continuouse_tiers(tiers):
         """Validate tiers have no gaps."""
         if len(tiers) < 1:
-            raise serializers.ValidationError('tiered_rate must have at least one tier.')
+            raise serializers.ValidationError("tiered_rate must have at least one tier.")
         sorted_tiers = sorted(
             tiers,
             key=lambda tier: (
-                Decimal('-Infinity')
-                if tier.get('usage', {}).get('usage_start') is None
-                else Decimal(tier.get('usage', {}).get('usage_start'))
-            )
+                Decimal("-Infinity")
+                if tier.get("usage", {}).get("usage_start") is None
+                else Decimal(tier.get("usage", {}).get("usage_start"))
+            ),
         )
-        start = sorted_tiers[0].get('usage', {}).get('usage_start')
-        end = sorted_tiers[-1].get('usage', {}).get('usage_end')
+        start = sorted_tiers[0].get("usage", {}).get("usage_start")
+        end = sorted_tiers[-1].get("usage", {}).get("usage_end")
 
         if start is not None or end is not None:
-            error_msg = 'tiered_rate must have a tier with usage_start as null' \
-                ' and a tier with usage_end as null.'
+            error_msg = "tiered_rate must have a tier with usage_start as null" " and a tier with usage_end as null."
             raise serializers.ValidationError(error_msg)
         else:
             RateSerializer._validate_no_tier_gaps(sorted_tiers)
@@ -182,62 +184,60 @@ class RateSerializer(serializers.Serializer):
 
     def validate(self, data):
         """Validate that a rate must be defined."""
-        data['tiered_rates'] = self.validate_tiered_rates(data.get('tiered_rates', []))
+        data["tiered_rates"] = self.validate_tiered_rates(data.get("tiered_rates", []))
 
-        rate_keys_str = ', '.join(str(rate_key) for rate_key in self.RATE_TYPES)
-        if data.get('metric').get('name') not in [metric for metric, metric2 in CostModelMetricsMap.METRIC_CHOICES]:
-            error_msg = '{} is an invalid metric'.format(data.get('metric').get('name'))
+        rate_keys_str = ", ".join(str(rate_key) for rate_key in self.RATE_TYPES)
+        if data.get("metric").get("name") not in [metric for metric, metric2 in CostModelMetricsMap.METRIC_CHOICES]:
+            error_msg = "{} is an invalid metric".format(data.get("metric").get("name"))
             raise serializers.ValidationError(error_msg)
         if any(data.get(rate_key) is not None for rate_key in self.RATE_TYPES):
-            tiered_rates = data.get('tiered_rates')
+            tiered_rates = data.get("tiered_rates")
             if tiered_rates == []:
-                error_msg = 'A rate must be provided (e.g. {}).'.format(rate_keys_str)
+                error_msg = f"A rate must be provided (e.g. {rate_keys_str})."
                 raise serializers.ValidationError(error_msg)
             elif tiered_rates is not None:
                 RateSerializer._validate_continuouse_tiers(tiered_rates)
             return data
         else:
-            error_msg = 'A rate must be provided (e.g. {}).'.format(rate_keys_str)
+            error_msg = f"A rate must be provided (e.g. {rate_keys_str})."
             raise serializers.ValidationError(error_msg)
 
     def to_representation(self, rate_obj):
         """Create external representation of a rate."""
-        out = {
-            'metric': {
-                'name': rate_obj.get('metric', {}).get('name'),
-            }
-        }
+        out = {"metric": {"name": rate_obj.get("metric", {}).get("name")}}
 
         # Specifically handling only tiered rates now
         # with the expectation that this code will be generalized
         # when other rate types (e.g. markup) are introduced
-        tiered_rates = rate_obj.get('tiered_rates', [])
+        tiered_rates = rate_obj.get("tiered_rates", [])
 
         for rates in tiered_rates:
             if isinstance(rates, list):
                 for rate in rates:
                     RateSerializer._convert_to_decimal(rate)
-                    if not rate.get('usage'):
-                        rate['usage'] = {'usage_start': rate.pop('usage_start', None),
-                                         'usage_end': rate.pop('usage_end', None),
-                                         'unit': rate.get('unit')}
+                    if not rate.get("usage"):
+                        rate["usage"] = {
+                            "usage_start": rate.pop("usage_start", None),
+                            "usage_end": rate.pop("usage_end", None),
+                            "unit": rate.get("unit"),
+                        }
             else:
                 RateSerializer._convert_to_decimal(rates)
-                if not rates.get('usage'):
-                    rates['usage'] = {'usage_start': rates.pop('usage_start', None),
-                                      'usage_end': rates.pop('usage_end', None),
-                                      'unit': rates.get('unit')}
+                if not rates.get("usage"):
+                    rates["usage"] = {
+                        "usage_start": rates.pop("usage_start", None),
+                        "usage_end": rates.pop("usage_end", None),
+                        "unit": rates.get("unit"),
+                    }
 
-        out.update({'tiered_rates': tiered_rates})
+        out.update({"tiered_rates": tiered_rates})
         return out
 
     def to_internal_value(self, data):
         """Convert the JSON representation of rate to DB representation."""
-        metric = data.get('metric', {})
-        new_metric = {
-            'name': metric.get('name')
-        }
-        data['metric'] = new_metric
+        metric = data.get("metric", {})
+        new_metric = {"name": metric.get("name")}
+        data["metric"] = new_metric
         return data
 
 
@@ -257,8 +257,9 @@ class CostModelSerializer(serializers.Serializer):
 
     source_type = serializers.CharField(required=True)
 
-    provider_uuids = serializers.ListField(child=UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field='uuid'),
-                                           required=False)
+    provider_uuids = serializers.ListField(
+        child=UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field="uuid"), required=False
+    )
 
     created_timestamp = serializers.DateTimeField(read_only=True)
 
@@ -289,15 +290,19 @@ class CostModelSerializer(serializers.Serializer):
     def validate(self, data):
         """Validate that the source type is acceptable."""
         # The cost model has markup, no rates, and is for a valid non-OpenShift source type
-        source_type = data.get('source_type')
+        source_type = data.get("source_type")
         if source_type and Provider.PROVIDER_CASE_MAPPING.get(source_type.lower()):
-            data['source_type'] = Provider.PROVIDER_CASE_MAPPING.get(source_type.lower())
+            data["source_type"] = Provider.PROVIDER_CASE_MAPPING.get(source_type.lower())
 
-        if (data.get('markup') and not data.get('rates') and data['source_type'] != Provider.PROVIDER_OCP
-                and data['source_type'] in SOURCE_TYPE_MAP.keys()):
+        if (
+            data.get("markup")
+            and not data.get("rates")
+            and data["source_type"] != Provider.PROVIDER_OCP
+            and data["source_type"] in SOURCE_TYPE_MAP.keys()
+        ):
             return data
-        if data['source_type'] not in self.metric_map.keys():
-            raise serializers.ValidationError('{} is not a valid source.'.format(data['source_type']))
+        if data["source_type"] not in self.metric_map.keys():
+            raise serializers.ValidationError("{} is not a valid source.".format(data["source_type"]))
         return data
 
     def _get_metric_display_data(self, source_type, metric):
@@ -308,7 +313,7 @@ class CostModelSerializer(serializers.Serializer):
         """Check for duplicate metric/rate combinations within a cost model."""
         rate_type_by_metric = defaultdict(dict)
         for rate in rates:
-            metric = rate.get('metric', {}).get('name')
+            metric = rate.get("metric", {}).get("name")
             for key in rate:
                 if key in RateSerializer.RATE_TYPES:
                     if key in rate_type_by_metric[metric]:
@@ -318,10 +323,7 @@ class CostModelSerializer(serializers.Serializer):
         for metric in rate_type_by_metric:
             for rate_type, count in rate_type_by_metric[metric].items():
                 if count > 1:
-                    err_msg = 'Duplicate {} entry found for {}'.format(
-                        rate_type,
-                        metric
-                    )
+                    err_msg = f"Duplicate {rate_type} entry found for {metric}"
                     raise serializers.ValidationError(err_msg)
 
     def validate_provider_uuids(self, provider_uuids):
@@ -334,7 +336,7 @@ class CostModelSerializer(serializers.Serializer):
             else:
                 invalid_uuids.append(uuid)
         if invalid_uuids:
-            err_msg = 'Provider object does not exist with following uuid(s): {}.'.format(invalid_uuids)
+            err_msg = f"Provider object does not exist with following uuid(s): {invalid_uuids}."
             raise serializers.ValidationError(err_msg)
         return valid_uuids
 
@@ -354,7 +356,7 @@ class CostModelSerializer(serializers.Serializer):
 
     def update(self, instance, validated_data, *args, **kwargs):
         """Update the rate object in the database."""
-        provider_uuids = validated_data.pop('provider_uuids', [])
+        provider_uuids = validated_data.pop("provider_uuids", [])
         new_providers_for_instance = []
         for uuid in provider_uuids:
             new_providers_for_instance.append(str(Provider.objects.filter(uuid=uuid).first().uuid))
@@ -367,28 +369,25 @@ class CostModelSerializer(serializers.Serializer):
     def to_representation(self, cost_model_obj):
         """Add provider UUIDs to the returned model."""
         rep = super().to_representation(cost_model_obj)
-        rates = rep['rates']
+        rates = rep["rates"]
         for rate in rates:
-            metric = rate.get('metric', {})
-            display_data = self._get_metric_display_data(
-                cost_model_obj.source_type,
-                metric.get('name')
-            )
+            metric = rate.get("metric", {})
+            display_data = self._get_metric_display_data(cost_model_obj.source_type, metric.get("name"))
             metric.update(
                 {
-                    'label_metric': display_data.label_metric,
-                    'label_measurement': display_data.label_measurement,
-                    'label_measurement_unit': display_data.label_measurement_unit,
+                    "label_metric": display_data.label_metric,
+                    "label_measurement": display_data.label_measurement,
+                    "label_measurement_unit": display_data.label_measurement_unit,
                 }
             )
-        rep['rates'] = rates
+        rep["rates"] = rates
 
-        source_type = rep.get('source_type')
+        source_type = rep.get("source_type")
         if source_type in SOURCE_TYPE_MAP:
             source_type = SOURCE_TYPE_MAP[source_type]
-        rep['source_type'] = source_type
+        rep["source_type"] = source_type
 
         cm_uuid = cost_model_obj.uuid
         provider_uuids = CostModelManager(cm_uuid).get_provider_names_uuids()
-        rep.update({'providers': provider_uuids})
+        rep.update({"providers": provider_uuids})
         return rep

@@ -12,7 +12,7 @@ class GCPCostEntryBill(models.Model):
     class Meta:
         """Meta for GCPCostEntryBill."""
 
-        unique_together = ('billing_period_start', 'provider')
+        unique_together = ("billing_period_start", "provider")
 
     billing_period_start = models.DateTimeField()
     billing_period_end = models.DateTimeField()
@@ -20,7 +20,7 @@ class GCPCostEntryBill(models.Model):
     summary_data_updated_datetime = models.DateTimeField(null=True, blank=True)
     finalized_datetime = models.DateTimeField(null=True, blank=True)
     derived_cost_datetime = models.DateTimeField(null=True, blank=True)
-    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE)
+    provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
 
 
 class GCPProject(models.Model):
@@ -39,17 +39,15 @@ class GCPCostEntryLineItemDaily(models.Model):
     class Meta:
         """Meta for GCPCostEntryLineItemDaily."""
 
-        unique_together = ('start_time', 'line_item_type', 'project')
+        unique_together = ("start_time", "line_item_type", "project")
 
     line_item_type = models.CharField(max_length=256)
-    cost_entry_bill = models.ForeignKey(
-        GCPCostEntryBill, on_delete=models.CASCADE)
+    cost_entry_bill = models.ForeignKey(GCPCostEntryBill, on_delete=models.CASCADE)
     project = models.ForeignKey(GCPProject, on_delete=models.CASCADE)
     measurement_type = models.CharField(max_length=512)
     consumption = models.BigIntegerField()
     unit = models.CharField(max_length=63, null=True, blank=True)
-    cost = models.DecimalField(max_digits=24, decimal_places=9,
-                               null=True, blank=True)
+    cost = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
     currency = models.CharField(max_length=10)
     description = models.CharField(max_length=256, null=True, blank=True)
     start_time = models.DateTimeField()

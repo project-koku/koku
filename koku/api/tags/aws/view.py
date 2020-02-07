@@ -14,9 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """View for AWS tags."""
-
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.serializers import AWSTagsQueryParamSerializer
 from api.tags.view import TagView
@@ -57,7 +55,7 @@ class AWSTagView(TagView):
 
     """
 
-    provider = 'aws'
+    provider = "aws"
     serializer = AWSTagsQueryParamSerializer
     query_handler = AWSTagQueryHandler
     tag_handler = [AWSTagsSummary]

@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Cost Model Manager."""
-
 from tenant_schemas.utils import tenant_context
 
 from api.iam.models import Customer
@@ -24,7 +23,8 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelManager
-from cost_models.models import CostModel, CostModelMap
+from cost_models.models import CostModel
+from cost_models.models import CostModelMap
 
 
 class MockResponse:
@@ -42,9 +42,7 @@ class CostModelManagerTest(IamTestCase):
     def setUp(self):
         """Set up the cost model manager tests."""
         super().setUp()
-        self.customer = Customer.objects.get(
-            account_id=self.customer_data['account_id']
-        )
+        self.customer = Customer.objects.get(account_id=self.customer_data["account_id"])
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             self.user = serializer.save()
@@ -60,17 +58,11 @@ class CostModelManagerTest(IamTestCase):
         """Test creating a cost model."""
         metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
-        tiered_rates = [{'unit': 'USD', 'value': 0.22}]
+        tiered_rates = [{"unit": "USD", "value": 0.22}]
         data = {
-            'name': 'Test Cost Model',
-            'description': 'Test',
-            'rates': [
-                {
-                    'metric': {'name': metric},
-                    'source_type': source_type,
-                    'tiered_rates': tiered_rates
-                }
-            ]
+            "name": "Test Cost Model",
+            "description": "Test",
+            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
         }
 
         with tenant_context(self.tenant):
@@ -78,9 +70,9 @@ class CostModelManagerTest(IamTestCase):
             cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
-                self.assertEqual(rate.get('metric', {}).get('name'), metric)
-                self.assertEqual(rate.get('tiered_rates'), tiered_rates)
-                self.assertEqual(rate.get('source_type'), source_type)
+                self.assertEqual(rate.get("metric", {}).get("name"), metric)
+                self.assertEqual(rate.get("tiered_rates"), tiered_rates)
+                self.assertEqual(rate.get("source_type"), source_type)
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 0)
@@ -88,27 +80,19 @@ class CostModelManagerTest(IamTestCase):
 
     def test_create_with_provider(self):
         """Test creating a cost model with provider uuids."""
-        provider_name = 'sample_provider'
-        provider = Provider.objects.create(name=provider_name,
-                                           created_by=self.user,
-                                           customer=self.customer)
+        provider_name = "sample_provider"
+        provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
 
         # Get Provider UUID
         provider_uuid = provider.uuid
         metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
-        tiered_rates = [{'unit': 'USD', 'value': 0.22}]
+        tiered_rates = [{"unit": "USD", "value": 0.22}]
         data = {
-            'name': 'Test Cost Model',
-            'description': 'Test',
-            'provider_uuids': [provider_uuid],
-            'rates': [
-                {
-                    'metric': {'name': metric},
-                    'source_type': source_type,
-                    'tiered_rates': tiered_rates
-                }
-            ]
+            "name": "Test Cost Model",
+            "description": "Test",
+            "provider_uuids": [provider_uuid],
+            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
         }
 
         with tenant_context(self.tenant):
@@ -116,40 +100,34 @@ class CostModelManagerTest(IamTestCase):
             cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
-                self.assertEqual(rate.get('metric', {}).get('name'), metric)
-                self.assertEqual(rate.get('tiered_rates'), tiered_rates)
-                self.assertEqual(rate.get('source_type'), source_type)
+                self.assertEqual(rate.get("metric", {}).get("name"), metric)
+                self.assertEqual(rate.get("tiered_rates"), tiered_rates)
+                self.assertEqual(rate.get("source_type"), source_type)
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertIsNotNone(cost_model_map)
             self.assertEqual(cost_model_map.first().provider_uuid, provider_uuid)
-            self.assertEqual(CostModelManager(cost_model_obj.uuid).get_provider_names_uuids(),
-                             [{'uuid': str(provider_uuid), 'name': 'sample_provider'}])
+            self.assertEqual(
+                CostModelManager(cost_model_obj.uuid).get_provider_names_uuids(),
+                [{"uuid": str(provider_uuid), "name": "sample_provider"}],
+            )
 
     def test_create_second_cost_model_same_provider(self):
         """Test that the cost model map is updated for the second model."""
-        provider_name = 'sample_provider'
-        provider = Provider.objects.create(name=provider_name,
-                                           created_by=self.user,
-                                           customer=self.customer)
+        provider_name = "sample_provider"
+        provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
 
         # Get Provider UUID
         provider_uuid = provider.uuid
-        provider_names_uuids = [{'uuid': str(provider.uuid), 'name': provider.name}]
+        provider_names_uuids = [{"uuid": str(provider.uuid), "name": provider.name}]
         metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
-        tiered_rates = [{'unit': 'USD', 'value': 0.22}]
+        tiered_rates = [{"unit": "USD", "value": 0.22}]
         data = {
-            'name': 'Test Cost Model',
-            'description': 'Test',
-            'provider_uuids': [provider_uuid],
-            'rates': [
-                {
-                    'metric': {'name': metric},
-                    'source_type': source_type,
-                    'tiered_rates': tiered_rates
-                }
-            ]
+            "name": "Test Cost Model",
+            "description": "Test",
+            "provider_uuids": [provider_uuid],
+            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
         }
 
         with tenant_context(self.tenant):
@@ -168,39 +146,30 @@ class CostModelManagerTest(IamTestCase):
             # the previous cost model
             self.assertNotEqual(cost_model_map.first().cost_model, cost_model_obj)
             self.assertEqual(cost_model_map.first().cost_model, second_cost_model_obj)
-            self.assertEqual(CostModelManager(second_cost_model_obj.uuid).get_provider_names_uuids(),
-                             provider_names_uuids)
+            self.assertEqual(
+                CostModelManager(second_cost_model_obj.uuid).get_provider_names_uuids(), provider_names_uuids
+            )
 
     def test_create_with_two_providers(self):
         """Test creating a cost model with multiple providers."""
-        provider_name = 'sample_provider'
-        provider = Provider.objects.create(name=provider_name,
-                                           created_by=self.user,
-                                           customer=self.customer)
+        provider_name = "sample_provider"
+        provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
 
         # Get Provider UUID
         provider_uuid = provider.uuid
 
-        provider_name_2 = 'sample_provider2'
-        provider_2 = Provider.objects.create(name=provider_name_2,
-                                             created_by=self.user,
-                                             customer=self.customer)
+        provider_name_2 = "sample_provider2"
+        provider_2 = Provider.objects.create(name=provider_name_2, created_by=self.user, customer=self.customer)
         provider_uuid_2 = provider_2.uuid
 
         metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
-        tiered_rates = [{'unit': 'USD', 'value': 0.22}]
+        tiered_rates = [{"unit": "USD", "value": 0.22}]
         data = {
-            'name': 'Test Cost Model',
-            'description': 'Test',
-            'provider_uuids': [provider_uuid, provider_uuid_2],
-            'rates': [
-                {
-                    'metric': {'name': metric},
-                    'source_type': source_type,
-                    'tiered_rates': tiered_rates
-                }
-            ]
+            "name": "Test Cost Model",
+            "description": "Test",
+            "provider_uuids": [provider_uuid, provider_uuid_2],
+            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
         }
 
         with tenant_context(self.tenant):
@@ -208,9 +177,9 @@ class CostModelManagerTest(IamTestCase):
             cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
-                self.assertEqual(rate.get('metric', {}).get('name'), metric)
-                self.assertEqual(rate.get('tiered_rates'), tiered_rates)
-                self.assertEqual(rate.get('source_type'), source_type)
+                self.assertEqual(rate.get("metric", {}).get("name"), metric)
+                self.assertEqual(rate.get("tiered_rates"), tiered_rates)
+                self.assertEqual(rate.get("source_type"), source_type)
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 2)
@@ -227,17 +196,11 @@ class CostModelManagerTest(IamTestCase):
         """Test creating a cost model then update with a provider uuid."""
         metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
-        tiered_rates = [{'unit': 'USD', 'value': 0.22}]
+        tiered_rates = [{"unit": "USD", "value": 0.22}]
         data = {
-            'name': 'Test Cost Model',
-            'description': 'Test',
-            'rates': [
-                {
-                    'metric': {'name': metric},
-                    'source_type': source_type,
-                    'tiered_rates': tiered_rates
-                }
-            ]
+            "name": "Test Cost Model",
+            "description": "Test",
+            "rates": [{"metric": {"name": metric}, "source_type": source_type, "tiered_rates": tiered_rates}],
         }
         cost_model_obj = None
         with tenant_context(self.tenant):
@@ -247,10 +210,8 @@ class CostModelManagerTest(IamTestCase):
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 0)
 
-        provider_name = 'sample_provider'
-        provider = Provider.objects.create(name=provider_name,
-                                           created_by=self.user,
-                                           customer=self.customer)
+        provider_name = "sample_provider"
+        provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
 
         # Get Provider UUID
         provider_uuid = provider.uuid

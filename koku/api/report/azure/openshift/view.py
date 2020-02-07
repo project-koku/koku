@@ -14,9 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """View for OpenShift on Azure Usage Reports."""
-
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.models import Provider
@@ -60,7 +58,7 @@ class OCPAzureCostView(OCPAzureView):
 
     """
 
-    report = 'costs'
+    report = "costs"
 
 
 class OCPAzureInstanceTypeView(OCPAzureView):
@@ -100,7 +98,7 @@ class OCPAzureInstanceTypeView(OCPAzureView):
 
     """
 
-    report = 'instance_type'
+    report = "instance_type"
 
 
 class OCPAzureStorageView(OCPAzureView):
@@ -139,4 +137,4 @@ class OCPAzureStorageView(OCPAzureView):
 
     """
 
-    report = 'storage'
+    report = "storage"

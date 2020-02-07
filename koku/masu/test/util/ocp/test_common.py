@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the OCP util."""
 import os
 import shutil
@@ -48,9 +47,7 @@ class OCPUtilTests(MasuTestCase):
 
         self.provider_uuid = self.provider_accessor.get_provider().uuid
         reporting_period = self.creator.create_ocp_report_period(provider_uuid=self.provider_uuid)
-        report = self.creator.create_ocp_report(
-            reporting_period, reporting_period.report_period_start
-        )
+        report = self.creator.create_ocp_report(reporting_period, reporting_period.report_period_start)
         self.creator.create_ocp_usage_line_item(reporting_period, report)
         self.creator.create_ocp_storage_line_item(reporting_period, report)
 
@@ -67,7 +64,7 @@ class OCPUtilTests(MasuTestCase):
     def test_get_cluster_alias_from_cluster_id(self):
         """Test that the cluster alias is returned from cluster_id."""
         cluster_id = self.ocp_provider_resource_name
-        cluster_alias = utils.get_cluster_alias_from_cluster_id((cluster_id))
+        cluster_alias = utils.get_cluster_alias_from_cluster_id(cluster_id)
         self.assertIsNotNone(cluster_alias)
 
     def test_get_provider_uuid_from_cluster_id(self):
@@ -77,20 +74,20 @@ class OCPUtilTests(MasuTestCase):
         try:
             UUID(provider_uuid)
         except ValueError:
-            self.fail('{} is not a valid uuid.'.format(str(provider_uuid)))
+            self.fail("{} is not a valid uuid.".format(str(provider_uuid)))
 
     def test_get_provider_uuid_from_invalid_cluster_id(self):
         """Test that the provider uuid is not returned for an invalid cluster ID."""
-        cluster_id = 'bad_cluster_id'
+        cluster_id = "bad_cluster_id"
         provider_uuid = utils.get_provider_uuid_from_cluster_id(cluster_id)
         self.assertIsNone(provider_uuid)
 
     def test_poll_ingest_override_for_provider(self):
         """Test that OCP polling override returns True if insights local path exists."""
         fake_dir = tempfile.mkdtemp()
-        with patch.object(Config, 'INSIGHTS_LOCAL_REPORT_DIR', fake_dir):
+        with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
             cluster_id = utils.get_cluster_id_from_provider(self.ocp_test_provider_uuid)
-            expected_path = '{}/{}/'.format(Config.INSIGHTS_LOCAL_REPORT_DIR, cluster_id)
+            expected_path = f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{cluster_id}/"
             os.makedirs(expected_path, exist_ok=True)
             self.assertTrue(utils.poll_ingest_override_for_provider(self.ocp_test_provider_uuid))
         shutil.rmtree(fake_dir)

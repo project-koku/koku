@@ -19,9 +19,9 @@
 # Skipping entire file for now since we are unable to disable duplicate-code lint
 # on the masu.external provider name import line.
 # See issue https://github.com/PyCQA/pylint/issues/214
-
 import logging
-from datetime import (datetime, timedelta)
+from datetime import datetime
+from datetime import timedelta
 
 import pytz
 
@@ -42,7 +42,7 @@ class ExpiredDataRemoverError(Exception):
 
 
 # pylint: disable=too-few-public-methods
-class ExpiredDataRemover():
+class ExpiredDataRemover:
     """
     Removes expired report data based on masu's retention policy.
 
@@ -50,8 +50,7 @@ class ExpiredDataRemover():
 
     """
 
-    def __init__(self, customer_schema, provider,
-                 num_of_months_to_keep=None):
+    def __init__(self, customer_schema, provider, num_of_months_to_keep=None):
         """
         Initializer.
 
@@ -72,7 +71,7 @@ class ExpiredDataRemover():
             raise ExpiredDataRemoverError(str(err))
 
         if not self._cleaner:
-            raise ExpiredDataRemoverError('Invalid provider type specified.')
+            raise ExpiredDataRemoverError("Invalid provider type specified.")
 
     def _set_cleaner(self):
         """
@@ -93,7 +92,7 @@ class ExpiredDataRemover():
         if self._provider in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             return AzureReportDBCleaner(self._schema)
 
-        if self._provider in (Provider.PROVIDER_OCP, ):
+        if self._provider in (Provider.PROVIDER_OCP,):
             return OCPReportDBCleaner(self._schema)
 
         return None
@@ -110,16 +109,15 @@ class ExpiredDataRemover():
 
         """
         today = DateAccessor().today()
-        LOG.info('Current date time is %s', today)
+        LOG.info("Current date time is %s", today)
 
         middle_of_current_month = today.replace(day=15)
         num_of_days_to_expire_date = self._months_to_keep * timedelta(days=30)
         middle_of_expire_date_month = middle_of_current_month - num_of_days_to_expire_date
-        expiration_date = datetime(year=middle_of_expire_date_month.year,
-                                   month=middle_of_expire_date_month.month,
-                                   day=1,
-                                   tzinfo=pytz.UTC)
-        expiration_msg = 'Report data expiration is {} for a {} month retention policy'
+        expiration_date = datetime(
+            year=middle_of_expire_date_month.year, month=middle_of_expire_date_month.month, day=1, tzinfo=pytz.UTC
+        )
+        expiration_msg = "Report data expiration is {} for a {} month retention policy"
         msg = expiration_msg.format(expiration_date, self._months_to_keep)
         LOG.info(msg)
         return expiration_date
@@ -136,14 +134,8 @@ class ExpiredDataRemover():
 
         """
         if provider_uuid is not None:
-            removed_data = self._cleaner.purge_expired_report_data(
-                simulate=simulate,
-                provider_uuid=provider_uuid
-            )
+            removed_data = self._cleaner.purge_expired_report_data(simulate=simulate, provider_uuid=provider_uuid)
         else:
             expiration_date = self._calculate_expiration_date()
-            removed_data = self._cleaner.purge_expired_report_data(
-                expired_date=expiration_date,
-                simulate=simulate
-            )
+            removed_data = self._cleaner.purge_expired_report_data(expired_date=expiration_date, simulate=simulate)
         return removed_data
