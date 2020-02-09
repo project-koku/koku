@@ -20,6 +20,7 @@ from unittest.mock import patch
 
 import requests
 import requests_mock
+from django.db.models.signals import post_save
 from django.test import TestCase
 from faker import Faker
 
@@ -27,6 +28,7 @@ import sources.kafka_listener as source_integration
 from api.provider.models import Provider
 from api.provider.models import Sources
 from sources.config import Config
+from sources.kafka_listener import storage_callback
 from sources.sources_http_client import SourcesHTTPClientError
 
 faker = Faker()
@@ -49,6 +51,12 @@ class ConsumerRecord:
 
 class SourcesKafkaMsgHandlerTest(TestCase):
     """Test Cases for the Sources Kafka Listener."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up each test class."""
+        super().setUpClass()
+        post_save.disconnect(storage_callback, sender=Sources)
 
     @patch.object(Config, "KOKU_API_URL", "http://www.koku.com/api/cost-management/v1")
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")

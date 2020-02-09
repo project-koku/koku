@@ -26,4 +26,5 @@ from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
+from api.provider.models import Sources
 from api.status.models import Status

@@ -130,10 +130,6 @@ def storage_callback(sender, instance, **kwargs):
             LOG.debug(f"Update Event Queued for:\n{str(instance)}")
             PROCESS_QUEUE.put_nowait(update_event)
 
-    if instance.koku_uuid and not instance.pending_delete:
-        time.sleep(1)
-        async_download_result = check_report_updates.delay(provider_uuid=instance.koku_uuid)  # noqa: F841
-
     if instance.pending_delete:
         delete_event = {"operation": "destroy", "provider": instance}
         _log_process_queue_event(PROCESS_QUEUE, delete_event)
@@ -145,6 +141,11 @@ def storage_callback(sender, instance, **kwargs):
         _log_process_queue_event(PROCESS_QUEUE, process_event)
         LOG.debug(f"Create Event Queued for:\n{str(instance)}")
         PROCESS_QUEUE.put_nowait(process_event)
+
+    if instance.koku_uuid and not instance.pending_delete:
+        time.sleep(1)
+        async_download_result = check_report_updates.delay(provider_uuid=instance.koku_uuid)  # noqa: F841
+        print(async_download_result)
 
 
 def get_sources_msg_data(msg, app_type_id):

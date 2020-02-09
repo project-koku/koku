@@ -6,7 +6,6 @@ import pkgutil
 from django.core.management import call_command
 from django.db import connection
 from django.db import connections
-from django.db.models.signals import post_save
 from django.test import TransactionTestCase
 
 from api.models import CostModelMetricsMap
@@ -15,7 +14,6 @@ from api.models import Tenant
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
-from api.provider.provider_manager import provider_post_save_callback
 from reporting_common import package_directory
 from reporting_common.models import ReportColumnMap
 
@@ -47,7 +45,6 @@ class MasuTestCase(TransactionTestCase):
     def setUpClass(cls):
         """Create test case setup."""
         super().setUpClass()
-        post_save.disconnect(provider_post_save_callback, sender=Provider)
 
         cls.schema = "acct10001"
         cls.acct = "10001"
