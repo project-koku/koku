@@ -21,6 +21,7 @@ from unittest.mock import Mock
 from uuid import UUID
 
 from django.db import connection
+from django.db.signals import post_save
 from django.test import RequestFactory
 from django.test import TestCase
 from faker import Faker
