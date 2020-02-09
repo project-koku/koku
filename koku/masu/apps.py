@@ -15,14 +15,13 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Masu application configuration module."""
-
 from django.apps import AppConfig
 
 
 class MasuConfig(AppConfig):
     """Masu application configuration."""
 
-    name = 'masu'
+    name = "masu"
 
     def ready(self):
         """Determine if app is ready on application startup."""

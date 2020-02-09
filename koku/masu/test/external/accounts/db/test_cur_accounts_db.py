@@ -14,9 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the CURAccountsDB utility object."""
-
 from api.models import Provider
 from masu.external.accounts.db.cur_accounts_db import CURAccountsDB
 from masu.test import MasuTestCase
@@ -29,23 +27,23 @@ class CURAccountsDBTest(MasuTestCase):
         """Test to get all accounts."""
         accounts = CURAccountsDB().get_accounts_from_source()
         if len(accounts) != 3:
-            self.fail('unexpected number of accounts')
+            self.fail("unexpected number of accounts")
 
         for account in accounts:
-            if account.get('provider_type') == Provider.PROVIDER_AWS:
-                self.assertEqual(account.get('authentication'), self.aws_provider_resource_name)
-                self.assertEqual(account.get('billing_source'), self.aws_test_billing_source)
-                self.assertEqual(account.get('customer_name'), self.schema)
-            elif account.get('provider_type') == Provider.PROVIDER_OCP:
-                self.assertEqual(account.get('authentication'), self.ocp_provider_resource_name)
-                self.assertEqual(account.get('billing_source'), None)
-                self.assertEqual(account.get('customer_name'), self.schema)
-            elif account.get('provider_type') == Provider.PROVIDER_AZURE:
-                self.assertEqual(account.get('authentication'), self.azure_credentials)
-                self.assertEqual(account.get('billing_source'), self.azure_data_source)
-                self.assertEqual(account.get('customer_name'), self.schema)
+            if account.get("provider_type") == Provider.PROVIDER_AWS:
+                self.assertEqual(account.get("authentication"), self.aws_provider_resource_name)
+                self.assertEqual(account.get("billing_source"), self.aws_test_billing_source)
+                self.assertEqual(account.get("customer_name"), self.schema)
+            elif account.get("provider_type") == Provider.PROVIDER_OCP:
+                self.assertEqual(account.get("authentication"), self.ocp_provider_resource_name)
+                self.assertEqual(account.get("billing_source"), None)
+                self.assertEqual(account.get("customer_name"), self.schema)
+            elif account.get("provider_type") == Provider.PROVIDER_AZURE:
+                self.assertEqual(account.get("authentication"), self.azure_credentials)
+                self.assertEqual(account.get("billing_source"), self.azure_data_source)
+                self.assertEqual(account.get("customer_name"), self.schema)
             else:
-                self.fail('Unexpected provider')
+                self.fail("Unexpected provider")
 
     def test_get_accounts_from_source_with_inactive(self):
         """Test to get all active accounts."""
@@ -54,4 +52,4 @@ class CURAccountsDBTest(MasuTestCase):
 
         accounts = CURAccountsDB().get_accounts_from_source()
         if len(accounts) != 2:
-            self.fail('unexpected number of accounts')
+            self.fail("unexpected number of accounts")

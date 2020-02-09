@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Asynchronous tasks."""
-
 # pylint: disable=too-many-arguments, too-many-function-args
 # disabled module-wide due to current state of task signature.
 # we expect this situation to be temporary as we iterate on these details.
@@ -30,13 +29,15 @@ from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
-from dateutil.rrule import DAILY, rrule
+from dateutil.rrule import DAILY
+from dateutil.rrule import rrule
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
 
 from api.dataexport.models import DataExportRequest
-from api.dataexport.syncer import AwsS3Syncer, SyncedFileInColdStorageError
+from api.dataexport.syncer import AwsS3Syncer
+from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.dataexport.uploader import AwsS3Uploader
 from api.iam.models import Tenant
 from koku.celery import app
@@ -44,33 +45,34 @@ from masu.celery.export import table_export_settings
 from masu.external.date_accessor import DateAccessor
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import vacuum_schema
-from masu.util.common import NamedTemporaryGZip, dictify_table_export_settings
+from masu.util.common import dictify_table_export_settings
+from masu.util.common import NamedTemporaryGZip
 from masu.util.upload import get_upload_path
 
 LOG = get_task_logger(__name__)
 _DB_FETCH_BATCH_SIZE = 2000
 
 
-@app.task(name='masu.celery.tasks.check_report_updates')
+@app.task(name="masu.celery.tasks.check_report_updates")
 def check_report_updates(*args, **kwargs):
     """Scheduled task to initiate scanning process on a regular interval."""
     orchestrator = Orchestrator(*args, **kwargs)
     orchestrator.prepare()
 
 
-@app.task(name='masu.celery.tasks.remove_expired_data')
+@app.task(name="masu.celery.tasks.remove_expired_data")
 def remove_expired_data():
     """Scheduled task to initiate a job to remove expired report data."""
     today = DateAccessor().today()
-    LOG.info('Removing expired data at %s', str(today))
+    LOG.info("Removing expired data at %s", str(today))
     orchestrator = Orchestrator()
     orchestrator.remove_expired_report_data()
 
 
-@app.task(name='masu.celery.tasks.upload_normalized_data', queue_name='upload')
+@app.task(name="masu.celery.tasks.upload_normalized_data", queue_name="upload")
 def upload_normalized_data():
     """Scheduled task to export normalized data to s3."""
-    LOG.info('Beginning upload_normalized_data')
+    LOG.info("Beginning upload_normalized_data")
     curr_date = DateAccessor().today()
     curr_month_range = calendar.monthrange(curr_date.year, curr_date.month)
     curr_month_first_day = date(year=curr_date.year, month=curr_date.month, day=1)
@@ -85,11 +87,7 @@ def upload_normalized_data():
     accounts, _ = Orchestrator.get_accounts()
 
     for account in accounts:
-        LOG.info(
-            'processing schema %s provider uuid %s',
-            account['schema_name'],
-            account['provider_uuid'],
-        )
+        LOG.info("processing schema %s provider uuid %s", account["schema_name"], account["provider_uuid"])
         for table in table_export_settings:
 
             # Celery does not serialize named tuples, convert it
@@ -98,27 +96,19 @@ def upload_normalized_data():
 
             # Upload this month's reports
             query_and_upload_to_s3.delay(
-                account['schema_name'],
-                account['provider_uuid'],
-                table_dict,
-                curr_month_first_day,
-                curr_month_last_day,
+                account["schema_name"], account["provider_uuid"], table_dict, curr_month_first_day, curr_month_last_day
             )
 
             # Upload last month's reports
             query_and_upload_to_s3.delay(
-                account['schema_name'],
-                account['provider_uuid'],
-                table_dict,
-                prev_month_first_day,
-                prev_month_last_day,
+                account["schema_name"], account["provider_uuid"], table_dict, prev_month_first_day, prev_month_last_day
             )
-    LOG.info('Completed upload_normalized_data')
+    LOG.info("Completed upload_normalized_data")
 
 
 @app.task(
-    name='masu.celery.tasks.delete_archived_data',
-    queue_name='delete_archived_data',
+    name="masu.celery.tasks.delete_archived_data",
+    queue_name="delete_archived_data",
     autoretry_for=(ClientError,),
     max_retries=10,
     retry_backoff=10,
@@ -146,58 +136,55 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
         # of deleting unrelated files from our S3 bucket.
         messages = []
         if not schema_name:
-            message = 'missing required argument: schema_name'
+            message = "missing required argument: schema_name"
             LOG.error(message)
             messages.append(message)
         if not provider_type:
-            message = 'missing required argument: provider_type'
+            message = "missing required argument: provider_type"
             LOG.error(message)
             messages.append(message)
         if not provider_uuid:
-            message = 'missing required argument: provider_uuid'
+            message = "missing required argument: provider_uuid"
             LOG.error(message)
             messages.append(message)
-        raise TypeError('delete_archived_data() %s', ', '.join(messages))
+        raise TypeError("delete_archived_data() %s", ", ".join(messages))
 
     if not settings.ENABLE_S3_ARCHIVING:
-        LOG.info('Skipping delete_archived_data; upload feature is disabled')
+        LOG.info("Skipping delete_archived_data; upload feature is disabled")
         return
 
     if not settings.S3_BUCKET_PATH:
-        message = 'settings.S3_BUCKET_PATH must have a not-empty value'
+        message = "settings.S3_BUCKET_PATH must have a not-empty value"
         LOG.error(message)
         raise ImproperlyConfigured(message)
 
     # We need to normalize capitalization and "-local" dev providers.
-    provider_slug = provider_type.lower().split('-')[0]
-    prefix = f'{settings.S3_BUCKET_PATH}/{schema_name}/{provider_slug}/{provider_uuid}/'
-    LOG.info('attempting to delete our archived data in S3 under %s', prefix)
+    provider_slug = provider_type.lower().split("-")[0]
+    prefix = f"{settings.S3_BUCKET_PATH}/{schema_name}/{provider_slug}/{provider_uuid}/"
+    LOG.info("attempting to delete our archived data in S3 under %s", prefix)
 
-    s3_resource = boto3.resource('s3', settings.S3_REGION)
+    s3_resource = boto3.resource("s3", settings.S3_REGION)
     s3_bucket = s3_resource.Bucket(settings.S3_BUCKET_NAME)
-    object_keys = [
-        {'Key': s3_object.key} for s3_object in s3_bucket.objects.filter(Prefix=prefix)
-    ]
+    object_keys = [{"Key": s3_object.key} for s3_object in s3_bucket.objects.filter(Prefix=prefix)]
     batch_size = 1000  # AWS S3 delete API limits to 1000 objects per request.
     for batch_number in range(math.ceil(len(object_keys) / batch_size)):
         batch_start = batch_size * batch_number
         batch_end = batch_start + batch_size
         object_keys_batch = object_keys[batch_start:batch_end]
-        s3_bucket.delete_objects(Delete={'Objects': object_keys_batch})
+        s3_bucket.delete_objects(Delete={"Objects": object_keys_batch})
 
     remaining_objects = list(s3_bucket.objects.filter(Prefix=prefix))
     if remaining_objects:
         LOG.warning(
-            'Found %s objects after attempting to delete all objects with prefix %s',
-            len(remaining_objects),
-            prefix,
+            "Found %s objects after attempting to delete all objects with prefix %s", len(remaining_objects), prefix
         )
 
 
-@app.task(name='masu.celery.tasks.sync_data_to_customer',
-          queue_name='customer_data_sync',
-          retry_kwargs={'max_retries': 5,
-                        'countdown': settings.COLD_STORAGE_RETRIVAL_WAIT_TIME})
+@app.task(
+    name="masu.celery.tasks.sync_data_to_customer",
+    queue_name="customer_data_sync",
+    retry_kwargs={"max_retries": 5, "countdown": settings.COLD_STORAGE_RETRIVAL_WAIT_TIME},
+)
 def sync_data_to_customer(dump_request_uuid):
     """
     Scheduled task to sync normalized data to our customers S3 bucket.
@@ -217,26 +204,30 @@ def sync_data_to_customer(dump_request_uuid):
         syncer.sync_bucket(
             dump_request.created_by.customer.schema_name,
             dump_request.bucket_name,
-            (dump_request.start_date, dump_request.end_date))
+            (dump_request.start_date, dump_request.end_date),
+        )
     except ClientError:
         LOG.exception(
-            f'Encountered an error while processing DataExportRequest '
-            f'{dump_request.uuid}, for {dump_request.created_by}.')
+            f"Encountered an error while processing DataExportRequest "
+            f"{dump_request.uuid}, for {dump_request.created_by}."
+        )
         dump_request.status = DataExportRequest.ERROR
         dump_request.save()
         return
     except SyncedFileInColdStorageError:
         LOG.info(
-            f'One of the requested files is currently in cold storage for '
-            f'DataExportRequest {dump_request.uuid}. This task will automatically retry.')
+            f"One of the requested files is currently in cold storage for "
+            f"DataExportRequest {dump_request.uuid}. This task will automatically retry."
+        )
         dump_request.status = DataExportRequest.WAITING
         dump_request.save()
         try:
             raise sync_data_to_customer.retry(countdown=10, max_retries=5)
         except MaxRetriesExceededError:
             LOG.exception(
-                f'Max retires exceeded for restoring a file in cold storage for '
-                f'DataExportRequest {dump_request.uuid}, for {dump_request.created_by}.')
+                f"Max retires exceeded for restoring a file in cold storage for "
+                f"DataExportRequest {dump_request.uuid}, for {dump_request.created_by}."
+            )
             dump_request.status = DataExportRequest.ERROR
             dump_request.save()
             return
@@ -244,7 +235,7 @@ def sync_data_to_customer(dump_request_uuid):
     dump_request.save()
 
 
-@app.task(name='masu.celery.tasks.query_and_upload_to_s3', queue_name='query_upload')
+@app.task(name="masu.celery.tasks.query_and_upload_to_s3", queue_name="query_upload")
 def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, start_date, end_date):
     """
     Query the database and upload the results to s3.
@@ -258,10 +249,10 @@ def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, sta
 
     """
     LOG.info(
-        'query_and_upload_to_s3: schema %s provider_uuid %s table.output_name %s for %s',
+        "query_and_upload_to_s3: schema %s provider_uuid %s table.output_name %s for %s",
         schema_name,
         provider_uuid,
-        table_export_setting['output_name'],
+        table_export_setting["output_name"],
         (start_date, end_date),
     )
     if isinstance(start_date, str):
@@ -270,10 +261,8 @@ def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, sta
         end_date = parse(end_date)
 
     uploader = AwsS3Uploader(settings.S3_BUCKET_NAME)
-    iterate_daily = table_export_setting['iterate_daily']
-    dates_to_iterate = rrule(
-        DAILY, dtstart=start_date, until=end_date if iterate_daily else start_date
-    )
+    iterate_daily = table_export_setting["iterate_daily"]
+    dates_to_iterate = rrule(DAILY, dtstart=start_date, until=end_date if iterate_daily else start_date)
 
     for the_date in dates_to_iterate:
         with NamedTemporaryGZip() as temp_file:
@@ -281,18 +270,18 @@ def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, sta
                 cursor.db.set_schema(schema_name)
                 upload_path = get_upload_path(
                     schema_name,
-                    table_export_setting['provider'],
+                    table_export_setting["provider"],
                     provider_uuid,
                     the_date,
-                    table_export_setting['output_name'],
+                    table_export_setting["output_name"],
                     iterate_daily,
                 )
                 cursor.execute(
-                    table_export_setting['sql'].format(schema=schema_name),
+                    table_export_setting["sql"].format(schema=schema_name),
                     {
-                        'start_date': the_date,
-                        'end_date': the_date if iterate_daily else end_date,
-                        'provider_uuid': provider_uuid,
+                        "start_date": the_date,
+                        "end_date": the_date if iterate_daily else end_date,
+                        "provider_uuid": provider_uuid,
                     },
                 )
                 # Don't upload if result set is empty
@@ -310,15 +299,16 @@ def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, sta
             uploader.upload_file(temp_file.name, upload_path)
 
 
-@app.task(name='masu.celery.tasks.vacuum_schemas', queue_name='reporting')
+@app.task(name="masu.celery.tasks.vacuum_schemas", queue_name="reporting")
 def vacuum_schemas():
     """Vacuum all schemas."""
-    tenants = Tenant.objects.values('schema_name')
+    tenants = Tenant.objects.values("schema_name")
     schema_names = [
-        tenant.get('schema_name') for tenant in tenants
-        if (tenant.get('schema_name') and tenant.get('schema_name') != 'public')
+        tenant.get("schema_name")
+        for tenant in tenants
+        if (tenant.get("schema_name") and tenant.get("schema_name") != "public")
     ]
 
     for schema_name in schema_names:
-        LOG.info('Scheduling VACUUM task for %s', schema_name)
+        LOG.info("Scheduling VACUUM task for %s", schema_name)
         vacuum_schema.delay(schema_name)

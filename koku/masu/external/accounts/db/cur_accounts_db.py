@@ -49,12 +49,12 @@ class CURAccountsDB(CURAccountsInterface):
     def get_account_information(self, provider):
         """Return account information in dictionary."""
         account = {
-            'authentication': self.get_authentication(provider),
-            'customer_name': provider.customer.schema_name,
-            'billing_source': self.get_billing_source(provider),
-            'provider_type': provider.type,
-            'schema_name': provider.customer.schema_name,
-            'provider_uuid': provider.uuid
+            "authentication": self.get_authentication(provider),
+            "customer_name": provider.customer.schema_name,
+            "billing_source": self.get_billing_source(provider),
+            "provider_type": provider.type,
+            "schema_name": provider.customer.schema_name,
+            "provider_uuid": provider.uuid,
         }
         return account
 
@@ -83,7 +83,7 @@ class CURAccountsDB(CURAccountsInterface):
 
             for _, provider in all_providers.items():
                 if provider.active is False:
-                    LOG.info(f'Provider {provider.uuid} is not active. Processing suspended...')
+                    LOG.info(f"Provider {provider.uuid} is not active. Processing suspended...")
                     continue
                 accounts.append(self.get_account_information(provider))
         return accounts

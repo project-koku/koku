@@ -15,7 +15,6 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Downloader for cost usage reports."""
-
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor
 from reporting_common.models import CostUsageReportStatus
@@ -24,7 +23,7 @@ from reporting_common.models import CostUsageReportStatus
 class ReportStatsDBAccessor(KokuDBAccess):
     """Class to interact with the koku database for CUR processing statistics."""
 
-    def __init__(self, report_name, manifest_id, schema='public'):
+    def __init__(self, report_name, manifest_id, schema="public"):
         """
         Establish CUR statistics database connection.
 
@@ -41,8 +40,8 @@ class ReportStatsDBAccessor(KokuDBAccess):
 
         if manifest_id and self.does_db_entry_exist() is False:
             update_fields = {}
-            update_fields['report_name'] = self._report_name
-            update_fields['manifest_id'] = self._manifest_id
+            update_fields["report_name"] = self._report_name
+            update_fields["manifest_id"] = self._manifest_id
             self.add(**update_fields)
 
         self._obj = self._get_db_obj_query().first()
@@ -71,8 +70,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
 
         """
-        return super()._get_db_obj_query(report_name=self._report_name,
-                                         manifest_id=self._manifest_id)
+        return super()._get_db_obj_query(report_name=self._report_name, manifest_id=self._manifest_id)
 
     # pylint: disable=no-self-use
     def get_cursor_position(self):
@@ -118,7 +116,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
             None
 
         """
-        self._obj.last_started_datetime = DateAccessor().today_with_timezone('UTC')
+        self._obj.last_started_datetime = DateAccessor().today_with_timezone("UTC")
         self._obj.save()
 
     def log_last_completed_datetime(self):
@@ -131,7 +129,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
             None
 
         """
-        self._obj.last_completed_datetime = DateAccessor().today_with_timezone('UTC')
+        self._obj.last_completed_datetime = DateAccessor().today_with_timezone("UTC")
         self._obj.save()
 
     def get_etag(self):
@@ -146,11 +144,13 @@ class ReportStatsDBAccessor(KokuDBAccess):
         """
         return self._obj.etag
 
-    def update(self,
-               cursor_position=None,  # pylint: disable=W0613
-               last_completed_datetime=None,
-               last_started_datetime=None,
-               etag=None):
+    def update(
+        self,
+        cursor_position=None,  # pylint: disable=W0613
+        last_completed_datetime=None,
+        last_started_datetime=None,
+        etag=None,
+    ):
         """
         Update a CUR statistics record in the database.
 

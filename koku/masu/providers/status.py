@@ -15,13 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider status."""
-
 import logging
 import random
 from datetime import timedelta
 
-from masu.database.provider_status_accessor import (ProviderStatusAccessor,
-                                                    ProviderStatusCode)
+from masu.database.provider_status_accessor import ProviderStatusAccessor
+from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.external.date_accessor import DateAccessor
 
 LOG = logging.getLogger(__name__)
@@ -32,22 +31,29 @@ class ProviderStatus(ProviderStatusAccessor):
 
     def is_backing_off(self):
         """Determine if the provider is waiting to retry."""
+
         def backoff(interval, maximum=64):
             """Exponential back-off."""
             return min(maximum, (2 ** (interval))) + (random.randint(0, 1000) / 1000.0)
 
         retries = self.get_retries()
         timestamp = self.get_timestamp()
-        backoff_threshold = timestamp + timedelta(hours=backoff(retries,
-                                                                maximum=24))
+        backoff_threshold = timestamp + timedelta(hours=backoff(retries, maximum=24))
 
-        LOG.debug('[%s] Provider: %s, Retries: %s, Timestamp: %s, Threshold: %s',
-                  self.__class__, self.get_provider_uuid(), retries,
-                  timestamp, backoff_threshold)
+        LOG.debug(
+            "[%s] Provider: %s, Retries: %s, Timestamp: %s, Threshold: %s",
+            self.__class__,
+            self.get_provider_uuid(),
+            retries,
+            timestamp,
+            backoff_threshold,
+        )
 
-        if self.get_status() == ProviderStatusCode.WARNING and \
-                retries <= ProviderStatusAccessor.MAX_RETRIES and \
-                DateAccessor().today() <= backoff_threshold:
+        if (
+            self.get_status() == ProviderStatusCode.WARNING
+            and retries <= ProviderStatusAccessor.MAX_RETRIES
+            and DateAccessor().today() <= backoff_threshold
+        ):
             return True
         return False
 
@@ -56,14 +62,14 @@ class ProviderStatus(ProviderStatusAccessor):
         status = self.get_status()
         retries = self.get_retries()
 
-        LOG.debug('[%s] Provider: %s, Status: %s Retries: %s',
-                  self.__class__, self.get_provider_uuid(), status, retries)
+        LOG.debug(
+            "[%s] Provider: %s, Status: %s Retries: %s", self.__class__, self.get_provider_uuid(), status, retries
+        )
 
         if status == ProviderStatusCode.READY:
             return True
 
-        if status == ProviderStatusCode.WARNING and \
-                retries <= ProviderStatusAccessor.MAX_RETRIES:
+        if status == ProviderStatusCode.WARNING and retries <= ProviderStatusAccessor.MAX_RETRIES:
             return True
 
         return False
@@ -79,21 +85,22 @@ class ProviderStatus(ProviderStatusAccessor):
             None
 
         """
-        LOG.debug('Updating provider status: Provider: %s, Status: %s, Error: %s',
-                  self.get_provider_uuid(), status, error)
+        LOG.debug(
+            "Updating provider status: Provider: %s, Status: %s, Error: %s", self.get_provider_uuid(), status, error
+        )
 
         self._obj.status = status
         self._obj.timestamp = DateAccessor().today()
 
         if status == ProviderStatusCode.READY:
-            self._obj.retries = 0    # reset counter on success
+            self._obj.retries = 0  # reset counter on success
         elif status == ProviderStatusCode.WARNING:
             self._obj.retries += 1
 
         if error is not None:
             self._obj.last_message = str(error)
         else:
-            self._obj.last_message = 'none'
+            self._obj.last_message = "none"
         self._obj.save()
 
     def set_error(self, error=None):
@@ -109,6 +116,5 @@ class ProviderStatus(ProviderStatusAccessor):
 
         # stay in error state until Provider is fixed.
         # state will be reset by provider updates made via Koku API
-        if self.get_status() not in [ProviderStatusCode.DISABLED_ERROR,
-                                     ProviderStatusCode.DISABLED_ADMIN]:
+        if self.get_status() not in [ProviderStatusCode.DISABLED_ERROR, ProviderStatusCode.DISABLED_ADMIN]:
             self.set_status(ProviderStatusCode.WARNING, error)

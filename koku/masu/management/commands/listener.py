@@ -29,6 +29,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         """Initialize listener."""
-        LOG.info('Starting Kafka handler')
-        LOG.debug('handle args: %s, kwargs: %s', str(args), str(kwargs))
+        LOG.info("Starting Kafka handler")
+        LOG.debug("handle args: %s, kwargs: %s", str(args), str(kwargs))
         initialize_kafka_handler()

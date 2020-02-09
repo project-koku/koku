@@ -15,30 +15,35 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """OCP-on-All infrastructure Report Serializers."""
-
 import api.report.aws.serializers as awsser
 import api.report.ocp.serializers as ocpser
 from api.report.serializers import validate_field
 
 
-class OCPAllGroupBySerializer(awsser.GroupBySerializer,
-                              ocpser.GroupBySerializer):
+class OCPAllGroupBySerializer(awsser.GroupBySerializer, ocpser.GroupBySerializer):
     """Serializer for handling query parameter group_by."""
 
-    _opfields = ('account', 'az', 'instance_type', 'region',
-                 'service', 'storage_type', 'product_family',
-                 'project', 'cluster', 'node')
+    _opfields = (
+        "account",
+        "az",
+        "instance_type",
+        "region",
+        "service",
+        "storage_type",
+        "product_family",
+        "project",
+        "cluster",
+        "node",
+    )
 
 
-class OCPAllOrderBySerializer(awsser.OrderBySerializer,
-                              ocpser.OrderBySerializer):
+class OCPAllOrderBySerializer(awsser.OrderBySerializer, ocpser.OrderBySerializer):
     """Serializer for handling query parameter order_by."""
 
     pass
 
 
-class OCPAllFilterSerializer(awsser.FilterSerializer,
-                             ocpser.FilterSerializer):
+class OCPAllFilterSerializer(awsser.FilterSerializer, ocpser.FilterSerializer):
     """Serializer for handling query parameter filter."""
 
     pass
@@ -50,9 +55,9 @@ class OCPAllQueryParamSerializer(awsser.QueryParamSerializer):
     def __init__(self, *args, **kwargs):
         """Initialize the OCP query param serializer."""
         super().__init__(*args, **kwargs)
-        self._init_tagged_fields(filter=OCPAllFilterSerializer,
-                                 group_by=OCPAllGroupBySerializer,
-                                 order_by=OCPAllOrderBySerializer)
+        self._init_tagged_fields(
+            filter=OCPAllFilterSerializer, group_by=OCPAllGroupBySerializer, order_by=OCPAllOrderBySerializer
+        )
 
     def validate_group_by(self, value):
         """Validate incoming group_by data.
@@ -65,8 +70,7 @@ class OCPAllQueryParamSerializer(awsser.QueryParamSerializer):
             (ValidationError): if group_by field inputs are invalid
 
         """
-        validate_field(self, 'group_by', OCPAllGroupBySerializer, value,
-                       tag_keys=self.tag_keys)
+        validate_field(self, "group_by", OCPAllGroupBySerializer, value, tag_keys=self.tag_keys)
         return value
 
     def validate_order_by(self, value):
@@ -81,7 +85,7 @@ class OCPAllQueryParamSerializer(awsser.QueryParamSerializer):
 
         """
         super().validate_order_by(value)
-        validate_field(self, 'order_by', OCPAllOrderBySerializer, value)
+        validate_field(self, "order_by", OCPAllOrderBySerializer, value)
         return value
 
     def validate_filter(self, value):
@@ -95,6 +99,5 @@ class OCPAllQueryParamSerializer(awsser.QueryParamSerializer):
             (ValidationError): if filter field inputs are invalid
 
         """
-        validate_field(self, 'filter', OCPAllFilterSerializer, value,
-                       tag_keys=self.tag_keys)
+        validate_field(self, "filter", OCPAllFilterSerializer, value, tag_keys=self.tag_keys)
         return value

@@ -15,39 +15,39 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider Model Serializers."""
-
 from django.conf import settings
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError
+from django.db import transaction
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 from rest_framework.fields import empty
 
-from api.iam.serializers import (AdminCustomerSerializer,
-                                 CustomerSerializer,
-                                 UserSerializer)
-from api.provider.models import (Provider,
-                                 ProviderAuthentication,
-                                 ProviderBillingSource)
+from api.iam.serializers import AdminCustomerSerializer
+from api.iam.serializers import CustomerSerializer
+from api.iam.serializers import UserSerializer
+from api.provider.models import Provider
+from api.provider.models import ProviderAuthentication
+from api.provider.models import ProviderBillingSource
 from providers.provider_access import ProviderAccessor
 
-PROVIDER_CHOICE_LIST = [provider[0] for provider in Provider.PROVIDER_CHOICES if (
-    settings.DEVELOPMENT or (not settings.DEVELOPMENT and '-local' not in provider[0].lower()))]
+PROVIDER_CHOICE_LIST = [
+    provider[0]
+    for provider in Provider.PROVIDER_CHOICES
+    if (settings.DEVELOPMENT or (not settings.DEVELOPMENT and "-local" not in provider[0].lower()))
+]
 LCASE_PROVIDER_CHOICE_LIST = [provider.lower() for provider in PROVIDER_CHOICE_LIST]
 REPORT_PREFIX_MAX_LENGTH = 64
 
 
 def error_obj(key, message):
     """Create an error object."""
-    error = {
-        key: [_(message)]
-    }
+    error = {key: [_(message)]}
     return error
 
 
 def validate_field(data, valid_fields, key):
     """Validate a field."""
-    message = 'One or more required fields is invalid/missing. ' + \
-              f'Required fields are {valid_fields}'
+    message = "One or more required fields is invalid/missing. " + f"Required fields are {valid_fields}"
     diff = set(valid_fields) - set(data)
     if not diff:
         return data
@@ -61,19 +61,18 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
 
     # XXX: This field is DEPRECATED;
     # XXX: the credentials field should be used instead.
-    provider_resource_name = serializers.CharField(
-        required=False, allow_null=True, allow_blank=True)
+    provider_resource_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     credentials = serializers.JSONField(allow_null=True, required=False)
 
     def validate(self, data):
         """Validate authentication parameters."""
-        if not data.get('credentials'):
-            data['credentials'] = data.get('credentials', {})
-        if data.get('provider_resource_name') and not data.get('credentials'):
-            data['credentials'] = {'provider_resource_name': data.get('provider_resource_name')}
-        if data.get('credentials').get('provider_resource_name'):
-            data['provider_resource_name'] = data.get('credentials').get('provider_resource_name')
+        if not data.get("credentials"):
+            data["credentials"] = data.get("credentials", {})
+        if data.get("provider_resource_name") and not data.get("credentials"):
+            data["credentials"] = {"provider_resource_name": data.get("provider_resource_name")}
+        if data.get("credentials").get("provider_resource_name"):
+            data["provider_resource_name"] = data.get("credentials").get("provider_resource_name")
         return data
 
     # pylint: disable=too-few-public-methods
@@ -81,7 +80,7 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
         """Metadata for the serializer."""
 
         model = ProviderAuthentication
-        fields = ('uuid', 'provider_resource_name', 'credentials')
+        fields = ("uuid", "provider_resource_name", "credentials")
 
 
 class AWSAuthenticationSerializer(ProviderAuthenticationSerializer):
@@ -95,8 +94,8 @@ class AzureAuthenticationSerializer(ProviderAuthenticationSerializer):
 
     def validate_credentials(self, creds):
         """Validate credentials field."""
-        key = 'provider.credentials'
-        fields = ['subscription_id', 'tenant_id', 'client_id', 'client_secret']
+        key = "provider.credentials"
+        fields = ["subscription_id", "tenant_id", "client_id", "client_secret"]
         return validate_field(creds, fields, key)
 
 
@@ -115,8 +114,7 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
 
     # XXX: This field is DEPRECATED
     # XXX: the data_source field should be used instead.
-    bucket = serializers.CharField(max_length=63, required=False,
-                                   allow_null=True, allow_blank=True)
+    bucket = serializers.CharField(max_length=63, required=False, allow_null=True, allow_blank=True)
 
     data_source = serializers.JSONField(allow_null=True, required=False)
 
@@ -125,16 +123,16 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
         """Metadata for the serializer."""
 
         model = ProviderBillingSource
-        fields = ('uuid', 'bucket', 'data_source')
+        fields = ("uuid", "bucket", "data_source")
 
     def validate(self, data):
         """Validate billing source."""
-        if not data.get('data_source'):
-            data['data_source'] = data.get('data_source', {})
-        if (data.get('bucket') or data.get('bucket') == '') and not data.get('data_source'):
-            data['data_source'] = {'bucket': data.get('bucket')}
-        if data.get('data_source').get('bucket'):
-            data['bucket'] = data.get('data_source').get('bucket')
+        if not data.get("data_source"):
+            data["data_source"] = data.get("data_source", {})
+        if (data.get("bucket") or data.get("bucket") == "") and not data.get("data_source"):
+            data["data_source"] = {"bucket": data.get("bucket")}
+        if data.get("data_source").get("bucket"):
+            data["bucket"] = data.get("data_source").get("bucket")
         return data
 
 
@@ -149,8 +147,8 @@ class AzureBillingSourceSerializer(ProviderBillingSourceSerializer):
 
     def validate_data_source(self, data_source):
         """Validate data_source field."""
-        key = 'provider.data_source'
-        fields = ['resource_group', 'storage_account']
+        key = "provider.data_source"
+        fields = ["resource_group", "storage_account"]
         return validate_field(data_source, fields, key)
 
 
@@ -161,18 +159,18 @@ class GCPBillingSourceSerializer(ProviderBillingSourceSerializer):
 
     def validate(self, data):
         """Validate data_source field."""
-        data_source = data.get('data_source')
-        bucket = data_source.get('bucket', '')
+        data_source = data.get("data_source")
+        bucket = data_source.get("bucket", "")
         if not bucket:
-            key = 'data_source.bucket'
-            message = 'This field is required.'
+            key = "data_source.bucket"
+            message = "This field is required."
             raise serializers.ValidationError(error_obj(key, message))
 
-        report_prefix = data_source.get('report_prefix', '')
+        report_prefix = data_source.get("report_prefix", "")
         if report_prefix:
             if len(report_prefix) > REPORT_PREFIX_MAX_LENGTH:
-                key = 'data_source.report_prefix'
-                message = f'Ensure this field has no more than {REPORT_PREFIX_MAX_LENGTH} characters.'
+                key = "data_source.report_prefix"
+                message = f"Ensure this field has no more than {REPORT_PREFIX_MAX_LENGTH} characters."
                 raise serializers.ValidationError(error_obj(key, message))
 
         return data
@@ -183,37 +181,38 @@ class OCPBillingSourceSerializer(ProviderBillingSourceSerializer):
 
 
 # Registry of authentication serializers.
-AUTHENTICATION_SERIALIZERS = {Provider.PROVIDER_AWS: AWSAuthenticationSerializer,
-                              Provider.PROVIDER_AWS_LOCAL: AWSAuthenticationSerializer,
-                              Provider.PROVIDER_AZURE: AzureAuthenticationSerializer,
-                              Provider.PROVIDER_AZURE_LOCAL: AzureAuthenticationSerializer,
-                              Provider.PROVIDER_GCP: GCPAuthenticationSerializer,
-                              Provider.PROVIDER_GCP_LOCAL: GCPAuthenticationSerializer,
-                              Provider.PROVIDER_OCP: OCPAuthenticationSerializer,
-                              Provider.OCP_AWS: AWSAuthenticationSerializer,
-                              Provider.OCP_AZURE: AzureAuthenticationSerializer,
-                              }
+AUTHENTICATION_SERIALIZERS = {
+    Provider.PROVIDER_AWS: AWSAuthenticationSerializer,
+    Provider.PROVIDER_AWS_LOCAL: AWSAuthenticationSerializer,
+    Provider.PROVIDER_AZURE: AzureAuthenticationSerializer,
+    Provider.PROVIDER_AZURE_LOCAL: AzureAuthenticationSerializer,
+    Provider.PROVIDER_GCP: GCPAuthenticationSerializer,
+    Provider.PROVIDER_GCP_LOCAL: GCPAuthenticationSerializer,
+    Provider.PROVIDER_OCP: OCPAuthenticationSerializer,
+    Provider.OCP_AWS: AWSAuthenticationSerializer,
+    Provider.OCP_AZURE: AzureAuthenticationSerializer,
+}
 
 
 # Registry of billing_source serializers.
-BILLING_SOURCE_SERIALIZERS = {Provider.PROVIDER_AWS: AWSBillingSourceSerializer,
-                              Provider.PROVIDER_AWS_LOCAL: AWSBillingSourceSerializer,
-                              Provider.PROVIDER_AZURE: AzureBillingSourceSerializer,
-                              Provider.PROVIDER_AZURE_LOCAL: AzureBillingSourceSerializer,
-                              Provider.PROVIDER_GCP: GCPBillingSourceSerializer,
-                              Provider.PROVIDER_GCP_LOCAL: GCPBillingSourceSerializer,
-                              Provider.PROVIDER_OCP: OCPBillingSourceSerializer,
-                              Provider.OCP_AWS: AWSBillingSourceSerializer,
-                              Provider.OCP_AZURE: AzureBillingSourceSerializer,
-                              }
+BILLING_SOURCE_SERIALIZERS = {
+    Provider.PROVIDER_AWS: AWSBillingSourceSerializer,
+    Provider.PROVIDER_AWS_LOCAL: AWSBillingSourceSerializer,
+    Provider.PROVIDER_AZURE: AzureBillingSourceSerializer,
+    Provider.PROVIDER_AZURE_LOCAL: AzureBillingSourceSerializer,
+    Provider.PROVIDER_GCP: GCPBillingSourceSerializer,
+    Provider.PROVIDER_GCP_LOCAL: GCPBillingSourceSerializer,
+    Provider.PROVIDER_OCP: OCPBillingSourceSerializer,
+    Provider.OCP_AWS: AWSBillingSourceSerializer,
+    Provider.OCP_AZURE: AzureBillingSourceSerializer,
+}
 
 
 class ProviderSerializer(serializers.ModelSerializer):
     """Serializer for the Provider model."""
 
     uuid = serializers.UUIDField(allow_null=True, required=False)
-    name = serializers.CharField(max_length=256, required=True,
-                                 allow_null=False, allow_blank=False)
+    name = serializers.CharField(max_length=256, required=True, allow_null=False, allow_blank=False)
     type = serializers.ChoiceField(choices=LCASE_PROVIDER_CHOICE_LIST)
     created_timestamp = serializers.DateTimeField(read_only=True)
     customer = CustomerSerializer(read_only=True)
@@ -225,8 +224,17 @@ class ProviderSerializer(serializers.ModelSerializer):
         """Metadata for the serializer."""
 
         model = Provider
-        fields = ('uuid', 'name', 'type', 'authentication', 'billing_source',
-                  'customer', 'created_by', 'created_timestamp', 'active')
+        fields = (
+            "uuid",
+            "name",
+            "type",
+            "authentication",
+            "billing_source",
+            "customer",
+            "created_by",
+            "created_timestamp",
+            "active",
+        )
 
     def __init__(self, instance=None, data=empty, **kwargs):
         """Initialize the Provider Serializer.
@@ -238,61 +246,61 @@ class ProviderSerializer(serializers.ModelSerializer):
 
         provider_type = None
         if data and data != empty:
-            provider_type = data.get('type')
+            provider_type = data.get("type")
 
         if provider_type and provider_type.lower() not in LCASE_PROVIDER_CHOICE_LIST:
-            key = 'type'
-            message = f'{provider_type} is not a valid source type.'
+            key = "type"
+            message = f"{provider_type} is not a valid source type."
             raise serializers.ValidationError(error_obj(key, message))
 
         if provider_type:
             provider_type = provider_type.lower()
-            self.fields['authentication'] = AUTHENTICATION_SERIALIZERS.get(
-                Provider.PROVIDER_CASE_MAPPING.get(provider_type))()
-            self.fields['billing_source'] = BILLING_SOURCE_SERIALIZERS.get(
-                Provider.PROVIDER_CASE_MAPPING.get(provider_type))(
-                default={'bucket': '', 'data_source': {'bucket': ''}}
-            )
+            self.fields["authentication"] = AUTHENTICATION_SERIALIZERS.get(
+                Provider.PROVIDER_CASE_MAPPING.get(provider_type)
+            )()
+            self.fields["billing_source"] = BILLING_SOURCE_SERIALIZERS.get(
+                Provider.PROVIDER_CASE_MAPPING.get(provider_type)
+            )(default={"bucket": "", "data_source": {"bucket": ""}})
         else:
-            self.fields['authentication'] = ProviderAuthenticationSerializer()
-            self.fields['billing_source'] = ProviderBillingSourceSerializer()
+            self.fields["authentication"] = ProviderAuthenticationSerializer()
+            self.fields["billing_source"] = ProviderBillingSourceSerializer()
 
     @transaction.atomic
     def create(self, validated_data):
         """Create a provider from validated data."""
         user = None
         customer = None
-        request = self.context.get('request')
-        if request and hasattr(request, 'user'):
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
             user = request.user
             if user.customer:
                 customer = user.customer
             else:
-                key = 'customer'
-                message = 'Customer for requesting user could not be found.'
+                key = "customer"
+                message = "Customer for requesting user could not be found."
                 raise serializers.ValidationError(error_obj(key, message))
         else:
-            key = 'created_by'
-            message = 'Requesting user could not be found.'
+            key = "created_by"
+            message = "Requesting user could not be found."
             raise serializers.ValidationError(error_obj(key, message))
 
-        if 'billing_source' in validated_data:
-            billing_source = validated_data.pop('billing_source')
-            data_source = billing_source.get('data_source', {})
-            bucket = data_source.get('bucket')
+        if "billing_source" in validated_data:
+            billing_source = validated_data.pop("billing_source")
+            data_source = billing_source.get("data_source", {})
+            bucket = data_source.get("bucket")
         else:
             # Because of a unique together constraint, this is done
             # to allow for this field to be non-required for OCP
             # but will still have a blank no-op entry in the DB
-            billing_source = {'bucket': '', 'data_source': {}}
+            billing_source = {"bucket": "", "data_source": {}}
             data_source = None
 
-        authentication = validated_data.pop('authentication')
-        credentials = authentication.get('credentials')
-        provider_resource_name = credentials.get('provider_resource_name')
-        provider_type = validated_data['type']
+        authentication = validated_data.pop("authentication")
+        credentials = authentication.get("credentials")
+        provider_resource_name = credentials.get("provider_resource_name")
+        provider_type = validated_data["type"]
         provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type)
-        validated_data['type'] = provider_type
+        validated_data["type"] = provider_type
         interface = ProviderAccessor(provider_type)
 
         if credentials and data_source and provider_type not in [Provider.PROVIDER_AWS, Provider.PROVIDER_OCP]:
@@ -304,10 +312,11 @@ class ProviderSerializer(serializers.ModelSerializer):
         auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
 
         # We can re-use a billing source or a auth, but not the same combination.
-        unique_count = Provider.objects.filter(authentication=auth)\
-            .filter(billing_source=bill).filter(customer=customer).count()
+        unique_count = (
+            Provider.objects.filter(authentication=auth).filter(billing_source=bill).filter(customer=customer).count()
+        )
         if unique_count != 0:
-            error = {'Error': 'A Provider already exists with that Authentication and Billing Source'}
+            error = {"Error": "A Provider already exists with that Authentication and Billing Source"}
             raise serializers.ValidationError(error)
 
         provider = Provider.objects.create(**validated_data)
@@ -322,21 +331,21 @@ class ProviderSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
-        provider_type = validated_data['type'].lower()
+        provider_type = validated_data["type"].lower()
         provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type)
-        validated_data['type'] = provider_type
+        validated_data["type"] = provider_type
         if instance.type != provider_type:
-            error = {'Error': 'The Provider Type cannot be changed with a PUT request.'}
+            error = {"Error": "The Provider Type cannot be changed with a PUT request."}
             raise serializers.ValidationError(error)
         interface = ProviderAccessor(provider_type)
 
-        authentication = validated_data.pop('authentication')
-        credentials = authentication.get('credentials')
-        provider_resource_name = credentials.get('provider_resource_name')
+        authentication = validated_data.pop("authentication")
+        credentials = authentication.get("credentials")
+        provider_resource_name = credentials.get("provider_resource_name")
 
-        billing_source = validated_data.pop('billing_source')
-        data_source = billing_source.get('data_source')
-        bucket = billing_source.get('bucket')
+        billing_source = validated_data.pop("billing_source")
+        data_source = billing_source.get("data_source")
+        bucket = billing_source.get("bucket")
 
         try:
             if credentials and data_source and provider_type not in [Provider.PROVIDER_AWS, Provider.PROVIDER_OCP]:
@@ -362,7 +371,7 @@ class ProviderSerializer(serializers.ModelSerializer):
             try:
                 instance.save()
             except IntegrityError:
-                error = {'Error': 'A Provider already exists with that Authentication and Billing Source'}
+                error = {"Error": "A Provider already exists with that Authentication and Billing Source"}
                 raise serializers.ValidationError(error)
             return instance
 

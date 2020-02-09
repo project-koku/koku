@@ -14,9 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """View for OpenShift on AWS Usage Reports."""
-
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.models import Provider
@@ -60,7 +58,7 @@ class OCPAWSCostView(OCPAWSView):
 
     """
 
-    report = 'costs'
+    report = "costs"
 
 
 class OCPAWSStorageView(OCPAWSView):
@@ -133,7 +131,7 @@ class OCPAWSStorageView(OCPAWSView):
 
     """
 
-    report = 'storage'
+    report = "storage"
 
 
 class OCPAWSInstanceTypeView(OCPAWSView):
@@ -234,4 +232,4 @@ class OCPAWSInstanceTypeView(OCPAWSView):
 
     """
 
-    report = 'instance_type'
+    report = "instance_type"
