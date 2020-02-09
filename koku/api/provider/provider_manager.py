@@ -189,6 +189,8 @@ class ProviderManager:
             raise ProviderManagerError(err_msg)
 
 
+# from django.db.signals import post_save
+# from django.db.signals import receiver
 # @receiver(post_save, sender=Provider)
 # def provider_post_save_callback(sender, instance, created, **kwargs):
 #     """Kickoff report download on Provider.save."""
