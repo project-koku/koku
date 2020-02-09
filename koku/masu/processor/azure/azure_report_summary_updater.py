@@ -55,25 +55,18 @@ class AzureReportSummaryUpdater:
             if self._manifest:
                 # Override the bill date to correspond with the manifest
                 bill_date = self._manifest.billing_period_start_datetime.date()
-                bills = accessor.get_cost_entry_bills_query_by_provider(
-                    self._provider.uuid
-                )
+                bills = accessor.get_cost_entry_bills_query_by_provider(self._provider.uuid)
                 bills = bills.filter(billing_period_start=bill_date).all()
 
                 do_month_update = False
                 with schema_context(self._schema):
-                    do_month_update = self._determine_if_full_summary_update_needed(
-                        bills[0]
-                    )
+                    do_month_update = self._determine_if_full_summary_update_needed(bills[0])
                 if do_month_update:
-                    last_day_of_month = calendar.monthrange(
-                        bill_date.year,
-                        bill_date.month
-                    )[1]
-                    start_date = bill_date.strftime('%Y-%m-%d')
+                    last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
+                    start_date = bill_date.strftime("%Y-%m-%d")
                     end_date = bill_date.replace(day=last_day_of_month)
-                    end_date = end_date.strftime('%Y-%m-%d')
-                    LOG.info('Overriding start and end date to process full month.')
+                    end_date = end_date.strftime("%Y-%m-%d")
+                    LOG.info("Overriding start and end date to process full month.")
 
         return start_date, end_date
 
@@ -88,7 +81,7 @@ class AzureReportSummaryUpdater:
             (str, str): A start date and end date.
 
         """
-        LOG.info('update_daily_tables for: %s-%s', str(start_date), str(end_date))
+        LOG.info("update_daily_tables for: %s-%s", str(start_date), str(end_date))
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
         return start_date, end_date
@@ -104,13 +97,13 @@ class AzureReportSummaryUpdater:
             (str, str) A start date and end date.
 
         """
-        LOG.info('update_summary_tables for: %s-%s', str(start_date), str(end_date))
+        LOG.info("update_summary_tables for: %s-%s", str(start_date), str(end_date))
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
         bills = get_bills_from_provider(
             self._provider.uuid,
             self._schema,
-            datetime.datetime.strptime(start_date, '%Y-%m-%d'),
-            datetime.datetime.strptime(end_date, '%Y-%m-%d')
+            datetime.datetime.strptime(start_date, "%Y-%m-%d"),
+            datetime.datetime.strptime(end_date, "%Y-%m-%d"),
         )
         bill_ids = []
         with schema_context(self._schema):
@@ -121,20 +114,18 @@ class AzureReportSummaryUpdater:
             bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
             for start, end in date_range_pair(start_date, end_date):
                 LOG.info(
-                    'Updating Azure report summary tables: \n\tSchema: %s'
-                    '\n\tProvider: %s \n\tDates: %s - %s',
-                    self._schema, self._provider.uuid, start, end
+                    "Updating Azure report summary tables: \n\tSchema: %s" "\n\tProvider: %s \n\tDates: %s - %s",
+                    self._schema,
+                    self._provider.uuid,
+                    start,
+                    end,
                 )
-                accessor.populate_line_item_daily_summary_table(
-                    start, end, bill_ids
-                )
+                accessor.populate_line_item_daily_summary_table(start, end, bill_ids)
             accessor.populate_tags_summary_table()
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
-                    bill.summary_data_creation_datetime = \
-                        self._date_accessor.today_with_timezone('UTC')
-                bill.summary_data_updated_datetime = \
-                    self._date_accessor.today_with_timezone('UTC')
+                    bill.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
+                bill.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
                 bill.save()
 
         return start_date, end_date

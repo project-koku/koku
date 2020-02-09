@@ -14,40 +14,39 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """API views for import organization"""
 # flake8: noqa
 # pylint: disable=unused-import
+from api.cloud_accounts.views import CloudAccountViewSet
 from api.dataexport.views import DataExportRequestViewSet
 from api.iam.view.user_preference import UserPreferenceViewSet
 from api.metrics.views import CostModelMetricsMapViewSet
 from api.openapi.view import openapi
 from api.provider.view import ProviderViewSet
-from api.report.all.openshift.view import (OCPAllCostView,
-                                           OCPAllInstanceTypeView,
-                                           OCPAllStorageView)
-from api.report.azure.view import (AzureCostView,
-                                   AzureInstanceTypeView,
-                                   AzureStorageView)
-from api.report.azure.openshift.view import (OCPAzureCostView,
-                                             OCPAzureInstanceTypeView,
-                                             OCPAzureStorageView)
-from api.report.aws.view import (AWSCostView,
-                                 AWSInstanceTypeView,
-                                 AWSStorageView)
-from api.report.ocp.view import (OCPCostView,
-                                 OCPCpuView,
-                                 OCPMemoryView,
-                                 OCPVolumeView)
-from api.report.ocp_aws.view import (OCPAWSCostView,
-                                     OCPAWSInstanceTypeView,
-                                     OCPAWSStorageView)
+from api.report.all.openshift.view import OCPAllCostView
+from api.report.all.openshift.view import OCPAllInstanceTypeView
+from api.report.all.openshift.view import OCPAllStorageView
+from api.report.aws.view import AWSCostView
+from api.report.aws.view import AWSInstanceTypeView
+from api.report.aws.view import AWSStorageView
+from api.report.azure.openshift.view import OCPAzureCostView
+from api.report.azure.openshift.view import OCPAzureInstanceTypeView
+from api.report.azure.openshift.view import OCPAzureStorageView
+from api.report.azure.view import AzureCostView
+from api.report.azure.view import AzureInstanceTypeView
+from api.report.azure.view import AzureStorageView
+from api.report.ocp.view import OCPCostView
+from api.report.ocp.view import OCPCpuView
+from api.report.ocp.view import OCPMemoryView
+from api.report.ocp.view import OCPVolumeView
+from api.report.ocp_aws.view import OCPAWSCostView
+from api.report.ocp_aws.view import OCPAWSInstanceTypeView
+from api.report.ocp_aws.view import OCPAWSStorageView
+from api.sources.view import SourcesProxyViewSet
 from api.status.views import StatusView
 from api.tags.all.openshift.view import OCPAllTagView
 from api.tags.aws.view import AWSTagView
-from api.tags.azure.view import AzureTagView
 from api.tags.azure.openshift.view import OCPAzureTagView
+from api.tags.azure.view import AzureTagView
 from api.tags.ocp.view import OCPTagView
 from api.tags.ocp_aws.view import OCPAWSTagView
-from api.sources.view import SourcesProxyViewSet
-from api.cloud_accounts.views import CloudAccountViewSet

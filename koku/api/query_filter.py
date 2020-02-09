@@ -15,7 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """QueryFilterfor Reports."""
-from collections import UserDict, defaultdict
+from collections import defaultdict
+from collections import UserDict
 
 from django.db.models import Q
 
@@ -23,15 +24,23 @@ from django.db.models import Q
 class QueryFilter(UserDict):
     """Dict-like object representing a single query filter."""
 
-    SEP = '__'    # separator
+    SEP = "__"  # separator
     table = None
     field = None
     operation = None
     parameter = None
     composition_key = None
 
-    def __init__(self, table=None, field=None, operation=None, parameter=None,
-                 composition_key=None, custom=None, logical_operator=None):
+    def __init__(
+        self,
+        table=None,
+        field=None,
+        operation=None,
+        parameter=None,
+        composition_key=None,
+        custom=None,
+        logical_operator=None,
+    ):
         """Constructor.
 
         Args:
@@ -43,21 +52,19 @@ class QueryFilter(UserDict):
             logical_operator (str) - 'and' or 'or'
 
         """
-        super().__init__(table=table, field=field, operation=operation,
-                         parameter=parameter)
+        super().__init__(table=table, field=field, operation=operation, parameter=parameter)
         self.table = table
         self.field = field
         self.operation = operation
         self.parameter = parameter
         self.composition_key = composition_key
-        self.logical_operator = 'or'
+        self.logical_operator = "or"
         if logical_operator:
             self.logical_operator = logical_operator
 
     def composed_query_string(self):
         """Return compiled query string."""
-        fields = [entry for entry in [self.table, self.field, self.operation]
-                  if entry is not None]
+        fields = [entry for entry in [self.table, self.field, self.operation] if entry is not None]
         return self.SEP.join(fields)
 
     def compose_key(self):
@@ -91,8 +98,7 @@ class QueryFilter(UserDict):
         elif len(parts) == 2:
             self.table, self.operation = parts
         else:
-            message = 'Incorrect number of parts in query string. ' + \
-                'Need at least two of [table, field, operation].'
+            message = "Incorrect number of parts in query string. " + "Need at least two of [table, field, operation]."
             raise TypeError(message)
         return self
 
@@ -105,7 +111,7 @@ class QueryFilter(UserDict):
         return str(self.composed_Q())
 
 
-class QueryFilterCollection(object):
+class QueryFilterCollection:
     """Object representing a set of filters for a query.
 
     This object behaves in list-like ways.
@@ -119,18 +125,17 @@ class QueryFilterCollection(object):
 
         """
         if filters is None:
-            self._filters = list()    # a list of QueryFilter objects
+            self._filters = list()  # a list of QueryFilter objects
         else:
             if not isinstance(filters, list):
-                raise TypeError('filters must be a list')
+                raise TypeError("filters must be a list")
 
             if not all(isinstance(item, QueryFilter) for item in filters):
-                raise TypeError('Filters list must contain QueryFilters.')
+                raise TypeError("Filters list must contain QueryFilters.")
 
             self._filters = filters
 
-    def add(self, query_filter=None, table=None, field=None,
-            operation=None, parameter=None):
+    def add(self, query_filter=None, table=None, field=None, operation=None, parameter=None):
         """Add a query filter to the collection.
 
         QueryFilterCollection does try to maintain filter uniqueness. A new
@@ -147,16 +152,15 @@ class QueryFilterCollection(object):
             parameter (object) query object
 
         """
-        error_message = 'query_filter can not be defined with other parameters'
+        error_message = "query_filter can not be defined with other parameters"
         if query_filter and (table or field or operation or parameter):
             raise AttributeError(error_message)
 
         if query_filter and query_filter not in self:
             self._filters.append(query_filter)
 
-        if (table or field or operation or parameter):
-            qf = QueryFilter(table=table, field=field, operation=operation,
-                             parameter=parameter)
+        if table or field or operation or parameter:
+            qf = QueryFilter(table=table, field=field, operation=operation, parameter=parameter)
             if qf not in self:
                 self._filters.append(qf)
 
@@ -169,9 +173,9 @@ class QueryFilterCollection(object):
         """
         composed_query = None
         compose_dict = defaultdict(list)
-        operator = 'and'
-        if logical_operator == 'or':
-            operator = 'or'
+        operator = "and"
+        if logical_operator == "or":
+            operator = "or"
 
         for filt in self._filters:
             filt_key = filt.compose_key()
@@ -182,14 +186,14 @@ class QueryFilterCollection(object):
             for filter_item in filter_list:
                 if or_filter is None:
                     or_filter = filter_item.composed_Q()
-                elif filter_item.logical_operator == 'and':
+                elif filter_item.logical_operator == "and":
                     or_filter = or_filter & filter_item.composed_Q()
                 else:
                     or_filter = or_filter | filter_item.composed_Q()
             if composed_query is None:
                 composed_query = or_filter
             else:
-                if operator == 'or':
+                if operator == "or":
                     composed_query = composed_query | or_filter
                 else:
                     composed_query = composed_query & or_filter
@@ -232,17 +236,16 @@ class QueryFilterCollection(object):
 
     def __repr__(self):
         """Return string representation."""
-        out = f'{self.__class__}: '
+        out = f"{self.__class__}: "
         for filt in self._filters:
-            out += filt.__repr__() + ', '
+            out += filt.__repr__() + ", "
         return out
 
     def __len__(self):
         """Return the length of the collection."""
         return len(self._filters)
 
-    def delete(self, query_filter=None, table=None, field=None,
-               operation=None, parameter=None):
+    def delete(self, query_filter=None, table=None, field=None, operation=None, parameter=None):
         """Delete a query filter from the collection.
 
         Args:
@@ -256,16 +259,15 @@ class QueryFilterCollection(object):
             parameter (object) query object
 
         """
-        error_message = 'query_filter can not be defined with other parameters'
+        error_message = "query_filter can not be defined with other parameters"
         if query_filter and (table or field or operation or parameter):
             raise AttributeError(error_message)
 
         if query_filter and query_filter in self:
             self._filters.remove(query_filter)
 
-        if (table or field or operation or parameter):
-            qf = QueryFilter(table=table, field=field, operation=operation,
-                             parameter=parameter)
+        if table or field or operation or parameter:
+            qf = QueryFilter(table=table, field=field, operation=operation, parameter=parameter)
             if qf in self:
                 self._filters.remove(qf)
 
@@ -294,10 +296,8 @@ class QueryFilterCollection(object):
 
         """
         for idx, filt in enumerate(self._filters):
-            filter_values = [filt.get(key) for key in search.keys()
-                             if filt.get(key)]
-            search_values = [search.get(key) for key in search.keys()
-                             if search.get(key)]
+            filter_values = [filt.get(key) for key in search.keys() if filt.get(key)]
+            search_values = [search.get(key) for key in search.keys() if search.get(key)]
             filter_values.sort()
             search_values.sort()
             if search_values == filter_values:

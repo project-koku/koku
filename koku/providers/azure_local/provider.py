@@ -20,17 +20,15 @@ import logging
 from django.utils.translation import ugettext as _
 from rest_framework.serializers import ValidationError
 
-from api.models import Provider
 from ..azure.provider import AzureProvider
+from api.models import Provider
 
 LOG = logging.getLogger(__name__)
 
 
 def error_obj(key, message):
     """Create an error object."""
-    error = {
-        key: [_(message)]
-    }
+    error = {key: [_(message)]}
     return error
 
 
@@ -41,8 +39,7 @@ class AzureLocalProvider(AzureProvider):
         """Return name of the provider."""
         return Provider.PROVIDER_AZURE_LOCAL
 
-    def cost_usage_source_is_reachable(self, credential_name,
-                                       storage_resource_name):
+    def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
         """
         Verify that the cost usage report source is reachable by Koku.
 
@@ -69,17 +66,16 @@ class AzureLocalProvider(AzureProvider):
             ValidationError: Error string
 
         """
-        key = 'billing_source.bucket'
+        key = "billing_source.bucket"
 
-        if not (isinstance(credential_name, dict)
-                and isinstance(storage_resource_name, dict)):
-            message = f'Resource group and/or Storage account must be a dict'
+        if not (isinstance(credential_name, dict) and isinstance(storage_resource_name, dict)):
+            message = f"Resource group and/or Storage account must be a dict"
             raise ValidationError(error_obj(key, message))
 
-        resource_group = storage_resource_name.get('resource_group')
-        storage_account = storage_resource_name.get('storage_account')
+        resource_group = storage_resource_name.get("resource_group")
+        storage_account = storage_resource_name.get("storage_account")
         if not (resource_group and storage_account):
-            message = 'resource_group or storage_account is undefined.'
+            message = "resource_group or storage_account is undefined."
             raise ValidationError(error_obj(key, message))
 
         return True

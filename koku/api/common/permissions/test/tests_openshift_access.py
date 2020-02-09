@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Tests for OpenShift Access Permissions."""
-
 from unittest.mock import Mock
 
 from django.test import TestCase
@@ -45,18 +44,18 @@ class OpenShiftAccessPermissionTest(TestCase):
 
     def test_has_perm_with_access_on_get(self):
         """Test that a user with access can execute."""
-        access = {'openshift.cluster': {'read': ['*']}}
+        access = {"openshift.cluster": {"read": ["*"]}}
         user = Mock(spec=User, access=access, admin=False)
-        req = Mock(user=user, method='GET')
+        req = Mock(user=user, method="GET")
         accessPerm = OpenShiftAccessPermission()
         result = accessPerm.has_permission(request=req, view=None)
         self.assertTrue(result)
 
     def test_has_perm_with_access_on_put(self):
         """Test that a user with access can execute."""
-        access = {'openshift.cluster': {'read': ['*']}}
+        access = {"openshift.cluster": {"read": ["*"]}}
         user = Mock(spec=User, access=access, admin=False)
-        req = Mock(user=user, method='PUT')
+        req = Mock(user=user, method="PUT")
         accessPerm = OpenShiftAccessPermission()
         result = accessPerm.has_permission(request=req, view=None)
         self.assertFalse(result)

@@ -27,7 +27,7 @@ LOG = logging.getLogger(__name__)
 
 
 # pylint: disable=too-few-public-methods
-class ReportDownloaderBase():
+class ReportDownloaderBase:
     """
     Download cost reports from a provider.
 
@@ -57,19 +57,16 @@ class ReportDownloaderBase():
         if download_path:
             self.download_path = download_path
         else:
-            self.download_path = mkdtemp(prefix='masu')
+            self.download_path = mkdtemp(prefix="masu")
         self._provider_uuid = None
-        if 'provider_uuid' in kwargs:
-            self._provider_uuid = kwargs['provider_uuid']
+        if "provider_uuid" in kwargs:
+            self._provider_uuid = kwargs["provider_uuid"]
 
     def _get_existing_manifest_db_id(self, assembly_id):
         """Return a manifest DB object if it exists."""
         manifest_id = None
         with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest(
-                assembly_id,
-                self._provider_uuid
-            )
+            manifest = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
             if manifest:
                 manifest_id = manifest.id
         return manifest_id
@@ -81,7 +78,7 @@ class ReportDownloaderBase():
 
         def unroll(obj):
             """Unwrap list values."""
-            return [task.get('id') for tasklist in obj for task in tasklist]
+            return [task.get("id") for tasklist in obj for task in tasklist]
 
         active = unroll(inspect.active().values())
         reserved = unroll(inspect.reserved().values())
@@ -102,13 +99,10 @@ class ReportDownloaderBase():
 
         Returns True if the manifest should be downloaded and processed.
         """
-        today = DateAccessor().today_with_timezone('UTC')
+        today = DateAccessor().today_with_timezone("UTC")
         last_completed_cutoff = today - datetime.timedelta(hours=1)
         with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest(
-                assembly_id,
-                self._provider_uuid
-            )
+            manifest = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
 
             if manifest:
                 if manifest.task and self.check_task_queues(manifest.task):
@@ -122,11 +116,8 @@ class ReportDownloaderBase():
                 num_processed_files = manifest.num_processed_files
                 num_total_files = manifest.num_total_files
                 if num_processed_files < num_total_files:
-                    completed_datetime = manifest_accessor.get_last_report_completed_datetime(
-                        manifest_id
-                    )
-                    if (completed_datetime and completed_datetime < last_completed_cutoff) or \
-                            not completed_datetime:
+                    completed_datetime = manifest_accessor.get_last_report_completed_datetime(manifest_id)
+                    if (completed_datetime and completed_datetime < last_completed_cutoff) or not completed_datetime:
                         # It has been more than an hour since we processed a file
                         # and we didn't finish processing. Or, if there is a
                         # start time but no completion time recorded.
@@ -142,23 +133,19 @@ class ReportDownloaderBase():
 
     def _process_manifest_db_record(self, assembly_id, billing_start, num_of_files):
         """Insert or update the manifest DB record."""
-        LOG.info('Inserting manifest database record for assembly_id: %s', assembly_id)
+        LOG.info("Inserting manifest database record for assembly_id: %s", assembly_id)
 
         with ReportManifestDBAccessor() as manifest_accessor:
-            manifest_entry = manifest_accessor.get_manifest(
-                assembly_id,
-                self._provider_uuid
-            )
+            manifest_entry = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
 
             if not manifest_entry:
-                LOG.info('No manifest entry found.  Adding for bill period start: %s',
-                         billing_start)
+                LOG.info("No manifest entry found.  Adding for bill period start: %s", billing_start)
                 manifest_dict = {
-                    'assembly_id': assembly_id,
-                    'billing_period_start_datetime': billing_start,
-                    'num_total_files': num_of_files,
-                    'provider_uuid': self._provider_uuid,
-                    'task': self._task.request.id
+                    "assembly_id": assembly_id,
+                    "billing_period_start_datetime": billing_start,
+                    "num_total_files": num_of_files,
+                    "provider_uuid": self._provider_uuid,
+                    "task": self._task.request.id,
                 }
                 manifest_entry = manifest_accessor.add(**manifest_dict)
 

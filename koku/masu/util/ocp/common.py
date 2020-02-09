@@ -51,16 +51,16 @@ def get_report_details(report_directory):
              manifest_path: String"
 
     """
-    manifest_path = '{}/{}'.format(report_directory, 'manifest.json')
+    manifest_path = "{}/{}".format(report_directory, "manifest.json")
 
     payload_dict = {}
     try:
         with open(manifest_path) as file:
             payload_dict = json.load(file)
-            payload_dict['date'] = parser.parse(payload_dict['date'])
-            payload_dict['manifest_path'] = manifest_path
+            payload_dict["date"] = parser.parse(payload_dict["date"])
+            payload_dict["manifest_path"] = manifest_path
     except (OSError, IOError, KeyError) as exc:
-        LOG.error('Unable to extract manifest data: %s', exc)
+        LOG.error("Unable to extract manifest data: %s", exc)
 
     return payload_dict
 
@@ -82,9 +82,8 @@ def month_date_range(for_date_time):
     """
     start_month = for_date_time.replace(day=1, second=1, microsecond=1)
     end_month = start_month + relativedelta(months=+1)
-    timeformat = '%Y%m%d'
-    return '{}-{}'.format(start_month.strftime(timeformat),
-                          end_month.strftime(timeformat))
+    timeformat = "%Y%m%d"
+    return "{}-{}".format(start_month.strftime(timeformat), end_month.strftime(timeformat))
 
 
 def get_local_file_name(file_path):
@@ -98,9 +97,9 @@ def get_local_file_name(file_path):
         (String): file name for the local file.
 
     """
-    filename = file_path.split('/')[-1]
-    date_range = file_path.split('/')[-2]
-    local_file_name = f'{date_range}_{filename}'
+    filename = file_path.split("/")[-1]
+    date_range = file_path.split("/")[-2]
+    local_file_name = f"{date_range}_{filename}"
     return local_file_name
 
 
@@ -120,8 +119,7 @@ def get_cluster_id_from_provider(provider_uuid):
         provider_type = provider_accessor.get_type()
 
     if provider_type not in (Provider.PROVIDER_OCP,):
-        err_msg = 'Provider UUID is not an OpenShift type.  It is {}'.\
-            format(provider_type)
+        err_msg = f"Provider UUID is not an OpenShift type.  It is {provider_type}"
         LOG.warning(err_msg)
         return cluster_id
 
@@ -129,6 +127,27 @@ def get_cluster_id_from_provider(provider_uuid):
         cluster_id = provider_accessor.get_authentication()
 
     return cluster_id
+
+
+def get_cluster_alias_from_cluster_id(cluster_id):
+    """
+    Return the cluster alias of a given cluster id.
+
+    Args:
+        cluster_id (String): OpenShift Cluster ID
+
+    Returns:
+        (String): OpenShift Cluster Alias
+
+    """
+    cluster_alias = None
+    auth_id = None
+    with ProviderAuthDBAccessor(provider_resource_name=cluster_id) as auth_accessor:
+        auth_id = auth_accessor.get_auth_id()
+        if auth_id:
+            with ProviderDBAccessor(auth_id=auth_id) as provider_accessor:
+                cluster_alias = provider_accessor.get_provider_name()
+    return cluster_alias
 
 
 def get_provider_uuid_from_cluster_id(cluster_id):
@@ -170,5 +189,5 @@ def poll_ingest_override_for_provider(provider_uuid):
 
     """
     cluster_id = get_cluster_id_from_provider(provider_uuid)
-    local_ingest_path = '{}/{}'.format(Config.INSIGHTS_LOCAL_REPORT_DIR, str(cluster_id))
+    local_ingest_path = "{}/{}".format(Config.INSIGHTS_LOCAL_REPORT_DIR, str(cluster_id))
     return os.path.exists(local_ingest_path)

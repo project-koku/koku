@@ -14,9 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Serializer to capture server status."""
-
 from rest_framework import serializers
 
 from .models import Status
@@ -36,4 +34,4 @@ class StatusSerializer(serializers.Serializer):
         """Metadata for the serializer."""
 
         model = Status
-        fields = '__all__'
+        fields = "__all__"

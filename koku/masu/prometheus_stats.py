@@ -15,47 +15,52 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Prometheus Stats."""
-from prometheus_client import CollectorRegistry, Counter, multiprocess, start_http_server
+from prometheus_client import CollectorRegistry
+from prometheus_client import Counter
+from prometheus_client import multiprocess
+from prometheus_client import start_http_server
 
 
 WORKER_REGISTRY = CollectorRegistry()
 multiprocess.MultiProcessCollector(WORKER_REGISTRY)
 
-GET_REPORT_ATTEMPTS_COUNTER = Counter('get_report_files_attempts_count',
-                                      'Number of ingest attempts',
-                                      ['provider_type'],
-                                      registry=WORKER_REGISTRY)
-REPORT_FILE_DOWNLOAD_ERROR_COUNTER = Counter('report_file_download_error_count',
-                                             'Number of report file download errors',
-                                             ['provider_type'],
-                                             registry=WORKER_REGISTRY)
-PROCESS_REPORT_ATTEMPTS_COUNTER = Counter('process_report_attempts_count',
-                                          'Number of report files attempted processing',
-                                          ['provider_type'],
-                                          registry=WORKER_REGISTRY)
-PROCESS_REPORT_ERROR_COUNTER = Counter('process_report_error_count',
-                                       'Number of report files attempted processing',
-                                       ['provider_type'],
-                                       registry=WORKER_REGISTRY)
-REPORT_SUMMARY_ATTEMPTS_COUNTER = Counter('report_summary_attempts_count',
-                                          'Number of report summary attempts',
-                                          ['provider_type'],
-                                          registry=WORKER_REGISTRY)
-CHARGE_UPDATE_ATTEMPTS_COUNTER = Counter('charge_update_attempts_count',
-                                         'Number of derivied cost update attempts',
-                                         registry=WORKER_REGISTRY)
+GET_REPORT_ATTEMPTS_COUNTER = Counter(
+    "get_report_files_attempts_count", "Number of ingest attempts", ["provider_type"], registry=WORKER_REGISTRY
+)
+REPORT_FILE_DOWNLOAD_ERROR_COUNTER = Counter(
+    "report_file_download_error_count",
+    "Number of report file download errors",
+    ["provider_type"],
+    registry=WORKER_REGISTRY,
+)
+PROCESS_REPORT_ATTEMPTS_COUNTER = Counter(
+    "process_report_attempts_count",
+    "Number of report files attempted processing",
+    ["provider_type"],
+    registry=WORKER_REGISTRY,
+)
+PROCESS_REPORT_ERROR_COUNTER = Counter(
+    "process_report_error_count",
+    "Number of report files attempted processing",
+    ["provider_type"],
+    registry=WORKER_REGISTRY,
+)
+REPORT_SUMMARY_ATTEMPTS_COUNTER = Counter(
+    "report_summary_attempts_count", "Number of report summary attempts", ["provider_type"], registry=WORKER_REGISTRY
+)
+CHARGE_UPDATE_ATTEMPTS_COUNTER = Counter(
+    "charge_update_attempts_count", "Number of derivied cost update attempts", registry=WORKER_REGISTRY
+)
 
-COST_SUMMARY_ATTEMPTS_COUNTER = Counter('cost_summary_attempts_count',
-                                        'Number of cost summary update attempts',
-                                        registry=WORKER_REGISTRY)
+COST_SUMMARY_ATTEMPTS_COUNTER = Counter(
+    "cost_summary_attempts_count", "Number of cost summary update attempts", registry=WORKER_REGISTRY
+)
 
-KAFKA_CONNECTION_ERRORS_COUNTER = Counter('kafka_connection_errors',
-                                          'Number of Kafka connection errors',
-                                          registry=WORKER_REGISTRY)
+KAFKA_CONNECTION_ERRORS_COUNTER = Counter(
+    "kafka_connection_errors", "Number of Kafka connection errors", registry=WORKER_REGISTRY
+)
 
-CELERY_ERRORS_COUNTER = Counter('celery_errors',
-                                'Number of celery errors',
-                                registry=WORKER_REGISTRY)
+CELERY_ERRORS_COUNTER = Counter("celery_errors", "Number of celery errors", registry=WORKER_REGISTRY)
 
 
 def initialize_prometheus_exporter():

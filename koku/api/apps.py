@@ -15,11 +15,10 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """API application configuration module."""
-
 from django.apps import AppConfig
 
 
 class ApiConfig(AppConfig):
     """API application configuration."""
 
-    name = 'api'
+    name = "api"

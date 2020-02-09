@@ -14,19 +14,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the ProviderStatusAccessor object."""
-
 import random
 import uuid
 
 from faker import Faker
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.database.provider_status_accessor import (
-    ProviderStatusAccessor,
-    ProviderStatusCode,
-)
+from masu.database.provider_status_accessor import ProviderStatusAccessor
+from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.exceptions import MasuProviderError
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
@@ -54,11 +50,11 @@ class ProviderStatusAccessorTest(MasuTestCase):
         facilitate testing the case where there is no status in the DB.
         """
         self.test_status = {
-            'provider_id': self.provider_uuid,
-            'status': random.choice(list(ProviderStatusCode)),
-            'last_message': self.FAKE.word(),
-            'retries': random.randint(0, 10),
-            'timestamp': self.date_accessor.today_with_timezone('UTC'),
+            "provider_id": self.provider_uuid,
+            "status": random.choice(list(ProviderStatusCode)),
+            "last_message": self.FAKE.word(),
+            "retries": random.randint(0, 10),
+            "timestamp": self.date_accessor.today_with_timezone("UTC"),
         }
 
         with ProviderStatusAccessor(self.aws_provider_uuid) as accessor:
@@ -83,21 +79,21 @@ class ProviderStatusAccessorTest(MasuTestCase):
         self._setup_random_status()
         with ProviderStatusAccessor(self.aws_provider_uuid) as accessor:
             output = accessor.get_status()
-            self.assertEqual(output, self.test_status.get('status'))
+            self.assertEqual(output, self.test_status.get("status"))
 
     def test_get_last_message(self):
         """Test get_last_message()."""
         self._setup_random_status()
         with ProviderStatusAccessor(self.aws_provider_uuid) as accessor:
             output = accessor.get_last_message()
-            self.assertEqual(output, self.test_status.get('last_message'))
+            self.assertEqual(output, self.test_status.get("last_message"))
 
     def test_get_retries(self):
         """Test get_retries()."""
         self._setup_random_status()
         with ProviderStatusAccessor(self.aws_provider_uuid) as accessor:
             output = accessor.get_retries()
-            self.assertEqual(output, self.test_status.get('retries'))
+            self.assertEqual(output, self.test_status.get("retries"))
 
     def test_get_provider_uuid(self):
         """Test get_provider_uuid()."""

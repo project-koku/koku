@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the AccountAliasAccessor utility object."""
 import uuid
 
@@ -32,7 +31,7 @@ class AccountAliasAccessorTest(IamTestCase):
         """Set up test cases."""
         super().setUp()
 
-        self.account_id = self.customer_data['account_id']
+        self.account_id = self.customer_data["account_id"]
         self.schema = self.schema_name
 
     def test_initializer(self):
@@ -46,11 +45,9 @@ class AccountAliasAccessorTest(IamTestCase):
     def test_set_account_alias(self):
         """Test alias setter."""
         with schema_context(self.schema):
-            AWSAccountAlias.objects.create(
-                account_id=self.account_id, account_alias=self.account_id
-            )
+            AWSAccountAlias.objects.create(account_id=self.account_id, account_alias=self.account_id)
 
-        alias_name = 'test-alias'
+        alias_name = "test-alias"
         accessor = AccountAliasAccessor(self.account_id, self.schema)
 
         accessor.set_account_alias(alias_name)
@@ -62,9 +59,7 @@ class AccountAliasAccessorTest(IamTestCase):
     def test_add_account_alias(self):
         """Test Add."""
         with schema_context(self.schema):
-            AWSAccountAlias.objects.create(
-                account_id=self.account_id, account_alias=self.account_id
-            )
+            AWSAccountAlias.objects.create(account_id=self.account_id, account_alias=self.account_id)
         accessor = AccountAliasAccessor(self.account_id, self.schema)
 
         account_id = str(uuid.uuid4())

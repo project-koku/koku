@@ -7,9 +7,7 @@ LOG = logging.getLogger(__name__)
 _DB_FETCH_BATCH_SIZE = 2000
 
 
-def get_upload_path(
-    schema_name, provider_type, provider_uuid, date, table_name, daily=False
-):
+def get_upload_path(schema_name, provider_type, provider_uuid, date, table_name, daily=False):
     """
     Get the s3 upload_path for a file.
 
@@ -26,16 +24,14 @@ def get_upload_path(
 
     """
     if daily:
-        date_part = '{year}/{month:02d}/{day:02d}'.format(
-            year=date.year, month=date.month, day=date.day
-        )
+        date_part = f"{date.year}/{date.month:02d}/{date.day:02d}"
     else:
         # Note: "00" is a magic path segment we use to indicate files that
         # are relevant to the month but not to a specific day in that month.
-        date_part = '{year}/{month:02d}/00'.format(year=date.year, month=date.month)
+        date_part = f"{date.year}/{date.month:02d}/00"
     upload_path = (
-        '{bucket_path}/{account_name}/{provider_type}/{provider_uuid}/'
-        '{date_part}/{table_name}.csv.gz'.format(
+        "{bucket_path}/{account_name}/{provider_type}/{provider_uuid}/"
+        "{date_part}/{table_name}.csv.gz".format(
             bucket_path=settings.S3_BUCKET_PATH,
             account_name=schema_name,
             provider_type=provider_type,

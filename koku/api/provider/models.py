@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Models for provider management."""
-
 import logging
 from uuid import uuid4
 
@@ -33,8 +32,7 @@ class ProviderAuthentication(models.Model):
     Used for accessing cost providers data like AWS Accounts.
     """
 
-    uuid = models.UUIDField(default=uuid4, editable=False,
-                            unique=True, null=False)
+    uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
 
     # XXX: This field is DEPRECATED
     # XXX: the credentials field should be used instead.
@@ -51,9 +49,8 @@ class ProviderAuthentication(models.Model):
         constraints = [
             # NOT (provider_resource_name IS NULL AND credentials IS NULL)
             CheckConstraint(
-                check=~models.Q(models.Q(provider_resource_name=None) \
-                                & models.Q(credentials={})),
-                name='credentials_and_resource_name_both_null'
+                check=~models.Q(models.Q(provider_resource_name=None) & models.Q(credentials={})),
+                name="credentials_and_resource_name_both_null",
             )
         ]
 
@@ -64,8 +61,7 @@ class ProviderBillingSource(models.Model):
     Used for accessing cost providers billing sourece like AWS Account S3.
     """
 
-    uuid = models.UUIDField(default=uuid4, editable=False,
-                            unique=True, null=False)
+    uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
 
     # XXX: This field is DEPRECATED
     # XXX: the data_source field should be used instead.
@@ -81,9 +77,8 @@ class ProviderBillingSource(models.Model):
         constraints = [
             # NOT (bucket IS NULL AND data_source IS NULL)
             CheckConstraint(
-                check=~models.Q(models.Q(bucket=None) \
-                                & models.Q(data_source={})),
-                name='bucket_and_data_source_both_null'
+                check=~models.Q(models.Q(bucket=None) & models.Q(data_source={})),
+                name="bucket_and_data_source_both_null",
             )
         ]
 
@@ -98,47 +93,51 @@ class Provider(models.Model):
     class Meta:
         """Meta for Provider."""
 
-        ordering = ['name']
-        unique_together = ('authentication', 'billing_source', 'customer')
+        ordering = ["name"]
+        unique_together = ("authentication", "billing_source", "customer")
 
-    PROVIDER_AWS = 'AWS'
-    PROVIDER_OCP = 'OCP'
-    PROVIDER_AZURE = 'Azure'
-    PROVIDER_GCP = 'GCP'
+    PROVIDER_AWS = "AWS"
+    PROVIDER_OCP = "OCP"
+    PROVIDER_AZURE = "Azure"
+    PROVIDER_GCP = "GCP"
     # Local Providers are for local development and testing
-    PROVIDER_AWS_LOCAL = 'AWS-local'
-    PROVIDER_AZURE_LOCAL = 'Azure-local'
-    PROVIDER_GCP_LOCAL = 'GCP-local'
+    PROVIDER_AWS_LOCAL = "AWS-local"
+    PROVIDER_AZURE_LOCAL = "Azure-local"
+    PROVIDER_GCP_LOCAL = "GCP-local"
     # The following constants are not provider types
-    OCP_ALL = 'OCP_All'
-    OCP_AWS = 'OCP_AWS'
-    OCP_AZURE = 'OCP_Azure'
+    OCP_ALL = "OCP_All"
+    OCP_AWS = "OCP_AWS"
+    OCP_AZURE = "OCP_Azure"
 
     PROVIDER_CASE_MAPPING = {
-        'aws': PROVIDER_AWS,
-        'ocp': PROVIDER_OCP,
-        'azure': PROVIDER_AZURE,
-        'gcp': PROVIDER_GCP,
-        'aws-local': PROVIDER_AWS_LOCAL,
-        'azure-local': PROVIDER_AZURE_LOCAL,
-        'gcp-local': PROVIDER_GCP_LOCAL,
-        'ocp-aws': OCP_AWS,
-        'ocp-azure': OCP_AZURE
+        "aws": PROVIDER_AWS,
+        "ocp": PROVIDER_OCP,
+        "azure": PROVIDER_AZURE,
+        "gcp": PROVIDER_GCP,
+        "aws-local": PROVIDER_AWS_LOCAL,
+        "azure-local": PROVIDER_AZURE_LOCAL,
+        "gcp-local": PROVIDER_GCP_LOCAL,
+        "ocp-aws": OCP_AWS,
+        "ocp-azure": OCP_AZURE,
     }
 
-    PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
-                        (PROVIDER_OCP, PROVIDER_OCP),
-                        (PROVIDER_AZURE, PROVIDER_AZURE),
-                        (PROVIDER_GCP, PROVIDER_GCP),
-                        (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
-                        (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
-                        (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL))
-    CLOUD_PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
-                              (PROVIDER_AZURE, PROVIDER_AZURE),
-                              (PROVIDER_GCP, PROVIDER_GCP),
-                              (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
-                              (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
-                              (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL))
+    PROVIDER_CHOICES = (
+        (PROVIDER_AWS, PROVIDER_AWS),
+        (PROVIDER_OCP, PROVIDER_OCP),
+        (PROVIDER_AZURE, PROVIDER_AZURE),
+        (PROVIDER_GCP, PROVIDER_GCP),
+        (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
+        (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
+        (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL),
+    )
+    CLOUD_PROVIDER_CHOICES = (
+        (PROVIDER_AWS, PROVIDER_AWS),
+        (PROVIDER_AZURE, PROVIDER_AZURE),
+        (PROVIDER_GCP, PROVIDER_GCP),
+        (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
+        (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
+        (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL),
+    )
 
     # These lists are intended for use for provider type checking
     # throughout the codebase
@@ -147,16 +146,11 @@ class Provider(models.Model):
 
     uuid = models.UUIDField(default=uuid4, primary_key=True)
     name = models.CharField(max_length=256, null=False)
-    type = models.CharField(max_length=50, null=False,
-                            choices=PROVIDER_CHOICES, default=PROVIDER_AWS)
-    authentication = models.ForeignKey('ProviderAuthentication', null=True,
-                                       on_delete=models.DO_NOTHING)
-    billing_source = models.ForeignKey('ProviderBillingSource', null=True,
-                                       on_delete=models.DO_NOTHING, blank=True)
-    customer = models.ForeignKey('Customer', null=True,
-                                 on_delete=models.PROTECT)
-    created_by = models.ForeignKey('User', null=True,
-                                   on_delete=models.SET_NULL)
+    type = models.CharField(max_length=50, null=False, choices=PROVIDER_CHOICES, default=PROVIDER_AWS)
+    authentication = models.ForeignKey("ProviderAuthentication", null=True, on_delete=models.DO_NOTHING)
+    billing_source = models.ForeignKey("ProviderBillingSource", null=True, on_delete=models.DO_NOTHING, blank=True)
+    customer = models.ForeignKey("Customer", null=True, on_delete=models.PROTECT)
+    created_by = models.ForeignKey("User", null=True, on_delete=models.SET_NULL)
     setup_complete = models.BooleanField(default=False)
 
     created_timestamp = models.DateTimeField(auto_now_add=True, blank=True, null=True)
@@ -165,8 +159,7 @@ class Provider(models.Model):
 
     # This field applies to OpenShift providers and identifies
     # which (if any) cloud provider the cluster is on
-    infrastructure = models.ForeignKey('ProviderInfrastructureMap', null=True,
-                                       on_delete=models.SET_NULL)
+    infrastructure = models.ForeignKey("ProviderInfrastructureMap", null=True, on_delete=models.SET_NULL)
 
 
 class Sources(models.Model):
@@ -178,7 +171,7 @@ class Sources(models.Model):
     class Meta:
         """Meta for Sources."""
 
-        db_table = 'api_sources'
+        db_table = "api_sources"
 
     # Backend Platform-Services data.
     # Source ID is unique identifier
@@ -227,10 +220,12 @@ class Sources(models.Model):
 
     def __str__(self):
         """Get the string representation."""
-        return (f'Source ID: {self.source_id}\nName: {self.name}\nSource UUID: {self.source_uuid}\n'
-                f'Source Type: {self.source_type}\nAuthentication: {self.authentication}\n'
-                f'Billing Source: {self.billing_source}\nKoku UUID: {self.koku_uuid}\n'
-                f'Pending Delete: {self.pending_delete}\nPending Update: {self.pending_update}\n')
+        return (
+            f"Source ID: {self.source_id}\nName: {self.name}\nSource UUID: {self.source_uuid}\n"
+            f"Source Type: {self.source_type}\nAuthentication: {self.authentication}\n"
+            f"Billing Source: {self.billing_source}\nKoku UUID: {self.koku_uuid}\n"
+            f"Pending Delete: {self.pending_delete}\nPending Update: {self.pending_update}\n"
+        )
 
 
 class ProviderStatus(models.Model):
@@ -245,16 +240,10 @@ class ProviderStatus(models.Model):
     #
     # These states are duplicated in masu.database.provider_db_accessor
     #
-    STATES = ((0, 'New'),
-              (1, 'Ready'),
-              (33, 'Warning'),
-              (98, 'Disabled: Error'),
-              (99, 'Disabled: Admin'),)
+    STATES = ((0, "New"), (1, "Ready"), (33, "Warning"), (98, "Disabled: Error"), (99, "Disabled: Admin"))
 
-    provider = models.ForeignKey('Provider', on_delete=models.CASCADE)
-    status = models.IntegerField(null=False,
-                                 choices=STATES,
-                                 default=0)
+    provider = models.ForeignKey("Provider", on_delete=models.CASCADE)
+    status = models.IntegerField(null=False, choices=STATES, default=0)
     last_message = models.CharField(max_length=256, null=False)
     timestamp = models.DateTimeField()
     retries = models.IntegerField(null=False, default=0)
@@ -267,11 +256,5 @@ class ProviderInfrastructureMap(models.Model):
     associated provider the cluster is installed on.
     """
 
-    infrastructure_type = models.CharField(
-        max_length=50,
-        choices=Provider.CLOUD_PROVIDER_CHOICES,
-        blank=False
-    )
-    infrastructure_provider = models.ForeignKey(
-        'Provider', on_delete=models.CASCADE
-    )
+    infrastructure_type = models.CharField(max_length=50, choices=Provider.CLOUD_PROVIDER_CHOICES, blank=False)
+    infrastructure_provider = models.ForeignKey("Provider", on_delete=models.CASCADE)

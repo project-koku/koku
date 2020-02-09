@@ -11,6 +11,15 @@ PYTHON	= $(shell which python)
 TOPDIR  = $(shell pwd)
 PYDIR	= koku
 APIDOC  = apidoc
+KOKU_SERVER = $(shell echo "${KOKU_API_HOST:-localhost})
+KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000})
+MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost})
+MASU_SERVER_PORT = $(shell echo "${MASU_SERVICE_PORT:-5000})
+
+# Testing directories
+TESTINGDIR = $(TOPDIR)/testing
+PROVIDER_TEMP_DIR = $(TESTINGDIR)/pvc_dir
+OCP_PROVIDER_TEMP_DIR = $(PROVIDER_TEMP_DIR)/insights_local
 
 # How to execute Django's manage.py
 DJANGO_MANAGE = DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py
@@ -41,25 +50,32 @@ help:
 	@echo "Please use \`make <target>' where <target> is one of:"
 	@echo ""
 	@echo "--- General Commands ---"
-	@echo "  clean                                clean the project directory of any scratch files, bytecode, logs, etc"
-	@echo "  help                                 show this message"
-	@echo "  html                                 create html documentation for the project"
-	@echo "  lint                                 run linting against the project"
+	@echo "  clean                                 clean the project directory of any scratch files, bytecode, logs, etc"
+	@echo "  help                                  show this message"
+	@echo "  html                                  create html documentation for the project"
+	@echo "  lint                                  run linting against the project"
 	@echo ""
 	@echo "--- Commands using local services ---"
-	@echo "  create-test-customer                 create a test customer and tenant in the database"
-	@echo "  create-test-customer-no-providers    create a test customer and tenant in the database without test providers"
-	@echo "  load-test-customer-data              load test data for the default providers created in create-test-customer"
-	@echo "  collect-static                       collect static files to host"
-	@echo "  make-migrations                      make migrations for the database"
-	@echo "  requirements                         generate Pipfile.lock, RTD requirements and manifest for product security"
-	@echo "  manifest                             create/update manifest for product security"
-	@echo "  check-manifest                       check that the manifest is up to date"
-	@echo "  remove-db                            remove local directory $(TOPDIR)/pg_data"
-	@echo "  run-migrations                       run migrations against database"
-	@echo "  serve                                run the Django app on localhost"
-	@echo "  superuser                            create a Django super user"
-	@echo "  unittest                             run unittests"
+	@echo "  create-test-customer                  create a test customer and tenant in the database"
+	@echo "  create-test-customer-no-providers     create a test customer and tenant in the database without test providers"
+	@echo "  create-large-ocp-provider-config-file create a config file for nise to generate a large data sample"
+	@echo "                                          @param generator_config_file - config for the generator
+	@echo "                                          @param generator_template_file - jinja2 template to render output"
+	@echo "                                          @param output_file_name - file name for output
+	@echo "                                          @param generator_flags - (optional) additional cli flags and args"
+	@echo "  large-ocp-provider-testing            create a test OCP provider "large_ocp_1" with a larger volume of data"
+	@echo "                                          @param nise_config_dir - directory of nise config files to use"
+	@echo "  load-test-customer-data               load test data for the default providers created in create-test-customer"
+	@echo "  collect-static                        collect static files to host"
+	@echo "  make-migrations                       make migrations for the database"
+	@echo "  requirements                          generate Pipfile.lock, RTD requirements and manifest for product security"
+	@echo "  manifest                              create/update manifest for product security"
+	@echo "  check-manifest                        check that the manifest is up to date"
+	@echo "  remove-db                             remove local directory $(TOPDIR)/pg_data"
+	@echo "  run-migrations                        run migrations against database"
+	@echo "  serve                                 run the Django app on localhost"
+	@echo "  superuser                             create a Django super user"
+	@echo "  unittest                              run unittests"
 	@echo ""
 	@echo "--- Commands using Docker Compose ---"
 	@echo "  docker-up                            run django and database"
@@ -71,56 +87,59 @@ help:
 	@echo "  docker-shell                         run Django and database containers with shell access to server (for pdb)"
 	@echo "  docker-logs                          connect to console logs for all services"
 	@echo "  docker-test-all                      run unittests"
+	@echo "  docker-iqe-smokes-tests              run smoke tests"
+	@echo "  docker-iqe-api-tests                 run api tests"
+	@echo "  docker-iqe-vortex-tests              run vortex tests"
 	@echo ""
 	@echo "--- Commands using an OpenShift Cluster ---"
-	@echo "  oc-clean                             stop openshift cluster & remove local config data"
-	@echo "  oc-create-all                        create all application pods"
-	@echo "  oc-create-celery-exporter            create the Celery Prometheus exporter pod"
-	@echo "  oc-create-celery-scheduler           create the Celery scheduler pod"
-	@echo "  oc-create-celery-worker              create the Celery worker pod"
-	@echo "  oc-create-configmap                  create the ConfigMaps"
-	@echo "  oc-create-database                   create the PostgreSQL DB pod"
-	@echo "  oc-create-flower                     create the Celery Flower pod"
-	@echo "  oc-create-imagestream                create ImageStreams"
-	@echo "  oc-create-koku-api                   create the Koku API pod"
-	@echo "  oc-create-koku-auth-cache            create the Redis pod for auth caching"
-	@echo "  oc-create-listener                   create Masu Listener pod (deprecated)"
-	@echo "  oc-create-masu                       create Masu pod (deprecated)"
-	@echo "  oc-create-rabbitmq                   create RabbitMQ pod"
-	@echo "  oc-create-route                      create routes for Koku APIs"
-	@echo "  oc-create-secret                     create Secrets"
-	@echo "  oc-create-worker                     create Celery worker pod"
-	@echo "  oc-delete-all                        delete most Openshift objects without a cluster restart"
-	@echo "  oc-delete-celery-worker              delete the Celery worker pod"
-	@echo "  oc-delete-configmap                  delete the ConfigMaps"
-	@echo "  oc-delete-database                   delete the PostgreSQL DB pod"
-	@echo "  oc-delete-flower                     delete the Celery Flower pod"
-	@echo "  oc-delete-imagestream                delete ImageStreams"
-	@echo "  oc-delete-koku-api                   delete the Koku API pod"
-	@echo "  oc-delete-koku-auth-cache            delete the Redis pod for auth caching"
-	@echo "  oc-delete-listener                   delete Masu Listener pod (deprecated)"
-	@echo "  oc-delete-masu                       delete Masu pod (deprecated)"
-	@echo "  oc-delete-rabbitmq                   delete RabbitMQ pod"
-	@echo "  oc-delete-secret                     delete Secrets"
-	@echo "  oc-delete-worker                     delete Celery worker pod"
-	@echo "  oc-down                              stop app & openshift cluster"
-	@echo "  oc-forward-ports                     port forward the DB to localhost"
-	@echo "  oc-login-dev                         login to an openshift cluster as 'developer'"
-	@echo "  oc-reinit                            remove existing app and restart app in initialized openshift cluster"
-	@echo "  oc-run-migrations                    run Django migrations in the Openshift DB"
-	@echo "  oc-stop-forwarding-ports             stop port forwarding the DB to localhost"
-	@echo "  oc-up                                initialize an openshift cluster"
-	@echo "  oc-up-all                            run app in openshift cluster"
-	@echo "  oc-up-db                             run Postgres in an openshift cluster"
+	@echo "  oc-clean                              stop openshift cluster & remove local config data"
+	@echo "  oc-create-all                         create all application pods"
+	@echo "  oc-create-celery-exporter             create the Celery Prometheus exporter pod"
+	@echo "  oc-create-celery-scheduler            create the Celery scheduler pod"
+	@echo "  oc-create-celery-worker               create the Celery worker pod"
+	@echo "  oc-create-configmap                   create the ConfigMaps"
+	@echo "  oc-create-database                    create the PostgreSQL DB pod"
+	@echo "  oc-create-flower                      create the Celery Flower pod"
+	@echo "  oc-create-imagestream                 create ImageStreams"
+	@echo "  oc-create-koku-api                    create the Koku API pod"
+	@echo "  oc-create-koku-auth-cache             create the Redis pod for auth caching"
+	@echo "  oc-create-listener                    create Masu Listener pod (deprecated)"
+	@echo "  oc-create-masu                        create Masu pod (deprecated)"
+	@echo "  oc-create-rabbitmq                    create RabbitMQ pod"
+	@echo "  oc-create-route                       create routes for Koku APIs"
+	@echo "  oc-create-secret                      create Secrets"
+	@echo "  oc-create-worker                      create Celery worker pod"
+	@echo "  oc-delete-all                         delete most Openshift objects without a cluster restart"
+	@echo "  oc-delete-celery-worker               delete the Celery worker pod"
+	@echo "  oc-delete-configmap                   delete the ConfigMaps"
+	@echo "  oc-delete-database                    delete the PostgreSQL DB pod"
+	@echo "  oc-delete-flower                      delete the Celery Flower pod"
+	@echo "  oc-delete-imagestream                 delete ImageStreams"
+	@echo "  oc-delete-koku-api                    delete the Koku API pod"
+	@echo "  oc-delete-koku-auth-cache             delete the Redis pod for auth caching"
+	@echo "  oc-delete-listener                    delete Masu Listener pod (deprecated)"
+	@echo "  oc-delete-masu                        delete Masu pod (deprecated)"
+	@echo "  oc-delete-rabbitmq                    delete RabbitMQ pod"
+	@echo "  oc-delete-secret                      delete Secrets"
+	@echo "  oc-delete-worker                      delete Celery worker pod"
+	@echo "  oc-down                               stop app & openshift cluster"
+	@echo "  oc-forward-ports                      port forward the DB to localhost"
+	@echo "  oc-login-dev                          login to an openshift cluster as 'developer'"
+	@echo "  oc-reinit                             remove existing app and restart app in initialized openshift cluster"
+	@echo "  oc-run-migrations                     run Django migrations in the Openshift DB"
+	@echo "  oc-stop-forwarding-ports              stop port forwarding the DB to localhost"
+	@echo "  oc-up                                 initialize an openshift cluster"
+	@echo "  oc-up-all                             run app in openshift cluster"
+	@echo "  oc-up-db                              run Postgres in an openshift cluster"
 	@echo ""
 	@echo "--- Create Providers ---"
-	@echo "  ocp-provider-from-yaml               Create ocp provider using a yaml file."
-	@echo "      cluster_id=<cluster_name>            @param - Required. The name of your cluster (ex. my-ocp-cluster-0)"
-	@echo "      srf_yaml=<filename>                  @param - Required. Path of static-report-file yaml (ex. '/ocp_static_report.yml')"
-	@echo "      ocp_name=<provider_name>             @param - Required. The name of the provider. (ex. 'OCPprovider')"
-	@echo "  aws-provider                        Create aws provider using environment variables"
-	@echo "      aws_name=<provider_name>             @param - Required. Name of the provider"
-	@echo "      bucket=<bucket_name>                 @param - Required. Name of the bucket"
+	@echo "  ocp-provider-from-yaml                Create ocp provider using a yaml file."
+	@echo "      cluster_id=<cluster_name>           @param - Required. The name of your cluster (ex. my-ocp-cluster-0)"
+	@echo "      srf_yaml=<filename>                 @param - Required. Path of static-report-file yaml (ex. '/ocp_static_report.yml')"
+	@echo "      ocp_name=<provider_name>            @param - Required. The name of the provider. (ex. 'OCPprovider')"
+	@echo "  aws-provider                          Create aws provider using environment variables"
+	@echo "      aws_name=<provider_name>            @param - Required. Name of the provider"
+	@echo "      bucket=<bucket_name>                @param - Required. Name of the bucket"
 
 ### General Commands ###
 
@@ -431,6 +450,8 @@ oc-up-all: oc-up oc-create-koku
 
 oc-up-db: oc-up oc-create-db
 
+oc-delete-e2e: oc-nuke-from-orbit
+	oc delete project/hccm project/buildfactory project/secrets
 
 ###############################
 ### Docker-compose Commands ###
@@ -440,8 +461,7 @@ docker-down:
 	docker-compose down
 
 docker-down-db:
-	docker-compose stop db
-	docker ps -a -f name=koku_db -q | xargs docker container rm
+	docker-compose rm -s -v -f db
 
 docker-logs:
 	docker-compose logs -f
@@ -450,11 +470,9 @@ docker-rabbit:
 	docker-compose up -d rabbit
 
 docker-reinitdb: docker-down-db remove-db docker-up-db
-	sleep 5
 	$(MAKE) create-test-customer-no-providers
 
 docker-reinitdb-with-providers: docker-down-db remove-db docker-up-db
-	sleep 5
 	$(MAKE) create-test-customer
 
 docker-shell:
@@ -468,6 +486,11 @@ docker-up:
 
 docker-up-db:
 	docker-compose up -d db
+	@until pg_isready -h $$POSTGRES_SQL_SERVICE_HOST -p $$POSTGRES_SQL_SERVICE_PORT >/dev/null ; do \
+	    echo -n '.' ; \
+	    sleep 0.5 ; \
+    done
+	@echo ' PostgreSQL is available!'
 
 docker-iqe-smokes-tests:
 	$(MAKE) docker-reinitdb
@@ -497,9 +520,6 @@ endif
 	mkdir -p testing/pvc_dir/insights_local
 	nise --ocp --ocp-cluster-id $(cluster_id) --insights-upload testing/pvc_dir/insights_local --static-report-file $(srf_yaml)
 	curl -d '{"name": "$(ocp_name)", "type": "OCP", "authentication": {"provider_resource_name": "$(cluster_id)"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/providers/
-# These csv could be cleaned up when [https://github.com/project-koku/nise/issues/176](https://github.com/project-koku/nise/issues/176) is resolved.
-	rm *ocp_pod_usage.csv
-	rm *ocp_storage_usage.csv
 # From here you can hit the http://127.0.0.1:5000/api/cost-management/v1/download/ endpoint to start running masu.
 # After masu has run these endpoints should have data in them: (v1/reports/openshift/memory, v1/reports/openshift/compute/, v1/reports/openshift/volumes/)
 
@@ -512,6 +532,103 @@ ifndef bucket
 endif
 	(printenv AWS_RESOURCE_NAME > /dev/null 2>&1) || (echo 'AWS_RESOURCE_NAME is not set in .env' && exit 1)
 	curl -d '{"name": "$(aws_name)", "type": "AWS", "authentication": {"provider_resource_name": "${AWS_RESOURCE_NAME}"}, "billing_source": {"bucket": "$(bucket)"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/providers/
+
+
+###################################################
+#  This section is for larger data volume testing
+###################################################
+
+create-large-ocp-provider-config-file:
+ifndef output_file_name
+	$(error param output_file_name is not set)
+endif
+ifndef generator_config_file
+	$(error param generator_config_file is not set)
+endif
+ifndef generator_template_file
+	$(error param generator_template_file is not set)
+endif
+	@../nise/utility/generate_static_ocp_settings.py -c $(generator_config_file) \
+	                                                 -t $(generator_template_file) \
+													 -o $(output_file_name) $(generator_flags)
+
+
+create-large-ocp-provider-testing-files:
+ifndef nise_config_dir
+	$(error param nise_config_dir is not set)
+endif
+	make purge-large-testing-ocp-files
+	@for FILE in $(foreach f, $(wildcard $(nise_config_dir)/*.yml), $(f)) ; \
+    do \
+        make ocp-provider-from-yaml cluster_id=large_ocp_1 srf_yaml=$$FILE ocp_name=large_ocp_1 ; \
+	done
+
+import-large-ocp-provider-testing-costmodel:
+	curl --header 'Content-Type: application/json' \
+	     --request POST \
+	     --data '{"name": "Cost Management OpenShift Cost Model", "description": "A cost model of on-premises OpenShift clusters.", "source_type": "OCP", "provider_uuids": $(shell make -s find-large-testing-provider-uuid), "rates": [{"metric": {"name": "cpu_core_usage_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.007, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "node_cost_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.2, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "cpu_core_request_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.2, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "memory_gb_usage_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.009, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "memory_gb_request_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.05, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "storage_gb_usage_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.01, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "storage_gb_request_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.01, "usage_start": null, "usage_end": null}]}]}' \
+	     http://$(KOKU_SERVER):$(KOKU_SERVER_PORT)/api/cost-management/v1/costmodels/
+
+import-large-ocp-provider-testing-data:
+	curl --request GET http://$(MASU_SERVER):$(MASU_SERVER_PORT)/api/cost-management/v1/download/
+
+# Create a large volume of data for a test OCP provider
+# Will create the files, add the cost model and process the data
+large-ocp-provider-testing:
+ifndef nise_config_dir
+	$(error param nise_config_dir is not set)
+endif
+	make create-large-ocp-provider-testing-files nise_config_dir="$(nise_config_dir)"
+	make import-large-ocp-provider-testing-costmodel
+	make import-large-ocp-provider-testing-data
+
+# Delete the testing large ocp provider local files
+purge-large-testing-ocp-files:
+	rm -rf $(OCP_PROVIDER_TEMP_DIR)/large_ocp_1
+
+# Delete *ALL* local testing files
+purge-all-testing-ocp-files:
+	rm -rf $(OCP_PROVIDER_TEMP_DIR)/*
+
+# currently locked to the large ocp provider
+find-large-testing-provider-uuid:
+	@curl "http://$(KOKU_SERVER):$(KOKU_SERVER_PORT)/api/cost-management/v1/providers/?name=large_ocp_1" | python3 -c "import sys, json; data_list=json.load(sys.stdin)['data']; print([data['uuid'] for data in data_list if data['type']=='OCP']);" | tr "'" '"'
+
+
+# Dump local database
+dump-local-db:
+ifndef dump_outfile
+	$(error param dump_outfile not set)
+endif
+	@if [ ! -x "$(shell which pg_dump)" ]; then \
+        echo "ERROR :: Cannot find 'pg_dump' program" >&2 ; \
+        false ; \
+    else \
+	    PGPASSWORD=$$DATABASE_PASSWORD pg_dump -h $$POSTGRES_SQL_SERVICE_HOST \
+                                               -p $$POSTGRES_SQL_SERVICE_PORT \
+                                               -d $$DATABASE_NAME \
+                                               -U $$DATABASE_USER \
+                                               --clean --if-exists --verbose \
+                                               --file=$(dump_outfile) ; \
+    fi
+
+
+# Restore local database
+restore-local-db:
+ifndef dump_outfile
+	$(error param dump_outfile not set)
+endif
+	@if [ ! -x "$(shell which psql)" ]; then \
+	    echo "ERROR :: Cannot find 'psql' program" >&2 ; \
+		false ; \
+	else \
+	    PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
+                                            -p $$POSTGRES_SQL_SERVICE_PORT \
+                                            -d $$DATABASE_NAME \
+                                            -U $$DATABASE_USER \
+                                            --file=$(dump_outfile) ; \
+	fi
+
 
 ########################
 ### Internal targets ###

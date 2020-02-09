@@ -53,7 +53,7 @@ Creating an IAM Policy
           {
               "Sid": "VisualEditor1",
               "Effect": "Allow",
-              "Action": [   
+              "Action": [
                   "organizations:List*",
                   "organizations:Describe*",
                   "s3:ListAllMyBuckets",

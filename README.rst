@@ -77,6 +77,10 @@ This project is developed using the Django web framework. Many configuration set
 
     pipenv shell
 
+9. Install the pre-commit hooks for the repository ::
+
+    pre-commit install
+
 
 Developing with Docker Compose
 ------------------------------
@@ -153,8 +157,8 @@ Developing with OpenShift
 
 Our production deployment runs on OpenShift. At times you may need to run on OpenShift if you are working on deployment templates or would like to test in a production like environment. This is a more advanced scenario that many new developers will not need. To learn how to run OpenShift refer to `Working with Openshift`_.
 
-Testing and Linting
--------------------
+Testing
+-------
 
 Koku uses tox to standardize the environment used when running tests. Essentially, tox manages its own virtual environment and a copy of required dependencies to run tests. To ensure a clean tox environment run ::
 
@@ -170,10 +174,6 @@ To run a specific subset of unit tests, you can pass a particular module path to
 
     tox -e py36 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
 
-To lint the code base ::
-
-    tox -e lint
-
 To run IQE Smoke, Vortex or API tests, while on the Red Hat network and koku deployed via docker-compose run::
 
     make docker-iqe-smokes-tests
@@ -183,6 +183,16 @@ To run IQE Smoke, Vortex or API tests, while on the Red Hat network and koku dep
 Individual IQE tests can be ran with run_test.sh::
 
     <koku_topdir>/testing/run_test.sh iqe tests plugin hccm -k test_api_cost_model_markup_calculation_ocp
+
+Linting
+-------
+This repository uses [pre-commit](https://pre-commit.com) to check and enforce code style. It uses
+[Black](https://github.com/psf/black) to reformat the Python code and [Flake8](http://flake8.pycqa.org) to check it
+afterwards. Other formats and text files are linted as well.
+
+To run pre-commit checks::
+
+    pre-commit run --all-files
 
 pgAdmin
 -------

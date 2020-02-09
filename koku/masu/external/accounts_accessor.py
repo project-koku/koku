@@ -40,7 +40,7 @@ class AccountsAccessor:
         self.source_type = source_type.lower()
         self.source = self._set_source()
         if not self.source:
-            raise AccountsAccessorError('Invalid source type specified.')
+            raise AccountsAccessorError("Invalid source type specified.")
 
     def _set_source(self):
         """
@@ -55,7 +55,7 @@ class AccountsAccessor:
             (Object) : Some object that is a child of CURAccountsInterface
 
         """
-        if self.source_type == 'db':
+        if self.source_type == "db":
             return CURAccountsDB()
 
         return None
@@ -82,12 +82,15 @@ class AccountsAccessor:
             (Boolean) : True if provider should be polled for updates.
 
         """
-        if utils.ingest_method_for_provider(account.get('provider_type')) == POLL_INGEST \
-                or ocp_utils.poll_ingest_override_for_provider(account.get('provider_uuid')):
-            log_statement = (f'Polling for\n'
-                             f' schema_name: {account.get("schema_name")}\n'
-                             f' provider: {account.get("provider_type")}\n'
-                             f' account (provider uuid): {account.get("provider_uuid")}')
+        if utils.ingest_method_for_provider(
+            account.get("provider_type")
+        ) == POLL_INGEST or ocp_utils.poll_ingest_override_for_provider(account.get("provider_uuid")):
+            log_statement = (
+                f"Polling for\n"
+                f' schema_name: {account.get("schema_name")}\n'
+                f' provider: {account.get("provider_type")}\n'
+                f' account (provider uuid): {account.get("provider_uuid")}'
+            )
             LOG.info(log_statement)
             return True
         return False

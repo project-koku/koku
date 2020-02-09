@@ -4,12 +4,17 @@ import os
 import pkgutil
 
 from django.core.management import call_command
-from django.db import connection, connections
+from django.db import connection
+from django.db import connections
 from django.db.models.signals import post_save
 from django.test import TransactionTestCase
 
-from api.models import CostModelMetricsMap, Customer, Tenant
-from api.provider.models import Provider, ProviderAuthentication, ProviderBillingSource
+from api.models import CostModelMetricsMap
+from api.models import Customer
+from api.models import Tenant
+from api.provider.models import Provider
+from api.provider.models import ProviderAuthentication
+from api.provider.models import ProviderBillingSource
 from api.provider.provider_manager import provider_post_save_callback
 from reporting_common import package_directory
 from reporting_common.models import ReportColumnMap
@@ -18,17 +23,17 @@ from reporting_common.models import ReportColumnMap
 def load_db_map_data():
     """Load column mapping of database."""
     if ReportColumnMap.objects.count() == 0:
-        json_dir = '{}/{}'.format(package_directory, 'data')
+        json_dir = "{}/{}".format(package_directory, "data")
         for filename in os.listdir(json_dir):
-            if filename.endswith('report_column_map.json'):
-                data = pkgutil.get_data('reporting_common', f'data/{filename}')
+            if filename.endswith("report_column_map.json"):
+                data = pkgutil.get_data("reporting_common", f"data/{filename}")
                 data = json.loads(data)
                 for entry in data:
                     map = ReportColumnMap(**entry)
                     map.save()
 
     if CostModelMetricsMap.objects.count() == 0:
-        data = pkgutil.get_data('api', 'metrics/data/cost_models_metric_map.json')
+        data = pkgutil.get_data("api", "metrics/data/cost_models_metric_map.json")
         data = json.loads(data)
         for entry in data:
             map = CostModelMetricsMap(**entry)
@@ -44,8 +49,8 @@ class MasuTestCase(TransactionTestCase):
         super().setUpClass()
         post_save.disconnect(provider_post_save_callback, sender=Provider)
 
-        cls.schema = 'acct10001'
-        cls.acct = '10001'
+        cls.schema = "acct10001"
+        cls.acct = "10001"
         # cls.customer = Customer.objects.create(
         #     account_id=cls.acct, schema_name=cls.schema
         # )
@@ -58,34 +63,29 @@ class MasuTestCase(TransactionTestCase):
         else:
             cls.tenant = Tenant.objects.filter(schema_name=cls.schema).first()
             if not cls.tenant:
-                cursor.execute(
-                    f"INSERT INTO api_tenant (id, schema_name) values (1, '{cls.schema}')"
-                )
+                cursor.execute(f"INSERT INTO api_tenant (id, schema_name) values (1, '{cls.schema}')")
             cls.tenant = Tenant.objects.filter(schema_name=cls.schema).first()
 
         # Load static data into the DB
         # E.g. report column maps
         load_db_map_data()
 
-        cls.ocp_test_provider_uuid = '3c6e687e-1a09-4a05-970c-2ccf44b0952e'
-        cls.aws_test_provider_uuid = '6e212746-484a-40cd-bba0-09a19d132d64'
-        cls.azure_test_provider_uuid = 'b16c111a-d05f-488c-a6d9-c2a6f3ee02bb'
-        cls.unkown_test_provider_uuid = '16b38e92-773b-4984-8749-e54086f98db7'
-        cls.aws_provider_resource_name = 'arn:aws:iam::111111111111:role/CostManagement'
-        cls.ocp_provider_resource_name = 'my-ocp-cluster-1'
-        cls.aws_test_billing_source = 'test-bucket'
+        cls.ocp_test_provider_uuid = "3c6e687e-1a09-4a05-970c-2ccf44b0952e"
+        cls.aws_test_provider_uuid = "6e212746-484a-40cd-bba0-09a19d132d64"
+        cls.azure_test_provider_uuid = "b16c111a-d05f-488c-a6d9-c2a6f3ee02bb"
+        cls.unkown_test_provider_uuid = "16b38e92-773b-4984-8749-e54086f98db7"
+        cls.aws_provider_resource_name = "arn:aws:iam::111111111111:role/CostManagement"
+        cls.ocp_provider_resource_name = "my-ocp-cluster-1"
+        cls.aws_test_billing_source = "test-bucket"
         cls.ocp_test_billing_source = None
-        cls.aws_auth_provider_uuid = '7e4ec31b-7ced-4a17-9f7e-f77e9efa8fd6'
+        cls.aws_auth_provider_uuid = "7e4ec31b-7ced-4a17-9f7e-f77e9efa8fd6"
         cls.azure_credentials = {
-            'subscription_id': 'e03f27e2-f248-4ad7-bfb1-9a4cff600e1d',
-            'tenant_id': '67b2fcf4-228a-4aee-a215-3a768cdd0105',
-            'client_id': 'fac9449a-0f78-42bb-b8e5-90144a025191',
-            'client_secret': 'secretcode',
+            "subscription_id": "e03f27e2-f248-4ad7-bfb1-9a4cff600e1d",
+            "tenant_id": "67b2fcf4-228a-4aee-a215-3a768cdd0105",
+            "client_id": "fac9449a-0f78-42bb-b8e5-90144a025191",
+            "client_secret": "secretcode",
         }
-        cls.azure_data_source = {
-            'resource_group': 'resourcegroup1',
-            'storage_account': 'storageaccount1',
-        }
+        cls.azure_data_source = {"resource_group": "resourcegroup1", "storage_account": "storageaccount1"}
 
     @classmethod
     def tearDownClass(cls):
@@ -98,20 +98,17 @@ class MasuTestCase(TransactionTestCase):
         self.customer = Customer.objects.create(account_id=self.acct, schema_name=self.schema)
 
         self.aws_auth = ProviderAuthentication.objects.create(
-            uuid=self.aws_auth_provider_uuid,
-            provider_resource_name=self.aws_provider_resource_name,
+            uuid=self.aws_auth_provider_uuid, provider_resource_name=self.aws_provider_resource_name
         )
         self.aws_auth.save()
-        self.aws_billing_source = ProviderBillingSource.objects.create(
-            bucket=self.aws_test_billing_source
-        )
+        self.aws_billing_source = ProviderBillingSource.objects.create(bucket=self.aws_test_billing_source)
         self.aws_billing_source.save()
 
         self.aws_db_auth_id = self.aws_auth.id
 
         self.aws_provider = Provider.objects.create(
             uuid=self.aws_test_provider_uuid,
-            name='Test Provider',
+            name="Test Provider",
             type=Provider.PROVIDER_AWS,
             authentication=self.aws_auth,
             billing_source=self.aws_billing_source,
@@ -122,15 +119,14 @@ class MasuTestCase(TransactionTestCase):
         self.aws_provider.save()
 
         self.ocp_auth = ProviderAuthentication.objects.create(
-            uuid='7e4ec31b-7ced-4a17-9f7e-f77e9efa8fd7',
-            provider_resource_name=self.ocp_provider_resource_name,
+            uuid="7e4ec31b-7ced-4a17-9f7e-f77e9efa8fd7", provider_resource_name=self.ocp_provider_resource_name
         )
         self.ocp_auth.save()
         self.ocp_db_auth_id = self.ocp_auth.id
 
         self.ocp_provider = Provider.objects.create(
             uuid=self.ocp_test_provider_uuid,
-            name='Test Provider',
+            name="Test Provider",
             type=Provider.PROVIDER_OCP,
             authentication=self.ocp_auth,
             customer=self.customer,
@@ -142,9 +138,7 @@ class MasuTestCase(TransactionTestCase):
         self.azure_auth = ProviderAuthentication.objects.create(credentials=self.azure_credentials)
         self.azure_auth.save()
 
-        self.azure_billing_source = ProviderBillingSource.objects.create(
-            data_source=self.azure_data_source
-        )
+        self.azure_billing_source = ProviderBillingSource.objects.create(data_source=self.azure_data_source)
         self.azure_billing_source.save()
 
         self.aws_provider_uuid = self.aws_provider.uuid
@@ -152,7 +146,7 @@ class MasuTestCase(TransactionTestCase):
 
         self.azure_provider = Provider.objects.create(
             uuid=self.azure_test_provider_uuid,
-            name='Test Provider',
+            name="Test Provider",
             type=Provider.PROVIDER_AZURE,
             authentication=self.azure_auth,
             billing_source=self.azure_billing_source,
@@ -173,7 +167,7 @@ class MasuTestCase(TransactionTestCase):
         for db_name in self._databases_names(include_mirrors=False):
             # Flush the tenant schema's data
             call_command(
-                'flush',
+                "flush",
                 verbosity=0,
                 interactive=False,
                 database=db_name,
@@ -194,12 +188,12 @@ class MasuTestCase(TransactionTestCase):
                 or (  # Inhibit the post_migrate signal when using serialized
                     # rollback to avoid trying to recreate the serialized data.
                     self.serialized_rollback
-                    and hasattr(connections[db_name], '_test_serialized_contents')
+                    and hasattr(connections[db_name], "_test_serialized_contents")
                 )
             )
 
             call_command(
-                'flush',
+                "flush",
                 verbosity=0,
                 interactive=False,
                 database=db_name,
