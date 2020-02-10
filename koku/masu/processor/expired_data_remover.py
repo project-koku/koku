@@ -122,6 +122,23 @@ class ExpiredDataRemover:
         LOG.info(msg)
         return expiration_date
 
+    def remove_line_items(self, simulate=False, provider_uuid=None):
+        """
+        Remove expired line items based on the retention policy.
+
+         Args:
+            None
+
+        Returns:
+            ([{}]) List of dictionaries containing 'account_payer_id' and 'billing_period_start'
+        """
+        if provider_uuid is not None:
+            removed_data = self._cleaner.purge_expired_line_item(simulate=simulate, provider_uuid=provider_uuid)
+        else:
+            expiration_date = self._calculate_expiration_date()
+            removed_data = self._cleaner.purge_expired_line_item(expired_date=expiration_date, simulate=simulate)
+        return removed_data
+
     def remove(self, simulate=False, provider_uuid=None):
         """
         Remove expired data based on the retention policy.

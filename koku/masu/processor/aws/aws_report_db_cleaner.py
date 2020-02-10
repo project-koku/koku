@@ -42,6 +42,58 @@ class AWSReportDBCleaner:
         """
         self._schema = schema
 
+    def purge_expired_line_item(self, expired_date=None, provider_uuid=None, simulate=False):
+        """Remove raw line item report data with a billing start period before specified date.
+
+        Args:
+            expired_date (datetime.datetime): The cutoff date for removing data.
+            provider_uuid (uuid): The DB id of the provider to purge data for.
+            simulate (bool): Whether to simluate the removal.
+
+        Returns:
+            ([{}]) List of dictionaries containing 'account_payer_id' and 'billing_period_start'
+
+        """
+        LOG.info("Calling purge_expired_line_item for aws")
+
+        with ReportingCommonDBAccessor() as reporting_common:
+            column_map = reporting_common.column_map
+
+        with AWSReportDBAccessor(self._schema, column_map) as accessor:
+            if (expired_date is None and provider_uuid is None) or (  # noqa: W504
+                expired_date is not None and provider_uuid is not None
+            ):
+                err = "This method must be called with either expired_date or provider_uuid"
+                raise AWSReportDBCleanerError(err)
+            removed_items = []
+
+            if expired_date is not None:
+                bill_objects = accessor.get_bill_query_before_date(expired_date)
+            else:
+                bill_objects = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
+            with schema_context(self._schema):
+                for bill in bill_objects.all():
+                    bill_id = bill.id
+                    removed_payer_account_id = bill.payer_account_id
+                    removed_billing_period_start = bill.billing_period_start
+
+                    if not simulate:
+                        del_count = accessor.get_lineitem_query_for_billid(bill_id).delete()
+                        LOG.info("Removing %s cost entry line items for bill id %s", del_count, bill_id)
+
+                    LOG.info(
+                        "Report data removed for Account Payer ID: %s with billing period: %s",
+                        removed_payer_account_id,
+                        removed_billing_period_start,
+                    )
+                    removed_items.append(
+                        {
+                            "account_payer_id": removed_payer_account_id,
+                            "billing_period_start": str(removed_billing_period_start),
+                        }
+                    )
+        return removed_items
+
     # pylint: disable=too-many-locals
     def purge_expired_report_data(self, expired_date=None, provider_uuid=None, simulate=False):
         """Remove report data with a billing start period before specified date.
@@ -55,6 +107,7 @@ class AWSReportDBCleaner:
             ([{}]) List of dictionaries containing 'account_payer_id' and 'billing_period_start'
 
         """
+        LOG.info("Calling purge_expired_report_data for aws")
         with ReportingCommonDBAccessor() as reporting_common:
             column_map = reporting_common.column_map
 
