@@ -19,9 +19,11 @@ import datetime
 import logging
 
 from dateutil import relativedelta
-from django.db.models.functions import TruncDay, TruncMonth
+from django.db.models.functions import TruncDay
+from django.db.models.functions import TruncMonth
 
-from api.query_filter import QueryFilter, QueryFilterCollection
+from api.query_filter import QueryFilter
+from api.query_filter import QueryFilterCollection
 from api.utils import DateHelper
 
 LOG = logging.getLogger(__name__)
@@ -320,7 +322,7 @@ class QueryHandler:
         """
         for group_by_key in parameters.parameters.get("group_by", {}):
             for group_by_value in parameters.parameters.get("group_by", {})[group_by_key]:
-                if group_by_value == '*':
+                if group_by_value == "*":
                     # find if there is a filter[X]=Y that matches this group_by[X]=*
                     # get filter value for current group_by_key
                     filter_value = parameters.parameters.get("filter", {}).get(group_by_key)

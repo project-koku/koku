@@ -119,14 +119,10 @@ class ReportQueryUtilsTest(TestCase):
 def create_test_handler(mapper=None, params=None):
     """Create a TestableReportQueryHandler using the supplied args."""
     if not mapper:
-        mapper = {'filter': {}, 'filters': {}}
+        mapper = {"filter": {}, "filters": {}}
 
     if not params:
-        params = {
-            'filter': {},
-            'group_by': {},
-            'order_by': {},
-        }
+        params = {"filter": {}, "group_by": {}, "order_by": {}}
 
     class TestableReportQueryHandler(ReportQueryHandler):
         """ A testable minimal implementation of ReportQueryHandler.
@@ -144,8 +140,8 @@ def create_test_handler(mapper=None, params=None):
     mock_params = Mock(
         spec=QueryParameters,
         parameters=Mock(return_value=params, get=lambda x, y=None: params.get(x, y)),
-        get_filter=lambda x, default: params.get('filter').get(x, default),
-        get_group_by=lambda x, default: params.get('group_by').get(x, default),
+        get_filter=lambda x, default: params.get("filter").get(x, default),
+        get_group_by=lambda x, default: params.get("group_by").get(x, default),
         get=lambda x, default: params.get(x, default),
         tag_keys=[],
     )
@@ -162,18 +158,11 @@ class ReportQueryHandlerTest(TestCase):
 
     def test_set_operator_specified_filters_and(self):
         """Test that AND/OR terms are correctly applied to param filters."""
-        operator = 'and'
+        operator = "and"
 
         fake_group = FAKE.word()
-        mapper = {
-            'filter': {},
-            'filters': {},
-        }
-        params = {
-            'filter': {},
-            'group_by': {fake_group: ['and:' + FAKE.word(), 'and:' + FAKE.word()]},
-            'order_by': {},
-        }
+        mapper = {"filter": {}, "filters": {}}
+        params = {"filter": {}, "group_by": {fake_group: ["and:" + FAKE.word(), "and:" + FAKE.word()]}, "order_by": {}}
 
         rqh = create_test_handler(mapper, params)
         output = rqh._set_operator_specified_filters(operator)
@@ -184,19 +173,11 @@ class ReportQueryHandlerTest(TestCase):
 
     def test_set_operator_specified_filters_or(self):
         """Test that AND/OR terms are correctly applied to param filters."""
-        operator = 'or'
+        operator = "or"
 
         fake_group = FAKE.word()
-        mapper = {
-            'filter': {},
-            'filters': {},
-            'group_by_options': [fake_group],
-        }
-        params = {
-            'filter': {},
-            'group_by': {fake_group: ['or:' + FAKE.word(), 'or:' + FAKE.word()]},
-            'order_by': {},
-        }
+        mapper = {"filter": {}, "filters": {}, "group_by_options": [fake_group]}
+        params = {"filter": {}, "group_by": {fake_group: ["or:" + FAKE.word(), "or:" + FAKE.word()]}, "order_by": {}}
 
         rqh = create_test_handler(mapper, params)
         output = rqh._set_operator_specified_filters(operator)
@@ -207,17 +188,14 @@ class ReportQueryHandlerTest(TestCase):
 
     def test_set_operator_specified_tag_filters_and(self):
         """Test that AND/OR terms are correctly applied to tag filters."""
-        operator = 'and'
+        operator = "and"
 
         fake_group = FAKE.word()
-        mapper = {
-            'filter': {},
-            'filters': {},
-        }
+        mapper = {"filter": {}, "filters": {}}
         params = {
-            'filter': {},
-            'group_by': {fake_group: ['and:tag:' + FAKE.word(), 'and:tag:' + FAKE.word()]},
-            'order_by': {},
+            "filter": {},
+            "group_by": {fake_group: ["and:tag:" + FAKE.word(), "and:tag:" + FAKE.word()]},
+            "order_by": {},
         }
 
         rqh = create_test_handler(mapper, params)
@@ -228,17 +206,14 @@ class ReportQueryHandlerTest(TestCase):
 
     def test_set_operator_specified_tag_filters_or(self):
         """Test that AND/OR terms are correctly applied to tag filters."""
-        operator = 'or'
+        operator = "or"
 
         fake_group = FAKE.word()
-        mapper = {
-            'filter': {},
-            'filters': {},
-        }
+        mapper = {"filter": {}, "filters": {}}
         params = {
-            'filter': {},
-            'group_by': {fake_group: ['or:tag:' + FAKE.word(), 'or:tag:' + FAKE.word()]},
-            'order_by': {},
+            "filter": {},
+            "group_by": {fake_group: ["or:tag:" + FAKE.word(), "or:tag:" + FAKE.word()]},
+            "order_by": {},
         }
 
         rqh = create_test_handler(mapper, params)
