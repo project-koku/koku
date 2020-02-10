@@ -16,13 +16,15 @@
 #
 """Test the AzureReportQueryHandler base class."""
 import hashlib
+import pkgutil
 import random
 from collections import UserDict
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
-from django.db.utils import IntegrityError
+from django.db import connection
 from faker import Faker
+from jinjasql import JinjaSql
 from tenant_schemas.utils import tenant_context
 
 from api.iam.serializers import _currency_symbols
@@ -546,13 +548,17 @@ class AzureReportDataGenerator:
 
     def _tag_summary(self):
         """Populate AzureTagsSummary."""
-        for key, val in self.config.tags.items():
-            try:
-                AzureTagsSummary.objects.get_or_create(key=key, values=[val])
-            except IntegrityError:
-                tags = AzureTagsSummary.objects.filter(key=key).first()
-                tags.values.append(val)
-                tags.save()
+        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_cloudtags_summary.sql")
+        agg_sql = agg_sql.decode("utf-8")
+        agg_sql_params = {
+            "schema": connection.schema_name,
+            "tag_table": "reporting_azuretags_summary",
+            "lineitem_table": "reporting_azurecostentrylineitem_daily",
+        }
+        agg_sql, agg_sql_params = JinjaSql().prepare_query(agg_sql, agg_sql_params)
+
+        with connection.cursor() as cursor:
+            cursor.execute(agg_sql)
 
     def select_tags(self):
         """Return a random selection of the defined tags."""
