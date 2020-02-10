@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Azure views."""
-
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.models import Provider
 from api.report.azure.query_handler import AzureReportQueryHandler
@@ -69,7 +68,7 @@ class AzureCostView(AzureView):
 
     """
 
-    report = 'costs'
+    report = "costs"
 
 
 class AzureInstanceTypeView(AzureView):
@@ -108,7 +107,7 @@ class AzureInstanceTypeView(AzureView):
 
     """
 
-    report = 'instance_type'
+    report = "instance_type"
 
 
 class AzureStorageView(AzureView):
@@ -142,4 +141,4 @@ class AzureStorageView(AzureView):
 
     """
 
-    report = 'storage'
+    report = "storage"

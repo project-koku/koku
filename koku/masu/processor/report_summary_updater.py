@@ -16,7 +16,6 @@
 #
 """Update reporting summary tables."""
 # pylint: skip-file
-
 import datetime
 import logging
 
@@ -66,9 +65,8 @@ class ReportSummaryUpdater:
             raise ReportSummaryUpdaterError(err)
 
         if not self._updater:
-            raise ReportSummaryUpdaterError('Invalid provider type specified.')
-        LOG.info('Starting report data summarization for provider uuid: %s.',
-                 self._provider.uuid)
+            raise ReportSummaryUpdaterError("Invalid provider type specified.")
+        LOG.info("Starting report data summarization for provider uuid: %s.", self._provider.uuid)
 
     def _set_updater(self):
         """
@@ -84,14 +82,20 @@ class ReportSummaryUpdater:
 
         """
         if self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            return (AWSReportSummaryUpdater(self._schema, self._provider, self._manifest),
-                    OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest))
+            return (
+                AWSReportSummaryUpdater(self._schema, self._provider, self._manifest),
+                OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
+            )
         if self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            return (AzureReportSummaryUpdater(self._schema, self._provider, self._manifest),
-                    OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest))
-        if self._provider.type in (Provider.PROVIDER_OCP, ):
-            return (OCPReportSummaryUpdater(self._schema, self._provider, self._manifest),
-                    OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest))
+            return (
+                AzureReportSummaryUpdater(self._schema, self._provider, self._manifest),
+                OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
+            )
+        if self._provider.type in (Provider.PROVIDER_OCP,):
+            return (
+                OCPReportSummaryUpdater(self._schema, self._provider, self._manifest),
+                OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest),
+            )
 
         return (None, None)
 
@@ -111,9 +115,12 @@ class ReportSummaryUpdater:
         """Check if processing should continue."""
         if self._manifest and self._manifest.num_processed_files != self._manifest.num_total_files:
             # Bail if all manifest files have not been processed
-            LOG.error('Not all manifest files have completed processing.'
-                      'Summary deferred. Processed Files: %s, Total Files: %s',
-                      str(self._manifest.num_processed_files), str(self._manifest.num_total_files))
+            LOG.error(
+                "Not all manifest files have completed processing."
+                "Summary deferred. Processed Files: %s, Total Files: %s",
+                str(self._manifest.num_processed_files),
+                str(self._manifest.num_total_files),
+            )
         return True
 
     def update_daily_tables(self, start_date, end_date):
@@ -131,10 +138,7 @@ class ReportSummaryUpdater:
         """
         start_date, end_date = self._format_dates(start_date, end_date)
 
-        start_date, end_date = self._updater.update_daily_tables(
-            start_date,
-            end_date
-        )
+        start_date, end_date = self._updater.update_daily_tables(start_date, end_date)
 
         return start_date, end_date
 
@@ -159,10 +163,7 @@ class ReportSummaryUpdater:
             end_date
         )
 
-        self._ocp_cloud_updater.update_summary_tables(
-            start_date,
-            end_date
-        )
+        self._ocp_cloud_updater.update_summary_tables(start_date, end_date)
 
     def update_cost_summary_table(self, start_date, end_date):
         """
@@ -178,7 +179,4 @@ class ReportSummaryUpdater:
         """
         start_date, end_date = self._format_dates(start_date, end_date)
 
-        self._ocp_cloud_updater.update_cost_summary_table(
-            start_date,
-            end_date
-        )
+        self._ocp_cloud_updater.update_cost_summary_table(start_date, end_date)

@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """OCP-on-All Tag Query Handling."""
 from api.models import Provider
 from api.report.all.openshift.provider_map import OCPAllProviderMap
@@ -25,7 +24,7 @@ from reporting.models import OCPAllCostLineItemDailySummary
 class OCPAllTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for OCP-on-All."""
 
-    data_sources = [{'db_table': OCPAllCostLineItemDailySummary, 'db_column': 'tags'}]
+    data_sources = [{"db_table": OCPAllCostLineItemDailySummary, "db_column": "tags"}]
     provider = Provider.OCP_ALL
 
     def __init__(self, parameters):
@@ -35,8 +34,6 @@ class OCPAllTagQueryHandler(TagQueryHandler):
             parameters    (QueryParameters): parameter object for query
 
         """
-        self._mapper = OCPAllProviderMap(
-            provider=self.provider, report_type=parameters.report_type
-        )
+        self._mapper = OCPAllProviderMap(provider=self.provider, report_type=parameters.report_type)
         # super() needs to be called after _mapper is set
         super().__init__(parameters)

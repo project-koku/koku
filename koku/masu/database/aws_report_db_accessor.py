@@ -64,26 +64,27 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         """Get all cost entry bill objects."""
         table_name = AWSCostEntryBill
         with schema_context(self.schema):
-            columns = ['id', 'bill_type', 'payer_account_id', 'billing_period_start', 'provider_id']
+            columns = ["id", "bill_type", "payer_account_id", "billing_period_start", "provider_id"]
             bills = self._get_db_obj_query(table_name).values(*columns)
-            return {(bill['bill_type'], bill['payer_account_id'],
-                     bill['billing_period_start'], bill['provider_id']): bill['id']
-                    for bill in bills}
+            return {
+                (bill["bill_type"], bill["payer_account_id"], bill["billing_period_start"], bill["provider_id"]): bill[
+                    "id"
+                ]
+                for bill in bills
+            }
 
     def get_cost_entry_bills_by_date(self, start_date):
         """Return a cost entry bill for the specified start date."""
         table_name = AWSCostEntryBill
         with schema_context(self.schema):
-            return self._get_db_obj_query(table_name)\
-                .filter(billing_period_start=start_date)
+            return self._get_db_obj_query(table_name).filter(billing_period_start=start_date)
 
     # pylint: disable=invalid-name
     def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
         table_name = AWSCostEntryBill
         with schema_context(self.schema):
-            return self._get_db_obj_query(table_name)\
-                .filter(provider_id=provider_uuid)
+            return self._get_db_obj_query(table_name).filter(provider_id=provider_uuid)
 
     def bills_for_provider_uuid(self, provider_uuid, start_date: Optional[datetime.date] = None):
         """Return all cost entry bills for provider_uuid on date."""
@@ -127,14 +128,14 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
 
     def get_ocp_aws_summary_query_for_billid(self, bill_id):
         """Get the OCP-on-AWS report summary item for a given bill query."""
-        table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_daily_summary']
+        table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
         base_query = self._get_db_obj_query(table_name)
         summary_item_query = base_query.filter(cost_entry_bill_id=bill_id)
         return summary_item_query
 
     def get_ocp_aws_project_summary_query_for_billid(self, bill_id):
         """Get the OCP-on-AWS report project summary item for a given bill query."""
-        table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_project_daily_summary']
+        table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"]
         base_query = self._get_db_obj_query(table_name)
         summary_item_query = base_query.filter(cost_entry_bill_id=bill_id)
         return summary_item_query
@@ -153,18 +154,18 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         with schema_context(self.schema):
             cost_entries = self._get_db_obj_query(table_name).all()
 
-            return {(ce.bill_id, ce.interval_start.strftime(self._datetime_format)): ce.id
-                    for ce in cost_entries}
+            return {(ce.bill_id, ce.interval_start.strftime(self._datetime_format)): ce.id for ce in cost_entries}
 
     def get_products(self):
         """Make a mapping of product sku to product objects."""
         table_name = AWSCostEntryProduct
         with schema_context(self.schema):
-            columns = ['id', 'sku', 'product_name', 'region']
+            columns = ["id", "sku", "product_name", "region"]
             products = self._get_db_obj_query(table_name, columns=columns).all()
 
-            return {(product['sku'], product['product_name'], product['region']): product['id']
-                    for product in products}
+            return {
+                (product["sku"], product["product_name"], product["region"]): product["id"] for product in products
+            }
 
     def get_pricing(self):
         """Make a mapping of pricing values string to pricing objects."""
@@ -172,17 +173,16 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         with schema_context(self.schema):
             pricing = self._get_db_obj_query(table_name).all()
 
-            return {'{term}-{unit}'.format(term=p.term, unit=p.unit): p.id
-                    for p in pricing}
+            return {f"{p.term}-{p.unit}": p.id for p in pricing}
 
     def get_reservations(self):
         """Make a mapping of reservation ARN to reservation objects."""
         table_name = AWSCostEntryReservation
         with schema_context(self.schema):
-            columns = ['id', 'reservation_arn']
+            columns = ["id", "reservation_arn"]
             reservs = self._get_db_obj_query(table_name, columns=columns).all()
 
-            return {res['reservation_arn']: res['id'] for res in reservs}
+            return {res["reservation_arn"]: res["id"] for res in reservs}
 
     def populate_line_item_daily_table(self, start_date, end_date, bill_ids):
         """Populate the daily aggregate of line items table.
@@ -196,7 +196,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        table_name = AWS_CUR_TABLE_MAP['line_item_daily']
+        table_name = AWS_CUR_TABLE_MAP["line_item_daily"]
 
         daily_sql = pkgutil.get_data(
             'masu.database',
@@ -204,15 +204,14 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         )
         daily_sql = daily_sql.decode('utf-8')  # pytype: disable=attribute-error
         daily_sql_params = {
-            'uuid': str(uuid.uuid4()).replace('-', '_'),
-            'start_date': start_date,
-            'end_date': end_date,
-            'bill_ids': bill_ids,
-            'schema': self.schema
+            "uuid": str(uuid.uuid4()).replace("-", "_"),
+            "start_date": start_date,
+            "end_date": end_date,
+            "bill_ids": bill_ids,
+            "schema": self.schema,
         }
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
-        self._execute_raw_sql_query(
-            table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
+        self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
     # pylint: disable=invalid-name
     def populate_line_item_daily_summary_table(self, start_date, end_date, bill_ids):
@@ -233,32 +232,31 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         )
         summary_sql = summary_sql.decode('utf-8')  # pytype: disable=attribute-error
         summary_sql_params = {
-            'uuid': str(uuid.uuid4()).replace('-', '_'),
-            'start_date': start_date,
-            'end_date': end_date,
-            'bill_ids': bill_ids,
-            'schema': self.schema
+            "uuid": str(uuid.uuid4()).replace("-", "_"),
+            "start_date": start_date,
+            "end_date": end_date,
+            "bill_ids": bill_ids,
+            "schema": self.schema,
         }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
-            summary_sql, summary_sql_params)
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._execute_raw_sql_query(
-            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+        )
 
     def mark_bill_as_finalized(self, bill_id):
         """Mark a bill in the database as finalized."""
         table_name = AWSCostEntryBill
         with schema_context(self.schema):
-            bill = self._get_db_obj_query(table_name)\
-                .get(id=bill_id)
+            bill = self._get_db_obj_query(table_name).get(id=bill_id)
 
             if bill.finalized_datetime is None:
-                bill.finalized_datetime = self.date_accessor.today_with_timezone('UTC')
+                bill.finalized_datetime = self.date_accessor.today_with_timezone("UTC")
                 bill.save()
 
     # pylint: disable=invalid-name
     def populate_tags_summary_table(self):
         """Populate the line item aggregated totals data table."""
-        table_name = AWS_CUR_TABLE_MAP['tags_summary']
+        table_name = AWS_CUR_TABLE_MAP["tags_summary"]
 
         agg_sql = pkgutil.get_data(
             'masu.database',
@@ -271,8 +269,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
-    def populate_ocp_on_aws_cost_daily_summary(self, start_date, end_date,
-                                               cluster_id, bill_ids):
+    def populate_ocp_on_aws_cost_daily_summary(self, start_date, end_date, cluster_id, bill_ids):
         """Populate the daily cost aggregated summary for OCP on AWS.
 
         Args:
@@ -290,44 +287,43 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         )
         summary_sql = summary_sql.decode('utf-8')  # pytype: disable=attribute-error
         summary_sql_params = {
-            'uuid': str(uuid.uuid4()).replace('-', '_'),
-            'start_date': start_date,
-            'end_date': end_date,
-            'bill_ids': bill_ids,
-            'cluster_id': cluster_id,
-            'schema': self.schema
+            "uuid": str(uuid.uuid4()).replace("-", "_"),
+            "start_date": start_date,
+            "end_date": end_date,
+            "bill_ids": bill_ids,
+            "cluster_id": cluster_id,
+            "schema": self.schema,
         }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
-            summary_sql, summary_sql_params)
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
         self._execute_raw_sql_query(
-            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+        )
 
     def populate_markup_cost(self, markup, bill_ids=None):
         """Set markup costs in the database."""
         with schema_context(self.schema):
             if bill_ids:
                 for bill_id in bill_ids:
-                    AWSCostEntryLineItemDailySummary.objects.\
-                        filter(cost_entry_bill_id=bill_id).\
-                        update(markup_cost=(F('unblended_cost') * markup))
+                    AWSCostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
+                        markup_cost=(F("unblended_cost") * markup)
+                    )
             else:
-                AWSCostEntryLineItemDailySummary.objects.\
-                    update(markup_cost=(F('unblended_cost') * markup))
+                AWSCostEntryLineItemDailySummary.objects.update(markup_cost=(F("unblended_cost") * markup))
 
     def populate_ocp_on_aws_markup_cost(self, markup, bill_ids=None):
         """Set markup costs in the database."""
         with schema_context(self.schema):
             if bill_ids:
                 for bill_id in bill_ids:
-                    OCPAWSCostLineItemDailySummary.objects.\
-                        filter(cost_entry_bill_id=bill_id).\
-                        update(markup_cost=(F('unblended_cost') * markup))
-                    OCPAWSCostLineItemProjectDailySummary.objects.\
-                        filter(cost_entry_bill_id=bill_id).\
-                        update(project_markup_cost=(F('unblended_cost') * markup))
+                    OCPAWSCostLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
+                        markup_cost=(F("unblended_cost") * markup)
+                    )
+                    OCPAWSCostLineItemProjectDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
+                        project_markup_cost=(F("unblended_cost") * markup)
+                    )
             else:
-                OCPAWSCostLineItemDailySummary.objects.\
-                    update(markup_cost=(F('unblended_cost') * markup))
-                OCPAWSCostLineItemProjectDailySummary.objects.\
-                    update(project_markup_cost=(F('unblended_cost') * markup))
+                OCPAWSCostLineItemDailySummary.objects.update(markup_cost=(F("unblended_cost") * markup))
+                OCPAWSCostLineItemProjectDailySummary.objects.update(
+                    project_markup_cost=(F("unblended_cost") * markup)
+                )

@@ -14,9 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the update_charge endpoint view."""
-
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -24,48 +22,45 @@ from django.test.utils import override_settings
 from django.urls import reverse
 
 
-@override_settings(ROOT_URLCONF='masu.urls')
+@override_settings(ROOT_URLCONF="masu.urls")
 class UpdateChargeTest(TestCase):
     """Test Cases for the update_charge endpoint."""
 
-    @patch('masu.api.update_charge.update_charge_info')
+    @patch("masu.api.update_charge.update_charge_info")
     def test_get_update_charge(self, mock_update):
         """Test the GET report_data endpoint."""
-        params = {
-            'schema': 'acct10001',
-            'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
-        }
-        expected_key = 'Update Charge Task ID'
+        params = {"schema": "acct10001", "provider_uuid": "3c6e687e-1a09-4a05-970c-2ccf44b0952e"}
+        expected_key = "Update Charge Task ID"
 
-        response = self.client.get(reverse('update_charge'), params)
+        response = self.client.get(reverse("update_charge"), params)
         body = response.json()
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
-        mock_update.delay.assert_called_with(params['schema'], params['provider_uuid'])
+        mock_update.delay.assert_called_with(params["schema"], params["provider_uuid"])
 
-    @patch('masu.api.update_charge.update_charge_info')
+    @patch("masu.api.update_charge.update_charge_info")
     def test_get_update_charge_schema_missing(self, mock_update):
         """Test GET report_data endpoint returns a 400 for missing schema."""
-        params = {'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e'}
-        expected_key = 'Error'
-        expected_message = 'provider_uuid and schema_name are required parameters.'
+        params = {"provider_uuid": "3c6e687e-1a09-4a05-970c-2ccf44b0952e"}
+        expected_key = "Error"
+        expected_message = "provider_uuid and schema_name are required parameters."
 
-        response = self.client.get(reverse('update_charge'), params)
+        response = self.client.get(reverse("update_charge"), params)
         body = response.json()
 
         self.assertEqual(response.status_code, 400)
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)
 
-    @patch('masu.api.update_charge.update_charge_info')
+    @patch("masu.api.update_charge.update_charge_info")
     def test_get_update_charge_provider_missing(self, mock_update):
         """Test GET report_data endpoint returns a 400 for missing schema."""
-        params = {'schema': 'acct10001'}
-        expected_key = 'Error'
-        expected_message = 'provider_uuid and schema_name are required parameters.'
+        params = {"schema": "acct10001"}
+        expected_key = "Error"
+        expected_message = "provider_uuid and schema_name are required parameters."
 
-        response = self.client.get(reverse('update_charge'), params)
+        response = self.client.get(reverse("update_charge"), params)
         body = response.json()
 
         self.assertEqual(response.status_code, 400)

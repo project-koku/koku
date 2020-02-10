@@ -15,7 +15,6 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Collector to get all Providers from koku database."""
-
 from api.models import Provider
 from masu.database.koku_database_access import KokuDBAccess
 
@@ -23,7 +22,7 @@ from masu.database.koku_database_access import KokuDBAccess
 class ProviderCollector(KokuDBAccess):
     """Class to interact with the koku database for Provider Data."""
 
-    def __init__(self, schema='public'):
+    def __init__(self, schema="public"):
         """
         Establish ProviderQuerier database connection.
 

@@ -21,7 +21,7 @@
 # and testing.
 #
 # Prerequisites:
-# - an OpenShift cluster 3.11+ or 4.x+ (e.g. ``oc cluster up``, ``minishift``, or ``crc``) 
+# - an OpenShift cluster 3.11+ or 4.x+ (e.g. ``oc cluster up``, ``minishift``, or ``crc``)
 #
 # - registry.redhat.io secrets YAML
 #     see: https://docs.openshift.com/container-platform/4.2/registry/registry-options.html#registry-authentication-enabled-registry-overview_registry-options

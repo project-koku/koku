@@ -14,27 +14,23 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the ReportDownloader object."""
-
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
+from unittest.mock import patch
 from uuid import uuid4
 
 from faker import Faker
 
 from api.models import Provider
-from masu.external.downloader.aws.aws_report_downloader import (
-    AWSReportDownloader,
-    AWSReportDownloaderError,
-)
+from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
+from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderError
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
-from masu.external.downloader.azure_local.azure_local_report_downloader import (
-    AzureLocalReportDownloader,
-)
+from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
-from masu.external.report_downloader import ReportDownloader, ReportDownloaderError
+from masu.external.report_downloader import ReportDownloader
+from masu.external.report_downloader import ReportDownloaderError
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
 
@@ -47,7 +43,7 @@ class ReportDownloaderTest(MasuTestCase):
     def setUp(self):
         """Set up each test case."""
         super().setUp()
-        self.fake_creds = fake_arn(service='iam', generate_account_id=True)
+        self.fake_creds = fake_arn(service="iam", generate_account_id=True)
         self.mock_task = Mock(request=Mock(id=str(FAKE.uuid4()), return_value={}))
 
     def create_downloader(self, provider_type):
@@ -85,70 +81,49 @@ class ReportDownloaderTest(MasuTestCase):
         self.assertIsNotNone(downloader._downloader)
         self.assertIsInstance(downloader._downloader, downloader_class)
 
-    @patch(
-        'masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__',
-        return_value=None,
-    )
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
     def test_init_with_aws(self, mock_downloader_init):
         """Assert ReportDownloader creation sets the AWS downloader."""
         self.assertDownloaderSetsProviderDownloader(Provider.PROVIDER_AWS, AWSReportDownloader)
         mock_downloader_init.assert_called()
 
     @patch(
-        'masu.external.downloader.aws_local.aws_local_report_downloader.AWSLocalReportDownloader.__init__',
+        "masu.external.downloader.aws_local.aws_local_report_downloader.AWSLocalReportDownloader.__init__",
         return_value=None,
     )
     def test_init_with_aws_local(self, mock_downloader_init):
         """Assert ReportDownloader creation sets the AWS-local downloader."""
-        self.assertDownloaderSetsProviderDownloader(
-            Provider.PROVIDER_AWS_LOCAL, AWSLocalReportDownloader
-        )
+        self.assertDownloaderSetsProviderDownloader(Provider.PROVIDER_AWS_LOCAL, AWSLocalReportDownloader)
         mock_downloader_init.assert_called()
 
-    @patch(
-        'masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader.__init__',
-        return_value=None,
-    )
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader.__init__", return_value=None)
     def test_init_with_azure(self, mock_downloader_init):
         """Assert ReportDownloader creation sets the Azure downloader."""
         self.assertDownloaderSetsProviderDownloader(Provider.PROVIDER_AZURE, AzureReportDownloader)
         mock_downloader_init.assert_called()
 
     @patch(
-        'masu.external.downloader.azure_local.azure_local_report_downloader.AzureLocalReportDownloader.__init__',
+        "masu.external.downloader.azure_local.azure_local_report_downloader.AzureLocalReportDownloader.__init__",
         return_value=None,
     )
     def test_init_with_azure_local(self, mock_downloader_init):
         """Assert ReportDownloader creation sets the Azure-local downloader."""
-        self.assertDownloaderSetsProviderDownloader(
-            Provider.PROVIDER_AZURE_LOCAL, AzureLocalReportDownloader
-        )
+        self.assertDownloaderSetsProviderDownloader(Provider.PROVIDER_AZURE_LOCAL, AzureLocalReportDownloader)
         mock_downloader_init.assert_called()
 
-    @patch(
-        'masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader.__init__',
-        return_value=None,
-    )
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader.__init__", return_value=None)
     def test_init_with_gcp(self, mock_downloader_init):
         """Assert ReportDownloader creation sets the GCP downloader."""
         self.assertDownloaderSetsProviderDownloader(Provider.PROVIDER_GCP, GCPReportDownloader)
         mock_downloader_init.assert_called()
 
-    @patch(
-        'masu.external.downloader.ocp.ocp_report_downloader.OCPReportDownloader.__init__',
-        return_value=None,
-    )
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.OCPReportDownloader.__init__", return_value=None)
     def test_init_with_ocp(self, mock_downloader_init):
         """Assert ReportDownloader creation sets the OCP downloader."""
-        self.assertDownloaderSetsProviderDownloader(
-            Provider.PROVIDER_OCP, OCPReportDownloader
-        )
+        self.assertDownloaderSetsProviderDownloader(Provider.PROVIDER_OCP, OCPReportDownloader)
         mock_downloader_init.assert_called()
 
-    @patch(
-        'masu.external.report_downloader.ReportDownloader._set_downloader',
-        side_effect=AWSReportDownloaderError,
-    )
+    @patch("masu.external.report_downloader.ReportDownloader._set_downloader", side_effect=AWSReportDownloaderError)
     def test_init_with_downloader_exception(self, mock_downloader_init):
         """Assert ReportDownloaderError is raised when _set_downloader raises an exception."""
         with self.assertRaises(ReportDownloaderError):
@@ -160,16 +135,11 @@ class ReportDownloaderTest(MasuTestCase):
         with self.assertRaises(ReportDownloaderError):
             self.create_downloader(FAKE.slug())
 
-    @patch(
-        'masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__',
-        return_value=None,
-    )
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
     def test_get_reports_error(self, mock_downloader_init):
         """Assert ReportDownloaderError is raised when get_reports raises an exception."""
         downloader = self.create_downloader(Provider.PROVIDER_AWS)
         mock_downloader_init.assert_called()
-        with patch.object(
-            AWSReportDownloader, 'get_report_context_for_date', side_effect=Exception('some error'),
-        ):
+        with patch.object(AWSReportDownloader, "get_report_context_for_date", side_effect=Exception("some error")):
             with self.assertRaises(ReportDownloaderError):
                 downloader.get_reports()

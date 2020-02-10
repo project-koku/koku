@@ -33,7 +33,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_{{uuid | sqlsafe}} A
         {% if bill_ids %}
         AND cost_entry_bill_id IN (
             {%- for bill_id in bill_ids  -%}
-                {{bill_id}}{% if not loop.last %},{% endif %}    
+                {{bill_id}}{% if not loop.last %},{% endif %}
             {%- endfor -%})
         {% endif %}
     GROUP BY date(ce.interval_start),

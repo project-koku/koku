@@ -75,9 +75,11 @@ class AWSReportSummaryUpdater:
         with AWSReportDBAccessor(self._schema, self._column_map) as accessor:
             for start, end in date_range_pair(start_date, end_date):
                 LOG.info(
-                    'Updating AWS report daily tables for \n\tSchema: %s'
-                    '\n\tProvider: %s \n\tDates: %s - %s',
-                    self._schema, self._provider.uuid, start, end
+                    "Updating AWS report daily tables for \n\tSchema: %s" "\n\tProvider: %s \n\tDates: %s - %s",
+                    self._schema,
+                    self._provider.uuid,
+                    start,
+                    end,
                 )
                 accessor.populate_line_item_daily_table(start, end, bill_ids)
 
@@ -110,18 +112,18 @@ class AWSReportSummaryUpdater:
             bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
             for start, end in date_range_pair(start_date, end_date):
                 LOG.info(
-                    'Updating AWS report summary tables: \n\tSchema: %s'
-                    '\n\tProvider: %s \n\tDates: %s - %s',
-                    self._schema, self._provider.uuid, start, end
+                    "Updating AWS report summary tables: \n\tSchema: %s" "\n\tProvider: %s \n\tDates: %s - %s",
+                    self._schema,
+                    self._provider.uuid,
+                    start,
+                    end,
                 )
                 accessor.populate_line_item_daily_summary_table(start, end, bill_ids)
             accessor.populate_tags_summary_table()
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
-                    bill.summary_data_creation_datetime = \
-                        self._date_accessor.today_with_timezone('UTC')
-                bill.summary_data_updated_datetime = \
-                    self._date_accessor.today_with_timezone('UTC')
+                    bill.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
+                bill.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
                 bill.save()
 
         return start_date, end_date
@@ -137,16 +139,12 @@ class AWSReportSummaryUpdater:
             if self._manifest:
                 # Override the bill date to correspond with the manifest
                 bill_date = self._manifest.billing_period_start_datetime.date()
-                bills = accessor.get_cost_entry_bills_query_by_provider(
-                    self._provider.uuid
-                )
+                bills = accessor.get_cost_entry_bills_query_by_provider(self._provider.uuid)
                 bills = bills.filter(billing_period_start=bill_date).all()
 
                 do_month_update = False
                 with schema_context(self._schema):
-                    do_month_update = self._determine_if_full_summary_update_needed(
-                        bills[0]
-                    )
+                    do_month_update = self._determine_if_full_summary_update_needed(bills[0])
                 if do_month_update:
                     last_day_of_month = calendar.monthrange(
                         bill_date.year,
@@ -161,7 +159,7 @@ class AWSReportSummaryUpdater:
 
     def _determine_if_full_summary_update_needed(self, bill):
         """Decide whether to update summary tables for full billing period."""
-        now_utc = self._date_accessor.today_with_timezone('UTC')
+        now_utc = self._date_accessor.today_with_timezone("UTC")
         processed_files = self._manifest.num_processed_files
         total_files = self._manifest.num_total_files
 
@@ -177,8 +175,7 @@ class AWSReportSummaryUpdater:
 
         # Do a full month update if we just finished processing a finalized
         # bill or we just finished processing a bill for the first time
-        if ((is_done_processing and is_newly_finalized) or  # noqa: W504
-                (is_done_processing and is_new_bill)):
+        if (is_done_processing and is_newly_finalized) or (is_done_processing and is_new_bill):  # noqa: W504
             return True
 
         return False

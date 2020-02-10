@@ -16,7 +16,6 @@
 #
 """Updates report summary tables in the database."""
 # pylint: skip-file
-
 import calendar
 import datetime
 import logging
@@ -63,23 +62,20 @@ class OCPReportSummaryUpdater:
             (datetime.date, datetime.date) A start date and end date.
 
         """
-        start_date, end_date = self._get_sql_inputs(
-            start_date,
-            end_date
-        )
+        start_date, end_date = self._get_sql_inputs(start_date, end_date)
         for start, end in date_range_pair(start_date, end_date):
             LOG.info(
-                'Updating OpenShift report daily tables for \n\tSchema: %s '
-                '\n\tProvider: %s \n\tCluster: %s \n\tDates: %s - %s',
-                self._schema, self._provider.uuid, self._cluster_id, start, end
+                "Updating OpenShift report daily tables for \n\tSchema: %s "
+                "\n\tProvider: %s \n\tCluster: %s \n\tDates: %s - %s",
+                self._schema,
+                self._provider.uuid,
+                self._cluster_id,
+                start,
+                end,
             )
             with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
-                accessor.populate_line_item_daily_table(
-                    start, end, self._cluster_id
-                )
-                accessor.populate_storage_line_item_daily_table(
-                    start, end, self._cluster_id
-                )
+                accessor.populate_line_item_daily_table(start, end, self._cluster_id)
+                accessor.populate_storage_line_item_daily_table(start, end, self._cluster_id)
 
         return start_date, end_date
 
@@ -94,37 +90,31 @@ class OCPReportSummaryUpdater:
             (str, str) A start date and end date.
 
         """
-        start_date, end_date = self._get_sql_inputs(
-            start_date,
-            end_date
-        )
+        start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
         report_periods = None
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             report_periods = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
             for start, end in date_range_pair(start_date, end_date):
                 LOG.info(
-                    'Updating OpenShift report summary tables for \n\tSchema: %s '
-                    '\n\tProvider: %s \n\tCluster: %s \n\tDates: %s - %s',
-                    self._schema, self._provider.uuid, self._cluster_id,
-                    start, end
+                    "Updating OpenShift report summary tables for \n\tSchema: %s "
+                    "\n\tProvider: %s \n\tCluster: %s \n\tDates: %s - %s",
+                    self._schema,
+                    self._provider.uuid,
+                    self._cluster_id,
+                    start,
+                    end,
                 )
-                accessor.populate_line_item_daily_summary_table(
-                    start, end, self._cluster_id
-                )
-                accessor.populate_storage_line_item_daily_summary_table(
-                    start, end, self._cluster_id
-                )
+                accessor.populate_line_item_daily_summary_table(start, end, self._cluster_id)
+                accessor.populate_storage_line_item_daily_summary_table(start, end, self._cluster_id)
             accessor.populate_pod_label_summary_table()
             accessor.populate_volume_claim_label_summary_table()
             accessor.populate_volume_label_summary_table()
 
             for period in report_periods:
                 if period.summary_data_creation_datetime is None:
-                    period.summary_data_creation_datetime = \
-                        self._date_accessor.today_with_timezone('UTC')
-                period.summary_data_updated_datetime = \
-                    self._date_accessor.today_with_timezone('UTC')
+                    period.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
+                period.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
                 period.save()
 
         return start_date, end_date
@@ -136,18 +126,12 @@ class OCPReportSummaryUpdater:
             if self._manifest:
                 # Override the bill date to correspond with the manifest
                 bill_date = self._manifest.billing_period_start_datetime.date()
-                report_periods = accessor.get_usage_period_query_by_provider(
-                    self._provider.uuid
-                )
-                report_periods = report_periods.filter(
-                    report_period_start=bill_date
-                ).all()
+                report_periods = accessor.get_usage_period_query_by_provider(self._provider.uuid)
+                report_periods = report_periods.filter(report_period_start=bill_date).all()
                 do_month_update = True
                 with schema_context(self._schema):
                     if report_periods is not None and len(report_periods) > 0:
-                        do_month_update = self._determine_if_full_summary_update_needed(
-                            report_periods[0]
-                        )
+                        do_month_update = self._determine_if_full_summary_update_needed(report_periods[0])
                 if do_month_update:
                     last_day_of_month = calendar.monthrange(
                         bill_date.year,

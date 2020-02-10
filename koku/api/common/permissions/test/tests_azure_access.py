@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Tests for Azure Access Permissions."""
-
 from unittest.mock import Mock
 
 from django.test import TestCase
@@ -45,18 +44,18 @@ class AzureAccessPermissionTest(TestCase):
 
     def test_has_perm_with_access_on_get(self):
         """Test that a user with access can execute."""
-        access = {'azure.subscription_guid': {'read': ['*']}}
+        access = {"azure.subscription_guid": {"read": ["*"]}}
         user = Mock(spec=User, access=access, admin=False)
-        req = Mock(user=user, method='GET')
+        req = Mock(user=user, method="GET")
         access_perm = AzureAccessPermission()
         result = access_perm.has_permission(request=req, view=None)
         self.assertTrue(result)
 
     def test_has_perm_with_access_on_put(self):
         """Test that a user with access can execute."""
-        access = {'azure.subscription_guid': {'read': ['*']}}
+        access = {"azure.subscription_guid": {"read": ["*"]}}
         user = Mock(spec=User, access=access, admin=False)
-        req = Mock(user=user, method='PUT')
+        req = Mock(user=user, method="PUT")
         access_perm = AzureAccessPermission()
         result = access_perm.has_permission(request=req, view=None)
         self.assertFalse(result)

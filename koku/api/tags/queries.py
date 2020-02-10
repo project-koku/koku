@@ -18,11 +18,13 @@
 import copy
 import logging
 
-from django.db.models import F, Q
+from django.db.models import F
+from django.db.models import Q
 from tenant_schemas.utils import tenant_context
 
 from api.functions import JSONBObjectKeys
-from api.query_filter import QueryFilter, QueryFilterCollection
+from api.query_filter import QueryFilter
+from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
 
 LOG = logging.getLogger(__name__)
@@ -60,17 +62,15 @@ class TagQueryHandler(QueryHandler):
 
     """
 
-    provider = 'TAGS'
+    provider = "TAGS"
     data_sources = []
-    SUPPORTED_FILTERS = ['project', 'account']
+    SUPPORTED_FILTERS = ["project", "account"]
     FILTER_MAP = {
-        'project': {'field': 'namespace', 'operation': 'icontains'},
-        'account': [{'field': 'account_alias__account_alias',
-                     'operation': 'icontains',
-                     'composition_key': 'account_filter'},
-                    {'field': 'usage_account_id',
-                     'operation': 'icontains',
-                     'composition_key': 'account_filter'}]
+        "project": {"field": "namespace", "operation": "icontains"},
+        "account": [
+            {"field": "account_alias__account_alias", "operation": "icontains", "composition_key": "account_filter"},
+            {"field": "usage_account_id", "operation": "icontains", "composition_key": "account_filter"},
+        ],
     }
 
     def __init__(self, parameters):
@@ -92,7 +92,7 @@ class TagQueryHandler(QueryHandler):
 
         """
         output = copy.deepcopy(self.parameters.parameters)
-        output['data'] = self.query_data
+        output["data"] = self.query_data
 
         return output
 
@@ -122,13 +122,13 @@ class TagQueryHandler(QueryHandler):
                         filters.add(q_filter)
 
         # Update filters that specifiy and or or in the query parameter
-        and_composed_filters = self._set_operator_specified_filters('and')
-        or_composed_filters = self._set_operator_specified_filters('or')
+        and_composed_filters = self._set_operator_specified_filters("and")
+        or_composed_filters = self._set_operator_specified_filters("or")
 
         composed_filters = filters.compose()
         composed_filters = composed_filters & and_composed_filters & or_composed_filters
 
-        LOG.debug(f'_get_filter: {composed_filters}')
+        LOG.debug(f"_get_filter: {composed_filters}")
         return composed_filters
 
     def _get_exclusions(self, column):
@@ -145,17 +145,13 @@ class TagQueryHandler(QueryHandler):
 
         """
         exclusions = QueryFilterCollection()
-        filt = {
-            'field': column,
-            'operation': 'isnull',
-            'parameter': True
-        }
+        filt = {"field": column, "operation": "isnull", "parameter": True}
         q_filter = QueryFilter(**filt)
         exclusions.add(q_filter)
 
         composed_exclusions = exclusions.compose()
 
-        LOG.debug(f'_get_exclusions: {composed_exclusions}')
+        LOG.debug(f"_get_exclusions: {composed_exclusions}")
         return composed_exclusions
 
     def _set_operator_specified_filters(self, operator):
@@ -163,31 +159,23 @@ class TagQueryHandler(QueryHandler):
         filters = QueryFilterCollection()
         composed_filter = Q()
         for filter_key in self.SUPPORTED_FILTERS:
-            operator_key = operator + ':' + filter_key
+            operator_key = operator + ":" + filter_key
             filter_value = self.parameters.get_filter(operator_key)
             logical_operator = operator
             if filter_value and len(filter_value) < 2:
-                logical_operator = 'or'
+                logical_operator = "or"
             if filter_value and not TagQueryHandler.has_wildcard(filter_value):
                 filter_obj = self.FILTER_MAP.get(filter_key)
                 if isinstance(filter_obj, list):
                     for _filt in filter_obj:
                         filt_filters = QueryFilterCollection()
                         for item in filter_value:
-                            q_filter = QueryFilter(
-                                parameter=item,
-                                logical_operator=logical_operator,
-                                **_filt
-                            )
+                            q_filter = QueryFilter(parameter=item, logical_operator=logical_operator, **_filt)
                             filt_filters.add(q_filter)
                         composed_filter = composed_filter | filt_filters.compose()
                 else:
                     for item in filter_value:
-                        q_filter = QueryFilter(
-                            parameter=item,
-                            logical_operator=logical_operator,
-                            **filter_obj
-                        )
+                        q_filter = QueryFilter(parameter=item, logical_operator=logical_operator, **filter_obj)
                         filters.add(q_filter)
         if filters:
             composed_filter = composed_filter & filters.compose()
@@ -196,26 +184,27 @@ class TagQueryHandler(QueryHandler):
 
     def get_tag_keys(self, filters=True):
         """Get a list of tag keys to validate filters."""
-        type_filter = self.parameters.get_filter('type')
+        type_filter = self.parameters.get_filter("type")
         tag_keys = []
         with tenant_context(self.tenant):
             for source in self.data_sources:
-                tag_keys_query = source.get('db_table').objects
+                tag_keys_query = source.get("db_table").objects
 
                 if filters is True:
                     tag_keys_query = tag_keys_query.filter(self.query_filter)
 
-                if type_filter and type_filter != source.get('type'):
+                if type_filter and type_filter != source.get("type"):
                     continue
-                exclusion = self._get_exclusions(source.get('db_column'))
-                tag_keys_query = tag_keys_query.annotate(
-                    tag_keys=JSONBObjectKeys(F(source.get('db_column'))))\
-                    .exclude(exclusion)\
-                    .values('tag_keys')\
-                    .distinct()\
+                exclusion = self._get_exclusions(source.get("db_column"))
+                tag_keys_query = (
+                    tag_keys_query.annotate(tag_keys=JSONBObjectKeys(F(source.get("db_column"))))
+                    .exclude(exclusion)
+                    .values("tag_keys")
+                    .distinct()
                     .all()
+                )
 
-                tag_keys_query = [tag.get('tag_keys') for tag in tag_keys_query]
+                tag_keys_query = [tag.get("tag_keys") for tag in tag_keys_query]
                 for tag_key in tag_keys_query:
                     tag_keys.append(tag_key)
 
@@ -225,7 +214,7 @@ class TagQueryHandler(QueryHandler):
     def _get_dictionary_for_key(dictionary_list, key):
         """Get dictionary matching key from list of dictionaries."""
         for di in dictionary_list:
-            if key in di.get('key'):
+            if key in di.get("key"):
                 return di
         return None
 
@@ -237,35 +226,37 @@ class TagQueryHandler(QueryHandler):
                 key_dict = TagQueryHandler._get_dictionary_for_key(merged_data, key)
                 if not key_dict:
                     new_dict = {}
-                    new_dict['key'] = key
-                    new_dict['values'] = [value]
-                    if source.get('type'):
-                        new_dict['type'] = source.get('type')
+                    new_dict["key"] = key
+                    new_dict["values"] = [value]
+                    if source.get("type"):
+                        new_dict["type"] = source.get("type")
                     merged_data.append(new_dict)
                 else:
-                    if value not in key_dict.get('values'):
-                        key_dict['values'].append(value)
-                        key_dict['values'].sort()
+                    if value not in key_dict.get("values"):
+                        key_dict["values"].append(value)
+                        key_dict["values"].sort()
         return merged_data
 
     def get_tags(self):
         """Get a list of tags and values to validate filters."""
-        type_filter = self.parameters.get_filter('type')
+        type_filter = self.parameters.get_filter("type")
 
         merged_data = []
         with tenant_context(self.tenant):
             tag_keys = []
             for source in self.data_sources:
-                if type_filter and type_filter != source.get('type'):
+                if type_filter and type_filter != source.get("type"):
                     continue
-                exclusion = self._get_exclusions(source.get('db_column'))
-                tag_keys = source.get('db_table').objects\
-                    .filter(self.query_filter)\
-                    .exclude(exclusion)\
-                    .values(source.get('db_column'))\
-                    .distinct()\
+                exclusion = self._get_exclusions(source.get("db_column"))
+                tag_keys = (
+                    source.get("db_table")
+                    .objects.filter(self.query_filter)
+                    .exclude(exclusion)
+                    .values(source.get("db_column"))
+                    .distinct()
                     .all()
-                tag_keys = [tag.get(source.get('db_column')) for tag in tag_keys]
+                )
+                tag_keys = [tag.get(source.get("db_column")) for tag in tag_keys]
 
                 merged_data = self._merge_tags(source, tag_keys)
         return merged_data
@@ -277,12 +268,12 @@ class TagQueryHandler(QueryHandler):
             (Dict): Dictionary response of query params and data
 
         """
-        if self.parameters.get('key_only'):
+        if self.parameters.get("key_only"):
             tag_data = self.get_tag_keys()
-            query_data = sorted(tag_data, reverse=self.order_direction == 'desc')
+            query_data = sorted(tag_data, reverse=self.order_direction == "desc")
         else:
             tag_data = self.get_tags()
-            query_data = sorted(tag_data, key=lambda k: k['key'], reverse=self.order_direction == 'desc')
+            query_data = sorted(tag_data, key=lambda k: k["key"], reverse=self.order_direction == "desc")
 
         self.query_data = query_data
 

@@ -15,7 +15,6 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Downloader for cost usage reports."""
-
 from collections import defaultdict
 
 import django.apps
@@ -31,7 +30,7 @@ class ReportingCommonDBAccessor(KokuDBAccess):
     class ReportingCommonSchema:
         """A container for the shared reporting table objects."""
 
-    def __init__(self, schema='public'):
+    def __init__(self, schema="public"):
         """Establish the database connection."""
         super().__init__(schema)
         self.report_common_schema = self.ReportingCommonSchema()
@@ -43,11 +42,11 @@ class ReportingCommonDBAccessor(KokuDBAccess):
         models = django.apps.apps.get_models()
 
         for model in models:
-            if 'reporting_common' in model._meta.db_table:
+            if "reporting_common" in model._meta.db_table:
                 setattr(self.report_common_schema, model._meta.db_table, model)
 
-            if 'region_mapping' in model._meta.db_table:
-                setattr(self, f'_{model._meta.db_table}', model)
+            if "region_mapping" in model._meta.db_table:
+                setattr(self, f"_{model._meta.db_table}", model)
 
     # pylint: disable=arguments-differ
     def _get_db_obj_query(self, table_name):
@@ -89,4 +88,4 @@ class ReportingCommonDBAccessor(KokuDBAccess):
             None
 
         """
-        getattr(self, f'_{table.lower()}').create(**fields)
+        getattr(self, f"_{table.lower()}").create(**fields)
