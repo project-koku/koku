@@ -32,9 +32,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         """Initialize listener."""
-        LOG.info('Initializing the prometheus exporter')
+        LOG.info("Initializing the prometheus exporter")
         start_http_server(9999, registry=WORKER_REGISTRY)
         while True:
-            LOG.info('Starting Kafka handler')
-            LOG.debug('handle args: %s, kwargs: %s', str(args), str(kwargs))
+            LOG.info("Starting Kafka handler")
+            LOG.debug("handle args: %s, kwargs: %s", str(args), str(kwargs))
             initialize_kafka_handler()

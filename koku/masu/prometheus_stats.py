@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Prometheus Stats."""
-
 from prometheus_client import CollectorRegistry
 from prometheus_client import Counter
 from prometheus_client import multiprocess

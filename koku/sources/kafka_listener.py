@@ -32,9 +32,9 @@ from kafka.errors import KafkaError
 
 from api.provider.models import Provider
 from api.provider.models import Sources
+from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from sources import storage
 from sources.config import Config
-from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from sources.koku_http_client import KokuHTTPClient
 from sources.koku_http_client import KokuHTTPClientError
 from sources.koku_http_client import KokuHTTPClientNonRecoverableError
@@ -382,14 +382,8 @@ async def process_messages(msg_pending_queue):  # noqa: C901; pragma: no cover
             LOG.error(f"Source {source_id} Unexpected message processing error: {str(error)}", exc_info=True)
 
 
-<<<<<<< HEAD
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
-async def listen_for_messages(
-    consumer, application_source_id, msg_pending_queue
-):  # pragma: no cover
-=======
 async def listen_for_messages(consumer, application_source_id, msg_pending_queue):  # pragma: no cover
->>>>>>> 167d3d0e677e0ca3e6ad028b114d281de8b87786
     """
     Listen for Platform-Sources kafka messages.
 
