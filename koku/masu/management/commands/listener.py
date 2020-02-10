@@ -37,4 +37,4 @@ class Command(BaseCommand):
         while True:
             LOG.info('Starting Kafka handler')
             LOG.debug('handle args: %s, kwargs: %s', str(args), str(kwargs))
-            initialize_kafka_handler
+            initialize_kafka_handler()
