@@ -15,12 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Populate test data for OCP on Azure reports."""
+import pkgutil
 import random
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
 from django.db import connection
 from faker import Faker
+from jinjasql import JinjaSql
 from model_bakery import baker
 from tenant_schemas.utils import tenant_context
 
@@ -266,20 +268,14 @@ class OCPAzureReportDataGenerator:
 
     def _populate_azure_tag_summary(self):
         """Populate the Azure tag summary table."""
-        raw_sql = """
-            INSERT INTO reporting_azuretags_summary
-            SELECT l.key,
-                array_agg(DISTINCT l.value) as values
-            FROM (
-                SELECT key,
-                    value
-                FROM reporting_ocpazurecostlineitem_daily_summary AS li,
-                    jsonb_each_text(li.tags) labels
-            ) l
-            GROUP BY l.key
-            ON CONFLICT (key) DO UPDATE
-            SET values = EXCLUDED.values
-        """
+        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_cloudtags_summary.sql")
+        agg_sql = agg_sql.decode("utf-8")
+        agg_sql_params = {
+            "schema": connection.schema_name,
+            "tag_table": "reporting_azuretags_summary",
+            "lineitem_table": "reporting_ocpazurecostlineitem_daily_summary",
+        }
+        agg_sql, agg_sql_params = JinjaSql().prepare_query(agg_sql, agg_sql_params)
 
         with connection.cursor() as cursor:
-            cursor.execute(raw_sql)
+            cursor.execute(agg_sql)

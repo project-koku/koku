@@ -16,6 +16,7 @@
 #
 """Populate test data for OCP on AWS reports."""
 import copy
+import pkgutil
 import random
 from decimal import Decimal
 from uuid import uuid4
@@ -25,6 +26,7 @@ from django.db.models import DateTimeField
 from django.db.models import Max
 from django.db.models import Sum
 from django.db.models.functions import Cast
+from jinjasql import JinjaSql
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
@@ -378,20 +380,14 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
 
     def _populate_aws_tag_summary(self):
         """Populate the AWS tag summary table."""
-        raw_sql = """
-            INSERT INTO reporting_awstags_summary
-            SELECT l.key,
-                array_agg(DISTINCT l.value) as values
-            FROM (
-                SELECT key,
-                    value
-                FROM reporting_ocpawscostlineitem_daily_summary AS li,
-                    jsonb_each_text(li.tags) labels
-            ) l
-            GROUP BY l.key
-            ON CONFLICT (key) DO UPDATE
-            SET values = EXCLUDED.values
-        """
+        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_cloudtags_summary.sql")
+        agg_sql = agg_sql.decode("utf-8")
+        agg_sql_params = {
+            "schema": connection.schema_name,
+            "tag_table": "reporting_awstags_summary",
+            "lineitem_table": "reporting_ocpawscostlineitem_daily_summary",
+        }
+        agg_sql, agg_sql_params = JinjaSql().prepare_query(agg_sql, agg_sql_params)
 
         with connection.cursor() as cursor:
-            cursor.execute(raw_sql)
+            cursor.execute(agg_sql)
