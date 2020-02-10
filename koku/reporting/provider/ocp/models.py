@@ -307,9 +307,13 @@ class OCPUsagePodLabelSummary(models.Model):
         """Meta for OCPUsageTagSummary."""
 
         db_table = "reporting_ocpusagepodlabel_summary"
+        unique_together = ("key", "report_period")
 
-    key = models.CharField(primary_key=True, max_length=253)
+    id = models.BigAutoField(primary_key=True)
+
+    key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
 
 
 class OCPStorageLineItem(models.Model):
@@ -405,9 +409,13 @@ class OCPStorageVolumeLabelSummary(models.Model):
         """Meta for OCPStorageVolumeLabelSummary."""
 
         db_table = "reporting_ocpstoragevolumelabel_summary"
+        unique_together = ("key", "report_period")
 
-    key = models.CharField(primary_key=True, max_length=253)
+    id = models.BigAutoField(primary_key=True)
+
+    key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
 
 
 class OCPStorageVolumeClaimLabelSummary(models.Model):
@@ -417,6 +425,10 @@ class OCPStorageVolumeClaimLabelSummary(models.Model):
         """Meta for OCPStorageVolumeClaimLabelSummary."""
 
         db_table = "reporting_ocpstoragevolumeclaimlabel_summary"
+        unique_together = ("key", "report_period")
 
-    key = models.CharField(primary_key=True, max_length=253)
+    id = models.BigAutoField(primary_key=True)
+
+    key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
