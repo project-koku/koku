@@ -15,7 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Prometheus Stats."""
-from prometheus_client import CollectorRegistry, Counter, multiprocess, start_http_server
+from prometheus_client import CollectorRegistry, Counter, multiprocess
+# from external.kafka_msg_handler import initialize_kafka_handler
 
 
 WORKER_REGISTRY = CollectorRegistry()
@@ -56,8 +57,3 @@ KAFKA_CONNECTION_ERRORS_COUNTER = Counter('kafka_connection_errors',
 CELERY_ERRORS_COUNTER = Counter('celery_errors',
                                 'Number of celery errors',
                                 registry=WORKER_REGISTRY)
-
-
-def initialize_prometheus_exporter():
-    """Start Prometheus stats HTTP server."""
-    start_http_server(9999, registry=WORKER_REGISTRY)

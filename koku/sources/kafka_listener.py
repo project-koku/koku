@@ -27,7 +27,6 @@ from django.db import InterfaceError, OperationalError, connection
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from kafka.errors import KafkaError
-from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from sources import storage
 from sources.config import Config
 from sources.koku_http_client import (
@@ -38,6 +37,7 @@ from sources.koku_http_client import (
 from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientError
 
 from api.provider.models import Provider, Sources
+from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 
 LOG = logging.getLogger(__name__)
 
