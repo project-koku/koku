@@ -1,25 +1,19 @@
 name: Tag Release
 on:
-  issue_comment:
-    types: [created]
+  pull_request:
+    branches:
+      - stable
+    types: [closed]
 jobs:
   tag_release:
+    if: contains(github.event.pull_request.labels.*.name, 'release')
     runs-on: ubuntu-latest
     steps:
-      - name: Check for Command
-        id: command
-        uses: xt0rted/slash-command-action@v1
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          command: release
-          reaction: "true"
-          reaction-type: "rocket"
-          allow-edits: "false"
-          permission-level: admin
       - uses: actions/checkout@v2
         with:
           ref: stable
-      - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+      - run: |
+          git fetch --prune --unshallow
       - name: Tag this release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
