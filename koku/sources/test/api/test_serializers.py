@@ -15,12 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the sources serializer."""
+from django.db.models.signals import post_save
 from faker import Faker
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
 from sources.api.serializers import SourcesSerializer
+from sources.kafka_listener import storage_callback
 from sources.storage import SourcesStorageError
 
 fake = Faker()
@@ -32,6 +34,7 @@ class SourcesSerializerTests(IamTestCase):
     def setUp(self):
         """Set up tests."""
         super().setUp()
+        post_save.disconnect(storage_callback, sender=Sources)
         customer = self._create_customer_data()
 
         self.azure_name = "Test Azure Source"
