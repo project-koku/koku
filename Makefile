@@ -53,15 +53,15 @@ help:
 	@echo "  clean                                 clean the project directory of any scratch files, bytecode, logs, etc"
 	@echo "  help                                  show this message"
 	@echo "  html                                  create html documentation for the project"
-	@echo "  lint                                  run linting against the project"
+	@echo "  lint                                  run pre-commit against the project"
 	@echo ""
 	@echo "--- Commands using local services ---"
 	@echo "  create-test-customer                  create a test customer and tenant in the database"
 	@echo "  create-test-customer-no-providers     create a test customer and tenant in the database without test providers"
 	@echo "  create-large-ocp-provider-config-file create a config file for nise to generate a large data sample"
-	@echo "                                          @param generator_config_file - config for the generator
+	@echo "                                          @param generator_config_file - config for the generator"
 	@echo "                                          @param generator_template_file - jinja2 template to render output"
-	@echo "                                          @param output_file_name - file name for output
+	@echo "                                          @param output_file_name - file name for output"
 	@echo "                                          @param generator_flags - (optional) additional cli flags and args"
 	@echo "  large-ocp-provider-testing            create a test OCP provider "large_ocp_1" with a larger volume of data"
 	@echo "                                          @param nise_config_dir - directory of nise config files to use"
@@ -150,7 +150,7 @@ html:
 	@cd docs; $(MAKE) html
 
 lint:
-	tox -e lint
+	pre-commit run --all-files
 
 create-test-customer: run-migrations
 	sleep 1
