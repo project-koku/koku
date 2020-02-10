@@ -186,8 +186,7 @@ Individual IQE tests can be ran with run_test.sh::
 
 Linting
 -------
-This repository uses [pre-commit](https://pre-commit.com) to check and enforce code style. It uses
-[Black](https://github.com/psf/black) to reformat the Python code and [Flake8](http://flake8.pycqa.org) to check it
+This repository uses `pre-commit`_ to check and enforce code style. It uses `Black`_ to reformat the Python code and `Flake8`_ to check it
 afterwards. Other formats and text files are linted as well.
 
 To run pre-commit checks::
@@ -216,6 +215,9 @@ Please refer to Contributing_.
 .. _tutorial: https://www.postgresql.org/docs/10/static/tutorial-start.html
 .. _`Working with Openshift`: https://koku.readthedocs.io/en/latest/openshift.html
 .. _Contributing: https://koku.readthedocs.io/en/latest/CONTRIBUTING.html
+.. _pre-commit: https://pre-commit.com
+.. _Black: https://github.com/psf/black
+.. _Flake8: http://flake8.pycqa.org
 
 .. |license| image:: https://img.shields.io/github/license/project-koku/koku.svg
    :target: https://github.com/project-koku/koku/blob/master/LICENSE

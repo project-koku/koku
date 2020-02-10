@@ -1,3 +1,4 @@
+mgmt_services/cost-mgmt:koku/registry.access.redhat.com/ubi7/python-36:latest
 mgmt_services/cost-mgmt:koku/python-adal:1.2.2.pipfile
 mgmt_services/cost-mgmt:koku/python-aiokafka:0.5.2.pipfile
 mgmt_services/cost-mgmt:koku/python-amqp:2.5.2.pipfile
