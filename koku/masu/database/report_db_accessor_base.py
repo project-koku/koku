@@ -139,7 +139,7 @@ class ReportDBAccessorBase(KokuDBAccess):
 
     # pylint: disable=too-many-arguments
     def bulk_insert_rows(self, file_obj, table, columns, sep="\t", null=""):
-        r"""Insert many rows using Postgres copy functionality.
+        """Insert many rows using Postgres copy functionality.
 
         Args:
             file_obj (file): A file-like object containing CSV rows
@@ -162,10 +162,10 @@ class ReportDBAccessorBase(KokuDBAccess):
             columns (list): A list of column names to exclusively return
 
         Returns:
-            (Query): A SQLAlchemy query object
+            (Query): A query object
 
         """
-        # If table is a str, get te model associated
+        # If table is a str, get the model associated
         if isinstance(table, str):
             table = getattr(self.report_schema, table)
 
