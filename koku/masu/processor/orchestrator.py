@@ -169,7 +169,7 @@ class Orchestrator:
                     )
         return async_result
 
-    def remove_expired_report_data(self, simulate=False):
+    def remove_expired_report_data(self, simulate=False, line_items_only=False):
         """
         Remove expired report data for each account.
 
@@ -184,7 +184,10 @@ class Orchestrator:
         for account in self._accounts:
             LOG.info("Calling remove_expired_data with account: %s", account)
             async_result = remove_expired_data.delay(
-                schema_name=account.get("schema_name"), provider=account.get("provider_type"), simulate=simulate
+                schema_name=account.get("schema_name"),
+                provider=account.get("provider_type"),
+                simulate=simulate,
+                line_items_only=line_items_only,
             )
             LOG.info(
                 "Expired data removal queued - schema_name: %s, Task ID: %s",

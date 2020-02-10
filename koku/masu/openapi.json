@@ -64,7 +64,19 @@
         "get": {
           "operationId": "getExpiredData",
           "description": "Return simulated expired data.",
-          "parameters": [],
+          "parameters": [
+            {
+              "name": "line_items_only",
+              "in": "flag",
+              "description": "A boolean flag to indicate if we should delete the line items only. Defaults to False.",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "format": "boolean",
+                "example": "True"
+              }
+            }
+          ],
           "responses": {
             "200": {
               "description": "Simulate the deletion expired data",
@@ -84,7 +96,19 @@
         "delete": {
           "operationId": "deleteExpiredData",
           "description": "Return expired data.",
-          "parameters": [],
+          "parameters": [
+            {
+              "name": "line_items_only",
+              "in": "flag",
+              "description": "A boolean flag to indicate if we should delete the line items only. Defaults to False.",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "format": "boolean",
+                "example": "True"
+              }
+            }
+          ],
           "responses": {
             "204": {
               "description": "Delete expired data",

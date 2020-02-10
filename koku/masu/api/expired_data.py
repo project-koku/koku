@@ -18,6 +18,7 @@
 import logging
 
 from django.views.decorators.cache import never_cache
+from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
@@ -42,8 +43,19 @@ def expired_data(request):
         simulate = False
     LOG.info("Simulate Flag: %s", simulate)
 
+    params = request.query_params
+    acceptabools = ["true", "True", "false", "False"]
+    line_items_only = params.get("line_items_only", "False")
+    if line_items_only not in acceptabools:
+        errmsg = "The param line_items_only must be {}.".format(str(acceptabools))
+        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+    if line_items_only in acceptabools[:2]:
+        line_items_only = True
+    else:
+        line_items_only = False
+
     orchestrator = Orchestrator()
-    async_delete_results = orchestrator.remove_expired_report_data(simulate=simulate)
+    async_delete_results = orchestrator.remove_expired_report_data(simulate=simulate, line_items_only=line_items_only)
     response_key = "Async jobs for expired data removal"
     if simulate:
         response_key = response_key + " (simulated)"
