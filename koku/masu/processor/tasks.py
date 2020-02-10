@@ -38,7 +38,6 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
-from masu.processor._tasks.remove_expired import _remove_expired_line_items
 from masu.processor.report_charge_updater import ReportChargeUpdater
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
@@ -141,7 +140,7 @@ def get_report_files(
 
 
 @app.task(name="masu.processor.tasks.remove_expired_data", queue_name="remove_expired")
-def remove_expired_data(schema_name, provider, simulate, provider_uuid=None):
+def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, line_item_only=False):
     """
     Remove expired report data.
 
@@ -162,32 +161,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None):
         f" provider_uuid: {provider_uuid}"
     )
     LOG.info(stmt)
-    _remove_expired_data(schema_name, provider, simulate, provider_uuid)
-
-
-@app.task(name="masu.processor.tasks.remove_expired_line_items", queue_name="remove_expired_line_items")
-def remove_expired_line_items(schema_name, provider, simulate, provider_uuid=None):
-    """
-    Remove expired line item data.
-
-    Args:
-        schema_name (String) db schema name
-        provider    (String) provider type
-        simulate    (Boolean) Simulate report data removal
-
-    Returns:
-        None
-
-    """
-    stmt = (
-        f"remove_expired_line_items called with args:\n"
-        f" schema_name: {schema_name},\n"
-        f" provider: {provider},\n"
-        f" simulate: {simulate},\n"
-        f" provider_uuid: {provider_uuid}"
-    )
-    LOG.info(stmt)
-    _remove_expired_line_items(schema_name, provider, simulate, provider_uuid)
+    _remove_expired_data(schema_name, provider, simulate, provider_uuid, line_item_only)
 
 
 @app.task(name="masu.processor.tasks.summarize_reports", queue_name="process")
