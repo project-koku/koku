@@ -7,7 +7,7 @@ azure-mgmt-costmanagement==0.1.0
 azure-mgmt-resource==8.0.1
 azure-mgmt-storage==7.1.0
 azure-nspkg==3.0.2
-azure-storage-blob==2.1.0
+azure-storage-blob==12.1.0
 azure-storage-common==2.1.0
 azure-storage==0.36.0
 beautifulsoup4==4.8.2
