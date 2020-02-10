@@ -53,7 +53,7 @@ help:
 	@echo "  clean                                 clean the project directory of any scratch files, bytecode, logs, etc"
 	@echo "  help                                  show this message"
 	@echo "  html                                  create html documentation for the project"
-	@echo "  pre-commit                            run pre-commit against the project"
+	@echo "  lint                                  run pre-commit against the project"
 	@echo ""
 	@echo "--- Commands using local services ---"
 	@echo "  create-test-customer                  create a test customer and tenant in the database"
@@ -149,7 +149,7 @@ clean:
 html:
 	@cd docs; $(MAKE) html
 
-pre-commit:
+lint:
 	pre-commit run --all-files
 
 create-test-customer: run-migrations
