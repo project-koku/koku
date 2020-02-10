@@ -1,9 +1,10 @@
+mgmt_services/cost-mgmt:koku/registry.access.redhat.com/ubi7/python-36:latest
 mgmt_services/cost-mgmt:koku/python-adal:1.2.2.pipfile
 mgmt_services/cost-mgmt:koku/python-aiokafka:0.5.2.pipfile
 mgmt_services/cost-mgmt:koku/python-amqp:2.5.2.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-common:1.1.24.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-mgmt-costmanagement:0.1.0.pipfile
-mgmt_services/cost-mgmt:koku/python-azure-mgmt-resource:8.0.0.pipfile
+mgmt_services/cost-mgmt:koku/python-azure-mgmt-resource:8.0.1.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-mgmt-storage:7.1.0.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-nspkg:3.0.2.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-storage:0.36.0.pipfile
@@ -60,7 +61,7 @@ mgmt_services/cost-mgmt:koku/python-ordered-set:3.1.1.pipfile
 mgmt_services/cost-mgmt:koku/python-pandas:0.25.3.pipfile
 mgmt_services/cost-mgmt:koku/python-pint:0.9.pipfile
 mgmt_services/cost-mgmt:koku/python-prometheus-client:0.7.1.pipfile
-mgmt_services/cost-mgmt:koku/python-protobuf:3.11.2.pipfile
+mgmt_services/cost-mgmt:koku/python-protobuf:3.11.3.pipfile
 mgmt_services/cost-mgmt:koku/python-psutil:5.6.3.pipfile
 mgmt_services/cost-mgmt:koku/python-psycopg2-binary:2.8.4.pipfile
 mgmt_services/cost-mgmt:koku/python-pyasn1:0.4.8.pipfile

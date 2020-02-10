@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """TestCase for seeded Cloud Account data."""
 from django.test import TestCase
 
@@ -24,7 +23,7 @@ from api.cloud_accounts.models import CloudAccount
 class CloudAccountSeedDataTest(TestCase):
     """Test that database contains the seeded account IDs."""
 
-    AWS_ACCOUNT_ID = '589173575009'
+    AWS_ACCOUNT_ID = "589173575009"
 
     def testModelContainsAWSCloudAccountSeed(self):
         """
@@ -33,5 +32,5 @@ class CloudAccountSeedDataTest(TestCase):
         Check that the seeded AWS account ID is stored in
         the database.
         """
-        actualValue = CloudAccount.objects.get(name='AWS').value
+        actualValue = CloudAccount.objects.get(name="AWS").value
         self.assertEquals(self.AWS_ACCOUNT_ID, actualValue)

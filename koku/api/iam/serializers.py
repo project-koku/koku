@@ -14,11 +14,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Identity and Access Serializers."""
 # disabled module-wide due to meta-programming
 # pylint: disable=too-few-public-methods
-
 import locale
 from base64 import b64decode
 from json import loads as json_loads
@@ -30,31 +28,35 @@ from django.forms.models import model_to_dict
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
-from .models import Customer, User, UserPreference
 from ..common import RH_IDENTITY_HEADER
+from .models import Customer
+from .models import User
+from .models import UserPreference
 
 
 def _create_default_preferences(user):
     """Set preference defaults for this user."""
-    defaults = [{'currency': settings.KOKU_DEFAULT_CURRENCY},
-                {'timezone': settings.KOKU_DEFAULT_TIMEZONE},
-                {'locale': settings.KOKU_DEFAULT_LOCALE}]
+    defaults = [
+        {"currency": settings.KOKU_DEFAULT_CURRENCY},
+        {"timezone": settings.KOKU_DEFAULT_TIMEZONE},
+        {"locale": settings.KOKU_DEFAULT_LOCALE},
+    ]
 
     for pref in defaults:
-        data = {'preference': pref,
-                'user': model_to_dict(user),
-                'name': list(pref.keys())[0],
-                'description': _('default preference')}
-        serializer = UserPreferenceSerializer(data=data, context={'user': user})
+        data = {
+            "preference": pref,
+            "user": model_to_dict(user),
+            "name": list(pref.keys())[0],
+            "description": _("default preference"),
+        }
+        serializer = UserPreferenceSerializer(data=data, context={"user": user})
         if serializer.is_valid(raise_exception=True):
             serializer.save()
 
 
 def _create_user(username, email, customer):
     """Create a user and associated password reset token."""
-    user = User(username=username,
-                email=email,
-                customer=customer)
+    user = User(username=username, email=email, customer=customer)
     user.save()
     _create_default_preferences(user=user)
     return user
@@ -69,8 +71,8 @@ def _currency_symbols():
     for loc in locales:
         try:
             locale.setlocale(locale.LC_MONETARY, locale.normalize(loc))
-            currency = '{int_curr_symbol}'.format(**locale.localeconv())
-            if currency != '':
+            currency = "{int_curr_symbol}".format(**locale.localeconv())
+            if currency != "":
                 symbols.add(currency.strip())
         except (locale.Error, UnicodeDecodeError):
             continue
@@ -97,14 +99,12 @@ def extract_header(request, header):
 
 def create_schema_name(account):
     """Create a database schema name."""
-    return f'acct{account}'
+    return f"acct{account}"
 
 
 def error_obj(key, message):
     """Create an error object."""
-    error = {
-        key: [_(message)]
-    }
+    error = {key: [_(message)]}
     return error
 
 
@@ -115,31 +115,33 @@ class UserSerializer(serializers.ModelSerializer):
         """Metadata for the serializer."""
 
         model = User
-        fields = ('uuid', 'username', 'email')
+        fields = ("uuid", "username", "email")
 
     @transaction.atomic
     def create(self, validated_data):
         """Create a user from validated data."""
         user = None
         customer = None
-        request = self.context.get('request')
-        if request and hasattr(request, 'META'):
+        request = self.context.get("request")
+        if request and hasattr(request, "META"):
             _, json_rh_auth = extract_header(request, RH_IDENTITY_HEADER)
-            if (json_rh_auth and 'identity' in json_rh_auth and  # noqa: W504
-                'account_number' in json_rh_auth['identity']):
-                account = json_rh_auth['identity']['account_number']
+            if (
+                json_rh_auth
+                and "identity" in json_rh_auth
+                and "account_number" in json_rh_auth["identity"]  # noqa: W504
+            ):
+                account = json_rh_auth["identity"]["account_number"]
             if account:
                 schema_name = create_schema_name(account)
                 customer = Customer.objects.get(schema_name=schema_name)
             else:
-                key = 'customer'
-                message = 'Customer for requesting user could not be found.'
+                key = "customer"
+                message = "Customer for requesting user could not be found."
                 raise serializers.ValidationError(error_obj(key, message))
 
         user = _create_user(
-            username=validated_data.get('username'),
-            email=validated_data.get('email'),
-            customer=customer)
+            username=validated_data.get("username"), email=validated_data.get("email"), customer=customer
+        )
 
         return user
 
@@ -151,7 +153,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         """Metadata for the serializer."""
 
         model = Customer
-        fields = ('uuid', 'account_id', 'date_created')
+        fields = ("uuid", "account_id", "date_created")
 
 
 class AdminCustomerSerializer(CustomerSerializer):
@@ -161,7 +163,7 @@ class AdminCustomerSerializer(CustomerSerializer):
         """Metadata for the serializer."""
 
         model = Customer
-        fields = ('uuid', 'account_id', 'date_created', 'schema_name')
+        fields = ("uuid", "account_id", "date_created", "schema_name")
 
 
 class NestedUserSerializer(serializers.ModelSerializer):
@@ -177,28 +179,22 @@ class NestedUserSerializer(serializers.ModelSerializer):
         """Metadata for the serializer."""
 
         model = User
-        fields = ('uuid', 'username', 'email')
+        fields = ("uuid", "username", "email")
 
 
 class UserPreferenceSerializer(serializers.ModelSerializer):
     """Serializer for the UserPreference model."""
 
-    user = NestedUserSerializer(label='User', read_only=True)
-    name = serializers.CharField(required=True,
-                                 allow_null=False,
-                                 allow_blank=False,
-                                 max_length=255)
-    description = serializers.CharField(required=False,
-                                        allow_null=True,
-                                        allow_blank=True,
-                                        max_length=255)
+    user = NestedUserSerializer(label="User", read_only=True)
+    name = serializers.CharField(required=True, allow_null=False, allow_blank=False, max_length=255)
+    description = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=255)
     preference = serializers.JSONField(required=True, allow_null=False)
 
     class Meta:
         """Metadata for the serializer."""
 
         model = UserPreference
-        fields = ('uuid', 'name', 'description', 'preference', 'user')
+        fields = ("uuid", "name", "description", "preference", "user")
 
     def _generic_validation(self, data, field, iterable):
         """Validate field data in a generic way.
@@ -215,33 +211,33 @@ class UserPreferenceSerializer(serializers.ModelSerializer):
             None
 
         """
-        if data.get('name') != field:
+        if data.get("name") != field:
             return
 
-        pref = data.get('preference', dict).get(field)
+        pref = data.get("preference", dict).get(field)
 
         if pref not in iterable:
-            key = 'preference'
-            message = f'Invalid {field}: {pref}'
+            key = "preference"
+            message = f"Invalid {field}: {pref}"
             raise serializers.ValidationError(error_obj(key, message))
 
     def _validate_locale(self, data):
         """Check for a valid locale."""
-        self._generic_validation(data, 'locale', locale.locale_alias.values())
+        self._generic_validation(data, "locale", locale.locale_alias.values())
 
     def _validate_currency(self, data):
         """Check for a valid currency."""
-        self._generic_validation(data, 'currency', _currency_symbols())
+        self._generic_validation(data, "currency", _currency_symbols())
 
     def _validate_timezone(self, data):
         """Check for a valid timezone."""
-        self._generic_validation(data, 'timezone', pytz.all_timezones)
+        self._generic_validation(data, "timezone", pytz.all_timezones)
 
     def validate(self, data):
         """Validate the preference."""
-        if not isinstance(data.get('preference'), dict):
-            key = 'preference'
-            message = 'Preference must be an JSON object.'
+        if not isinstance(data.get("preference"), dict):
+            key = "preference"
+            message = "Preference must be an JSON object."
             raise serializers.ValidationError(error_obj(key, message))
 
         self._validate_locale(data)
@@ -252,14 +248,14 @@ class UserPreferenceSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         """Create a preference."""
-        user_data = model_to_dict(self.context.get('user'))
-        user = User.objects.get(username=user_data['username'])
-        validated_data['user_id'] = user.id
+        user_data = model_to_dict(self.context.get("user"))
+        user = User.objects.get(username=user_data["username"])
+        validated_data["user_id"] = user.id
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
         """Update a preference."""
-        user_data = model_to_dict(self.context.get('user'))
-        user = User.objects.get(username=user_data['username'])
-        validated_data['user_id'] = user.id
+        user_data = model_to_dict(self.context.get("user"))
+        user = User.objects.get(username=user_data["username"])
+        validated_data["user_id"] = user.id
         return super().update(instance, validated_data)

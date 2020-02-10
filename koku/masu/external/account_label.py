@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Account label interface for masu to consume."""
-
 from api.models import Provider
 from masu.external.accounts.labels.aws.aws_account_alias import AWSAccountAlias
 

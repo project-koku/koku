@@ -15,14 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Management layer for user defined rates."""
-
 import copy
 import logging
 
 from django.db import transaction
 
 from api.provider.models import Provider
-from cost_models.models import CostModel, CostModelMap
+from cost_models.models import CostModel
+from cost_models.models import CostModelMap
 
 
 LOG = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ class CostModelManager:
         """Create cost model and optionally associate to providers."""
         cost_model_data = copy.deepcopy(data)
 
-        provider_uuids = cost_model_data.pop('provider_uuids', [])
+        provider_uuids = cost_model_data.pop("provider_uuids", [])
 
         cost_model_obj = CostModel.objects.create(**cost_model_data)
         for uuid in provider_uuids:
@@ -71,22 +71,20 @@ class CostModelManager:
         providers_to_create = set(provider_uuids).difference(current_providers_for_instance)
 
         for provider_uuid in providers_to_delete:
-            CostModelMap.objects.filter(provider_uuid=provider_uuid,
-                                        cost_model=self._model).delete()
+            CostModelMap.objects.filter(provider_uuid=provider_uuid, cost_model=self._model).delete()
 
         for provider_uuid in providers_to_create:
             # Untie this provider to other cost models before assigning
             # it to the new model
             CostModelMap.objects.filter(provider_uuid=provider_uuid).delete()
-            CostModelMap.objects.create(cost_model=self._model,
-                                        provider_uuid=provider_uuid)
+            CostModelMap.objects.create(cost_model=self._model, provider_uuid=provider_uuid)
 
     def update(self, **data):
         """Update the cost model object."""
-        self._model.name = data.get('name', self._model.name)
-        self._model.description = data.get('description', self._model.description)
-        self._model.rates = data.get('rates', self._model.rates)
-        self._model.markup = data.get('markup', self._model.markup)
+        self._model.name = data.get("name", self._model.name)
+        self._model.description = data.get("description", self._model.description)
+        self._model.rates = data.get("rates", self._model.rates)
+        self._model.markup = data.get("markup", self._model.markup)
         self._model.save()
 
     def get_provider_names_uuids(self):
@@ -94,5 +92,5 @@ class CostModelManager:
         providers_query = CostModelMap.objects.filter(cost_model=self._model)
         provider_uuids = [provider.provider_uuid for provider in providers_query]
         providers_qs_list = Provider.objects.filter(uuid__in=provider_uuids)
-        provider_names_uuids = [{'uuid': str(provider.uuid), 'name': provider.name} for provider in providers_qs_list]
+        provider_names_uuids = [{"uuid": str(provider.uuid), "name": provider.name} for provider in providers_qs_list]
         return provider_names_uuids

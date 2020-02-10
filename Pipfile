@@ -61,6 +61,7 @@ coveralls = "*"
 python-coveralls = "*"
 model-bakery = "*"
 koku-nise = "~=1.0"
+pre-commit = "*"
 
 [requires]
 python_version = "3.6"

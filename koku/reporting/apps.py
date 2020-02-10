@@ -15,11 +15,10 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Reporting application configuration module."""
-
 from django.apps import AppConfig
 
 
 class ReportingConfig(AppConfig):
     """Reporting application configuration."""
 
-    name = 'reporting'
+    name = "reporting"

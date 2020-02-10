@@ -20,26 +20,30 @@ from decimal import Decimal
 
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import connection
-from django.db.models import Count, DateTimeField, F, Max, Sum, Value
-from django.db.models.functions import Cast, Concat
+from django.db.models import Count
+from django.db.models import DateTimeField
+from django.db.models import F
+from django.db.models import Max
+from django.db.models import Sum
+from django.db.models import Value
+from django.db.models.functions import Cast
+from django.db.models.functions import Concat
 from tenant_schemas.utils import tenant_context
 
 from api.report.test import FakeAWSCostData
 from api.utils import DateHelper
 from masu.processor.tasks import refresh_materialized_views
-from reporting.models import (
-    AWSAccountAlias,
-    AWSCostEntry,
-    AWSCostEntryBill,
-    AWSCostEntryLineItem,
-    AWSCostEntryLineItemDaily,
-    AWSCostEntryLineItemDailySummary,
-    AWSCostEntryPricing,
-    AWSCostEntryProduct,
-)
+from reporting.models import AWSAccountAlias
+from reporting.models import AWSCostEntry
+from reporting.models import AWSCostEntryBill
+from reporting.models import AWSCostEntryLineItem
+from reporting.models import AWSCostEntryLineItemDaily
+from reporting.models import AWSCostEntryLineItemDailySummary
+from reporting.models import AWSCostEntryPricing
+from reporting.models import AWSCostEntryProduct
 
 
-class AWSReportDataGenerator(object):
+class AWSReportDataGenerator:
     """Populate the database with AWS report data."""
 
     def __init__(self, tenant):
@@ -49,85 +53,69 @@ class AWSReportDataGenerator(object):
 
     def _populate_daily_table(self):
         included_fields = [
-            'cost_entry_product_id',
-            'cost_entry_pricing_id',
-            'cost_entry_reservation_id',
-            'line_item_type',
-            'usage_account_id',
-            'usage_type',
-            'operation',
-            'availability_zone',
-            'resource_id',
-            'tax_type',
-            'product_code',
-            'tags',
+            "cost_entry_product_id",
+            "cost_entry_pricing_id",
+            "cost_entry_reservation_id",
+            "line_item_type",
+            "usage_account_id",
+            "usage_type",
+            "operation",
+            "availability_zone",
+            "resource_id",
+            "tax_type",
+            "product_code",
+            "tags",
         ]
         annotations = {
-            'usage_start': Cast('usage_start', DateTimeField()),
-            'usage_end': Cast('usage_start', DateTimeField()),
-            'usage_amount': Sum('usage_amount'),
-            'normalization_factor': Max('normalization_factor'),
-            'normalized_usage_amount': Sum('normalized_usage_amount'),
-            'currency_code': Max('currency_code'),
-            'unblended_rate': Max('unblended_rate'),
-            'unblended_cost': Sum('unblended_cost'),
-            'blended_rate': Max('blended_rate'),
-            'blended_cost': Sum('blended_cost'),
-            'public_on_demand_cost': Sum('public_on_demand_cost'),
-            'public_on_demand_rate': Max('public_on_demand_rate'),
+            "usage_start": Cast("usage_start", DateTimeField()),
+            "usage_end": Cast("usage_start", DateTimeField()),
+            "usage_amount": Sum("usage_amount"),
+            "normalization_factor": Max("normalization_factor"),
+            "normalized_usage_amount": Sum("normalized_usage_amount"),
+            "currency_code": Max("currency_code"),
+            "unblended_rate": Max("unblended_rate"),
+            "unblended_cost": Sum("unblended_cost"),
+            "blended_rate": Max("blended_rate"),
+            "blended_cost": Sum("blended_cost"),
+            "public_on_demand_cost": Sum("public_on_demand_cost"),
+            "public_on_demand_rate": Max("public_on_demand_rate"),
         }
 
-        entries = AWSCostEntryLineItem.objects.values(*included_fields).annotate(
-            **annotations
-        )
+        entries = AWSCostEntryLineItem.objects.values(*included_fields).annotate(**annotations)
         for entry in entries:
             daily = AWSCostEntryLineItemDaily(**entry)
             daily.save()
 
     def _populate_daily_summary_table(self):
-        included_fields = [
-            'usage_start',
-            'usage_end',
-            'usage_account_id',
-            'availability_zone',
-            'tags',
-        ]
+        included_fields = ["usage_start", "usage_end", "usage_account_id", "availability_zone", "tags"]
         annotations = {
-            'product_family': Concat('cost_entry_product__product_family', Value('')),
-            'product_code': Concat('cost_entry_product__service_code', Value('')),
-            'region': Concat('cost_entry_product__region', Value('')),
-            'instance_type': Concat('cost_entry_product__instance_type', Value('')),
-            'unit': Concat('cost_entry_pricing__unit', Value('')),
-            'usage_amount': Sum('usage_amount'),
-            'normalization_factor': Max('normalization_factor'),
-            'normalized_usage_amount': Sum('normalized_usage_amount'),
-            'currency_code': Max('currency_code'),
-            'unblended_rate': Max('unblended_rate'),
-            'unblended_cost': Sum('unblended_cost'),
-            'blended_rate': Max('blended_rate'),
-            'blended_cost': Sum('blended_cost'),
-            'public_on_demand_cost': Sum('public_on_demand_cost'),
-            'public_on_demand_rate': Max('public_on_demand_rate'),
-            'resource_count': Count('resource_id', distinct=True),
-            'resource_ids': ArrayAgg('resource_id', distinct=True),
+            "product_family": Concat("cost_entry_product__product_family", Value("")),
+            "product_code": Concat("cost_entry_product__service_code", Value("")),
+            "region": Concat("cost_entry_product__region", Value("")),
+            "instance_type": Concat("cost_entry_product__instance_type", Value("")),
+            "unit": Concat("cost_entry_pricing__unit", Value("")),
+            "usage_amount": Sum("usage_amount"),
+            "normalization_factor": Max("normalization_factor"),
+            "normalized_usage_amount": Sum("normalized_usage_amount"),
+            "currency_code": Max("currency_code"),
+            "unblended_rate": Max("unblended_rate"),
+            "unblended_cost": Sum("unblended_cost"),
+            "blended_rate": Max("blended_rate"),
+            "blended_cost": Sum("blended_cost"),
+            "public_on_demand_cost": Sum("public_on_demand_cost"),
+            "public_on_demand_rate": Max("public_on_demand_rate"),
+            "resource_count": Count("resource_id", distinct=True),
+            "resource_ids": ArrayAgg("resource_id", distinct=True),
         }
 
-        entries = AWSCostEntryLineItemDaily.objects.values(*included_fields).annotate(
-            **annotations
-        )
+        entries = AWSCostEntryLineItemDaily.objects.values(*included_fields).annotate(**annotations)
         for entry in entries:
-            alias = AWSAccountAlias.objects.filter(account_id=entry['usage_account_id'])
+            alias = AWSAccountAlias.objects.filter(account_id=entry["usage_account_id"])
             alias = list(alias).pop() if alias else None
-            summary = AWSCostEntryLineItemDailySummary(
-                **entry, account_alias=alias
-            )
+            summary = AWSCostEntryLineItemDailySummary(**entry, account_alias=alias)
             summary.save()
-            self.current_month_total += entry['unblended_cost'] + entry[
-                'unblended_cost'
-            ] * Decimal(0.1)
-        AWSCostEntryLineItemDailySummary.objects.update(
-            markup_cost=F('unblended_cost') * 0.1
-        )
+            self.current_month_total += entry["unblended_cost"] + entry["unblended_cost"] * Decimal(0.1)
+        AWSCostEntryLineItemDailySummary.objects.update(markup_cost=F("unblended_cost") * 0.1)
 
     def _populate_tag_summary_table(self):
         """Populate pod label key and values."""
@@ -149,15 +137,13 @@ class AWSReportDataGenerator(object):
         with connection.cursor() as cursor:
             cursor.execute(raw_sql)
 
-    def add_data_to_tenant(self, data, product='ec2'):
+    def add_data_to_tenant(self, data, product="ec2"):
         """Populate tenant with data."""
-        assert isinstance(data, FakeAWSCostData), 'FakeAWSCostData type not provided'
+        assert isinstance(data, FakeAWSCostData), "FakeAWSCostData type not provided"
 
         with tenant_context(self.tenant):
             # get or create alias
-            AWSAccountAlias.objects.get_or_create(
-                account_id=data.account_id, account_alias=data.account_alias
-            )
+            AWSAccountAlias.objects.get_or_create(account_id=data.account_id, account_alias=data.account_alias)
 
             # create bill
             bill, _ = AWSCostEntryBill.objects.get_or_create(**data.bill)
@@ -187,25 +173,23 @@ class AWSReportDataGenerator(object):
 
                 # get or create cost entry
                 cost_entry_data = curr_data.cost_entry
-                cost_entry_data.update({'bill': bill})
+                cost_entry_data.update({"bill": bill})
                 cost_entry, _ = AWSCostEntry.objects.get_or_create(**cost_entry_data)
 
                 # create line item
                 line_item_data = curr_data.line_item(product)
                 model_instances = {
-                    'cost_entry': cost_entry,
-                    'cost_entry_bill': bill,
-                    'cost_entry_product': ce_product,
-                    'cost_entry_pricing': ce_pricing,
+                    "cost_entry": cost_entry,
+                    "cost_entry_bill": bill,
+                    "cost_entry_product": ce_product,
+                    "cost_entry_pricing": ce_pricing,
                 }
                 line_item_data.update(model_instances)
-                line_item, _ = AWSCostEntryLineItem.objects.get_or_create(
-                    **line_item_data
-                )
+                line_item, _ = AWSCostEntryLineItem.objects.get_or_create(**line_item_data)
 
                 current = end_hour
 
             self._populate_daily_table()
             self._populate_daily_summary_table()
             self._populate_tag_summary_table()
-        refresh_materialized_views(self.tenant.schema_name, 'AWS')
+        refresh_materialized_views(self.tenant.schema_name, "AWS")

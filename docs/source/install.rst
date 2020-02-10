@@ -26,7 +26,7 @@ The Koku application contains two components - a web service and database.
 A basic deployment configuration is contained within the application's `openshift template file <https://github.com/project-koku/koku/blob/master/openshift/koku-template.yaml>`__. This template should be acceptable for most use cases. It provides parameterized values for most configuration options.
 
 To deploy the Koku API application using the provided templates, you can use
-the provided ``Makefile``: 
+the provided ``Makefile``:
 (the openshift CLI is required to be installed to run the following command)
 
     ``make oc-create-all``
@@ -64,6 +64,6 @@ Instructions for deploying Masu can be found here: https://github.com/project-ko
 Masu can alternatively be deployed with Docker Compose:
 Follow the steps above to start the Koku API with Docker Compose
 
-Start masu services: ``masu_branch> make docker-up`` 
+Start masu services: ``masu_branch> make docker-up``
 To trigger Masu to process data, send a GET request to http://<baseUrl>:5000/api/cost-management/v1/download/
 You may want to see Masu logs using `docker logs koku_worker -f`
