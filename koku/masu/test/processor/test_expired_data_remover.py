@@ -116,3 +116,19 @@ class ExpiredDataRemoverTest(MasuTestCase):
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
         remover.remove(provider_uuid=provider_uuid)
         mock_purge.assert_called_with(simulate=False, provider_uuid=provider_uuid)
+
+    @patch("masu.processor.expired_data_remover.AWSReportDBCleaner.purge_expired_line_item")
+    def test_remove_provider_items_only(self, mock_purge):
+        """Test that remove is called with provider_uuid items only."""
+        provider_uuid = self.aws_provider_uuid
+        remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
+        remover.remove(provider_uuid=provider_uuid, line_items_only=True)
+        mock_purge.assert_called_with(simulate=False, provider_uuid=provider_uuid)
+
+    @patch("masu.processor.expired_data_remover.AWSReportDBCleaner.purge_expired_line_item")
+    def test_remove_items_only(self, mock_purge):
+        """Test that remove is called with provider_uuid items only."""
+        remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
+        date = remover._calculate_expiration_date()
+        remover.remove(line_items_only=True)
+        mock_purge.assert_called_with(expired_date=date, simulate=False)

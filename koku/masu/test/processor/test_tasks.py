@@ -569,6 +569,22 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
             remove_expired_data(schema_name=self.schema, provider=Provider.PROVIDER_AWS, simulate=True)
             self.assertIn(expected.format(str(expected_results)), logger.output)
 
+    @patch.object(ExpiredDataRemover, "remove")
+    def test_remove_expired_line_items_only(self, fake_remover):
+        """Test task."""
+        expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
+        fake_remover.return_value = expected_results
+
+        expected = "INFO:masu.processor._tasks.remove_expired:Expired Data:\n {}"
+
+        # disable logging override set in masu/__init__.py
+        logging.disable(logging.NOTSET)
+        with self.assertLogs("masu.processor._tasks.remove_expired") as logger:
+            remove_expired_data(
+                schema_name=self.schema, provider=Provider.PROVIDER_AWS, simulate=True, line_item_only=True
+            )
+            self.assertIn(expected.format(str(expected_results)), logger.output)
+
 
 class TestUpdateSummaryTablesTask(MasuTestCase):
     """Test cases for Processor summary table Celery tasks."""
