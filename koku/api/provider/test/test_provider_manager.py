@@ -19,6 +19,7 @@ import json
 from unittest.mock import patch
 
 from dateutil import parser
+from django.db.models.signals import post_save
 from django.http import HttpRequest
 from django.http import QueryDict
 from rest_framework.request import Request
@@ -39,6 +40,7 @@ from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModelMap
+from sources.kafka_listener import storage_callback
 
 
 class MockResponse:
@@ -60,6 +62,7 @@ class ProviderManagerTest(IamTestCase):
     def setUp(self):
         """Set up the provider manager tests."""
         super().setUp()
+        post_save.disconnect(storage_callback, sender=Sources)
         self.customer = Customer.objects.get(account_id=self.customer_data["account_id"])
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
