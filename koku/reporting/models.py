@@ -42,6 +42,7 @@ from reporting.provider.aws.models import AWSStorageSummary
 from reporting.provider.aws.models import AWSStorageSummaryByAccount
 from reporting.provider.aws.models import AWSStorageSummaryByRegion
 from reporting.provider.aws.models import AWSStorageSummaryByService
+from reporting.provider.aws.models import AWSTagsSummary
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDaily
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
@@ -53,6 +54,7 @@ from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjec
 from reporting.provider.ocp.costs.models import CostSummary  # noqa: F401
 from reporting.provider.ocp.models import OCPStorageLineItem
 from reporting.provider.ocp.models import OCPStorageLineItemDaily
+from reporting.provider.ocp.models import OCPStorageVolumeLabelSummary
 from reporting.provider.ocp.models import OCPUsageLineItem
 from reporting.provider.ocp.models import OCPUsageLineItemDaily
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary

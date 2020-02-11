@@ -19,13 +19,13 @@ from api.models import Provider
 from api.report.ocp_aws.provider_map import OCPAWSProviderMap
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.ocp.queries import OCPTagQueryHandler
-from reporting.models import OCPAWSCostLineItemDailySummary
+from reporting.models import AWSTagsSummary
 
 
 class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
     """Handles tag queries and responses for OCP-on-AWS."""
 
-    data_sources = [{"db_table": OCPAWSCostLineItemDailySummary, "db_column": "tags"}]
+    data_sources = [{"db_table": AWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
     provider = Provider.OCP_AWS
 
     def __init__(self, parameters):

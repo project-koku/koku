@@ -19,13 +19,13 @@ from api.models import Provider
 from api.report.azure.openshift.provider_map import OCPAzureProviderMap
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.ocp.queries import OCPTagQueryHandler
-from reporting.models import OCPAzureCostLineItemDailySummary
+from reporting.models import AzureTagsSummary
 
 
 class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
     """Handles tag queries and responses for OCP-on-Azure."""
 
-    data_sources = [{"db_table": OCPAzureCostLineItemDailySummary, "db_column": "tags"}]
+    data_sources = [{"db_table": AzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
     provider = Provider.OCP_AZURE
 
     def __init__(self, parameters):

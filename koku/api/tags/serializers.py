@@ -21,6 +21,7 @@ from api.report.serializers import add_operator_specified_fields
 from api.report.serializers import handle_invalid_fields
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
+from api.utils import DateHelper
 
 OCP_FILTER_OP_FIELDS = ["project"]
 AWS_FILTER_OP_FIELDS = ["account"]
@@ -49,6 +50,7 @@ class FilterSerializer(serializers.Serializer):
             (ValidationError): if filter inputs are invalid
 
         """
+        dh = DateHelper()
         handle_invalid_fields(self, data)
 
         resolution = data.get("resolution")
@@ -72,6 +74,14 @@ class FilterSerializer(serializers.Serializer):
                 valid_vals = ", ".join(valid_values)
                 error = {"time_scope_value": msg.format(valid_vals, "month")}
                 raise serializers.ValidationError(error)
+
+        if time_scope_value in ("-10", "-30"):
+            month_start = dh.this_month_start
+            day_start = dh.n_days_ago(dh.this_hour, -int(time_scope_value) - 1)
+            if month_start < day_start:
+                data["time_scope_value"] = "-1"
+                data["time_scope_units"] = "month"
+                data["resolution"] = "monthly"
         return data
 
 

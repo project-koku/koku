@@ -18,10 +18,9 @@
 import logging
 
 from api.models import Provider
-from api.query_filter import QueryFilter
 from api.report.azure.provider_map import AzureProviderMap
 from api.tags.queries import TagQueryHandler
-from reporting.models import AzureCostEntryLineItemDailySummary
+from reporting.models import AzureTagsSummary
 
 LOG = logging.getLogger(__name__)
 
@@ -29,7 +28,7 @@ LOG = logging.getLogger(__name__)
 class AzureTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for Azure."""
 
-    data_sources = [{"db_table": AzureCostEntryLineItemDailySummary, "db_column": "tags"}]
+    data_sources = [{"db_table": AzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
 
     SUPPORTED_FILTERS = ["subscription_guid"]
     FILTER_MAP = {"subscription_guid": {"field": "subscription_guid", "operation": "icontains"}}
@@ -46,9 +45,3 @@ class AzureTagQueryHandler(TagQueryHandler):
             self._mapper = AzureProviderMap(provider=self.provider, report_type=parameters.report_type)
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
-
-    def _get_time_based_filters(self, delta=False):
-        """Overridden from QueryHandler."""
-        start_filter = QueryFilter(field="usage_start", operation="gte", parameter=self.start_datetime)
-        end_filter = QueryFilter(field="usage_start", operation="lte", parameter=self.end_datetime)
-        return start_filter, end_filter

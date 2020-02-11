@@ -17,6 +17,7 @@
 """Query Handling for Tags."""
 import copy
 import logging
+from collections import defaultdict
 
 from django.db.models import F
 from django.db.models import Q
@@ -96,6 +97,20 @@ class TagQueryHandler(QueryHandler):
 
         return output
 
+    def _get_time_based_filters(self, source, delta=False):
+        if delta:
+            date_delta = self._get_date_delta()
+            start = self.start_datetime - date_delta
+            end = self.end_datetime - date_delta
+        else:
+            start = self.start_datetime
+            end = self.end_datetime
+
+        field_prefix = source.get("db_column_period")
+        start_filter = QueryFilter(field=f"{field_prefix}_start", operation="gte", parameter=start)
+        end_filter = QueryFilter(field=f"{field_prefix}_start", operation="lte", parameter=end)
+        return start_filter, end_filter
+
     def _get_filter(self, delta=False):
         """Create dictionary for filter parameters.
 
@@ -105,8 +120,11 @@ class TagQueryHandler(QueryHandler):
             (Dict): query filter dictionary
 
         """
-        # filters = super()._get_filter(delta)
         filters = QueryFilterCollection()
+        for source in self.data_sources:
+            start_filter, end_filter = self._get_time_based_filters(source, delta)
+            filters.add(query_filter=start_filter)
+            filters.add(query_filter=end_filter)
 
         for filter_key in self.SUPPORTED_FILTERS:
             filter_value = self.parameters.get_filter(filter_key)
@@ -127,10 +145,7 @@ class TagQueryHandler(QueryHandler):
         or_composed_filters = self._set_operator_specified_filters("or")
 
         composed_filters = filters.compose()
-        if composed_filters:
-            composed_filters = composed_filters & and_composed_filters & or_composed_filters
-        else:
-            composed_filters = and_composed_filters & or_composed_filters
+        composed_filters = composed_filters & and_composed_filters & or_composed_filters
 
         LOG.debug(f"_get_filter: {composed_filters}")
         return composed_filters
@@ -242,40 +257,62 @@ class TagQueryHandler(QueryHandler):
         return merged_data
 
     def get_tags(self):
-        """Get a list of tags and values to validate filters."""
+        """Get a list of tags and values to validate filters.
+
+        Return a list of dictionaries containing the tag keys.
+        If OCP, these dicationaries will return as:
+            [
+                {"key": key1, "values": [value1, value2], "type": "storage" (or "pod")},
+                {"key": key2, "values": [value1, value2], "type": "storage" (or "pod")},
+                etc.
+            ]
+        If cloud provider, dicitonaries will be:
+            [
+                {"key": key1, "values": [value1, value2]},
+                {"key": key2, "values": [value1, value2]},
+                etc.
+            ]
+        """
         type_filter = self.parameters.get_filter("type")
 
-        merged_data = {}
+        merged_data = defaultdict(list)
+        final_data = []
         with tenant_context(self.tenant):
             tag_keys = {}
             for source in self.data_sources:
                 if type_filter and type_filter != source.get("type"):
                     continue
-                exclusion = self._get_exclusions(source.get("db_column_key"))
+                exclusion = self._get_exclusions("key")
                 tag_keys = (
                     source.get("db_table")
                     .objects.filter(self.query_filter)
                     .exclude(exclusion)
-                    .values(source.get("db_column_key"), source.get("db_column_values"))
+                    .values("key", "values")
                     .distinct()
                     .all()
                 )
-                tag_keys = {
-                    tag.get(source.get("db_column_key")): tag.get(source.get("db_column_values")) for tag in tag_keys
-                }
+                for dikt in tag_keys:
+                    merged_data[dikt.get("key")].extend(dikt.get("values"))
+                if source.get("type"):
+                    self.append_to_final_data_with_type(final_data, merged_data, source)
+                    merged_data = defaultdict(list)
 
-                self._merge_tag_dicts(tag_keys, merged_data)
-        lis = []
+            if not source.get("type"):
+                self.append_to_final_data_without_type(final_data, merged_data)
+
+        return final_data
+
+    def append_to_final_data_with_type(self, final_data, merged_data, source):
+        """Convert data to final list with a source type."""
         for k, v in merged_data.items():
-            lis.append({k: v})
-        return lis
+            temp = {"key": k, "values": v, "type": source.get("type")}
+            final_data.append(temp)
 
-    def _merge_tag_dicts(self, dikt, merged_dikt):
-        for key, values in dikt.items():
-            if merged_dikt.get(key):
-                merged_dikt[key].append(values)
-            else:
-                merged_dikt[key] = values
+    def append_to_final_data_without_type(self, final_data, merged_data):
+        """Convert data to final list without a source type."""
+        for k, v in merged_data.items():
+            temp = {"key": k, "values": v}
+            final_data.append(temp)
 
     def execute_query(self):
         """Execute query and return provided data.
