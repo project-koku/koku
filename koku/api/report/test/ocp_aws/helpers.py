@@ -183,6 +183,7 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
 
     def _populate_aws_daily_table(self):
         included_fields = [
+            "cost_entry_bill_id",
             "cost_entry_product_id",
             "cost_entry_pricing_id",
             "cost_entry_reservation_id",
@@ -308,8 +309,10 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                 usage_amount = Decimal(random.uniform(0, 100))
                 unblended_cost = Decimal(random.uniform(0, 10)) * usage_amount
                 project_costs = {row.get("namespace"): float(Decimal(random.random()) * unblended_cost)}
+                bill, _ = AWSCostEntryBill.objects.get_or_create(**self.aws_info.bill)
 
                 data = {
+                    "cost_entry_bill_id": bill.id,
                     "cluster_id": self.cluster_id,
                     "cluster_alias": self.cluster_alias,
                     "namespace": [row.get("namespace")],
