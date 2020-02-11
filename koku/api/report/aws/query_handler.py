@@ -18,7 +18,10 @@
 import copy
 import logging
 
+from django.db.models import ExpressionWrapper
 from django.db.models import F
+from django.db.models import IntegerField
+from django.db.models import Sum
 from django.db.models import Value
 from django.db.models import Window
 from django.db.models.expressions import Func
@@ -223,8 +226,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
         data = []
 
         with tenant_context(self.tenant):
-
-            query = self.query_table.objects.filter(self.query_filter)
+            query_table = self.query_table
+            tag_indicator_query = None
+            query = query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
@@ -243,6 +247,16 @@ class AWSReportQueryHandler(ReportQueryHandler):
                     account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
                 )
 
+                # Setup tags exist query for the returned data
+                tag_indicator_query = query_table.objects.filter(self.query_filter)
+                tag_indicator_query = tag_indicator_query.annotate(
+                    account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id"),
+                    tags_exist_sum=Sum(ExpressionWrapper(Coalesce(F('tags'), {}) != {}, output_field=IntegerField))
+                )
+                tag_indicator_query.group_by = ['account_alias']
+                tag_indicator_query = tag_indicator_query.values('acount_alias', 'tags_exist_sum')
+
+
             query_sum = self._build_sum(query, annotations)
 
             if self._limit:
@@ -259,15 +273,32 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
             query_data = self.order_by(query_data, query_order_by)
 
+            # Fetch the data (returning list(dict))
+            query_results = list(query_data)
+
+            # Resolve tag exists for unique account returned
+            # if tag_indicator_query is not None
+            # Append the flag to the query result for the report
+            if tag_indicator_query is not None:
+                # First resolve all of the unique accounts returned in the results
+                unique_accounts = list({r['account_alias'] for r in query_results})
+                # Filter the tag_indicator_query by those accounts
+                tag_indicator_query.filter(account_alias__in=unique_accounts)
+                # Get the tag results into a dict
+                tag_results = {r['account_alias']: r['tags_exist_sum'] > 0 for r in tag_indicator_query}
+                # Add the tag results to the report query result dicts
+                for res in query_results:
+                    res['tags_exist'] = tag_results.get(res['account_alias'], False)
+
             if is_csv_output:
                 if self._limit:
-                    data = self._ranked_list(list(query_data))
+                    data = self._ranked_list(query_results)
                 else:
-                    data = list(query_data)
+                    data = query_results
             else:
                 groups = copy.deepcopy(query_group_by)
                 groups.remove("date")
-                data = self._apply_group_by(list(query_data), groups)
+                data = self._apply_group_by(query_results, groups)
                 data = self._transform_data(query_group_by, 0, data)
 
         key_order = list(["units"] + list(annotations.keys()))
