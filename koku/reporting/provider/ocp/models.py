@@ -313,7 +313,7 @@ class OCPUsagePodLabelSummary(models.Model):
 
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
 
 
 class OCPStorageLineItem(models.Model):
@@ -415,7 +415,7 @@ class OCPStorageVolumeLabelSummary(models.Model):
 
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
 
 
 class OCPStorageVolumeClaimLabelSummary(models.Model):
@@ -431,4 +431,4 @@ class OCPStorageVolumeClaimLabelSummary(models.Model):
 
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
