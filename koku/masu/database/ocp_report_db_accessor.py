@@ -120,9 +120,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name).filter(provider_id=provider_uuid)
 
-    def report_periods_for_provider_uuid(
-        self, provider_uuid, start_date: Optional[datetime.datetime] = None
-    ):  # noqa: E501 pylint: disable=C0301
+    def report_periods_for_provider_uuid(self, provider_uuid, start_date: Optional[datetime.datetime] = None):
         """Return all report periods for provider_uuid on date."""
         report_periods = self.get_usage_period_query_by_provider(provider_uuid)
         with schema_context(self.schema):
@@ -297,9 +295,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             reports = self._get_reports(table, filters)
             return {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
 
-    def populate_line_item_daily_table(
-        self, start_date: datetime.date, end_date: datetime.date, cluster_id
-    ) -> None:  # noqa: E501 pylint: disable=line-too-long
+    def populate_line_item_daily_table(self, start_date: datetime.date, end_date: datetime.date, cluster_id) -> None:
         """Populate the daily aggregate of line items table.
 
         Args:
@@ -598,7 +594,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
     # pylint: disable=too-many-arguments
     def populate_monthly_cost(
         self, node_cost, start_date: datetime.date, end_date: datetime.date, cluster_id, cluster_alias
-    ):  # noqa: E501 pylint: disable=C0301
+    ):
         """
         Populate the monthly cost of a customer.
 

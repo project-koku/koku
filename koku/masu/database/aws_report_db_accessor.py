@@ -200,7 +200,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         table_name = AWS_CUR_TABLE_MAP["line_item_daily"]
 
         daily_sql = pkgutil.get_data("masu.database", "sql/reporting_awscostentrylineitem_daily.sql")
-        daily_sql = daily_sql.decode("utf-8")  # pytype: disable=attribute-error
+        daily_sql = daily_sql.decode("utf-8")
         daily_sql_params = {
             "uuid": str(uuid.uuid4()).replace("-", "_"),
             "start_date": start_date,
@@ -225,7 +225,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         """
         table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_awscostentrylineitem_daily_summary.sql")
-        summary_sql = summary_sql.decode("utf-8")  # pytype: disable=attribute-error
+        summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
             "uuid": str(uuid.uuid4()).replace("-", "_"),
             "start_date": start_date,
@@ -254,7 +254,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         table_name = AWS_CUR_TABLE_MAP["tags_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_awstags_summary.sql")
-        agg_sql = agg_sql.decode("utf-8")  # pytype: disable=attribute-error
+        agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {"schema": self.schema}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
@@ -272,7 +272,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         """
         table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpawscostlineitem_daily_summary.sql")
-        summary_sql = summary_sql.decode("utf-8")  # pytype: disable=attribute-error
+        summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
             "uuid": str(uuid.uuid4()).replace("-", "_"),
             "start_date": start_date,

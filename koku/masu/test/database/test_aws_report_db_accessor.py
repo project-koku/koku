@@ -988,9 +988,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         self.creator.create_cost_entry_bill(bill_date=bill1_date, provider_uuid=self.aws_provider.uuid)
         bill2 = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid, bill_date=bill2_date)
 
-        bills = self.accessor.bills_for_provider_uuid(
-            self.aws_provider.uuid, start_date=bill2_date  # formerly .strftime('%Y-%m-%d')
-        )
+        bills = self.accessor.bills_for_provider_uuid(self.aws_provider.uuid, start_date=bill2_date)
         with schema_context(self.schema):
             self.assertEquals(len(bills), 1)
             self.assertEquals(bills[0].id, bill2.id)

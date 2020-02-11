@@ -185,8 +185,7 @@ def summarize_reports(reports_to_summarize):
         # Updater classes for when full-month summarization is
         # required.
         start_date = DateAccessor().today() - datetime.timedelta(days=2)
-        # formerly start_date = start_date.strftime('%Y-%m-%d')
-        end_date = DateAccessor().today()  # formerly  .strftime('%Y-%m-%d')
+        end_date = DateAccessor().today()
         LOG.info("report to summarize: %s", str(report))
         update_summary_tables.delay(
             report.get("schema_name"),

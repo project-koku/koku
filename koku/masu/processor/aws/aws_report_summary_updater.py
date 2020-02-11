@@ -142,9 +142,8 @@ class AWSReportSummaryUpdater:
                     do_month_update = self._determine_if_full_summary_update_needed(bills[0])
                 if do_month_update:
                     last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
-                    start_date = bill_date  # formerly .strftime('%Y-%m-%d')
+                    start_date = bill_date
                     end_date = bill_date.replace(day=last_day_of_month)
-                    # formerly end_date = end_date.strftime('%Y-%m-%d')
                     LOG.info("Overriding start and end date to process full month.")
 
         return start_date, end_date

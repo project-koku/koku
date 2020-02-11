@@ -186,11 +186,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             return summary_item_query
 
     def populate_ocp_on_azure_cost_daily_summary(
-        self,
-        start_date: datetime.date,
-        end_date: datetime.date,  # noqa: E501 pylint: disable=C0301
-        cluster_id,
-        bill_ids,
+        self, start_date: datetime.date, end_date: datetime.date, cluster_id, bill_ids
     ) -> None:
         """Populate the daily cost aggregated summary for OCP on AWS.
 
