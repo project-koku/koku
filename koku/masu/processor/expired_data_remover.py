@@ -50,7 +50,7 @@ class ExpiredDataRemover:
 
     """
 
-    def __init__(self, customer_schema, provider, num_of_months_to_keep=None):
+    def __init__(self, customer_schema, provider, num_of_months_to_keep=None, line_items_month_to_keep=None):
         """
         Initializer.
 
@@ -64,7 +64,9 @@ class ExpiredDataRemover:
         self._months_to_keep = num_of_months_to_keep
         if self._months_to_keep is None:
             self._months_to_keep = Config.MASU_RETAIN_NUM_MONTHS
-        self._expiration_date = self._calculate_expiration_date()
+        self._line_items_months = line_items_month_to_keep
+        if self._line_items_months is None:
+            self._line_items_months = Config.MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY
         try:
             self._cleaner = self._set_cleaner()
         except Exception as err:
@@ -97,7 +99,7 @@ class ExpiredDataRemover:
 
         return None
 
-    def _calculate_expiration_date(self):
+    def _calculate_expiration_date(self, line_items_only=False):
         """
         Calculate the expiration date based on the retention policy.
 
@@ -108,17 +110,22 @@ class ExpiredDataRemover:
             (datetime.datetime) Expiration date
 
         """
+        if line_items_only:
+            months = self._line_items_months
+            expiration_msg = "Line items expiration is {} for a {} month retention policy"
+        else:
+            months = self._months_to_keep
+            expiration_msg = "Report data expiration is {} for a {} month retention policy"
         today = DateAccessor().today()
         LOG.info("Current date time is %s", today)
 
         middle_of_current_month = today.replace(day=15)
-        num_of_days_to_expire_date = self._months_to_keep * timedelta(days=30)
+        num_of_days_to_expire_date = months * timedelta(days=30)
         middle_of_expire_date_month = middle_of_current_month - num_of_days_to_expire_date
         expiration_date = datetime(
             year=middle_of_expire_date_month.year, month=middle_of_expire_date_month.month, day=1, tzinfo=pytz.UTC
         )
-        expiration_msg = "Report data expiration is {} for a {} month retention policy"
-        msg = expiration_msg.format(expiration_date, self._months_to_keep)
+        msg = expiration_msg.format(expiration_date, months)
         LOG.info(msg)
         return expiration_date
 
@@ -139,7 +146,7 @@ class ExpiredDataRemover:
             else:
                 removed_data = self._cleaner.purge_expired_report_data(simulate=simulate, provider_uuid=provider_uuid)
         else:
-            expiration_date = self._calculate_expiration_date()
+            expiration_date = self._calculate_expiration_date(line_items_only=line_items_only)
             if line_items_only:
                 removed_data = self._cleaner.purge_expired_line_item(expired_date=expiration_date, simulate=simulate)
             else:
