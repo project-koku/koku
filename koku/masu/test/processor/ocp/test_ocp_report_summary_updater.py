@@ -76,7 +76,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
 
         cluster_id = self.ocp_provider_resource_name
         self.report_period = self.creator.create_ocp_report_period(
-            provider_uuid=self.ocp_provider_uuid, period_date=self.today, cluster_id=cluster_id
+            provider_uuid=self.ocp_provider_uuid, period_date=self.today.date(), cluster_id=cluster_id
         )
         report = self.creator.create_ocp_report(self.report_period, self.today)
         self.creator.create_ocp_usage_line_item(self.report_period, report)

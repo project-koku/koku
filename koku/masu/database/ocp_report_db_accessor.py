@@ -88,7 +88,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name).order_by("-report_period_start").first()
 
-    def get_usage_periods_by_date(self, start_date):
+    def get_usage_periods_by_date(self, start_date: datetime.date):
         """Return all report period entries for the specified start date."""
         table_name = OCP_REPORT_TABLE_MAP["report_period"]
         with schema_context(self.schema):
