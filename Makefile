@@ -66,6 +66,8 @@ help:
 	@echo "  large-ocp-provider-testing            create a test OCP provider "large_ocp_1" with a larger volume of data"
 	@echo "                                          @param nise_config_dir - directory of nise config files to use"
 	@echo "  load-test-customer-data               load test data for the default providers created in create-test-customer"
+	@echo "                                          @param start - (optional) start date ex. 2019-08-02"
+	@echo "                                          @param end - (optional) end date ex. 2019-12-5"
 	@echo "  collect-static                        collect static files to host"
 	@echo "  make-migrations                       make migrations for the database"
 	@echo "  requirements                          generate Pipfile.lock, RTD requirements and manifest for product security"
