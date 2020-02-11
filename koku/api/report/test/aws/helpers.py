@@ -16,6 +16,7 @@
 #
 """Test the AWSReportQueryHandler base class."""
 import copy
+import pkgutil
 from decimal import Decimal
 
 from django.contrib.postgres.aggregates import ArrayAgg
@@ -28,6 +29,7 @@ from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Cast
 from django.db.models.functions import Concat
+from jinjasql import JinjaSql
 from tenant_schemas.utils import tenant_context
 
 from api.report.test import FakeAWSCostData
@@ -53,6 +55,7 @@ class AWSReportDataGenerator:
 
     def _populate_daily_table(self):
         included_fields = [
+            "cost_entry_bill_id",
             "cost_entry_product_id",
             "cost_entry_pricing_id",
             "cost_entry_reservation_id",
@@ -119,23 +122,17 @@ class AWSReportDataGenerator:
 
     def _populate_tag_summary_table(self):
         """Populate pod label key and values."""
-        raw_sql = """
-            INSERT INTO reporting_awstags_summary
-            SELECT l.key,
-                array_agg(DISTINCT l.value) as values
-            FROM (
-                SELECT key,
-                    value
-                FROM reporting_awscostentrylineitem_daily AS li,
-                    jsonb_each_text(li.tags) labels
-            ) l
-            GROUP BY l.key
-            ON CONFLICT (key) DO UPDATE
-            SET values = EXCLUDED.values
-        """
+        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_cloudtags_summary.sql")
+        agg_sql = agg_sql.decode("utf-8")
+        agg_sql_params = {
+            "schema": connection.schema_name,
+            "tag_table": "reporting_awstags_summary",
+            "lineitem_table": "reporting_awscostentrylineitem_daily",
+        }
+        agg_sql, agg_sql_params = JinjaSql().prepare_query(agg_sql, agg_sql_params)
 
         with connection.cursor() as cursor:
-            cursor.execute(raw_sql)
+            cursor.execute(agg_sql)
 
     def add_data_to_tenant(self, data, product="ec2"):
         """Populate tenant with data."""

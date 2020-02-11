@@ -17,6 +17,7 @@
 """Test the OCPReportQueryHandler base class."""
 import hashlib
 import math
+import pkgutil
 import random
 from decimal import Decimal
 from uuid import uuid4
@@ -32,6 +33,7 @@ from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from faker import Faker
+from jinjasql import JinjaSql
 from tenant_schemas.utils import tenant_context
 
 from api.utils import DateHelper
@@ -224,33 +226,28 @@ class OCPReportDataGenerator:
         apps = [
             self.fake.word(),
             self.fake.word(),
-            self.fake.word(),  # pylint: disable=no-member
             self.fake.word(),
             self.fake.word(),
             self.fake.word(),
-        ]  # pylint: disable=no-member
-        organizations = [
             self.fake.word(),
-            self.fake.word(),  # pylint: disable=no-member
-            self.fake.word(),
-            self.fake.word(),
-        ]  # pylint: disable=no-member
+        ]
+        organizations = [self.fake.word(), self.fake.word(), self.fake.word(), self.fake.word()]
         markets = [
             self.fake.word(),
             self.fake.word(),
-            self.fake.word(),  # pylint: disable=no-member
             self.fake.word(),
             self.fake.word(),
             self.fake.word(),
-        ]  # pylint: disable=no-member
+            self.fake.word(),
+        ]
         versions = [
             self.fake.word(),
             self.fake.word(),
-            self.fake.word(),  # pylint: disable=no-member
             self.fake.word(),
             self.fake.word(),
             self.fake.word(),
-        ]  # pylint: disable=no-member
+            self.fake.word(),
+        ]
 
         seeded_labels = {
             "environment": ["dev", "ci", "qa", "stage", "prod"],
@@ -262,18 +259,18 @@ class OCPReportDataGenerator:
         gen_label_keys = [
             self.fake.word(),
             self.fake.word(),
-            self.fake.word(),  # pylint: disable=no-member
             self.fake.word(),
             self.fake.word(),
             self.fake.word(),
-        ]  # pylint: disable=no-member
+            self.fake.word(),
+        ]
         all_label_keys = list(seeded_labels.keys()) + gen_label_keys
         num_labels = random.randint(2, len(all_label_keys))
         chosen_label_keys = random.choices(all_label_keys, k=num_labels)
 
         labels = {}
         for label_key in chosen_label_keys:
-            label_value = self.fake.word()  # pylint: disable=no-member
+            label_value = self.fake.word()
             if label_key in seeded_labels:
                 label_value = random.choice(seeded_labels[label_key])
             if self.dated_tags:
@@ -318,7 +315,7 @@ class OCPReportDataGenerator:
     def _populate_daily_table(self):
         """Populate the daily table."""
         OCPUsageLineItemDaily.objects.all().delete()
-        included_fields = ["namespace", "pod", "node", "pod_labels", "resource_id"]
+        included_fields = ["namespace", "pod", "node", "pod_labels", "resource_id", "report_period_id"]
         annotations = {
             "usage_start": F("report__interval_start"),
             "usage_end": F("report__interval_start"),
@@ -367,6 +364,7 @@ class OCPReportDataGenerator:
             "usage_start",
             "usage_end",
             "namespace",
+            "report_period_id",
             "pod",
             "node",
             "cluster_id",
@@ -533,6 +531,7 @@ class OCPReportDataGenerator:
         included_fields = [
             "namespace",
             "pod",
+            "report_period_id",
             "persistentvolumeclaim",
             "persistentvolume",
             "storageclass",
@@ -563,6 +562,7 @@ class OCPReportDataGenerator:
             "usage_start",
             "usage_end",
             "namespace",
+            "report_period_id",
             "pod",
             "node",
             "persistentvolumeclaim",
@@ -598,60 +598,30 @@ class OCPReportDataGenerator:
 
     def _populate_pod_label_summary_table(self):
         """Populate pod label key and values."""
-        raw_sql = """
-            INSERT INTO reporting_ocpusagepodlabel_summary
-            SELECT l.key,
-                array_agg(DISTINCT l.value) as values
-            FROM (
-                SELECT key,
-                    value
-                FROM reporting_ocpusagelineitem_daily AS li,
-                    jsonb_each_text(li.pod_labels) labels
-            ) l
-            GROUP BY l.key
-            ON CONFLICT (key) DO UPDATE
-            SET values = EXCLUDED.values
-        """
+        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpusagepodlabel_summary.sql")
+        agg_sql = agg_sql.decode("utf-8")
+        agg_sql_params = {"schema": connection.schema_name}
+        agg_sql, agg_sql_params = JinjaSql().prepare_query(agg_sql, agg_sql_params)
 
         with connection.cursor() as cursor:
-            cursor.execute(raw_sql)
+            cursor.execute(agg_sql)
 
     def _populate_volume_claim_label_summary_table(self):
         """Populate volume claim label key and values."""
-        raw_sql = """
-            INSERT INTO reporting_ocpstoragevolumeclaimlabel_summary
-            SELECT l.key,
-                array_agg(DISTINCT l.value) as values
-            FROM (
-                SELECT key,
-                    value
-                FROM reporting_ocpstoragelineitem_daily AS li,
-                    jsonb_each_text(li.persistentvolumeclaim_labels) labels
-            ) l
-            GROUP BY l.key
-            ON CONFLICT (key) DO UPDATE
-            SET values = EXCLUDED.values
-        """
+        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpstoragevolumeclaimlabel_summary.sql")
+        agg_sql = agg_sql.decode("utf-8")
+        agg_sql_params = {"schema": connection.schema_name}
+        agg_sql, agg_sql_params = JinjaSql().prepare_query(agg_sql, agg_sql_params)
 
         with connection.cursor() as cursor:
-            cursor.execute(raw_sql)
+            cursor.execute(agg_sql)
 
     def _populate_volume_label_summary_table(self):
         """Populate volume label key and values."""
-        raw_sql = """
-            INSERT INTO reporting_ocpstoragevolumelabel_summary
-            SELECT l.key,
-                array_agg(DISTINCT l.value) as values
-            FROM (
-                SELECT key,
-                    value
-                FROM reporting_ocpstoragelineitem_daily AS li,
-                    jsonb_each_text(li.persistentvolume_labels) labels
-            ) l
-            GROUP BY l.key
-            ON CONFLICT (key) DO UPDATE
-            SET values = EXCLUDED.values
-        """
+        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpstoragevolumelabel_summary.sql")
+        agg_sql = agg_sql.decode("utf-8")
+        agg_sql_params = {"schema": connection.schema_name}
+        agg_sql, agg_sql_params = JinjaSql().prepare_query(agg_sql, agg_sql_params)
 
         with connection.cursor() as cursor:
-            cursor.execute(raw_sql)
+            cursor.execute(agg_sql)
