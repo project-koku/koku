@@ -15,6 +15,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Updater base for OpenShift on Cloud Infrastructures."""
+# pylint: skip-file
 import datetime
 import logging
 
@@ -23,8 +24,6 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
-
-# pylint: skip-file
 
 LOG = logging.getLogger(__name__)
 
