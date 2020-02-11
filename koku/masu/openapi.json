@@ -67,7 +67,7 @@
           "parameters": [
             {
               "name": "line_items_only",
-              "in": "flag",
+              "in": "query",
               "description": "A boolean flag to indicate if we should delete the line items only. Defaults to False.",
               "required": false,
               "schema": {
@@ -99,7 +99,7 @@
           "parameters": [
             {
               "name": "line_items_only",
-              "in": "flag",
+              "in": "query",
               "description": "A boolean flag to indicate if we should delete the line items only. Defaults to False.",
               "required": false,
               "schema": {
