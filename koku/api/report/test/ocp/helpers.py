@@ -315,7 +315,7 @@ class OCPReportDataGenerator:
     def _populate_daily_table(self):
         """Populate the daily table."""
         OCPUsageLineItemDaily.objects.all().delete()
-        included_fields = ["namespace", "pod", "node", "pod_labels", "resource_id"]
+        included_fields = ["namespace", "pod", "node", "pod_labels", "resource_id", "report_period_id"]
         annotations = {
             "usage_start": F("report__interval_start"),
             "usage_end": F("report__interval_start"),
@@ -364,6 +364,7 @@ class OCPReportDataGenerator:
             "usage_start",
             "usage_end",
             "namespace",
+            "report_period_id",
             "pod",
             "node",
             "cluster_id",
@@ -530,6 +531,7 @@ class OCPReportDataGenerator:
         included_fields = [
             "namespace",
             "pod",
+            "report_period_id",
             "persistentvolumeclaim",
             "persistentvolume",
             "storageclass",
@@ -560,6 +562,7 @@ class OCPReportDataGenerator:
             "usage_start",
             "usage_end",
             "namespace",
+            "report_period_id",
             "pod",
             "node",
             "persistentvolumeclaim",
