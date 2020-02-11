@@ -322,7 +322,7 @@ class QueryHandler:
         """
         # find if there is a filter[key]=value that matches this group_by[key]=value
         for key, value in parameters.parameters.get("group_by", {}).items():
-            if value == "*":
+            if self.has_wildcard(value):
                 filter_value = parameters.parameters.get("filter", {}).get(key)
                 if filter_value:
                     parameters.parameters["group_by"][key] = filter_value
