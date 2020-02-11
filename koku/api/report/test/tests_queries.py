@@ -149,8 +149,10 @@ def create_test_handler(params, mapper=None):
 def assertSameQ(one, two):
     """Compare two Q-objects and decide if they're equivalent.
 
-        Q objects don't have a robust __cmp__() defined.
-        So, we'll approximate our own.
+        Q objects don't have their own comparison methods defined.
+
+        This function is intended to give an approximate comparison suitable
+        for our purposes.
 
         Args:
             one, two (Q) Django Q Object
