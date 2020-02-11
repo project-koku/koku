@@ -320,10 +320,9 @@ class QueryHandler:
             parameters (QueryParameters): The parameters object
 
         """
+        # find if there is a filter[key]=value that matches this group_by[key]=value
         for key, value in parameters.parameters.get("group_by", {}).items():
             if value == "*":
-                # find if there is a filter[X]=Y that matches this group_by[X]=*
-                # get filter value for current group_by_key
                 filter_value = parameters.parameters.get("filter", {}).get(key)
                 if filter_value:
                     parameters.parameters["group_by"][key] = filter_value
