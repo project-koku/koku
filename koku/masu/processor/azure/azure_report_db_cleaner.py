@@ -82,7 +82,7 @@ class AzureReportDBCleaner:
                         LOG.info("Removing %s cost entry line items for bill id %s", del_count, bill_id)
 
                     LOG.info(
-                        "Report data removed for Account Payer ID: %s with billing period: %s",
+                        "Line item data removed for Account Payer ID: %s with billing period: %s",
                         removed_provider_uuid,
                         removed_billing_period_start,
                     )

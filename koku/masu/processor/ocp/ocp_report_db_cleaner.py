@@ -54,7 +54,7 @@ class OCPReportDBCleaner:
             ([{}]) List of dictionaries containing 'usage_period_id' and 'interval_start'
 
         """
-        LOG.info("Calling purge_expired_lite_item for azure")
+        LOG.info("Calling purge_expired_lite_item for ocp")
 
         with ReportingCommonDBAccessor() as reporting_common:
             column_map = reporting_common.column_map
@@ -81,7 +81,7 @@ class OCPReportDBCleaner:
                         LOG.info("Removing %s usage period line items for usage period id %s", qty, report_period_id)
 
                     LOG.info(
-                        "Report data removed for usage period ID: %s with interval start: %s",
+                        "Line item data removed for usage period ID: %s with interval start: %s",
                         report_period_id,
                         removed_usage_start_period,
                     )
