@@ -10,7 +10,6 @@ class Migration(migrations.Migration):
     dependencies = [("reporting", "0093_auto_20200210_1920")]
 
     operations = [
-        migrations.AlterField(model_name="ocpusagelineitemdaily", name="total_seconds", field=models.IntegerField()),
         migrations.CreateModel(
             name="OCPUsagePodLabelSummary",
             fields=[
