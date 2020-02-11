@@ -581,7 +581,7 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
         logging.disable(logging.NOTSET)
         with self.assertLogs("masu.processor._tasks.remove_expired") as logger:
             remove_expired_data(
-                schema_name=self.schema, provider=Provider.PROVIDER_AWS, simulate=True, line_item_only=True
+                schema_name=self.schema, provider=Provider.PROVIDER_AWS, simulate=True, line_items_only=True
             )
             self.assertIn(expected.format(str(expected_results)), logger.output)
 
