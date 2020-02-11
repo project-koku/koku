@@ -115,11 +115,9 @@ class AzureReportDBAccessorTest(MasuTestCase):
             with schema_context(self.schema):
                 report_table = getattr(ocp_accessor.report_schema, ocp_report_table_name)
 
-                report_entry = report_table.objects.all().aggregate(
-                    Min('interval_start'), Max('interval_start')
-                )
-                start_date = report_entry['interval_start__min'].date()
-                end_date = report_entry['interval_start__max'].date()
+                report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
+                start_date = report_entry["interval_start__min"].date()
+                end_date = report_entry["interval_start__max"].date()
 
             ocp_accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
             ocp_accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id)
@@ -210,11 +208,9 @@ class AzureReportDBAccessorTest(MasuTestCase):
                 possible_keys += list(item.tags.keys())
                 possible_values += list(item.tags.values())
 
-            li_entry = line_item_table.objects.all().aggregate(
-                Min('usage_date_time'), Max('usage_date_time')
-            )
-            start_date = li_entry['usage_date_time__min'].date()
-            end_date = li_entry['usage_date_time__max'].date()
+            li_entry = line_item_table.objects.all().aggregate(Min("usage_date_time"), Max("usage_date_time"))
+            start_date = li_entry["usage_date_time__min"].date()
+            end_date = li_entry["usage_date_time__max"].date()
 
         query = self.accessor._get_db_obj_query(summary_table_name)
         with schema_context(self.schema):
@@ -224,11 +220,9 @@ class AzureReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             self.assertNotEqual(query.count(), initial_count)
 
-            summary_entry = summary_table.objects.all().aggregate(
-                Min('usage_start'), Max('usage_start')
-            )
-            result_start_date = summary_entry['usage_start__min'].date()
-            result_end_date = summary_entry['usage_start__max'].date()
+            summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
+            result_start_date = summary_entry["usage_start__min"].date()
+            result_end_date = summary_entry["usage_start__max"].date()
 
             self.assertEqual(result_start_date, start_date)
             self.assertEqual(result_end_date, end_date)
@@ -286,11 +280,9 @@ class AzureReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             possible_value = tag_query[0].pretax_cost * decimal.Decimal(0.1)
 
-            li_entry = line_item_table.objects.all().aggregate(
-                Min('usage_date_time'), Max('usage_date_time')
-            )
-            start_date = li_entry['usage_date_time__min'].date()
-            end_date = li_entry['usage_date_time__max'].date()
+            li_entry = line_item_table.objects.all().aggregate(Min("usage_date_time"), Max("usage_date_time"))
+            start_date = li_entry["usage_date_time__min"].date()
+            end_date = li_entry["usage_date_time__max"].date()
 
         query = self.accessor._get_db_obj_query(summary_table_name)
 
@@ -323,11 +315,9 @@ class AzureReportDBAccessorTest(MasuTestCase):
             for item in tag_query:
                 possible_values.update({item.cost_entry_bill_id: item.pretax_cost * decimal.Decimal(0.1)})
 
-            li_entry = line_item_table.objects.all().aggregate(
-                Min('usage_date_time'), Max('usage_date_time')
-            )
-            start_date = li_entry['usage_date_time__min'].date()
-            end_date = li_entry['usage_date_time__max'].date()
+            li_entry = line_item_table.objects.all().aggregate(Min("usage_date_time"), Max("usage_date_time"))
+            start_date = li_entry["usage_date_time__min"].date()
+            end_date = li_entry["usage_date_time__max"].date()
 
         query = self.accessor._get_db_obj_query(summary_table_name)
 

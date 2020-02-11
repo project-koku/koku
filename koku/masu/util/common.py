@@ -30,7 +30,8 @@ from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
 
 from api.models import Provider
-from masu.external import LISTEN_INGEST, POLL_INGEST
+from masu.external import LISTEN_INGEST
+from masu.external import POLL_INGEST
 
 LOG = logging.getLogger(__name__)
 
@@ -193,9 +194,7 @@ def date_range_pair(start_date, end_date, step=5):
         start_date = datetime.datetime(year=start_date.year, month=start_date.month, day=start_date.day)
     if isinstance(end_date, datetime.date):
         end_date = datetime.datetime(year=end_date.year, month=end_date.month, day=end_date.day)
-    dates = list(
-        rrule(freq=DAILY, dtstart=start_date, until=end_date, interval=step)
-    )
+    dates = list(rrule(freq=DAILY, dtstart=start_date, until=end_date, interval=step))
     # Special case with only 1 period
     if len(dates) == 1:
         yield start_date.date(), end_date.date()

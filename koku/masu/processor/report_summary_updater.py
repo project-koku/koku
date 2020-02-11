@@ -107,7 +107,7 @@ class ReportSummaryUpdater:
         """
         if end_date is None:
             # Run up to the current date. Set end_date to the current date.
-            end_date = self._date_accessor.today_with_timezone('UTC')
+            end_date = self._date_accessor.today_with_timezone("UTC")
             # end_date = end_date.strftime('%Y-%m-%d')
         return start_date, end_date
 
@@ -156,12 +156,9 @@ class ReportSummaryUpdater:
 
         """
         start_date, end_date = self._format_dates(start_date, end_date)
-        LOG.info('Using start date: %s', start_date)
-        LOG.info('Using end date: %s', end_date)
-        start_date, end_date = self._updater.update_summary_tables(
-            start_date,
-            end_date
-        )
+        LOG.info("Using start date: %s", start_date)
+        LOG.info("Using end date: %s", end_date)
+        start_date, end_date = self._updater.update_summary_tables(start_date, end_date)
 
         self._ocp_cloud_updater.update_summary_tables(start_date, end_date)
 

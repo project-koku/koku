@@ -64,7 +64,7 @@ class ReportObjectCreator:
         if entry_datetime:
             start_datetime = entry_datetime
         else:
-            start_datetime = self.fake.past_datetime(start_date='-60d')
+            start_datetime = self.fake.past_datetime(start_date="-60d")
         end_datetime = start_datetime + datetime.timedelta(hours=1)
         data = {"bill_id": bill.id, "interval_start": start_datetime, "interval_end": end_datetime}
         with AWSReportDBAccessor(self.schema, self.column_map) as accessor:

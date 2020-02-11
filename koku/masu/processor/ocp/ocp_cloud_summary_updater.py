@@ -29,10 +29,8 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
-from masu.util.aws.common import \
-    get_bills_from_provider as aws_get_bills_from_provider
-from masu.util.azure.common import \
-    get_bills_from_provider as azure_get_bills_from_provider
+from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
+from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
@@ -81,12 +79,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
     def update_aws_summary_tables(self, openshift_provider_uuid, aws_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on AWS."""
         cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
-        aws_bills = aws_get_bills_from_provider(
-            aws_provider_uuid,
-            self._schema,
-            start_date,
-            end_date,
-        )
+        aws_bills = aws_get_bills_from_provider(aws_provider_uuid, self._schema, start_date, end_date)
         aws_bill_ids = []
         with schema_context(self._schema):
             aws_bill_ids = [str(bill.id) for bill in aws_bills]
@@ -120,12 +113,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
     def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on Azure."""
         cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
-        azure_bills = azure_get_bills_from_provider(
-            azure_provider_uuid,
-            self._schema,
-            start_date,
-            end_date,
-        )
+        azure_bills = azure_get_bills_from_provider(azure_provider_uuid, self._schema, start_date, end_date)
         azure_bill_ids = []
         with schema_context(self._schema):
             azure_bill_ids = [str(bill.id) for bill in azure_bills]

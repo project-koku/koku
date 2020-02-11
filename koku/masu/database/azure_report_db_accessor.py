@@ -29,12 +29,13 @@ from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
-from reporting.provider.azure.models import (
-    AzureCostEntryBill, AzureCostEntryLineItemDaily,
-    AzureCostEntryLineItemDailySummary, AzureCostEntryProductService,
-    AzureMeter)
-from reporting.provider.azure.openshift.models import (
-    OCPAzureCostLineItemDailySummary, OCPAzureCostLineItemProjectDailySummary)
+from reporting.provider.azure.models import AzureCostEntryBill
+from reporting.provider.azure.models import AzureCostEntryLineItemDaily
+from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
+from reporting.provider.azure.models import AzureCostEntryProductService
+from reporting.provider.azure.models import AzureMeter
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
 
 LOG = logging.getLogger(__name__)
 
@@ -184,8 +185,13 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             summary_item_query = base_query.filter(cost_entry_bill_id=bill_id)
             return summary_item_query
 
-    def populate_ocp_on_azure_cost_daily_summary(self, start_date: datetime.date, end_date: datetime.date,  # noqa: E501 pylint: disable=C0301
-                                                 cluster_id, bill_ids) -> None:
+    def populate_ocp_on_azure_cost_daily_summary(
+        self,
+        start_date: datetime.date,
+        end_date: datetime.date,  # noqa: E501 pylint: disable=C0301
+        cluster_id,
+        bill_ids,
+    ) -> None:
         """Populate the daily cost aggregated summary for OCP on AWS.
 
         Args:

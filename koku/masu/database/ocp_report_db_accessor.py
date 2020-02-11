@@ -21,7 +21,8 @@ import pkgutil
 import uuid
 from typing import Optional
 
-from dateutil.rrule import MONTHLY, rrule
+from dateutil.rrule import MONTHLY
+from dateutil.rrule import rrule
 from django.db import connection
 from django.db.models import DecimalField
 from django.db.models import F
@@ -119,7 +120,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name).filter(provider_id=provider_uuid)
 
-    def report_periods_for_provider_uuid(self, provider_uuid, start_date: Optional[datetime.datetime] = None):  # noqa: E501 pylint: disable=C0301
+    def report_periods_for_provider_uuid(
+        self, provider_uuid, start_date: Optional[datetime.datetime] = None
+    ):  # noqa: E501 pylint: disable=C0301
         """Return all report periods for provider_uuid on date."""
         report_periods = self.get_usage_period_query_by_provider(provider_uuid)
         with schema_context(self.schema):
@@ -294,7 +297,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             reports = self._get_reports(table, filters)
             return {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
 
-    def populate_line_item_daily_table(self, start_date: datetime.date, end_date: datetime.date, cluster_id) -> None:  # noqa: E501 pylint: disable=line-too-long
+    def populate_line_item_daily_table(
+        self, start_date: datetime.date, end_date: datetime.date, cluster_id
+    ) -> None:  # noqa: E501 pylint: disable=line-too-long
         """Populate the daily aggregate of line items table.
 
         Args:
@@ -306,7 +311,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        table_name = OCP_REPORT_TABLE_MAP['line_item_daily']
+        table_name = OCP_REPORT_TABLE_MAP["line_item_daily"]
 
         daily_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagelineitem_daily.sql")
         daily_sql = daily_sql.decode("utf-8")
@@ -320,7 +325,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
         self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
-    def get_ocp_infrastructure_map(self, start_date: datetime.date, end_date: datetime.date, **kwargs) -> None:  # noqa: E501 pylint: disable=line-too-long
+    def get_ocp_infrastructure_map(
+        self, start_date: datetime.date, end_date: datetime.date, **kwargs
+    ) -> None:  # noqa: E501 pylint: disable=line-too-long
         """Get the OCP on infrastructure map.
 
         Args:
@@ -333,15 +340,12 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """
         # kwargs here allows us to optionally pass in a provider UUID based on
         # the provider type this is run for
-        ocp_provider_uuid = kwargs.get('ocp_provider_uuid')
-        aws_provider_uuid = kwargs.get('aws_provider_uuid')
-        azure_provider_uuid = kwargs.get('azure_provider_uuid')
+        ocp_provider_uuid = kwargs.get("ocp_provider_uuid")
+        aws_provider_uuid = kwargs.get("aws_provider_uuid")
+        azure_provider_uuid = kwargs.get("azure_provider_uuid")
 
-        infra_sql = pkgutil.get_data(
-            'masu.database',
-            'sql/reporting_ocpinfrastructure_provider_map.sql'
-        )
-        infra_sql = infra_sql.decode('utf-8')
+        infra_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpinfrastructure_provider_map.sql")
+        infra_sql = infra_sql.decode("utf-8")
         infra_sql_params = {
             "uuid": str(uuid.uuid4()).replace("-", "_"),
             "start_date": start_date,
@@ -366,8 +370,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         return db_results
 
-    def populate_storage_line_item_daily_table(self, start_date: datetime.date,
-                                               end_date: datetime.date, cluster_id) -> None:
+    def populate_storage_line_item_daily_table(
+        self, start_date: datetime.date, end_date: datetime.date, cluster_id
+    ) -> None:
         """Populate the daily storage aggregate of line items table.
 
         Args:
@@ -379,7 +384,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily']
+        table_name = OCP_REPORT_TABLE_MAP["storage_line_item_daily"]
 
         daily_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpstoragelineitem_daily.sql")
         daily_sql = daily_sql.decode("utf-8")
@@ -430,8 +435,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         charge_line_sql, charge_line_sql_params = self.jinja_sql.prepare_query(charge_line_sql, charge_line_sql_params)
         self._execute_raw_sql_query(table_name, charge_line_sql, bind_params=list(charge_line_sql_params))
 
-    def populate_line_item_daily_summary_table(self, start_date: datetime.date,
-                                               end_date: datetime.date, cluster_id) -> None:
+    def populate_line_item_daily_summary_table(
+        self, start_date: datetime.date, end_date: datetime.date, cluster_id
+    ) -> None:
         """Populate the daily aggregate of line items table.
 
         Args:
@@ -443,7 +449,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
+        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagelineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
@@ -459,8 +465,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
 
-    def populate_storage_line_item_daily_summary_table(self, start_date: datetime.date,
-                                                       end_date: datetime.date, cluster_id) -> None:
+    def populate_storage_line_item_daily_summary_table(
+        self, start_date: datetime.date, end_date: datetime.date, cluster_id
+    ) -> None:
         """Populate the daily aggregate of storage line items table.
 
         Args:
@@ -471,7 +478,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
+        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpstoragelineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
@@ -485,8 +492,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._execute_raw_sql_query(table_name, summary_sql, start_date, end_date, list(summary_sql_params))
 
-    def update_summary_infrastructure_cost(self, cluster_id, start_date: datetime.date,
-                                           end_date: datetime.date) -> None:
+    def update_summary_infrastructure_cost(
+        self, cluster_id, start_date: datetime.date, end_date: datetime.date
+    ) -> None:
         """Populate the infrastructure costs on the daily usage summary table.
 
         Args:
@@ -497,7 +505,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
+        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
         if start_date is None:
             start_date_qry = self._get_db_obj_query(table_name).order_by("usage_start").first()
             start_date = str(start_date_qry.usage_start) if start_date_qry else None
@@ -588,7 +596,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             )
 
     # pylint: disable=too-many-arguments
-    def populate_monthly_cost(self, node_cost, start_date: datetime.date, end_date: datetime.date, cluster_id, cluster_alias):  # noqa: E501 pylint: disable=C0301
+    def populate_monthly_cost(
+        self, node_cost, start_date: datetime.date, end_date: datetime.date, cluster_id, cluster_alias
+    ):  # noqa: E501 pylint: disable=C0301
         """
         Populate the monthly cost of a customer.
 
@@ -603,14 +613,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """
         if not start_date:
             # If start_date is not provided, recalculate from the first month
-            start_date = OCPUsageLineItemDailySummary.objects.aggregate(
-                Min('usage_start')
-            )['usage_start__min'].date()
+            start_date = OCPUsageLineItemDailySummary.objects.aggregate(Min("usage_start"))["usage_start__min"].date()
         if not end_date:
             # If end_date is not provided, recalculate till the latest month
-            end_date = OCPUsageLineItemDailySummary.objects.aggregate(
-                Max('usage_end')
-            )['usage_end__max'].date()
+            end_date = OCPUsageLineItemDailySummary.objects.aggregate(Max("usage_end"))["usage_end__max"].date()
 
         first_month = start_date.replace(day=1)
 

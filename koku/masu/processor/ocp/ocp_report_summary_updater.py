@@ -24,8 +24,7 @@ from typing import Tuple
 from tenant_schemas.utils import schema_context
 
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.reporting_common_db_accessor import \
-    ReportingCommonDBAccessor
+from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_id_from_provider
@@ -119,7 +118,9 @@ class OCPReportSummaryUpdater:
 
         return start_date, end_date
 
-    def _get_sql_inputs(self, start_date: datetime.date, end_date: datetime.date) -> Tuple[datetime.date, datetime.date]: # noqa E501
+    def _get_sql_inputs(
+        self, start_date: datetime.date, end_date: datetime.date
+    ) -> Tuple[datetime.date, datetime.date]:  # noqa E501
         """Get the required inputs for running summary SQL."""
         # Default to this month's bill
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
@@ -133,15 +134,12 @@ class OCPReportSummaryUpdater:
                     if report_periods is not None and len(report_periods) > 0:
                         do_month_update = self._determine_if_full_summary_update_needed(report_periods[0])
                 if do_month_update:
-                    last_day_of_month = calendar.monthrange(
-                        bill_date.year,
-                        bill_date.month
-                    )[1]
+                    last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
                     start_date = bill_date
                     end_date = bill_date.replace(day=last_day_of_month)
                     end_date = end_date
-                    LOG.info('Overriding start and end date to process full month.')
-                LOG.info('Returning start: %s, end: %s', str(start_date), str(end_date))
+                    LOG.info("Overriding start and end date to process full month.")
+                LOG.info("Returning start: %s, end: %s", str(start_date), str(end_date))
         return start_date, end_date
 
     def _determine_if_full_summary_update_needed(self, report_period):

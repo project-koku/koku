@@ -693,11 +693,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self.assertEqual(result_end_date, expected_end_date)
 
         with schema_context(self.schema):
-            summary_entry = summary_table.objects.all().aggregate(
-                Min('usage_start'), Max('usage_end')
-            )
-            result_start_date = summary_entry['usage_start__min'].date()
-            result_end_date = summary_entry['usage_end__max'].date()
+            summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_end"))
+            result_start_date = summary_entry["usage_start__min"].date()
+            result_end_date = summary_entry["usage_end__max"].date()
 
         self.assertEqual(result_start_date, expected_start_date)
         self.assertEqual(result_end_date, expected_end_date)

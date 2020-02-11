@@ -28,8 +28,7 @@ from tenant_schemas.utils import schema_context
 from api.models import Provider
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.database.reporting_common_db_accessor import \
-    ReportingCommonDBAccessor
+from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.util import common as utils
 
 LOG = logging.getLogger(__name__)
@@ -221,7 +220,9 @@ def get_account_names_by_organization(role_arn, session=None):
     return all_accounts
 
 
-def get_bills_from_provider(provider_uuid, schema, start_date: Optional[datetime.date]=None, end_date: Optional[datetime.date]=None): # noqa 
+def get_bills_from_provider(
+    provider_uuid, schema, start_date: Optional[datetime.date] = None, end_date: Optional[datetime.date] = None
+):  # noqa
     """
     Return the AWS bill IDs given a provider UUID.
 

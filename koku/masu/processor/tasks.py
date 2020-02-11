@@ -33,8 +33,8 @@ from api.provider.models import Provider
 from koku.celery import app
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
-from masu.external.accounts_accessor import (AccountsAccessor,
-                                             AccountsAccessorError)
+from masu.external.accounts_accessor import AccountsAccessor
+from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
@@ -187,7 +187,7 @@ def summarize_reports(reports_to_summarize):
         start_date = DateAccessor().today() - datetime.timedelta(days=2)
         # formerly start_date = start_date.strftime('%Y-%m-%d')
         end_date = DateAccessor().today()  # formerly  .strftime('%Y-%m-%d')
-        LOG.info('report to summarize: %s', str(report))
+        LOG.info("report to summarize: %s", str(report))
         update_summary_tables.delay(
             report.get("schema_name"),
             report.get("provider_type"),
@@ -198,9 +198,14 @@ def summarize_reports(reports_to_summarize):
         )
 
 
-@app.task(name='masu.processor.tasks.update_summary_tables', queue_name='reporting')
+@app.task(name="masu.processor.tasks.update_summary_tables", queue_name="reporting")
 def update_summary_tables(
-    schema_name, provider, provider_uuid, start_date: datetime.date, end_date: Optional[datetime.date] = None, manifest_id=None # noqa
+    schema_name,
+    provider,
+    provider_uuid,
+    start_date: datetime.date,
+    end_date: Optional[datetime.date] = None,
+    manifest_id=None,  # noqa
 ) -> None:
     """Populate the summary tables for reporting.
 

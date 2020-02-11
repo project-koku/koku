@@ -16,15 +16,15 @@
 #
 """Updater base for OpenShift on Cloud Infrastructures."""
 import datetime
-# pylint: skip-file
 import logging
 
 from api.provider.models import Provider
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.database.reporting_common_db_accessor import \
-    ReportingCommonDBAccessor
+from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
+
+# pylint: skip-file
 
 LOG = logging.getLogger(__name__)
 

@@ -62,14 +62,11 @@ class AzureReportSummaryUpdater:
                 with schema_context(self._schema):
                     do_month_update = self._determine_if_full_summary_update_needed(bills[0])
                 if do_month_update:
-                    last_day_of_month = calendar.monthrange(
-                        bill_date.year,
-                        bill_date.month
-                    )[1]
+                    last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
                     start_date = bill_date
                     end_date = bill_date.replace(day=last_day_of_month)
                     end_date = end_date
-                    LOG.info('Overriding start and end date to process full month.')
+                    LOG.info("Overriding start and end date to process full month.")
 
         return start_date, end_date
 
@@ -102,12 +99,7 @@ class AzureReportSummaryUpdater:
         """
         LOG.info("update_summary_tables for: %s-%s", str(start_date), str(end_date))
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
-        bills = get_bills_from_provider(
-            self._provider.uuid,
-            self._schema,
-            datetime.datetime,
-            datetime.datetime
-        )
+        bills = get_bills_from_provider(self._provider.uuid, self._schema, datetime.datetime, datetime.datetime)
         bill_ids = []
         with schema_context(self._schema):
             bill_ids = [str(bill.id) for bill in bills]
