@@ -160,6 +160,67 @@ with test data.
 
 Using `nise`_ for generating test data is recommended.
 
+Testing with Ingress
+====================
+
+It may be necessary to test changes related to Kafka using Ingress in a local development environment to test the functionality of a new feature.
+
+Setting up Ingress
+------------------
+
+First, you need to obtain the source for the ingress project::
+
+    git clone https://github.com/RedHatInsights/insights-ingress-go
+
+Next, you should add/modify the following variables in the existing ``.env`` file for the ingress environment::
+
+    STORAGE_DRIVER=localdisk
+    ASYNC_TEST_TIMEOUT=10
+    MINIO_DATA_DIR=/tmp/hccm/mnt/data
+    MINIO_CONFIG_DIR=/tmp/hccm/mnt/config
+    INGRESS_VALID_TOPICS=testareno,advisor,hccm
+
+Since both Ingress and Koku are ran locally via docker-compose files, we must ensure that all of the services are on the same network. We can do that by creating a network in the Ingress ``docker-compose.yml`` file and adding it to each of the services in both Ingress and Koku. To create a network, add the following to the Ingress ``docker-compose.yml``::
+
+    networks:
+      myNetwork:
+        driver: bridge
+
+Add ``myNetwork`` to each of the Ingress services using the following example::
+
+    kafka:
+      image: confluentinc/cp-kafka
+      ports:
+        - 29092:29092
+      depends_on:
+        - zookeeper
+      environment:
+        - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:29092
+        - KAFKA_BROKER_ID=1
+        - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+        - KAFKA_ZOOKEEPER_CONNECT=zookeeper:32181
+        - LISTENER_EXTERNAL=PLAINTEXT://localhost:29092
+      networks:
+        - myNetwork
+
+Now, we must define the external network that we just created in Ingress in the ``docker-compose.yml`` for koku. Modify the file to include the external network and add it to each service using the kafka example above, noting that the name of the external network is ``insightsingressgo_myNetwork``::
+
+    networks:
+      insightsingressgo_myNetwork:
+        external: true
+
+
+Next, install the development requirements, enter the pip environment and bring up the ingress service::
+
+    pipenv install --dev
+    pipenv shell
+    docker-compose up --build
+
+If necessary, you can bring up a consumer to see the contents of messages that are uploaded to the ``hccm`` topic using the following command within the ingress environment::
+
+     docker-compose exec kafka kafka-console-consumer --topic=platform.upload.hccm --bootstrap-server=localhost:29092
+
+Finally, you can bring up Koku project via docker-compose and check that the koku-listener logs have successfully connected and are listening for messages.
 
 Debugging Options
 =================
