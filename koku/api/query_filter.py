@@ -17,10 +17,12 @@
 """QueryFilterfor Reports."""
 from collections import defaultdict
 from collections import UserDict
+from functools import total_ordering
 
 from django.db.models import Q
 
 
+@total_ordering
 class QueryFilter(UserDict):
     """Dict-like object representing a single query filter."""
 
@@ -105,6 +107,14 @@ class QueryFilter(UserDict):
     def __eq__(self, other):
         """Exact comparison."""
         return self.data == other.data and self.logical_operator == other.logical_operator
+
+    def __ne__(self, other):
+        """Inverse of __eq__()."""
+        return not (self.data == other.data and self.logical_operator == other.logical_operator)
+
+    def __lt__(self, other):
+        """Decide if self < other."""
+        return len(self.data) < len(other.data)
 
     def __repr__(self):
         """Return string representation."""
@@ -220,6 +230,10 @@ class QueryFilterCollection:
         if isinstance(item, dict) and self.get(item):
             return True
         return False
+
+    def __eq__(self, other):
+        """Exact comparison."""
+        return sorted(self._filters) == sorted(other._filters)
 
     def __iter__(self):
         """Return an iterable of the collection."""

@@ -17,11 +17,12 @@
 """Test the Report Queries."""
 from unittest.mock import Mock
 
-from django.db.models import Q
 from django.test import TestCase
 from faker import Faker
 
-from api.query_params import QueryParameters
+from api.iam.test.iam_test_case import IamTestCase
+from api.query_filter import QueryFilter
+from api.query_filter import QueryFilterCollection
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.azure.openshift.query_handler import OCPAzureReportQueryHandler
 from api.report.azure.query_handler import AzureReportQueryHandler
@@ -29,6 +30,7 @@ from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp_aws.query_handler import OCPAWSReportQueryHandler
 from api.report.provider_map import ProviderMap
 from api.report.queries import ReportQueryHandler
+from api.report.view import ReportView
 
 FAKE = Faker()
 
@@ -116,13 +118,16 @@ class ReportQueryUtilsTest(TestCase):
                 self.assertEqual(expected, out_data)
 
 
-def create_test_handler(mapper=None, params=None):
-    """Create a TestableReportQueryHandler using the supplied args."""
-    if not mapper:
-        mapper = {"filter": {}, "filters": {}}
+def create_test_handler(params, mapper=None):
+    """Create a TestableReportQueryHandler using the supplied args.
 
-    if not params:
-        params = {"filter": {}, "group_by": {}, "order_by": {}}
+        Args:
+
+        params (QueryParameters) mocked query parameters
+        mapper (dict) mocked ProviderMap dictionary
+    """
+    if not mapper:
+        mapper = {"filter": [{}], "filters": {}}
 
     class TestableReportQueryHandler(ReportQueryHandler):
         """ A testable minimal implementation of ReportQueryHandler.
@@ -135,92 +140,210 @@ def create_test_handler(mapper=None, params=None):
             spec=ProviderMap,
             _report_type_map=Mock(return_value=mapper, get=lambda x, y=None: mapper.get(x, y)),
             _provider_map=Mock(return_value=mapper, get=lambda x, y=None: mapper.get(x, y)),
+            tag_column="tags",
         )
 
-    mock_params = Mock(
-        spec=QueryParameters,
-        parameters=Mock(return_value=params, get=lambda x, y=None: params.get(x, y)),
-        get_filter=lambda x, default: params.get("filter").get(x, default),
-        get_group_by=lambda x, default: params.get("group_by").get(x, default),
-        get=lambda x, default: params.get(x, default),
-        tag_keys=[],
-    )
-    return TestableReportQueryHandler(mock_params)
+    return TestableReportQueryHandler(params)
 
 
-class ReportQueryHandlerTest(TestCase):
+def assertSameQ(one, two):
+    """Compare two Q-objects and decide if they're equivalent.
+
+        Q objects don't have a robust __cmp__() defined.
+        So, we'll approximate our own.
+
+        Args:
+            one, two (Q) Django Q Object
+
+        Returns:
+            (boolean) whether the objects match.
+    """
+
+    for item_one in one.children:
+        if not is_child(item_one, two):
+            return False
+
+    for item_two in two.children:
+        if not is_child(item_two, one):
+            return False
+
+    if one.connector != two.connector:
+        return False
+
+    if one.negated != two.negated:
+        return False
+
+    # no mismatches found. we will assume the two
+    # Q objects are roughly equivalent.
+    return True
+
+
+def is_child(item, obj):
+    """Test whether the given item is in the target Q object's children.
+
+        Args:
+            item (dict | tuple) a dict or tuple
+            obj (Q) a Django Q object
+    """
+    test_dict = item
+    if isinstance(item, tuple):
+        test_dict = {item[0]: item[1]}
+
+    test_tuple = item
+    if isinstance(item, dict):
+        test_tuple = (item.keys()[0], item.values()[0])
+
+    # Q objects can have both tuples and dicts in their children.
+    # So, we are comparing equivalent forms in case our test object is
+    # formatted differently than the real version.
+    if test_dict not in obj.children and test_tuple not in obj.children:
+        return False
+    return True
+
+
+class ReportQueryHandlerTest(IamTestCase):
     """Test the report query handler functions."""
+
+    def setUp(self):
+        """Test setup."""
+        self.mock_tag_key = FAKE.word()
+        self.mock_view = Mock(
+            spec=ReportView,
+            report="mock",
+            permission_classes=[Mock],
+            provider="mock",
+            serializer=Mock,
+            query_handler=Mock,
+            tag_handler=[
+                Mock(
+                    objects=Mock(
+                        values=Mock(return_value=[{"key": self.mock_tag_key, "values": [FAKE.word(), FAKE.word()]}])
+                    )
+                )
+            ],
+        )
 
     def test_init(self):
         """Test that we can instantiate a minimal ReportQueryHandler."""
-        rqh = create_test_handler()
+        params = self.mocked_query_params("", self.mock_view)
+        rqh = create_test_handler(params)
         self.assertIsInstance(rqh, ReportQueryHandler)
 
     def test_set_operator_specified_filters_and(self):
         """Test that AND/OR terms are correctly applied to param filters."""
         operator = "and"
 
-        fake_group = FAKE.word()
-        mapper = {"filter": {}, "filters": {}}
-        params = {"filter": {}, "group_by": {fake_group: ["and:" + FAKE.word(), "and:" + FAKE.word()]}, "order_by": {}}
+        term = FAKE.word()
+        first = FAKE.word()
+        second = FAKE.word()
+        operation = FAKE.word()
 
-        rqh = create_test_handler(mapper, params)
+        url = f"?filter[time_scope_value]=-1&group_by[and:{term}]={first}&group_by[and:{term}]={second}"
+        params = self.mocked_query_params(url, self.mock_view)
+
+        mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
+        rqh = create_test_handler(params, mapper=mapper)
         output = rqh._set_operator_specified_filters(operator)
         self.assertIsNotNone(output)
 
-        expected = Q(**{})
-        self.assertEqual(output, expected)
+        expected = QueryFilterCollection(
+            filters=[
+                QueryFilter(field=term, operation=operation, parameter=second, logical_operator=operator),
+                QueryFilter(field=term, operation=operation, parameter=first, logical_operator=operator),
+            ]
+        )
+        assertSameQ(output, expected.compose())
 
     def test_set_operator_specified_filters_or(self):
         """Test that AND/OR terms are correctly applied to param filters."""
         operator = "or"
 
-        fake_group = FAKE.word()
-        mapper = {"filter": {}, "filters": {}, "group_by_options": [fake_group]}
-        params = {"filter": {}, "group_by": {fake_group: ["or:" + FAKE.word(), "or:" + FAKE.word()]}, "order_by": {}}
+        term = FAKE.word()
+        first = FAKE.word()
+        second = FAKE.word()
+        operation = FAKE.word()
 
-        rqh = create_test_handler(mapper, params)
+        url = f"?filter[time_scope_value]=-1&group_by[or:{term}]={first}&group_by[or:{term}]={second}"
+        params = self.mocked_query_params(url, self.mock_view)
+
+        mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
+        rqh = create_test_handler(params, mapper=mapper)
         output = rqh._set_operator_specified_filters(operator)
         self.assertIsNotNone(output)
 
-        expected = Q(**{})
-        self.assertEqual(output, expected)
+        expected = QueryFilterCollection(
+            filters=[
+                QueryFilter(field=term, operation=operation, parameter=second, logical_operator=operator),
+                QueryFilter(field=term, operation=operation, parameter=first, logical_operator=operator),
+            ]
+        )
+        assertSameQ(output, expected.compose())
 
     def test_set_operator_specified_tag_filters_and(self):
         """Test that AND/OR terms are correctly applied to tag filters."""
         operator = "and"
 
-        fake_group = FAKE.word()
-        mapper = {"filter": {}, "filters": {}}
-        params = {
-            "filter": {},
-            "group_by": {fake_group: ["and:tag:" + FAKE.word(), "and:tag:" + FAKE.word()]},
-            "order_by": {},
-        }
+        term = self.mock_tag_key
+        first = FAKE.word()
+        second = FAKE.word()
+        operation = "icontains"
 
-        rqh = create_test_handler(mapper, params)
-        output = rqh._set_operator_specified_tag_filters({}, operator)
+        url = (
+            f"?filter[time_scope_value]=-1&"
+            f"filter[and:tag:{term}]={first}&"
+            f"filter[and:tag:{term}]={second}&"
+            f"group_by[and:tag:{term}]={first}&"
+            f"group_by[and:tag:{term}]={second}"
+        )
+
+        params = self.mocked_query_params(url, self.mock_view)
+        mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
+        rqh = create_test_handler(params, mapper=mapper)
+        output = rqh._set_operator_specified_tag_filters(QueryFilterCollection(), operator)
+
         self.assertIsNotNone(output)
 
-        self.assertEqual(output, {})
+        expected = QueryFilterCollection(
+            filters=[
+                QueryFilter(
+                    table="tags", field=term, operation=operation, parameter=second, logical_operator=operator
+                ),
+                QueryFilter(table="tags", field=term, operation=operation, parameter=first, logical_operator=operator),
+            ]
+        )
+        self.assertIsInstance(output, QueryFilterCollection)
+        assertSameQ(output.compose(), expected.compose())
 
     def test_set_operator_specified_tag_filters_or(self):
         """Test that AND/OR terms are correctly applied to tag filters."""
         operator = "or"
 
-        fake_group = FAKE.word()
-        mapper = {"filter": {}, "filters": {}}
-        params = {
-            "filter": {},
-            "group_by": {fake_group: ["or:tag:" + FAKE.word(), "or:tag:" + FAKE.word()]},
-            "order_by": {},
-        }
+        term = self.mock_tag_key
+        first = FAKE.word()
+        second = FAKE.word()
+        operation = "icontains"
 
-        rqh = create_test_handler(mapper, params)
-        output = rqh._set_operator_specified_tag_filters({}, operator)
+        url = (
+            f"?filter[time_scope_value]=-1&"
+            f"filter[or:tag:{term}]={first}&"
+            f"filter[or:tag:{term}]={second}&"
+            f"group_by[or:tag:{term}]={first}&"
+            f"group_by[or:tag:{term}]={second}"
+        )
+        params = self.mocked_query_params(url, self.mock_view)
+        mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
+        rqh = create_test_handler(params, mapper=mapper)
+        output = rqh._set_operator_specified_tag_filters(QueryFilterCollection(), operator)
         self.assertIsNotNone(output)
 
-        self.assertEqual(output, {})
+        expected = QueryFilterCollection(
+            filters=[
+                QueryFilter(field=term, operation=operation, parameter=second, logical_operator=operator),
+                QueryFilter(field=term, operation=operation, parameter=first, logical_operator=operator),
+            ]
+        )
+        self.assertIsInstance(output, QueryFilterCollection)
+        assertSameQ(output.compose(), expected.compose())
 
     # FIXME: need test for _apply_group_by
     # FIXME: need test for _apply_group_null_label
