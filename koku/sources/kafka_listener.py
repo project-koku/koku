@@ -402,6 +402,7 @@ async def listen_for_messages(consumer, application_source_id, msg_pending_queue
     except KafkaError as err:
         await consumer.stop()
         LOG.exception(str(err))
+        KAFKA_CONNECTION_ERRORS_COUNTER.inc()
         raise SourcesIntegrationError("Unable to connect to kafka server.")
 
     LOG.info("Listener started.  Waiting for messages...")
@@ -585,6 +586,7 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
             event_loop.create_task(synchronize_sources(PROCESS_QUEUE, cost_management_type_id))
             event_loop.run_forever()
     except SourcesIntegrationError as error:
+        KAFKA_CONNECTION_ERRORS_COUNTER.inc()
         err_msg = f"Kafka Connection Failure: {str(error)}. Reconnecting..."
         LOG.error(err_msg)
         time.sleep(Config.RETRY_SECONDS)

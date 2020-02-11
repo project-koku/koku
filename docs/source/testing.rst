@@ -220,7 +220,7 @@ If necessary, you can bring up a consumer to see the contents of messages that a
 
      docker-compose exec kafka kafka-console-consumer --topic=platform.upload.hccm --bootstrap-server=localhost:29092
 
-Finally, you can bring up Koku project via docker-compose and check that the koku-listener logs have successfully connected and are listening for messages.
+Finally, you can bring up Koku project via docker-compose and check the koku-listener logs to ensure the listener has successfully connected and is listening for messages.
 
 Debugging Options
 =================

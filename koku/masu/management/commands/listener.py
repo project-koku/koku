@@ -31,10 +31,9 @@ class Command(BaseCommand):
     """Django command to launch listener."""
 
     def handle(self, *args, **kwargs):
-        """Initialize listener."""
+        """Initialize the prometheus exporter and koku-listener."""
         LOG.info("Initializing the prometheus exporter")
         start_http_server(9999, registry=WORKER_REGISTRY)
-        while True:
-            LOG.info("Starting Kafka handler")
-            LOG.debug("handle args: %s, kwargs: %s", str(args), str(kwargs))
-            initialize_kafka_handler()
+        LOG.info("Starting Kafka handler")
+        LOG.debug("handle args: %s, kwargs: %s", str(args), str(kwargs))
+        initialize_kafka_handler()
