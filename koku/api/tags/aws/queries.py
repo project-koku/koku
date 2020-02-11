@@ -18,13 +18,13 @@
 from api.models import Provider
 from api.report.aws.provider_map import AWSProviderMap
 from api.tags.queries import TagQueryHandler
-from reporting.models import AWSCostEntryLineItemDailySummary
+from reporting.provider.aws.models import AWSTagsSummary
 
 
 class AWSTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for AWS."""
 
-    data_sources = [{"db_table": AWSCostEntryLineItemDailySummary, "db_column": "tags"}]
+    data_sources = [{"db_table": AWSTagsSummary, "db_column_key": "key", "db_column_values": "values"}]
     provider = Provider.PROVIDER_AWS
 
     def __init__(self, parameters):

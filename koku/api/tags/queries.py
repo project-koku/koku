@@ -105,7 +105,8 @@ class TagQueryHandler(QueryHandler):
             (Dict): query filter dictionary
 
         """
-        filters = super()._get_filter(delta)
+        # filters = super()._get_filter(delta)
+        filters = QueryFilterCollection()
 
         for filter_key in self.SUPPORTED_FILTERS:
             filter_value = self.parameters.get_filter(filter_key)
@@ -126,7 +127,10 @@ class TagQueryHandler(QueryHandler):
         or_composed_filters = self._set_operator_specified_filters("or")
 
         composed_filters = filters.compose()
-        composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        if composed_filters:
+            composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        else:
+            composed_filters = and_composed_filters & or_composed_filters
 
         LOG.debug(f"_get_filter: {composed_filters}")
         return composed_filters
@@ -241,25 +245,37 @@ class TagQueryHandler(QueryHandler):
         """Get a list of tags and values to validate filters."""
         type_filter = self.parameters.get_filter("type")
 
-        merged_data = []
+        merged_data = {}
         with tenant_context(self.tenant):
-            tag_keys = []
+            tag_keys = {}
             for source in self.data_sources:
                 if type_filter and type_filter != source.get("type"):
                     continue
-                exclusion = self._get_exclusions(source.get("db_column"))
+                exclusion = self._get_exclusions(source.get("db_column_key"))
                 tag_keys = (
                     source.get("db_table")
                     .objects.filter(self.query_filter)
                     .exclude(exclusion)
-                    .values(source.get("db_column"))
+                    .values(source.get("db_column_key"), source.get("db_column_values"))
                     .distinct()
                     .all()
                 )
-                tag_keys = [tag.get(source.get("db_column")) for tag in tag_keys]
+                tag_keys = {
+                    tag.get(source.get("db_column_key")): tag.get(source.get("db_column_values")) for tag in tag_keys
+                }
 
-                merged_data = self._merge_tags(source, tag_keys)
-        return merged_data
+                self._merge_tag_dicts(tag_keys, merged_data)
+        lis = []
+        for k, v in merged_data.items():
+            lis.append({k: v})
+        return lis
+
+    def _merge_tag_dicts(self, dikt, merged_dikt):
+        for key, values in dikt.items():
+            if merged_dikt.get(key):
+                merged_dikt[key].append(values)
+            else:
+                merged_dikt[key] = values
 
     def execute_query(self):
         """Execute query and return provided data.
