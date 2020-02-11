@@ -55,6 +55,7 @@ class AWSReportDataGenerator:
 
     def _populate_daily_table(self):
         included_fields = [
+            "cost_entry_bill_id",
             "cost_entry_product_id",
             "cost_entry_pricing_id",
             "cost_entry_reservation_id",
