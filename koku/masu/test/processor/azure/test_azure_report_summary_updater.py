@@ -119,28 +119,30 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         """Test that summary tables are run for a full month."""
         self.manifest.num_processed_files = self.manifest.num_total_files
 
-        start_date = self.date_accessor.today_with_timezone("UTC")
+        start_date = self.date_accessor.today_with_timezone("UTC").date()
         end_date = start_date
-        bill_date = start_date.replace(day=1).date()
+        bill_date = start_date.replace(day=1)
         with schema_context(self.schema):
             bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
 
         last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
 
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
+        start_date_str = start_date
+        end_date_str = end_date
 
         expected_start_date = start_date.replace(day=1)
         expected_end_date = end_date.replace(day=last_day_of_month)
 
         dates = list(rrule(freq=DAILY, dtstart=expected_start_date, until=expected_end_date, interval=5))
+        # convert datetimes returned by rrule to date
+        dates = list(map(lambda x: x.date(), dates))
         if expected_end_date not in dates:
             dates.append(expected_end_date)
         # Remove the first date since it's the start date
         dates.pop(0)
         expected_calls = []
         for date in dates:
-            expected_calls.append(call(expected_start_date.date(), date.date(), [str(bill.id)]))
+            expected_calls.append(call(expected_start_date, date, [str(bill.id)]))
             expected_start_date = date + datetime.timedelta(days=1)
 
         self.assertIsNone(bill.summary_data_creation_datetime)

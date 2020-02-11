@@ -69,26 +69,21 @@ def get_local_file_name(cur_key):
     return local_file_name
 
 
-def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=None):
+def get_bills_from_provider(provider_uuid, schema, start_date: datetime.date = None, end_date: datetime.date = None):
     """
     Return the Azure bill IDs given a provider UUID.
 
     Args:
         provider_uuid (str): Provider UUID.
         schema (str): Tenant schema
-        start_date (datetime): Start date for bill IDs.
+        start_date (datetime.date): Start date for bill IDs.
         end_date (datetime) End date for bill IDs.
 
     Returns:
         (list): Azure cost entry bill objects.
 
     """
-    if isinstance(start_date, datetime.datetime):
-        start_date = start_date.replace(day=1)
-        start_date = start_date.strftime("%Y-%m-%d")
-
-    if isinstance(end_date, datetime.datetime):
-        end_date = end_date.strftime("%Y-%m-%d")
+    start_date = start_date.replace(day=1)
 
     with ReportingCommonDBAccessor() as reporting_common:
         column_map = reporting_common.column_map

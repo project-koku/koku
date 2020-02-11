@@ -20,7 +20,6 @@ import logging
 import pkgutil
 import uuid
 
-from dateutil.parser import parse
 from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
@@ -99,11 +98,11 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name).filter(provider_id=provider_uuid)
 
-    def bills_for_provider_uuid(self, provider_uuid, start_date=None):
+    def bills_for_provider_uuid(self, provider_uuid, start_date: datetime.date = None):
         """Return all cost entry bills for provider_uuid on date."""
         bills = self.get_cost_entry_bills_query_by_provider(provider_uuid)
         if start_date:
-            bill_date = parse(start_date).replace(day=1)
+            bill_date = start_date.replace(day=1)
             bills = bills.filter(billing_period_start=bill_date)
         return bills
 

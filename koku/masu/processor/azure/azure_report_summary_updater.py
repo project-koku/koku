@@ -18,6 +18,7 @@
 import calendar
 import datetime
 import logging
+from typing import Tuple
 
 from tenant_schemas.utils import schema_context
 
@@ -86,12 +87,14 @@ class AzureReportSummaryUpdater:
 
         return start_date, end_date
 
-    def update_summary_tables(self, start_date, end_date):
+    def update_summary_tables(
+        self, start_date: datetime.date, end_date: datetime.date
+    ) -> Tuple[datetime.date, datetime.date]:
         """Populate the summary tables for reporting.
 
         Args:
-            start_date (str) The date to start populating the table.
-            end_date   (str) The date to end on.
+            start_date (datetime.date) The date to start populating the table.
+            end_date   (datetime.date) The date to end on.
 
         Returns
             (str, str) A start date and end date.
@@ -99,7 +102,7 @@ class AzureReportSummaryUpdater:
         """
         LOG.info("update_summary_tables for: %s-%s", str(start_date), str(end_date))
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
-        bills = get_bills_from_provider(self._provider.uuid, self._schema, datetime.datetime, datetime.datetime)
+        bills = get_bills_from_provider(self._provider.uuid, self._schema, start_date, end_date)
         bill_ids = []
         with schema_context(self._schema):
             bill_ids = [str(bill.id) for bill in bills]
