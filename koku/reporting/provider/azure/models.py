@@ -143,6 +143,10 @@ class AzureTagsSummary(models.Model):
         """Meta for AzureTagsSummary."""
 
         db_table = "reporting_azuretags_summary"
+        unique_together = ("key", "cost_entry_bill")
 
-    key = models.CharField(primary_key=True, max_length=253)
+    id = models.BigAutoField(primary_key=True)
+
+    key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
+    cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
