@@ -96,8 +96,8 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
             bill.summary_data_creation_datetime = start_date
             bill.save()
 
-        start_date_str = start_date.date()  # .strftime('%Y-%m-%d')
-        end_date_str = end_date.date()  # .strftime('%Y-%m-%d')
+        start_date_str = start_date.date()
+        end_date_str = end_date.date()
 
         expected_start_date = start_date.date()
         expected_end_date = end_date.date()

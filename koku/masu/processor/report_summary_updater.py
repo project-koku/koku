@@ -108,7 +108,6 @@ class ReportSummaryUpdater:
         if end_date is None:
             # Run up to the current date. Set end_date to the current date.
             end_date = self._date_accessor.today_with_timezone("UTC")
-            # end_date = end_date.strftime('%Y-%m-%d')
         return start_date, end_date
 
     def manifest_is_ready(self):
