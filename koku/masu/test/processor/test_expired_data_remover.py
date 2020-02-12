@@ -34,19 +34,22 @@ class ExpiredDataRemoverTest(MasuTestCase):
         """Test to init."""
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
         self.assertEqual(remover._months_to_keep, 3)
-        self.assertIsInstance(remover._expiration_date, datetime)
+        self.assertEqual(remover._line_items_months, 1)
+        remover2 = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS, 2, 2)
+        self.assertEqual(remover2._months_to_keep, 2)
+        self.assertEqual(remover2._line_items_months, 2)
 
     def test_initializer_ocp(self):
         """Test to init for OCP."""
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_OCP)
         self.assertEqual(remover._months_to_keep, 3)
-        self.assertIsInstance(remover._expiration_date, datetime)
+        self.assertEqual(remover._line_items_months, 1)
 
     def test_initializer_azure(self):
         """Test to init for Azure."""
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AZURE)
         self.assertEqual(remover._months_to_keep, 3)
-        self.assertIsInstance(remover._expiration_date, datetime)
+        self.assertEqual(remover._line_items_months, 1)
 
     def test_initializer_invalid_provider(self):
         """Test to init with unknown provider."""
@@ -129,6 +132,6 @@ class ExpiredDataRemoverTest(MasuTestCase):
     def test_remove_items_only(self, mock_purge):
         """Test that remove is called with provider_uuid items only."""
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
-        date = remover._calculate_expiration_date()
+        date = remover._calculate_expiration_date(line_items_only=True)
         remover.remove(line_items_only=True)
         mock_purge.assert_called_with(expired_date=date, simulate=False)
