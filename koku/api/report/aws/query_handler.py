@@ -261,16 +261,16 @@ class AWSReportQueryHandler(ReportQueryHandler):
                         pass
                     else:
                         tag_indicator_query = query_table.objects.filter(self.query_filter)
-                        tag_exists_expression = Sum(
-                            Case(
-                                When(Q(F('tags') is None), then=0),
-                                When(Q(F('tags') != Value('{}', output_field=JSONField)), then=1),
-                                default_value=0
-                            )
-                        )
                         tag_indicator_query = tag_indicator_query.annotate(
                             r_account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id"),
-                            tags_exist_sum=tag_exists_expression
+                            tags_exist_sum=Sum(
+                                Case(
+                                    When(tags__isnull=True, then=0),
+                                    When(tags__ne=Value('{}', output_field=JSONField), then=1),
+                                    default_value=0,
+                                    output_field=IntegerField
+                                )
+                            )
                         )
                         tag_indicator_query = tag_indicator_query.values('r_account_alias', 'tags_exist_sum')
 
