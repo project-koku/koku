@@ -19,11 +19,9 @@ import copy
 import logging
 from collections import defaultdict
 
-from django.db.models import F
 from django.db.models import Q
 from tenant_schemas.utils import tenant_context
 
-from api.functions import JSONBObjectKeys
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
@@ -214,16 +212,10 @@ class TagQueryHandler(QueryHandler):
 
                 if type_filter and type_filter != source.get("type"):
                     continue
-                exclusion = self._get_exclusions(source.get("db_column"))
-                tag_keys_query = (
-                    tag_keys_query.annotate(tag_keys=JSONBObjectKeys(F(source.get("db_column"))))
-                    .exclude(exclusion)
-                    .values("tag_keys")
-                    .distinct()
-                    .all()
-                )
+                exclusion = self._get_exclusions("key")
+                tag_keys_query = tag_keys_query.exclude(exclusion).values("key").distinct().all()
 
-                tag_keys_query = [tag.get("tag_keys") for tag in tag_keys_query]
+                tag_keys_query = [tag.get("key") for tag in tag_keys_query]
                 for tag_key in tag_keys_query:
                     tag_keys.append(tag_key)
 
