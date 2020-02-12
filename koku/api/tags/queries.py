@@ -202,7 +202,7 @@ class TagQueryHandler(QueryHandler):
     def get_tag_keys(self, filters=True):
         """Get a list of tag keys to validate filters."""
         type_filter = self.parameters.get_filter("type")
-        tag_keys = []
+        tag_keys = set()
         with tenant_context(self.tenant):
             for source in self.data_sources:
                 tag_keys_query = source.get("db_table").objects
@@ -215,11 +215,9 @@ class TagQueryHandler(QueryHandler):
                 exclusion = self._get_exclusions("key")
                 tag_keys_query = tag_keys_query.exclude(exclusion).values("key").distinct().all()
 
-                tag_keys_query = [tag.get("key") for tag in tag_keys_query]
-                for tag_key in tag_keys_query:
-                    tag_keys.append(tag_key)
+                tag_keys.update({tag.get("key") for tag in tag_keys_query})
 
-        return list(set(tag_keys))
+        return list(tag_keys)
 
     def get_tags(self):
         """Get a list of tags and values to validate filters.
