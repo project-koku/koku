@@ -31,9 +31,9 @@ AZURE_FILTER_OP_FIELDS = ["subscription_guid"]
 class FilterSerializer(serializers.Serializer):
     """Serializer for handling tag query parameter filter."""
 
-    RESOLUTION_CHOICES = (("daily", "daily"), ("monthly", "monthly"))
-    TIME_CHOICES = (("-10", "-10"), ("-30", "-30"), ("-1", "1"), ("-2", "-2"))
-    TIME_UNIT_CHOICES = (("day", "day"), ("month", "month"))
+    RESOLUTION_CHOICES = ("monthly", "monthly")
+    TIME_CHOICES = (("-1", "-1"), ("-2", "-2"))
+    TIME_UNIT_CHOICES = ("month", "month")
 
     resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
     time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)
