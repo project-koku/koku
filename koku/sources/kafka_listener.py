@@ -558,8 +558,11 @@ def backoff(interval, maximum=7):
 
 
 def check_kafka_connection():
-    async def test_consumer_start(consumer):
-        await consumer.start()
+    async def test_consumer(consumer, method):
+        if method == "start":
+            await consumer.start()
+        else:
+            await consumer.stop()
         return True
 
     count = 0
@@ -571,24 +574,24 @@ def check_kafka_connection():
         loop = asyncio.new_event_loop()
         temp_thread = threading.Thread(target=loop.run_forever, daemon=True)
         temp_thread.start()
-        consumer = AIOKafkaConsumer(
-            Config.SOURCES_TOPIC, loop=loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id="hccm-sources"
-        )
+        consumer = AIOKafkaConsumer(loop=loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id=None)
 
         try:
-            future = asyncio.run_coroutine_threadsafe(test_consumer_start(consumer), loop)
+            future = asyncio.run_coroutine_threadsafe(test_consumer(consumer, "start"), loop)
             result = future.result()
             LOG.info(f"Consumer started successfully")
+            asyncio.run_coroutine_threadsafe(test_consumer(consumer, "stop"), loop)
+            LOG.info(f"Consumer stopped successfully")
             break
+
         except KafkaError as err:
-            consumer.stop()
+            asyncio.run_coroutine_threadsafe(
+                test_consumer(consumer, "stop"), loop
+            )  # kill any consumers started during retry
             LOG.error(f"Unable to connect to kafka server.  Error: {err}")
             KAFKA_CONNECTION_ERRORS_COUNTER.inc()
             backoff(count)
             count += 1
-    consumer.stop()
-    temp_thread.join()
-    LOG.info("Killing chech thread")
     return result
 
 
