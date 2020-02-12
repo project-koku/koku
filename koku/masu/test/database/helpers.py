@@ -70,13 +70,13 @@ class ReportObjectCreator:
         with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
-    def create_cost_entry_bill(self, provider_uuid, bill_date=None):
+    def create_cost_entry_bill(self, provider_uuid, bill_date: datetime.date = None):
         """Create a cost entry bill database object for test."""
         table_name = AWS_CUR_TABLE_MAP["bill"]
         data = self.create_columns_for_table(table_name)
         data["provider_id"] = provider_uuid
         if bill_date:
-            bill_start = self.make_datetime_aware(bill_date).replace(day=1).date()
+            bill_start = bill_date.replace(day=1)
             bill_end = bill_start + relativedelta.relativedelta(months=1)
 
             data["billing_period_start"] = bill_start

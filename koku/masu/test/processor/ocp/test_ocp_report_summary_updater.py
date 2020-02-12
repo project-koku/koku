@@ -200,7 +200,9 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self, mock_daily, mock_sum, mock_storage_daily, mock_storage_summary
     ):
         """Test that summary tables are run for the month of the manifest."""
-        billing_start = self.date_accessor.today_with_timezone("UTC").replace(day=1) + relativedelta(months=-1)
+        billing_start = (
+            self.date_accessor.today_with_timezone("UTC").replace(day=1) + relativedelta(months=-1)
+        ).date()
         manifest_dict = {
             "assembly_id": "1234",
             "billing_period_start_datetime": billing_start,
@@ -218,7 +220,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
 
         start_date = self.date_accessor.today_with_timezone("UTC").date()
         end_date = start_date + datetime.timedelta(days=1)
-        bill_date = billing_start.date()
+        bill_date = billing_start
 
         self.creator.create_ocp_report_period(provider_uuid=self.ocp_provider_uuid, period_date=billing_start)
         with schema_context(self.schema):

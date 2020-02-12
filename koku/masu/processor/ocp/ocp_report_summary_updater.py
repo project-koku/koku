@@ -120,13 +120,13 @@ class OCPReportSummaryUpdater:
 
     def _get_sql_inputs(
         self, start_date: datetime.date, end_date: datetime.date
-    ) -> Tuple[datetime.date, datetime.date]:  # noqa E501
+    ) -> Tuple[datetime.date, datetime.date]:
         """Get the required inputs for running summary SQL."""
         # Default to this month's bill
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             if self._manifest:
                 # Override the bill date to correspond with the manifest
-                bill_date = self._manifest.billing_period_start_datetime.date()
+                bill_date = self._manifest.billing_period_start_datetime
                 report_periods = accessor.get_usage_period_query_by_provider(self._provider.uuid)
                 report_periods = report_periods.filter(report_period_start=bill_date).all()
                 do_month_update = True

@@ -133,7 +133,7 @@ class AWSReportSummaryUpdater:
             # This is the normal processing route
             if self._manifest:
                 # Override the bill date to correspond with the manifest
-                bill_date = self._manifest.billing_period_start_datetime.date()
+                bill_date = self._manifest.billing_period_start_datetime
                 bills = accessor.get_cost_entry_bills_query_by_provider(self._provider.uuid)
                 bills = bills.filter(billing_period_start=bill_date).all()
 

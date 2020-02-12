@@ -80,8 +80,8 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
         """Test to verify AWS derived cost summary is calculated."""
         markup = {"value": 10, "unit": "percent"}
         mock_markup.return_value = markup
-        start_date = self.date_accessor.today_with_timezone("UTC")
-        bill_date = start_date.replace(day=1).date()
+        start_date = self.date_accessor.today_with_timezone("UTC").date()
+        bill_date = start_date.replace(day=1)
 
         self.updater.update_summary_charge_info()
         with AWSReportDBAccessor("acct10001", self.column_map) as accessor:

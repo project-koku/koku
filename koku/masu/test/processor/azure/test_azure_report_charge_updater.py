@@ -74,8 +74,8 @@ class AzureReportChargeUpdaterTest(MasuTestCase):
 
     def test_azure_update_summary_charge_info(self):
         """Test to verify Azure derived cost summary is calculated."""
-        start_date = self.date_accessor.today_with_timezone("UTC")
-        bill_date = start_date.replace(day=1).date()
+        start_date = self.date_accessor.today_with_timezone("UTC").date()
+        bill_date = start_date.replace(day=1)
 
         self.updater.update_summary_charge_info()
 

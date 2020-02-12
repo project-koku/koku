@@ -84,20 +84,20 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         """Test that summary tables are properly run."""
         self.manifest.num_processed_files = self.manifest.num_total_files
 
-        start_date = self.date_accessor.today_with_timezone("UTC")
+        start_date = self.date_accessor.today_with_timezone("UTC").date()
         end_date = start_date + datetime.timedelta(days=1)
-        bill_date = start_date.replace(day=1).date()
+        bill_date = start_date.replace(day=1)
 
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             bill.summary_data_creation_datetime = start_date
             bill.save()
 
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
+        start_date_str = start_date
+        end_date_str = end_date
 
-        expected_start_date = start_date.date()
-        expected_end_date = end_date.date()
+        expected_start_date = start_date
+        expected_end_date = end_date
 
         self.assertIsNone(bill.summary_data_updated_datetime)
 

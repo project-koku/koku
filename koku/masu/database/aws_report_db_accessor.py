@@ -74,7 +74,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
                 for bill in bills
             }
 
-    def get_cost_entry_bills_by_date(self, start_date):
+    def get_cost_entry_bills_by_date(self, start_date: datetime.date):
         """Return a cost entry bill for the specified start date."""
         table_name = AWSCostEntryBill
         with schema_context(self.schema):
