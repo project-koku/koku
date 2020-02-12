@@ -254,7 +254,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                     tags_exist_sum=Sum(ExpressionWrapper(Coalesce(F('tags'), {}) != {}, output_field=IntegerField))
                 )
                 tag_indicator_query.group_by = ['account_alias']
-                tag_indicator_query = tag_indicator_query.values('acount_alias', 'tags_exist_sum')
+                tag_indicator_query = tag_indicator_query.values('account_alias', 'tags_exist_sum')
 
 
             query_sum = self._build_sum(query, annotations)
