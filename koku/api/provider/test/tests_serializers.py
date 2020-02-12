@@ -486,6 +486,30 @@ class ProviderSerializerTest(IamTestCase):
         self.assertEqual(instance1.billing_source_id, instance2.billing_source_id)
         self.assertEqual(instance1.authentication_id, instance2.authentication_id)
 
+    def test_create_provider_for_demo_account(self):
+        """Test creating a provider for a demo account."""
+        provider = {
+            "name": "test_provider",
+            "type": Provider.PROVIDER_AWS.lower(),
+            "authentication": {"credentials": {"one": "two", "three": "four"}},
+            "billing_source": {"data_source": {"foo": "bar"}},
+        }
+        instance = None
+
+        account_id = self.customer_data.get("account_id")
+        with self.settings(DEMO_ACCOUNTS=[account_id]):
+            with patch.object(ProviderAccessor, "cost_usage_source_ready") as mock_method:
+                serializer = ProviderSerializer(data=provider, context=self.request_context)
+                if serializer.is_valid(raise_exception=True):
+                    instance = serializer.save()
+                    mock_method.assert_not_called()
+
+        schema_name = serializer.data["customer"].get("schema_name")
+        self.assertIsInstance(instance.uuid, uuid.UUID)
+        self.assertTrue(instance.active)
+        self.assertIsNone(schema_name)
+        self.assertFalse("schema_name" in serializer.data["customer"])
+
 
 class AdminProviderSerializerTest(IamTestCase):
     """Tests for the admin customer serializer."""
