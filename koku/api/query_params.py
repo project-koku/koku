@@ -119,7 +119,6 @@ class QueryParameters:
                 param_tag_keys.add(value)
             if key in tag_key_set:
                 param_tag_keys.add(key)
-
         return param_tag_keys
 
     def _set_access(self, filter_key, access_key, raise_exception=True):
