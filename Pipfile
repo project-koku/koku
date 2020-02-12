@@ -63,4 +63,4 @@ koku-nise = "~=1.0"
 pre-commit = ">=2.0"
 
 [requires]
-python_version = ">=3.6"
+python_version = "3.6"
