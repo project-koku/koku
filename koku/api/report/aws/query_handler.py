@@ -18,11 +18,15 @@
 import copy
 import logging
 
-from django.db.models import ExpressionWrapper
+from django.db.models import Case
+from django.core.exceptions import FieldDoesNotExist
 from django.db.models import F
 from django.db.models import IntegerField
+from django.contrib.postgres.fields import JSONField
+from django.db.models import Q
 from django.db.models import Sum
 from django.db.models import Value
+from django.db.models import When
 from django.db.models import Window
 from django.db.models.expressions import Func
 from django.db.models.functions import Coalesce
@@ -247,14 +251,28 @@ class AWSReportQueryHandler(ReportQueryHandler):
                     account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
                 )
 
-                # Setup tags exist query for the returned data
-                tag_indicator_query = query_table.objects.filter(self.query_filter)
-                tag_indicator_query = tag_indicator_query.annotate(
-                    account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id"),
-                    tags_exist_sum=Sum(ExpressionWrapper(Coalesce(F('tags'), {}) != {}, output_field=IntegerField))
-                )
-                tag_indicator_query.group_by = ['account_alias']
-                tag_indicator_query = tag_indicator_query.values('account_alias', 'tags_exist_sum')
+                # if self.parameters.parameters.get("check_tags"):
+                if True:  # DEBUG only here for initial testing of query. Will be replace by line above
+                    # Setup tags exist query for the returned data
+                    try:
+                        # The table to query is resolved. Verify that the "tags" col/field exists
+                        _ = query_table._meta.get_field('tags')
+                    except FieldDoesNotExist:
+                        pass
+                    else:
+                        tag_indicator_query = query_table.objects.filter(self.query_filter)
+                        tag_exists_expression = Sum(
+                            Case(
+                                When(Q(F('tags') is None), then=0),
+                                When(Q(F('tags') != Value('{}', output_field=JSONField)), then=1),
+                                default_value=0
+                            )
+                        )
+                        tag_indicator_query = tag_indicator_query.annotate(
+                            r_account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id"),
+                            tags_exist_sum=tag_exists_expression
+                        )
+                        tag_indicator_query = tag_indicator_query.values('r_account_alias', 'tags_exist_sum')
 
 
             query_sum = self._build_sum(query, annotations)
@@ -283,9 +301,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 # First resolve all of the unique accounts returned in the results
                 unique_accounts = list({r['account_alias'] for r in query_results})
                 # Filter the tag_indicator_query by those accounts
-                tag_indicator_query.filter(account_alias__in=unique_accounts)
+                tag_indicator_query.filter(r_account_alias__in=unique_accounts)
                 # Get the tag results into a dict
-                tag_results = {r['account_alias']: r['tags_exist_sum'] > 0 for r in tag_indicator_query}
+                tag_results = {r['r_account_alias']: r['tags_exist_sum'] > 0 for r in tag_indicator_query}
                 # Add the tag results to the report query result dicts
                 for res in query_results:
                     res['tags_exist'] = tag_results.get(res['account_alias'], False)
