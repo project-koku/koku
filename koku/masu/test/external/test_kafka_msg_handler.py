@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Kafka msg handler."""
+import asyncio
 import json
 import os
 import shutil
@@ -22,6 +23,7 @@ import tempfile
 from unittest.mock import patch
 
 import requests_mock
+from kafka.errors import KafkaError
 from requests.exceptions import HTTPError
 
 import masu.external.kafka_msg_handler as msg_handler
@@ -30,7 +32,13 @@ from masu.config import Config
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
+from masu.prometheus_stats import WORKER_REGISTRY
 from masu.test import MasuTestCase
+
+
+def raise_exception():
+    """Raise a kafka error."""
+    raise KafkaError()
 
 
 class KafkaMsg:
@@ -219,3 +227,43 @@ class KafkaMsgHandlerTest(MasuTestCase):
         msg_handler.process_report(sample_report)
 
         mock_summarize.delay.assert_not_called()
+
+    async def test_send_confirmation_error(self):
+        """Set up the test for raising a kafka error during sending confirmation."""
+        # grab the connection error count before
+        connection_errors_before = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
+        with patch("masu.external.kafka_msg_handler.AIOKafkaProducer.start", side_effect=raise_exception):
+            with self.assertRaises(msg_handler.KafkaMsgHandlerError):
+                await msg_handler.send_confirmation(request_id="foo", status=msg_handler.SUCCESS_CONFIRM_STATUS)
+            # assert that the error caused the kafka error metric to be incremented
+            connection_errors_after = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
+            self.assertEqual(connection_errors_after - connection_errors_before, 1)
+
+    def test_kafka_connection_metrics_send_confirmation(self):
+        """Test the async function to send confirmation"""
+        event_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(event_loop)
+        coro = asyncio.coroutine(self.test_send_confirmation_error)
+        event_loop.run_until_complete(coro())
+        event_loop.close()
+
+    async def test_listen_for_messages_error(self):
+        """Set up the test for raising a kafka error while waiting for messages."""
+        # grab the connection error count before
+        connection_errors_before = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
+        event_loop = asyncio.get_event_loop()
+        consumer = msg_handler.AIOKafkaConsumer(loop=event_loop)
+        with patch("masu.external.kafka_msg_handler.AIOKafkaConsumer.start", side_effect=raise_exception):
+            with self.assertRaises(msg_handler.KafkaMsgHandlerError):
+                await msg_handler.listen_for_messages(consumer)
+            # assert that the error caused the kafka error metric to be incremented
+            connection_errors_after = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
+            self.assertEqual(connection_errors_after - connection_errors_before, 1)
+
+    def test_kafka_connection_metrics_listen_for_messages(self):
+        """Test the async function to transition to listen for messages."""
+        event_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(event_loop)
+        coro = asyncio.coroutine(self.test_listen_for_messages_error)
+        event_loop.run_until_complete(coro())
+        event_loop.close()

@@ -32,6 +32,7 @@ from kafka.errors import KafkaError
 
 from api.provider.models import Provider
 from api.provider.models import Sources
+from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from sources import storage
 from sources.config import Config
 from sources.koku_http_client import KokuHTTPClient
@@ -381,6 +382,7 @@ async def process_messages(msg_pending_queue):  # noqa: C901; pragma: no cover
             LOG.error(f"Source {source_id} Unexpected message processing error: {str(error)}", exc_info=True)
 
 
+@KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
 async def listen_for_messages(consumer, application_source_id, msg_pending_queue):  # pragma: no cover
     """
     Listen for Platform-Sources kafka messages.
@@ -400,6 +402,7 @@ async def listen_for_messages(consumer, application_source_id, msg_pending_queue
     except KafkaError as err:
         await consumer.stop()
         LOG.exception(str(err))
+        KAFKA_CONNECTION_ERRORS_COUNTER.inc()
         raise SourcesIntegrationError("Unable to connect to kafka server.")
 
     LOG.info("Listener started.  Waiting for messages...")
@@ -553,6 +556,7 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
             LOG.error(f"Source {source_id} Unexpected synchronization error: {str(error)}", exc_info=True)
 
 
+@KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
 def asyncio_sources_thread(event_loop):  # pragma: no cover
     """
     Configure Sources listener thread function to run the asyncio event loop.
@@ -582,6 +586,7 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
             event_loop.create_task(synchronize_sources(PROCESS_QUEUE, cost_management_type_id))
             event_loop.run_forever()
     except SourcesIntegrationError as error:
+        KAFKA_CONNECTION_ERRORS_COUNTER.inc()
         err_msg = f"Kafka Connection Failure: {str(error)}. Reconnecting..."
         LOG.error(err_msg)
         time.sleep(Config.RETRY_SECONDS)
