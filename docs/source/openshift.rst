@@ -98,7 +98,7 @@ If you do not have access to some of the repositories or resources discussed in 
 
 5. To delete all of the objects created by running the e2e-deploy script, run ``make oc-delete-e2e``.
 
-If you need to test a specific Koku branch using e2e-deploy, edit the ``buildfactory/hccm/koku.yaml`` template and change the ``SOURCE_REPOSITORY_REF`` in the parameters to have a value that is set to the name of the branch of Koku that you are testing. For example, if you are testing the branch ``issues/123``, the paremeter for the ``SOURCE_REPOSITORY_REF`` should look like the following::
+If you need to test a specific Koku branch using e2e-deploy, edit the ``buildfactory/hccm/koku.yaml`` template and change the ``SOURCE_REPOSITORY_REF`` in the parameters to have a value that is set to the name of the branch of Koku that you are testing. For example, if you are testing the branch ``issues/123``, the parameter for the ``SOURCE_REPOSITORY_REF`` should look like the following::
 
     - description: Set this to a branch name, tag or other ref of your repository if you
         are not using the default branch.
