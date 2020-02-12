@@ -24,6 +24,18 @@ class Migration(migrations.Migration):
             DELETE FROM reporting_azurecostentrylineitem_daily_summary
             WHERE cost_entry_bill_id IS NULL;
 
+            DELETE FROM reporting_ocpawscostlineitem_daily_summary
+            WHERE cost_entry_bill_id IS NULL;
+
+            DELETE FROM reporting_ocpawscostlineitem_project_daily_summary
+            WHERE cost_entry_bill_id IS NULL;
+
+            DELETE FROM reporting_ocpazurecostlineitem_daily_summary
+            WHERE cost_entry_bill_id IS NULL;
+
+            DELETE FROM reporting_ocpazurecostlineitem_project_daily_summary
+            WHERE cost_entry_bill_id IS NULL;
+
             DELETE FROM reporting_ocpusagelineitem
             WHERE report_period_id IS NULL;
 
@@ -37,6 +49,24 @@ class Migration(migrations.Migration):
             WHERE report_period_id IS NULL;
 
             DELETE FROM reporting_ocpstoragelineitem_daily
+            WHERE report_period_id IS NULL;
+
+            DELETE FROM reporting_ocpawscostlineitem_daily_summary
+            WHERE report_period_id IS NULL;
+
+            DELETE FROM reporting_ocpawscostlineitem_project_daily_summary
+            WHERE report_period_id IS NULL;
+
+            DELETE FROM reporting_ocpazurecostlineitem_daily_summary
+            WHERE report_period_id IS NULL;
+
+            DELETE FROM reporting_ocpazurecostlineitem_project_daily_summary
+            WHERE report_period_id IS NULL;
+
+            DELETE FROM reporting_ocpcosts_summary
+            WHERE report_period_id IS NULL;
+
+            DELETE FROM reporting_ocpusagereport
             WHERE report_period_id IS NULL;
             """
         )
