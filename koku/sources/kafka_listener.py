@@ -398,14 +398,7 @@ async def listen_for_messages(consumer, application_source_id, msg_pending_queue
         None
 
     """
-    try:
-        await consumer.start()
-    except KafkaError as err:
-        await consumer.stop()
-        LOG.exception(str(err))
-        KAFKA_CONNECTION_ERRORS_COUNTER.inc()
-        raise SourcesIntegrationError("Unable to connect to kafka server.")
-
+    await consumer.start()
     LOG.info("Listener started.  Waiting for messages...")
     try:
         async for msg in consumer:
@@ -557,6 +550,48 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
             LOG.error(f"Source {source_id} Unexpected synchronization error: {str(error)}", exc_info=True)
 
 
+def backoff(interval, maximum=7):
+    """Exponential back-off."""
+    wait = min(maximum, (2 ** interval))
+    LOG.info("Sleeping for %s seconds.", wait)
+    time.sleep(wait)
+
+
+def check_kafka_connection():
+    async def test_consumer_start(consumer):
+        await consumer.start()
+        return True
+
+    count = 0
+    result = False
+    while not result:
+        # Next, start the consumer to check the Kafka connection. If consumer starts
+        # without exception, continue and then stop consumer. If consumer.start raises
+        # an exception, retry.
+        loop = asyncio.new_event_loop()
+        temp_thread = threading.Thread(target=loop.run_forever, daemon=True)
+        temp_thread.start()
+        consumer = AIOKafkaConsumer(
+            Config.SOURCES_TOPIC, loop=loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id="hccm-sources"
+        )
+
+        try:
+            future = asyncio.run_coroutine_threadsafe(test_consumer_start(consumer), loop)
+            result = future.result()
+            LOG.info(f"Consumer started successfully")
+            break
+        except KafkaError as err:
+            consumer.stop()
+            LOG.error(f"Unable to connect to kafka server.  Error: {err}")
+            KAFKA_CONNECTION_ERRORS_COUNTER.inc()
+            backoff(count)
+            count += 1
+    consumer.stop()
+    temp_thread.join()
+    LOG.info("Killing chech thread")
+    return result
+
+
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
 def asyncio_sources_thread(event_loop):  # pragma: no cover
     """
@@ -569,13 +604,6 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
         None
 
     """
-
-    def backoff(interval, maximum=7):
-        """Exponential back-off."""
-        wait = min(maximum, (2 ** interval))
-        LOG.info("Sleeping for %s seconds.", wait)
-        time.sleep(wait)
-
     cost_management_type_id = None
     count = 0
     while cost_management_type_id is None:
@@ -594,28 +622,20 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
         except KeyboardInterrupt:
             sys.exit(0)
 
-    count = 0
+    if check_kafka_connection():
+        LOG.info("SUCCESS!")
+
+    consumer = AIOKafkaConsumer(
+        Config.SOURCES_TOPIC, loop=event_loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id="hccm-sources"
+    )
+
     while True:
         load_process_queue()
-        consumer = AIOKafkaConsumer(
-            Config.SOURCES_TOPIC,
-            loop=event_loop,
-            bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS,
-            group_id="hccm-sources",
-        )
-
         try:
             event_loop.create_task(listen_for_messages(consumer, cost_management_type_id, PENDING_PROCESS_QUEUE))
             event_loop.create_task(process_messages(PENDING_PROCESS_QUEUE))
             event_loop.create_task(synchronize_sources(PROCESS_QUEUE, cost_management_type_id))
             event_loop.run_forever()
-        except SourcesIntegrationError as error:
-            KAFKA_CONNECTION_ERRORS_COUNTER.inc()
-            err_msg = f"KAFKA Connection Failure. Error: {error}"
-            LOG.error(err_msg)
-            backoff(count)
-            count += 1
-            LOG.info("Reattempting connection to KAFKA.")
         except KeyboardInterrupt:
             sys.exit(0)
 
