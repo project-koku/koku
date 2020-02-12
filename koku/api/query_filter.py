@@ -108,13 +108,9 @@ class QueryFilter(UserDict):
         """Exact comparison."""
         return self.data == other.data and self.logical_operator == other.logical_operator
 
-    def __ne__(self, other):
-        """Inverse of __eq__()."""
-        return not (self.data == other.data and self.logical_operator == other.logical_operator)
-
     def __lt__(self, other):
         """Decide if self < other."""
-        return len(self.data) < len(other.data)
+        return str(self.data) < str(other.data)
 
     def __repr__(self):
         """Return string representation."""
