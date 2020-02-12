@@ -153,6 +153,7 @@ def extract_payload(url):
     return report_meta
 
 
+@KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
 async def send_confirmation(request_id, status):  # pragma: no cover
     """
     Send kafka validation message to Insights Upload service.
@@ -331,6 +332,7 @@ async def process_messages():  # pragma: no cover
                     LOG.error("Line item processing exception: %s", str(error))
 
 
+@KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
 async def listen_for_messages(consumer):  # pragma: no cover
     """
     Listen for messages on the available and hccm topics.
@@ -363,6 +365,7 @@ async def listen_for_messages(consumer):  # pragma: no cover
         await consumer.stop()
 
 
+@KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
 def asyncio_worker_thread(loop):  # pragma: no cover
     """
     Worker thread function to run the asyncio event loop.

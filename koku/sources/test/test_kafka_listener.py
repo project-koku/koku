@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Sources Kafka Listener handler."""
+import asyncio
 import logging
 from unittest.mock import patch
 
@@ -26,6 +27,8 @@ from faker import Faker
 import sources.kafka_listener as source_integration
 from api.provider.models import Provider
 from api.provider.models import Sources
+from masu.prometheus_stats import WORKER_REGISTRY
+from masu.test.external.test_kafka_msg_handler import raise_exception
 from sources.config import Config
 from sources.sources_http_client import SourcesHTTPClientError
 
@@ -738,3 +741,26 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         source_integration.sources_network_auth_info(test_resource_id, test_auth_header)
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEquals(source_obj.authentication, {})
+
+    async def test_listen_for_messages_error(self):
+        """Set up the test for raising a kafka error while waiting for messages."""
+        # grab the connection error count before
+        connection_errors_before = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
+        event_loop = asyncio.get_event_loop()
+        consumer = source_integration.AIOKafkaConsumer(loop=event_loop)
+        with patch("sources.kafka_listener.AIOKafkaConsumer.start", side_effect=raise_exception):
+            with self.assertRaises(source_integration.SourcesIntegrationError):
+                await source_integration.listen_for_messages(
+                    consumer, application_source_id="foo", msg_pending_queue=source_integration.PENDING_PROCESS_QUEUE
+                )
+            # assert that the error caused the kafka error metric to be incremented
+            connection_errors_after = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
+            self.assertEqual(connection_errors_after - connection_errors_before, 1)
+
+    def test_kafka_connection_metrics_listen_for_messages(self):
+        """Test the async function to transition to listen for messages."""
+        event_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(event_loop)
+        coro = asyncio.coroutine(self.test_listen_for_messages_error)
+        event_loop.run_until_complete(coro())
+        event_loop.close()
