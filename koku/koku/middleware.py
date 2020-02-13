@@ -22,6 +22,7 @@ from json.decoder import JSONDecodeError
 
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
+from django.db import connection
 from django.db import transaction
 from django.db.utils import IntegrityError
 from django.db.utils import InterfaceError
@@ -114,6 +115,8 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
 
     def process_request(self, request):  # pylint: disable=R1710
         """Check before super."""
+        connection.set_schema_to_public()
+
         if not is_no_auth(request):
             if hasattr(request, "user") and hasattr(request.user, "username"):
                 username = request.user.username
@@ -226,6 +229,8 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             request (object): The request object
 
         """
+        connection.set_schema_to_public()
+
         if is_no_auth(request):
             request.user = User("", "")
             return

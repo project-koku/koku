@@ -19,6 +19,7 @@ import asyncio
 import concurrent.futures
 import json
 import logging
+import sys
 import threading
 import time
 
@@ -33,6 +34,7 @@ from kafka.errors import KafkaError
 from api.provider.models import Provider
 from api.provider.models import Sources
 from masu.celery.tasks import check_report_updates
+from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from sources import storage
 from sources.config import Config
 from sources.koku_http_client import KokuHTTPClient
@@ -394,6 +396,7 @@ async def process_messages(msg_pending_queue):  # noqa: C901; pragma: no cover
             LOG.error(f"Source {source_id} Unexpected message processing error: {str(error)}", exc_info=True)
 
 
+@KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
 async def listen_for_messages(consumer, application_source_id, msg_pending_queue):  # pragma: no cover
     """
     Listen for Platform-Sources kafka messages.
@@ -413,6 +416,7 @@ async def listen_for_messages(consumer, application_source_id, msg_pending_queue
     except KafkaError as err:
         await consumer.stop()
         LOG.exception(str(err))
+        KAFKA_CONNECTION_ERRORS_COUNTER.inc()
         raise SourcesIntegrationError("Unable to connect to kafka server.")
 
     LOG.info("Listener started.  Waiting for messages...")
@@ -566,6 +570,7 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
             LOG.error(f"Source {source_id} Unexpected synchronization error: {str(error)}", exc_info=True)
 
 
+@KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
 def asyncio_sources_thread(event_loop):  # pragma: no cover
     """
     Configure Sources listener thread function to run the asyncio event loop.
@@ -577,32 +582,55 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
         None
 
     """
-    try:
-        cost_management_type_id = SourcesHTTPClient(
-            Config.SOURCES_FAKE_HEADER
-        ).get_cost_management_application_type_id()
 
+    def backoff(interval, maximum=7):
+        """Exponential back-off."""
+        wait = min(maximum, (2 ** interval))
+        LOG.info("Sleeping for %s seconds.", wait)
+        time.sleep(wait)
+
+    cost_management_type_id = None
+    count = 0
+    while cost_management_type_id is None:
+        # First, hit Souces endpoint to get the cost-mgmt application ID.
+        # Without this initial connection/ID number, the consumer cannot start
+        try:
+            cost_management_type_id = SourcesHTTPClient(
+                Config.SOURCES_FAKE_HEADER
+            ).get_cost_management_application_type_id()
+            LOG.info("Connected to Sources REST API.")
+        except SourcesHTTPClientError as error:
+            LOG.error(f"Unable to connect to Sources REST API. Error: {error}")
+            backoff(count)
+            count += 1
+            LOG.info("Reattempting connection to Sources REST API.")
+        except KeyboardInterrupt:
+            sys.exit(0)
+
+    count = 0
+    while True:
         load_process_queue()
-        while True:
-            consumer = AIOKafkaConsumer(
-                Config.SOURCES_TOPIC,
-                loop=event_loop,
-                bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS,
-                group_id="hccm-sources",
-            )
+        consumer = AIOKafkaConsumer(
+            Config.SOURCES_TOPIC,
+            loop=event_loop,
+            bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS,
+            group_id="hccm-sources",
+        )
+
+        try:
             event_loop.create_task(listen_for_messages(consumer, cost_management_type_id, PENDING_PROCESS_QUEUE))
             event_loop.create_task(process_messages(PENDING_PROCESS_QUEUE))
             event_loop.create_task(synchronize_sources(PROCESS_QUEUE, cost_management_type_id))
             event_loop.run_forever()
-    except SourcesIntegrationError as error:
-        err_msg = f"Kafka Connection Failure: {str(error)}. Reconnecting..."
-        LOG.error(err_msg)
-        time.sleep(Config.RETRY_SECONDS)
-    except SourcesHTTPClientError as error:
-        LOG.error(f"Unable to connect to Sources REST API.  Check configuration and restart server... Error: {error}")
-        exit(0)
-    except KeyboardInterrupt:
-        exit(0)
+        except SourcesIntegrationError as error:
+            KAFKA_CONNECTION_ERRORS_COUNTER.inc()
+            err_msg = f"KAFKA Connection Failure. Error: {error}"
+            LOG.error(err_msg)
+            backoff(count)
+            count += 1
+            LOG.info("Reattempting connection to KAFKA.")
+        except KeyboardInterrupt:
+            sys.exit(0)
 
 
 def initialize_sources_integration():  # pragma: no cover
