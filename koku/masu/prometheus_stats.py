@@ -18,7 +18,6 @@
 from prometheus_client import CollectorRegistry
 from prometheus_client import Counter
 from prometheus_client import multiprocess
-from prometheus_client import start_http_server
 
 
 WORKER_REGISTRY = CollectorRegistry()
@@ -61,8 +60,3 @@ KAFKA_CONNECTION_ERRORS_COUNTER = Counter(
 )
 
 CELERY_ERRORS_COUNTER = Counter("celery_errors", "Number of celery errors", registry=WORKER_REGISTRY)
-
-
-def initialize_prometheus_exporter():
-    """Start Prometheus stats HTTP server."""
-    start_http_server(9999, registry=WORKER_REGISTRY)

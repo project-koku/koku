@@ -265,9 +265,8 @@ class ProviderSerializer(serializers.ModelSerializer):
             self.fields["authentication"] = ProviderAuthenticationSerializer()
             self.fields["billing_source"] = ProviderBillingSourceSerializer()
 
-    @transaction.atomic
-    def create(self, validated_data):
-        """Create a provider from validated data."""
+    def get_request_info(self):
+        """Obtain request information like user and customer context."""
         user = None
         customer = None
         request = self.context.get("request")
@@ -283,6 +282,12 @@ class ProviderSerializer(serializers.ModelSerializer):
             key = "created_by"
             message = "Requesting user could not be found."
             raise serializers.ValidationError(error_obj(key, message))
+        return request, user, customer
+
+    @transaction.atomic
+    def create(self, validated_data):
+        """Create a provider from validated data."""
+        _, user, customer = self.get_request_info()
 
         if "billing_source" in validated_data:
             billing_source = validated_data.pop("billing_source")
@@ -303,10 +308,11 @@ class ProviderSerializer(serializers.ModelSerializer):
         validated_data["type"] = provider_type
         interface = ProviderAccessor(provider_type)
 
-        if credentials and data_source and provider_type not in [Provider.PROVIDER_AWS, Provider.PROVIDER_OCP]:
-            interface.cost_usage_source_ready(credentials, data_source)
-        else:
-            interface.cost_usage_source_ready(provider_resource_name, bucket)
+        if customer.account_id not in settings.DEMO_ACCOUNTS:
+            if credentials and data_source and provider_type not in [Provider.PROVIDER_AWS, Provider.PROVIDER_OCP]:
+                interface.cost_usage_source_ready(credentials, data_source)
+            else:
+                interface.cost_usage_source_ready(provider_resource_name, bucket)
 
         bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
         auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
@@ -331,6 +337,7 @@ class ProviderSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
+        _, _, customer = self.get_request_info()
         provider_type = validated_data["type"].lower()
         provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type)
         validated_data["type"] = provider_type
@@ -338,20 +345,19 @@ class ProviderSerializer(serializers.ModelSerializer):
             error = {"Error": "The Provider Type cannot be changed with a PUT request."}
             raise serializers.ValidationError(error)
         interface = ProviderAccessor(provider_type)
-
         authentication = validated_data.pop("authentication")
         credentials = authentication.get("credentials")
         provider_resource_name = credentials.get("provider_resource_name")
-
         billing_source = validated_data.pop("billing_source")
         data_source = billing_source.get("data_source")
         bucket = billing_source.get("bucket")
 
         try:
-            if credentials and data_source and provider_type not in [Provider.PROVIDER_AWS, Provider.PROVIDER_OCP]:
-                interface.cost_usage_source_ready(credentials, data_source)
-            else:
-                interface.cost_usage_source_ready(provider_resource_name, bucket)
+            if customer.account_id not in settings.DEMO_ACCOUNTS:
+                if credentials and data_source and provider_type not in [Provider.PROVIDER_AWS, Provider.PROVIDER_OCP]:
+                    interface.cost_usage_source_ready(credentials, data_source)
+                else:
+                    interface.cost_usage_source_ready(provider_resource_name, bucket)
         except serializers.ValidationError as validation_error:
             instance.active = False
             instance.save()
