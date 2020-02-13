@@ -557,7 +557,7 @@ def backoff(interval, maximum=120):
     time.sleep(wait)
 
 
-def check_kafka_connection():
+def check_kafka_connection():  # pragma: no cover
     """
     Check connectability to Kafka messenger.
 
