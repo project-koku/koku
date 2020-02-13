@@ -43,7 +43,15 @@ class ReportDownloader:
     """Interface for masu to use to get CUR accounts."""
 
     def __init__(
-        self, task, customer_name, access_credential, report_source, provider_type, provider_uuid, report_name=None
+        self,
+        task,
+        customer_name,
+        access_credential,
+        report_source,
+        provider_type,
+        provider_uuid,
+        cache_key,
+        report_name=None,
     ):
         """Set the downloader based on the backend cloud provider."""
         self.task = task
@@ -53,6 +61,7 @@ class ReportDownloader:
         self.report_name = report_name
         self.provider_type = provider_type
         self.provider_uuid = provider_uuid
+        self.cache_key = cache_key
         try:
             self._downloader = self._set_downloader()
         except Exception as err:
@@ -82,6 +91,7 @@ class ReportDownloader:
                 bucket=self.cur_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
+                cache_key=self.cache_key,
             )
 
         if self.provider_type == Provider.PROVIDER_AWS_LOCAL:
@@ -92,6 +102,7 @@ class ReportDownloader:
                 bucket=self.cur_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
+                cache_key=self.cache_key,
             )
 
         if self.provider_type == Provider.PROVIDER_AZURE:
@@ -102,6 +113,7 @@ class ReportDownloader:
                 billing_source=self.cur_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
+                cache_key=self.cache_key,
             )
 
         if self.provider_type == Provider.PROVIDER_AZURE_LOCAL:
@@ -112,6 +124,7 @@ class ReportDownloader:
                 billing_source=self.cur_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
+                cache_key=self.cache_key,
             )
 
         if self.provider_type == Provider.PROVIDER_OCP:
@@ -122,6 +135,7 @@ class ReportDownloader:
                 bucket=self.cur_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
+                cache_key=self.cache_key,
             )
 
         if self.provider_type == Provider.PROVIDER_GCP:
@@ -132,6 +146,7 @@ class ReportDownloader:
                 billing_source=self.cur_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
+                cache_key=self.cache_key,
             )
         return None
 
