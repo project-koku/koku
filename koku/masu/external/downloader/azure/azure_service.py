@@ -60,7 +60,7 @@ class AzureService:
         """Get the latest cost export file from given storage account container."""
         report = None
         container_client = self._cloud_storage_account.get_container_client(container_name)
-        blob_list = container_client.list_blobs(container_name)
+        blob_list = container_client.list_blobs(name_starts_with=key)
         for blob in blob_list:
             if key == blob.name:
                 report = blob
