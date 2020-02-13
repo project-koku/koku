@@ -36,10 +36,12 @@ SOURCES_APPS = "http://www.sources.com/api/v1.0/applications?filter[application_
 
 
 async def raise_exception():
+    """Raise KafkaError"""
     raise KafkaError()
 
 
 async def dont_raise_exception():
+    """Return None"""
     return None
 
 

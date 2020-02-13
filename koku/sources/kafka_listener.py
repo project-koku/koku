@@ -574,11 +574,13 @@ def check_kafka_connection():  # pragma: no cover
     """
 
     async def test_consumer(consumer, method):
+        started = None
         if method == "start":
             await consumer.start()
+            started = True
         else:
             await consumer.stop()
-        return True
+        return started
 
     count = 0
     result = False
