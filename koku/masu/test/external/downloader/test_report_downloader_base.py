@@ -25,6 +25,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.processor.worker_cache import WorkerCache
 from masu.test import MasuTestCase
 
 
@@ -47,8 +48,11 @@ class ReportDownloaderBaseTest(MasuTestCase):
     def setUp(self):
         """Set up each test case."""
         super().setUp()
+        self.cache_key = self.fake.word()
         self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()), return_value={}))
-        self.downloader = ReportDownloaderBase(task=self.mock_task, provider_uuid=self.aws_provider_uuid)
+        self.downloader = ReportDownloaderBase(
+            task=self.mock_task, provider_uuid=self.aws_provider_uuid, cache_key=self.cache_key
+        )
         billing_start = self.date_accessor.today_with_timezone("UTC").replace(day=1)
         self.task_id = str(self.fake.uuid4())
         self.manifest_dict = {
@@ -153,3 +157,11 @@ class ReportDownloaderBaseTest(MasuTestCase):
             file_accessor.log_last_started_datetime()
         result = self.downloader.check_if_manifest_should_be_downloaded(self.assembly_id)
         self.assertTrue(result)
+
+    def test_check_if_manifest_should_be_downloaded_task_currently_running(self):
+        """Test that a manifest being processed should not be reprocessed."""
+        _cache = WorkerCache()
+        _cache.add_task_to_cache(self.cache_key)
+
+        result = self.downloader.check_if_manifest_should_be_downloaded(self.assembly_id)
+        self.assertFalse(result)
