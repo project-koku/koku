@@ -19,6 +19,7 @@ import copy
 import logging
 
 from django.db.models import Case
+from django.db.models.functions import Cast
 from django.core.exceptions import FieldDoesNotExist
 from django.db.models import F
 from django.db.models import IntegerField
@@ -260,15 +261,19 @@ class AWSReportQueryHandler(ReportQueryHandler):
                     except FieldDoesNotExist:
                         pass
                     else:
+                        print(self.query_filter)
                         tag_indicator_query = query_table.objects.filter(self.query_filter)
                         tag_indicator_query = tag_indicator_query.annotate(
                             r_account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id"),
                             tags_exist_sum=Sum(
-                                Case(
-                                    When(tags__isnull=True, then=0),
-                                    When(tags__ne=Value('{}', output_field=JSONField), then=1),
-                                    default_value=0,
-                                    output_field=IntegerField
+                                Coalesce(
+                                    Case(
+                                        When(tags__isnull=True, then=0),
+                                        When(~Q(tags=Cast(Value('{}'), output_field=JSONField())), then=1),
+                                        default_value=0,
+                                        output_field=IntegerField()
+                                    ),
+                                    0
                                 )
                             )
                         )
@@ -303,7 +308,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 # Filter the tag_indicator_query by those accounts
                 tag_indicator_query.filter(r_account_alias__in=unique_accounts)
                 # Get the tag results into a dict
-                tag_results = {r['r_account_alias']: r['tags_exist_sum'] > 0 for r in tag_indicator_query}
+                tag_results = {r['r_account_alias']: (r['tags_exist_sum'] > 0) for r in tag_indicator_query}
                 # Add the tag results to the report query result dicts
                 for res in query_results:
                     res['tags_exist'] = tag_results.get(res['account_alias'], False)
