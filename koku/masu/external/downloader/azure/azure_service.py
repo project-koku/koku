@@ -95,7 +95,7 @@ class AzureService:
         for blob in blob_list:
             if report_path in blob.name and not latest_report:
                 latest_report = blob
-            elif report_path in blob.name and blob.properties.last_modified > latest_report.properties.last_modified:
+            elif report_path in blob.name and blob.last_modified > latest_report.last_modified:
                 latest_report = blob
         if not latest_report:
             message = f"No cost report found in container {container_name} for " f"path {report_path}."

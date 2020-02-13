@@ -135,7 +135,7 @@ class AzureServiceTest(MasuTestCase):
             key = test.get("key")
             expected_modified_date = test.get("expected_date")
 
-            mock_blob = Mock(properties=Mock(last_modified=Mock(date=Mock(return_value=expected_modified_date))))
+            mock_blob = Mock(last_modified=Mock(date=Mock(return_value=expected_modified_date)))
             name_attr = PropertyMock(return_value=key)
             type(mock_blob).name = name_attr  # kludge to set name attribute on Mock
 
@@ -143,7 +143,7 @@ class AzureServiceTest(MasuTestCase):
             cost_export = svc.get_cost_export_for_key(key, self.container_name)
             self.assertIsNotNone(cost_export)
             self.assertEquals(cost_export.name, key)
-            self.assertEquals(cost_export.properties.last_modified.date(), expected_modified_date)
+            self.assertEquals(cost_export.last_modified.date(), expected_modified_date)
 
     def test_get_cost_export_for_missing_key(self):
         """Test that a cost export is not retrieved by an incorrect key."""
@@ -161,13 +161,13 @@ class AzureServiceTest(MasuTestCase):
         """Test that the latest cost export is returned for a given path."""
         report_path = "{}_{}".format(self.container_name, "blob")
 
-        mock_blob = Mock(properties=Mock(last_modified=Mock(date=Mock(return_value=self.current_date_time.date()))))
+        mock_blob = Mock(last_modified=Mock(date=Mock(return_value=self.current_date_time.date())))
         name_attr = PropertyMock(return_value=report_path)
         type(mock_blob).name = name_attr  # kludge to set name attribute on Mock
 
         svc = self.get_mock_client(blob_list=[mock_blob])
         cost_export = svc.get_latest_cost_export_for_path(report_path, self.container_name)
-        self.assertEquals(cost_export.properties.last_modified.date(), self.current_date_time.date())
+        self.assertEquals(cost_export.last_modified.date(), self.current_date_time.date())
 
     def test_get_latest_cost_export_for_path_missing(self):
         """Test that the no cost export is returned for a missing path."""
