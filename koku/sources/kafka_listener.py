@@ -19,6 +19,7 @@ import asyncio
 import concurrent.futures
 import json
 import logging
+import sys
 import threading
 import time
 
@@ -568,33 +569,55 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
         None
 
     """
-    try:
-        cost_management_type_id = SourcesHTTPClient(
-            Config.SOURCES_FAKE_HEADER
-        ).get_cost_management_application_type_id()
 
+    def backoff(interval, maximum=7):
+        """Exponential back-off."""
+        wait = min(maximum, (2 ** interval))
+        LOG.info("Sleeping for %s seconds.", wait)
+        time.sleep(wait)
+
+    cost_management_type_id = None
+    count = 0
+    while cost_management_type_id is None:
+        # First, hit Souces endpoint to get the cost-mgmt application ID.
+        # Without this initial connection/ID number, the consumer cannot start
+        try:
+            cost_management_type_id = SourcesHTTPClient(
+                Config.SOURCES_FAKE_HEADER
+            ).get_cost_management_application_type_id()
+            LOG.info("Connected to Sources REST API.")
+        except SourcesHTTPClientError as error:
+            LOG.error(f"Unable to connect to Sources REST API. Error: {error}")
+            backoff(count)
+            count += 1
+            LOG.info("Reattempting connection to Sources REST API.")
+        except KeyboardInterrupt:
+            sys.exit(0)
+
+    count = 0
+    while True:
         load_process_queue()
-        while True:
-            consumer = AIOKafkaConsumer(
-                Config.SOURCES_TOPIC,
-                loop=event_loop,
-                bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS,
-                group_id="hccm-sources",
-            )
+        consumer = AIOKafkaConsumer(
+            Config.SOURCES_TOPIC,
+            loop=event_loop,
+            bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS,
+            group_id="hccm-sources",
+        )
+
+        try:
             event_loop.create_task(listen_for_messages(consumer, cost_management_type_id, PENDING_PROCESS_QUEUE))
             event_loop.create_task(process_messages(PENDING_PROCESS_QUEUE))
             event_loop.create_task(synchronize_sources(PROCESS_QUEUE, cost_management_type_id))
             event_loop.run_forever()
-    except SourcesIntegrationError as error:
-        KAFKA_CONNECTION_ERRORS_COUNTER.inc()
-        err_msg = f"Kafka Connection Failure: {str(error)}. Reconnecting..."
-        LOG.error(err_msg)
-        time.sleep(Config.RETRY_SECONDS)
-    except SourcesHTTPClientError as error:
-        LOG.error(f"Unable to connect to Sources REST API.  Check configuration and restart server... Error: {error}")
-        exit(0)
-    except KeyboardInterrupt:
-        exit(0)
+        except SourcesIntegrationError as error:
+            KAFKA_CONNECTION_ERRORS_COUNTER.inc()
+            err_msg = f"KAFKA Connection Failure. Error: {error}"
+            LOG.error(err_msg)
+            backoff(count)
+            count += 1
+            LOG.info("Reattempting connection to KAFKA.")
+        except KeyboardInterrupt:
+            sys.exit(0)
 
 
 def initialize_sources_integration():  # pragma: no cover
