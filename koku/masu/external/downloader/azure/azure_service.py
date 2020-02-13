@@ -101,7 +101,7 @@ class AzureService:
         LOG.critical("XXX6: %s", container_name)
         latest_report = None
         container_client = self._cloud_storage_account.get_container_client(container_name)
-        blob_list = container_client.list_blobs(name_starts_with=container_name)
+        blob_list = container_client.list_blobs(name_starts_with=report_path)
         LOG.critical("XXX7: %s", list(blob_list))
         for blob in blob_list:
             LOG.critical("XXX8: %s", blob)
