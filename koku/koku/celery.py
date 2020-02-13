@@ -3,14 +3,15 @@ import datetime
 import logging
 import os
 
+import django
 from celery import Celery
 from celery import Task
 from celery.schedules import crontab
 from django.conf import settings
 
-from . import database
-from . import sentry  # pylint: disable=unused-import # noqa: F401
-from .env import ENVIRONMENT
+from koku import sentry  # pylint: disable=unused-import # noqa: F401
+from koku.env import ENVIRONMENT
+from masu.processor.worker_cache import WorkerCache
 
 # We disable pylint here because we wanted to avoid duplicate code
 # in settings and celery config files, therefore we import a single
@@ -45,7 +46,9 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
 
 LOGGER.info("Starting celery.")
 # Setup the database for use in Celery
-database.config()
+django.setup()
+LOGGER.info("Clearing worker task cache.")
+WorkerCache().invalidate_host()
 LOGGER.info("Database configured.")
 
 # 'app' is the recommended convention from celery docs
