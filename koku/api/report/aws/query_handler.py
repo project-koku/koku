@@ -252,8 +252,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                     account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
                 )
 
-                # if self.parameters.parameters.get("check_tags"):
-                if True:  # DEBUG only here for initial testing of query. Will be replace by line above
+                if self.parameters.parameters.get("check_tags"):
                     # Setup tags exist query for the returned data
                     try:
                         # The table to query is resolved. Verify that the "tags" col/field exists
@@ -261,7 +260,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
                     except FieldDoesNotExist:
                         pass
                     else:
-                        print(self.query_filter)
                         tag_indicator_query = query_table.objects.filter(self.query_filter)
                         tag_indicator_query = tag_indicator_query.annotate(
                             r_account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id"),
