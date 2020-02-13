@@ -15,8 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Azure Client Configuration."""
-import logging
-
 from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.costmanagement import CostManagementClient
 from azure.mgmt.resource import ResourceManagementClient
@@ -26,8 +24,6 @@ from msrestazure.azure_cloud import AZURE_CHINA_CLOUD
 from msrestazure.azure_cloud import AZURE_GERMAN_CLOUD
 from msrestazure.azure_cloud import AZURE_PUBLIC_CLOUD
 from msrestazure.azure_cloud import AZURE_US_GOV_CLOUD
-
-LOG = logging.getLogger(__name__)
 
 
 class AzureClientFactory:
@@ -60,10 +56,6 @@ class AzureClientFactory:
         self._credentials = ServicePrincipalCredentials(
             client_id=client_id, secret=client_secret, tenant=tenant_id, cloud_environment=clouds.get(cloud, "public")
         )
-        LOG.critical("YYY1: %s", client_id)
-        LOG.critical("YYY2: %s", client_secret)
-        LOG.critical("YYY3: %s", tenant_id)
-        LOG.critical("YYY4: %s", subscription_id)
 
     @property
     def credentials(self):
@@ -92,8 +84,6 @@ class AzureClientFactory:
 
     def cloud_storage_account(self, resource_group_name, storage_account_name):
         """Get a BlobServiceClient."""
-        LOG.critical("YYY5: %s", resource_group_name)
-        LOG.critical("YYY6: %s", storage_account_name)
         storage_account_keys = self.storage_client.storage_accounts.list_keys(
             resource_group_name, storage_account_name
         )
@@ -106,5 +96,4 @@ class AzureClientFactory:
             f"AccountKey={key.value};"
             f"EndpointSuffix=core.windows.net"
         )
-        LOG.critical("YYY7: %s", connect_str)
         return BlobServiceClient.from_connection_string(connect_str)
