@@ -116,3 +116,12 @@ class ExpiredDataRemoverTest(MasuTestCase):
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
         remover.remove(provider_uuid=provider_uuid)
         mock_purge.assert_called_with(simulate=False, provider_uuid=provider_uuid)
+
+    def test_delete_expired_billing_manifest(self):
+        """Test remove manifest for billing data that no longer exists"""
+        provider_uuid = self.aws_provider_uuid
+        insertMockCostUsageReports(provider=provider_uuid)
+        remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
+        remover.remove(provider_uuid=provider_uuid)
+        manifest_data_list = CostUsageReportManifest.objects.filter(billing_period=4monthsago).all()
+        assertEqual(len(manifest_data_list), 0)
