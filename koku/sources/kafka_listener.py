@@ -589,17 +589,17 @@ def check_kafka_connection():  # pragma: no cover
     while not result:
         try:
             result = temp_loop.run_until_complete(test_consumer(consumer, "start"))
-            LOG.info(f"Test consumer started successfully")
+            LOG.info(f"Test consumer connection to Kafka was successful.")
             break
         except KafkaError as err:
-            LOG.error(f"Unable to connect to kafka server.  Error: {err}")
+            LOG.error(f"Unable to connect to Kafka server.  Error: {err}")
             KAFKA_CONNECTION_ERRORS_COUNTER.inc()
             backoff(count)
             count += 1
         finally:
             temp_loop.run_until_complete(test_consumer(consumer, "stop"))  # stop any consumers started
-            LOG.info(f"Test consumer stopped successfully")
-    temp_loop.stop()
+    temp_loop.stop()  # loop must be stopped before calling .close()
+    temp_loop.close()  # eliminate the temporary loop
 
     return result
 
