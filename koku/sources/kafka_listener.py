@@ -550,7 +550,7 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
             LOG.error(f"Source {source_id} Unexpected synchronization error: {str(error)}", exc_info=True)
 
 
-def backoff(interval, maximum=7):
+def backoff(interval, maximum=120):
     """Exponential back-off."""
     wait = min(maximum, (2 ** interval))
     LOG.info("Sleeping for %s seconds.", wait)
