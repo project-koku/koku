@@ -582,15 +582,11 @@ def check_kafka_connection():  # pragma: no cover
 
     count = 0
     result = False
+    temp_loop = asyncio.new_event_loop()
+    consumer = AIOKafkaConsumer(loop=temp_loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id=None)
     while not result:
-        temp_loop = asyncio.new_event_loop()
-        temp_thread = threading.Thread(target=temp_loop.run_forever)
-        temp_thread.start()
-        consumer = AIOKafkaConsumer(loop=temp_loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id=None)
-
         try:
-            future = asyncio.run_coroutine_threadsafe(test_consumer(consumer, "start"), temp_loop)
-            result = future.result()
+            result = temp_loop.run_until_complete(test_consumer(consumer, "start"))
             LOG.info(f"Test consumer started successfully")
             break
         except KafkaError as err:
@@ -599,8 +595,9 @@ def check_kafka_connection():  # pragma: no cover
             backoff(count)
             count += 1
         finally:
-            asyncio.run_coroutine_threadsafe(test_consumer(consumer, "stop"), temp_loop)  # stop any consumers started
+            temp_loop.run_until_complete(test_consumer(consumer, "stop"))  # stop any consumers started
             LOG.info(f"Test consumer stopped successfully")
+    temp_loop.stop()
 
     return result
 
