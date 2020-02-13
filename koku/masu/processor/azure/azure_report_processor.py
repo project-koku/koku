@@ -285,7 +285,6 @@ class AzureReportProcessor(ReportProcessorBase):
                 LOG.info("File %s opened for processing", str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
-                    LOG.critical("XXX: %s", row)
                     if not self._should_process_row(row, "UsageDateTime", is_full_month):
                         continue
                     self.create_cost_entry_objects(row, report_db)
