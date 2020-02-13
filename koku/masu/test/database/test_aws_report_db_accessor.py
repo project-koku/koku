@@ -144,7 +144,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             "provider_id": self.aws_provider.uuid,
         }
 
-        bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid, bill_date=today.date())
+        bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid, bill_date=today)
         cost_entry = self.creator.create_cost_entry(bill, entry_datetime=today)
         product = self.creator.create_cost_entry_product()
         pricing = self.creator.create_cost_entry_pricing()
