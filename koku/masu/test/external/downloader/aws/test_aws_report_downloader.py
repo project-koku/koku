@@ -177,6 +177,7 @@ class AWSReportDownloaderTest(MasuTestCase):
             report_source=self.fake_bucket_name,
             provider_type=Provider.PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
+            cache_key=self.fake.word(),
         )
         self.aws_report_downloader = AWSReportDownloader(
             **{
@@ -242,6 +243,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                     report_source=self.fake_bucket_name,
                     provider_type=Provider.PROVIDER_AWS,
                     provider_uuid=self.aws_provider_uuid,
+                    cache_key=self.fake.word(),
                 )
                 AWSReportDownloader(
                     **{
