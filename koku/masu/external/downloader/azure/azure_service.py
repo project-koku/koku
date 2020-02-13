@@ -15,11 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Azure Service helpers."""
+import logging
 from tempfile import NamedTemporaryFile
 
 from azure.common import AzureException
 
 from providers.azure.client import AzureClientFactory
+
+LOG = logging.getLogger(__name__)
 
 
 class AzureServiceError(Exception):
@@ -58,10 +61,13 @@ class AzureService:
 
     def get_cost_export_for_key(self, key, container_name):
         """Get the latest cost export file from given storage account container."""
+        LOG.critical("XXX0: %s ; %s", key, container_name)
         report = None
         container_client = self._cloud_storage_account.get_container_client(container_name)
         blob_list = container_client.list_blobs(container_name)
+        LOG.critical("XXX1: %s", blob_list)
         for blob in blob_list:
+            LOG.critical("XXX2: %s", blob)
             if key == blob.name:
                 report = blob
                 break
@@ -72,7 +78,9 @@ class AzureService:
 
     def download_cost_export(self, key, container_name, destination=None):
         """Download the latest cost export file from a given storage container."""
+        LOG.critical("XXX3: %s ; %s", key, container_name)
         cost_export = self.get_cost_export_for_key(key, container_name)
+        LOG.critical("XXX4: %s", cost_export)
 
         file_path = destination
         if not destination:
@@ -89,10 +97,14 @@ class AzureService:
 
     def get_latest_cost_export_for_path(self, report_path, container_name):
         """Get the latest cost export file from given storage account container."""
+        LOG.critical("XXX5: %s", report_path)
+        LOG.critical("XXX6: %s", container_name)
         latest_report = None
         container_client = self._cloud_storage_account.get_container_client(container_name)
         blob_list = container_client.list_blobs(container_name)
+        LOG.critical("XXX7: %s", list(blob_list))
         for blob in blob_list:
+            LOG.critical("XXX8: %s", blob)
             if report_path in blob.name and not latest_report:
                 latest_report = blob
             elif report_path in blob.name and blob.properties.last_modified > latest_report.properties.last_modified:
@@ -113,7 +125,9 @@ class AzureService:
             f"storageAccounts/{self._storage_account_name}"
         )
         export_reports = []
+        LOG.critical("XXX9: %s", management_reports)
         for report in management_reports.value:
+            LOG.critical("XXX10: %s", report)
             if report.delivery_info.destination.resource_id == expected_resource_id:
                 report_def = {
                     "name": report.name,
