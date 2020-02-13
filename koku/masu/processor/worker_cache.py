@@ -1,5 +1,5 @@
 #
-# Copyright 2018 Red Hat, Inc.
+# Copyright 2020 Red Hat, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Report processor external interface."""
+"""Cache of worker tasks currently running."""
 import logging
 
 from django.conf import settings
@@ -53,7 +53,7 @@ class WorkerCache:
     @property
     def host_specific_worker_cache(self):
         """Get the cached list of tasks."""
-        return self.worker_cache[settings.HOSTNAME]
+        return self.worker_cache.get(settings.HOSTNAME, [])
 
     def invalidate_host(self):
         """Invalidate the cache for a particular host."""
