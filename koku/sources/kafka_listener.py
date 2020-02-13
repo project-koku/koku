@@ -558,6 +558,21 @@ def backoff(interval, maximum=7):
 
 
 def check_kafka_connection():
+    """
+    Check connectability to Kafka messenger.
+
+    This method runs when asyncio_sources_thread is initialized. It
+    creates a temporary thread and consumer. The consumer is started
+    to check our connection to Kafka. If the consumer starts successfully,
+    then Kafka is running. The consumer is stopped and the function
+    returns. If there is no Kafka connection, the consumer.start() will
+    fail, raising an exception. The function will retry to start the
+    consumer, and will continue until a connection is possible.
+
+    This method will block sources integration initialization until
+    Kafka is connected.
+    """
+
     async def test_consumer(consumer, method):
         if method == "start":
             await consumer.start()
@@ -568,30 +583,25 @@ def check_kafka_connection():
     count = 0
     result = False
     while not result:
-        # Next, start the consumer to check the Kafka connection. If consumer starts
-        # without exception, continue and then stop consumer. If consumer.start raises
-        # an exception, retry.
-        loop = asyncio.new_event_loop()
-        temp_thread = threading.Thread(target=loop.run_forever, daemon=True)
+        temp_loop = asyncio.new_event_loop()
+        temp_thread = threading.Thread(target=temp_loop.run_forever)
         temp_thread.start()
-        consumer = AIOKafkaConsumer(loop=loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id=None)
+        consumer = AIOKafkaConsumer(loop=temp_loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id=None)
 
         try:
-            future = asyncio.run_coroutine_threadsafe(test_consumer(consumer, "start"), loop)
+            future = asyncio.run_coroutine_threadsafe(test_consumer(consumer, "start"), temp_loop)
             result = future.result()
-            LOG.info(f"Consumer started successfully")
-            asyncio.run_coroutine_threadsafe(test_consumer(consumer, "stop"), loop)
-            LOG.info(f"Consumer stopped successfully")
+            LOG.info(f"Test consumer started successfully")
             break
-
         except KafkaError as err:
-            asyncio.run_coroutine_threadsafe(
-                test_consumer(consumer, "stop"), loop
-            )  # kill any consumers started during retry
             LOG.error(f"Unable to connect to kafka server.  Error: {err}")
             KAFKA_CONNECTION_ERRORS_COUNTER.inc()
             backoff(count)
             count += 1
+        finally:
+            asyncio.run_coroutine_threadsafe(test_consumer(consumer, "stop"), temp_loop)  # stop any consumers started
+            LOG.info(f"Test consumer stopped successfully")
+
     return result
 
 
@@ -625,8 +635,8 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
         except KeyboardInterrupt:
             sys.exit(0)
 
-    if check_kafka_connection():
-        LOG.info("SUCCESS!")
+    if check_kafka_connection():  # Next, check that Kafka is running
+        LOG.info("Kafka is running...")
 
     consumer = AIOKafkaConsumer(
         Config.SOURCES_TOPIC, loop=event_loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id="hccm-sources"
@@ -634,7 +644,7 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
 
     while True:
         load_process_queue()
-        try:
+        try:  # Finally, after the connections are established, start the message processing tasks
             event_loop.create_task(listen_for_messages(consumer, cost_management_type_id, PENDING_PROCESS_QUEUE))
             event_loop.create_task(process_messages(PENDING_PROCESS_QUEUE))
             event_loop.create_task(synchronize_sources(PROCESS_QUEUE, cost_management_type_id))
