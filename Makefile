@@ -78,7 +78,8 @@ help:
 	@echo "  unittest                              run unittests"
 	@echo ""
 	@echo "--- Commands using Docker Compose ---"
-	@echo "  docker-up                            run django and database"
+	@echo "  docker-up                            run docker-compose up --build -d"
+	@echo "  docker-up-no-build                   run docker-compose up -d"
 	@echo "  docker-up-db                         run database only"
 	@echo "  docker-down                          shut down all containers"
 	@echo "  docker-rabbit                        run RabbitMQ container"
@@ -483,6 +484,9 @@ docker-test-all:
 
 docker-up:
 	docker-compose up --build -d
+
+docker-up-no-build:
+	docker-compose up -d
 
 docker-up-db:
 	docker-compose up -d db
