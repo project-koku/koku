@@ -145,8 +145,6 @@ class QueryHandler:
             (String): The value of how data will be sliced.
 
         """
-        # if self.resolution:
-        #     return self.resolution
 
         self.resolution = self.parameters.get_filter("resolution", default="daily")
 
