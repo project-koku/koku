@@ -39,8 +39,6 @@ class OCPAWSTagsViewTest(IamTestCase):
         self.test_cases = [
             {"value": "-1", "unit": "month", "resolution": "monthly"},
             {"value": "-2", "unit": "month", "resolution": "monthly"},
-            {"value": "-10", "unit": "day", "resolution": "daily"},
-            {"value": "-30", "unit": "day", "resolution": "daily"},
         ]
 
     def test_keys_only(self):
@@ -81,21 +79,3 @@ class OCPAWSTagsViewTest(IamTestCase):
 
             self.assertEqual(data.get("data"), [])
             self.assertTrue(isinstance(data.get("data"), list))
-
-    def test_with_and_filter(self):
-        """Test the filter[and:] param in the view."""
-        url = reverse("openshift-aws-tags")
-        client = APIClient()
-
-        params = {
-            "filter[resolution]": "daily",
-            "filter[time_scope_value]": "-10",
-            "filter[time_scope_units]": "day",
-            "filter[and:account]": ["account1", "account2"],
-        }
-        url = url + "?" + urlencode(params, quote_via=quote_plus)
-        response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-        response_data = response.json()
-        self.assertEqual(response_data.get("data", []), [])
