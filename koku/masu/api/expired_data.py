@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for expired_data endpoint."""
+import json
 import logging
 
 from django.views.decorators.cache import never_cache
@@ -49,11 +50,7 @@ def expired_data(request):
     if line_items_only not in acceptabools:
         errmsg = "The param line_items_only must be {}.".format(str(acceptabools))
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
-    if line_items_only == "true":
-        line_items_only = True
-    else:
-        line_items_only = False
-
+    line_items_only = json.loads(line_items_only)
     orchestrator = Orchestrator()
     async_delete_results = orchestrator.remove_expired_report_data(simulate=simulate, line_items_only=line_items_only)
     response_key = "Async jobs for expired data removal"
