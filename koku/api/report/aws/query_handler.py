@@ -274,10 +274,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                                     0
                                 )
                             )
-                        )
-                        tag_indicator_query = tag_indicator_query.values('r_account_alias', 'tags_exist_sum')
-                        tag_indicator_query.group_by = ['r_account_alias'] 
-
+                        ).values('r_account_alias', 'tags_exist_sum')
 
             query_sum = self._build_sum(query, annotations)
 
@@ -306,7 +303,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 unique_accounts = list({r['account_alias'] for r in query_results})
                 # Filter the tag_indicator_query by those accounts
                 tag_indicator_query.filter(r_account_alias__in=unique_accounts)
-                LOG.info(f'TAG INDICATOR QUERY = {tag_indicator_query}')
+                LOG.info(f'TAG INDICATOR QUERY = {tag_indicator_query.query}')
                 # Get the tag results into a dict
                 tag_results = {r['r_account_alias']: (r['tags_exist_sum'] > 0) for r in tag_indicator_query}
                 # Add the tag results to the report query result dicts
