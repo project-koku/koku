@@ -220,6 +220,85 @@ class AWSReportQueryHandler(ReportQueryHandler):
             query_sum.update(sum_units)
             self._pack_data_object(query_sum, **self._mapper.PACK_DEFINITIONS)
         return query_sum
+    
+    def _get_associated_tags(self, query_table, base_query_filters):
+        def __resolve_op(op_str):
+            """
+            Resolve a django lookup op to a PostgreSQL operator
+            """
+            op_map = {
+                None: '=',
+                '': '=',
+                'lt': '<',
+                'lte': '<=',
+                'gt': '>',
+                'gte': '>=',
+                'contains': 'like',
+                'icontains': 'ilike'
+            }
+
+            return op_map[op_str]
+        
+        def __resolve_conditions(condition, where=None, values=None):
+            """
+            Resolve a Q object to a PostgreSQL where clause condition string
+            """
+            if where is None:
+                where = []
+            if values is None:
+                values = []
+            
+            for cond in condition.children:
+                if isinstance(cond, Q):
+                    __resolve_conditions(cond, where, values)
+                else:
+                    conditional_parts = cond[0].split('__')
+                    col = conditional_parts[0]
+                    cast = f'::{conditional_parts[1]}' if len(conditional_parts) > 2 else ''
+                    op = __resolve_op(conditional_parts[-1]) if len(conditional_parts) > 1 else resolve_op(None)
+                    where.append(f" {col}{cast} {op} %s{cast} ")
+                    values.append(f'%{cond[1]}%' if op.endswith('like') else cond[1])
+
+            return f'( {condition.connector.join(where)} )', values
+
+        # Test the table to see if we can link to the daily summary table for tags
+        try:
+            _ = query_table._meta.get_field('usage_account_id')
+            _ = query_table._meta.get_field('account_alias_id')
+        except FieldDoesNotExist:
+            return {}
+        else:
+            aws_tags_daily_summary_table = 'reporting_awscostentrylineitem_daily_summary'
+            if query_table._meta.db_table != aws_tags_daily_summary_table:
+                join_table = f"""
+  join {query_table._meta.db_table} as "b"
+    on b.usage_account_id = t.usage_account_id
+"""
+            else:
+                join_table = ''
+            
+            where_clause, values = __resolve_conditions(base_query_filters)
+            sql = f"""
+select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
+       sum((coalesce(t.tags, '{{}}'::jsonb) <> '{{}}'::jsonb)::boolean::int)::int as "tags_exist_sum"
+  from {aws_tags_daily_summary_table} as "t"{join_table}
+  left
+  join reporting_awsaccountalias as "raa"
+    on raa.id = t.account_alias_id
+ where {where_clause} 
+ group 
+    by "account" ;"""
+
+            from django.db import connection
+            try:
+                with connection.cursor() as cur:
+                    cur.execute(sql, values)
+                    res = {rec[0]: rec[1] for rec in cur}
+            except Exception as e:
+                LOG.error(e)
+                res = {}
+
+            return res
 
     def execute_query(self):
         """Execute query and return provided data.
@@ -232,7 +311,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         with tenant_context(self.tenant):
             query_table = self.query_table
-            tag_indicator_query = None
+            tag_results = None
             query = query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
@@ -253,28 +332,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 )
 
                 if self.parameters.parameters.get("check_tags"):
-                    # Setup tags exist query for the returned data
-                    try:
-                        # The table to query is resolved. Verify that the "tags" col/field exists
-                        _ = query_table._meta.get_field('tags')
-                    except FieldDoesNotExist:
-                        pass
-                    else:
-                        tag_indicator_query = query_table.objects.filter(self.query_filter)
-                        tag_indicator_query = tag_indicator_query.annotate(
-                            r_account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id"),
-                            tags_exist_sum=Sum(
-                                Coalesce(
-                                    Case(
-                                        When(tags__isnull=True, then=0),
-                                        When(~Q(tags=Cast(Value('{}'), output_field=JSONField())), then=1),
-                                        default_value=0,
-                                        output_field=IntegerField()
-                                    ),
-                                    0
-                                )
-                            )
-                        ).values('r_account_alias', 'tags_exist_sum')
+                    tag_results = self._get_associated_tags(query_table, self.query_filter  )
 
             query_sum = self._build_sum(query, annotations)
 
@@ -296,19 +354,12 @@ class AWSReportQueryHandler(ReportQueryHandler):
             query_results = list(query_data)
 
             # Resolve tag exists for unique account returned
-            # if tag_indicator_query is not None
+            # if tag_results is not Falsey
             # Append the flag to the query result for the report
-            if tag_indicator_query is not None:
-                # First resolve all of the unique accounts returned in the results
-                unique_accounts = list({r['account_alias'] for r in query_results})
-                # Filter the tag_indicator_query by those accounts
-                tag_indicator_query.filter(r_account_alias__in=unique_accounts)
-                LOG.info(f'TAG INDICATOR QUERY = {tag_indicator_query.query}')
-                # Get the tag results into a dict
-                tag_results = {r['r_account_alias']: (r['tags_exist_sum'] > 0) for r in tag_indicator_query}
+            if tag_results:
                 # Add the tag results to the report query result dicts
                 for res in query_results:
-                    res['tags_exist'] = tag_results.get(res['account_alias'], False)
+                    res['tags_exist'] = bool(tag_results.get(res['account_alias'], 0))
 
             if is_csv_output:
                 if self._limit:
