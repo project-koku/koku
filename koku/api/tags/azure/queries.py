@@ -30,8 +30,6 @@ class AzureTagQueryHandler(TagQueryHandler):
 
     data_sources = [{"db_table": AzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
 
-    SUPPORTED_FILTERS = ["subscription_guid"]
-    FILTER_MAP = {"subscription_guid": {"field": "subscription_guid", "operation": "icontains"}}
     provider = Provider.PROVIDER_AZURE
 
     def __init__(self, parameters):
