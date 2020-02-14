@@ -238,11 +238,13 @@ class TagQueryHandler(QueryHandler):
         """
         type_filter = self.parameters.get_filter("type")
 
+        # Sort the data_sources so that those with a "type" go first
+        sources = sorted(self.data_sources, key=lambda dikt: dikt.get("type", ""), reverse=True)
         merged_data = defaultdict(list)
         final_data = []
         with tenant_context(self.tenant):
             tag_keys = {}
-            for source in self.data_sources:
+            for source in sources:
                 if type_filter and type_filter != source.get("type"):
                     continue
                 exclusion = self._get_exclusions("key")
@@ -259,6 +261,7 @@ class TagQueryHandler(QueryHandler):
 
                 if source.get("type"):
                     self.append_to_final_data_with_type(final_data, merged_data, source)
+                    # since sources with type are first, merged_data can be reset
                     merged_data = defaultdict(list)
 
             if not source.get("type"):
@@ -266,10 +269,22 @@ class TagQueryHandler(QueryHandler):
 
         return final_data
 
+    @staticmethod
+    def _get_dictionary_for_key(dictionary_list, key):
+        """Get dictionary matching key from list of dictionaries."""
+        for di in dictionary_list:
+            if key in di.get("key"):
+                return di
+        return None
+
     def append_to_final_data_with_type(self, final_data, merged_data, source):
         """Convert data to final list with a source type."""
         for k, v in merged_data.items():
-            temp = {"key": k, "values": v, "type": source.get("type")}
+            dikt = self._get_dictionary_for_key(final_data, k)
+            if dikt and dikt.get("type") == source.get("type"):
+                dikt["values"].extend(v)
+            else:
+                temp = {"key": k, "values": v, "type": source.get("type")}
             final_data.append(temp)
 
     def append_to_final_data_without_type(self, final_data, merged_data):
