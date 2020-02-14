@@ -22,15 +22,27 @@ import requests
 import requests_mock
 from django.test import TestCase
 from faker import Faker
+from kafka.errors import KafkaError
 
 import sources.kafka_listener as source_integration
 from api.provider.models import Provider
 from api.provider.models import Sources
+from masu.prometheus_stats import WORKER_REGISTRY
 from sources.config import Config
 from sources.sources_http_client import SourcesHTTPClientError
 
 faker = Faker()
 SOURCES_APPS = "http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}"
+
+
+async def raise_exception():
+    """Raise KafkaError"""
+    raise KafkaError()
+
+
+async def dont_raise_exception():
+    """Return None"""
+    return None
 
 
 class ConsumerRecord:
@@ -738,3 +750,11 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         source_integration.sources_network_auth_info(test_resource_id, test_auth_header)
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEquals(source_obj.authentication, {})
+
+    @patch("sources.kafka_listener.AIOKafkaConsumer.start", side_effect=[raise_exception(), dont_raise_exception()])
+    def test_kafka_connection_metrics_listen_for_messages(self, mock_start):
+        """Test check_kafka_connection increments kafka connection errors on KafkaError."""
+        connection_errors_before = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
+        source_integration.check_kafka_connection()
+        connection_errors_after = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
+        self.assertEqual(connection_errors_after - connection_errors_before, 1)

@@ -110,6 +110,34 @@ class QueryFilterTest(TestCase):
         with self.assertRaises(TypeError):
             QueryFilter().from_string(test_string)
 
+    def test_comparison_eq(self):
+        """Test the __eq__() method."""
+        word = self.fake.word()
+        qf1 = QueryFilter(table=word)
+        qf2 = QueryFilter(table=word)
+        self.assertTrue(qf1 == qf2)
+
+    def test_comparison_ne(self):
+        """Test the __ne__() method provided by @total_ordering."""
+        word = self.fake.word()
+        qf1 = QueryFilter(table=word)
+        qf2 = QueryFilter(field=word)
+        self.assertTrue(qf1 != qf2)
+
+    def test_comparison_lt(self):
+        """Test the __lt__() method."""
+        word = self.fake.word()
+        qf1 = QueryFilter(table=word)
+        qf2 = QueryFilter(field=word)
+        self.assertTrue(qf1 < qf2)
+
+    def test_comparison_gt(self):
+        """Test the __gt__() method provided by @total_ordering."""
+        word = self.fake.word()
+        qf1 = QueryFilter(field=word)
+        qf2 = QueryFilter(table=word)
+        self.assertTrue(qf1 > qf2)
+
 
 class QueryFilterCollectionTest(TestCase):
     """Test the QueryFilterCollection class."""
