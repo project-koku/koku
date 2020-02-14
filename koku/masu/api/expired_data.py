@@ -44,12 +44,12 @@ def expired_data(request):
     LOG.info("Simulate Flag: %s", simulate)
 
     params = request.query_params
-    acceptabools = ["true", "True", "false", "False"]
-    line_items_only = params.get("line_items_only", "False")
+    acceptabools = ["true", "false"]
+    line_items_only = params.get("line_items_only", "false").lower()
     if line_items_only not in acceptabools:
         errmsg = "The param line_items_only must be {}.".format(str(acceptabools))
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
-    if line_items_only in acceptabools[:2]:
+    if line_items_only == "true":
         line_items_only = True
     else:
         line_items_only = False
