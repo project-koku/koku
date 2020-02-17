@@ -27,6 +27,8 @@ class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
 
     provider = Provider.OCP_AZURE
     data_sources = [{"db_table": AzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
+    SUPPORTED_FILTERS = AzureTagQueryHandler.SUPPORTED_FILTERS + OCPTagQueryHandler.SUPPORTED_FILTERS
+    FILTER_MAP = {**AzureTagQueryHandler.FILTER_MAP, **OCPTagQueryHandler.FILTER_MAP}
 
     def __init__(self, parameters):
         """Establish Azure report query handler.

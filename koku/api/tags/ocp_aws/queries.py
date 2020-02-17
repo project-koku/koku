@@ -27,6 +27,8 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
 
     provider = Provider.OCP_AWS
     data_sources = [{"db_table": AWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
+    SUPPORTED_FILTERS = AWSTagQueryHandler.SUPPORTED_FILTERS + OCPTagQueryHandler.SUPPORTED_FILTERS
+    FILTER_MAP = {**AWSTagQueryHandler.FILTER_MAP, **OCPTagQueryHandler.FILTER_MAP}
 
     def __init__(self, parameters):
         """Establish AWS report query handler.
