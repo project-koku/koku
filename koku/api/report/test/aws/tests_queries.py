@@ -1406,3 +1406,61 @@ class AWSQueryHandlerTest(IamTestCase):
         # Both regions should be in the resulting group_by list.
         self.assertTrue(region_1_exists)
         self.assertTrue(region_2_exists)
+
+    def test_query_no_account_group_check_tags_no_tags(self):
+        """Test "tags_exist" is not present if not grouping by account, and has "check_tags" parameter."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=AmazonEC2&check_tags=true"  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+
+        for data_item in data:
+            for account_item in data_item['services']:
+                for value_item in account_item['values']:
+                    self.assertTrue('tags_exist' not in value_item)
+
+    def test_query_account_group_no_check_tags_no_tags(self):
+        """Test "tags_exist" is not present if grouping by account, but missing "check_tags" parameter."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+
+        for data_item in data:
+            for account_item in data_item['accounts']:
+                for value_item in account_item['values']:
+                    self.assertTrue('tags_exist' not in value_item)
+
+    def test_query_account_group_check_tags_has_tags(self):
+        """Test "tags_exist" is present if grouping by account and has "check_tags" parameter."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&check_tags=true"  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+
+        for data_item in data:
+            for account_item in data_item['accounts']:
+                for value_item in account_item['values']:
+                    self.assertTrue('tags_exist' in value_item)
+
+    def test_query_account_group_no_check_tags_has_tags_base_table(self):
+        """Test "tags_exist" is not present if grouping by account as well as another group and has"check_tags" parameter."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[or:account]=*&group_by[or:service]=AmazonEC2&check_tags=true"  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+
+        for data_item in data:
+            for account_item in data_item['accounts']:
+                for service_item in account_item['services']:
+                    for value_item in service_item['values']:
+                        self.assertTrue('tags_exist' in value_item)
+

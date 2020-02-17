@@ -222,9 +222,27 @@ class AWSReportQueryHandler(ReportQueryHandler):
         return query_sum
     
     def _get_associated_tags(self, query_table, base_query_filters):
+        """
+        Query the reporting_awscostentrylineitem_daily_summary for existence of associated
+        tags grouped by the account.
+        
+        Args:
+            query_table (django.db.model) : Table containing the data against which we want to check for tags
+            base_query_filters (django.db.model.Q) : Query filters to apply to table arg
+
+        Returns:
+            dict : {account (str): tags_exist(bool)}
+        """
+
         def __resolve_op(op_str):
             """
             Resolve a django lookup op to a PostgreSQL operator
+
+            Args:
+                op_str (str) : django field lookup operator string
+            
+            Returns:
+                str : Translated PostgreSQL operator
             """
             op_map = {
                 None: '=',
@@ -234,14 +252,27 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 'gt': '>',
                 'gte': '>=',
                 'contains': 'like',
-                'icontains': 'ilike'
+                'icontains': 'ilike',
+                'startswith': 'like',
+                'istartswith': 'ilike',
+                'endswith': 'like',
+                'iendswith': 'ilike',
             }
 
             return op_map[op_str]
         
-        def __resolve_conditions(condition, where=None, values=None):
+        def __resolve_conditions(condition, alias='t', where=None, values=None):
             """
             Resolve a Q object to a PostgreSQL where clause condition string
+
+            Args:
+                condition (django.db.models.Q) Filters for the query
+                alias (str) : Table alias (set by the calling function)
+                where (None/List): Used for recursive calls only.
+                values (None/List): Used for recursive calls only.
+            
+            Returns:
+                dict : Result of query. On error, a log message is written and an empty dict is returned
             """
             if where is None:
                 where = []
@@ -250,14 +281,15 @@ class AWSReportQueryHandler(ReportQueryHandler):
             
             for cond in condition.children:
                 if isinstance(cond, Q):
-                    __resolve_conditions(cond, where, values)
+                    __resolve_conditions(cond, alias, where, values)
                 else:
                     conditional_parts = cond[0].split('__')
                     col = conditional_parts[0]
                     cast = f'::{conditional_parts[1]}' if len(conditional_parts) > 2 else ''
-                    op = __resolve_op(conditional_parts[-1]) if len(conditional_parts) > 1 else resolve_op(None)
-                    where.append(f" {col}{cast} {op} %s{cast} ")
-                    values.append(f'%{cond[1]}%' if op.endswith('like') else cond[1])
+                    dj_op = conditional_parts[-1]
+                    op = __resolve_op(dj_op) if len(conditional_parts) > 1 else __resolve_op(None)
+                    where.append(f" {'not ' if condition.negated else ''}{alias}.{col}{cast} {op} %s{cast} ")
+                    values.append(f'%{cond[1]}%' if dj_op.endswith('contains') else f'%{cond[1]}' if dj_op.endswith('startswith') else f'{cond[1]}%' if dj_op.endswith('endswith') else cond[1])
 
             return f'( {condition.connector.join(where)} )', values
 
@@ -277,7 +309,11 @@ class AWSReportQueryHandler(ReportQueryHandler):
             else:
                 join_table = ''
             
-            where_clause, values = __resolve_conditions(base_query_filters)
+            where_clause, values = __resolve_conditions(base_query_filters, 
+                                                        'b' if query_table._meta.db_table != aws_tags_daily_summary_table else 't')
+
+            # Django ORM was producing inefficient and incorrect SQL for the query using this expression.
+            # Therefore, at this time, the query will be written out until we can correct the ORM issue.
             sql = f"""
 select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
        sum((coalesce(t.tags, '{{}}'::jsonb) <> '{{}}'::jsonb)::boolean::int)::int as "tags_exist_sum"
@@ -288,12 +324,14 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
  where {where_clause} 
  group 
     by "account" ;"""
+            #LOG.debug(f"AWS TAG CHECK QUERY: {sql}")
+            #LOG.debug(f"AWS_TAG CHECK QUERY VALUES: {values}")
 
             from django.db import connection
             try:
                 with connection.cursor() as cur:
                     cur.execute(sql, values)
-                    res = {rec[0]: rec[1] for rec in cur}
+                    res = {rec[0]: bool(rec[1]) for rec in cur}
             except Exception as e:
                 LOG.error(e)
                 res = {}
@@ -332,7 +370,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 )
 
                 if self.parameters.parameters.get("check_tags"):
-                    tag_results = self._get_associated_tags(query_table, self.query_filter  )
+                    tag_results = self._get_associated_tags(query_table, self.query_filter)
 
             query_sum = self._build_sum(query, annotations)
 
@@ -356,10 +394,10 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             # Resolve tag exists for unique account returned
             # if tag_results is not Falsey
             # Append the flag to the query result for the report
-            if tag_results:
+            if tag_results is not None:
                 # Add the tag results to the report query result dicts
                 for res in query_results:
-                    res['tags_exist'] = bool(tag_results.get(res['account_alias'], 0))
+                    res['tags_exist'] = tag_results.get(res['account_alias'], False)
 
             if is_csv_output:
                 if self._limit:
