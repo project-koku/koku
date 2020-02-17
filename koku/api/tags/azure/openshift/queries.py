@@ -19,6 +19,7 @@ from api.models import Provider
 from api.report.azure.openshift.provider_map import OCPAzureProviderMap
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.ocp.queries import OCPTagQueryHandler
+from api.utils import merge_dicts
 from reporting.models import AzureTagsSummary
 
 
@@ -28,7 +29,7 @@ class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
     provider = Provider.OCP_AZURE
     data_sources = [{"db_table": AzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
     SUPPORTED_FILTERS = AzureTagQueryHandler.SUPPORTED_FILTERS + OCPTagQueryHandler.SUPPORTED_FILTERS
-    FILTER_MAP = {**AzureTagQueryHandler.FILTER_MAP, **OCPTagQueryHandler.FILTER_MAP}
+    FILTER_MAP = merge_dicts(AzureTagQueryHandler.FILTER_MAP, OCPTagQueryHandler.FILTER_MAP)
 
     def __init__(self, parameters):
         """Establish Azure report query handler.

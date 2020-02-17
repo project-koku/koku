@@ -19,6 +19,7 @@ from api.models import Provider
 from api.report.ocp_aws.provider_map import OCPAWSProviderMap
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.ocp.queries import OCPTagQueryHandler
+from api.utils import merge_dicts
 from reporting.models import AWSTagsSummary
 
 
@@ -28,7 +29,7 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
     provider = Provider.OCP_AWS
     data_sources = [{"db_table": AWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
     SUPPORTED_FILTERS = AWSTagQueryHandler.SUPPORTED_FILTERS + OCPTagQueryHandler.SUPPORTED_FILTERS
-    FILTER_MAP = {**AWSTagQueryHandler.FILTER_MAP, **OCPTagQueryHandler.FILTER_MAP}
+    FILTER_MAP = merge_dicts(AWSTagQueryHandler.FILTER_MAP, OCPTagQueryHandler.FILTER_MAP)
 
     def __init__(self, parameters):
         """Establish AWS report query handler.
