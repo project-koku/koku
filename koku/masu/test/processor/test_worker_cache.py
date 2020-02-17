@@ -35,7 +35,7 @@ class WorkerCacheTest(MasuTestCase):
         cache.clear()
 
     def tearDown(self):
-        """Set up the test."""
+        """Tear down the test."""
         super().tearDown()
         cache.clear()
 
