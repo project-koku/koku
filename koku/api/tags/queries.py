@@ -70,10 +70,8 @@ class TagQueryHandler(QueryHandler):
             parameters    (QueryParameters): parameter object for query
 
         """
-        if parameters.parameters.get("filter", {}).get("time_scope_value") == "-10":
-            parameters.parameters["filter"]["time_scope_value"] = "-1"
-            parameters.parameters["filter"]["time_scope_units"] = "month"
-            parameters.parameters["filter"]["resolution"] = "monthly"
+        if parameters.get_filter("time_scope_value") == "-10":
+            parameters.set_filter(time_scope_value="-1", time_scope_units="month", resolution="monthly")
 
         super().__init__(parameters)
         # super() needs to be called before calling _get_filter()
