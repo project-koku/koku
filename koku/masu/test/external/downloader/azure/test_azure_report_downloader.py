@@ -83,10 +83,9 @@ class MockAzureService:
 
         class Export:
             name = self.export_file
-            properties = ExportProperties()
 
         if key == self.export_key:
-            mock_export = Export()
+            mock_export = ExportProperties()
         else:
             message = f"No cost report for report name {key} found in container {container_name}."
             raise AzureCostReportNotFound(message)
