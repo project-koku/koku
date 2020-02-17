@@ -128,7 +128,7 @@ class WorkerCacheTest(MasuTestCase):
         self.assertTrue(_cache.task_is_running(1))
 
     def test_task_is_running_false(self):
-        """Test that a task is running."""
+        """Test that a task is not running."""
         task_list = [1, 2, 3]
         _cache = WorkerCache()
         _cache.set_host_specific_task_list(task_list)
