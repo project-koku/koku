@@ -25,6 +25,7 @@ from reporting.models import OCPUsagePodLabelSummary
 class OCPTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for OCP."""
 
+    provider = Provider.PROVIDER_OCP
     data_sources = [
         {"db_table": OCPUsagePodLabelSummary, "db_column_period": "report_period__report_period", "type": "pod"},
         {
@@ -33,7 +34,8 @@ class OCPTagQueryHandler(TagQueryHandler):
             "type": "storage",
         },
     ]
-    provider = Provider.PROVIDER_OCP
+    SUPPORTED_FILTERS = ["project"]
+    FILTER_MAP = {"project": {"field": "namespace", "operation": "icontains"}}
 
     def __init__(self, parameters):
         """Establish AWS report query handler.

@@ -25,8 +25,8 @@ from reporting.models import AzureTagsSummary
 class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
     """Handles tag queries and responses for OCP-on-Azure."""
 
-    data_sources = [{"db_table": AzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
     provider = Provider.OCP_AZURE
+    data_sources = [{"db_table": AzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
 
     def __init__(self, parameters):
         """Establish Azure report query handler.

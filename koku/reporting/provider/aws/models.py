@@ -281,6 +281,7 @@ class AWSTagsSummary(models.Model):
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
     cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE)
+    accounts = ArrayField(models.CharField(max_length=63))
 
 
 # Materialized Views for UI Reporting

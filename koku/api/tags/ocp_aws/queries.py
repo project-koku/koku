@@ -25,8 +25,8 @@ from reporting.models import AWSTagsSummary
 class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
     """Handles tag queries and responses for OCP-on-AWS."""
 
-    data_sources = [{"db_table": AWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
     provider = Provider.OCP_AWS
+    data_sources = [{"db_table": AWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
 
     def __init__(self, parameters):
         """Establish AWS report query handler.

@@ -17,8 +17,14 @@
 """Tag serializers."""
 from rest_framework import serializers
 
+from api.report.serializers import add_operator_specified_fields
 from api.report.serializers import handle_invalid_fields
+from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
+
+OCP_FILTER_OP_FIELDS = ["project"]
+AWS_FILTER_OP_FIELDS = ["account"]
+AZURE_FILTER_OP_FIELDS = ["subscription_guid"]
 
 
 class FilterSerializer(serializers.Serializer):
@@ -54,25 +60,61 @@ class OCPFilterSerializer(FilterSerializer):
     TYPE_CHOICES = (("pod", "pod"), ("storage", "storage"))
     type = serializers.ChoiceField(choices=TYPE_CHOICES, required=False)
 
+    project = StringOrListField(child=serializers.CharField(), required=False)
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the OCPFilterSerializer."""
+        super().__init__(*args, **kwargs)
+        add_operator_specified_fields(self.fields, OCP_FILTER_OP_FIELDS)
+
 
 class AWSFilterSerializer(FilterSerializer):
     """Serializer for handling tag query parameter filter."""
+
+    account = StringOrListField(child=serializers.CharField(), required=False)
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the AWSFilterSerializer."""
+        super().__init__(*args, **kwargs)
+        add_operator_specified_fields(self.fields, AWS_FILTER_OP_FIELDS)
 
 
 class OCPAWSFilterSerializer(AWSFilterSerializer, OCPFilterSerializer):
     """Serializer for handling tag query parameter filter."""
 
+    def __init__(self, *args, **kwargs):
+        """Initialize the AWSFilterSerializer."""
+        super().__init__(*args, **kwargs)
+        add_operator_specified_fields(self.fields, AWS_FILTER_OP_FIELDS + OCP_FILTER_OP_FIELDS)
+
 
 class OCPAllFilterSerializer(AWSFilterSerializer, OCPFilterSerializer):
     """Serializer for handling tag query parameter filter."""
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the AWSFilterSerializer."""
+        super().__init__(*args, **kwargs)
+        add_operator_specified_fields(self.fields, AWS_FILTER_OP_FIELDS + OCP_FILTER_OP_FIELDS)
 
 
 class AzureFilterSerializer(FilterSerializer):
     """Serializer for handling tag query parameter filter."""
 
+    subscription_guid = StringOrListField(child=serializers.CharField(), required=False)
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the AzureFilterSerializer."""
+        super().__init__(*args, **kwargs)
+        add_operator_specified_fields(self.fields, AZURE_FILTER_OP_FIELDS)
+
 
 class OCPAzureFilterSerializer(AzureFilterSerializer, OCPFilterSerializer):
     """Serializer for handling tag query parameter filter."""
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the AzureFilterSerializer."""
+        super().__init__(*args, **kwargs)
+        add_operator_specified_fields(self.fields, AZURE_FILTER_OP_FIELDS + OCP_FILTER_OP_FIELDS)
 
 
 class TagsQueryParamSerializer(serializers.Serializer):

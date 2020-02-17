@@ -24,8 +24,10 @@ from reporting.models import AWSTagsSummary
 class AWSTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for AWS."""
 
-    data_sources = [{"db_table": AWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
     provider = Provider.PROVIDER_AWS
+    data_sources = [{"db_table": AWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
+    SUPPORTED_FILTERS = ["account"]
+    FILTER_MAP = {"account": [{"field": "accounts", "operation": "icontains", "composition_key": "account_filter"}]}
 
     def __init__(self, parameters):
         """Establish AWS report query handler.

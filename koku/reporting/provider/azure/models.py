@@ -150,3 +150,4 @@ class AzureTagsSummary(models.Model):
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
+    subscription_guid = ArrayField(models.CharField(max_length=50))
