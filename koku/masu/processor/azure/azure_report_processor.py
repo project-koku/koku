@@ -287,7 +287,7 @@ class AzureReportProcessor(ReportProcessorBase):
                 for row in reader:
                     if not self._should_process_row(row, "UsageDateTime", is_full_month):
                         continue
-                    _ = self.create_cost_entry_objects(row, report_db)
+                    self.create_cost_entry_objects(row, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:
                         LOG.info(
                             "Saving report rows %d to %d for %s",

@@ -9,7 +9,7 @@ if (env.CHANGE_ID) {
     execSmokeTest (
         ocDeployerBuilderPath: "hccm/koku",
         ocDeployerComponentPath: "hccm",
-        ocDeployerServiceSets: "hccm,platform,platform-mq",
+        ocDeployerServiceSets: "ingress,platform-mq,hccm",
         iqePlugins: ["iqe-hccm-plugin"],
         pytestMarker: "hccm_smoke",
         // local settings file
