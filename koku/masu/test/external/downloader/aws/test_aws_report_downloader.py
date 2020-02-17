@@ -532,3 +532,24 @@ class AWSReportDownloaderTest(MasuTestCase):
             )
             # Re-enable log suppression
             logging.disable(logging.CRITICAL)
+
+    def test_init_with_demo_account(self):
+        """Test init with the demo account."""
+        mock_task = Mock(request=Mock(id=str(self.fake.uuid4()), return_value={}))
+        account_id = "123456"
+        auth_credential = fake_arn(service="iam", generate_account_id=True)
+        report_name = FAKE.word()
+        demo_accounts = {account_id: {auth_credential: {"report_name": report_name, "report_prefix": FAKE.word()}}}
+        with self.settings(DEMO_ACCOUNTS=demo_accounts):
+            with patch("masu.util.aws.common.get_assume_role_session") as mock_session:
+                AWSReportDownloader(
+                    **{
+                        "task": mock_task,
+                        "customer_name": f"acct{account_id}",
+                        "auth_credential": auth_credential,
+                        "bucket": FAKE.word(),
+                        "report_name": report_name,
+                        "provider_uuid": self.aws_provider_uuid,
+                    }
+                )
+                mock_session.assert_called_once()
