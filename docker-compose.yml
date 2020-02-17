@@ -36,6 +36,7 @@ services:
         - prometheus_multiproc_dir=/tmp
         - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
         - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+        - DEMO_ACCOUNTS=${DEMO_ACCOUNTS}
       privileged: true
       ports:
           - 8000:8000
@@ -166,6 +167,7 @@ services:
         - KOKU_CELERY_ENABLE_SENTRY
         - KOKU_CELERY_SENTRY_DSN
         - KOKU_SENTRY_ENVIRONMENT
+        - DEMO_ACCOUNTS=${DEMO_ACCOUNTS}
       privileged: true
       volumes:
         - '.:/koku'

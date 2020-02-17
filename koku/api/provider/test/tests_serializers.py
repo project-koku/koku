@@ -497,7 +497,7 @@ class ProviderSerializerTest(IamTestCase):
         instance = None
 
         account_id = self.customer_data.get("account_id")
-        with self.settings(DEMO_ACCOUNTS=[account_id]):
+        with self.settings(DEMO_ACCOUNTS={account_id: {}}):
             with patch.object(ProviderAccessor, "cost_usage_source_ready") as mock_method:
                 serializer = ProviderSerializer(data=provider, context=self.request_context)
                 if serializer.is_valid(raise_exception=True):
