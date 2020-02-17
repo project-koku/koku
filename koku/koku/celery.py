@@ -87,6 +87,13 @@ if REMOVE_EXPIRED_REPORT_DATA_ON_DAY != 0:
     }
     app.conf.beat_schedule["remove-expired-data"] = REMOVE_EXPIRED_DATA_DEF
 
+    # CLEAN_UP_VOLUMES = {
+    #     "task": "masu.celery.tasks.clean_volume",
+    #     "schedule": crontab(hour=int(HOUR), minute=int(MINUTE), day_of_month=CLEANING_DAY),
+    #     "args": [],
+    # }
+    # app.conf.beat_schedule["remove-expired-data"] = CLEAN_UP_VOLUMES
+
 
 # Specify the day of the month for removal of expired report data.
 VACUUM_DATA_DAY_OF_WEEK = ENVIRONMENT.get_value("VACUUM_DATA_DAY_OF_WEEK", default=None)
@@ -108,6 +115,10 @@ app.conf.beat_schedule["vacuum-schemas"] = {
 
 # Collect prometheus metrics.
 app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(minute="*/15")}
+
+# create a task to clean up the volumes - running every minute for now while debugging
+app.conf.beat_schedule["clean_volume"] = {"task": "masu.celery.tasks.clean_volume", "schedule": crontab(minute="*")}
+
 
 # Toggle to enable/disable S3 archiving of account data.
 if ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=True):

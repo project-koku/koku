@@ -111,3 +111,37 @@ class ReportManifestDBAccessor(KokuDBAccess):
         """Return all manifests for a provider and bill date."""
         filters = {"provider_id": provider_uuid, "billing_period_start_datetime__date": bill_date}
         return CostUsageReportManifest.objects.filter(**filters).all()
+
+    def get_last_seen_manifest_id(self, bill_date):
+        """Return a tuple containing the assembly_id of the last seen manifest and a boolean
+
+        The boolean will state whether or not that manifest has been processed."""
+        # get the assembly id that was last seen
+        # similar to select assembly_id from reporting_common_costusagereportmanifest where provider_id =
+        # '01f0bb5f-f98a-453a-ad85-97698aac3895' and
+        # billing_period_start_datetime = '2020-01-01 00:00:00+00' order by id desc limit 1;
+        assembly_id = None
+        processed = True
+        filters = {"billing_period_start_datetime__date": bill_date}
+        report = CostUsageReportManifest.objects.filter(**filters).order_by("-manifest_creation_datetime").first()
+        if report:
+            assembly_id = report.assembly_id
+            num_total_files = report.num_total_files
+            num_processed_files = report.num_processed_files
+            processed = num_total_files == num_processed_files
+
+        print("\n\n\n\n\n report: ")
+        print(report)
+        print(type(report))
+        return assembly_id, processed
+        # assembly_id = report.assembly_id
+        # print(assembly_id)
+        # # now check if that manifest associated with that id has been processed
+        # num_total_files = report.num_total_files
+        # num_processed_files = report.num_processed_files
+        # processed = (num_processed_files == num_total_files)
+        # print(processed)
+        # print(num_processed_files)
+        # print(num_total_files)
+        # processed = False
+        # return ('d597fe25-2c6a-4522-a0e5-d937602ec384', False)

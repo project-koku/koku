@@ -21,6 +21,7 @@ from datetime import tzinfo
 
 import pytz
 from dateutil import parser
+from dateutil.relativedelta import relativedelta
 
 from masu.config import Config
 
@@ -111,3 +112,20 @@ class DateAccessor:
             current_date = DateAccessor.mock_date_time
 
         return current_date
+
+    def get_billing_months(self, number_of_months):
+        """Return a list of datetimes for the number of months to ingest
+
+        Args:
+            number_of_months (int) The the number of months (bills) to ingest.
+
+        Returns:
+            (list) of datetime.datetime objects in YYYY-MM-DD format.
+            example: ["2020-01-01", "2020-02-01"]
+        """
+        months = []
+        current_month = self.today().replace(day=1, second=1, microsecond=1)
+        for month in reversed(range(number_of_months)):
+            calculated_month = current_month + relativedelta(months=-month)
+            months.append(calculated_month.date())
+        return months
