@@ -68,10 +68,10 @@ class QueryHandler:
         self.default_ordering = self._mapper._report_type_map.get("default_ordering")
 
         self.parameters = parameters
-        self.resolution = parameters.parameters.get("filter", {}).get("resolution")
+        self.resolution = self.parameters.get_filter("resolution")
         self.time_interval = []
-        self.time_scope_units = parameters.parameters.get("filter", {}).get("time_scope_units")
-        self.time_scope_value = int(parameters.parameters.get("filter", {}).get("time_scope_value"))
+        self.time_scope_units = self.parameters.get_filter("time_scope_units")
+        self.time_scope_value = int(self.parameters.get_filter("time_scope_value"))
         self.start_datetime = None
         self.end_datetime = None
         self._max_rank = 0
