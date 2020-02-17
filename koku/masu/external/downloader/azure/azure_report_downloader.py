@@ -22,6 +22,8 @@ import datetime
 import logging
 import os
 
+from django.conf import settings
+
 from masu.config import Config
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
@@ -62,6 +64,19 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         super().__init__(task, **kwargs)
+
+        if customer_name[4:] in settings.DEMO_ACCOUNTS:
+            demo_account = settings.DEMO_ACCOUNTS.get(customer_name[4:])
+            LOG.info(f"Info found for demo account {customer_name[4:]} = {demo_account}.")
+            if auth_credential.get("client_id") in demo_account:
+                demo_info = demo_account.get(auth_credential.get("client_id"))
+                self.customer_name = customer_name.replace(" ", "_")
+                self._provider_uuid = kwargs.get("provider_uuid")
+                self.container_name = demo_info.get("container_name")
+                self.directory = demo_info.get("report_prefix")
+                self.export_name = demo_info.get("report_name")
+                self._azure_client = self._get_azure_client(auth_credential, billing_source)
+                return
 
         self._provider_uuid = kwargs.get("provider_uuid")
         self.customer_name = customer_name.replace(" ", "_")
