@@ -30,9 +30,9 @@ AZURE_FILTER_OP_FIELDS = ["subscription_guid"]
 class FilterSerializer(serializers.Serializer):
     """Serializer for handling tag query parameter filter."""
 
-    RESOLUTION_CHOICES = ("monthly", "monthly")
-    TIME_CHOICES = (("-1", "-1"), ("-2", "-2"))
-    TIME_UNIT_CHOICES = ("month", "month")
+    RESOLUTION_CHOICES = (("daily", "daily"), ("monthly", "monthly"))
+    TIME_CHOICES = (("-10", "-10"), ("-30", "-30"), ("-1", "-1"), ("-2", "-2"))
+    TIME_UNIT_CHOICES = (("day", "day"), ("month", "month"))
 
     resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
     time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)
@@ -50,6 +50,28 @@ class FilterSerializer(serializers.Serializer):
 
         """
         handle_invalid_fields(self, data)
+
+        resolution = data.get("resolution")
+        time_scope_value = data.get("time_scope_value")
+        time_scope_units = data.get("time_scope_units")
+
+        if time_scope_units and time_scope_value:
+            msg = "Valid values are {} when time_scope_units is {}"
+            if time_scope_units == "day" and (time_scope_value == "-1" or time_scope_value == "-2"):  # noqa: W504
+                valid_values = ["-10", "-30"]
+                valid_vals = ", ".join(valid_values)
+                error = {"time_scope_value": msg.format(valid_vals, "day")}
+                raise serializers.ValidationError(error)
+            if time_scope_units == "day" and resolution == "monthly":
+                valid_values = ["daily"]
+                valid_vals = ", ".join(valid_values)
+                error = {"resolution": msg.format(valid_vals, "day")}
+                raise serializers.ValidationError(error)
+            if time_scope_units == "month" and (time_scope_value == "-10" or time_scope_value == "-30"):  # noqa: W504
+                valid_values = ["-1", "-2"]
+                valid_vals = ", ".join(valid_values)
+                error = {"time_scope_value": msg.format(valid_vals, "month")}
+                raise serializers.ValidationError(error)
 
         return data
 
