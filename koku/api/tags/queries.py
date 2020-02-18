@@ -25,6 +25,7 @@ from tenant_schemas.utils import tenant_context
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
+from api.utils import DateHelper
 
 LOG = logging.getLogger(__name__)
 
@@ -66,6 +67,8 @@ class TagQueryHandler(QueryHandler):
     SUPPORTED_FILTERS = []
     FILTER_MAP = {}
 
+    dh = DateHelper()
+
     def __init__(self, parameters):
         """Establish tag query handler.
 
@@ -73,12 +76,30 @@ class TagQueryHandler(QueryHandler):
             parameters    (QueryParameters): parameter object for query
 
         """
-        if parameters.get_filter("time_scope_value") == "-10":
-            parameters.set_filter(time_scope_value="-1", time_scope_units="month", resolution="monthly")
-
         super().__init__(parameters)
+        # _set_start_and_end_dates must be called after super and before _get_filter
+        self._set_start_and_end_dates()
         # super() needs to be called before calling _get_filter()
         self.query_filter = self._get_filter()
+
+    def _set_start_and_end_dates(self):
+        """Set start and end dates.
+
+        Start date must be the first of the month. This function checks the
+        time_scope_value and sets the start date to either current month
+        start or previous month start.
+
+        """
+        time_scope = int(self.parameters.get_filter("time_scope_value"))
+        if time_scope not in (-10, -30):
+            return
+        month_start = self.dh.this_month_start
+        if self.dh.n_days_ago(self.dh.today, -(time_scope + 1)) > month_start:
+            self.start_datetime = month_start
+            self.end_datetime = self.dh.today
+        else:
+            self.start_datetime = self.dh.last_month_start
+            self.end_datetime = self.dh.last_month_end
 
     def _format_query_response(self):
         """Format the query response with data.
