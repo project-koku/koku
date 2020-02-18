@@ -51,6 +51,7 @@ from reporting.provider.azure.models import AzureMeter
 from reporting.provider.azure.models import AzureTagsSummary
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
+from reporting.provider.azure.openshift.models import OCPAzureTagsSummary
 from reporting.provider.ocp.costs.models import CostSummary  # noqa: F401
 from reporting.provider.ocp.models import OCPStorageLineItem
 from reporting.provider.ocp.models import OCPStorageLineItemDaily
@@ -63,6 +64,7 @@ from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemProjectDailySummary
+from reporting.provider.ocp_aws.models import OCPAWSTagsSummary
 
 
 AWS_MATERIALIZED_VIEWS = (

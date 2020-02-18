@@ -16,7 +16,7 @@ FROM (
     FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily AS li,
         jsonb_each_text(li.tags) labels
 ) l
-JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
+LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON l.usage_account_id = aa.account_id
 GROUP BY l.key, l.cost_entry_bill_id
 ON CONFLICT (key, cost_entry_bill_id) DO UPDATE
