@@ -56,7 +56,7 @@ help:
 	@echo "  lint                                  run pre-commit against the project"
 	@echo ""
 	@echo "--- Commands using local services ---"
-	@echo "  clear-testing						   Remove stale files/subdirectories from the testing directory.""
+	@echo "  clear-testing						   Remove stale files/subdirectories from the testing directory."
 	@echo "  create-test-customer                  create a test customer and tenant in the database"
 	@echo "  create-test-customer-no-providers     create a test customer and tenant in the database without test providers"
 	@echo "  create-large-ocp-provider-config-file create a config file for nise to generate a large data sample"
