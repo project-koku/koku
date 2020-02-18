@@ -50,7 +50,9 @@ class ProviderDBAccessor(KokuDBAccess):
     @property
     def infrastructure(self):
         """Return the infrastructure object for the provider."""
-        return self.provider.infrastructure
+        if self.provider:
+            return self.provider.infrastructure
+        return None
 
     # pylint: disable=arguments-differ
     def _get_db_obj_query(self):
