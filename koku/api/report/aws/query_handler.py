@@ -301,6 +301,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
             return {}
         else:
             aws_tags_daily_summary_table = 'reporting_awscostentrylineitem_daily_summary'
+            # If the select table is not the above table, we need to join it to the above table
+            # as it is the table containing the tag data
             if query_table._meta.db_table != aws_tags_daily_summary_table:
                 join_table = f"""
   join {query_table._meta.db_table} as "b"
