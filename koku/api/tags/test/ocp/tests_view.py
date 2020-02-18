@@ -122,13 +122,8 @@ class OCPTagsViewTest(IamTestCase):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             data = response.json()
-            start_range, end_range = self._calculate_expected_range(case.get("value"), case.get("unit"))
 
             for tag in data.get("data"):
-                label = tag.get("key")
-                label_date = datetime.datetime.strptime(label.split("*")[0], "%m-%d-%Y")
-                self.assertGreaterEqual(label_date.date(), start_range)
-                self.assertLessEqual(label_date.date(), end_range)
                 self.assertIsNotNone(tag.get("values"))
 
             self.assertTrue(data.get("data"))
@@ -157,13 +152,8 @@ class OCPTagsViewTest(IamTestCase):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             data = response.json()
-            start_range, end_range = self._calculate_expected_range(case.get("value"), case.get("unit"))
 
             for tag in data.get("data"):
-                label = tag.get("key")
-                label_date = datetime.datetime.strptime(label.split("*")[0], "%m-%d-%Y")
-                self.assertGreaterEqual(label_date.date(), start_range)
-                self.assertLessEqual(label_date.date(), end_range)
                 self.assertIsNotNone(tag.get("values"))
 
             self.assertTrue(data.get("data"))
