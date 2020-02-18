@@ -71,6 +71,7 @@ class OCPReportDownloaderTest(MasuTestCase):
             report_source=None,
             provider_type=Provider.PROVIDER_OCP,
             provider_uuid=self.ocp_provider_uuid,
+            cache_key=self.fake.word(),
         )
 
         self.ocp_report_downloader = OCPReportDownloader(
@@ -80,6 +81,7 @@ class OCPReportDownloaderTest(MasuTestCase):
                 "auth_credential": self.cluster_id,
                 "bucket": None,
                 "provider_uuid": self.ocp_provider_uuid,
+                "cache_key": self.fake.word(),
             }
         )
 

@@ -93,6 +93,7 @@ class GetReportFileTests(MasuTestCase):
             report_month=DateAccessor().today(),
             provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
+            cache_key=self.fake.word(),
         )
 
         self.assertIsInstance(report, list)
@@ -115,6 +116,7 @@ class GetReportFileTests(MasuTestCase):
                 report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
+                cache_key=self.fake.word(),
             )
             statement_found = False
             for log in logger.output:
@@ -145,6 +147,7 @@ class GetReportFileTests(MasuTestCase):
                 report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
+                cache_key=self.fake.word(),
             )
             self.assertIn(expected, logger.output)
 
@@ -162,6 +165,7 @@ class GetReportFileTests(MasuTestCase):
                 report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
+                cache_key=self.fake.word(),
             )
 
     @patch("masu.processor._tasks.download.ProviderStatus.set_error")
@@ -182,6 +186,7 @@ class GetReportFileTests(MasuTestCase):
                 report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
+                cache_key=self.fake.word(),
             )
         except ReportDownloaderError:
             pass
@@ -201,6 +206,7 @@ class GetReportFileTests(MasuTestCase):
             report_month=DateAccessor().today(),
             provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
+            cache_key=self.fake.word(),
         )
         fake_status.assert_called_with(ProviderStatusCode.READY)
 
