@@ -171,6 +171,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "koku.wsgi.application"
 
+WORKER_CACHE_KEY = "worker"
+HOSTNAME = ENVIRONMENT.get_value("HOSTNAME", default="localhost")
+
 REDIS_HOST = ENVIRONMENT.get_value("REDIS_HOST", default="redis")
 REDIS_PORT = ENVIRONMENT.get_value("REDIS_PORT", default="6379")
 if "test" in sys.argv:

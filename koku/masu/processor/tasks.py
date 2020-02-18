@@ -41,6 +41,7 @@ from masu.processor._tasks.remove_expired import _remove_expired_data
 from masu.processor.report_charge_updater import ReportChargeUpdater
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
+from masu.processor.worker_cache import WorkerCache
 from reporting.models import AWS_MATERIALIZED_VIEWS
 
 LOG = get_task_logger(__name__)
@@ -72,8 +73,9 @@ def get_report_files(
     """
     worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
     month = parser.parse(report_month)
+    cache_key = f"{provider_uuid}:{month}"
     reports = _get_report_files(
-        self, customer_name, authentication, billing_source, provider_type, provider_uuid, month
+        self, customer_name, authentication, billing_source, provider_type, provider_uuid, month, cache_key
     )
 
     try:
@@ -135,12 +137,14 @@ def get_report_files(
         worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
         LOG.error(str(processing_error))
         raise processing_error
+    finally:
+        WorkerCache().remove_task_from_cache(cache_key)
 
     return reports_to_summarize
 
 
 @app.task(name="masu.processor.tasks.remove_expired_data", queue_name="remove_expired")
-def remove_expired_data(schema_name, provider, simulate, provider_uuid=None):
+def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, line_items_only=False):
     """
     Remove expired report data.
 
@@ -161,7 +165,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None):
         f" provider_uuid: {provider_uuid}"
     )
     LOG.info(stmt)
-    _remove_expired_data(schema_name, provider, simulate, provider_uuid)
+    _remove_expired_data(schema_name, provider, simulate, provider_uuid, line_items_only)
 
 
 @app.task(name="masu.processor.tasks.summarize_reports", queue_name="process")
