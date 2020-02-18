@@ -222,3 +222,171 @@ class OCPReportDBCleanerTest(MasuTestCase):
         cleaner = OCPReportDBCleaner("acct10001")
         with self.assertRaises(OCPReportDBCleanerError):
             cleaner.purge_expired_report_data(expired_date=now, provider_uuid=self.ocp_provider_uuid)
+
+    def test_purge_expired_line_item_on_date(self):
+        """Test to remove report data on a provided date."""
+        report_period_table_name = OCP_REPORT_TABLE_MAP["report_period"]
+        report_table_name = OCP_REPORT_TABLE_MAP["report"]
+        line_item_table_name = OCP_REPORT_TABLE_MAP["line_item"]
+        storage_line_item_table_name = OCP_REPORT_TABLE_MAP["storage_line_item"]
+
+        cleaner = OCPReportDBCleaner("acct10001")
+
+        with schema_context(self.schema):
+            # Verify that data is cleared for a cutoff date == billing_period_start
+            first_period = self.accessor._get_db_obj_query(report_period_table_name).first()
+            cutoff_date = first_period.report_period_start
+
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_period_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(storage_line_item_table_name).first())
+
+        removed_data = cleaner.purge_expired_line_item(cutoff_date)
+
+        self.assertEqual(len(removed_data), 1)
+        self.assertEqual(removed_data[0].get("usage_period_id"), first_period.id)
+        self.assertEqual(removed_data[0].get("interval_start"), str(first_period.report_period_start))
+
+        with schema_context(self.schema):
+            self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_period_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(storage_line_item_table_name).first())
+
+    def test_purge_expired_line_item_before_date(self):
+        """Test to remove report data before a provided date."""
+        report_period_table_name = OCP_REPORT_TABLE_MAP["report_period"]
+        report_table_name = OCP_REPORT_TABLE_MAP["report"]
+        line_item_table_name = OCP_REPORT_TABLE_MAP["line_item"]
+        storage_line_item_table_name = OCP_REPORT_TABLE_MAP["storage_line_item"]
+
+        cleaner = OCPReportDBCleaner("acct10001")
+
+        with schema_context(self.schema):
+            # Verify that data is not cleared for a cutoff date < billing_period_start
+            first_period = self.accessor._get_db_obj_query(report_period_table_name).first()
+            cutoff_date = first_period.report_period_start
+            earlier_date = cutoff_date + relativedelta.relativedelta(months=-1)
+            earlier_cutoff = earlier_date.replace(month=earlier_date.month, day=15)
+
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_period_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(storage_line_item_table_name).first())
+
+        removed_data = cleaner.purge_expired_line_item(earlier_cutoff)
+
+        self.assertEqual(len(removed_data), 0)
+
+        with schema_context(self.schema):
+            self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_period_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(storage_line_item_table_name).first())
+
+    def test_purge_expired_line_item_after_date(self):
+        """Test to remove report data after a provided date."""
+        report_period_table_name = OCP_REPORT_TABLE_MAP["report_period"]
+        report_table_name = OCP_REPORT_TABLE_MAP["report"]
+        line_item_table_name = OCP_REPORT_TABLE_MAP["line_item"]
+        storage_line_item_table_name = OCP_REPORT_TABLE_MAP["storage_line_item"]
+
+        cleaner = OCPReportDBCleaner("acct10001")
+
+        with schema_context(self.schema):
+            # Verify that data is cleared for a cutoff date > billing_period_start
+            first_period = self.accessor._get_db_obj_query(report_period_table_name).first()
+            cutoff_date = first_period.report_period_start
+            later_date = cutoff_date + relativedelta.relativedelta(months=+1)
+            later_cutoff = later_date.replace(day=15)
+
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_period_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(storage_line_item_table_name).first())
+
+        removed_data = cleaner.purge_expired_line_item(later_cutoff)
+        self.assertEqual(len(removed_data), 1)
+        self.assertEqual(removed_data[0].get("usage_period_id"), first_period.id)
+        self.assertEqual(removed_data[0].get("interval_start"), str(first_period.report_period_start))
+
+        with schema_context(self.schema):
+            self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_period_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(storage_line_item_table_name).first())
+
+    def test_purge_expired_line_item_on_date_simulate(self):
+        """Test to simulate removing report data on a provided date."""
+        report_period_table_name = OCP_REPORT_TABLE_MAP["report_period"]
+        report_table_name = OCP_REPORT_TABLE_MAP["report"]
+        line_item_table_name = OCP_REPORT_TABLE_MAP["line_item"]
+        storage_line_item_table_name = OCP_REPORT_TABLE_MAP["storage_line_item"]
+
+        cleaner = OCPReportDBCleaner("acct10001")
+
+        # Verify that data is cleared for a cutoff date == billing_period_start
+        with schema_context(self.schema):
+            first_period = self.accessor._get_db_obj_query(report_period_table_name).first()
+            cutoff_date = first_period.report_period_start
+
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_period_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(storage_line_item_table_name).first())
+
+        removed_data = cleaner.purge_expired_line_item(cutoff_date, simulate=True)
+
+        self.assertEqual(len(removed_data), 1)
+        self.assertEqual(removed_data[0].get("usage_period_id"), first_period.id)
+        self.assertEqual(removed_data[0].get("interval_start"), str(first_period.report_period_start))
+
+        with schema_context(self.schema):
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_period_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(storage_line_item_table_name).first())
+
+    def test_purge_expired_line_item_for_provider(self):
+        """Test that the provider_uuid deletes all data for the provider."""
+        report_period_table_name = OCP_REPORT_TABLE_MAP["report_period"]
+        report_table_name = OCP_REPORT_TABLE_MAP["report"]
+        line_item_table_name = OCP_REPORT_TABLE_MAP["line_item"]
+        storage_line_item_table_name = OCP_REPORT_TABLE_MAP["storage_line_item"]
+
+        cleaner = OCPReportDBCleaner("acct10001")
+
+        with schema_context(self.schema):
+            # Verify that data is cleared for a cutoff date == billing_period_start
+            first_period = self.accessor._get_db_obj_query(report_period_table_name).first()
+
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_period_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(storage_line_item_table_name).first())
+
+        removed_data = cleaner.purge_expired_line_item(provider_uuid=self.ocp_provider_uuid)
+
+        self.assertEqual(len(removed_data), 1)
+        self.assertEqual(removed_data[0].get("usage_period_id"), first_period.id)
+        self.assertEqual(removed_data[0].get("interval_start"), str(first_period.report_period_start))
+
+        with schema_context(self.schema):
+            self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_period_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(report_table_name).first())
+            self.assertIsNotNone(self.accessor._get_db_obj_query(storage_line_item_table_name).first())
+
+    def test_purge_expired_line_item_no_args(self):
+        """Test that the provider_uuid deletes all data for the provider."""
+        cleaner = OCPReportDBCleaner("acct10001")
+        with self.assertRaises(OCPReportDBCleanerError):
+            cleaner.purge_expired_line_item()
+
+    def test_purge_expired_line_item_both_args(self):
+        """Test that the provider_uuid deletes all data for the provider."""
+        now = datetime.datetime.utcnow()
+        cleaner = OCPReportDBCleaner("acct10001")
+        with self.assertRaises(OCPReportDBCleanerError):
+            cleaner.purge_expired_line_item(expired_date=now, provider_uuid=self.ocp_provider_uuid)

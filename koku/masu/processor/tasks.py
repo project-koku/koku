@@ -144,7 +144,7 @@ def get_report_files(
 
 
 @app.task(name="masu.processor.tasks.remove_expired_data", queue_name="remove_expired")
-def remove_expired_data(schema_name, provider, simulate, provider_uuid=None):
+def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, line_items_only=False):
     """
     Remove expired report data.
 
@@ -165,7 +165,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None):
         f" provider_uuid: {provider_uuid}"
     )
     LOG.info(stmt)
-    _remove_expired_data(schema_name, provider, simulate, provider_uuid)
+    _remove_expired_data(schema_name, provider, simulate, provider_uuid, line_items_only)
 
 
 @app.task(name="masu.processor.tasks.summarize_reports", queue_name="process")
