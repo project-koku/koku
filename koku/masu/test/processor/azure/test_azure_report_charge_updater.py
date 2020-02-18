@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the AzureReportChargeUpdater object."""
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
@@ -37,7 +36,7 @@ class AzureReportChargeUpdaterTest(MasuTestCase):
         with ReportingCommonDBAccessor() as report_common_db:
             cls.column_map = report_common_db.column_map
 
-        cls.accessor = AzureReportDBAccessor('acct10001', cls.column_map)
+        cls.accessor = AzureReportDBAccessor("acct10001", cls.column_map)
 
         cls.report_schema = cls.accessor.report_schema
 
@@ -52,12 +51,12 @@ class AzureReportChargeUpdaterTest(MasuTestCase):
         """Set up each test."""
         super().setUp()
 
-        billing_start = self.date_accessor.today_with_timezone('UTC').replace(day=1)
+        billing_start = self.date_accessor.today_with_timezone("UTC").replace(day=1)
         self.manifest_dict = {
-            'assembly_id': '1234',
-            'billing_period_start_datetime': billing_start,
-            'num_total_files': 1,
-            'provider_uuid': self.azure_provider_uuid,
+            "assembly_id": "1234",
+            "billing_period_start_datetime": billing_start,
+            "num_total_files": 1,
+            "provider_uuid": self.azure_provider_uuid,
         }
 
         with ProviderDBAccessor(self.azure_test_provider_uuid) as provider_accessor:
@@ -65,10 +64,8 @@ class AzureReportChargeUpdaterTest(MasuTestCase):
 
         self.updater = AzureReportChargeUpdater(schema=self.schema, provider=self.provider)
 
-        today = DateAccessor().today_with_timezone('UTC')
-        bill = self.creator.create_azure_cost_entry_bill(
-            provider_uuid=self.provider.uuid, bill_date=today
-        )
+        today = DateAccessor().today_with_timezone("UTC")
+        bill = self.creator.create_azure_cost_entry_bill(provider_uuid=self.provider.uuid, bill_date=today)
         product = self.creator.create_azure_cost_entry_product(provider_uuid=self.provider.uuid)
         meter = self.creator.create_azure_meter(provider_uuid=self.provider.uuid)
         self.creator.create_azure_cost_entry_line_item(bill, product, meter)
@@ -77,7 +74,7 @@ class AzureReportChargeUpdaterTest(MasuTestCase):
 
     def test_azure_update_summary_charge_info(self):
         """Test to verify Azure derived cost summary is calculated."""
-        start_date = self.date_accessor.today_with_timezone('UTC')
+        start_date = self.date_accessor.today_with_timezone("UTC")
         bill_date = start_date.replace(day=1).date()
 
         self.updater.update_summary_charge_info()

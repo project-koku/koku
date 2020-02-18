@@ -14,18 +14,16 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """View for OpenShift Usage Reports."""
-
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.models import Provider
 from api.report.ocp.query_handler import OCPReportQueryHandler
-from api.report.ocp.serializers import (OCPCostQueryParamSerializer,
-                                        OCPInventoryQueryParamSerializer)
+from api.report.ocp.serializers import OCPCostQueryParamSerializer
+from api.report.ocp.serializers import OCPInventoryQueryParamSerializer
 from api.report.view import ReportView
-from reporting.provider.ocp.models import (OCPStorageVolumeClaimLabelSummary,
-                                           OCPStorageVolumeLabelSummary,
-                                           OCPUsagePodLabelSummary)
+from reporting.provider.ocp.models import OCPStorageVolumeClaimLabelSummary
+from reporting.provider.ocp.models import OCPStorageVolumeLabelSummary
+from reporting.provider.ocp.models import OCPUsagePodLabelSummary
 
 
 class OCPView(ReportView):
@@ -35,9 +33,7 @@ class OCPView(ReportView):
     provider = Provider.PROVIDER_OCP
     serializer = OCPInventoryQueryParamSerializer
     query_handler = OCPReportQueryHandler
-    tag_handler = [OCPUsagePodLabelSummary,
-                   OCPStorageVolumeClaimLabelSummary,
-                   OCPStorageVolumeLabelSummary]
+    tag_handler = [OCPUsagePodLabelSummary, OCPStorageVolumeClaimLabelSummary, OCPStorageVolumeLabelSummary]
 
 
 class OCPMemoryView(OCPView):
@@ -140,7 +136,7 @@ class OCPMemoryView(OCPView):
 
     """
 
-    report = 'memory'
+    report = "memory"
 
 
 class OCPCpuView(OCPView):
@@ -247,7 +243,7 @@ class OCPCpuView(OCPView):
 
     """
 
-    report = 'cpu'
+    report = "cpu"
 
 
 class OCPCostView(OCPView):
@@ -365,7 +361,7 @@ class OCPCostView(OCPView):
 
     """
 
-    report = 'costs'
+    report = "costs"
     serializer = OCPCostQueryParamSerializer
 
 
@@ -442,4 +438,4 @@ class OCPVolumeView(OCPView):
 
     """
 
-    report = 'volume'
+    report = "volume"

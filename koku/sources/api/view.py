@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """View for Sources."""
 import binascii
 import logging
@@ -25,15 +24,16 @@ from json.decoder import JSONDecodeError
 from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import mixins, viewsets
+from rest_framework import mixins
 from rest_framework import status
+from rest_framework import viewsets
 from rest_framework.exceptions import APIException
 from rest_framework.exceptions import ParseError
 from rest_framework.permissions import AllowAny
-from sources.api.serializers import SourcesSerializer
-from sources.storage import SourcesStorageError
 
 from api.provider.models import Sources
+from sources.api.serializers import SourcesSerializer
+from sources.storage import SourcesStorageError
 
 
 LOG = logging.getLogger(__name__)
@@ -46,13 +46,12 @@ class SourcesException(APIException):
         """Initialize with status code 400."""
         super().__init__()
         self.status_code = status.HTTP_400_BAD_REQUEST
-        self.detail = {'detail': force_text(error_msg)}
+        self.detail = {"detail": force_text(error_msg)}
 
 
-class SourcesViewSet(mixins.ListModelMixin,
-                     mixins.RetrieveModelMixin,
-                     mixins.UpdateModelMixin,
-                     viewsets.GenericViewSet):
+class SourcesViewSet(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet
+):
     """Sources View.
 
     A viewset that provides default `retrieve()`,
@@ -60,7 +59,7 @@ class SourcesViewSet(mixins.ListModelMixin,
     """
 
     serializer_class = SourcesSerializer
-    lookup_field = 'source_id'
+    lookup_field = "source_id"
     queryset = Sources.objects.all()
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
@@ -68,10 +67,9 @@ class SourcesViewSet(mixins.ListModelMixin,
     @property
     def allowed_methods(self):
         """Return the list of allowed HTTP methods, uppercased."""
-        if 'put' in self.http_method_names:
-            self.http_method_names.remove('put')
-        return [method.upper() for method in self.http_method_names
-                if hasattr(self, method)]
+        if "put" in self.http_method_names:
+            self.http_method_names.remove("put")
+        return [method.upper() for method in self.http_method_names if hasattr(self, method)]
 
     def get_queryset(self):
         """Get a queryset.
@@ -80,17 +78,17 @@ class SourcesViewSet(mixins.ListModelMixin,
         by filtering against a `account_id` in the request.
         """
         queryset = Sources.objects.none()
-        auth_header = self.request.headers.get('X-Rh-Identity')
+        auth_header = self.request.headers.get("X-Rh-Identity")
         if auth_header:
             try:
                 decoded_rh_auth = b64decode(auth_header)
                 json_rh_auth = json_loads(decoded_rh_auth)
-                account_id = json_rh_auth.get('identity', {}).get('account_number')
+                account_id = json_rh_auth.get("identity", {}).get("account_number")
                 queryset = Sources.objects.filter(account_id=account_id)
             except Sources.DoesNotExist:
-                LOG.error('No sources found for account id %s.', account_id)
+                LOG.error("No sources found for account id %s.", account_id)
             except (binascii.Error, JSONDecodeError) as error:
-                LOG.error(f'Error decoding authentication header: {str(error)}')
+                LOG.error(f"Error decoding authentication header: {str(error)}")
 
         return queryset
 

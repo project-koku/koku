@@ -6,8 +6,10 @@ python:
 
 dist: xenial # needed for py37
 
-cache: pip
-
+cache:
+  - pip
+  - directories:
+    - $HOME/.cache/pre-commit/
 services:
   - postgresql
 
@@ -26,23 +28,20 @@ env:
 
 before_install:
   - sudo rm -f /etc/boto.cfg
-  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
-  - chmod +x ./cc-test-reporter
 
 install:
-  - pip install tox-travis codecov python-coveralls coveralls "coverage<5.0"
+  - pip install tox-travis codecov python-coveralls coveralls "coverage<5.0" pre-commit
 
 before_script:
   - psql -c "create database ${DATABASE_NAME};" -U postgres
-  - ./cc-test-reporter before-build
 
 script:
   - .travis/check_manifest.sh
+  - pre-commit run --all-files
   - tox
 
 after_success:
   - codecov --required || (sleep 5 && codecov --required) || (sleep 5 && codecov --required) || (sleep 5 && codecov --required) || (sleep 5 && codecov --required)
-  - ./cc-test-reporter after-build
   - coveralls
 
 notifications:

@@ -1,5 +1,6 @@
 .. _`tox`: https://tox.readthedocs.io/en/latest/
 .. _`nise`: https://github.com/project-koku/nise
+.. _`.env.example`: https://github.com/project-koku/koku/blob/master/.env.example
 
 ~~~~~~~~~~~~
 Testing Koku
@@ -57,15 +58,6 @@ If you observe the following error when running the unit tests, it may be a fals
     self.aws_provider.delete()
     AssertionError: no logs of level WARNING or higher triggered on api.provider.models
 
-
-Loading test data into the database
------------------------------------
-
-Before running any functional testing, you will need to populate your database
-with test data.
-
-Using `nise`_ for generating test data is recommended.
-
 Testing using OpenShift
 -----------------------
 
@@ -120,6 +112,115 @@ The following are examples of valid module paths:
 
     - masu.test.external
     - masu.test.external.downloader.azure.test_azure_services.AzureServiceTest.specific_test
+
+Functional Testing
+==================
+
+It is often necessary to load test data into a local development environment to test functionality of a new feature.
+
+Using default test data
+-----------------------
+Within the koku repo there are scripts to automate the creation of a test customer with a default set of sources. This will create one AWS, one Azure, and three OpenShift sources to simulate the following scenarios.
+
+    - OpenShift running on AWS
+    - OpenShift running on Azure
+    - OpenShift on premises
+
+There is a complementary script to subsequently load test data for each source. The `nise`_ project is used to generate this test data. Nise is a dev dependency of koku, so a working copy of the nise command line tool shoudl be availble after running `pipenv install --dev`. A local clone of the nise repository is also required as it contains static YAML files used by this script. Before using this script, make sure the following variables are defined in your environment. See `.env.example`_ for example values.
+
+    - API_PATH_PREFIX
+    - NISE_REPO_PATH
+    - KOKU_API_HOSTNAME
+    - MASU_API_HOSTNAME
+    - KOKU_PORT (if using docker-compose)
+    - MASU_PORT (if using docker-compose)
+
+Examples
+++++++++
+
+Example 1. Using docker-compose to wipe and rebuild the local database with test data::
+
+    make docker-reinitdb-with-providers
+    make load-test-customer-data
+
+Example 2. Assuming the database is already clean and does not need to be rebuilt::
+
+    make create-test-customer
+    make load-test-customer-data
+
+Example 3. Using custom date ranges::
+
+    make load-test-customer-data start=2020-01-01 end=2020-02-29
+
+Manually loading test data into the database
+--------------------------------------------
+
+Before running any functional testing, you will need to populate your database
+with test data.
+
+Using `nise`_ for generating test data is recommended.
+
+Testing with Ingress
+====================
+
+It may be necessary to test changes related to Kafka using Ingress in a local development environment to test the functionality of a new feature.
+
+Setting up Ingress
+------------------
+
+First, you need to obtain the source for the ingress project::
+
+    git clone https://github.com/RedHatInsights/insights-ingress-go
+
+Next, you should add/modify the following variables in the existing ``.env`` file for the ingress environment::
+
+    STORAGE_DRIVER=localdisk
+    ASYNC_TEST_TIMEOUT=10
+    MINIO_DATA_DIR=/tmp/hccm/mnt/data
+    MINIO_CONFIG_DIR=/tmp/hccm/mnt/config
+    INGRESS_VALID_TOPICS=testareno,advisor,hccm
+
+Since both Ingress and Koku are ran locally via docker-compose files, we must ensure that all of the services are on the same network. We can do that by creating a network in the Ingress ``docker-compose.yml`` file and adding it to each of the services in both Ingress and Koku. To create a network, add the following to the Ingress ``docker-compose.yml``::
+
+    networks:
+      myNetwork:
+        driver: bridge
+
+Add ``myNetwork`` to each of the Ingress services using the following example::
+
+    kafka:
+      image: confluentinc/cp-kafka
+      ports:
+        - 29092:29092
+      depends_on:
+        - zookeeper
+      environment:
+        - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:29092
+        - KAFKA_BROKER_ID=1
+        - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+        - KAFKA_ZOOKEEPER_CONNECT=zookeeper:32181
+        - LISTENER_EXTERNAL=PLAINTEXT://localhost:29092
+      networks:
+        - myNetwork
+
+Now, we must define the external network that we just created in Ingress in the ``docker-compose.yml`` for koku. Modify the file to include the external network and add it to each service using the kafka example above, noting that the name of the external network is ``insightsingressgo_myNetwork``::
+
+    networks:
+      insightsingressgo_myNetwork:
+        external: true
+
+
+Next, install the development requirements, enter the pip environment and bring up the ingress service::
+
+    pipenv install --dev
+    pipenv shell
+    docker-compose up --build
+
+If necessary, you can bring up a consumer to see the contents of messages that are uploaded to the ``hccm`` topic using the following command within the ingress environment::
+
+     docker-compose exec kafka kafka-console-consumer --topic=platform.upload.hccm --bootstrap-server=localhost:29092
+
+Finally, you can bring up Koku project via docker-compose and check the koku-listener logs to ensure the listener has successfully connected and is listening for messages.
 
 Debugging Options
 =================

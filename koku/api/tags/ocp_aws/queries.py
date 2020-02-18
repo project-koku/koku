@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """OCP-on-AWS Tag Query Handling."""
 from api.models import Provider
 from api.report.ocp_aws.provider_map import OCPAWSProviderMap
@@ -26,8 +25,7 @@ from reporting.models import OCPAWSCostLineItemDailySummary
 class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
     """Handles tag queries and responses for OCP-on-AWS."""
 
-    data_sources = [{'db_table': OCPAWSCostLineItemDailySummary,
-                     'db_column': 'tags'}]
+    data_sources = [{"db_table": OCPAWSCostLineItemDailySummary, "db_column": "tags"}]
     provider = Provider.OCP_AWS
 
     def __init__(self, parameters):
@@ -37,7 +35,6 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
             parameters    (QueryParameters): parameter object for query
 
         """
-        self._mapper = OCPAWSProviderMap(provider=self.provider,
-                                         report_type=parameters.report_type)
+        self._mapper = OCPAWSProviderMap(provider=self.provider, report_type=parameters.report_type)
         # super() needs to be called after _mapper is set
         super().__init__(parameters)

@@ -14,9 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """View for OpenShift on All infrastructure Usage Reports."""
-
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
@@ -41,16 +39,16 @@ class OCPAllView(ReportView):
 class OCPAllCostView(OCPAllView):
     """Get OpenShift on All Infrastructure cost usage data."""
 
-    report = 'costs'
+    report = "costs"
 
 
 class OCPAllStorageView(OCPAllView):
     """Get OpenShift on All Infrastructure storage usage data."""
 
-    report = 'storage'
+    report = "storage"
 
 
 class OCPAllInstanceTypeView(OCPAllView):
     """Get OpenShift on All Infrastructure instance usage data."""
 
-    report = 'instance_type'
+    report = "instance_type"

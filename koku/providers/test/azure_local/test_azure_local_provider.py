@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Tests the AzureLocalProvider implementation for the Koku interface."""
-
 from django.test import TestCase
 from faker import Faker
 from rest_framework.exceptions import ValidationError
@@ -36,15 +35,15 @@ class AzureLocalProviderTestCase(TestCase):
 
     def test_cost_usage_source_is_reachable_valid(self):
         """Test that cost_usage_source_is_reachable succeeds."""
-        credentials = {'subscription_id': FAKE.uuid4(),
-                       'tenant_id': FAKE.uuid4(),
-                       'client_id': FAKE.uuid4(),
-                       'client_secret': FAKE.word()}
-        source_name = {'resource_group': FAKE.word(),
-                       'storage_account': FAKE.word()}
+        credentials = {
+            "subscription_id": FAKE.uuid4(),
+            "tenant_id": FAKE.uuid4(),
+            "client_id": FAKE.uuid4(),
+            "client_secret": FAKE.word(),
+        }
+        source_name = {"resource_group": FAKE.word(), "storage_account": FAKE.word()}
         obj = AzureLocalProvider()
-        self.assertTrue(obj.cost_usage_source_is_reachable(credentials,
-                                                           source_name))
+        self.assertTrue(obj.cost_usage_source_is_reachable(credentials, source_name))
 
     def test_cost_usage_source_is_reachable_badargs(self):
         """Test that a ValidationError is raised when no arguments are provided."""
@@ -52,8 +51,7 @@ class AzureLocalProviderTestCase(TestCase):
             AzureLocalProvider().cost_usage_source_is_reachable(None, None)
 
         with self.assertRaises(ValidationError):
-            AzureLocalProvider().cost_usage_source_is_reachable(FAKE.word(),
-                                                                FAKE.word())
+            AzureLocalProvider().cost_usage_source_is_reachable(FAKE.word(), FAKE.word())
 
         with self.assertRaises(ValidationError):
             AzureLocalProvider().cost_usage_source_is_reachable({}, {})

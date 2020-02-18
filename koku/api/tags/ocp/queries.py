@@ -24,12 +24,10 @@ from reporting.models import OCPUsageLineItemDailySummary
 class OCPTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for OCP."""
 
-    data_sources = [{'db_table': OCPUsageLineItemDailySummary,
-                     'db_column': 'pod_labels',
-                     'type': 'pod'},
-                    {'db_table': OCPUsageLineItemDailySummary,
-                     'db_column': 'volume_labels',
-                     'type': 'storage'}]
+    data_sources = [
+        {"db_table": OCPUsageLineItemDailySummary, "db_column": "pod_labels", "type": "pod"},
+        {"db_table": OCPUsageLineItemDailySummary, "db_column": "volume_labels", "type": "storage"},
+    ]
     provider = Provider.PROVIDER_OCP
 
     def __init__(self, parameters):
@@ -39,8 +37,7 @@ class OCPTagQueryHandler(TagQueryHandler):
             parameters    (QueryParameters): parameter object for query
 
         """
-        if not hasattr(self, '_mapper'):
-            self._mapper = OCPProviderMap(provider=self.provider,
-                                          report_type=parameters.report_type)
+        if not hasattr(self, "_mapper"):
+            self._mapper = OCPProviderMap(provider=self.provider, report_type=parameters.report_type)
         # super() needs to be called after _mapper is set
         super().__init__(parameters)

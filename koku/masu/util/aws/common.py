@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """AWS utility functions."""
-
 import datetime
 import logging
 import re
@@ -34,7 +33,7 @@ from masu.util import common as utils
 LOG = logging.getLogger(__name__)
 
 
-def get_assume_role_session(arn, session='MasuSession'):
+def get_assume_role_session(arn, session="MasuSession"):
     """
     Assume a Role and obtain session credentials for the given role.
 
@@ -50,13 +49,13 @@ def get_assume_role_session(arn, session='MasuSession'):
     See: https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
 
     """
-    client = boto3.client('sts')
+    client = boto3.client("sts")
     response = client.assume_role(RoleArn=str(arn), RoleSessionName=session)
     return boto3.Session(
-        aws_access_key_id=response['Credentials']['AccessKeyId'],
-        aws_secret_access_key=response['Credentials']['SecretAccessKey'],
-        aws_session_token=response['Credentials']['SessionToken'],
-        region_name='us-east-1',
+        aws_access_key_id=response["Credentials"]["AccessKeyId"],
+        aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
+        aws_session_token=response["Credentials"]["SessionToken"],
+        region_name="us-east-1",
     )
 
 
@@ -70,9 +69,9 @@ def get_cur_report_definitions(role_arn, session=None):
     """
     if not session:
         session = get_assume_role_session(role_arn)
-    cur_client = session.client('cur')
+    cur_client = session.client("cur")
     defs = cur_client.describe_report_definitions()
-    report_defs = defs.get('ReportDefinitions', [])
+    report_defs = defs.get("ReportDefinitions", [])
     return report_defs
 
 
@@ -90,8 +89,8 @@ def get_cur_report_names_in_bucket(role_arn, s3_bucket, session=None):
     report_defs = get_cur_report_definitions(role_arn, session)
     report_names = []
     for report in report_defs:
-        if s3_bucket == report['S3Bucket']:
-            report_names.append(report['ReportName'])
+        if s3_bucket == report["S3Bucket"]:
+            report_names.append(report["ReportName"])
     return report_names
 
 
@@ -112,10 +111,8 @@ def month_date_range(for_date_time):
     """
     start_month = for_date_time.replace(day=1, second=1, microsecond=1)
     end_month = start_month + relativedelta(months=+1)
-    timeformat = '%Y%m%d'
-    return '{}-{}'.format(
-        start_month.strftime(timeformat), end_month.strftime(timeformat)
-    )
+    timeformat = "%Y%m%d"
+    return "{}-{}".format(start_month.strftime(timeformat), end_month.strftime(timeformat))
 
 
 def get_assembly_id_from_cur_key(key):
@@ -156,11 +153,9 @@ def get_local_file_name(cur_key):
                 Without AssemblyID: "koku-Manifest.json"
 
     """
-    s3_filename = cur_key.split('/')[-1]
+    s3_filename = cur_key.split("/")[-1]
     assembly_id = get_assembly_id_from_cur_key(cur_key)
-    local_file_name = (
-        f'{assembly_id}-{s3_filename}' if assembly_id else f'{s3_filename}'
-    )
+    local_file_name = f"{assembly_id}-{s3_filename}" if assembly_id else f"{s3_filename}"
 
     return local_file_name
 
@@ -178,18 +173,18 @@ def get_account_alias_from_role_arn(role_arn, session=None):
     """
     if not session:
         session = get_assume_role_session(role_arn)
-    iam_client = session.client('iam')
+    iam_client = session.client("iam")
 
-    account_id = role_arn.split(':')[-2]
+    account_id = role_arn.split(":")[-2]
     alias = account_id
     try:
         alias_response = iam_client.list_account_aliases()
-        alias_list = alias_response.get('AccountAliases', [])
+        alias_list = alias_response.get("AccountAliases", [])
         # Note: Boto3 docs states that you can only have one alias per account
         # so the pop() should be ok...
         alias = alias_list.pop() if alias_list else None
     except ClientError as err:
-        LOG.info('Unable to list account aliases.  Reason: %s', str(err))
+        LOG.info("Unable to list account aliases.  Reason: %s", str(err))
 
     return (account_id, alias)
 
@@ -207,21 +202,19 @@ def get_account_names_by_organization(role_arn, session=None):
     """
     if not session:
         session = get_assume_role_session(role_arn)
-    org_client = session.client('organizations')
+    org_client = session.client("organizations")
     all_accounts = []
     try:
-        paginator = org_client.get_paginator('list_accounts')
+        paginator = org_client.get_paginator("list_accounts")
         response_iterator = paginator.paginate()
         for response in response_iterator:
-            accounts = response.get('Accounts', [])
+            accounts = response.get("Accounts", [])
             for account in accounts:
-                account_id = account.get('Id')
-                name = account.get('Name')
-                all_accounts.append({'id': account_id, 'name': name})
+                account_id = account.get("Id")
+                name = account.get("Name")
+                all_accounts.append({"id": account_id, "name": name})
     except ClientError as err:
-        LOG.info(
-            'Unable to list accounts using organization API.  Reason: %s', str(err)
-        )
+        LOG.info("Unable to list accounts using organization API.  Reason: %s", str(err))
 
     return all_accounts
 
@@ -242,10 +235,10 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     """
     if isinstance(start_date, datetime.datetime):
         start_date = start_date.replace(day=1)
-        start_date = start_date.strftime('%Y-%m-%d')
+        start_date = start_date.strftime("%Y-%m-%d")
 
     if isinstance(end_date, datetime.datetime):
-        end_date = end_date.strftime('%Y-%m-%d')
+        end_date = end_date.strftime("%Y-%m-%d")
 
     with ReportingCommonDBAccessor() as reporting_common:
         column_map = reporting_common.column_map
@@ -254,7 +247,7 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
         provider = provider_accessor.get_provider()
 
     if provider.type not in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-        err_msg = 'Provider UUID is not an AWS type.  It is {}'.format(provider.type)
+        err_msg = f"Provider UUID is not an AWS type.  It is {provider.type}"
         LOG.warning(err_msg)
         return []
 
@@ -296,10 +289,10 @@ class AwsArn:
     """
 
     arn_regex = re.compile(
-        r'^arn:(?P<partition>\w+):(?P<service>\w+):'
-        r'(?P<region>\w+(?:-\w+)+)?:'
-        r'(?P<account_id>\d{12})?:(?P<resource_type>[^:/]+)'
-        r'(?P<resource_separator>[:/])?(?P<resource>.*)'
+        r"^arn:(?P<partition>\w+):(?P<service>\w+):"
+        r"(?P<region>\w+(?:-\w+)+)?:"
+        r"(?P<account_id>\d{12})?:(?P<resource_type>[^:/]+)"
+        r"(?P<resource_separator>[:/])?(?P<resource>.*)"
     )
 
     partition = None
@@ -322,7 +315,7 @@ class AwsArn:
         match = self.arn_regex.match(arn)
 
         if not match:
-            raise SyntaxError('Invalid ARN: {0}'.format(arn))
+            raise SyntaxError(f"Invalid ARN: {arn}")
 
         for key, val in match.groupdict().items():
             setattr(self, key, val)

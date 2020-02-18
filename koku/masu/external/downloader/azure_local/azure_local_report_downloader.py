@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Azure-Local Report Downloader."""
-
 import hashlib
 import logging
 import os
@@ -23,8 +22,8 @@ import shutil
 
 from masu.config import Config
 from masu.external import UNCOMPRESSED
-from masu.external.downloader.azure.azure_report_downloader import (AzureReportDownloader,
-                                                                    AzureReportDownloaderError)
+from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
+from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderError
 from masu.util.azure import common as utils
 from masu.util.common import extract_uuids_from_string
 
@@ -37,8 +36,7 @@ class AzureLocalReportDownloader(AzureReportDownloader):
 
     # Disabling this linter until we can refactor
     # pylint: disable=too-many-arguments
-    def __init__(self, task, customer_name, auth_credential,
-                 billing_source, report_name=None, **kwargs):
+    def __init__(self, task, customer_name, auth_credential, billing_source, report_name=None, **kwargs):
         """
         Constructor.
 
@@ -50,16 +48,15 @@ class AzureLocalReportDownloader(AzureReportDownloader):
             billing_source   (Dict) Dictionary containing Azure Storage blob details.
 
         """
-        kwargs['is_local'] = True
-        super().__init__(task, customer_name, auth_credential,
-                         billing_source, report_name, **kwargs)
+        kwargs["is_local"] = True
+        super().__init__(task, customer_name, auth_credential, billing_source, report_name, **kwargs)
 
-        self._provider_uuid = kwargs.get('provider_uuid')
-        self.customer_name = customer_name.replace(' ', '_')
-        self.export_name = billing_source.get('resource_group').get('export_name')
-        self.directory = billing_source.get('resource_group').get('directory')
-        self.container_name = billing_source.get('storage_account').get('container')
-        self.local_storage = billing_source.get('storage_account').get('local_dir')
+        self._provider_uuid = kwargs.get("provider_uuid")
+        self.customer_name = customer_name.replace(" ", "_")
+        self.export_name = billing_source.get("resource_group").get("export_name")
+        self.directory = billing_source.get("resource_group").get("directory")
+        self.container_name = billing_source.get("storage_account").get("container")
+        self.local_storage = billing_source.get("storage_account").get("local_dir")
 
     def _get_manifest(self, date_time):
         """
@@ -75,28 +72,30 @@ class AzureLocalReportDownloader(AzureReportDownloader):
         report_path = self._get_report_path(date_time)
         manifest = {}
 
-        local_path = '{}/{}/{}'.format(self.local_storage, self.container_name, report_path)
+        local_path = f"{self.local_storage}/{self.container_name}/{report_path}"
 
         if not os.path.exists(local_path):
-            LOG.error('Unable to find manifest.')
+            LOG.error("Unable to find manifest.")
             return manifest
 
         report_names = os.listdir(local_path)
-        sorted_by_modified_date = sorted(report_names, key=lambda file: os.path.getmtime(f'{local_path}/{file}'))
+        sorted_by_modified_date = sorted(report_names, key=lambda file: os.path.getmtime(f"{local_path}/{file}"))
         if sorted_by_modified_date:
             report_name = report_names[0]  # First item on list is most recent
 
         try:
-            manifest['assemblyId'] = extract_uuids_from_string(report_name).pop()
+            manifest["assemblyId"] = extract_uuids_from_string(report_name).pop()
         except IndexError:
-            message = 'Unable to extract assemblyID from %s'.format(report_name)
+            message = f"Unable to extract assemblyID from %s"
             raise AzureReportDownloaderError(message)
 
-        billing_period = {'start': (report_path.split('/')[-1]).split('-')[0],
-                          'end': (report_path.split('/')[-1]).split('-')[1]}
-        manifest['billingPeriod'] = billing_period
-        manifest['reportKeys'] = [f'{local_path}/{report_name}']
-        manifest['Compression'] = UNCOMPRESSED
+        billing_period = {
+            "start": (report_path.split("/")[-1]).split("-")[0],
+            "end": (report_path.split("/")[-1]).split("-")[1],
+        }
+        manifest["billingPeriod"] = billing_period
+        manifest["reportKeys"] = [f"{local_path}/{report_name}"]
+        manifest["Compression"] = UNCOMPRESSED
 
         return manifest
 
@@ -112,14 +111,14 @@ class AzureLocalReportDownloader(AzureReportDownloader):
 
         """
         local_filename = utils.get_local_file_name(key)
-        full_file_path = f'{self._get_exports_data_directory()}/{local_filename}'
+        full_file_path = f"{self._get_exports_data_directory()}/{local_filename}"
 
-        etag_hasher = hashlib.new('ripemd160')
-        etag_hasher.update(bytes(local_filename, 'utf-8'))
+        etag_hasher = hashlib.new("ripemd160")
+        etag_hasher.update(bytes(local_filename, "utf-8"))
         etag = etag_hasher.hexdigest()
 
         if etag != stored_etag:
-            LOG.info('Downloading %s to %s', key, full_file_path)
+            LOG.info("Downloading %s to %s", key, full_file_path)
             shutil.copy2(key, full_file_path)
-        LOG.info('Returning full_file_path: %s, etag: %s', full_file_path, etag)
+        LOG.info("Returning full_file_path: %s, etag: %s", full_file_path, etag)
         return full_file_path, etag

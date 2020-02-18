@@ -24,8 +24,7 @@ from reporting.models import AWSCostEntryLineItemDailySummary
 class AWSTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for AWS."""
 
-    data_sources = [{'db_table': AWSCostEntryLineItemDailySummary,
-                     'db_column': 'tags'}]
+    data_sources = [{"db_table": AWSCostEntryLineItemDailySummary, "db_column": "tags"}]
     provider = Provider.PROVIDER_AWS
 
     def __init__(self, parameters):
@@ -35,8 +34,7 @@ class AWSTagQueryHandler(TagQueryHandler):
             parameters    (QueryParameters): parameter object for query
 
         """
-        if not hasattr(self, '_mapper'):
-            self._mapper = AWSProviderMap(provider=self.provider,
-                                          report_type=parameters.report_type)
+        if not hasattr(self, "_mapper"):
+            self._mapper = AWSProviderMap(provider=self.provider, report_type=parameters.report_type)
         # super() needs to be called after _mapper is set
         super().__init__(parameters)

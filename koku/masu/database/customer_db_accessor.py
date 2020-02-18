@@ -22,7 +22,7 @@ from masu.database.koku_database_access import KokuDBAccess
 class CustomerDBAccessor(KokuDBAccess):
     """Class to interact with the koku database for Provider Billing Source Data."""
 
-    def __init__(self, customer_id, schema='public'):
+    def __init__(self, customer_id, schema="public"):
         """
         Establish Provider Billing Source database connection.
 

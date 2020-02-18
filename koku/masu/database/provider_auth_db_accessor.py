@@ -15,7 +15,6 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Accessor for Provider Authentication from koku database."""
-
 from api.provider.models import ProviderAuthentication
 from masu.database.koku_database_access import KokuDBAccess
 
@@ -32,7 +31,7 @@ class ProviderAuthDBAccessor(KokuDBAccess):
             provider_resource_name       (String) the provider resource name
 
         """
-        super().__init__('public')
+        super().__init__("public")
         self._auth_id = auth_id
         self._provider_resource_name = provider_resource_name
         self._table = ProviderAuthentication
@@ -53,8 +52,7 @@ class ProviderAuthDBAccessor(KokuDBAccess):
         elif self._provider_resource_name and not self._auth_id:
             query = self._table.objects.filter(provider_resource_name=self._provider_resource_name)
         elif self._auth_id and self._provider_resource_name:
-            query = self._table.objects.filter(id=self._auth_id,
-                                               provider_resource_name=self._provider_resource_name)
+            query = self._table.objects.filter(id=self._auth_id, provider_resource_name=self._provider_resource_name)
         else:
             query = self._table.objects.all()
         return query

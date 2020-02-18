@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider status accessors."""
-
 import enum
 import logging
 
@@ -47,7 +46,7 @@ class ProviderStatusAccessor(KokuDBAccess):
 
     MAX_RETRIES = 10
 
-    def __init__(self, provider_uuid, schema='public'):
+    def __init__(self, provider_uuid, schema="public"):
         """
         Establish ProviderStatus database connection.
 
@@ -63,21 +62,24 @@ class ProviderStatusAccessor(KokuDBAccess):
         with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
             if not provider:
-                raise MasuProviderError(f'Unknown provider: {self._provider_uuid}')
+                raise MasuProviderError(f"Unknown provider: {self._provider_uuid}")
             self.provider_uuid = provider.uuid
 
-        self._obj = self._get_db_obj_query().order_by('-id').first()
+        self._obj = self._get_db_obj_query().order_by("-id").first()
 
         # default to READY if there is no previous status.
         if self._obj is None:
-            message = f'No status found for provider {provider_uuid} in ' + \
-                f'schema "{schema}". Setting status to READY.'
+            message = (
+                f"No status found for provider {provider_uuid} in " + f'schema "{schema}". Setting status to READY.'
+            )
             LOG.debug(message)
-            ready_status = {'provider_id': self.provider_uuid,
-                            'status': ProviderStatusCode.READY,
-                            'last_message': 'none',
-                            'timestamp': DateAccessor().today(),
-                            'retries': 0}
+            ready_status = {
+                "provider_id": self.provider_uuid,
+                "status": ProviderStatusCode.READY,
+                "last_message": "none",
+                "timestamp": DateAccessor().today(),
+                "retries": 0,
+            }
             self.add(**ready_status)
             self._obj = self._get_db_obj_query().first()
 

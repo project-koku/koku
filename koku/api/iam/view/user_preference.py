@@ -14,11 +14,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """View for User Preferences."""
 from django.views.decorators.cache import never_cache
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import exceptions, mixins, viewsets
+from rest_framework import exceptions
+from rest_framework import mixins
+from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
 
 import api.iam.models as models
@@ -26,24 +27,26 @@ import api.iam.serializers as serializers
 from api.common.permissions.object_owner import IsObjectOwner
 
 
-class UserPreferenceViewSet(mixins.CreateModelMixin,
-                            mixins.DestroyModelMixin,
-                            mixins.ListModelMixin,
-                            mixins.RetrieveModelMixin,
-                            mixins.UpdateModelMixin,
-                            viewsets.GenericViewSet):
+class UserPreferenceViewSet(
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
     """User Preference View.
 
     A viewset that provides default `create()`, `destroy`, `retrieve()`,
     and `list()` actions.
     """
 
-    lookup_field = 'uuid'
+    lookup_field = "uuid"
     queryset = models.UserPreference.objects.all()
     serializer_class = serializers.UserPreferenceSerializer
     permission_classes = (IsObjectOwner, AllowAny)
     filter_backends = (DjangoFilterBackend,)
-    filter_fields = ('name',)
+    filter_fields = ("name",)
 
     def get_queryset(self):
         """Get a queryset that only displays the owner's preferences."""
@@ -58,7 +61,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
         context = super().get_serializer_context()
         req_user = self.request.user
         if req_user:
-            context['user'] = req_user
+            context["user"] = req_user
         return context
 
     def _validate_user(self, user_id, uuid):
@@ -108,12 +111,10 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
         user = request.user
 
         # if the pref already exists, it's a bad request
-        query = models.UserPreference.objects.filter(user=user,
-                                                     name=request.data.get('name'))
+        query = models.UserPreference.objects.filter(user=user, name=request.data.get("name"))
         if query.count():
-            message = 'UserPreference({pref}) already exists for User({user})'
-            raise exceptions.ParseError(detail=message.format(pref=request.data.get('name'),
-                                                              user=user.username))
+            message = "UserPreference({pref}) already exists for User({user})"
+            raise exceptions.ParseError(detail=message.format(pref=request.data.get("name"), user=user.username))
 
         return super().create(request=request, args=args, kwargs=kwargs)
 
@@ -252,4 +253,4 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                 'user': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
             }
         """
-        return super(UserPreferenceViewSet, self).update(request=request, args=args, kwargs=kwargs)
+        return super().update(request=request, args=args, kwargs=kwargs)

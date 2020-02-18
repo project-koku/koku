@@ -14,9 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the hash util."""
-
 import hashlib
 import random
 import string
@@ -32,17 +30,15 @@ class HasherUtilTests(MasuTestCase):
     def setUp(self):
         """Shared variables for hasher tests."""
         super().setUp()
-        self.encoding = 'utf-8'
+        self.encoding = "utf-8"
         self.hash_function = random.choice(list(hashlib.algorithms_guaranteed))
-        if 'shake' in self.hash_function:
+        if "shake" in self.hash_function:
             self.hasher = Hasher(
-                hash_function=self.hash_function,
-                length=random.randint(8, 64),
-                encoding=self.encoding,
+                hash_function=self.hash_function, length=random.randint(8, 64), encoding=self.encoding
             )
         else:
             self.hasher = Hasher(hash_function=self.hash_function, encoding=self.encoding)
-        self.string_to_hash = ''.join([random.choice(string.ascii_letters) for _ in range(16)])
+        self.string_to_hash = "".join([random.choice(string.ascii_letters) for _ in range(16)])
 
     def test_initializer(self):
         """Test that the proper variables are initialized."""
@@ -66,7 +62,7 @@ class HasherUtilTests(MasuTestCase):
 
     def test_shake_length_required(self):
         """Test that shake algorithms require a length."""
-        hash_function = 'shake_128'
+        hash_function = "shake_128"
         with self.assertRaises(HasherError):
             Hasher(hash_function=hash_function)
 
@@ -74,7 +70,7 @@ class HasherUtilTests(MasuTestCase):
 
     def test_unsupported_algorithm(self):
         """Test that an exception is raised for unsupported algorithms."""
-        bad_algorithm = 'zuul'
+        bad_algorithm = "zuul"
 
         with self.assertRaises(HasherError):
             Hasher(hash_function=bad_algorithm)

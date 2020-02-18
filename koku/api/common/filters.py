@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Common filters for the views."""
 from functools import reduce
 from operator import and_
@@ -31,6 +30,6 @@ class CharListFilter(BaseCSVFilter, CharFilter):
         """Filter to create a composite and filter of the value list."""
         if not value:
             return qs
-        value_list = ','.join(value).split(',')
+        value_list = ",".join(value).split(",")
         queries = [Q(**{self.lookup_expr: val}) for val in value_list]
         return qs.filter(reduce(and_, queries))

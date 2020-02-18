@@ -15,7 +15,6 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Updates report summary tables in the database with charge information."""
-
 import csv
 import io
 import logging
@@ -28,6 +27,7 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
+from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
 
 LOG = logging.getLogger(__name__)
@@ -50,40 +50,41 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         """
         super().__init__(schema, provider, None)
         self._cluster_id = None
+        self._cluster_alias = None
 
     @staticmethod
     def _normalize_tier(input_tier):
         # Pull out the parts for beginning, middle, and end for validation and ordering correction.
-        first_tier = [t for t in input_tier if not t.get('usage', {}).get('usage_start')]
-        last_tier = [t for t in input_tier if not t.get('usage', {}).get('usage_end')]
-        middle_tiers = \
-            [t for t in input_tier if
-             t.get('usage', {}).get('usage_start') and t.get('usage', {}).get('usage_end')]
+        first_tier = [t for t in input_tier if not t.get("usage", {}).get("usage_start")]
+        last_tier = [t for t in input_tier if not t.get("usage", {}).get("usage_end")]
+        middle_tiers = [
+            t for t in input_tier if t.get("usage", {}).get("usage_start") and t.get("usage", {}).get("usage_end")
+        ]
 
         # Ensure that there is only 1 starting tier. (i.e. 1 'usage_start': None, if provided)
         if not first_tier:
-            LOG.error('Failed Tier: %s', str(input_tier))
-            raise OCPReportChargeUpdaterError('Missing first tier.')
+            LOG.error("Failed Tier: %s", str(input_tier))
+            raise OCPReportChargeUpdaterError("Missing first tier.")
 
         if len(first_tier) != 1:
-            LOG.error('Failed Tier: %s', str(input_tier))
-            raise OCPReportChargeUpdaterError('Two starting tiers.')
+            LOG.error("Failed Tier: %s", str(input_tier))
+            raise OCPReportChargeUpdaterError("Two starting tiers.")
 
         # Ensure that there is only 1 final tier. (i.e. 1 'usage_end': None, if provided)
         if not last_tier:
-            LOG.error('Failed Tier: %s', str(input_tier))
-            raise OCPReportChargeUpdaterError('Missing last tier.')
+            LOG.error("Failed Tier: %s", str(input_tier))
+            raise OCPReportChargeUpdaterError("Missing last tier.")
 
         if len(last_tier) != 1:
-            LOG.error('Failed Tier: %s', str(input_tier))
-            raise OCPReportChargeUpdaterError('Two final tiers.')
+            LOG.error("Failed Tier: %s", str(input_tier))
+            raise OCPReportChargeUpdaterError("Two final tiers.")
 
         # Remove last 'usage_end' for consistency to avoid 'usage_end: 0' situations.
-        last_tier[0].pop('usage_end', None)
+        last_tier[0].pop("usage_end", None)
 
         # Build final tier that is sorted in asending order.
         newlist = first_tier
-        newlist += sorted(middle_tiers, key=lambda k: k['usage']['usage_end'])
+        newlist += sorted(middle_tiers, key=lambda k: k["usage"]["usage_end"])
         newlist += last_tier
 
         return newlist
@@ -104,18 +105,22 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         balance = usage
         tier = []
         if rates:
-            tier = self._normalize_tier(rates.get('tiered_rates', []))
+            tier = self._normalize_tier(rates.get("tiered_rates", []))
 
         for bucket in tier:
-            usage_end = Decimal(bucket.get('usage', {}).get('usage_end')) \
-                if bucket.get('usage', {}).get('usage_end') else None
-            usage_start = Decimal(bucket.get('usage', {}).get('usage_start')) \
-                if bucket.get('usage', {}).get('usage_start') else 0
+            usage_end = (
+                Decimal(bucket.get("usage", {}).get("usage_end")) if bucket.get("usage", {}).get("usage_end") else None
+            )
+            usage_start = (
+                Decimal(bucket.get("usage", {}).get("usage_start"))
+                if bucket.get("usage", {}).get("usage_start")
+                else 0
+            )
             bucket_size = (usage_end - usage_start) if usage_end else None
 
             lower_limit = 0
             upper_limit = bucket_size
-            rate = Decimal(bucket.get('value'))
+            rate = Decimal(bucket.get("value"))
 
             usage_applied = 0
             if upper_limit is not None:
@@ -135,22 +140,24 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
             if not value:
                 value = Decimal(0.0)
             charge_value = self._calculate_variable_charge(value, rates)
-            charge_dictionary[key] = {'usage': value, 'charge': charge_value}
+            charge_dictionary[key] = {"usage": value, "charge": charge_value}
         return charge_dictionary
 
     @staticmethod
     def _aggregate_charges(usage_charge, request_charge):
         """Combine the usage and request charges."""
         if usage_charge.keys() != request_charge.keys():
-            raise OCPReportChargeUpdaterError('Usage and request charge mismatched.')
+            raise OCPReportChargeUpdaterError("Usage and request charge mismatched.")
 
         charge_dictionary = {}
         for key, value in usage_charge.items():
-            usage_charge_value = value.get('charge')
-            request_charge_value = request_charge[key].get('charge')
-            charge_dictionary[key] = {'usage_charge': usage_charge_value,
-                                      'request_charge': request_charge_value,
-                                      'charge': usage_charge_value + request_charge_value}
+            usage_charge_value = value.get("charge")
+            request_charge_value = request_charge[key].get("charge")
+            charge_dictionary[key] = {
+                "usage_charge": usage_charge_value,
+                "request_charge": request_charge_value,
+                "charge": usage_charge_value + request_charge_value,
+            }
         return charge_dictionary
 
     @staticmethod
@@ -158,12 +165,11 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         """Write charge dictionary to a csv file_obj."""
         dictionary_data = []
         for key, value in charge_dictionary.items():
-            line_item = (key, value.get('charge'))
+            line_item = (key, value.get("charge"))
             dictionary_data.append(line_item)
 
         file_obj = io.StringIO()
-        writer = csv.writer(file_obj, delimiter='\t',
-                            quoting=csv.QUOTE_NONE, quotechar='')
+        writer = csv.writer(file_obj, delimiter="\t", quoting=csv.QUOTE_NONE, quotechar="")
         writer.writerows(dictionary_data)
         file_obj.seek(0)
 
@@ -171,10 +177,10 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
 
     def _write_to_temp_table(self, report_accessor, charge_data):
         """Create temporary table to store charge."""
-        columns = [{'lineid': 'bigint'}, {'charge': 'numeric(24,6)'}]
-        temp_table = report_accessor.create_new_temp_table('charge', columns)
+        columns = [{"lineid": "bigint"}, {"charge": "numeric(24,6)"}]
+        temp_table = report_accessor.create_new_temp_table("charge", columns)
         csv_file = self._charge_dictionary_to_csv(charge_data)
-        report_accessor.bulk_insert_rows(csv_file, temp_table, ['lineid', 'charge'])
+        report_accessor.bulk_insert_rows(csv_file, temp_table, ["lineid", "charge"])
         return temp_table
 
     def _update_markup_cost(self, start_date, end_date):
@@ -194,27 +200,28 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         cluster_id = get_cluster_id_from_provider(self._provider_uuid)
         if infra_tuple:
             infra_uuid = infra_tuple[0]
-            with CostModelDBAccessor(self._schema, infra_uuid,
-                                     self._column_map) as cost_model_accessor:
+            with CostModelDBAccessor(self._schema, infra_uuid, self._column_map) as cost_model_accessor:
                 markup = cost_model_accessor.get_markup()
-                infra_markup_value = Decimal(markup.get('value', 0)) / 100
-        with CostModelDBAccessor(self._schema, self._provider_uuid,
-                                 self._column_map) as cost_model_accessor:
+                infra_markup_value = Decimal(markup.get("value", 0)) / 100
+        with CostModelDBAccessor(self._schema, self._provider_uuid, self._column_map) as cost_model_accessor:
             markup = cost_model_accessor.get_markup()
-            ocp_markup_value = Decimal(markup.get('value', 0)) / 100
+            ocp_markup_value = Decimal(markup.get("value", 0)) / 100
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
-            LOG.info('Updating OpenShift markup for'
-                     '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s',
-                     self._schema, self._provider_uuid, start_date, end_date)
+            LOG.info(
+                "Updating OpenShift markup for" "\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s",
+                self._schema,
+                self._provider_uuid,
+                start_date,
+                end_date,
+            )
             accessor.populate_markup_cost(infra_markup_value, ocp_markup_value, cluster_id)
-        LOG.info('Finished updating markup.')
+        LOG.info("Finished updating markup.")
 
     # pylint: disable=too-many-locals
     def _update_pod_charge(self, start_date, end_date):
         """Calculate and store total POD charges."""
         try:
-            with CostModelDBAccessor(self._schema, self._provider_uuid,
-                                     self._column_map) as cost_model_accessor:
+            with CostModelDBAccessor(self._schema, self._provider_uuid, self._column_map) as cost_model_accessor:
                 cpu_usage_rates = cost_model_accessor.get_cpu_core_usage_per_hour_rates()
                 cpu_request_rates = cost_model_accessor.get_cpu_core_request_per_hour_rates()
                 mem_usage_rates = cost_model_accessor.get_memory_gb_usage_per_hour_rates()
@@ -224,89 +231,98 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
                 try:
                     cpu_usage = report_accessor.get_pod_usage_cpu_core_hours(start_date, end_date, self._cluster_id)
                     cpu_usage_charge = self._calculate_charge(cpu_usage_rates, cpu_usage)
-                    cpu_request = report_accessor.get_pod_request_cpu_core_hours(start_date, end_date, self._cluster_id)
+                    cpu_request = report_accessor.get_pod_request_cpu_core_hours(
+                        start_date, end_date, self._cluster_id
+                    )
                     cpu_request_charge = self._calculate_charge(cpu_request_rates, cpu_request)
 
                     total_cpu_charge = self._aggregate_charges(cpu_usage_charge, cpu_request_charge)
                 except OCPReportChargeUpdaterError as error:
                     total_cpu_charge = {}
-                    LOG.error('Unable to calculate cpu charge. Error: %s', str(error))
+                    LOG.error("Unable to calculate cpu charge. Error: %s", str(error))
 
-                cpu_temp_table = self._write_to_temp_table(report_accessor,
-                                                           total_cpu_charge)
+                cpu_temp_table = self._write_to_temp_table(report_accessor, total_cpu_charge)
 
                 try:
-                    mem_usage = report_accessor.\
-                        get_pod_usage_memory_gigabyte_hours(start_date, end_date, self._cluster_id)
+                    mem_usage = report_accessor.get_pod_usage_memory_gigabyte_hours(
+                        start_date, end_date, self._cluster_id
+                    )
                     mem_usage_charge = self._calculate_charge(mem_usage_rates, mem_usage)
 
-                    mem_request = report_accessor.\
-                        get_pod_request_memory_gigabyte_hours(start_date, end_date, self._cluster_id)
+                    mem_request = report_accessor.get_pod_request_memory_gigabyte_hours(
+                        start_date, end_date, self._cluster_id
+                    )
                     mem_request_charge = self._calculate_charge(mem_request_rates, mem_request)
 
-                    total_memory_charge = self._aggregate_charges(mem_usage_charge,
-                                                                  mem_request_charge)
+                    total_memory_charge = self._aggregate_charges(mem_usage_charge, mem_request_charge)
                 except OCPReportChargeUpdaterError as error:
                     total_memory_charge = {}
-                    LOG.error('Unable to calculate memory charge. Error: %s', str(error))
+                    LOG.error("Unable to calculate memory charge. Error: %s", str(error))
 
-                mem_temp_table = self._write_to_temp_table(report_accessor,
-                                                           total_memory_charge)
+                mem_temp_table = self._write_to_temp_table(report_accessor, total_memory_charge)
 
                 report_accessor.populate_pod_charge(cpu_temp_table, mem_temp_table)
         except OCPReportChargeUpdaterError as error:
-            LOG.error('Unable to calculate charge. Error: %s', str(error))
+            LOG.error("Unable to calculate charge. Error: %s", str(error))
 
     def _update_storage_charge(self, start_date, end_date):
         """Calculate and store the storage charges."""
         try:
-            with CostModelDBAccessor(self._schema, self._provider_uuid,
-                                     self._column_map) as cost_model_accessor:
+            with CostModelDBAccessor(self._schema, self._provider_uuid, self._column_map) as cost_model_accessor:
                 storage_usage_rates = cost_model_accessor.get_storage_gb_usage_per_month_rates()
                 storage_request_rates = cost_model_accessor.get_storage_gb_request_per_month_rates()
 
             with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
-                storage_usage = report_accessor.\
-                    get_persistentvolumeclaim_usage_gigabyte_months(start_date, end_date, self._cluster_id)
-                storage_usage_charge = self._calculate_charge(storage_usage_rates,
-                                                              storage_usage)
+                storage_usage = report_accessor.get_persistentvolumeclaim_usage_gigabyte_months(
+                    start_date, end_date, self._cluster_id
+                )
+                storage_usage_charge = self._calculate_charge(storage_usage_rates, storage_usage)
 
-                storage_request = report_accessor.\
-                    get_volume_request_storage_gigabyte_months(start_date, end_date, self._cluster_id)
-                storage_request_charge = self._calculate_charge(storage_request_rates,
-                                                                storage_request)
-                total_storage_charge = self._aggregate_charges(storage_usage_charge,
-                                                               storage_request_charge)
-                temp_table = self._write_to_temp_table(report_accessor,
-                                                       total_storage_charge)
+                storage_request = report_accessor.get_volume_request_storage_gigabyte_months(
+                    start_date, end_date, self._cluster_id
+                )
+                storage_request_charge = self._calculate_charge(storage_request_rates, storage_request)
+                total_storage_charge = self._aggregate_charges(storage_usage_charge, storage_request_charge)
+                temp_table = self._write_to_temp_table(report_accessor, total_storage_charge)
                 report_accessor.populate_storage_charge(temp_table)
 
         except OCPReportChargeUpdaterError as error:
-            LOG.error('Unable to calculate storage usage charge. Error: %s', str(error))
+            LOG.error("Unable to calculate storage usage charge. Error: %s", str(error))
 
     def _update_monthly_cost(self, start_date, end_date):
         """Update the monthly cost for a period of time."""
         try:
-            with CostModelDBAccessor(self._schema, self._provider_uuid,
-                                     self._column_map) as cost_model_accessor, \
-                    OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
+            with CostModelDBAccessor(
+                self._schema, self._provider_uuid, self._column_map
+            ) as cost_model_accessor, OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
                 rates = cost_model_accessor.get_node_per_month_rates()
                 if rates:
-                    tiers = self._normalize_tier(rates.get('tiered_rates', []))
+                    # tiers = self._normalize_tier(rates.get('tiered_rates', []))
+                    # FIXME: The _normalize_tier function is currently return two
+                    # rates, one for the first of the current month & one for the
+                    # first of the next month.
+                    # example: [{'unit': 'USD', 'value': '0.2'}, {'unit': 'USD', 'value': '0.2'}]
+                    tiers = rates.get("tiered_rates", [])
                     for tier in tiers:
-                        LOG.info('Updating Monthly Cost for'
-                                 '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s',
-                                 self._schema, self._provider_uuid, start_date, end_date)
+                        LOG.info(
+                            "Updating Monthly Cost for" "\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s",
+                            self._schema,
+                            self._provider_uuid,
+                            start_date,
+                            end_date,
+                        )
 
-                        node_rate = Decimal(tier.get('value'))
-                        report_accessor.populate_monthly_cost(node_rate, start_date, end_date)
+                        node_rate = Decimal(tier.get("value"))
+                        report_accessor.populate_monthly_cost(
+                            node_rate, start_date, end_date, self._cluster_id, self._cluster_alias
+                        )
                 else:
-                    LOG.info('Removing Monthly Cost for'
-                             'Schema: %s, Provider: %s ',
-                             self._schema, self._provider_uuid)
+                    LOG.info(
+                        "Removing Monthly Cost for" "Schema: %s, Provider: %s ", self._schema, self._provider_uuid
+                    )
                     report_accessor.remove_monthly_cost()
         except OCPReportChargeUpdaterError as error:
-            LOG.error('Unable to update monthly costs. Error: %s', str(error))
+            LOG.error("Unable to update monthly costs. Error: %s", str(error))
 
     def update_summary_charge_info(self, start_date, end_date):
         """Update the OCP summary table with the charge information.
@@ -324,9 +340,13 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         if isinstance(end_date, str):
             end_date = parse(end_date)
         self._cluster_id = get_cluster_id_from_provider(self._provider_uuid)
+        self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
 
-        LOG.info('Starting charge calculation updates for provider: %s. Cluster ID: %s.',
-                 self._provider_uuid, self._cluster_id)
+        LOG.info(
+            "Starting charge calculation updates for provider: %s. Cluster ID: %s.",
+            self._provider_uuid,
+            self._cluster_id,
+        )
         self._update_pod_charge(start_date, end_date)
         self._update_storage_charge(start_date, end_date)
         self._update_markup_cost(start_date, end_date)
@@ -336,5 +356,5 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
             report_periods = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
             with schema_context(self._schema):
                 for period in report_periods:
-                    period.derived_cost_datetime = DateAccessor().today_with_timezone('UTC')
+                    period.derived_cost_datetime = DateAccessor().today_with_timezone("UTC")
                     period.save()

@@ -14,19 +14,23 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """View for Rates."""
 import logging
 from functools import reduce
 from operator import and_
 
-from django.core.exceptions import FieldError, ValidationError
+from django.core.exceptions import FieldError
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
-from django_filters import CharFilter, FilterSet, UUIDFilter
+from django_filters import CharFilter
+from django_filters import FilterSet
+from django_filters import UUIDFilter
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import mixins, status, viewsets
+from rest_framework import mixins
+from rest_framework import status
+from rest_framework import viewsets
 from rest_framework.exceptions import APIException
 from rest_framework.filters import OrderingFilter
 
@@ -41,38 +45,33 @@ LOG = logging.getLogger(__name__)
 class CostModelsFilter(FilterSet):
     """Cost model custom filters."""
 
-    name = CharFilter(field_name='name', method='list_contain_filter')
-    uuid = UUIDFilter(field_name='uuid')
-    provider_uuid = UUIDFilter(field_name='costmodelmap__provider_uuid')
-    description = CharFilter(field_name='description', lookup_expr='icontains')
-    source_type = CharListFilter(field_name='source_type', lookup_expr='source_type__iexact')
+    name = CharFilter(field_name="name", method="list_contain_filter")
+    uuid = UUIDFilter(field_name="uuid")
+    provider_uuid = UUIDFilter(field_name="costmodelmap__provider_uuid")
+    description = CharFilter(field_name="description", lookup_expr="icontains")
+    source_type = CharListFilter(field_name="source_type", lookup_expr="source_type__iexact")
 
     def list_contain_filter(self, qs, name, values):
         """Filter items that contain values in their name."""
-        lookup = '__'.join([name, 'icontains'])
-        value_list = values.split(',')
+        lookup = "__".join([name, "icontains"])
+        value_list = values.split(",")
         queries = [Q(**{lookup: val}) for val in value_list]
         return qs.filter(reduce(and_, queries))
 
     class Meta:
         model = CostModel
-        fields = [
-            'source_type',
-            'name',
-            'provider_uuid',
-            'description',
-        ]
+        fields = ["source_type", "name", "provider_uuid", "description"]
 
 
 class RateProviderPermissionDenied(APIException):
     """Rate query custom internal error exception."""
 
-    default_detail = 'You do not have permission to perform this action.'
+    default_detail = "You do not have permission to perform this action."
 
     def __init__(self):
         """Initialize with status code 403."""
         self.status_code = status.HTTP_403_FORBIDDEN
-        self.detail = {'detail': force_text(self.default_detail)}
+        self.detail = {"detail": force_text(self.default_detail)}
 
 
 class CostModelQueryException(APIException):
@@ -81,7 +80,7 @@ class CostModelQueryException(APIException):
     def __init__(self, message):
         """Initialize with status code 400."""
         self.status_code = status.HTTP_400_BAD_REQUEST
-        self.detail = {'detail': force_text(message)}
+        self.detail = {"detail": force_text(message)}
 
 
 class CostModelProviderQueryException(APIException):
@@ -90,7 +89,7 @@ class CostModelProviderQueryException(APIException):
     def __init__(self, message):
         """Initialize with status code 500."""
         self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        self.detail = {'detail': force_text(message)}
+        self.detail = {"detail": force_text(message)}
 
 
 class CostModelProviderMethodException(APIException):
@@ -99,15 +98,17 @@ class CostModelProviderMethodException(APIException):
     def __init__(self, message):
         """Set custom error message for ProviderManager errors."""
         self.status_code = status.HTTP_405_METHOD_NOT_ALLOWED
-        self.detail = {'detail': force_text(message)}
+        self.detail = {"detail": force_text(message)}
 
 
-class CostModelViewSet(mixins.CreateModelMixin,
-                       mixins.DestroyModelMixin,
-                       mixins.ListModelMixin,
-                       mixins.RetrieveModelMixin,
-                       mixins.UpdateModelMixin,
-                       viewsets.GenericViewSet):
+class CostModelViewSet(
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
     """CostModel View.
 
     A viewset that provides default `create()`, `destroy`, `retrieve()`,
@@ -118,16 +119,16 @@ class CostModelViewSet(mixins.CreateModelMixin,
     queryset = CostModel.objects.all()
     serializer_class = CostModelSerializer
     permission_classes = (CostModelsAccessPermission,)
-    lookup_field = 'uuid'
+    lookup_field = "uuid"
     filter_backends = (DjangoFilterBackend, OrderingFilter)
     filterset_class = CostModelsFilter
-    ordering_fields = ('name', 'source_type', 'updated_timestamp')
-    ordering = ('name',)
+    ordering_fields = ("name", "source_type", "updated_timestamp")
+    ordering = ("name",)
 
     @staticmethod
     def check_fields(dict_, model, exception):
         """Check if GET fields are valid."""
-        valid_query_params = ['limit', 'offset', 'provider_uuid', 'ordering']
+        valid_query_params = ["limit", "offset", "provider_uuid", "ordering"]
         cost_models_params = {k: dict_.get(k) for k in dict_.keys() if k not in valid_query_params}
         try:
             model.objects.filter(**cost_models_params)
@@ -142,8 +143,8 @@ class CostModelViewSet(mixins.CreateModelMixin,
         queryset = CostModel.objects.all()
         self.check_fields(self.request.query_params, CostModel, CostModelQueryException)
         if not self.request.user.admin:
-            read_access_list = self.request.user.access.get('rate').get('read')
-            if '*' not in read_access_list:
+            read_access_list = self.request.user.access.get("rate").get("read")
+            if "*" not in read_access_list:
                 try:
                     queryset = self.queryset.filter(uuid__in=read_access_list)
                 except ValidationError as queryset_error:
@@ -161,7 +162,7 @@ class CostModelViewSet(mixins.CreateModelMixin,
         try:
             response = super().list(request=request, args=args, kwargs=kwargs)
         except ValidationError:
-            raise CostModelProviderQueryException('Invalid provider uuid')
+            raise CostModelProviderQueryException("Invalid provider uuid")
 
         return response
 
@@ -178,6 +179,6 @@ class CostModelViewSet(mixins.CreateModelMixin,
     @never_cache
     def update(self, request, *args, **kwargs):
         """Update a rate."""
-        if request.method == 'PATCH':
-            raise CostModelProviderMethodException('PATCH not supported')
+        if request.method == "PATCH":
+            raise CostModelProviderMethodException("PATCH not supported")
         return super().update(request=request, args=args, kwargs=kwargs)

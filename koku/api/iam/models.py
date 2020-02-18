@@ -14,9 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Models for identity and access management."""
-
 from uuid import uuid4
 
 from django.contrib.postgres.fields import JSONField
@@ -32,25 +30,23 @@ class Customer(models.Model):
     """
 
     date_created = models.DateTimeField(auto_now_add=True)
-    uuid = models.UUIDField(default=uuid4, editable=False,
-                            unique=True, null=False)
+    uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
     account_id = models.CharField(max_length=150, blank=False, null=True, unique=True)
-    schema_name = models.TextField(unique=True, null=False, default='public')
+    schema_name = models.TextField(unique=True, null=False, default="public")
 
     class Meta:
-        ordering = ['schema_name']
+        ordering = ["schema_name"]
 
 
 class User(models.Model):
     """A Koku User."""
 
-    uuid = models.UUIDField(default=uuid4, editable=False,
-                            unique=True, null=False)
+    uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
     username = models.CharField(max_length=150, unique=True)
     email = models.EmailField(blank=True)
     date_created = models.DateTimeField(auto_now_add=True)
     is_active = models.NullBooleanField(default=True)
-    customer = models.ForeignKey('Customer', null=True, on_delete=models.CASCADE)
+    customer = models.ForeignKey("Customer", null=True, on_delete=models.CASCADE)
 
     def __init__(self, *args, **kwargs):
         """Initialize non-persisted user properties."""
@@ -60,15 +56,14 @@ class User(models.Model):
         self.identity_header = None
 
     class Meta:
-        ordering = ['username']
+        ordering = ["username"]
 
 
 class UserPreference(models.Model):
     """A user preference."""
 
-    uuid = models.UUIDField(default=uuid4, editable=False,
-                            unique=True, null=False)
-    user = models.ForeignKey('User', null=False, on_delete=models.CASCADE)
+    uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
+    user = models.ForeignKey("User", null=False, on_delete=models.CASCADE)
     preference = JSONField(null=False)
     name = models.CharField(max_length=255, null=False, default=uuid4)
     description = models.CharField(max_length=255, null=True)
@@ -76,14 +71,12 @@ class UserPreference(models.Model):
     class Meta:
         """Meta for UserPreference."""
 
-        unique_together = ('name', 'user')
-        ordering = ('name',)
+        unique_together = ("name", "user")
+        ordering = ("name",)
 
     def __str__(self):
         """Return string representation of user preferences."""
-        return 'UserPreference({}): User: {}, Preference: {}'.format(self.name,
-                                                                     self.user,
-                                                                     self.preference)
+        return f"UserPreference({self.name}): User: {self.user}, Preference: {self.preference}"
 
 
 class Tenant(TenantMixin):

@@ -14,23 +14,21 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Prometheus metrics."""
 import time
 
 from celery.utils.log import get_task_logger
-from django.db import InterfaceError, OperationalError, connection
-from prometheus_client import Counter, Gauge
+from django.db import connection
+from django.db import InterfaceError
+from django.db import OperationalError
+from prometheus_client import Counter
+from prometheus_client import Gauge
 
 from .celery import app
 
 LOG = get_task_logger(__name__)
-DB_CONNECTION_ERRORS_COUNTER = Counter(
-    'db_connection_errors', 'Number of DB connection errors'
-)
-PGSQL_GAUGE = Gauge(
-    'postgresql_schema_size_bytes', 'PostgreSQL DB Size (bytes)', ['schema']
-)
+DB_CONNECTION_ERRORS_COUNTER = Counter("db_connection_errors", "Number of DB connection errors")
+PGSQL_GAUGE = Gauge("postgresql_schema_size_bytes", "PostgreSQL DB Size (bytes)", ["schema"])
 
 
 class DatabaseStatus:
@@ -40,9 +38,9 @@ class DatabaseStatus:
         """Check DB connection."""
         try:
             connection.cursor()
-            LOG.debug('DatabaseStatus.connection_check: DB connected!')
+            LOG.debug("DatabaseStatus.connection_check: DB connected!")
         except OperationalError as error:
-            LOG.error('DatabaseStatus.connection_check: No connection to DB: %s', str(error))
+            LOG.error("DatabaseStatus.connection_check: No connection to DB: %s", str(error))
             DB_CONNECTION_ERRORS_COUNTER.inc()
 
     def query(self, query, query_tag):  # pylint: disable=R0201
@@ -63,22 +61,16 @@ class DatabaseStatus:
                     cursor.execute(query)
                     rows = cursor.fetchall()
             except (OperationalError, InterfaceError) as exc:
-                LOG.warning('DatabaseStatus.query exception: %s', exc)
+                LOG.warning("DatabaseStatus.query exception: %s", exc)
                 time.sleep(2)
             else:
                 break
         else:
-            LOG.error(
-                'DatabaseStatus.query (query: %s): Query failed to return results.',
-                query_tag,
-            )
+            LOG.error("DatabaseStatus.query (query: %s): Query failed to return results.", query_tag)
             return []
 
         if not rows:
-            LOG.info(
-                'DatabaseStatus.query (query: %s): Query returned no results.',
-                query_tag,
-            )
+            LOG.info("DatabaseStatus.query (query: %s): Query returned no results.", query_tag)
             return []
 
         # get column names
@@ -87,7 +79,7 @@ class DatabaseStatus:
         # transform list-of-lists into list-of-dicts including column names.
         result = [dict(zip(names, row)) for row in rows if len(row) == 2]
 
-        LOG.debug('DatabaseStatus.query (query: %s): query returned.', query_tag)
+        LOG.debug("DatabaseStatus.query (query: %s): query returned.", query_tag)
 
         return result
 
@@ -95,8 +87,8 @@ class DatabaseStatus:
         """Collect stats and report using Prometheus objects."""
         stats = self.schema_size()
         for item in stats:
-            schema = item.get('schema')
-            size = item.get('size')
+            schema = item.get("schema")
+            size = item.get("size")
             if schema is not None and size is not None:
                 PGSQL_GAUGE.labels(schema).set(size)
 
@@ -130,10 +122,10 @@ class DatabaseStatus:
             GROUP BY schema_name
             ORDER BY schema_name;
         """
-        return self.query(query, 'DB storage consumption')
+        return self.query(query, "DB storage consumption")
 
 
-@app.task(name='koku.metrics.collect_metrics')
+@app.task(name="koku.metrics.collect_metrics")
 def collect_metrics():
     """Collect DB metrics with scheduled celery task."""
     db_status = DatabaseStatus()

@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Model for Cloud Account."""
 from django.db import models
 
@@ -38,7 +37,7 @@ class CloudAccount(models.Model):
         description: Cost Management's AWS Account ID
     """
 
-    name = models.CharField(max_length=255, help_text='The name of the attribute')
+    name = models.CharField(max_length=255, help_text="The name of the attribute")
     value = models.TextField(null=True)
     description = models.TextField(null=True)
     updated_timestamp = models.DateTimeField(auto_now=True, blank=True, null=True)

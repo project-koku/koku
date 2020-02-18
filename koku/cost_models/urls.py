@@ -14,15 +14,14 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Describes the urls and patterns for the API application."""
-from django.conf.urls import include, url
+from django.conf.urls import include
+from django.conf.urls import url
 from rest_framework.routers import DefaultRouter
 
 from cost_models.views import CostModelViewSet
 
 ROUTER = DefaultRouter()
-ROUTER.register(r'costmodels', CostModelViewSet, basename='costmodels')
+ROUTER.register(r"costmodels", CostModelViewSet, basename="costmodels")
 
 # pylint: disable=invalid-name
-urlpatterns = [
-    url(r'^', include(ROUTER.urls)),
-]
+urlpatterns = [url(r"^", include(ROUTER.urls))]
