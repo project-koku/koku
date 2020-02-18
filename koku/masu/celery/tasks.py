@@ -21,8 +21,8 @@
 import calendar
 import csv
 import math
+import os
 from datetime import date
-from os import walk
 
 import boto3
 from botocore.exceptions import ClientError
@@ -320,45 +320,30 @@ def vacuum_schemas():
 @app.task(name="masu.celery.tasks.clean_volume", queue_name="clean_volume")
 def clean_volume():
     """Clean up the volume in the worker pod."""
-    LOG.info("Cleaning up the volumes from the tasks.py at %s " % Config.PVC_DIR)
+    LOG.info("Cleaning up the volume at %s " % Config.PVC_DIR)
     # get the billing months to use below
     months = DateAccessor().get_billing_months(Config.INITIAL_INGEST_NUM_MONTHS)
-    LOG.info("HERE ARE THE MONTHS: ")
-    LOG.info(months)
-    # for each provider for each month - we want to get the associated assembly_id
-    # and whether or not the files for that manifest were processed
     db_accessor = ReportManifestDBAccessor()
-    assembly_ids_to_exclude = []
+    # this list is initialized with the .gitkeep file so that it does not get deleted
+    assembly_ids_to_exclude = [".gitkeep"]
+    # grab the assembly ids to exclude for each month
     for month in months:
-        assembly_id, processed = db_accessor.get_last_seen_manifest_id(month)
-        LOG.info("\n\n assembly_id: ")
-        LOG.info(assembly_id)
-        LOG.info(processed)
-        # if the files associated with the manifest haven't been processed - exclude it
-        if not processed:
-            assembly_ids_to_exclude.append(assembly_id)
+        assembly_ids = db_accessor.get_last_seen_manifest_ids(month)
+        assembly_ids_to_exclude.extend(assembly_ids)
     # now we want to loop through the files and clean up the ones that are not in the exclude list
-    LOG.info("\n\n\nlooping the files!")
-    LOG.info(Config.PVC_DIR)
-    files_to_delete = []
-    files_to_keep = []
-    for [root, dirnames, filenames] in walk(Config.PVC_DIR):
-        if not assembly_ids_to_exclude:
-            files_to_delete.extend(filenames)
-        else:
+    deleted_files = []
+    for [root, dirnames, filenames] in os.walk(Config.PVC_DIR):
+        for file in filenames:
             match = False
-            for file in filenames:
-                for assembly_id in assembly_ids_to_exclude:
-                    if assembly_id in file:
-                        match = True
-                        files_to_keep.append(file)  # for temp debugging
-                # if none of the assembly_ids that we care about were in the filename - we can delete it
-                if not match:
-                    files_to_delete.append(file)
-    LOG.info("\n\n\nHere are the files that match:")
-    LOG.info(files_to_keep)
-    LOG.info("\n\n\nHere are the files to potentially be removed: ")
-    LOG.info(files_to_delete)
-    # Once we have the files that are not the most recently seen - we know we can delete them.
-    # for file in files_to_delete:
-    #     os.remove(os.path.join(root, file))
+            for assembly_id in assembly_ids_to_exclude:
+                if assembly_id in file:
+                    match = True
+            # if none of the assembly_ids that we care about were in the filename - we can safely delete it
+            if not match:
+                os.remove(os.path.join(root, file))
+                deleted_files.append(os.path.join(root, file))
+    if deleted_files:
+        LOG.info("The following files were deleted: ")
+        LOG.info(deleted_files)
+    else:
+        LOG.info("No files found that met requirements for deletion.")

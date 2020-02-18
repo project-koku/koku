@@ -15,12 +15,18 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Report manifest database accessor for cost usage reports."""
+from celery.utils.log import get_task_logger
+from django.db.models import F
+from django.db.models.expressions import Window
+from django.db.models.functions import RowNumber
 from tenant_schemas.utils import schema_context
 
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
+
+LOG = get_task_logger(__name__)
 
 
 class ReportManifestDBAccessor(KokuDBAccess):
@@ -112,36 +118,29 @@ class ReportManifestDBAccessor(KokuDBAccess):
         filters = {"provider_id": provider_uuid, "billing_period_start_datetime__date": bill_date}
         return CostUsageReportManifest.objects.filter(**filters).all()
 
-    def get_last_seen_manifest_id(self, bill_date):
+    def get_last_seen_manifest_ids(self, bill_date):
         """Return a tuple containing the assembly_id of the last seen manifest and a boolean
 
         The boolean will state whether or not that manifest has been processed."""
-        # get the assembly id that was last seen
-        # similar to select assembly_id from reporting_common_costusagereportmanifest where provider_id =
-        # '01f0bb5f-f98a-453a-ad85-97698aac3895' and
-        # billing_period_start_datetime = '2020-01-01 00:00:00+00' order by id desc limit 1;
-        assembly_id = None
-        processed = True
-        filters = {"billing_period_start_datetime__date": bill_date}
-        report = CostUsageReportManifest.objects.filter(**filters).order_by("-manifest_creation_datetime").first()
-        if report:
-            assembly_id = report.assembly_id
-            num_total_files = report.num_total_files
-            num_processed_files = report.num_processed_files
-            processed = num_total_files == num_processed_files
-
-        print("\n\n\n\n\n report: ")
-        print(report)
-        print(type(report))
-        return assembly_id, processed
-        # assembly_id = report.assembly_id
-        # print(assembly_id)
-        # # now check if that manifest associated with that id has been processed
-        # num_total_files = report.num_total_files
-        # num_processed_files = report.num_processed_files
-        # processed = (num_processed_files == num_total_files)
-        # print(processed)
-        # print(num_processed_files)
-        # print(num_total_files)
-        # processed = False
-        # return ('d597fe25-2c6a-4522-a0e5-d937602ec384', False)
+        assembly_ids = []
+        # The following query uses a window function to rank the manifests for all the providers,
+        # and then just pulls out the top ranked (most recent) manifests
+        manifests = (
+            CostUsageReportManifest.objects.filter(billing_period_start_datetime=bill_date)
+            .annotate(
+                row_number=Window(
+                    expression=RowNumber(),
+                    partition_by=F("provider_id"),
+                    order_by=F("manifest_creation_datetime").desc(),
+                )
+            )
+            .order_by("row_number")
+        )
+        for manifest in manifests:
+            # loop through the manifests and decide if they have finished processing
+            processed = manifest.num_total_files == manifest.num_processed_files
+            # if all of the files for the manifest have been processed we don't want to add it
+            # to assembly_ids because it is safe to delete
+            if not processed:
+                assembly_ids.append(manifest.assembly_id)
+        return assembly_ids
