@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider external interface for koku to consume."""
-
 import logging
 
 from rest_framework.serializers import ValidationError
@@ -50,15 +49,17 @@ class ProviderAccessor:
         valid_services = Provider.PROVIDER_CHOICES
 
         if not [service for service in valid_services if service_name in service]:
-            LOG.error('%s is not a valid provider', service_name)
+            LOG.error("%s is not a valid provider", service_name)
 
-        services = {Provider.PROVIDER_AWS: AWSProvider,
-                    Provider.PROVIDER_AWS_LOCAL: AWSLocalProvider,
-                    Provider.PROVIDER_AZURE_LOCAL: AzureLocalProvider,
-                    Provider.PROVIDER_OCP: OCPProvider,
-                    Provider.PROVIDER_AZURE: AzureProvider,
-                    Provider.PROVIDER_GCP: GCPProvider,
-                    Provider.PROVIDER_GCP_LOCAL: GCPLocalProvider}
+        services = {
+            Provider.PROVIDER_AWS: AWSProvider,
+            Provider.PROVIDER_AWS_LOCAL: AWSLocalProvider,
+            Provider.PROVIDER_AZURE_LOCAL: AzureLocalProvider,
+            Provider.PROVIDER_OCP: OCPProvider,
+            Provider.PROVIDER_AZURE: AzureProvider,
+            Provider.PROVIDER_GCP: GCPProvider,
+            Provider.PROVIDER_GCP_LOCAL: GCPLocalProvider,
+        }
 
         self.service = None
         if callable(services.get(service_name)):
@@ -126,17 +127,17 @@ class ProviderAccessor:
                             'availability_status_error': ValidationError-detail}
 
         """
-        error_msg = ''
+        error_msg = ""
         try:
             self.cost_usage_source_ready(credential, source_name)
         except ValidationError as validation_error:
             for error_key in validation_error.detail.keys():
                 error_msg = str(validation_error.detail.get(error_key)[0])
         if error_msg:
-            status = 'unavailable'
+            status = "unavailable"
         else:
-            status = 'available'
-        return {'availability_status': status, 'availability_status_error': str(error_msg)}
+            status = "available"
+        return {"availability_status": status, "availability_status_error": str(error_msg)}
 
     def infrastructure_type(self, provider_uuid, schema_name):
         """
@@ -156,7 +157,7 @@ class ProviderAccessor:
         except Exception as error:
             raise ProviderAccessorError(str(error))
 
-        return infrastructure_type if infrastructure_type else 'Unknown'
+        return infrastructure_type if infrastructure_type else "Unknown"
 
     def infrastructure_key_list(self, infrastructure_type, schema_name):
         """

@@ -14,12 +14,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Views for CostModelMetricsMap."""
 import logging
 
 from django.views.decorators.vary import vary_on_headers
-from rest_framework import mixins, viewsets
+from rest_framework import mixins
+from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
 
 from api.common import RH_IDENTITY_HEADER
@@ -46,7 +46,7 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
         Restricts the returned data to provider_uuid if supplied as a query parameter.
         """
         queryset = CostModelMetricsMap.objects.all()
-        source_type = self.request.query_params.get('source_type')
+        source_type = self.request.query_params.get("source_type")
         if source_type:
             queryset = queryset.filter(source_type=source_type)
 

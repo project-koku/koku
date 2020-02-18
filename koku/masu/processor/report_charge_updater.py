@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Update charge info for report summary tables."""
-
 import logging
 
 from api.models import Provider
@@ -70,7 +69,7 @@ class ReportChargeUpdater:
             return AWSReportChargeUpdater(self._schema, self._provider)
         if self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             return AzureReportChargeUpdater(self._schema, self._provider)
-        if self._provider.type in (Provider.PROVIDER_OCP, ):
+        if self._provider.type in (Provider.PROVIDER_OCP,):
             return OCPReportChargeUpdater(self._schema, self._provider)
 
         return None

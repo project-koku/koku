@@ -14,10 +14,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Models for OCP on AWS tables."""
-
-from django.contrib.postgres.fields import ArrayField, JSONField
+from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
@@ -28,43 +27,20 @@ class OCPAWSCostLineItemDailySummary(models.Model):
     class Meta:
         """Meta for OCPAWSCostLineItemDailySummary."""
 
-        db_table = 'reporting_ocpawscostlineitem_daily_summary'
+        db_table = "reporting_ocpawscostlineitem_daily_summary"
 
         indexes = [
-            models.Index(
-                fields=['usage_start'],
-                name='cost_summary_ocp_usage_idx',
-            ),
-            models.Index(
-                fields=['namespace'],
-                name='cost_summary_namespace_idx',
-            ),
-            models.Index(
-                fields=['node'],
-                name='cost_summary_node_idx',
-            ),
-            models.Index(
-                fields=['resource_id'],
-                name='cost_summary_resource_idx',
-            ),
-            GinIndex(
-                fields=['tags'],
-                name='cost_tags_idx',
-            ),
-            models.Index(
-                fields=['product_family'],
-                name='ocp_aws_product_family_idx',
-            ),
-            models.Index(
-                fields=['instance_type'],
-                name='ocp_aws_instance_type_idx',
-            ),
+            models.Index(fields=["usage_start"], name="cost_summary_ocp_usage_idx"),
+            models.Index(fields=["namespace"], name="cost_summary_namespace_idx"),
+            models.Index(fields=["node"], name="cost_summary_node_idx"),
+            models.Index(fields=["resource_id"], name="cost_summary_resource_idx"),
+            GinIndex(fields=["tags"], name="cost_tags_idx"),
+            models.Index(fields=["product_family"], name="ocp_aws_product_family_idx"),
+            models.Index(fields=["instance_type"], name="ocp_aws_instance_type_idx"),
         ]
 
     # OCP Fields
-    report_period = models.ForeignKey(
-        'OCPUsageReportPeriod', on_delete=models.CASCADE, null=True
-    )
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
 
     cluster_id = models.CharField(max_length=50, null=True)
 
@@ -84,9 +60,7 @@ class OCPAWSCostLineItemDailySummary(models.Model):
     usage_end = models.DateTimeField(null=False)
 
     # AWS Fields
-    cost_entry_bill = models.ForeignKey('AWSCostEntryBill',
-                                        on_delete=models.CASCADE,
-                                        null=True)
+    cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE, null=True)
 
     product_code = models.CharField(max_length=50, null=False)
 
@@ -96,9 +70,7 @@ class OCPAWSCostLineItemDailySummary(models.Model):
 
     usage_account_id = models.CharField(max_length=50, null=False)
 
-    account_alias = models.ForeignKey('AWSAccountAlias',
-                                      on_delete=models.SET_NULL,
-                                      null=True)
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
 
     availability_zone = models.CharField(max_length=50, null=True)
 
@@ -108,8 +80,7 @@ class OCPAWSCostLineItemDailySummary(models.Model):
 
     tags = JSONField(null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9,
-                                       null=True)
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     normalized_usage_amount = models.FloatField(null=True)
 
@@ -120,11 +91,9 @@ class OCPAWSCostLineItemDailySummary(models.Model):
     # with a GROUP BY cluster/node.
     # Project cost is a summation of pod costs with a GROUP BY project
     # The cost of un-utilized resources = sum(unblended_cost) - sum(project_cost)
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15,
-                                         null=True)
+    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=30, decimal_places=15,
-                                      null=True)
+    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
     # This is a count of the number of projects that share an AWS resource
     # It is used to divide cost evenly among projects
@@ -141,43 +110,20 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
     class Meta:
         """Meta for OCPAWSCostLineItemProjectDailySummary."""
 
-        db_table = 'reporting_ocpawscostlineitem_project_daily_summary'
+        db_table = "reporting_ocpawscostlineitem_project_daily_summary"
 
         indexes = [
-            models.Index(
-                fields=['usage_start'],
-                name='cost_proj_sum_ocp_usage_idx',
-            ),
-            models.Index(
-                fields=['namespace'],
-                name='cost__proj_sum_namespace_idx',
-            ),
-            models.Index(
-                fields=['node'],
-                name='cost_proj_sum_node_idx',
-            ),
-            models.Index(
-                fields=['resource_id'],
-                name='cost_proj_sum_resource_idx',
-            ),
-            GinIndex(
-                fields=['pod_labels'],
-                name='cost_proj_pod_labels_idx',
-            ),
-            models.Index(
-                fields=['product_family'],
-                name='ocp_aws_proj_prod_fam_idx',
-            ),
-            models.Index(
-                fields=['instance_type'],
-                name='ocp_aws_proj_inst_type_idx',
-            ),
+            models.Index(fields=["usage_start"], name="cost_proj_sum_ocp_usage_idx"),
+            models.Index(fields=["namespace"], name="cost__proj_sum_namespace_idx"),
+            models.Index(fields=["node"], name="cost_proj_sum_node_idx"),
+            models.Index(fields=["resource_id"], name="cost_proj_sum_resource_idx"),
+            GinIndex(fields=["pod_labels"], name="cost_proj_pod_labels_idx"),
+            models.Index(fields=["product_family"], name="ocp_aws_proj_prod_fam_idx"),
+            models.Index(fields=["instance_type"], name="ocp_aws_proj_inst_type_idx"),
         ]
 
     # OCP Fields
-    report_period = models.ForeignKey(
-        'OCPUsageReportPeriod', on_delete=models.CASCADE, null=True
-    )
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
 
     cluster_id = models.CharField(max_length=50, null=True)
 
@@ -202,9 +148,7 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
     usage_end = models.DateTimeField(null=False)
 
     # AWS Fields
-    cost_entry_bill = models.ForeignKey('AWSCostEntryBill',
-                                        on_delete=models.CASCADE,
-                                        null=True)
+    cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE, null=True)
 
     product_code = models.CharField(max_length=50, null=False)
 
@@ -214,9 +158,7 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
 
     usage_account_id = models.CharField(max_length=50, null=False)
 
-    account_alias = models.ForeignKey('AWSAccountAlias',
-                                      on_delete=models.SET_NULL,
-                                      null=True)
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
 
     availability_zone = models.CharField(max_length=50, null=True)
 
@@ -226,24 +168,14 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
 
     # Need more precision on calculated fields, otherwise there will be
     # Rounding errors
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15,
-                                       null=True)
+    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
     normalized_usage_amount = models.FloatField(null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15,
-                                         null=True)
+    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
-    project_markup_cost = models.DecimalField(
-        max_digits=30,
-        decimal_places=15,
-        null=True
-    )
+    project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
-    pod_cost = models.DecimalField(
-        max_digits=30,
-        decimal_places=15,
-        null=True
-    )
+    pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)

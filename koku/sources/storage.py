@@ -21,14 +21,16 @@ from base64 import b64decode
 from json import loads as json_loads
 from json.decoder import JSONDecodeError
 
-from django.db import InterfaceError, OperationalError
+from django.db import InterfaceError
+from django.db import OperationalError
 
-from api.provider.models import Provider, Sources
+from api.provider.models import Provider
+from api.provider.models import Sources
 
 
 LOG = logging.getLogger(__name__)
-REQUIRED_AZURE_AUTH_KEYS = {'client_id', 'tenant_id', 'client_secret', 'subscription_id'}
-REQUIRED_AZURE_BILLING_KEYS = {'resource_group', 'storage_account'}
+REQUIRED_AZURE_AUTH_KEYS = {"client_id", "tenant_id", "client_secret", "subscription_id"}
+REQUIRED_AZURE_BILLING_KEYS = {"resource_group", "storage_account"}
 
 
 class SourcesStorageError(Exception):
@@ -37,27 +39,42 @@ class SourcesStorageError(Exception):
 
 def _aws_provider_ready_for_create(provider):
     """Determine if AWS provider is ready for provider creation."""
-    if (provider.source_id and provider.name and provider.auth_header
-            and provider.billing_source and provider.authentication
-            and not provider.koku_uuid):
+    if (
+        provider.source_id
+        and provider.name
+        and provider.auth_header
+        and provider.billing_source
+        and provider.authentication
+        and not provider.koku_uuid
+    ):
         return True
     return False
 
 
 def _ocp_provider_ready_for_create(provider):
     """Determine if OCP provider is ready for provider creation."""
-    if (provider.source_id and provider.name and provider.authentication
-            and provider.auth_header and not provider.koku_uuid):
+    if (
+        provider.source_id
+        and provider.name
+        and provider.authentication
+        and provider.auth_header
+        and not provider.koku_uuid
+    ):
         return True
     return False
 
 
 def _azure_provider_ready_for_create(provider):
     """Determine if AZURE provider is ready for provider creation."""
-    if (provider.source_id and provider.name and provider.auth_header
-            and provider.billing_source and not provider.koku_uuid):
-        billing_source = provider.billing_source.get('data_source', {})
-        authentication = provider.authentication.get('credentials', {})
+    if (
+        provider.source_id
+        and provider.name
+        and provider.auth_header
+        and provider.billing_source
+        and not provider.koku_uuid
+    ):
+        billing_source = provider.billing_source.get("data_source", {})
+        authentication = provider.authentication.get("credentials", {})
         if billing_source and authentication:
             if (
                 set(authentication.keys()) == REQUIRED_AZURE_AUTH_KEYS
@@ -70,12 +87,14 @@ def _azure_provider_ready_for_create(provider):
 def screen_and_build_provider_sync_create_event(provider):
     """Determine if the source should be queued for synchronization."""
     provider_event = {}
-    screen_map = {Provider.PROVIDER_AWS: _aws_provider_ready_for_create,
-                  Provider.PROVIDER_OCP: _ocp_provider_ready_for_create,
-                  Provider.PROVIDER_AZURE: _azure_provider_ready_for_create}
+    screen_map = {
+        Provider.PROVIDER_AWS: _aws_provider_ready_for_create,
+        Provider.PROVIDER_OCP: _ocp_provider_ready_for_create,
+        Provider.PROVIDER_AZURE: _azure_provider_ready_for_create,
+    }
     screen_fn = screen_map.get(provider.source_type)
     if screen_fn and screen_fn(provider) and not provider.pending_delete:
-        provider_event = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
+        provider_event = {"operation": "create", "provider": provider, "offset": provider.offset}
     return provider_event
 
 
@@ -117,10 +136,9 @@ def load_providers_to_update():
 
     """
     providers_to_update = []
-    providers = Sources.objects.filter(pending_update=True, pending_delete=False,
-                                       koku_uuid__isnull=False).all()
+    providers = Sources.objects.filter(pending_update=True, pending_delete=False, koku_uuid__isnull=False).all()
     for provider in providers:
-        providers_to_update.append({'operation': 'update', 'provider': provider})
+        providers_to_update.append({"operation": "update", "provider": provider})
 
     return providers_to_update
 
@@ -145,9 +163,7 @@ def load_providers_to_delete():
     all_providers = Sources.objects.all()
     for provider in all_providers:
         if provider.pending_delete:
-            providers_to_delete.append({'operation': 'destroy',
-                                        'provider': provider,
-                                        'offset': provider.offset})
+            providers_to_delete.append({"operation": "destroy", "provider": provider, "offset": provider.offset})
     return providers_to_delete
 
 
@@ -158,7 +174,7 @@ def get_source(source_id, err_msg):
     except Sources.DoesNotExist:
         LOG.error(err_msg)
     except (InterfaceError, OperationalError) as error:
-        LOG.error(f'Accessing sources resulted in {type(error).__name__}: {error}')
+        LOG.error(f"Accessing sources resulted in {type(error).__name__}: {error}")
         raise error
 
 
@@ -174,7 +190,7 @@ def enqueue_source_delete(source_id):
         None
 
     """
-    source = get_source(source_id, f'Unable to enqueue source delete.  {source_id} not found.')
+    source = get_source(source_id, f"Unable to enqueue source delete.  {source_id} not found.")
     if source and not source.pending_delete:
         source.pending_delete = True
         source.save()
@@ -191,10 +207,10 @@ def enqueue_source_update(source_id):
         None
 
     """
-    source = get_source(source_id, f'Unable to enqueue source update.  {source_id} not found.')
+    source = get_source(source_id, f"Unable to enqueue source update.  {source_id} not found.")
     if source and source.koku_uuid and not source.pending_delete and not source.pending_update:
         source.pending_update = True
-        source.save(update_fields=['pending_update'])
+        source.save(update_fields=["pending_update"])
 
 
 def clear_update_flag(source_id):
@@ -208,7 +224,7 @@ def clear_update_flag(source_id):
         None
 
     """
-    source = get_source(source_id, f'Unable to clear update flag.  {source_id} not found.')
+    source = get_source(source_id, f"Unable to clear update flag.  {source_id} not found.")
     if source and source.koku_uuid and source.pending_update:
         source.pending_update = False
         source.save()
@@ -230,21 +246,20 @@ def create_source_event(source_id, auth_header, offset):
     try:
         decoded_rh_auth = b64decode(auth_header)
         json_rh_auth = json_loads(decoded_rh_auth)
-        account_id = json_rh_auth.get('identity', {}).get('account_number')
+        account_id = json_rh_auth.get("identity", {}).get("account_number")
     except (binascii.Error, JSONDecodeError) as error:
         LOG.error(str(error))
         return
 
     try:
         Sources.objects.get(source_id=source_id)
-        LOG.debug(f'Source ID {str(source_id)} already exists.')
+        LOG.debug(f"Source ID {str(source_id)} already exists.")
     except Sources.DoesNotExist:
-        new_event = Sources(source_id=source_id, auth_header=auth_header,
-                            offset=offset, account_id=account_id)
+        new_event = Sources(source_id=source_id, auth_header=auth_header, offset=offset, account_id=account_id)
         new_event.save()
-        LOG.info(f'source.storage.create_source_event created Source ID: {source_id}')
+        LOG.info(f"source.storage.create_source_event created Source ID: {source_id}")
     except (InterfaceError, OperationalError) as error:
-        LOG.error(f'source.storage.create_provider_event {type(error).__name__}: {error}')
+        LOG.error(f"source.storage.create_provider_event {type(error).__name__}: {error}")
         raise error
 
 
@@ -264,11 +279,11 @@ def destroy_source_event(source_id):
         source = Sources.objects.get(source_id=source_id)
         koku_uuid = source.koku_uuid
         source.delete()
-        LOG.info(f'source.storage.destroy_source_event destroyed Source ID: {source_id}')
+        LOG.info(f"source.storage.destroy_source_event destroyed Source ID: {source_id}")
     except Sources.DoesNotExist:
-        LOG.debug('Source ID: %s already removed.', str(source_id))
+        LOG.debug("Source ID: %s already removed.", str(source_id))
     except (InterfaceError, OperationalError) as error:
-        LOG.error(f'source.storage.destroy_provider_event {type(error).__name__}: {error}')
+        LOG.error(f"source.storage.destroy_provider_event {type(error).__name__}: {error}")
         raise error
 
     return koku_uuid
@@ -277,7 +292,9 @@ def destroy_source_event(source_id):
 def get_source_type(source_id):
     """Get Source Type from Source ID."""
     source_type = None
-    source = get_source(source_id, f'[get_source_type] Unable to get Source Type.  Source ID: {source_id} does not exist')  # noqa
+    source = get_source(
+        source_id, f"[get_source_type] Unable to get Source Type.  Source ID: {source_id} does not exist"
+    )  # noqa
     if source:
         source_type = source.source_type
     return source_type
@@ -290,9 +307,9 @@ def get_source_from_endpoint(endpoint_id):
         query = Sources.objects.get(endpoint_id=endpoint_id)
         source_id = query.source_id
     except Sources.DoesNotExist:
-        LOG.debug('Unable to find Source ID from Endpoint ID: %s', str(endpoint_id))
+        LOG.debug("Unable to find Source ID from Endpoint ID: %s", str(endpoint_id))
     except (InterfaceError, OperationalError) as error:
-        LOG.error(f'source.storage.get_source_from_endpoint {type(error).__name__}: {error}')
+        LOG.error(f"source.storage.get_source_from_endpoint {type(error).__name__}: {error}")
         raise error
     return source_id
 
@@ -309,14 +326,14 @@ def add_provider_sources_auth_info(source_id, authentication):
         None
 
     """
-    source = get_source(source_id, f'Unable to add authentication details.  Source ID: {source_id} does not exist')
+    source = get_source(source_id, f"Unable to add authentication details.  Source ID: {source_id} does not exist")
     if source:
         current_auth_dict = source.authentication
         subscription_id = None
-        if current_auth_dict.get('credentials', {}):
-            subscription_id = current_auth_dict.get('credentials', {}).get('subscription_id')
-        if subscription_id and authentication.get('credentials'):
-            authentication['credentials']['subscription_id'] = subscription_id
+        if current_auth_dict.get("credentials", {}):
+            subscription_id = current_auth_dict.get("credentials", {}).get("subscription_id")
+        if subscription_id and authentication.get("credentials"):
+            authentication["credentials"]["subscription_id"] = subscription_id
         if source.authentication != authentication:
             source.authentication = authentication
             source.save()
@@ -337,7 +354,7 @@ def add_provider_sources_network_info(source_id, source_uuid, name, source_type,
 
     """
     save_needed = False
-    source = get_source(source_id, f'Unable to add network details.  Source ID: {source_id} does not exist')
+    source = get_source(source_id, f"Unable to add network details.  Source ID: {source_id} does not exist")
     if source:
         if source.name != name:
             source.name = name
@@ -358,16 +375,16 @@ def add_provider_sources_network_info(source_id, source_uuid, name, source_type,
 def _validate_billing_source(provider_type, billing_source):
     """Validate billing source parameters."""
     if provider_type == Provider.PROVIDER_AWS:
-        if not billing_source.get('bucket'):
-            raise SourcesStorageError('Missing AWS bucket.')
+        if not billing_source.get("bucket"):
+            raise SourcesStorageError("Missing AWS bucket.")
     elif provider_type == Provider.PROVIDER_AZURE:
-        data_source = billing_source.get('data_source')
+        data_source = billing_source.get("data_source")
         if not data_source:
-            raise SourcesStorageError('Missing AZURE data_source.')
-        if not data_source.get('resource_group'):
-            raise SourcesStorageError('Missing AZURE resource_group')
-        if not data_source.get('storage_account'):
-            raise SourcesStorageError('Missing AZURE storage_account')
+            raise SourcesStorageError("Missing AZURE data_source.")
+        if not data_source.get("resource_group"):
+            raise SourcesStorageError("Missing AZURE resource_group")
+        if not data_source.get("storage_account"):
+            raise SourcesStorageError("Missing AZURE storage_account")
 
 
 def add_provider_koku_uuid(source_id, koku_uuid):
@@ -382,7 +399,7 @@ def add_provider_koku_uuid(source_id, koku_uuid):
         None
 
     """
-    source = get_source(source_id, f'Source ID {source_id} does not exist.')
+    source = get_source(source_id, f"Source ID {source_id} does not exist.")
     if source and source.koku_uuid != koku_uuid:
         source.koku_uuid = koku_uuid
         source.save()
@@ -405,6 +422,6 @@ def is_known_source(source_id):
     except Sources.DoesNotExist:
         source_exists = False
     except (InterfaceError, OperationalError) as error:
-        LOG.error(f'Accessing Sources resulting in {type(error).__name__}: {error}')
+        LOG.error(f"Accessing Sources resulting in {type(error).__name__}: {error}")
         raise error
     return source_exists

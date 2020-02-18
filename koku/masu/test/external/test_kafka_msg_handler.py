@@ -14,9 +14,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the Kafka msg handler."""
-
+import asyncio
 import json
 import os
 import shutil
@@ -24,14 +23,22 @@ import tempfile
 from unittest.mock import patch
 
 import requests_mock
+from kafka.errors import KafkaError
 from requests.exceptions import HTTPError
 
 import masu.external.kafka_msg_handler as msg_handler
 from api.models import Provider
 from masu.config import Config
-from masu.external.accounts_accessor import AccountsAccessor, AccountsAccessorError
+from masu.external.accounts_accessor import AccountsAccessor
+from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
+from masu.prometheus_stats import WORKER_REGISTRY
 from masu.test import MasuTestCase
+
+
+def raise_exception():
+    """Raise a kafka error."""
+    raise KafkaError()
 
 
 class KafkaMsg:
@@ -40,9 +47,9 @@ class KafkaMsg:
     def __init__(self, topic, url):
         """Initialize a Kafka Message."""
         self.topic = topic
-        value_dict = {'url': url}
+        value_dict = {"url": url}
         value_str = json.dumps(value_dict)
-        self.value = value_str.encode('utf-8')
+        self.value = value_str.encode("utf-8")
 
 
 class KafkaMsgHandlerTest(MasuTestCase):
@@ -51,30 +58,30 @@ class KafkaMsgHandlerTest(MasuTestCase):
     def setUp(self):
         """Set up each test case."""
         super().setUp()
-        payload_file = open('./koku/masu/test/data/ocp/payload.tar.gz', 'rb')
-        bad_payload_file = open('./koku/masu/test/data/ocp/bad_payload.tar.gz', 'rb')
+        payload_file = open("./koku/masu/test/data/ocp/payload.tar.gz", "rb")
+        bad_payload_file = open("./koku/masu/test/data/ocp/bad_payload.tar.gz", "rb")
         self.tarball_file = payload_file.read()
         payload_file.close()
 
         self.bad_tarball_file = bad_payload_file.read()
         bad_payload_file.close()
 
-        self.cluster_id = 'my-ocp-cluster-1'
-        self.date_range = '20190201-20190301'
+        self.cluster_id = "my-ocp-cluster-1"
+        self.date_range = "20190201-20190301"
 
     def test_extract_payload(self):
         """Test to verify extracting payload is successful."""
-        payload_url = 'http://insights-upload.com/quarnantine/file_to_validate'
+        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
         with requests_mock.mock() as m:
             m.get(payload_url, content=self.tarball_file)
 
             fake_dir = tempfile.mkdtemp()
             fake_pvc_dir = tempfile.mkdtemp()
-            with patch.object(Config, 'INSIGHTS_LOCAL_REPORT_DIR', fake_dir):
-                with patch.object(Config, 'TMP_DIR', fake_dir):
+            with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
+                with patch.object(Config, "TMP_DIR", fake_dir):
                     msg_handler.extract_payload(payload_url)
-                    expected_path = '{}/{}/{}/'.format(
-                        Config.INSIGHTS_LOCAL_REPORT_DIR, self.cluster_id, self.date_range,
+                    expected_path = "{}/{}/{}/".format(
+                        Config.INSIGHTS_LOCAL_REPORT_DIR, self.cluster_id, self.date_range
                     )
                     self.assertTrue(os.path.isdir(expected_path))
                     shutil.rmtree(fake_dir)
@@ -82,14 +89,14 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
     def test_extract_bad_payload(self):
         """Test to verify extracting payload missing report files is not successful."""
-        payload_url = 'http://insights-upload.com/quarnantine/file_to_validate'
+        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
         with requests_mock.mock() as m:
             m.get(payload_url, content=self.bad_tarball_file)
 
             fake_dir = tempfile.mkdtemp()
             fake_pvc_dir = tempfile.mkdtemp()
-            with patch.object(Config, 'INSIGHTS_LOCAL_REPORT_DIR', fake_dir):
-                with patch.object(Config, 'TMP_DIR', fake_dir):
+            with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
+                with patch.object(Config, "TMP_DIR", fake_dir):
                     with self.assertRaises(msg_handler.KafkaMsgHandlerError):
                         msg_handler.extract_payload(payload_url)
                     shutil.rmtree(fake_dir)
@@ -97,7 +104,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
     def test_extract_payload_bad_url(self):
         """Test to verify extracting payload exceptions are handled."""
-        payload_url = 'http://insights-upload.com/quarnantine/file_to_validate'
+        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
 
         with requests_mock.mock() as m:
             m.get(payload_url, exc=HTTPError)
@@ -107,21 +114,21 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
     def test_extract_payload_unable_to_open(self):
         """Test to verify extracting payload exceptions are handled."""
-        payload_url = 'http://insights-upload.com/quarnantine/file_to_validate'
+        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
 
         with requests_mock.mock() as m:
             m.get(payload_url, content=self.tarball_file)
-            with patch('masu.external.kafka_msg_handler.open') as mock_oserror:
+            with patch("masu.external.kafka_msg_handler.open") as mock_oserror:
                 mock_oserror.side_effect = PermissionError
                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
                     msg_handler.extract_payload(payload_url)
 
     def test_extract_payload_wrong_file_type(self):
         """Test to verify extracting payload is successful."""
-        payload_url = 'http://insights-upload.com/quarnantine/file_to_validate'
+        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
 
         with requests_mock.mock() as m:
-            payload_file = open('./koku/masu/test/data/test_cur.csv', 'rb')
+            payload_file = open("./koku/masu/test/data/test_cur.csv", "rb")
             csv_file = payload_file.read()
             payload_file.close()
 
@@ -132,27 +139,16 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
     def test_handle_messages(self):
         """Test to ensure that kafka messages are handled."""
-        hccm_msg = KafkaMsg(
-            msg_handler.HCCM_TOPIC, 'http://insights-upload.com/quarnantine/file_to_validate',
-        )
-        advisor_msg = KafkaMsg(
-            'platform.upload.advisor', 'http://insights-upload.com/quarnantine/file_to_validate',
-        )
+        hccm_msg = KafkaMsg(msg_handler.HCCM_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate")
+        advisor_msg = KafkaMsg("platform.upload.advisor", "http://insights-upload.com/quarnantine/file_to_validate")
 
         # Verify that when extract_payload is successful with 'hccm' message that SUCCESS_CONFIRM_STATUS is returned
-        with patch('masu.external.kafka_msg_handler.extract_payload', return_value=None):
-            self.assertEqual(
-                msg_handler.handle_message(hccm_msg), (msg_handler.SUCCESS_CONFIRM_STATUS, None),
-            )
+        with patch("masu.external.kafka_msg_handler.extract_payload", return_value=None):
+            self.assertEqual(msg_handler.handle_message(hccm_msg), (msg_handler.SUCCESS_CONFIRM_STATUS, None))
 
         # Verify that when extract_payload is not successful with 'hccm' message that FAILURE_CONFIRM_STATUS is returned
-        with patch(
-            'masu.external.kafka_msg_handler.extract_payload',
-            side_effect=msg_handler.KafkaMsgHandlerError,
-        ):
-            self.assertEqual(
-                msg_handler.handle_message(hccm_msg), (msg_handler.FAILURE_CONFIRM_STATUS, None),
-            )
+        with patch("masu.external.kafka_msg_handler.extract_payload", side_effect=msg_handler.KafkaMsgHandlerError):
+            self.assertEqual(msg_handler.handle_message(hccm_msg), (msg_handler.FAILURE_CONFIRM_STATUS, None))
 
         # Verify that when None status is returned for non-hccm messages (we don't confirm these)
         self.assertEqual(msg_handler.handle_message(advisor_msg), (None, None))
@@ -161,56 +157,56 @@ class KafkaMsgHandlerTest(MasuTestCase):
         """Test that the account details are returned given a provider uuid."""
         ocp_account = msg_handler.get_account(self.ocp_test_provider_uuid)
         self.assertIsNotNone(ocp_account)
-        self.assertEqual(ocp_account.get('provider_type'), Provider.PROVIDER_OCP)
+        self.assertEqual(ocp_account.get("provider_type"), Provider.PROVIDER_OCP)
 
-    @patch.object(AccountsAccessor, 'get_accounts')
+    @patch.object(AccountsAccessor, "get_accounts")
     def test_get_account_exception(self, mock_accessor):
         """Test that no account is returned upon exception."""
-        mock_accessor.side_effect = AccountsAccessorError('Sample timeout error')
+        mock_accessor.side_effect = AccountsAccessorError("Sample timeout error")
         ocp_account = msg_handler.get_account(self.ocp_test_provider_uuid)
         self.assertIsNone(ocp_account)
 
-    @patch('masu.external.kafka_msg_handler.summarize_reports')
-    @patch('masu.external.kafka_msg_handler.get_report_files')
+    @patch("masu.external.kafka_msg_handler.summarize_reports")
+    @patch("masu.external.kafka_msg_handler.get_report_files")
     def test_process_report_unknown_cluster_id(self, mock_get_reports, mock_summarize):
         """Test processing a report for an unknown cluster_id."""
         mock_download_process_value = [
             {
-                'schema_name': self.schema,
-                'provider_type': Provider.PROVIDER_OCP,
-                'provider_uuid': self.ocp_test_provider_uuid,
-                'start_date': DateAccessor().today(),
+                "schema_name": self.schema,
+                "provider_type": Provider.PROVIDER_OCP,
+                "provider_uuid": self.ocp_test_provider_uuid,
+                "start_date": DateAccessor().today(),
             }
         ]
         mock_get_reports.return_value = mock_download_process_value
-        sample_report = {'cluster_id': 'missing_cluster_id'}
+        sample_report = {"cluster_id": "missing_cluster_id"}
 
         msg_handler.process_report(sample_report)
 
         mock_summarize.delay.assert_not_called()
 
-    @patch('masu.external.kafka_msg_handler.summarize_reports')
-    @patch('masu.external.kafka_msg_handler.get_report_files')
+    @patch("masu.external.kafka_msg_handler.summarize_reports")
+    @patch("masu.external.kafka_msg_handler.get_report_files")
     def test_process_report(self, mock_get_reports, mock_summarize):
         """Test processing a report for an unknown cluster_id."""
         mock_download_process_value = [
             {
-                'schema_name': self.schema,
-                'provider_type': Provider.PROVIDER_OCP,
-                'provider_uuid': self.ocp_test_provider_uuid,
-                'start_date': DateAccessor().today(),
+                "schema_name": self.schema,
+                "provider_type": Provider.PROVIDER_OCP,
+                "provider_uuid": self.ocp_test_provider_uuid,
+                "start_date": DateAccessor().today(),
             }
         ]
         mock_get_reports.return_value = mock_download_process_value
         cluster_id = self.ocp_provider_resource_name
-        sample_report = {'cluster_id': cluster_id, 'date': DateAccessor().today()}
+        sample_report = {"cluster_id": cluster_id, "date": DateAccessor().today()}
 
         msg_handler.process_report(sample_report)
 
         mock_summarize.delay.assert_called_with(mock_download_process_value)
 
-    @patch('masu.external.kafka_msg_handler.summarize_reports')
-    @patch('masu.external.kafka_msg_handler.get_report_files')
+    @patch("masu.external.kafka_msg_handler.summarize_reports")
+    @patch("masu.external.kafka_msg_handler.get_report_files")
     def test_process_report_inactive_provider(self, mock_get_reports, mock_summarize):
         """Test processing a report for an inactive provider."""
         self.ocp_provider.active = False
@@ -218,16 +214,56 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         mock_download_process_value = [
             {
-                'schema_name': self.schema,
-                'provider_type': Provider.PROVIDER_OCP,
-                'provider_uuid': self.ocp_test_provider_uuid,
-                'start_date': DateAccessor().today(),
+                "schema_name": self.schema,
+                "provider_type": Provider.PROVIDER_OCP,
+                "provider_uuid": self.ocp_test_provider_uuid,
+                "start_date": DateAccessor().today(),
             }
         ]
         mock_get_reports.return_value = mock_download_process_value
         cluster_id = self.ocp_provider_resource_name
-        sample_report = {'cluster_id': cluster_id, 'date': DateAccessor().today()}
+        sample_report = {"cluster_id": cluster_id, "date": DateAccessor().today()}
 
         msg_handler.process_report(sample_report)
 
         mock_summarize.delay.assert_not_called()
+
+    async def test_send_confirmation_error(self):
+        """Set up the test for raising a kafka error during sending confirmation."""
+        # grab the connection error count before
+        connection_errors_before = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
+        with patch("masu.external.kafka_msg_handler.AIOKafkaProducer.start", side_effect=raise_exception):
+            with self.assertRaises(msg_handler.KafkaMsgHandlerError):
+                await msg_handler.send_confirmation(request_id="foo", status=msg_handler.SUCCESS_CONFIRM_STATUS)
+            # assert that the error caused the kafka error metric to be incremented
+            connection_errors_after = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
+            self.assertEqual(connection_errors_after - connection_errors_before, 1)
+
+    def test_kafka_connection_metrics_send_confirmation(self):
+        """Test the async function to send confirmation"""
+        event_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(event_loop)
+        coro = asyncio.coroutine(self.test_send_confirmation_error)
+        event_loop.run_until_complete(coro())
+        event_loop.close()
+
+    async def test_listen_for_messages_error(self):
+        """Set up the test for raising a kafka error while waiting for messages."""
+        # grab the connection error count before
+        connection_errors_before = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
+        event_loop = asyncio.get_event_loop()
+        consumer = msg_handler.AIOKafkaConsumer(loop=event_loop)
+        with patch("masu.external.kafka_msg_handler.AIOKafkaConsumer.start", side_effect=raise_exception):
+            with self.assertRaises(msg_handler.KafkaMsgHandlerError):
+                await msg_handler.listen_for_messages(consumer)
+            # assert that the error caused the kafka error metric to be incremented
+            connection_errors_after = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
+            self.assertEqual(connection_errors_after - connection_errors_before, 1)
+
+    def test_kafka_connection_metrics_listen_for_messages(self):
+        """Test the async function to transition to listen for messages."""
+        event_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(event_loop)
+        coro = asyncio.coroutine(self.test_listen_for_messages_error)
+        event_loop.run_until_complete(coro())
+        event_loop.close()

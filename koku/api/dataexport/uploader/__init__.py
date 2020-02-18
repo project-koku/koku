@@ -1,6 +1,7 @@
 """Data export uploader."""
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC
+from abc import abstractmethod
 
 import boto3
 from django.conf import settings
@@ -38,7 +39,7 @@ class AwsS3Uploader(UploaderInterface):
 
         """
         self.s3_bucket_name = s3_bucket_name
-        self.s3_client = boto3.client('s3', settings.S3_REGION)
+        self.s3_client = boto3.client("s3", settings.S3_REGION)
 
     def upload_file(self, local_path, remote_path):
         """
@@ -50,19 +51,12 @@ class AwsS3Uploader(UploaderInterface):
 
         """
         if settings.ENABLE_S3_ARCHIVING:
-            logger.info(
-                'uploading %s to s3://%s/%s',
-                local_path,
-                self.s3_bucket_name,
-                remote_path,
-            )
+            logger.info("uploading %s to s3://%s/%s", local_path, self.s3_bucket_name, remote_path)
             try:
-                self.s3_client.upload_file(
-                    local_path, self.s3_bucket_name, remote_path
-                )
+                self.s3_client.upload_file(local_path, self.s3_bucket_name, remote_path)
             except Exception as e:
                 logger.exception(
-                    'Failed to upload %s to s3://%s/%s due to %s(%s)',
+                    "Failed to upload %s to s3://%s/%s due to %s(%s)",
                     local_path,
                     self.s3_bucket_name,
                     remote_path,
@@ -70,15 +64,6 @@ class AwsS3Uploader(UploaderInterface):
                     str(e),
                 )
                 raise e
-            logger.info(
-                'finished uploading %s to s3://%s/%s',
-                local_path,
-                self.s3_bucket_name,
-                remote_path,
-            )
+            logger.info("finished uploading %s to s3://%s/%s", local_path, self.s3_bucket_name, remote_path)
         else:
-            logger.info(
-                'Skipping upload of %s to %s; upload feature is disabled',
-                local_path,
-                self.s3_bucket_name,
-            )
+            logger.info("Skipping upload of %s to %s; upload feature is disabled", local_path, self.s3_bucket_name)

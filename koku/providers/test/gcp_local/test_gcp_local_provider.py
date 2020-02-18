@@ -17,7 +17,7 @@ class GCPLocalProviderTestCase(TestCase):
     def test_cost_usage_source_is_reachable(self):
         """Verify that the file where local gcp ifles are stored is reachable."""
         authentication = {}
-        bucket_name = '/tmp/path/to/bucket'
+        bucket_name = "/tmp/path/to/bucket"
 
         provider = GCPLocalProvider()
 

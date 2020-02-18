@@ -29,12 +29,10 @@ LOG = logging.getLogger(__name__)
 class AzureTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for Azure."""
 
-    data_sources = [{'db_table': AzureCostEntryLineItemDailySummary,
-                     'db_column': 'tags'}]
+    data_sources = [{"db_table": AzureCostEntryLineItemDailySummary, "db_column": "tags"}]
 
-    SUPPORTED_FILTERS = ['subscription_guid']
-    FILTER_MAP = {'subscription_guid': {'field': 'subscription_guid',
-                                        'operation': 'icontains'}}
+    SUPPORTED_FILTERS = ["subscription_guid"]
+    FILTER_MAP = {"subscription_guid": {"field": "subscription_guid", "operation": "icontains"}}
     provider = Provider.PROVIDER_AZURE
 
     def __init__(self, parameters):
@@ -44,16 +42,13 @@ class AzureTagQueryHandler(TagQueryHandler):
             parameters    (QueryParameters): parameter object for query
 
         """
-        if not hasattr(self, '_mapper'):
-            self._mapper = AzureProviderMap(provider=self.provider,
-                                            report_type=parameters.report_type)
+        if not hasattr(self, "_mapper"):
+            self._mapper = AzureProviderMap(provider=self.provider, report_type=parameters.report_type)
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
 
     def _get_time_based_filters(self, delta=False):
         """Overridden from QueryHandler."""
-        start_filter = QueryFilter(field='usage_start', operation='gte',
-                                   parameter=self.start_datetime)
-        end_filter = QueryFilter(field='usage_start', operation='lte',
-                                 parameter=self.end_datetime)
+        start_filter = QueryFilter(field="usage_start", operation="gte", parameter=self.start_datetime)
+        end_filter = QueryFilter(field="usage_start", operation="lte", parameter=self.end_datetime)
         return start_filter, end_filter

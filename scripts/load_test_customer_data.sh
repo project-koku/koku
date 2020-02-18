@@ -13,19 +13,34 @@
 #   - DATABASE_ADMIN (postgres admin user)
 #   - DATABASE_PASSWORD (postgres admin user's password)
 #   - DATABASE_USER (postgres user to be recreated)
+#   - USE_OC=1 (optional: if you are running the koku-worker
+#               in a container hosted inside an openshift cluster)
+
+trap handle_errors ERR
+
+function handle_errors() {
+    echo "An error has occurred. Unable to continue."
+    exit 1
+}
 
 export PGPASSWORD="${DATABASE_PASSWORD}"
 export PGPORT="${POSTGRES_SQL_SERVICE_PORT}"
 export PGHOST="${POSTGRES_SQL_SERVICE_HOST}"
-export PGUSER="${DATABASE_ADMIN}"
+export PGUSER="${DATABASE_USER}"
 export FOM=$(date +'%Y-%m-01')
 export TODAY=$(date +'%Y-%m-%d')
 
 KOKU_PATH=$1
 START_DATE=$2
 END_DATE=$3
+
 KOKU_API=$KOKU_API_HOSTNAME
 MASU_API=$MASU_API_HOSTNAME
+
+if [ -z "$KOKU_PATH" ]; then
+    echo "Usage: $0 /path/to/koku.git [start:YYYY-MM-DD] [end:YYYY-MM-DD]"
+    exit 1
+fi
 
 if [ -z "$START_DATE" ]; then
   echo "START_DATE not set. Defaulting to ${FOM}"
@@ -98,5 +113,12 @@ git checkout -- "$NISE_REPO_PATH/examples/ocp_on_aws/aws_static_data.yml"
 git checkout -- "$NISE_REPO_PATH/examples/ocp_on_aws/ocp_static_data.yml"
 git checkout -- "$NISE_REPO_PATH/examples/ocp_on_azure/azure_static_data.yml"
 git checkout -- "$NISE_REPO_PATH/examples/ocp_on_azure/ocp_static_data.yml"
+
+if [[ $USE_OC == 1 ]]; then
+    WORKER_POD="${KOKU_WORKER_POD_NAME:-koku-worker-0}"
+    oc rsync --delete $KOKU_PATH/testing/pvc_dir/insights_local ${WORKER_POD}:/tmp
+    oc rsync --delete $KOKU_PATH/testing/local_providers/aws_local/* ${WORKER_POD}:/tmp/local_bucket
+    oc rsync --delete $KOKU_PATH/testing/local_providers/azure_local/* ${WORKER_POD}:/tmp/local_container
+fi
 
 curl http://$MASU_API$API_PATH_PREFIX/v1/download/

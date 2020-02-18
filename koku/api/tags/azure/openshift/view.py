@@ -14,9 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """View for OCP-on-Azure tags."""
-
 from api.tags.azure.openshift.queries import OCPAzureTagQueryHandler
 from api.tags.serializers import OCPAzureTagsQueryParamSerializer
 from api.tags.view import TagView
@@ -57,7 +55,7 @@ class OCPAzureTagView(TagView):
 
     """
 
-    provider = 'ocp_azure'
+    provider = "ocp_azure"
     serializer = OCPAzureTagsQueryParamSerializer
     query_handler = OCPAzureTagQueryHandler
     tag_handler = [AzureTagsSummary]

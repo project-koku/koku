@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Tests the OCPProvider implementation for the Koku interface."""
-
 from django.test import TestCase
 from rest_framework.serializers import ValidationError
 
@@ -33,8 +32,8 @@ class OCPProviderTestCase(TestCase):
 
     def test_cost_usage_source_is_reachable_bucket_provided(self):
         """Verify that the cost usage source is authenticated and created."""
-        cluster_id = 'my-ocp-cluster-1'
-        report_source = 'report_location'
+        cluster_id = "my-ocp-cluster-1"
+        report_source = "report_location"
 
         provider_interface = OCPProvider()
 
@@ -53,7 +52,7 @@ class OCPProviderTestCase(TestCase):
 
     def test_cost_usage_source_is_reachable_no_bucket_provided(self):
         """Verify that the cost usage source is not authenticated and created with no bucket provided."""
-        cluster_id = 'my-ocp-cluster-1'
+        cluster_id = "my-ocp-cluster-1"
         report_source = None
 
         provider_interface = OCPProvider()
@@ -61,4 +60,4 @@ class OCPProviderTestCase(TestCase):
         try:
             provider_interface.cost_usage_source_is_reachable(cluster_id, report_source)
         except Exception:
-            self.fail('Unexpected error ')
+            self.fail("Unexpected error ")

@@ -15,7 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the OCP on All Report views."""
-from urllib.parse import quote_plus, urlencode
+from urllib.parse import quote_plus
+from urllib.parse import urlencode
 
 from django.urls import reverse
 from rest_framework import status
@@ -30,21 +31,12 @@ from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummary
 
 URLS = [
-    reverse('reports-openshift-all-costs'),
-    reverse('reports-openshift-all-storage'),
-    reverse('reports-openshift-all-instance-type')
+    reverse("reports-openshift-all-costs"),
+    reverse("reports-openshift-all-storage"),
+    reverse("reports-openshift-all-instance-type"),
 ]
 
-GROUP_BYS = [
-    'project',
-    'cluster',
-    'node',
-    'account',
-    'region',
-    'instance_type',
-    'service',
-    'product_family',
-]
+GROUP_BYS = ["project", "cluster", "node", "account", "region", "instance_type", "service", "product_family"]
 
 
 class OCPAllReportViewTest(IamTestCase):
@@ -67,25 +59,26 @@ class OCPAllReportViewTest(IamTestCase):
     def test_group_bys_with_second_group_by_tag(self):
         """Test that a group by project followed by a group by tag does not error."""
         with tenant_context(self.tenant):
-            labels = OCPAWSCostLineItemDailySummary.objects\
-                .filter(usage_start__gte=self.dh.last_month_start)\
-                .filter(usage_start__lte=self.dh.last_month_end)\
-                .values(*['tags'])\
+            labels = (
+                OCPAWSCostLineItemDailySummary.objects.filter(usage_start__gte=self.dh.last_month_start)
+                .filter(usage_start__lte=self.dh.last_month_end)
+                .values(*["tags"])
                 .first()
+            )
 
-            tags = labels.get('tags')
+            tags = labels.get("tags")
             group_by_key = list(tags.keys())[0]
 
         client = APIClient()
         for url in URLS:
             for group_by in GROUP_BYS:
                 params = {
-                    'filter[resolution]': 'monthly',
-                    'filter[time_scope_value]': '-2',
-                    'filter[time_scope_units]': 'month',
-                    f'group_by[{group_by}]': '*',
-                    f'group_by[tag:{group_by_key}]': '*',
+                    "filter[resolution]": "monthly",
+                    "filter[time_scope_value]": "-2",
+                    "filter[time_scope_units]": "month",
+                    f"group_by[{group_by}]": "*",
+                    f"group_by[tag:{group_by_key}]": "*",
                 }
-                url = url + '?' + urlencode(params, quote_via=quote_plus)
+                url = url + "?" + urlencode(params, quote_via=quote_plus)
                 response = client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)

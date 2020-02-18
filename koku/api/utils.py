@@ -14,9 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Unit conversion util functions."""
-
 import calendar
 import datetime
 
@@ -25,7 +23,7 @@ from django.utils import timezone
 from pint.errors import UndefinedUnitError
 
 
-class DateHelper():
+class DateHelper:
     """Helper class with convenience functions."""
 
     def __init__(self):
@@ -82,8 +80,7 @@ class DateHelper():
     @property
     def this_month_start(self):
         """Datetime of midnight on the 1st of this month."""
-        return self.this_hour.replace(microsecond=0, second=0,
-                                      minute=0, hour=0, day=1)
+        return self.this_hour.replace(microsecond=0, second=0, minute=0, hour=0, day=1)
 
     @property
     def last_month_start(self):
@@ -124,8 +121,7 @@ class DateHelper():
 
         """
         num_days = self.days_in_month(in_date)
-        dt_next_month = in_date.replace(day=num_days, hour=0, minute=0,
-                                        second=0, microsecond=0) + self.one_day
+        dt_next_month = in_date.replace(day=num_days, hour=0, minute=0, second=0, microsecond=0) + self.one_day
         return dt_next_month
 
     def previous_month(self, in_date):
@@ -137,8 +133,7 @@ class DateHelper():
             (DateTime): First of the previous month
 
         """
-        dt_prev_month = in_date.replace(day=1, hour=0, minute=0,
-                                        second=0, microsecond=0) - self.one_day
+        dt_prev_month = in_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0) - self.one_day
         return dt_prev_month.replace(day=1)
 
     def n_days_ago(self, in_date, n_days):

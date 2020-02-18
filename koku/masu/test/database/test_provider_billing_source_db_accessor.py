@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the ProviderBillingSourceDBAccessor utility object."""
 from masu.database.provider_billing_source_db_accessor import ProviderBillingSourceDBAccessor
 from masu.test import MasuTestCase

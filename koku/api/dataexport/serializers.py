@@ -12,34 +12,21 @@ class DataExportRequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DataExportRequest
-        fields = (
-            'uuid',
-            'created_timestamp',
-            'updated_timestamp',
-            'start_date',
-            'end_date',
-            'status',
-            'bucket_name',
-        )
-        read_only_fields = (
-            'uuid',
-            'created_by',
-            'created_timestamp',
-            'updated_timestamp',
-        )
-        create_only_fields = ('start_date', 'end_date', 'bucket_name')
+        fields = ("uuid", "created_timestamp", "updated_timestamp", "start_date", "end_date", "status", "bucket_name")
+        read_only_fields = ("uuid", "created_by", "created_timestamp", "updated_timestamp")
+        create_only_fields = ("start_date", "end_date", "bucket_name")
         validators = [DataExportRequestValidator()]
 
     @transaction.atomic
     def create(self, validated_data):
         """Create a data export request."""
-        request = self.context.get('request')
+        request = self.context.get("request")
         user = request.user
         dump_request = DataExportRequest.objects.create(
             created_by=user,
-            start_date=validated_data['start_date'],
-            end_date=validated_data['end_date'],
-            bucket_name=validated_data['bucket_name'],
+            start_date=validated_data["start_date"],
+            end_date=validated_data["end_date"],
+            bucket_name=validated_data["bucket_name"],
         )
         transaction.on_commit(lambda: sync_data_to_customer.delay(dump_request.uuid))
         return dump_request

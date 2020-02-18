@@ -57,7 +57,7 @@ to conform to additional style guidelines, e.g. `Google's Python Style
 Guide <https://google.github.io/styleguide/pyguide.html />`_.
 
 We do use automation whenever possible to ensure a basic level of
-acceptability. Pull-requests MUST pass a linter (pylint or flake8) without
+acceptability. Pull-requests MUST pass a linter (flake8) without
 errors.
 
 We do recognize that sometimes linters can get things wrong. They are
@@ -69,6 +69,19 @@ pull-request disables linting it MUST include a comment block detailing why
 that particular check was disabled and it MUST be scoped as narrowly as
 possible. i.e. Don't disable linting on an entire class or method
 when disabling the check for a single statement will do.
+
+This repository uses [pre-commit](https://pre-commit.com) to check and enforce code style. It uses
+[Black](https://github.com/psf/black) to reformat the Python code and [Flake8](http://flake8.pycqa.org) to check it
+afterwards. Other formats and text files are linted as well.
+
+Install pre-commit hooks to your local repository by running:
+
+```bash
+$ pre-commit install
+```
+
+After that, all your commited files will be linted. If the checks don’t succeed, the commit will be rejected. Please
+make sure all checks pass before submitting a pull request.
 
 Code testing considerations
 ---------------------------

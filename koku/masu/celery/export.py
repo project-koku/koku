@@ -1,11 +1,8 @@
 """Table export settings for masu celery tasks."""
-
 import collections
 
 
-TableExportSetting = collections.namedtuple(
-    'TableExportSetting', ['provider', 'output_name', 'iterate_daily', 'sql']
-)
+TableExportSetting = collections.namedtuple("TableExportSetting", ["provider", "output_name", "iterate_daily", "sql"])
 TableExportSetting.__doc__ = """\
 Settings for exporting table data using a custom SQL query.
 
@@ -17,8 +14,8 @@ Settings for exporting table data using a custom SQL query.
 
 table_export_settings = [
     TableExportSetting(
-        'aws',
-        'reporting_awscostentrylineitem',
+        "aws",
+        "reporting_awscostentrylineitem",
         False,
         """
         SELECT *
@@ -38,8 +35,8 @@ table_export_settings = [
         """,
     ),
     TableExportSetting(
-        'ocp',
-        'reporting_ocpusagelineitem',
+        "ocp",
+        "reporting_ocpusagelineitem",
         False,
         """
         SELECT *
@@ -56,8 +53,8 @@ table_export_settings = [
         """,
     ),
     TableExportSetting(
-        'ocp',
-        'reporting_ocpstoragelineitem',
+        "ocp",
+        "reporting_ocpstoragelineitem",
         False,
         """
         SELECT *
@@ -74,8 +71,8 @@ table_export_settings = [
         """,
     ),
     TableExportSetting(
-        'azure',
-        'reporting_azurecostentrylineitem_daily',
+        "azure",
+        "reporting_azurecostentrylineitem_daily",
         False,
         """
         SELECT d.*, s.*, m.*
@@ -93,8 +90,8 @@ table_export_settings = [
         """,
     ),
     TableExportSetting(
-        'aws',
-        'reporting_awscostentrylineitem_daily_summary',
+        "aws",
+        "reporting_awscostentrylineitem_daily_summary",
         True,
         """
         SELECT ds.*, aa.account_id, aa.account_alias, b.*
@@ -111,8 +108,8 @@ table_export_settings = [
         """,
     ),
     TableExportSetting(
-        'azure',
-        'reporting_azurecostentrylineitem_daily_summary',
+        "azure",
+        "reporting_azurecostentrylineitem_daily_summary",
         True,
         """
         SELECT ds.*, b.*, m.*
@@ -126,8 +123,8 @@ table_export_settings = [
         """,
     ),
     TableExportSetting(
-        'ocp',
-        'reporting_ocpawscostlineitem_daily_summary',
+        "ocp",
+        "reporting_ocpawscostlineitem_daily_summary",
         True,
         """
         SELECT DISTINCT ds.*
@@ -141,8 +138,8 @@ table_export_settings = [
         """,
     ),
     TableExportSetting(
-        'ocp',
-        'reporting_ocpawscostlineitem_project_daily_summary',
+        "ocp",
+        "reporting_ocpawscostlineitem_project_daily_summary",
         True,
         """
         SELECT DISTINCT pds.*
@@ -153,11 +150,11 @@ table_export_settings = [
             pds.usage_start BETWEEN %(start_date)s AND %(end_date)s
             -- No need to filter usage_end because usage_end should always match usage_start for this table.
             AND rp.provider_id = %(provider_uuid)s
-        """
+        """,
     ),
     TableExportSetting(
-        'ocp',
-        'reporting_ocpusagelineitem_daily_summary',
+        "ocp",
+        "reporting_ocpusagelineitem_daily_summary",
         True,
         """
         SELECT DISTINCT ds.*

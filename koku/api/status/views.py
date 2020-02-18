@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """View for server status."""
 from django.views.decorators.cache import never_cache
 from rest_framework import permissions
@@ -80,5 +79,5 @@ class StatusView(APIView):
         status_info = Status()
         serializer = StatusSerializer(status_info)
         server_info = serializer.data
-        server_info['server_address'] = request.META.get('HTTP_HOST', 'localhost')
+        server_info["server_address"] = request.META.get("HTTP_HOST", "localhost")
         return Response(server_info)

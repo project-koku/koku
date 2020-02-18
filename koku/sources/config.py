@@ -21,22 +21,26 @@ import os
 class Config:
     """Configuration for service."""
 
-    SOURCES_KAFKA_HOST = os.getenv('SOURCES_KAFKA_HOST', 'localhost')
-    SOURCES_KAFKA_PORT = os.getenv('SOURCES_KAFKA_PORT', '29092')
-    SOURCES_KAFKA_ADDRESS = f'{SOURCES_KAFKA_HOST}:{SOURCES_KAFKA_PORT}'
-    SOURCES_TOPIC = os.getenv('SOURCES_KAFKA_TOPIC', 'platform.sources.event-stream')
+    SOURCES_KAFKA_HOST = os.getenv("SOURCES_KAFKA_HOST", "localhost")
+    SOURCES_KAFKA_PORT = os.getenv("SOURCES_KAFKA_PORT", "29092")
+    SOURCES_KAFKA_ADDRESS = f"{SOURCES_KAFKA_HOST}:{SOURCES_KAFKA_PORT}"
+    SOURCES_TOPIC = os.getenv("SOURCES_KAFKA_TOPIC", "platform.sources.event-stream")
 
-    SOURCES_API_HOST = os.getenv('SOURCES_API_HOST', 'localhost')
-    SOURCES_API_PORT = os.getenv('SOURCES_API_PORT', '3000')
-    SOURCES_API_URL = f'http://{SOURCES_API_HOST}:{SOURCES_API_PORT}'
-    SOURCES_API_PREFIX = os.getenv('SOURCES_API_PREFIX', '/api/v1.0')
-    SOURCES_INTERNAL_API_PREFIX = os.getenv('SOURCES_INTERNAL_API_PREFIX', '/internal/v1.0')
-    SOURCES_FAKE_HEADER = os.getenv('SOURCES_FAKE_HEADER', (
-        'eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAidXNlciI6IHsiaXNfb3'
-        'JnX2FkbWluIjogImZhbHNlIn0sICJpbnRlcm5hbCI6IHsib3JnX2lkIjogIjU0MzIxIn19fQ=='))
-    KOKU_API_HOST = os.getenv('KOKU_API_HOST', 'localhost')
-    KOKU_API_PORT = os.getenv('KOKU_API_PORT', '8000')
-    KOKU_API_PATH_PREFIX = os.getenv('KOKU_API_PATH_PREFIX', '/api/cost-management')
-    KOKU_API_URL = f'http://{KOKU_API_HOST}:{KOKU_API_PORT}{KOKU_API_PATH_PREFIX}/v1'
+    SOURCES_API_HOST = os.getenv("SOURCES_API_HOST", "localhost")
+    SOURCES_API_PORT = os.getenv("SOURCES_API_PORT", "3000")
+    SOURCES_API_URL = f"http://{SOURCES_API_HOST}:{SOURCES_API_PORT}"
+    SOURCES_API_PREFIX = os.getenv("SOURCES_API_PREFIX", "/api/v1.0")
+    SOURCES_INTERNAL_API_PREFIX = os.getenv("SOURCES_INTERNAL_API_PREFIX", "/internal/v1.0")
+    SOURCES_FAKE_HEADER = os.getenv(
+        "SOURCES_FAKE_HEADER",
+        (
+            "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAidXNlciI6IHsiaXNfb3"
+            "JnX2FkbWluIjogImZhbHNlIn0sICJpbnRlcm5hbCI6IHsib3JnX2lkIjogIjU0MzIxIn19fQ=="
+        ),
+    )
+    KOKU_API_HOST = os.getenv("KOKU_API_HOST", "localhost")
+    KOKU_API_PORT = os.getenv("KOKU_API_PORT", "8000")
+    KOKU_API_PATH_PREFIX = os.getenv("KOKU_API_PATH_PREFIX", "/api/cost-management")
+    KOKU_API_URL = f"http://{KOKU_API_HOST}:{KOKU_API_PORT}{KOKU_API_PATH_PREFIX}/v1"
 
-    RETRY_SECONDS = int(os.getenv('RETRY_SECONDS', '10'))
+    RETRY_SECONDS = int(os.getenv("RETRY_SECONDS", "10"))
