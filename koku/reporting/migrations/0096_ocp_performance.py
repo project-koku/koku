@@ -12,9 +12,13 @@ class Migration(migrations.Migration):
 create extension if not exists pg_trgm schema public;
             """
         ),
+        # Create indexes to aid with text searching.
+        # These cases will specifically help with case-insensitive
+        # and contains (vs startswith) searches
         migrations.RunSQL(
             """
-
+-- create index ___ on ___ (lower(___) X_pattern_ops);
+-- create index ___ on ___ using gin (lower(___) gin_trgm_ops);
             """
         ),
     ]
