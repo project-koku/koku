@@ -801,3 +801,14 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.assertTrue(monthly_cost.exists())
         self.accessor.remove_monthly_cost()
         self.assertFalse(monthly_cost.exists())
+
+    def test_remove_monthly_cost_no_data(self):
+        """Test that an error isn't thrown when the monthly cost row has no data."""
+        start_date = DateAccessor().today_with_timezone("UTC")
+        end_date = DateAccessor().today_with_timezone("UTC")
+        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
+        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
+        try:
+            self.accessor.remove_monthly_cost()
+        except Exception as err:
+            self.fail(f"Exception thrown: {err}")
