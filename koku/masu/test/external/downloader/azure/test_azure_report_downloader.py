@@ -214,3 +214,29 @@ class AzureReportDownloaderTest(MasuTestCase):
         self.assertEqual(full_file_path, expected_full_path)
         self.assertEqual(etag, self.mock_data.export_etag)
         mock_download_cost_method._azure_client.download_cost_export.assert_not_called()
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader")
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService", return_value=MockAzureService())
+    def test_init_with_demo_account(self, mock_download_cost_method, _):
+        """Test init with the demo account."""
+        account_id = "123456"
+        report_name = self.fake.word()
+        client_id = self.auth_credential.get("client_id")
+        demo_accounts = {
+            account_id: {
+                client_id: {
+                    "report_name": report_name,
+                    "report_prefix": self.fake.word(),
+                    "container_name": self.fake.word(),
+                }
+            }
+        }
+        with self.settings(DEMO_ACCOUNTS=demo_accounts):
+            AzureReportDownloader(
+                task=self.mock_task,
+                customer_name=f"acct{account_id}",
+                auth_credential=self.auth_credential,
+                billing_source=self.billing_source,
+                provider_uuid=self.azure_provider_uuid,
+            )
+            mock_download_cost_method._azure_client.download_cost_export.assert_not_called()
