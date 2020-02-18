@@ -14,54 +14,53 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Models for cost entry tables."""
-
+# flake8: noqa
 # pylint: disable=unused-import
-from reporting.provider.all.openshift.models import (OCPAllCostLineItemDailySummary,         # noqa: F401
-                                                     OCPAllCostLineItemProjectDailySummary)  # noqa: F401
-from reporting.provider.aws.models import (AWSAccountAlias,                       # noqa: F401
-                                           AWSComputeSummary,                     # noqa: F401
-                                           AWSComputeSummaryByAccount,            # noqa: F401
-                                           AWSComputeSummaryByRegion,             # noqa: F401
-                                           AWSComputeSummaryByService,            # noqa: F401
-                                           AWSCostEntry,                          # noqa: F401
-                                           AWSCostEntryBill,                      # noqa: F401
-                                           AWSCostEntryLineItem,                  # noqa: F401
-                                           AWSCostEntryLineItemDaily,             # noqa: F401
-                                           AWSCostEntryLineItemDailySummary,      # noqa: F401
-                                           AWSCostEntryPricing,                   # noqa: F401
-                                           AWSCostEntryProduct,                   # noqa: F401
-                                           AWSCostEntryReservation,               # noqa: F401
-                                           AWSCostSummary,                        # noqa: F401
-                                           AWSCostSummaryByAccount,               # noqa: F401
-                                           AWSCostSummaryByRegion,                # noqa: F401
-                                           AWSCostSummaryByService,               # noqa: F401
-                                           AWSDatabaseSummary,                    # noqa: F401
-                                           AWSNetworkSummary,                     # noqa: F401
-                                           AWSStorageSummary,                     # noqa: F401
-                                           AWSStorageSummaryByAccount,            # noqa: F401
-                                           AWSStorageSummaryByRegion,             # noqa: F401
-                                           AWSStorageSummaryByService)            # noqa: F401
-from reporting.provider.azure.models import (AzureCostEntryBill,                  # noqa: F401
-                                             AzureCostEntryLineItemDaily,         # noqa: F401
-                                             AzureCostEntryLineItemDailySummary,  # noqa: F401
-                                             AzureCostEntryProductService,        # noqa: F401
-                                             AzureMeter,                          # noqa: F401
-                                             AzureTagsSummary)                    # noqa: F401
-from reporting.provider.azure.openshift.models import (OCPAzureCostLineItemDailySummary,         # noqa: F401
-                                                       OCPAzureCostLineItemProjectDailySummary)  # noqa: F401
-from reporting.provider.ocp.costs.models import CostSummary                       # noqa: F401
-from reporting.provider.ocp.models import (OCPStorageLineItem,                    # noqa: F401
-                                           OCPStorageLineItemDaily,               # noqa: F401
-                                           OCPUsageLineItem,                      # noqa: F401
-                                           OCPUsageLineItemDaily,                 # noqa: F401
-                                           OCPUsageLineItemDailySummary,          # noqa: F401
-                                           OCPUsagePodLabelSummary,               # noqa: F401
-                                           OCPUsageReport,                        # noqa: F401
-                                           OCPUsageReportPeriod)                  # noqa: F401
-from reporting.provider.ocp_aws.models import (OCPAWSCostLineItemDailySummary,    # noqa: F401
-                                               OCPAWSCostLineItemProjectDailySummary)  # noqa: F401
+from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummary
+from reporting.provider.all.openshift.models import OCPAllCostLineItemProjectDailySummary
+from reporting.provider.aws.models import AWSAccountAlias
+from reporting.provider.aws.models import AWSComputeSummary
+from reporting.provider.aws.models import AWSComputeSummaryByAccount
+from reporting.provider.aws.models import AWSComputeSummaryByRegion
+from reporting.provider.aws.models import AWSComputeSummaryByService
+from reporting.provider.aws.models import AWSCostEntry
+from reporting.provider.aws.models import AWSCostEntryBill
+from reporting.provider.aws.models import AWSCostEntryLineItem
+from reporting.provider.aws.models import AWSCostEntryLineItemDaily
+from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
+from reporting.provider.aws.models import AWSCostEntryPricing
+from reporting.provider.aws.models import AWSCostEntryProduct
+from reporting.provider.aws.models import AWSCostEntryReservation
+from reporting.provider.aws.models import AWSCostSummary
+from reporting.provider.aws.models import AWSCostSummaryByAccount
+from reporting.provider.aws.models import AWSCostSummaryByRegion
+from reporting.provider.aws.models import AWSCostSummaryByService
+from reporting.provider.aws.models import AWSDatabaseSummary
+from reporting.provider.aws.models import AWSNetworkSummary
+from reporting.provider.aws.models import AWSStorageSummary
+from reporting.provider.aws.models import AWSStorageSummaryByAccount
+from reporting.provider.aws.models import AWSStorageSummaryByRegion
+from reporting.provider.aws.models import AWSStorageSummaryByService
+from reporting.provider.azure.models import AzureCostEntryBill
+from reporting.provider.azure.models import AzureCostEntryLineItemDaily
+from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
+from reporting.provider.azure.models import AzureCostEntryProductService
+from reporting.provider.azure.models import AzureMeter
+from reporting.provider.azure.models import AzureTagsSummary
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
+from reporting.provider.ocp.costs.models import CostSummary  # noqa: F401
+from reporting.provider.ocp.models import OCPStorageLineItem
+from reporting.provider.ocp.models import OCPStorageLineItemDaily
+from reporting.provider.ocp.models import OCPUsageLineItem
+from reporting.provider.ocp.models import OCPUsageLineItemDaily
+from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
+from reporting.provider.ocp.models import OCPUsagePodLabelSummary
+from reporting.provider.ocp.models import OCPUsageReport
+from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
+from reporting.provider.ocp_aws.models import OCPAWSCostLineItemProjectDailySummary
 
 
 AWS_MATERIALIZED_VIEWS = (
@@ -78,10 +77,7 @@ AWS_MATERIALIZED_VIEWS = (
     AWSStorageSummary,
     AWSStorageSummaryByAccount,
     AWSStorageSummaryByRegion,
-    AWSStorageSummaryByService
+    AWSStorageSummaryByService,
 )
 
-OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (
-    OCPAllCostLineItemDailySummary,
-    OCPAllCostLineItemProjectDailySummary
-)
+OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (OCPAllCostLineItemDailySummary, OCPAllCostLineItemProjectDailySummary)

@@ -14,9 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Models to capture server status."""
-
 import logging
 import os
 import platform
@@ -38,14 +36,11 @@ class Status:
 
         :returns: A build number
         """
-        commit_info = os.environ.get('OPENSHIFT_BUILD_COMMIT', None)
+        commit_info = os.environ.get("OPENSHIFT_BUILD_COMMIT", None)
         if commit_info is None:
-            commit_info = subprocess.run(['git',
-                                          'describe',
-                                          '--always'],
-                                         stdout=subprocess.PIPE)
+            commit_info = subprocess.run(["git", "describe", "--always"], stdout=subprocess.PIPE)
             if commit_info.stdout:
-                commit_info = commit_info.stdout.decode('utf-8').strip()
+                commit_info = commit_info.stdout.decode("utf-8").strip()
         return commit_info
 
     @property
@@ -62,7 +57,7 @@ class Status:
 
         :returns: The python version string.
         """
-        return sys.version.replace('\n', '')
+        return sys.version.replace("\n", "")
 
     @property
     def modules(self):  # pylint: disable=R0201
@@ -72,7 +67,7 @@ class Status:
         """
         module_data = {}
         for name, module in sorted(sys.modules.items()):
-            if hasattr(module, '__version__'):
+            if hasattr(module, "__version__"):
                 module_data[str(name)] = str(module.__version__)
         return module_data
 
@@ -83,21 +78,21 @@ class Status:
 
     def startup(self):
         """Log startup information."""
-        logger.info('Platform:')
+        logger.info("Platform:")
         for name, value in self.platform_info.items():
-            logger.info('%s - %s ', name, value)
+            logger.info("%s - %s ", name, value)
 
-        logger.info('Python: %s', self.python_version)
+        logger.info("Python: %s", self.python_version)
         module_list = []
         for mod, version in self.modules.items():
-            module_list.append('{mod} - {ver}'.format(mod=mod, ver=version))
+            module_list.append(f"{mod} - {version}")
 
         if module_list:
-            logger.info('Modules: %s', ', '.join(module_list))
+            logger.info("Modules: %s", ", ".join(module_list))
         else:
-            logger.info('Modules: None')
-        logger.info('Commit: %s', self.commit)
-        logger.info('API Version: %s', self.api_version)
+            logger.info("Modules: None")
+        logger.info("Commit: %s", self.commit)
+        logger.info("API Version: %s", self.api_version)
 
     @property
     def rbac_cache_ttl(self):

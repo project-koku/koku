@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the ProviderDBAuthAccessor utility object."""
 import uuid
 
@@ -42,9 +41,7 @@ class ProviderDBAuthAccessorTest(MasuTestCase):
         """Test Initializer with auth_id and provider resource name."""
         auth_id = self.ocp_db_auth_id
         provider_resource_name = self.ocp_provider_resource_name
-        accessor = ProviderAuthDBAccessor(
-            auth_id=auth_id, provider_resource_name=provider_resource_name
-        )
+        accessor = ProviderAuthDBAccessor(auth_id=auth_id, provider_resource_name=provider_resource_name)
         self.assertTrue(accessor.does_db_entry_exist())
         self.assertEqual(int(auth_id), accessor.get_auth_id())
 

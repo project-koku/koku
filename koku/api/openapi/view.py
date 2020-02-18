@@ -14,23 +14,23 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """View for openapi documentation."""
 import json
 import logging
 import os
 
-from rest_framework import permissions, status
-from rest_framework.decorators import (api_view,
-                                       permission_classes,
-                                       renderer_classes)
+from rest_framework import permissions
+from rest_framework import status
+from rest_framework.decorators import api_view
+from rest_framework.decorators import permission_classes
+from rest_framework.decorators import renderer_classes
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 
 from koku.settings import STATIC_ROOT
 
 LOG = logging.getLogger(__name__)
-OPENAPI_FILE_NAME = os.path.join(STATIC_ROOT, 'openapi.json')
+OPENAPI_FILE_NAME = os.path.join(STATIC_ROOT, "openapi.json")
 
 
 def get_json(path):
@@ -44,7 +44,7 @@ def get_json(path):
     return json_data
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes((permissions.AllowAny,))
 @renderer_classes((JSONRenderer,))
 def openapi(_):

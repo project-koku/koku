@@ -1,19 +1,18 @@
 """Test the GCPReportDownloader class."""
 import shutil
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
+from unittest.mock import patch
 from uuid import uuid4
 
 from faker import Faker
 from rest_framework.exceptions import ValidationError
 
 from masu.external import UNCOMPRESSED
-from masu.external.downloader.gcp.gcp_report_downloader import (
-    DATA_DIR,
-    GCPReportDownloader,
-    GCPReportDownloaderError,
-    GCPReportDownloaderNoFileError,
-)
+from masu.external.downloader.gcp.gcp_report_downloader import DATA_DIR
+from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
+from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
+from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderNoFileError
 from masu.test import MasuTestCase
 
 FAKE = Faker()
@@ -24,7 +23,7 @@ class MockBlob(Mock):
 
     def __init__(self, name=None, etag=None, *args, **kwargs):
         """Initialize the MockBlob."""
-        super(MockBlob, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if name:
             self.name = name
         if etag:
@@ -63,15 +62,13 @@ class GCPReportDownloaderTest(MasuTestCase):
             customer_name = FAKE.name()
         if not bucket_name:
             bucket_name = FAKE.slug()
-        billing_source = {'bucket': bucket_name}
+        billing_source = {"bucket": bucket_name}
         if report_prefix:
-            billing_source['report_prefix'] = report_prefix
+            billing_source["report_prefix"] = report_prefix
         if not provider_uuid:
             provider_uuid = uuid4()
-        with patch(
-            'masu.external.downloader.gcp.gcp_report_downloader.GCPProvider'
-        ), patch(
-            'masu.external.downloader.gcp.gcp_report_downloader.storage'
+        with patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider"), patch(
+            "masu.external.downloader.gcp.gcp_report_downloader.storage"
         ):
             # mock_storage_client = mock_storage.Client.return_value
             # mock_storage_client.lookup_bucket.return_value = {}
@@ -83,34 +80,28 @@ class GCPReportDownloaderTest(MasuTestCase):
             )
         return downloader
 
-    @patch('masu.external.downloader.gcp.gcp_report_downloader.GCPProvider')
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider")
     def test_init_unreachable_bucket_raises_error(self, mock_provider):
         """Assert GCPReportDownloader raises error when bucket is not reachable."""
         mock_provider.return_value.cost_usage_source_is_reachable.side_effect = ValidationError
         with self.assertRaises(GCPReportDownloaderError):
             GCPReportDownloader(
-                Mock(request=Mock(id=str(FAKE.uuid4()), return_value={})),
-                FAKE.name(),
-                {'bucket': FAKE.slug()},
+                Mock(request=Mock(id=str(FAKE.uuid4()), return_value={})), FAKE.name(), {"bucket": FAKE.slug()}
             )
 
     def test_init_reachable_bucket_is_okay(self):
         """Assert GCPReportDownloader initializes with expected values."""
         customer_name = FAKE.name()
         bucket_name = FAKE.slug()
-        billing_source = {'bucket': bucket_name}
-        with patch(
-            'masu.external.downloader.gcp.gcp_report_downloader.GCPProvider'
-        ), patch(
-            'masu.external.downloader.gcp.gcp_report_downloader.storage'
+        billing_source = {"bucket": bucket_name}
+        with patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider"), patch(
+            "masu.external.downloader.gcp.gcp_report_downloader.storage"
         ) as mock_storage:
             downloader = GCPReportDownloader(
-                Mock(request=Mock(id=str(FAKE.uuid4()), return_value={})),
-                customer_name,
-                billing_source,
+                Mock(request=Mock(id=str(FAKE.uuid4()), return_value={})), customer_name, billing_source
             )
             mock_storage.Client.return_value.lookup_bucket.assert_called_with(bucket_name)
-        self.assertEqual(downloader.customer_name, customer_name.replace(' ', '_'))
+        self.assertEqual(downloader.customer_name, customer_name.replace(" ", "_"))
         self.assertEqual(downloader.bucket_name, bucket_name)
 
     def test_get_report_context_for_date_creates_manifest_with_files(self):
@@ -120,21 +111,17 @@ class GCPReportDownloaderTest(MasuTestCase):
         file_count = 10
         file_names = [FAKE.file_name() for _ in range(file_count)]
         manifest = {
-            'assembly_id': assembly_id,
-            'start_date': start_date,
-            'compression': UNCOMPRESSED,
-            'file_names': file_names,
+            "assembly_id": assembly_id,
+            "start_date": start_date,
+            "compression": UNCOMPRESSED,
+            "file_names": file_names,
         }
         manifest_id = FAKE.pyint()
         downloader = self.create_gcp_downloader_with_mock_gcp_storage()
-        with patch.object(
-            downloader, '_generate_monthly_pseudo_manifest'
-        ) as mock_generate_manifest, patch.object(
-            downloader, 'check_if_manifest_should_be_downloaded'
-        ) as mock_check, patch.object(
-            downloader, '_get_existing_manifest_db_id'
-        ) as mock_get_manifest, patch.object(
-            downloader, '_process_manifest_db_record'
+        with patch.object(downloader, "_generate_monthly_pseudo_manifest") as mock_generate_manifest, patch.object(
+            downloader, "check_if_manifest_should_be_downloaded"
+        ) as mock_check, patch.object(downloader, "_get_existing_manifest_db_id") as mock_get_manifest, patch.object(
+            downloader, "_process_manifest_db_record"
         ) as mock_process:
             mock_generate_manifest.return_value = manifest
             mock_check.return_value = True
@@ -146,10 +133,10 @@ class GCPReportDownloaderTest(MasuTestCase):
             mock_process.assert_called_with(assembly_id, start_date, file_count)
 
         expected_result = {
-            'manifest_id': manifest_id,
-            'assembly_id': assembly_id,
-            'compression': UNCOMPRESSED,
-            'files': file_names,
+            "manifest_id": manifest_id,
+            "assembly_id": assembly_id,
+            "compression": UNCOMPRESSED,
+            "files": file_names,
         }
         self.assertEqual(result, expected_result)
 
@@ -157,19 +144,15 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Assert get_report_context_for_date creates returns {} if already processed."""
         start_date = Mock()
         downloader = self.create_gcp_downloader_with_mock_gcp_storage()
-        with patch.object(
-            downloader, '_generate_monthly_pseudo_manifest'
-        ) as mock_generate_manifest, patch.object(
-            downloader, 'check_if_manifest_should_be_downloaded'
-        ) as mock_check, patch.object(
-            downloader, '_get_existing_manifest_db_id'
-        ) as mock_get_manifest:
+        with patch.object(downloader, "_generate_monthly_pseudo_manifest") as mock_generate_manifest, patch.object(
+            downloader, "check_if_manifest_should_be_downloaded"
+        ) as mock_check, patch.object(downloader, "_get_existing_manifest_db_id") as mock_get_manifest:
             mock_manifest = mock_generate_manifest.return_value
             mock_check.return_value = False
             result = downloader.get_report_context_for_date(start_date)
             mock_generate_manifest.assert_called_with(start_date)
-            mock_check.assert_called_with(mock_manifest['assembly_id'])
-            mock_get_manifest.assert_called_with(mock_manifest['assembly_id'])
+            mock_check.assert_called_with(mock_manifest["assembly_id"])
+            mock_get_manifest.assert_called_with(mock_manifest["assembly_id"])
         self.assertEqual(result, {})
 
     def test_get_report_context_for_date_empty_if_no_files(self):
@@ -177,22 +160,18 @@ class GCPReportDownloaderTest(MasuTestCase):
         start_date = datetime(2019, 9, 1)
         assembly_id = FAKE.uuid4()
         manifest = {
-            'assembly_id': assembly_id,
-            'start_date': start_date,
-            'compression': UNCOMPRESSED,
-            'file_names': [],
+            "assembly_id": assembly_id,
+            "start_date": start_date,
+            "compression": UNCOMPRESSED,
+            "file_names": [],
         }
         manifest_id = FAKE.pyint()
 
         downloader = self.create_gcp_downloader_with_mock_gcp_storage()
-        with patch.object(
-            downloader, '_generate_monthly_pseudo_manifest'
-        ) as mock_generate_manifest, patch.object(
-            downloader, 'check_if_manifest_should_be_downloaded'
-        ) as mock_check, patch.object(
-            downloader, '_get_existing_manifest_db_id'
-        ) as mock_get_manifest, patch.object(
-            downloader, '_process_manifest_db_record'
+        with patch.object(downloader, "_generate_monthly_pseudo_manifest") as mock_generate_manifest, patch.object(
+            downloader, "check_if_manifest_should_be_downloaded"
+        ) as mock_check, patch.object(downloader, "_get_existing_manifest_db_id") as mock_get_manifest, patch.object(
+            downloader, "_process_manifest_db_record"
         ) as mock_process:
             mock_generate_manifest.return_value = manifest
             mock_check.return_value = True
@@ -213,19 +192,17 @@ class GCPReportDownloaderTest(MasuTestCase):
         fake_file_names = [FAKE.file_name() for _ in range(file_count)]
 
         downloader = self.create_gcp_downloader_with_mock_gcp_storage()
-        with patch.object(
-            downloader, '_generate_assembly_id'
-        ) as mock_generate_assembly_id, patch.object(
-            downloader, '_get_relevant_file_names'
+        with patch.object(downloader, "_generate_assembly_id") as mock_generate_assembly_id, patch.object(
+            downloader, "_get_relevant_file_names"
         ) as mock_get_names:
             mock_generate_assembly_id.return_value = fake_assembly_id
             mock_get_names.return_value = fake_file_names
             manifest = downloader._generate_monthly_pseudo_manifest(start_date)
             mock_generate_assembly_id.assert_called_with(start_date, expected_end_date, file_count)
-        self.assertEqual(manifest['assembly_id'], fake_assembly_id)
-        self.assertEqual(manifest['start_date'], start_date)
-        self.assertEqual(manifest['end_date'], expected_end_date)
-        self.assertListEqual(sorted(manifest['file_names']), sorted(fake_file_names))
+        self.assertEqual(manifest["assembly_id"], fake_assembly_id)
+        self.assertEqual(manifest["start_date"], start_date)
+        self.assertEqual(manifest["end_date"], expected_end_date)
+        self.assertListEqual(sorted(manifest["file_names"]), sorted(fake_file_names))
 
     def test_generate_assembly_id(self):
         """Assert appropriate generation of assembly ID."""
@@ -233,7 +210,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         end_date = datetime(2019, 2, 28)
         provider_uuid = uuid4()
         file_count = 15
-        expected_assembly_id = f'{provider_uuid}:2019-02-01:2019-02-28:15'
+        expected_assembly_id = f"{provider_uuid}:2019-02-01:2019-02-28:15"
 
         downloader = self.create_gcp_downloader_with_mock_gcp_storage(provider_uuid=provider_uuid)
         assembly_id = downloader._generate_assembly_id(start_date, end_date, file_count)
@@ -248,26 +225,23 @@ class GCPReportDownloaderTest(MasuTestCase):
         be included in the results.
         """
         downloader = self.create_gcp_downloader_with_mock_gcp_storage()
-        expected_relevant_names = [
-            '2019-09-02.csv',
-            '2019-09-03.csv',
-        ]
+        expected_relevant_names = ["2019-09-02.csv", "2019-09-03.csv"]
         irrelevant_names = [FAKE.file_path() for _ in range(10)] + [
-            '2019-08-24.csv' 'filthy-2019-08-25.csv',
-            'sneaky-2019-09-01.tgz',
-            'little-2019-09-02.xls',
-            'hobbitses-2019-09-04.csv',
-            '2019-09-05.csv',
-            'whats-2019-08-31.csv',
-            '2019-09-03/taters-2019-09-01.csv',
-            'precious-2019-09-02.csv',
-            '2019-09-25/2019-09-03.csv',
-            'my-nicest-folder/2019-08-29.csv',
+            "2019-08-24.csv" "filthy-2019-08-25.csv",
+            "sneaky-2019-09-01.tgz",
+            "little-2019-09-02.xls",
+            "hobbitses-2019-09-04.csv",
+            "2019-09-05.csv",
+            "whats-2019-08-31.csv",
+            "2019-09-03/taters-2019-09-01.csv",
+            "precious-2019-09-02.csv",
+            "2019-09-25/2019-09-03.csv",
+            "my-nicest-folder/2019-08-29.csv",
         ]
         all_found_names = sorted(expected_relevant_names + irrelevant_names)
         start_date = datetime(2019, 8, 28)  # chosen to exclude the older dates
         end_date = datetime(2019, 9, 3)  # chosen to exclude newer dates
-        with patch.object(downloader, '_get_bucket_file_names') as mock_get_names:
+        with patch.object(downloader, "_get_bucket_file_names") as mock_get_names:
             mock_get_names.return_value = all_found_names
             actual_names = downloader._get_relevant_file_names(start_date, end_date)
         self.assertListEqual(sorted(actual_names), sorted(expected_relevant_names))
@@ -280,30 +254,26 @@ class GCPReportDownloaderTest(MasuTestCase):
         With the given dates, we expect only some of the files formatted with dates to
         be included in the results.
         """
-        downloader = self.create_gcp_downloader_with_mock_gcp_storage(report_prefix='precious')
-        expected_relevant_names = [
-            'precious-2019-08-28.csv',
-            'precious-2019-09-01.csv',
-            'precious-2019-09-02.csv',
-        ]
+        downloader = self.create_gcp_downloader_with_mock_gcp_storage(report_prefix="precious")
+        expected_relevant_names = ["precious-2019-08-28.csv", "precious-2019-09-01.csv", "precious-2019-09-02.csv"]
         irrelevant_names = [FAKE.file_path() for _ in range(10)] + [
-            '2019-08-24.csv' 'filthy-2019-08-25.csv',
-            'sneaky-2019-09-01.tgz',
-            'little-2019-09-02.xls',
-            'hobbitses-2019-09-04.csv',
-            '2019-09-02.csv',
-            '2019-09-03',
-            '2019-09-05.csv',
-            'whats-2019-08-31.csv',
-            '2019-09-03/taters-2019-09-01.csv',
-            '2019-09-25/2019-09-03.csv',
-            'my-nicest-folder/2019-08-29.csv',
-            'very/precious-2019-09-02.csv',
+            "2019-08-24.csv" "filthy-2019-08-25.csv",
+            "sneaky-2019-09-01.tgz",
+            "little-2019-09-02.xls",
+            "hobbitses-2019-09-04.csv",
+            "2019-09-02.csv",
+            "2019-09-03",
+            "2019-09-05.csv",
+            "whats-2019-08-31.csv",
+            "2019-09-03/taters-2019-09-01.csv",
+            "2019-09-25/2019-09-03.csv",
+            "my-nicest-folder/2019-08-29.csv",
+            "very/precious-2019-09-02.csv",
         ]
         all_found_names = sorted(expected_relevant_names + irrelevant_names)
         start_date = datetime(2019, 8, 28)  # chosen to exclude the older dates
         end_date = datetime(2019, 9, 3)  # chosen to exclude newer dates
-        with patch.object(downloader, '_get_bucket_file_names') as mock_get_names:
+        with patch.object(downloader, "_get_bucket_file_names") as mock_get_names:
             mock_get_names.return_value = all_found_names
             actual_names = downloader._get_relevant_file_names(start_date, end_date)
         self.assertListEqual(sorted(actual_names), sorted(expected_relevant_names))
@@ -314,7 +284,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         mock_blobs = [MockBlob(name=name) for name in expected_names]
 
         downloader = self.create_gcp_downloader_with_mock_gcp_storage()
-        with patch.object(downloader, '_bucket_info') as mock_bucket_info:
+        with patch.object(downloader, "_bucket_info") as mock_bucket_info:
             mock_bucket_info.list_blobs.return_value = mock_blobs
             actual_names = downloader._get_bucket_file_names()
         self.assertListEqual(sorted(actual_names), sorted(expected_names))
@@ -331,12 +301,12 @@ class GCPReportDownloaderTest(MasuTestCase):
         key = FAKE.file_path()
         downloader = self.create_gcp_downloader_with_mock_gcp_storage()
         with self.assertRaises(GCPReportDownloaderNoFileError), patch.object(
-            downloader, '_bucket_info'
+            downloader, "_bucket_info"
         ) as mock_bucket_info:
             mock_bucket_info.get_blob.return_value = None
             downloader.download_file(key)
 
-    @patch('masu.external.downloader.gcp.gcp_report_downloader.os.makedirs')
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
     def test_download_file_without_etag(self, mock_makedirs):
         """Assert download_file downloads and returns local path with GCP's etag."""
         key = FAKE.file_path()
@@ -344,8 +314,8 @@ class GCPReportDownloaderTest(MasuTestCase):
         mock_blob = MockBlob(etag=expected_etag)
         expected_full_local_path = FAKE.file_path()
         downloader = self.create_gcp_downloader_with_mock_gcp_storage()
-        with patch.object(downloader, '_bucket_info') as mock_bucket_info, patch.object(
-            downloader, '_get_local_file_path'
+        with patch.object(downloader, "_bucket_info") as mock_bucket_info, patch.object(
+            downloader, "_get_local_file_path"
         ) as mock_get_local_path:
             mock_bucket_info.get_blob.return_value = mock_blob
             mock_get_local_path.return_value = expected_full_local_path
@@ -355,7 +325,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         mock_makedirs.assert_called()
         self.assertEqual(results, (expected_full_local_path, expected_etag))
 
-    @patch('masu.external.downloader.gcp.gcp_report_downloader.os.makedirs')
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
     def test_download_file_with_mismatched_etag(self, mock_makedirs):
         """
         Assert download_file downloads and returns local path with GCP's etag.
@@ -372,8 +342,8 @@ class GCPReportDownloaderTest(MasuTestCase):
         mock_blob = MockBlob(etag=expected_etag)
         expected_full_local_path = FAKE.file_path()
         downloader = self.create_gcp_downloader_with_mock_gcp_storage()
-        with patch.object(downloader, '_bucket_info') as mock_bucket_info, patch.object(
-            downloader, '_get_local_file_path'
+        with patch.object(downloader, "_bucket_info") as mock_bucket_info, patch.object(
+            downloader, "_get_local_file_path"
         ) as mock_get_local_path:
             mock_bucket_info.get_blob.return_value = mock_blob
             mock_get_local_path.return_value = expected_full_local_path
@@ -385,22 +355,22 @@ class GCPReportDownloaderTest(MasuTestCase):
 
     def test_get_local_directory_path(self):
         """Assert expected local directory path construction."""
-        customer_name = 'Bilbo/Baggins'
-        bucket_name = 'Bag/End'
-        data_dir = '/The/Shire'
-        expected_directory_path = '/The/Shire/Bilbo_Baggins/gcp/Bag_End'
+        customer_name = "Bilbo/Baggins"
+        bucket_name = "Bag/End"
+        data_dir = "/The/Shire"
+        expected_directory_path = "/The/Shire/Bilbo_Baggins/gcp/Bag_End"
         downloader = self.create_gcp_downloader_with_mock_gcp_storage(
             customer_name=customer_name, bucket_name=bucket_name
         )
-        with patch('masu.external.downloader.gcp.gcp_report_downloader.DATA_DIR', new=data_dir):
+        with patch("masu.external.downloader.gcp.gcp_report_downloader.DATA_DIR", new=data_dir):
             actual_directory_path = downloader._get_local_directory_path()
         self.assertEqual(actual_directory_path, expected_directory_path)
 
     def test_get_local_file_path(self):
         """Assert expected local file path construction."""
         directory_path = FAKE.file_path()
-        key = 'Samwise/Gamgee'
-        expected_file_name = 'Samwise_Gamgee'
+        key = "Samwise/Gamgee"
+        expected_file_name = "Samwise_Gamgee"
         downloader = self.create_gcp_downloader_with_mock_gcp_storage()
         actual_local_file_path = downloader._get_local_file_path(directory_path, key)
         self.assertTrue(actual_local_file_path.startswith(directory_path))

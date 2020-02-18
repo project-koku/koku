@@ -23,10 +23,10 @@ class TaskFormatter(ColorFormatter):
                 task_parent_id=task.request.parent_id,
             )
         else:
-            record.__dict__.setdefault('task_name', 'None')
-            record.__dict__.setdefault('task_id', 'None')
-            record.__dict__.setdefault('task_root_id', 'None')
-            record.__dict__.setdefault('task_parent_id', 'None')
+            record.__dict__.setdefault("task_name", "None")
+            record.__dict__.setdefault("task_id", "None")
+            record.__dict__.setdefault("task_root_id", "None")
+            record.__dict__.setdefault("task_parent_id", "None")
 
         return ColorFormatter.format(self, record)
 
@@ -35,10 +35,6 @@ class TaskRootLogging(Logging):
     """Custom Celery application logging setup."""
 
     # pylint: disable=too-many-arguments, redefined-builtin, C0330
-    def setup_handlers(
-        self, logger, logfile, format, colorize, formatter=TaskFormatter, **kwargs
-    ):
+    def setup_handlers(self, logger, logfile, format, colorize, formatter=TaskFormatter, **kwargs):
         """Ignore the requested formatter and use our custom one."""
-        return super(TaskRootLogging, self).setup_handlers(
-            logger, logfile, format, colorize, TaskFormatter, **kwargs
-        )
+        return super().setup_handlers(logger, logfile, format, colorize, TaskFormatter, **kwargs)

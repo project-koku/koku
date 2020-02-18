@@ -18,9 +18,12 @@
 # flake8: noqa
 # pylint: disable=unused-import
 from api.dataexport.models import DataExportRequest
-from api.status.models import Status
-from api.iam.models import Customer, Tenant, User, UserPreference
+from api.iam.models import Customer
+from api.iam.models import Tenant
+from api.iam.models import User
+from api.iam.models import UserPreference
 from api.metrics.models import CostModelMetricsMap
-from api.provider.models import (Provider,
-                                 ProviderAuthentication,
-                                 ProviderBillingSource)
+from api.provider.models import Provider
+from api.provider.models import ProviderAuthentication
+from api.provider.models import ProviderBillingSource
+from api.status.models import Status

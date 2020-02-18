@@ -7,4 +7,5 @@ RUN pip install pipenv
 RUN pip install pipenv-to-requirements
 RUN pipenv run pipenv_to_requirements -f
 RUN pip install -r requirements.txt
+RUN pip install watchdog pyyaml argh
 USER root

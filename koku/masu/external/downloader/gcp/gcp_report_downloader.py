@@ -1,10 +1,10 @@
 """GCP Report Downloader."""
-
 import logging
 import os
 
 from dateutil.relativedelta import relativedelta
-from dateutil.rrule import DAILY, rrule
+from dateutil.rrule import DAILY
+from dateutil.rrule import rrule
 from google.cloud import storage
 from rest_framework.exceptions import ValidationError
 
@@ -47,10 +47,10 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         super().__init__(task, **kwargs)
 
-        self.bucket_name = billing_source['bucket']
-        self.report_prefix = billing_source.get('report_prefix', '')
-        self.customer_name = customer_name.replace(' ', '_')
-        self._provider_uuid = kwargs.get('provider_uuid')
+        self.bucket_name = billing_source["bucket"]
+        self.report_prefix = billing_source.get("report_prefix", "")
+        self.customer_name = customer_name.replace(" ", "_")
+        self._provider_uuid = kwargs.get("provider_uuid")
 
         try:
             GCPProvider().cost_usage_source_is_reachable(None, billing_source)
@@ -58,13 +58,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self._bucket_info = self._storage_client.lookup_bucket(self.bucket_name)
         except ValidationError as ex:
             LOG.error(
-                'GCP bucket %(bucket_name)s for customer %(customer_name)s is not reachable. '
-                'Error: %(ex)s',
-                {
-                    'customer_name': customer_name,
-                    'bucket_name': self.bucket_name,
-                    'ex': str(ex),
-                },
+                "GCP bucket %(bucket_name)s for customer %(customer_name)s is not reachable. " "Error: %(ex)s",
+                {"customer_name": customer_name, "bucket_name": self.bucket_name, "ex": str(ex)},
             )
             raise GCPReportDownloaderError(str(ex))
 
@@ -85,40 +80,36 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest_data = self._generate_monthly_pseudo_manifest(date_time)
 
-        if not self.check_if_manifest_should_be_downloaded(
-            manifest_data['assembly_id']
-        ):
-            manifest_id = self._get_existing_manifest_db_id(
-                manifest_data['assembly_id']
-            )
+        if not self.check_if_manifest_should_be_downloaded(manifest_data["assembly_id"]):
+            manifest_id = self._get_existing_manifest_db_id(manifest_data["assembly_id"])
             stmt = (
-                f'This manifest has already been downloaded and processed:\n'
-                f' schema_name: {self.customer_name}\n'
-                f' provider_uuid: {self._provider_uuid}\n'
-                f' manifest_id: {manifest_id}'
+                f"This manifest has already been downloaded and processed:\n"
+                f" schema_name: {self.customer_name}\n"
+                f" provider_uuid: {self._provider_uuid}\n"
+                f" manifest_id: {manifest_id}"
             )
             LOG.info(stmt)
             return {}
 
-        file_names_count = len(manifest_data['file_names'])
+        file_names_count = len(manifest_data["file_names"])
         if not file_names_count:
             stmt = (
                 f'No relevant files found for month starting {manifest_data["start_date"]}'
                 f' for customer "{self.customer_name}",'
-                f' provider_uuid {self._provider_uuid},'
-                f' and bucket_name: {self.bucket_name}'
+                f" provider_uuid {self._provider_uuid},"
+                f" and bucket_name: {self.bucket_name}"
             )
             LOG.info(stmt)
             return {}
 
         manifest_id = self._process_manifest_db_record(
-            manifest_data['assembly_id'], manifest_data['start_date'], file_names_count
+            manifest_data["assembly_id"], manifest_data["start_date"], file_names_count
         )
         report_dict = {
-            'manifest_id': manifest_id,
-            'assembly_id': manifest_data['assembly_id'],
-            'compression': manifest_data['compression'],
-            'files': list(manifest_data['file_names']),
+            "manifest_id": manifest_id,
+            "assembly_id": manifest_data["assembly_id"],
+            "compression": manifest_data["compression"],
+            "files": list(manifest_data["file_names"]),
         }
         return report_dict
 
@@ -145,11 +136,11 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         fake_assembly_id = self._generate_assembly_id(start_date, end_date, file_count)
 
         manifest_data = {
-            'assembly_id': fake_assembly_id,
-            'compression': UNCOMPRESSED,
-            'start_date': start_date,
-            'end_date': end_date,  # inclusive end date
-            'file_names': list(file_names),
+            "assembly_id": fake_assembly_id,
+            "compression": UNCOMPRESSED,
+            "start_date": start_date,
+            "end_date": end_date,  # inclusive end date
+            "file_names": list(file_names),
         }
         return manifest_data
 
@@ -170,13 +161,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             str unique to this provider and date range.
 
         """
-        fake_assembly_id = ':'.join(
-            [
-                str(self._provider_uuid),
-                start_date.strftime('%Y-%m-%d'),
-                end_date.strftime('%Y-%m-%d'),
-                str(file_count),
-            ]
+        fake_assembly_id = ":".join(
+            [str(self._provider_uuid), start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"), str(file_count)]
         )
         return fake_assembly_id
 
@@ -197,14 +183,14 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         dates = rrule(DAILY, dtstart=start_date, until=end_date)
-        dates_as_strings = [date.strftime('%Y-%m-%d') for date in dates]
+        dates_as_strings = [date.strftime("%Y-%m-%d") for date in dates]
         available_file_names = self._get_bucket_file_names()
         relevant_file_names = set()
-        prefix = f'{self.report_prefix}-' if self.report_prefix else ''
+        prefix = f"{self.report_prefix}-" if self.report_prefix else ""
 
         for file_name in available_file_names:
             for date_string in dates_as_strings:
-                if file_name == f'{prefix}{date_string}.csv':
+                if file_name == f"{prefix}{date_string}.csv":
                     relevant_file_names.add(file_name)
                     break
 
@@ -257,15 +243,13 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         blob = self._bucket_info.get_blob(key)
         if not blob:
-            raise GCPReportDownloaderNoFileError(
-                f'No blob found in bucket "{self.bucket_name}" with name "{key}"'
-            )
+            raise GCPReportDownloaderNoFileError(f'No blob found in bucket "{self.bucket_name}" with name "{key}"')
 
         if stored_etag is not None and stored_etag != blob.etag:
             # Should we abort download here? Just log a warning for now...
             LOG.warning(
                 'etag for "%(blob_name)s" is "%(blob_etag)s", but stored etag is %(stored_etag)s',
-                {'blob_name': key, 'blob_etag': blob.etag, 'stored_etag': stored_etag},
+                {"blob_name": key, "blob_etag": blob.etag, "stored_etag": stored_etag},
             )
 
         directory_path = self._get_local_directory_path()
@@ -273,13 +257,13 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         os.makedirs(directory_path, exist_ok=True)
         LOG.info(
             'Downloading "%(blob_name)s" to %(full_local_path)s',
-            {'blob_name': key, 'full_local_path': full_local_path},
+            {"blob_name": key, "full_local_path": full_local_path},
         )
         blob.download_to_filename(full_local_path)
 
         LOG.info(
-            'Returning full_file_path: %(full_local_path)s, etag: %(etag)s',
-            {'full_local_path': full_local_path, 'etag': blob.etag},
+            "Returning full_file_path: %(full_local_path)s, etag: %(etag)s",
+            {"full_local_path": full_local_path, "etag": blob.etag},
         )
         return full_local_path, blob.etag
 
@@ -291,11 +275,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             str of the destination local directory path.
 
         """
-        safe_customer_name = self.customer_name.replace('/', '_')
-        safe_bucket_name = self.bucket_name.replace('/', '_')
-        directory_path = os.path.join(
-            DATA_DIR, safe_customer_name, 'gcp', safe_bucket_name
-        )
+        safe_customer_name = self.customer_name.replace("/", "_")
+        safe_bucket_name = self.bucket_name.replace("/", "_")
+        directory_path = os.path.join(DATA_DIR, safe_customer_name, "gcp", safe_bucket_name)
         return directory_path
 
     def _get_local_file_path(self, directory_path, key):
@@ -310,7 +292,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             str of the destination local file path.
 
         """
-        local_file_name = key.replace('/', '_')
-        LOG.info('Local filename: %s', local_file_name)
+        local_file_name = key.replace("/", "_")
+        LOG.info("Local filename: %s", local_file_name)
         full_local_path = os.path.join(directory_path, local_file_name)
         return full_local_path

@@ -19,9 +19,9 @@ import json
 
 import requests
 from requests.exceptions import RequestException
-from sources.config import Config
 
 from api.models import Provider
+from sources.config import Config
 
 
 class KokuHTTPClientError(Exception):
@@ -42,7 +42,7 @@ class KokuHTTPClient:
     def __init__(self, auth_header):
         """Initialize the client."""
         self._base_url = Config.KOKU_API_URL
-        header = {'x-rh-identity': auth_header, 'sources-client': 'True'}
+        header = {"x-rh-identity": auth_header, "sources-client": "True"}
         self._identity_header = header
 
     def _get_dict_from_text_field(self, value):
@@ -53,17 +53,17 @@ class KokuHTTPClient:
         return db_dict
 
     def _build_provider_resource_name_auth(self, authentication):
-        if authentication.get('resource_name'):
-            auth = {'provider_resource_name': authentication.get('resource_name')}
+        if authentication.get("resource_name"):
+            auth = {"provider_resource_name": authentication.get("resource_name")}
         else:
-            raise KokuHTTPClientError('Missing provider_resource_name')
+            raise KokuHTTPClientError("Missing provider_resource_name")
         return auth
 
     def _build_credentials_auth(self, authentication):
-        if authentication.get('credentials'):
-            auth = {'credentials': authentication.get('credentials')}
+        if authentication.get("credentials"):
+            auth = {"credentials": authentication.get("credentials")}
         else:
-            raise KokuHTTPClientError('Missing credentials')
+            raise KokuHTTPClientError("Missing credentials")
         return auth
 
     def _authentication_for_aws(self, authentication):
@@ -77,32 +77,34 @@ class KokuHTTPClient:
 
     def get_authentication_for_provider(self, provider_type, authentication):
         """Build authentication json data for provider type."""
-        provider_map = {Provider.PROVIDER_AWS: self._authentication_for_aws,
-                        Provider.PROVIDER_OCP: self._authentication_for_ocp,
-                        Provider.PROVIDER_AZURE: self._authentication_for_azure}
+        provider_map = {
+            Provider.PROVIDER_AWS: self._authentication_for_aws,
+            Provider.PROVIDER_OCP: self._authentication_for_ocp,
+            Provider.PROVIDER_AZURE: self._authentication_for_azure,
+        }
         provider_fn = provider_map.get(provider_type)
         if provider_fn:
             return provider_fn(authentication)
 
     def _build_provider_bucket(self, billing_source):
-        if billing_source.get('bucket') is not None:
-            billing = {'bucket': billing_source.get('bucket')}
+        if billing_source.get("bucket") is not None:
+            billing = {"bucket": billing_source.get("bucket")}
         else:
-            raise KokuHTTPClientError('Missing bucket')
+            raise KokuHTTPClientError("Missing bucket")
         return billing
 
     def _build_provider_data_source(self, billing_source):
-        if billing_source.get('data_source'):
-            billing = {'data_source': billing_source.get('data_source')}
+        if billing_source.get("data_source"):
+            billing = {"data_source": billing_source.get("data_source")}
         else:
-            raise KokuHTTPClientError('Missing data_source')
+            raise KokuHTTPClientError("Missing data_source")
         return billing
 
     def _billing_source_for_aws(self, billing_source):
         return self._build_provider_bucket(billing_source)
 
     def _billing_source_for_ocp(self, billing_source):
-        billing_source['bucket'] = ''
+        billing_source["bucket"] = ""
         return self._build_provider_bucket(billing_source)
 
     def _billing_source_for_azure(self, billing_source):
@@ -110,9 +112,11 @@ class KokuHTTPClient:
 
     def get_billing_source_for_provider(self, provider_type, billing_source):
         """Build billing source json data for provider type."""
-        provider_map = {Provider.PROVIDER_AWS: self._billing_source_for_aws,
-                        Provider.PROVIDER_OCP: self._billing_source_for_ocp,
-                        Provider.PROVIDER_AZURE: self._billing_source_for_azure}
+        provider_map = {
+            Provider.PROVIDER_AWS: self._billing_source_for_aws,
+            Provider.PROVIDER_OCP: self._billing_source_for_ocp,
+            Provider.PROVIDER_AZURE: self._billing_source_for_azure,
+        }
         provider_fn = provider_map.get(provider_type)
         if provider_fn:
             return provider_fn(billing_source)
@@ -120,28 +124,29 @@ class KokuHTTPClient:
     def _handle_bad_requests(self, response):
         """Raise an exception with error message string for Platform Sources."""
         if response.status_code == 401 or response.status_code == 403:
-            raise KokuHTTPClientNonRecoverableError('Insufficient Permissions')
+            raise KokuHTTPClientNonRecoverableError("Insufficient Permissions")
         if response.status_code == 400:
-            detail_msg = 'Unknown Error'
-            errors = response.json().get('errors')
+            detail_msg = "Unknown Error"
+            errors = response.json().get("errors")
             if errors:
-                detail_msg = errors[0].get('detail')
+                detail_msg = errors[0].get("detail")
             raise KokuHTTPClientNonRecoverableError(detail_msg)
 
     def create_provider(self, name, provider_type, authentication, billing_source, source_uuid=None):
         """Koku HTTP call to create provider."""
-        url = '{}/{}/'.format(self._base_url, 'providers')
-        json_data = {'name': name, 'type': provider_type,
-                     'authentication': self.get_authentication_for_provider(provider_type,
-                                                                            authentication),
-                     'billing_source': self.get_billing_source_for_provider(provider_type,
-                                                                            billing_source)}
+        url = "{}/{}/".format(self._base_url, "providers")
+        json_data = {
+            "name": name,
+            "type": provider_type,
+            "authentication": self.get_authentication_for_provider(provider_type, authentication),
+            "billing_source": self.get_billing_source_for_provider(provider_type, billing_source),
+        }
         if source_uuid:
-            json_data['uuid'] = str(source_uuid)
+            json_data["uuid"] = str(source_uuid)
         try:
             r = requests.post(url, headers=self._identity_header, json=json_data)
         except RequestException as conn_err:
-            raise KokuHTTPClientError('Failed to create provider. Connection Error: ', str(conn_err))
+            raise KokuHTTPClientError("Failed to create provider. Connection Error: ", str(conn_err))
         self._handle_bad_requests(r)
 
         if r.status_code != 201:
@@ -150,18 +155,19 @@ class KokuHTTPClient:
 
     def update_provider(self, provider_uuid, name, provider_type, authentication, billing_source):
         """Koku HTTP call to update provider."""
-        url = '{}/{}/{}/'.format(self._base_url, 'providers', provider_uuid)
-        json_data = {'name': name, 'type': provider_type,
-                     'authentication': self.get_authentication_for_provider(provider_type,
-                                                                            authentication),
-                     'billing_source': self.get_billing_source_for_provider(provider_type,
-                                                                            billing_source)}
+        url = "{}/{}/{}/".format(self._base_url, "providers", provider_uuid)
+        json_data = {
+            "name": name,
+            "type": provider_type,
+            "authentication": self.get_authentication_for_provider(provider_type, authentication),
+            "billing_source": self.get_billing_source_for_provider(provider_type, billing_source),
+        }
         try:
             r = requests.put(url, headers=self._identity_header, json=json_data)
         except RequestException as conn_err:
-            raise KokuHTTPClientError('Failed to create provider. Connection Error: ', str(conn_err))
+            raise KokuHTTPClientError("Failed to create provider. Connection Error: ", str(conn_err))
         if r.status_code == 404:
-            raise KokuHTTPClientNonRecoverableError('Provider not found. Error: ', str(r.json()))
+            raise KokuHTTPClientNonRecoverableError("Provider not found. Error: ", str(r.json()))
         self._handle_bad_requests(r)
 
         if r.status_code != 200:
@@ -170,14 +176,13 @@ class KokuHTTPClient:
 
     def destroy_provider(self, provider_uuid):
         """Koku HTTP call to destroy provider."""
-        url = '{}/{}/{}/'.format(self._base_url, 'providers', provider_uuid)
+        url = "{}/{}/{}/".format(self._base_url, "providers", provider_uuid)
         try:
             response = requests.delete(url, headers=self._identity_header)
         except RequestException as conn_err:
-            raise KokuHTTPClientError('Failed to delete provider. Connection Error: ', str(conn_err))
+            raise KokuHTTPClientError("Failed to delete provider. Connection Error: ", str(conn_err))
         if response.status_code == 404:
-            raise KokuHTTPClientNonRecoverableError('Provider not found. Error: ', str(response.json()))
+            raise KokuHTTPClientNonRecoverableError("Provider not found. Error: ", str(response.json()))
         if response.status_code != 204:
-            raise KokuHTTPClientError('Unable to remove koku provider. Status Code: ',
-                                      str(response.status_code))
+            raise KokuHTTPClientError("Unable to remove koku provider. Status Code: ", str(response.status_code))
         return response

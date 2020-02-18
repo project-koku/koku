@@ -17,7 +17,8 @@
 """Accessor for Provider information from koku database."""
 from django.db import transaction
 
-from api.provider.models import Provider, ProviderInfrastructureMap
+from api.provider.models import Provider
+from api.provider.models import ProviderInfrastructureMap
 from masu.database.koku_database_access import KokuDBAccess
 
 
@@ -33,7 +34,7 @@ class ProviderDBAccessor(KokuDBAccess):
             auth_id        (String) provider authentication database id
 
         """
-        super().__init__('public')
+        super().__init__("public")
         self._uuid = provider_uuid
         self._auth_id = auth_id
         self._table = Provider
@@ -229,8 +230,7 @@ class ProviderDBAccessor(KokuDBAccess):
 
         """
         mapping, _ = ProviderInfrastructureMap.objects.get_or_create(
-            infrastructure_provider_id=infrastructure_provider_uuid,
-            infrastructure_type=infrastructure_type
+            infrastructure_provider_id=infrastructure_provider_uuid, infrastructure_type=infrastructure_type
         )
 
         self.provider.infrastructure = mapping
@@ -240,13 +240,9 @@ class ProviderDBAccessor(KokuDBAccess):
         """Return a list of OpenShift clusters associated with the cloud provider."""
         associated_openshift_providers = []
 
-        mapping = ProviderInfrastructureMap.objects.filter(
-            infrastructure_provider_id=self.provider.uuid
-        ).first()
+        mapping = ProviderInfrastructureMap.objects.filter(infrastructure_provider_id=self.provider.uuid).first()
 
         if mapping:
-            associated_openshift_providers = Provider.objects.filter(
-                infrastructure=mapping
-            ).all()
+            associated_openshift_providers = Provider.objects.filter(infrastructure=mapping).all()
 
         return associated_openshift_providers

@@ -29,31 +29,25 @@ class ProviderMap:
     """
 
     PACK_DEFINITIONS = {
-        'cost': {
-            'keys': ['cost', 'infrastructure_cost', 'derived_cost', 'markup_cost', 'monthly_cost'],
-            'units': 'cost_units'
+        "cost": {
+            "keys": ["cost", "infrastructure_cost", "derived_cost", "markup_cost", "monthly_cost"],
+            "units": "cost_units",
         },
-        'usage': {
-            'keys': ['usage', 'request', 'limit', 'capacity'],
-            'units': 'usage_units'
-        },
-        'count': {
-            'keys': ['count'],
-            'units': 'count_units'
-        }
+        "usage": {"keys": ["usage", "request", "limit", "capacity"], "units": "usage_units"},
+        "count": {"keys": ["count"], "units": "count_units"},
     }
 
     def provider_data(self, provider):
         """Return provider portion of map structure."""
         for item in self._mapping:
-            if provider in item.get('provider'):
+            if provider in item.get("provider"):
                 return item
         return None
 
     def report_type_data(self, report_type, provider):
         """Return report_type portion of map structure."""
         prov = self.provider_data(provider)
-        return prov.get('report_type').get(report_type)
+        return prov.get("report_type").get(report_type)
 
     def __init__(self, provider, report_type):
         """Constructor."""
@@ -64,13 +58,13 @@ class ProviderMap:
 
         # main mapping data structure
         # this data should be considered static and read-only.
-        if not getattr(self, '_mapping'):
+        if not getattr(self, "_mapping"):
             self._mapping = [{}]
 
     @property
     def count(self):
         """Return the count property."""
-        return self._report_type_map.get('count')
+        return self._report_type_map.get("count")
 
     @property
     def provider_map(self):
@@ -80,8 +74,8 @@ class ProviderMap:
     @property
     def query_table(self):
         """Return the appropriate query table for the report type."""
-        report_table = self._report_type_map.get('tables', {}).get('query')
-        default = self._provider_map.get('tables').get('query')
+        report_table = self._report_type_map.get("tables", {}).get("query")
+        default = self._provider_map.get("tables").get("query")
         return report_table if report_table else default
 
     @property
@@ -92,21 +86,21 @@ class ProviderMap:
     @property
     def sum_columns(self):
         """Return the sum column list for the report type."""
-        return self._report_type_map.get('sum_columns')
+        return self._report_type_map.get("sum_columns")
 
     @property
     def tag_column(self):
         """Return the appropriate query table for the report type."""
-        report_specific_column = self._report_type_map.get('tag_column')
-        default = self._provider_map.get('tag_column')
+        report_specific_column = self._report_type_map.get("tag_column")
+        default = self._provider_map.get("tag_column")
         return report_specific_column if report_specific_column else default
 
     @property
     def cost_units_key(self):
         """Return the cost_units_key property."""
-        return self._report_type_map.get('cost_units_key')
+        return self._report_type_map.get("cost_units_key")
 
     @property
     def usage_units_key(self):
         """Return the usage_units_key property."""
-        return self._report_type_map.get('usage_units_key')
+        return self._report_type_map.get("usage_units_key")

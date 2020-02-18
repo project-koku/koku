@@ -14,13 +14,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the AzureReportSummaryUpdater object."""
 import calendar
 import datetime
-from unittest.mock import call, patch
+from unittest.mock import call
+from unittest.mock import patch
 
-from dateutil.rrule import DAILY, rrule
+from dateutil.rrule import DAILY
+from dateutil.rrule import rrule
 from tenant_schemas.utils import schema_context
 
 from masu.database import AZURE_REPORT_TABLE_MAP
@@ -44,7 +45,7 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         with ReportingCommonDBAccessor() as report_common_db:
             cls.column_map = report_common_db.column_map
 
-        cls.accessor = AzureReportDBAccessor('acct10001', cls.column_map)
+        cls.accessor = AzureReportDBAccessor("acct10001", cls.column_map)
         cls.report_schema = cls.accessor.report_schema
         cls.all_tables = list(AZURE_REPORT_TABLE_MAP.values())
         cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
@@ -55,21 +56,17 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         """Set up each test."""
         super().setUp()
 
-        billing_start = self.date_accessor.today_with_timezone('UTC').replace(day=1)
+        billing_start = self.date_accessor.today_with_timezone("UTC").replace(day=1)
         self.manifest_dict = {
-            'assembly_id': '1234',
-            'billing_period_start_datetime': billing_start,
-            'num_total_files': 2,
-            'provider_uuid': self.azure_provider_uuid,
+            "assembly_id": "1234",
+            "billing_period_start_datetime": billing_start,
+            "num_total_files": 2,
+            "provider_uuid": self.azure_provider_uuid,
         }
 
-        self.today = DateAccessor().today_with_timezone('UTC')
-        bill = self.creator.create_azure_cost_entry_bill(
-            provider_uuid=self.azure_provider_uuid, bill_date=self.today
-        )
-        product = self.creator.create_azure_cost_entry_product(
-            provider_uuid=self.azure_provider_uuid
-        )
+        self.today = DateAccessor().today_with_timezone("UTC")
+        bill = self.creator.create_azure_cost_entry_bill(provider_uuid=self.azure_provider_uuid, bill_date=self.today)
+        product = self.creator.create_azure_cost_entry_product(provider_uuid=self.azure_provider_uuid)
         meter = self.creator.create_azure_meter(provider_uuid=self.azure_provider_uuid)
         self.creator.create_azure_cost_entry_line_item(bill, product, meter)
 
@@ -81,13 +78,13 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         self.updater = AzureReportSummaryUpdater(self.schema, self.azure_provider, self.manifest)
 
     @patch(
-        'masu.processor.azure.azure_report_summary_updater.AzureReportDBAccessor.populate_line_item_daily_summary_table'
+        "masu.processor.azure.azure_report_summary_updater.AzureReportDBAccessor.populate_line_item_daily_summary_table"
     )
     def test_azure_update_summary_tables_with_manifest(self, mock_summary):
         """Test that summary tables are properly run."""
         self.manifest.num_processed_files = self.manifest.num_total_files
 
-        start_date = self.date_accessor.today_with_timezone('UTC')
+        start_date = self.date_accessor.today_with_timezone("UTC")
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
 
@@ -96,8 +93,8 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
             bill.summary_data_creation_datetime = start_date
             bill.save()
 
-        start_date_str = start_date.strftime('%Y-%m-%d')
-        end_date_str = end_date.strftime('%Y-%m-%d')
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        end_date_str = end_date.strftime("%Y-%m-%d")
 
         expected_start_date = start_date.date()
         expected_end_date = end_date.date()
@@ -116,13 +113,13 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
             self.assertIsNotNone(bill.summary_data_updated_datetime)
 
     @patch(
-        'masu.processor.azure.azure_report_summary_updater.AzureReportDBAccessor.populate_line_item_daily_summary_table'
+        "masu.processor.azure.azure_report_summary_updater.AzureReportDBAccessor.populate_line_item_daily_summary_table"
     )
     def test_azure_update_summary_tables_new_bill(self, mock_summary):
         """Test that summary tables are run for a full month."""
         self.manifest.num_processed_files = self.manifest.num_total_files
 
-        start_date = self.date_accessor.today_with_timezone('UTC')
+        start_date = self.date_accessor.today_with_timezone("UTC")
         end_date = start_date
         bill_date = start_date.replace(day=1).date()
         with schema_context(self.schema):
@@ -130,24 +127,20 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
 
         last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
 
-        start_date_str = start_date.strftime('%Y-%m-%d')
-        end_date_str = end_date.strftime('%Y-%m-%d')
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        end_date_str = end_date.strftime("%Y-%m-%d")
 
         expected_start_date = start_date.replace(day=1)
         expected_end_date = end_date.replace(day=last_day_of_month)
 
-        dates = list(
-            rrule(freq=DAILY, dtstart=expected_start_date, until=expected_end_date, interval=5)
-        )
+        dates = list(rrule(freq=DAILY, dtstart=expected_start_date, until=expected_end_date, interval=5))
         if expected_end_date not in dates:
             dates.append(expected_end_date)
         # Remove the first date since it's the start date
         dates.pop(0)
         expected_calls = []
         for date in dates:
-            expected_calls.append(
-                call(expected_start_date.date(), date.date(), [str(bill.id)])
-            )
+            expected_calls.append(call(expected_start_date.date(), date.date(), [str(bill.id)]))
             expected_start_date = date + datetime.timedelta(days=1)
 
         self.assertIsNone(bill.summary_data_creation_datetime)

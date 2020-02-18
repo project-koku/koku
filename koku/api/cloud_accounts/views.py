@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """View for Cloud Account."""
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
@@ -32,7 +31,7 @@ class CloudAccountViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         """Override default get_queryset to filter on name."""
         queryset = CloudAccount.objects.all()
-        cloud_account = self.request.query_params.get('name', None)
+        cloud_account = self.request.query_params.get("name", None)
         if cloud_account is not None:
             queryset = queryset.filter(name=cloud_account)
         return queryset

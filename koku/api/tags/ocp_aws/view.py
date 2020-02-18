@@ -14,9 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """View for OCP-on-AWS tags."""
-
 from api.tags.ocp_aws.queries import OCPAWSTagQueryHandler
 from api.tags.serializers import OCPAWSTagsQueryParamSerializer
 from api.tags.view import TagView
@@ -57,7 +55,7 @@ class OCPAWSTagView(TagView):
 
     """
 
-    provider = 'ocp_aws'
+    provider = "ocp_aws"
     serializer = OCPAWSTagsQueryParamSerializer
     query_handler = OCPAWSTagQueryHandler
     tag_handler = [AWSTagsSummary]

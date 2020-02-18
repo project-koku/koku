@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the OCP on All query handler."""
-
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.all.openshift.query_handler import OCPAllReportQueryHandler
 from api.urls import OCPAllStorageView
@@ -26,9 +25,9 @@ class OCPAllQueryHandlerTest(IamTestCase):
 
     def test_set_or_filters(self):
         """Test that OCP on All or_filter is appropriately set."""
-        url = '?'
+        url = "?"
         query_params = self.mocked_query_params(url, OCPAllStorageView)
         handler = OCPAllReportQueryHandler(query_params)
 
         filters = handler._set_or_filters()
-        self.assertEqual(filters.connector, 'OR')
+        self.assertEqual(filters.connector, "OR")

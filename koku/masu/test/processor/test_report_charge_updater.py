@@ -14,25 +14,21 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the ReportChargeUpdater object."""
-
 from unittest.mock import patch
 
 from masu.processor.aws.aws_report_charge_updater import AWSReportChargeUpdater
 from masu.processor.azure.azure_report_charge_updater import AzureReportChargeUpdater
 from masu.processor.ocp.ocp_report_charge_updater import OCPReportChargeUpdater
-from masu.processor.report_charge_updater import (
-    ReportChargeUpdater,
-    ReportChargeUpdaterError,
-)
+from masu.processor.report_charge_updater import ReportChargeUpdater
+from masu.processor.report_charge_updater import ReportChargeUpdaterError
 from masu.test import MasuTestCase
 
 
 class ReportChargeUpdaterTest(MasuTestCase):
     """Test class for the report summary updater."""
 
-    @patch('masu.processor.report_charge_updater.OCPReportChargeUpdater.update_summary_charge_info')
+    @patch("masu.processor.report_charge_updater.OCPReportChargeUpdater.update_summary_charge_info")
     def test_ocp_route(self, mock_update):
         """Test that OCP charge updating works as expected."""
         updater = ReportChargeUpdater(self.schema, self.ocp_test_provider_uuid)
@@ -40,9 +36,7 @@ class ReportChargeUpdaterTest(MasuTestCase):
         updater.update_charge_info()
         mock_update.assert_called()
 
-    @patch(
-        'masu.processor.report_charge_updater.AzureReportChargeUpdater.update_summary_charge_info'
-    )
+    @patch("masu.processor.report_charge_updater.AzureReportChargeUpdater.update_summary_charge_info")
     def test_azure_local_route(self, mock_update):
         """Test that AZURE-local charge updating works as expected."""
         updater = ReportChargeUpdater(self.schema, self.azure_test_provider_uuid)
@@ -50,7 +44,7 @@ class ReportChargeUpdaterTest(MasuTestCase):
         updater.update_charge_info()
         mock_update.assert_called()
 
-    @patch('masu.processor.report_charge_updater.AWSReportChargeUpdater.update_summary_charge_info')
+    @patch("masu.processor.report_charge_updater.AWSReportChargeUpdater.update_summary_charge_info")
     def test_aws_route(self, mock_update):
         """Test that AWS charge updating works as expected."""
         updater = ReportChargeUpdater(self.schema, self.aws_provider_uuid)
@@ -58,9 +52,7 @@ class ReportChargeUpdaterTest(MasuTestCase):
         updater.update_charge_info()
         mock_update.assert_called()
 
-    @patch(
-        'masu.processor.report_charge_updater.AzureReportChargeUpdater.update_summary_charge_info'
-    )
+    @patch("masu.processor.report_charge_updater.AzureReportChargeUpdater.update_summary_charge_info")
     def test_azure_route(self, mock_update):
         """Test that Azure charge updating works as expected."""
         updater = ReportChargeUpdater(self.schema, self.azure_test_provider_uuid)
@@ -68,10 +60,10 @@ class ReportChargeUpdaterTest(MasuTestCase):
         updater.update_charge_info()
         mock_update.assert_called()
 
-    @patch('masu.processor.report_charge_updater.OCPReportChargeUpdater.__init__')
+    @patch("masu.processor.report_charge_updater.OCPReportChargeUpdater.__init__")
     def test_init_fail(self, mock_updater):
         """Test that an unimplemented provider throws an error."""
-        mock_updater.side_effect = Exception('general error')
+        mock_updater.side_effect = Exception("general error")
 
         with self.assertRaises(ReportChargeUpdaterError):
             ReportChargeUpdater(self.schema, self.ocp_test_provider_uuid)

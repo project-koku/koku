@@ -14,7 +14,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Reporting Common init."""
-
 import os
 
 package_directory = os.path.dirname(os.path.abspath(__file__))

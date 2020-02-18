@@ -64,17 +64,17 @@ class CURAccountsDB(CURAccountsInterface):
             all_providers = collector.get_providers()
             for provider in all_providers:
                 if provider.active is False:
-                    LOG.info(f'Provider {provider.uuid} is not active. Processing suspended...')
+                    LOG.info(f"Provider {provider.uuid} is not active. Processing suspended...")
                     continue
                 if provider_uuid and str(provider.uuid) != provider_uuid:
                     continue
                 account = {
-                    'authentication': self.get_authentication(provider),
-                    'customer_name': provider.customer.schema_name,
-                    'billing_source': self.get_billing_source(provider),
-                    'provider_type': provider.type,
-                    'schema_name': provider.customer.schema_name,
-                    'provider_uuid': provider.uuid
+                    "authentication": self.get_authentication(provider),
+                    "customer_name": provider.customer.schema_name,
+                    "billing_source": self.get_billing_source(provider),
+                    "provider_type": provider.type,
+                    "schema_name": provider.customer.schema_name,
+                    "provider_uuid": provider.uuid,
                 }
                 accounts.append(account)
         return accounts

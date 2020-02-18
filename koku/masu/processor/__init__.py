@@ -17,7 +17,8 @@
 """Masu Processor."""
 import logging
 
-from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
+from masu.external import GZIP_COMPRESSED
+from masu.external import UNCOMPRESSED
 
 LOG = logging.getLogger(__name__)
 

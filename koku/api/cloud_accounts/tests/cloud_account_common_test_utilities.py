@@ -18,16 +18,13 @@
 from api.cloud_accounts.models import CloudAccount
 
 
-class CloudAccountCommonTestUtilities():
+class CloudAccountCommonTestUtilities:
     """Common functions that test cases re-use."""
 
     def create_cloud_account(
-            self,
-            name='TEST_AWS_ACCOUNT_ID',
-            value='TEST_12345678910',
-            description="TEST Cost Management's AWS Account ID"):
+        self, name="TEST_AWS_ACCOUNT_ID", value="TEST_12345678910", description="TEST Cost Management's AWS Account ID"
+    ):
         """Create a model for tests."""
-        cloud_account = CloudAccount.objects.create(
-            name=name, value=value, description=description)
+        cloud_account = CloudAccount.objects.create(name=name, value=value, description=description)
         cloud_account.save()
         return cloud_account

@@ -16,19 +16,19 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """RDS Exporter config file deployer."""
-
 import json
 import os
 import sys
+
 import yaml
 
-APP_ROOT = os.environ.get('APP_ROOT')
-CONFIG = os.environ.get('RDS_EXPORTER_CONFIG')
+APP_ROOT = os.environ.get("APP_ROOT")
+CONFIG = os.environ.get("RDS_EXPORTER_CONFIG")
 
 if APP_ROOT and CONFIG:
-    FILENAME = '{}/etc/config.yml'.format(APP_ROOT)
-    with open(FILENAME, 'w') as fh:
+    FILENAME = f"{APP_ROOT}/etc/config.yml"
+    with open(FILENAME, "w") as fh:
         yaml.safe_dump(json.loads(CONFIG), fh, default_flow_style=False)
 else:
-    print('Environment vars APP_ROOT and RDS_EXPORTER_CONFIG are required.')
+    print("Environment vars APP_ROOT and RDS_EXPORTER_CONFIG are required.")
     sys.exit(-1)
