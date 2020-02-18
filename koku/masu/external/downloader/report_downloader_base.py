@@ -19,9 +19,9 @@ import datetime
 import logging
 from tempfile import mkdtemp
 
-from koku.celery import app
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.processor.worker_cache import WorkerCache
 
 LOG = logging.getLogger(__name__)
 
@@ -58,9 +58,10 @@ class ReportDownloaderBase:
             self.download_path = download_path
         else:
             self.download_path = mkdtemp(prefix="masu")
+        self.worker_cache = WorkerCache()
+        self._cache_key = kwargs.get("cache_key")
         self._provider_uuid = None
-        if "provider_uuid" in kwargs:
-            self._provider_uuid = kwargs["provider_uuid"]
+        self._provider_uuid = kwargs.get("provider_uuid")
 
     def _get_existing_manifest_db_id(self, assembly_id):
         """Return a manifest DB object if it exists."""
@@ -70,22 +71,6 @@ class ReportDownloaderBase:
             if manifest:
                 manifest_id = manifest.id
         return manifest_id
-
-    def check_task_queues(self, task_id):
-        """Check if the provided task id is in the celery queues."""
-        # inspect() returns {'worker_name': [{'id': uuid4(), <...>}, {'id': uuid4(), <...>}]}
-        inspect = app.control.inspect()
-
-        def unroll(obj):
-            """Unwrap list values."""
-            return [task.get("id") for tasklist in obj for task in tasklist]
-
-        active = unroll(inspect.active().values())
-        reserved = unroll(inspect.reserved().values())
-        scheduled = unroll(inspect.scheduled().values())
-        if task_id in active + reserved + scheduled:
-            return True
-        return False
 
     def check_if_manifest_should_be_downloaded(self, assembly_id):
         """Check if we should download this manifest.
@@ -99,18 +84,16 @@ class ReportDownloaderBase:
 
         Returns True if the manifest should be downloaded and processed.
         """
+        if self._cache_key and self.worker_cache.task_is_running(self._cache_key):
+            msg = f"{self._cache_key} is currently running."
+            LOG.info(msg)
+            return False
         today = DateAccessor().today_with_timezone("UTC")
         last_completed_cutoff = today - datetime.timedelta(hours=1)
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
 
             if manifest:
-                if manifest.task and self.check_task_queues(manifest.task):
-                    # if the previous task is still in the celery queues, it is
-                    # probably still running. We should not queue a new download
-                    # until it completes.
-                    return False
-                LOG.info('No task-id found for manifest "%s".', manifest.id)
 
                 manifest_id = manifest.id
                 num_processed_files = manifest.num_processed_files
@@ -123,12 +106,14 @@ class ReportDownloaderBase:
                         # start time but no completion time recorded.
                         # We should download and reprocess.
                         manifest_accessor.reset_manifest(manifest_id)
+                        self.worker_cache.add_task_to_cache(self._cache_key)
                         return True
                 # The manifest exists and we have processed all the files.
                 # We should not redownload.
                 return False
         # The manifest does not exist, this is the first time we are
         # downloading and processing it.
+        self.worker_cache.add_task_to_cache(self._cache_key)
         return True
 
     def _process_manifest_db_record(self, assembly_id, billing_start, num_of_files):
