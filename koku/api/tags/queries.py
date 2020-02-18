@@ -96,10 +96,9 @@ class TagQueryHandler(QueryHandler):
         month_start = self.dh.this_month_start
         if self.dh.n_days_ago(self.dh.today, -(time_scope + 1)) > month_start:
             self.start_datetime = month_start
-            self.end_datetime = self.dh.today
         else:
             self.start_datetime = self.dh.last_month_start
-            self.end_datetime = self.dh.last_month_end
+        self.end_datetime = self.dh.today
 
     def _format_query_response(self):
         """Format the query response with data.
@@ -121,6 +120,10 @@ class TagQueryHandler(QueryHandler):
         else:
             start = self.start_datetime
             end = self.end_datetime
+
+        # replace start/end with beginning/end of given month
+        start = self.dh.month_start(start)
+        end = self.dh.month_end(end)
 
         field_prefix = source.get("db_column_period")
         start_filter = QueryFilter(field=f"{field_prefix}_start", operation="gte", parameter=start)

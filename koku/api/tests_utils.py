@@ -133,6 +133,17 @@ class DateHelperTest(TestCase):
         two_days_ago = (today - delta_day) - delta_day
         self.assertEqual(self.date_helper.n_days_ago(today, 2), two_days_ago)
 
+    def test_month_start(self):
+        """Test month start method."""
+        today = self.date_helper.today
+        expected = datetime.datetime(1970, 1, 1, 0, 0, 0, 0)
+        self.assertEqual(self.date_helper.month_start(today), expected)
+
+    def test_month_end(self):
+        today = self.date_helper.today
+        expected = datetime.datetime(1970, 1, 31, 0, 0, 0, 0)
+        self.assertEqual(self.date_helper.month_end(today), expected)
+
 
 class APIUtilsUnitConverterTest(TestCase):
     """Tests against the API utils."""
