@@ -50,38 +50,18 @@ class OCPTagQueryHandlerTest(IamTestCase):
         handler = OCPTagQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get("data"))
-        self.assertEqual(handler.time_scope_units, "day")
-        self.assertEqual(handler.time_scope_value, -10)
+        self.assertEqual(handler.time_scope_units, "month")
+        self.assertEqual(handler.time_scope_value, -1)
 
-    def test_execute_query_10_day_parameters(self):
-        """Test that the execute query runs properly with 10 day query."""
-        url = "?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily"
+    def test_execute_query_1_month_parameters_only_keys(self):
+        """Test that the execute query runs properly with 1 month query."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&key_only=True"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get("data"))
-        self.assertEqual(handler.time_scope_units, "day")
-        self.assertEqual(handler.time_scope_value, -10)
-
-    def test_execute_query_30_day_parameters(self):
-        """Test that the execute query runs properly with 30 day query."""
-        url = "?filter[time_scope_units]=day&filter[time_scope_value]=-30&filter[resolution]=daily"
-        query_params = self.mocked_query_params(url, OCPTagView)
-        handler = OCPTagQueryHandler(query_params)
-        query_output = handler.execute_query()
-        self.assertIsNotNone(query_output.get("data"))
-        self.assertEqual(handler.time_scope_units, "day")
-        self.assertEqual(handler.time_scope_value, -30)
-
-    def test_execute_query_10_day_parameters_only_keys(self):
-        """Test that the execute query runs properly with 10 day query."""
-        url = "?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&key_only=True"
-        query_params = self.mocked_query_params(url, OCPTagView)
-        handler = OCPTagQueryHandler(query_params)
-        query_output = handler.execute_query()
-        self.assertIsNotNone(query_output.get("data"))
-        self.assertEqual(handler.time_scope_units, "day")
-        self.assertEqual(handler.time_scope_value, -10)
+        self.assertEqual(handler.time_scope_units, "month")
+        self.assertEqual(handler.time_scope_value, -1)
 
     def test_execute_query_month_parameters(self):
         """Test that the execute query runs properly with single month query."""
@@ -102,21 +82,6 @@ class OCPTagQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertEqual(handler.time_scope_units, "month")
         self.assertEqual(handler.time_scope_value, -2)
-
-    def test_execute_query_for_project(self):
-        """Test that the execute query runs properly with project query."""
-        namespace = None
-        with tenant_context(self.tenant):
-            namespace_obj = OCPUsageLineItemDailySummary.objects.values("namespace").first()
-            namespace = namespace_obj.get("namespace")
-
-        url = f"?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&filter[project]={namespace}"  # noqa: E501
-        query_params = self.mocked_query_params(url, OCPTagView)
-        handler = OCPTagQueryHandler(query_params)
-        query_output = handler.execute_query()
-        self.assertIsNotNone(query_output.get("data"))
-        self.assertEqual(handler.time_scope_units, "day")
-        self.assertEqual(handler.time_scope_value, -10)
 
     def test_get_tag_keys_filter_true(self):
         """Test that not all tag keys are returned with a filter."""
