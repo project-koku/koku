@@ -28,6 +28,7 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 import logging
 import os
 import sys
+from json import JSONDecodeError
 
 from boto3.session import Session
 from corsheaders.defaults import default_headers
@@ -392,4 +393,8 @@ SOURCES_CLIENT_BASE_URL = "http://{}:{}{}/v1".format(
 )
 
 # Demo Accounts list
-DEMO_ACCOUNTS = ENVIRONMENT.json("DEMO_ACCOUNTS", {})
+DEMO_ACCOUNTS = {}
+try:
+    DEMO_ACCOUNTS = ENVIRONMENT.json("DEMO_ACCOUNTS", default={})
+except JSONDecodeError:
+    pass
