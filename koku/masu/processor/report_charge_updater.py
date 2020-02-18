@@ -65,6 +65,9 @@ class ReportChargeUpdater:
             (Object) : Provider-specific report summary updater
 
         """
+        if self._provider is None:
+            return None
+
         if self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
             return AWSReportChargeUpdater(self._schema, self._provider)
         if self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
