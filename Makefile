@@ -67,6 +67,8 @@ help:
 	@echo "  large-ocp-provider-testing            create a test OCP provider "large_ocp_1" with a larger volume of data"
 	@echo "                                          @param nise_config_dir - directory of nise config files to use"
 	@echo "  load-test-customer-data               load test data for the default providers created in create-test-customer"
+	@echo "                                          @param start - (optional) start date ex. 2019-08-02"
+	@echo "                                          @param end - (optional) end date ex. 2019-12-5"
 	@echo "  collect-static                        collect static files to host"
 	@echo "  make-migrations                       make migrations for the database"
 	@echo "  requirements                          generate Pipfile.lock, RTD requirements and manifest for product security"
@@ -79,7 +81,8 @@ help:
 	@echo "  unittest                              run unittests"
 	@echo ""
 	@echo "--- Commands using Docker Compose ---"
-	@echo "  docker-up                            run django and database"
+	@echo "  docker-up                            run docker-compose up --build -d"
+	@echo "  docker-up-no-build                   run docker-compose up -d"
 	@echo "  docker-up-db                         run database only"
 	@echo "  docker-down                          shut down all containers"
 	@echo "  docker-rabbit                        run RabbitMQ container"
@@ -487,6 +490,9 @@ docker-test-all:
 
 docker-up:
 	docker-compose up --build -d
+
+docker-up-no-build:
+	docker-compose up -d
 
 docker-up-db:
 	docker-compose up -d db
