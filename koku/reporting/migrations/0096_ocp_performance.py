@@ -6,4 +6,15 @@ class Migration(migrations.Migration):
 
     dependencies = [("reporting", "0095_auto_20200212_1606")]
 
-    operations = []
+    operations = [
+        migrations.RunSQL(
+            """
+create extension if not exists pg_trgm schema public;
+            """
+        ),
+        migrations.RunSQL(
+            """
+
+            """
+        ),
+    ]
