@@ -16,7 +16,6 @@
 #
 """Test the OCP tag view."""
 import calendar
-import datetime
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
 
@@ -90,12 +89,6 @@ class OCPTagsViewTest(IamTestCase):
 
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             data = response.json()
-            start_range, end_range = self._calculate_expected_range(case.get("value"), case.get("unit"))
-
-            for label in data.get("data"):
-                label_date = datetime.datetime.strptime(label.split("*")[0], "%m-%d-%Y")
-                self.assertGreaterEqual(label_date.date(), start_range)
-                self.assertLessEqual(label_date.date(), end_range)
 
             self.assertTrue(data.get("data"))
             self.assertTrue(isinstance(data.get("data"), list))
