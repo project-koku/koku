@@ -139,6 +139,11 @@ class ProviderDBAccessorTest(MasuTestCase):
             accessor.set_infrastructure(self.aws_provider_uuid, infrastructure_type)
             self.assertEqual(accessor.get_infrastructure_provider_uuid(), self.aws_provider_uuid)
 
+    def test_get_infrastructure_type_none_provider(self):
+        """Test no failure when obtaining infrastructure when a provider doesn't exist."""
+        with ProviderDBAccessor(self.unkown_test_provider_uuid) as accessor:
+            self.assertIsNone(accessor.infrastructure)
+
     def test_set_infrastructure(self):
         """Test that infrastructure provider UUID is returned."""
         infrastructure_type = Provider.PROVIDER_AWS
