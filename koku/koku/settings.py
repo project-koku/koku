@@ -28,6 +28,7 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 import logging
 import os
 import sys
+from json import JSONDecodeError
 
 from boto3.session import Session
 from corsheaders.defaults import default_headers
@@ -170,6 +171,9 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "koku.wsgi.application"
+
+WORKER_CACHE_KEY = "worker"
+HOSTNAME = ENVIRONMENT.get_value("HOSTNAME", default="localhost")
 
 REDIS_HOST = ENVIRONMENT.get_value("REDIS_HOST", default="redis")
 REDIS_PORT = ENVIRONMENT.get_value("REDIS_PORT", default="6379")
@@ -389,4 +393,8 @@ SOURCES_CLIENT_BASE_URL = "http://{}:{}{}/v1".format(
 )
 
 # Demo Accounts list
-DEMO_ACCOUNTS = ENVIRONMENT.list("DEMO_ACCOUNTS", default=[])
+DEMO_ACCOUNTS = {}
+try:
+    DEMO_ACCOUNTS = ENVIRONMENT.json("DEMO_ACCOUNTS", default={})
+except JSONDecodeError:
+    pass

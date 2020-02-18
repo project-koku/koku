@@ -80,6 +80,7 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
             report_source=self.fake_bucket_name,
             provider_type=Provider.PROVIDER_AZURE_LOCAL,
             provider_uuid=self.azure_provider_uuid,
+            cache_key=self.fake.word(),
         )
 
         self.azure_local_report_downloader = AzureLocalReportDownloader(
@@ -90,6 +91,7 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
                 "billing_source": self.fake_bucket_name,
                 "bucket": self.fake_bucket_name,
                 "provider_uuid": self.azure_provider_uuid,
+                "cache_key": self.fake.word(),
             }
         )
 

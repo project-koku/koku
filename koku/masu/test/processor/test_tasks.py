@@ -93,6 +93,7 @@ class GetReportFileTests(MasuTestCase):
             report_month=DateAccessor().today(),
             provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
+            cache_key=self.fake.word(),
         )
 
         self.assertIsInstance(report, list)
@@ -115,6 +116,7 @@ class GetReportFileTests(MasuTestCase):
                 report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
+                cache_key=self.fake.word(),
             )
             statement_found = False
             for log in logger.output:
@@ -145,6 +147,7 @@ class GetReportFileTests(MasuTestCase):
                 report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
+                cache_key=self.fake.word(),
             )
             self.assertIn(expected, logger.output)
 
@@ -162,6 +165,7 @@ class GetReportFileTests(MasuTestCase):
                 report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
+                cache_key=self.fake.word(),
             )
 
     @patch("masu.processor._tasks.download.ProviderStatus.set_error")
@@ -182,6 +186,7 @@ class GetReportFileTests(MasuTestCase):
                 report_month=DateAccessor().today(),
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
+                cache_key=self.fake.word(),
             )
         except ReportDownloaderError:
             pass
@@ -201,6 +206,7 @@ class GetReportFileTests(MasuTestCase):
             report_month=DateAccessor().today(),
             provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
+            cache_key=self.fake.word(),
         )
         fake_status.assert_called_with(ProviderStatusCode.READY)
 
@@ -567,6 +573,22 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
         logging.disable(logging.NOTSET)
         with self.assertLogs("masu.processor._tasks.remove_expired") as logger:
             remove_expired_data(schema_name=self.schema, provider=Provider.PROVIDER_AWS, simulate=True)
+            self.assertIn(expected.format(str(expected_results)), logger.output)
+
+    @patch.object(ExpiredDataRemover, "remove")
+    def test_remove_expired_line_items_only(self, fake_remover):
+        """Test task."""
+        expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
+        fake_remover.return_value = expected_results
+
+        expected = "INFO:masu.processor._tasks.remove_expired:Expired Data:\n {}"
+
+        # disable logging override set in masu/__init__.py
+        logging.disable(logging.NOTSET)
+        with self.assertLogs("masu.processor._tasks.remove_expired") as logger:
+            remove_expired_data(
+                schema_name=self.schema, provider=Provider.PROVIDER_AWS, simulate=True, line_items_only=True
+            )
             self.assertIn(expected.format(str(expected_results)), logger.output)
 
 

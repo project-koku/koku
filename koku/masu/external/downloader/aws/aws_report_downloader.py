@@ -27,6 +27,7 @@ import struct
 
 import boto3
 from botocore.exceptions import ClientError
+from django.conf import settings
 
 from masu.config import Config
 from masu.exceptions import MasuProviderError
@@ -71,6 +72,20 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         super().__init__(task, **kwargs)
+
+        if customer_name[4:] in settings.DEMO_ACCOUNTS:
+            demo_account = settings.DEMO_ACCOUNTS.get(customer_name[4:])
+            LOG.info(f"Info found for demo account {customer_name[4:]} = {demo_account}.")
+            if auth_credential in demo_account:
+                demo_info = demo_account.get(auth_credential)
+                self.customer_name = customer_name.replace(" ", "_")
+                self._provider_uuid = kwargs.get("provider_uuid")
+                self.report_name = demo_info.get("report_name")
+                self.report = {"S3Bucket": bucket, "S3Prefix": demo_info.get("report_prefix"), "Compression": "GZIP"}
+                self.bucket = bucket
+                session = utils.get_assume_role_session(utils.AwsArn(auth_credential), "MasuDownloaderSession")
+                self.s3_client = session.client("s3")
+                return
 
         self.customer_name = customer_name.replace(" ", "_")
         self._provider_uuid = kwargs.get("provider_uuid")
