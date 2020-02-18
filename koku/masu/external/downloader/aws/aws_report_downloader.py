@@ -141,7 +141,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         s3fileobj = self.s3_client.get_object(Bucket=self.report.get("S3Bucket"), Key=s3key)
         size = int(s3fileobj.get("ContentLength", -1))
 
-        if size < 1:
+        if size < 0:
             raise AWSReportDownloaderError(f"Invalid size for S3 object: {s3fileobj}")
 
         free_space = shutil.disk_usage(self.download_path)[2]
@@ -151,7 +151,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         LOG.debug("%s is %s bytes; Download path has %s free", s3key, size, free_space)
 
         ext = os.path.splitext(s3key)[1]
-        if ext == ".gz" and check_inflate and size_ok:
+        if ext == ".gz" and check_inflate and size_ok and size > 0:
             # isize block is the last 4 bytes of the file; see: RFC1952
             resp = self.s3_client.get_object(
                 Bucket=self.report.get("S3Bucket"), Key=s3key, Range="bytes={}-{}".format(size - 4, size)
