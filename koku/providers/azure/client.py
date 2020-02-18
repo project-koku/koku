@@ -19,7 +19,7 @@ from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.costmanagement import CostManagementClient
 from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.storage import StorageManagementClient
-from azure.storage import CloudStorageAccount
+from azure.storage.blob import BlobServiceClient
 from msrestazure.azure_cloud import AZURE_CHINA_CLOUD
 from msrestazure.azure_cloud import AZURE_GERMAN_CLOUD
 from msrestazure.azure_cloud import AZURE_PUBLIC_CLOUD
@@ -83,10 +83,17 @@ class AzureClientFactory:
         return self._subscription_id
 
     def cloud_storage_account(self, resource_group_name, storage_account_name):
-        """Get a cloud storage account."""
+        """Get a BlobServiceClient."""
         storage_account_keys = self.storage_client.storage_accounts.list_keys(
             resource_group_name, storage_account_name
         )
         # Add check for keys and a get value
         key = storage_account_keys.keys[0]
-        return CloudStorageAccount(storage_account_name, key.value)
+
+        connect_str = (
+            f"DefaultEndpointsProtocol=https;"
+            f"AccountName={storage_account_name};"
+            f"AccountKey={key.value};"
+            f"EndpointSuffix=core.windows.net"
+        )
+        return BlobServiceClient.from_connection_string(connect_str)

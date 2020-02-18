@@ -63,14 +63,8 @@ class TagQueryHandler(QueryHandler):
 
     provider = "TAGS"
     data_sources = []
-    SUPPORTED_FILTERS = ["project", "account"]
-    FILTER_MAP = {
-        "project": {"field": "namespace", "operation": "icontains"},
-        "account": [
-            {"field": "account_alias__account_alias", "operation": "icontains", "composition_key": "account_filter"},
-            {"field": "usage_account_id", "operation": "icontains", "composition_key": "account_filter"},
-        ],
-    }
+    SUPPORTED_FILTERS = []
+    FILTER_MAP = {}
 
     def __init__(self, parameters):
         """Establish tag query handler.
@@ -79,6 +73,9 @@ class TagQueryHandler(QueryHandler):
             parameters    (QueryParameters): parameter object for query
 
         """
+        if parameters.get_filter("time_scope_value") == "-10":
+            parameters.set_filter(time_scope_value="-1", time_scope_units="month", resolution="monthly")
+
         super().__init__(parameters)
         # super() needs to be called before calling _get_filter()
         self.query_filter = self._get_filter()
@@ -148,29 +145,6 @@ class TagQueryHandler(QueryHandler):
         LOG.debug(f"_get_filter: {composed_filters}")
         return composed_filters
 
-    def _get_exclusions(self, column):
-        """Create dictionary for filter parameters for exclude clause.
-
-        For tags this is to filter items that have null values for the
-        specified tag field.
-
-        Args:
-            column (str): The tag column being queried
-
-        Returns:
-            (Dict): query filter dictionary
-
-        """
-        exclusions = QueryFilterCollection()
-        filt = {"field": column, "operation": "isnull", "parameter": True}
-        q_filter = QueryFilter(**filt)
-        exclusions.add(q_filter)
-
-        composed_exclusions = exclusions.compose()
-
-        LOG.debug(f"_get_exclusions: {composed_exclusions}")
-        return composed_exclusions
-
     def _set_operator_specified_filters(self, operator):
         """Set any filters using AND instead of OR."""
         filters = QueryFilterCollection()
@@ -198,6 +172,29 @@ class TagQueryHandler(QueryHandler):
             composed_filter = composed_filter & filters.compose()
 
         return composed_filter
+
+    def _get_exclusions(self, column):
+        """Create dictionary for filter parameters for exclude clause.
+
+        For tags this is to filter items that have null values for the
+        specified tag field.
+
+        Args:
+            column (str): The tag column being queried
+
+        Returns:
+            (Dict): query filter dictionary
+
+        """
+        exclusions = QueryFilterCollection()
+        filt = {"field": column, "operation": "isnull", "parameter": True}
+        q_filter = QueryFilter(**filt)
+        exclusions.add(q_filter)
+
+        composed_exclusions = exclusions.compose()
+
+        LOG.debug(f"_get_exclusions: {composed_exclusions}")
+        return composed_exclusions
 
     def get_tag_keys(self, filters=True):
         """Get a list of tag keys to validate filters."""
@@ -238,11 +235,13 @@ class TagQueryHandler(QueryHandler):
         """
         type_filter = self.parameters.get_filter("type")
 
+        # Sort the data_sources so that those with a "type" go first
+        sources = sorted(self.data_sources, key=lambda dikt: dikt.get("type", ""), reverse=True)
         merged_data = defaultdict(list)
         final_data = []
         with tenant_context(self.tenant):
             tag_keys = {}
-            for source in self.data_sources:
+            for source in sources:
                 if type_filter and type_filter != source.get("type"):
                     continue
                 exclusion = self._get_exclusions("key")
@@ -259,6 +258,7 @@ class TagQueryHandler(QueryHandler):
 
                 if source.get("type"):
                     self.append_to_final_data_with_type(final_data, merged_data, source)
+                    # since sources with type are first, merged_data can be reset
                     merged_data = defaultdict(list)
 
             if not source.get("type"):
@@ -266,10 +266,22 @@ class TagQueryHandler(QueryHandler):
 
         return final_data
 
+    @staticmethod
+    def _get_dictionary_for_key(dictionary_list, key):
+        """Get dictionary matching key from list of dictionaries."""
+        for di in dictionary_list:
+            if key in di.get("key"):
+                return di
+        return None
+
     def append_to_final_data_with_type(self, final_data, merged_data, source):
         """Convert data to final list with a source type."""
         for k, v in merged_data.items():
-            temp = {"key": k, "values": v, "type": source.get("type")}
+            dikt = self._get_dictionary_for_key(final_data, k)
+            if dikt and dikt.get("type") == source.get("type"):
+                dikt["values"].extend(v)
+            else:
+                temp = {"key": k, "values": v, "type": source.get("type")}
             final_data.append(temp)
 
     def append_to_final_data_without_type(self, final_data, merged_data):

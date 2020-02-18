@@ -389,4 +389,4 @@ SOURCES_CLIENT_BASE_URL = "http://{}:{}{}/v1".format(
 )
 
 # Demo Accounts list
-DEMO_ACCOUNTS = ENVIRONMENT.list("DEMO_ACCOUNTS", default=[])
+DEMO_ACCOUNTS = ENVIRONMENT.json("DEMO_ACCOUNTS", {})

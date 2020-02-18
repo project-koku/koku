@@ -25,11 +25,11 @@ from reporting.models import AzureTagsSummary
 class OCPAllTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for OCP-on-All."""
 
+    provider = Provider.OCP_ALL
     data_sources = [
         {"db_table": AWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"},
         {"db_table": AzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period"},
     ]
-    provider = Provider.OCP_ALL
 
     def __init__(self, parameters):
         """Establish OCP on All infrastructure tag query handler.

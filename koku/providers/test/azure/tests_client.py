@@ -23,7 +23,7 @@ from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.costmanagement import CostManagementClient
 from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.storage import StorageManagementClient
-from azure.storage import CloudStorageAccount
+from azure.storage.blob import BlobServiceClient
 from django.test import TestCase
 from faker import Faker
 
@@ -128,4 +128,4 @@ class AzureClientFactoryTestCase(TestCase):
         )
         with patch.object(StorageManagementClient, "storage_accounts", return_value=None):
             cloud_account = obj.cloud_storage_account(resource_group_name, storage_account_name)
-            self.assertTrue(isinstance(cloud_account, CloudStorageAccount))
+            self.assertTrue(isinstance(cloud_account, BlobServiceClient))

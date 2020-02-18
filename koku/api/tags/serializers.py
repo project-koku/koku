@@ -21,7 +21,6 @@ from api.report.serializers import add_operator_specified_fields
 from api.report.serializers import handle_invalid_fields
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
-from api.utils import DateHelper
 
 OCP_FILTER_OP_FIELDS = ["project"]
 AWS_FILTER_OP_FIELDS = ["account"]
@@ -50,38 +49,8 @@ class FilterSerializer(serializers.Serializer):
             (ValidationError): if filter inputs are invalid
 
         """
-        dh = DateHelper()
         handle_invalid_fields(self, data)
 
-        resolution = data.get("resolution")
-        time_scope_value = data.get("time_scope_value")
-        time_scope_units = data.get("time_scope_units")
-
-        if time_scope_units and time_scope_value:
-            msg = "Valid values are {} when time_scope_units is {}"
-            if time_scope_units == "day" and (time_scope_value == "-1" or time_scope_value == "-2"):  # noqa: W504
-                valid_values = ["-10", "-30"]
-                valid_vals = ", ".join(valid_values)
-                error = {"time_scope_value": msg.format(valid_vals, "day")}
-                raise serializers.ValidationError(error)
-            if time_scope_units == "day" and resolution == "monthly":
-                valid_values = ["daily"]
-                valid_vals = ", ".join(valid_values)
-                error = {"resolution": msg.format(valid_vals, "day")}
-                raise serializers.ValidationError(error)
-            if time_scope_units == "month" and (time_scope_value == "-10" or time_scope_value == "-30"):  # noqa: W504
-                valid_values = ["-1", "-2"]
-                valid_vals = ", ".join(valid_values)
-                error = {"time_scope_value": msg.format(valid_vals, "month")}
-                raise serializers.ValidationError(error)
-
-        if time_scope_value in ("-10", "-30"):
-            month_start = dh.this_month_start
-            day_start = dh.n_days_ago(dh.this_hour, -int(time_scope_value) - 1)
-            if month_start < day_start:
-                data["time_scope_value"] = "-1"
-                data["time_scope_units"] = "month"
-                data["resolution"] = "monthly"
         return data
 
 

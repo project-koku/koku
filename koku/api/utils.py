@@ -23,6 +23,18 @@ from django.utils import timezone
 from pint.errors import UndefinedUnitError
 
 
+def merge_dicts(*list_of_dicts):
+    """Merge a list of dictionaries and combine common keys into a list of values."""
+    output = {}
+    for dikt in list_of_dicts:
+        for k, v in dikt.items():
+            if not output.get(k):
+                output[k] = v
+            else:
+                output[k] = [output[k], v]
+    return output
+
+
 class DateHelper:
     """Helper class with convenience functions."""
 

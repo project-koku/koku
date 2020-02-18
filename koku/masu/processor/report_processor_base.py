@@ -86,7 +86,8 @@ class ReportProcessorBase:
         """
         column_map = self.column_map[table_name]
 
-        return {column_map[key]: value for key, value in row.items() if key in column_map}
+        result = {column_map[key]: value for key, value in row.items() if key in column_map}
+        return result
 
     @staticmethod
     def _get_file_opener(compression):
