@@ -16,7 +16,7 @@ FROM (
     FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily AS li,
         jsonb_each_text(li.persistentvolume_labels) labels
 ) l
-GROUP BY l.key, l.report_period_id, l.namespace
+GROUP BY l.key, l.report_period_id
 ON CONFLICT (key, report_period_id) DO UPDATE
 SET values = EXCLUDED.values
 ;
