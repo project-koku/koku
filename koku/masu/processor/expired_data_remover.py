@@ -127,6 +127,8 @@ class ExpiredDataRemover:
         """
         Remove expired data based on the retention policy.
 
+        Also remove expired CostUsageReportManifests, regardless of Provider type.
+
         Args:
             None
 

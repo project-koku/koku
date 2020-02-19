@@ -124,12 +124,10 @@ class ExpiredDataRemoverTest(MasuTestCase):
         """
         Test that expired CostUsageReportManifests are removed.
 
-        All providers should be affected.
-
-        This test inserts CostUsageReports and then deletes all of them that are older than
-        the calculated expiration_date
+        This test inserts CostUsageReportManifest objects,
+        And then deletes CostUsageReportManifest objects older than
+        the calculated expiration_date.
         """
-        provider_uuid = self.aws_provider_uuid
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
         expiration_date = remover._calculate_expiration_date()
         this_month = datetime.today().replace(day=1)
@@ -146,7 +144,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
             "billing_period_start_datetime": this_month,
             "num_processed_files": 1,
             "num_total_files": 1,
-            "provider_id": provider_uuid,
+            "provider_id": self.aws_provider_uuid,
         }
         manifest_entry = CostUsageReportManifest(**data)
         manifest_entry.save()
@@ -164,7 +162,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
             "billing_period_start_datetime": day_before_cutoff,
             "num_processed_files": 1,
             "num_total_files": 1,
-            "provider_id": provider_uuid,
+            "provider_id": self.azure_provider_uuid,
         }
         manifest_entry_2 = CostUsageReportManifest(**day_before_cutoff_data)
         manifest_entry_2.save()
@@ -181,7 +179,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
             "billing_period_start_datetime": expiration_date,  # Don't delete me!
             "num_processed_files": 1,
             "num_total_files": 1,
-            "provider_id": provider_uuid,
+            "provider_id": self.ocp_provider_uuid,
         }
         manifest_entry_3 = CostUsageReportManifest(**data_day_of_expiration)
         manifest_entry_3.save()
