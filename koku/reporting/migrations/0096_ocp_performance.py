@@ -7,6 +7,8 @@ class Migration(migrations.Migration):
     dependencies = [("reporting", "0095_auto_20200212_1606")]
 
     operations = [
+        # This extension will help specifically with "col LIKE %val%"
+        # operations. (As long as val is at least 3 characters)
         migrations.RunSQL(
             """
 create extension if not exists pg_trgm schema public;
@@ -17,8 +19,8 @@ create extension if not exists pg_trgm schema public;
         # and contains (vs startswith) searches
         migrations.RunSQL(
             """
--- create index ___ on ___ (lower(___) X_pattern_ops);
--- create index ___ on ___ using gin (lower(___) gin_trgm_ops);
+-- create index ___ on ___ (UPPER(___) X_pattern_ops);
+-- create index ___ on ___ using gin (UPPER(___) gin_trgm_ops);
             """
         ),
     ]

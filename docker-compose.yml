@@ -131,6 +131,10 @@ services:
         dockerfile: Dockerfile-grafana
     ports:
         - 3000:3000
+    links:
+        - db
+    depends_on:
+        - db
 
   koku-rabbit:
       container_name: koku_rabbit
