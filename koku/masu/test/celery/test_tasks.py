@@ -304,6 +304,8 @@ class TestCeleryTasks(MasuTestCase):
             self.assertEqual(os.path.exists(filepath1), False)
         # assert the tempdir is cleaned up
         self.assertEqual(os.path.exists(tmpdirname), False)
+        # test no files found for codecov
+        tasks.clean_volume()
 
 
 class TestUploadTaskWithData(MasuTestCase):
