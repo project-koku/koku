@@ -135,7 +135,6 @@ class ExpiredDataRemoverTest(MasuTestCase):
         this_month = datetime.today().replace(day=1)
         day_before_cutoff = expiration_date - relativedelta.relativedelta(days=1)
 
-        # A time for a record which should be deleted in this test.
         # Record A
         manifest_creation_datetime = this_month
         manifest_updated_datetime = manifest_creation_datetime + relativedelta.relativedelta(days=2)
@@ -153,6 +152,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
         manifest_entry.save()
         manifest_entries = CostUsageReportManifest.objects.all()
         assert len(manifest_entries) == 1
+
         # Record B
         # This record should be deleted because the billing_period_start_datetime
         # is before the expiration_date
