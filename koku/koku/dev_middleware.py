@@ -42,7 +42,7 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=t
                     "type": "User",
                     "user": {"username": "user_dev", "email": "user_dev@foo.com", "is_org_admin": True},
                 },
-                "entitlements": {"openshift": {"is_entitled": True}},
+                "entitlements": {"cost_management": {"is_entitled": True}},
             }
             json_identity = json_dumps(identity_header)
             dev_header = b64encode(json_identity.encode("utf-8"))

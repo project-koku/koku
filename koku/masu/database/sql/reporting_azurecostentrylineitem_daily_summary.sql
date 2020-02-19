@@ -24,11 +24,13 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | s
         ON li.meter_id = m.id
     WHERE date(li.usage_date_time) >= {{start_date}}
         AND date(li.usage_date_time) <= {{end_date}}
+        {% if bill_ids %}
         AND li.cost_entry_bill_id IN (
             {%- for bill_id in bill_ids  -%}
             {{bill_id}}{% if not loop.last %},{% endif %}
             {%- endfor -%}
         )
+        {% endif %}
     GROUP BY date(li.usage_date_time),
         li.cost_entry_bill_id,
         li.cost_entry_product_id,
