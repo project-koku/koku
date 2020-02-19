@@ -31,7 +31,7 @@ def merge_dicts(*list_of_dicts):
             if not output.get(k):
                 output[k] = v
             else:
-                output[k] = list(set(output[k], v))
+                output[k] = [output[k], v]
     return output
 
 

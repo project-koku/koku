@@ -17,7 +17,6 @@
 """Query Handling for Tags."""
 import copy
 import logging
-from collections import defaultdict
 
 from django.db.models import Q
 from tenant_schemas.utils import tenant_context
@@ -261,7 +260,6 @@ class TagQueryHandler(QueryHandler):
 
         # Sort the data_sources so that those with a "type" go first
         sources = sorted(self.data_sources, key=lambda dikt: dikt.get("type", ""), reverse=True)
-        merged_data = defaultdict(list)
         final_data = []
         with tenant_context(self.tenant):
             tag_keys = {}
@@ -269,29 +267,41 @@ class TagQueryHandler(QueryHandler):
                 if type_filter and type_filter != source.get("type"):
                     continue
                 exclusion = self._get_exclusions("key")
-                tag_keys = (
+
+                tag_keys = list(
                     source.get("db_table")
                     .objects.filter(self.query_filter)
                     .exclude(exclusion)
-                    .values("key", "values")
-                    .distinct()
+                    .values_list("key", "values")
                     .all()
                 )
-                for dikt in tag_keys:
-                    merged_data[dikt.get("key")].extend(dikt.get("values"))
+
+                converted = self._convert_to_dict(tag_keys)
 
                 if source.get("type"):
-                    self.append_to_final_data_with_type(final_data, merged_data, source)
-                    # since sources with type are first, merged_data can be reset
-                    merged_data = defaultdict(list)
-
-            if not source.get("type"):
-                self.append_to_final_data_without_type(final_data, merged_data)
+                    self.append_to_final_data_with_type(final_data, converted, source)
+                else:
+                    self.append_to_final_data_without_type(final_data, converted)
 
         # sort the values and deduplicate before returning
-        for dikt in final_data:
-            dikt["values"] = sorted(set(dikt["values"]), reverse=self.order_direction == "desc")
+        self.deduplicate_and_sort(final_data)
         return final_data
+
+    def deduplicate_and_sort(self, data):
+        for dikt in data:
+            dikt["values"] = sorted(set(dikt["values"]), reverse=self.order_direction == "desc")
+        return data
+
+    @staticmethod
+    def _convert_to_dict(tup, dikt=None):
+        if dikt is None:
+            dikt = {}
+        for k, v in tup:
+            if dikt.get(k):
+                dikt[k].extend(v)
+            else:
+                dikt[k] = v
+        return dikt
 
     @staticmethod
     def _get_dictionary_for_key(dictionary_list, key):
@@ -301,24 +311,24 @@ class TagQueryHandler(QueryHandler):
                 return di
         return None
 
-    def append_to_final_data_with_type(self, final_data, merged_data, source):
+    def append_to_final_data_with_type(self, final_data, converted_data, source):
         """Convert data to final list with a source type."""
-        for k, v in merged_data.items():
+        for k, v in converted_data.items():
             dikt = self._get_dictionary_for_key(final_data, k)
             if dikt and dikt.get("type") == source.get("type"):
                 dikt["values"].extend(v)
             else:
-                temp = {"key": k, "values": v, "type": source.get("type")}
+                temp = {"key": k, "values": list(v), "type": source.get("type")}
                 final_data.append(temp)
 
-    def append_to_final_data_without_type(self, final_data, merged_data):
+    def append_to_final_data_without_type(self, final_data, converted_data):
         """Convert data to final list without a source type."""
-        for k, v in merged_data.items():
+        for k, v in converted_data.items():
             dikt = self._get_dictionary_for_key(final_data, k)
             if dikt and dikt.get("type") is None:
                 dikt["values"].extend(v)
-            else:
-                temp = {"key": k, "values": v}
+            elif not dikt:
+                temp = {"key": k, "values": list(v)}
                 final_data.append(temp)
 
     def execute_query(self):

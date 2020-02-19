@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the common tag query function."""
+from unittest.mock import patch
+
 from api.iam.test.iam_test_case import IamTestCase
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.azure.view import AzureTagView
@@ -33,7 +35,11 @@ class AzureTagQueryHandlerTest(IamTestCase):
         # Test no source type
         final = []
         source = {}
-        tag_keys = {"ms-resource-usage": ["azure-cloud-shell"], "project": ["p1", "p2"], "cost": ["management"]}
+        qs1 = [("ms-resource-usage", ["azure-cloud-shell"]), ("project", ["p1", "p2"]), ("cost", ["management"])]
+        tag_keys = tagHandler._convert_to_dict(qs1)
+        expected_dikt = {"ms-resource-usage": ["azure-cloud-shell"], "project": ["p1", "p2"], "cost": ["management"]}
+        self.assertEqual(tag_keys, expected_dikt)
+
         expected_1 = [
             {"key": "ms-resource-usage", "values": ["azure-cloud-shell"]},
             {"key": "project", "values": ["p1", "p2"]},
@@ -67,3 +73,32 @@ class AzureTagQueryHandlerTest(IamTestCase):
         ]
 
         self.assertEqual(final, expected_3)
+
+        qs2 = [("ms-resource-usage", ["azure-cloud-shell2"]), ("project", ["p1", "p3"])]
+        tag_keys2 = tagHandler._convert_to_dict(qs2)
+        expected_tag_keys2 = {"ms-resource-usage": ["azure-cloud-shell2"], "project": ["p1", "p3"]}
+        self.assertEqual(tag_keys2, expected_tag_keys2)
+
+        tagHandler.append_to_final_data_without_type(final, tag_keys2)
+        expected_4 = [
+            {"key": "ms-resource-usage", "values": ["azure-cloud-shell", "azure-cloud-shell2"]},
+            {"key": "project", "values": ["p1", "p2", "p1", "p3"]},
+            {"key": "cost", "values": ["management"]},
+            {"key": "ms-resource-usage", "values": ["azure-cloud-shell"], "type": "storage"},
+            {"key": "project", "values": ["p1", "p2"], "type": "storage"},
+            {"key": "cost", "values": ["management"], "type": "storage"},
+        ]
+        self.assertEqual(final, expected_4)
+
+        with patch("api.tags.azure.queries.AzureTagQueryHandler.order_direction", return_value="not-default"):
+            final = tagHandler.deduplicate_and_sort(final)
+        expected_5 = [
+            {"key": "ms-resource-usage", "values": ["azure-cloud-shell", "azure-cloud-shell2"]},
+            {"key": "project", "values": ["p1", "p2", "p3"]},
+            {"key": "cost", "values": ["management"]},
+            {"key": "ms-resource-usage", "values": ["azure-cloud-shell"], "type": "storage"},
+            {"key": "project", "values": ["p1", "p2"], "type": "storage"},
+            {"key": "cost", "values": ["management"], "type": "storage"},
+        ]
+
+        self.assertEqual(final, expected_5)
