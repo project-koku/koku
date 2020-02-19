@@ -1,4 +1,4 @@
-INSERT INTO acct10001.reporting_ocpawstags_summary (
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpawstags_summary (
     key,
     values,
     cost_entry_bill_id,
@@ -16,10 +16,10 @@ FROM (
         li.cost_entry_bill_id,
         li.usage_account_id,
         li.namespace
-    FROM acct10001.reporting_ocpawscostlineitem_daily_summary AS li,
+    FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary AS li,
         jsonb_each_text(li.tags) labels
 ) l
-LEFT JOIN acct10001.reporting_awsaccountalias AS aa
+LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON l.usage_account_id = aa.account_id
 GROUP BY l.key, l.cost_entry_bill_id
 ON CONFLICT (key, cost_entry_bill_id) DO UPDATE

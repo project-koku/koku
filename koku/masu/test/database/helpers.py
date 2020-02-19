@@ -72,7 +72,7 @@ class ReportObjectCreator:
         if entry_datetime:
             start_datetime = entry_datetime
         else:
-            start_datetime = self.fake.past_datetime(start_date="-60d")  # pylint: ignore=no-member
+            start_datetime = self.fake.past_datetime(start_date="-60d")
         end_datetime = start_datetime + datetime.timedelta(hours=1)
         data = {"bill_id": bill.id, "interval_start": start_datetime, "interval_end": end_datetime}
         with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
@@ -306,7 +306,7 @@ class ReportObjectCreator:
 
             data = {
                 "account_alias_id": account_alias.id,
-                "cost_entry_bill": self.create_cost_entry_bill(),
+                "cost_entry_bill": self.create_cost_entry_bill(str(uuid.uuid4())),
                 "namespace": self.fake.pystr()[:8],
                 "pod": self.fake.pystr()[:8],
                 "node": self.fake.pystr()[:8],

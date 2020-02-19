@@ -93,6 +93,7 @@ class AWSReportProcessorTest(MasuTestCase):
         _report_tables.pop("line_item_daily", None)
         _report_tables.pop("line_item_daily_summary", None)
         _report_tables.pop("tags_summary", None)
+        _report_tables.pop("ocp_on_aws_tags_summary", None)
         cls.report_tables = list(_report_tables.values())
         # Grab a single row of test data to work with
         with open(cls.test_report_test_path, "r") as f:
