@@ -180,7 +180,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         user_data = self._create_user_data()
         customer = self._create_customer_data()
         request_context = self._create_request_context(
-            customer, user_data, create_customer=True, create_tenant=True, is_admin=True, is_openshift=False
+            customer, user_data, create_customer=True, create_tenant=True, is_admin=True, is_cost_management=False
         )
         mock_request = request_context["request"]
         mock_request.path = "/api/v1/providers/"
@@ -195,7 +195,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         user_data = self._create_user_data()
         customer = self._create_customer_data()
         request_context = self._create_request_context(
-            customer, user_data, create_customer=True, create_tenant=True, is_admin=True, is_openshift=False
+            customer, user_data, create_customer=True, create_tenant=True, is_admin=True, is_cost_management=False
         )
         mock_request = request_context["request"]
         mock_request.path = "/api/v1/providers/"
