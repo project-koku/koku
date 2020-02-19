@@ -94,7 +94,13 @@ class IamTestCase(TestCase):
 
     @classmethod
     def _create_request_context(
-        cls, customer_data, user_data, create_customer=True, create_tenant=False, is_admin=True, is_openshift=True
+        cls,
+        customer_data,
+        user_data,
+        create_customer=True,
+        create_tenant=False,
+        is_admin=True,
+        is_cost_management=True,
     ):
         """Create the request context for a user."""
         customer = customer_data
@@ -107,7 +113,7 @@ class IamTestCase(TestCase):
                 "type": "User",
                 "user": {"username": user_data["username"], "email": user_data["email"], "is_org_admin": is_admin},
             },
-            "entitlements": {"openshift": {"is_entitled": is_openshift}},
+            "entitlements": {"cost_management": {"is_entitled": is_cost_management}},
         }
         json_identity = json_dumps(identity)
         mock_header = b64encode(json_identity.encode("utf-8"))
