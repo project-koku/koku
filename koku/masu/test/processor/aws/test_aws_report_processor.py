@@ -887,6 +887,22 @@ class AWSReportProcessorTest(MasuTestCase):
 
         self.assertFalse(result)
 
+    def test_check_for_finalized_bill_empty_bill(self):
+        """Verify that an empty file is not marked as finalzed."""
+        tmp_file = "/tmp/test_process_finalized_rows.csv"
+
+        with open(tmp_file, "w"):
+            pass
+
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=tmp_file,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid,
+        )
+        result = processor._check_for_finalized_bill()
+        self.assertFalse(result)
+
     def test_delete_line_items_success(self):
         """Test that data is deleted before processing a manifest."""
         processor = AWSReportProcessor(
