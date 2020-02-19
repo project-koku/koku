@@ -340,8 +340,9 @@ def clean_volume():
                     match = True
             # if none of the assembly_ids that we care about were in the filename - we can safely delete it
             if not match:
-                os.remove(os.path.join(root, file))
-                deleted_files.append(os.path.join(root, file))
+                if os.path.exists(os.path.join(root, file)):
+                    os.remove(os.path.join(root, file))
+                    deleted_files.append(os.path.join(root, file))
     if deleted_files:
         LOG.info("The following files were deleted: ")
         LOG.info(deleted_files)

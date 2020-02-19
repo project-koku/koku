@@ -1,6 +1,7 @@
 """Tests for celery tasks."""
 import calendar
 import os
+import tempfile
 import uuid
 from collections import namedtuple
 from datetime import date
@@ -24,7 +25,6 @@ from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.models import Provider
 from masu.celery import tasks
 from masu.celery.export import TableExportSetting
-from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.test import MasuTestCase
@@ -265,16 +265,15 @@ class TestCeleryTasks(MasuTestCase):
         for schema_name in [schema_one, schema_two]:
             mock_vacuum.delay.assert_any_call(schema_name)
 
-    @patch("masu.external.date_accessor.DateAccessor.today")
-    def test_clean_volume(self, mock_date):
+    @patch("masu.celery.tasks.Config")
+    @patch("masu.external.date_accessor.DateAccessor.get_billing_months")
+    def test_clean_volume(self, mock_date, mock_config):
         """Test that the clean volume function is cleaning the appropriate files"""
         # create a manifest
-        mock_date_string = "2018-07-01 00:00:30.993536"
-        mock_date_obj = datetime.strptime(mock_date_string, "%Y-%m-%d %H:%M:%S.%f")
-        mock_date.return_value = mock_date_obj
+        mock_date.return_value = ["2020-02-01"]
         manifest_dict = {
             "assembly_id": "1234",
-            "billing_period_start_datetime": "2018-07-01",
+            "billing_period_start_datetime": "2020-02-01",
             "num_total_files": 2,
             "provider_uuid": self.aws_provider_uuid,
         }
@@ -282,25 +281,29 @@ class TestCeleryTasks(MasuTestCase):
         manifest = manifest_accessor.add(**manifest_dict)
         # create two files on the temporary volume one with a matching prefix id
         #  as the assembly_id in the manifest above
-        filepath1 = os.path.join(Config.PVC_DIR, "%s.csv" % manifest.assembly_id)
-        filepath2 = os.path.join(Config.PVC_DIR, "otherfile.csv")
-        filepaths = [filepath1, filepath2]
-        for path in filepaths:
-            open(path, "a").close()
-            self.assertEqual(os.path.exists(path), True)
-        # now run the clean volume task
-        tasks.clean_volume()
-        # make sure that the file with the matching id still exists and that
-        # the file with the other id is gone
-        self.assertEqual(os.path.exists(filepath1), True)
-        self.assertEqual(os.path.exists(filepath2), False)
-        # now edit the manifest to say that all the files have been processed
-        # and rerun the clean_volumes task
-        manifest.num_processed_files = manifest_dict.get("num_total_files")
-        manifest.save()
-        tasks.clean_volume()
-        # ensure that the original file is deleted from the volume
-        self.assertEqual(os.path.exists(filepath1), False)
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            mock_config.PVC_DIR = tmpdirname
+            filepath1 = os.path.join(tmpdirname, "%s.csv" % manifest.assembly_id)
+            filepath2 = os.path.join(tmpdirname, "otherfile.csv")
+            filepaths = [filepath1, filepath2]
+            for path in filepaths:
+                open(path, "a").close()
+                self.assertEqual(os.path.exists(path), True)
+            # now run the clean volume task
+            tasks.clean_volume()
+            # make sure that the file with the matching id still exists and that
+            # the file with the other id is gone
+            self.assertEqual(os.path.exists(filepath1), True)
+            self.assertEqual(os.path.exists(filepath2), False)
+            # now edit the manifest to say that all the files have been processed
+            # and rerun the clean_volumes task
+            manifest.num_processed_files = manifest_dict.get("num_total_files")
+            manifest.save()
+            tasks.clean_volume()
+            # ensure that the original file is deleted from the volume
+            self.assertEqual(os.path.exists(filepath1), False)
+        # assert the tempdir is cleaned up
+        self.assertEqual(os.path.exists(tmpdirname), False)
 
 
 class TestUploadTaskWithData(MasuTestCase):
