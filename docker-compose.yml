@@ -110,7 +110,7 @@ services:
     ports:
       - "15432:5432"
     volumes:
-      - ./pg_data:/var/lib/pgsql/data
+      - ./pg_data:/var/lib/postgresql/data
       - ./pg_init:/docker-entrypoint-initdb.d
 
   pgadmin:
