@@ -31,6 +31,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleaner
 from masu.processor.azure.azure_report_db_cleaner import AzureReportDBCleaner
 from masu.processor.ocp.ocp_report_db_cleaner import OCPReportDBCleaner
+from reporting_common.models import CostUsageReportManifest
 
 LOG = logging.getLogger(__name__)
 
@@ -138,4 +139,7 @@ class ExpiredDataRemover:
         else:
             expiration_date = self._calculate_expiration_date()
             removed_data = self._cleaner.purge_expired_report_data(expired_date=expiration_date, simulate=simulate)
+
+            # Remove expired CostUsageReportManifest objects
+            CostUsageReportManifest.objects.filter(billing_period_start_datetime__lt=expiration_date).delete()
         return removed_data
