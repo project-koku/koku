@@ -25,6 +25,8 @@ from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
+from reporting.models import OCPStorageVolumeClaimLabelSummary
+from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsageLineItemDailySummary
 
 
@@ -203,14 +205,13 @@ class OCPTagQueryHandlerTest(IamTestCase):
         handler = OCPTagQueryHandler(query_params)
 
         with tenant_context(self.tenant):
-            storage_tag_keys = (
-                OCPUsageLineItemDailySummary.objects.annotate(tag_keys=JSONBObjectKeys("volume_labels"))
-                .values("tag_keys")
-                .distinct()
-                .all()
-            )
-            storage_tag_keys = [tag.get("tag_keys") for tag in storage_tag_keys]
-            tag_keys = storage_tag_keys
+            storage_claim_tag_keys = OCPStorageVolumeClaimLabelSummary.objects.values("key").distinct().all()
+            storage_claim_tag_keys = [tag.get("key") for tag in storage_claim_tag_keys]
+
+            storage_tag_keys = OCPStorageVolumeLabelSummary.objects.values("key").distinct().all()
+
+            storage_tag_keys = [tag.get("key") for tag in storage_tag_keys]
+            tag_keys = list(set(storage_tag_keys + storage_claim_tag_keys))
 
         result = handler.get_tag_keys(filters=False)
         self.assertEqual(sorted(result), sorted(tag_keys))
