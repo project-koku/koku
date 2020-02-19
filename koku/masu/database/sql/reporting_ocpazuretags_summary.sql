@@ -1,4 +1,4 @@
-INSERT INTO {{schema | sqlsafe}}.reporting_azuretags_summary (
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpazuretags_summary (
     key,
     values,
     cost_entry_bill_id,
