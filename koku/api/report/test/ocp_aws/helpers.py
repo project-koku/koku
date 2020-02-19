@@ -383,30 +383,6 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
 
     def _populate_ocpaws_tag_summary(self):
         """Populate the AWS tag summary table."""
-        # agg_sql = """
-        #     INSERT INTO {{schema | sqlsafe}}.reporting_awstags_summary (
-        #         key,
-        #         values,
-        #         cost_entry_bill_id,
-        #         accounts
-        #     )
-        #     SELECT l.key,
-        #         array_agg(DISTINCT l.value) as values,
-        #         l.cost_entry_bill_id,
-        #         array_agg(DISTINCT l.usage_account_id) as accounts
-        #     FROM (
-        #         SELECT key,
-        #             value,
-        #             li.cost_entry_bill_id,
-        #             li.usage_account_id
-        #         FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary AS li,
-        #             jsonb_each_text(li.tags) labels
-        #     ) l
-        #     GROUP BY l.key, l.cost_entry_bill_id
-        #     ON CONFLICT (key, cost_entry_bill_id) DO UPDATE
-        #     SET values = EXCLUDED.values
-        #     ;
-        # """
         agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpawstags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {"schema": connection.schema_name}

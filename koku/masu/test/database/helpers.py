@@ -58,14 +58,6 @@ class ReportObjectCreator:
         self.report_schema = ReportSchema(django.apps.apps.get_models(), self.column_map)
         self.column_types = self.report_schema.column_types
 
-    def create_account_alias(self, account_usage_id):
-        table_name = "reporting_awsaccountalias"
-        data = self.create_columns_for_table(table_name)
-        data["account_alias"] = self.fake.pystr()[:8]
-        data["account_id"] = account_usage_id
-        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
-            return accessor.create_db_object(table_name, data)
-
     def create_cost_entry(self, bill, entry_datetime=None):
         """Create a cost entry database object for test."""
         table_name = AWS_CUR_TABLE_MAP["cost_entry"]
@@ -137,7 +129,6 @@ class ReportObjectCreator:
         }
 
         data.update(extra_data)
-        self.create_account_alias(data["usage_account_id"])
         with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 

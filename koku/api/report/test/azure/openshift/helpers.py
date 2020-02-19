@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Populate test data for OCP on Azure reports."""
+import pkgutil
 import random
 from uuid import uuid4
 
@@ -267,30 +268,8 @@ class OCPAzureReportDataGenerator:
 
     def _populate_azure_tag_summary(self):
         """Populate the Azure tag summary table."""
-        agg_sql = """
-            INSERT INTO {{schema | sqlsafe}}.reporting_azuretags_summary (
-                key,
-                values,
-                cost_entry_bill_id,
-                subscription_guid
-            )
-            SELECT l.key,
-                array_agg(DISTINCT l.value) as values,
-                l.cost_entry_bill_id,
-                array_agg(DISTINCT l.subscription_guid) as subscription_guid
-            FROM (
-                SELECT key,
-                    value,
-                    li.cost_entry_bill_id,
-                    li.subscription_guid
-                FROM {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary AS li,
-                    jsonb_each_text(li.tags) labels
-            ) l
-            GROUP BY l.key, l.cost_entry_bill_id
-            ON CONFLICT (key, cost_entry_bill_id) DO UPDATE
-            SET values = EXCLUDED.values
-            ;
-        """
+        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpazuretags_summary.sql")
+        agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {"schema": connection.schema_name}
         agg_sql, agg_sql_params = JinjaSql().prepare_query(agg_sql, agg_sql_params)
 
