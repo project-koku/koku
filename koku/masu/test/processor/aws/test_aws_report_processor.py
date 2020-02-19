@@ -208,6 +208,36 @@ class AWSReportProcessorTest(MasuTestCase):
 
         self.assertFalse(os.path.exists(self.test_report))
 
+    def test_process_no_file_on_disk(self):
+        """Test the processing of when the file is not found on disk."""
+        counts = {}
+        base_name = "test_no_cur.csv"
+        no_report = f"{self.temp_dir}/{base_name}"
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=no_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=self.manifest.id,
+        )
+        report_db = self.accessor
+        report_schema = report_db.report_schema
+        for table_name in self.report_tables:
+            table = getattr(report_schema, table_name)
+            with schema_context(self.schema):
+                count = table.objects.count()
+            counts[table_name] = count
+
+        expected = (
+            "INFO:masu.processor.aws.aws_report_processor:"
+            f"Skip processing for file: {base_name} and "
+            f"schema: {self.schema} as it was not found on disk."
+        )
+        logging.disable(logging.NOTSET)  # We are currently disabling all logging below CRITICAL in masu/__init__.py
+        with self.assertLogs("masu.processor.aws.aws_report_processor", level="INFO") as logger:
+            processor.process()
+            self.assertIn(expected, logger.output)
+
     def test_process_gzip(self):
         """Test the processing of a gzip compressed file."""
         counts = {}

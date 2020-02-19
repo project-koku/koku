@@ -702,6 +702,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         # If end_date is not provided, recalculate till the latest month
         end_date = OCPUsageLineItemDailySummary.objects.aggregate(Max("usage_end"))["usage_end__max"]
 
+        if start_date is None or end_date is None:
+            LOG.info("No monthly costs to remove from %s.", self.schema)
+            return
+
         LOG.info("Removing monthly costs from %s to %s.", start_date, end_date)
 
         first_month = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
