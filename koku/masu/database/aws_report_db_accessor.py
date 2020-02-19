@@ -94,12 +94,15 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             bills = bills.filter(billing_period_start=bill_date)
         return bills
 
-    def get_bill_query_before_date(self, date):
+    def get_bill_query_before_date(self, date, provider_uuid=None):
         """Get the cost entry bill objects with billing period before provided date."""
         table_name = AWSCostEntryBill
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
-            cost_entry_bill_query = base_query.filter(billing_period_start__lte=date)
+            if provider_uuid:
+                cost_entry_bill_query = base_query.filter(billing_period_start__lte=date, provider_id=provider_uuid)
+            else:
+                cost_entry_bill_query = base_query.filter(billing_period_start__lte=date)
             return cost_entry_bill_query
 
     def get_lineitem_query_for_billid(self, bill_id):

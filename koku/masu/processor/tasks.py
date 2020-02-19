@@ -18,12 +18,15 @@
 # pylint: disable=too-many-arguments, too-many-function-args
 # disabled module-wide due to current state of task signature.
 # we expect this situation to be temporary as we iterate on these details.
+import calendar
 import datetime
 import os
 
+import pytz
 from celery import chain
 from celery.utils.log import get_task_logger
 from dateutil import parser
+from dateutil.relativedelta import relativedelta
 from django.db import connection
 from tenant_schemas.utils import schema_context
 
@@ -162,7 +165,8 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, lin
         f" schema_name: {schema_name},\n"
         f" provider: {provider},\n"
         f" simulate: {simulate},\n"
-        f" provider_uuid: {provider_uuid}"
+        f" provider_uuid: {provider_uuid},\n",
+        f" line_items_only: {line_items_only}",
     )
     LOG.info(stmt)
     _remove_expired_data(schema_name, provider, simulate, provider_uuid, line_items_only)
@@ -234,10 +238,29 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
         start_date, end_date = updater.update_daily_tables(start_date, end_date)
         updater.update_summary_tables(start_date, end_date)
     if provider_uuid:
-        chain(
-            update_charge_info.s(schema_name, provider_uuid, start_date, end_date),
-            refresh_materialized_views.si(schema_name, provider, manifest_id),
-        ).apply_async()
+        curr_date = datetime.datetime.now(tz=pytz.UTC)
+        previous_month = curr_date - relativedelta(months=1)
+        prev_month_range = calendar.monthrange(previous_month.year, previous_month.month)
+        prev_month_last_day = datetime.date(
+            year=previous_month.year, month=previous_month.month, day=prev_month_range[1]
+        )
+        start_date_obj = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+        if manifest_id and (start_date_obj <= prev_month_last_day):
+            # We want make sure that the manifest_id is not none, because
+            # we only want to call the delete line items after the summarize_reports
+            # task above
+            simulate = False
+            line_items_only = True
+            chain(
+                update_charge_info.s(schema_name, provider_uuid, start_date, end_date),
+                refresh_materialized_views.si(schema_name, provider, manifest_id),
+                remove_expired_data.si(schema_name, provider, simulate, provider_uuid, line_items_only),
+            ).apply_async()
+        else:
+            chain(
+                update_charge_info.s(schema_name, provider_uuid, start_date, end_date),
+                refresh_materialized_views.si(schema_name, provider, manifest_id),
+            ).apply_async()
     else:
         refresh_materialized_views.delay(schema_name, provider, manifest_id)
 
