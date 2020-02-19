@@ -67,6 +67,10 @@ help:
 	@echo "  large-ocp-provider-testing            create a test OCP provider "large_ocp_1" with a larger volume of data"
 	@echo "                                          @param nise_config_dir - directory of nise config files to use"
 	@echo "  load-test-customer-data               load test data for the default providers created in create-test-customer"
+	@echo "  backup-local-db-data                  make a .tar.bz2 backup of the local PostgreSQL database directory"
+	@echo "                                          @param backup_file - output file (should end with .tar.bz2)
+	@echo "  restore-local-db-data                 restore the local PostgreSQL database directory from a .tar.bz2 backup file"
+	@echo "                                          @param backup_file - backup file (.tar.bz2)
 	@echo "  collect-static                        collect static files to host"
 	@echo "  make-migrations                       make migrations for the database"
 	@echo "  requirements                          generate Pipfile.lock, RTD requirements and manifest for product security"
@@ -635,6 +639,33 @@ endif
                                             -U $$DATABASE_USER \
                                             --file=$(dump_outfile) ; \
 	fi
+
+
+backup-local-db-data:
+ifndef backup_file
+	$(error param backup_file not set)
+endif
+	docker-compose stop db
+	@echo "Backing up the data directory. This could take awhile."
+	@echo "This process will produce a bzip2 compressed tar file."
+	@cd $(TOPDIR)
+	tar jcf $(backup_file) ./pg_data && echo "SUCCESS" || echo "FAILED!!"
+	@cd -
+	docker-compose start db
+
+
+restore-local-db-data:
+ifndef backup_file
+	$(error param backup_file not set)
+endif
+	docker-compose stop db
+	@echo "This process expects a bzip2 compressed tar file as input."
+	@echo "Restoring the data directory. This could take awhile."
+	@cd $(TOPDIR)
+	tar jxf $(backup_file) && echo "SUCCESS" || echo "FAILED!!"
+	@cd -
+	docker-compose start db
+	@echo "Migrations may need to be run."
 
 
 ########################
