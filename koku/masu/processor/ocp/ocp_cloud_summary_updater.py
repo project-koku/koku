@@ -149,6 +149,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                 )
                 accessor.populate_ocp_on_azure_cost_daily_summary(start, end, cluster_id, azure_bill_ids)
             accessor.populate_ocp_on_azure_markup_cost(markup_value, azure_bill_ids)
+            accessor.populate_ocp_on_azure_tags_summary_table()
 
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             # This call just sends the infrastructure cost to the

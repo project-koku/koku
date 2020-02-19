@@ -52,7 +52,7 @@ from reporting.provider.azure.models import AzureTagsSummary
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
 from reporting.provider.azure.openshift.models import OCPAzureTagsSummary
-from reporting.provider.ocp.costs.models import CostSummary  # noqa: F401
+from reporting.provider.ocp.costs.models import CostSummary
 from reporting.provider.ocp.models import OCPStorageLineItem
 from reporting.provider.ocp.models import OCPStorageLineItemDaily
 from reporting.provider.ocp.models import OCPStorageVolumeLabelSummary
