@@ -18,7 +18,6 @@
 import datetime
 import os.path
 from unittest.mock import Mock
-from unittest.mock import patch
 
 from faker import Faker
 
@@ -26,6 +25,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.processor.worker_cache import WorkerCache
 from masu.test import MasuTestCase
 
 
@@ -48,8 +48,11 @@ class ReportDownloaderBaseTest(MasuTestCase):
     def setUp(self):
         """Set up each test case."""
         super().setUp()
+        self.cache_key = self.fake.word()
         self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()), return_value={}))
-        self.downloader = ReportDownloaderBase(task=self.mock_task, provider_uuid=self.aws_provider_uuid)
+        self.downloader = ReportDownloaderBase(
+            task=self.mock_task, provider_uuid=self.aws_provider_uuid, cache_key=self.cache_key
+        )
         billing_start = self.date_accessor.today_with_timezone("UTC").replace(day=1)
         self.task_id = str(self.fake.uuid4())
         self.manifest_dict = {
@@ -77,35 +80,30 @@ class ReportDownloaderBaseTest(MasuTestCase):
             for manifest in manifests:
                 manifest_accessor.delete(manifest)
 
-    @patch("masu.external.downloader.report_downloader_base.app")
-    def test_report_downloader_base_no_path(self, _):
+    def test_report_downloader_base_no_path(self):
         """Test report downloader download_path."""
         downloader = ReportDownloaderBase(self.mock_task)
         self.assertIsInstance(downloader, ReportDownloaderBase)
         self.assertIsNotNone(downloader.download_path)
         self.assertTrue(os.path.exists(downloader.download_path))
 
-    @patch("masu.external.downloader.report_downloader_base.app")
-    def test_report_downloader_base(self, _):
+    def test_report_downloader_base(self):
         """Test download path matches expected."""
         dl_path = "/{}/{}/{}".format(self.fake.word().lower(), self.fake.word().lower(), self.fake.word().lower())
         downloader = ReportDownloaderBase(self.mock_task, download_path=dl_path)
         self.assertEqual(downloader.download_path, dl_path)
 
-    @patch("masu.external.downloader.report_downloader_base.app")
-    def test_get_existing_manifest_db_id(self, _):
+    def test_get_existing_manifest_db_id(self):
         """Test that a manifest ID is returned."""
         manifest_id = self.downloader._get_existing_manifest_db_id(self.assembly_id)
         self.assertEqual(manifest_id, self.manifest_id)
 
-    @patch("masu.external.downloader.report_downloader_base.app")
-    def test_check_if_manifest_should_be_downloaded_new_manifest(self, _):
+    def test_check_if_manifest_should_be_downloaded_new_manifest(self):
         """Test that a new manifest should be processed."""
         result = self.downloader.check_if_manifest_should_be_downloaded("1234")
         self.assertTrue(result)
 
-    @patch("masu.external.downloader.report_downloader_base.app")
-    def test_check_if_manifest_should_be_downloaded_currently_processing_manifest(self, _):
+    def test_check_if_manifest_should_be_downloaded_currently_processing_manifest(self):
         """Test that a manifest being processed should not be reprocessed."""
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
@@ -120,8 +118,7 @@ class ReportDownloaderBaseTest(MasuTestCase):
         result = self.downloader.check_if_manifest_should_be_downloaded(self.assembly_id)
         self.assertFalse(result)
 
-    @patch("masu.external.downloader.report_downloader_base.app")
-    def test_check_if_manifest_should_be_downloaded_error_processing_manifest(self, _):
+    def test_check_if_manifest_should_be_downloaded_error_processing_manifest(self):
         """Test that a manifest that did not succeessfully process should be reprocessed."""
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
@@ -137,8 +134,7 @@ class ReportDownloaderBaseTest(MasuTestCase):
         result = self.downloader.check_if_manifest_should_be_downloaded(self.assembly_id)
         self.assertTrue(result)
 
-    @patch("masu.external.downloader.report_downloader_base.app")
-    def test_check_if_manifest_should_be_downloaded_done_processing_manifest(self, _):
+    def test_check_if_manifest_should_be_downloaded_done_processing_manifest(self):
         """Test that a manifest that has finished processing is not reprocessed."""
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
@@ -149,35 +145,7 @@ class ReportDownloaderBaseTest(MasuTestCase):
         result = self.downloader.check_if_manifest_should_be_downloaded(self.assembly_id)
         self.assertFalse(result)
 
-    @patch("masu.external.downloader.report_downloader_base.app")
-    def test_check_task_queues_false(self, mock_celery):
-        """Test that check_task_queues() returns false when task_id is absent."""
-        # app.control.inspect()
-        mock_celery.control = Mock(
-            inspect=Mock(
-                return_value=Mock(
-                    active=Mock(return_value={}), reserved=Mock(return_value={}), scheduled=Mock(return_value={})
-                )
-            )
-        )
-        result = self.downloader.check_task_queues(self.manifest_id)
-        self.assertFalse(result)
-
-    @patch("masu.external.downloader.report_downloader_base.app")
-    def test_check_task_queues_true(self, mock_celery):
-        """Test that check_task_queues() returns true when task_id is found."""
-        # app.control.inspect()
-        active = Mock(return_value={self.fake.word(): [{"id": self.task_id}]})
-        mock_celery.control = Mock(
-            inspect=Mock(
-                return_value=Mock(active=active, reserved=Mock(return_value={}), scheduled=Mock(return_value={}))
-            )
-        )
-        result = self.downloader.check_task_queues(self.task_id)
-        self.assertTrue(result)
-
-    @patch("masu.external.downloader.report_downloader_base.app")
-    def test_check_if_manifest_should_be_downloaded_error_no_complete_date(self, _):
+    def test_check_if_manifest_should_be_downloaded_error_no_complete_date(self):
         """Test that a manifest that did not succeessfully process should be reprocessed."""
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
@@ -189,3 +157,11 @@ class ReportDownloaderBaseTest(MasuTestCase):
             file_accessor.log_last_started_datetime()
         result = self.downloader.check_if_manifest_should_be_downloaded(self.assembly_id)
         self.assertTrue(result)
+
+    def test_check_if_manifest_should_be_downloaded_task_currently_running(self):
+        """Test that a manifest being processed should not be reprocessed."""
+        _cache = WorkerCache()
+        _cache.add_task_to_cache(self.cache_key)
+
+        result = self.downloader.check_if_manifest_should_be_downloaded(self.assembly_id)
+        self.assertFalse(result)
