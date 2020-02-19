@@ -261,7 +261,7 @@ class TagQueryHandler(QueryHandler):
 
         # Sort the data_sources so that those with a "type" go first
         sources = sorted(self.data_sources, key=lambda dikt: dikt.get("type", ""), reverse=True)
-        merged_data = defaultdict(set)
+        merged_data = defaultdict(list)
         final_data = []
         with tenant_context(self.tenant):
             tag_keys = {}
@@ -278,19 +278,19 @@ class TagQueryHandler(QueryHandler):
                     .all()
                 )
                 for dikt in tag_keys:
-                    merged_data[dikt.get("key")].update(dikt.get("values"))
+                    merged_data[dikt.get("key")].extend(dikt.get("values"))
 
                 if source.get("type"):
                     self.append_to_final_data_with_type(final_data, merged_data, source)
                     # since sources with type are first, merged_data can be reset
-                    merged_data = defaultdict(set)
+                    merged_data = defaultdict(list)
 
             if not source.get("type"):
                 self.append_to_final_data_without_type(final_data, merged_data)
 
-        # sort the values before returning
+        # sort the values and deduplicate before returning
         for dikt in final_data:
-            dikt["values"] = sorted(dikt["values"], reverse=self.order_direction == "desc")
+            dikt["values"] = sorted(set(dikt["values"]), reverse=self.order_direction == "desc")
         return final_data
 
     @staticmethod
@@ -306,7 +306,7 @@ class TagQueryHandler(QueryHandler):
         for k, v in merged_data.items():
             dikt = self._get_dictionary_for_key(final_data, k)
             if dikt and dikt.get("type") == source.get("type"):
-                dikt["values"].update(v)
+                dikt["values"].extend(v)
             else:
                 temp = {"key": k, "values": v, "type": source.get("type")}
                 final_data.append(temp)
@@ -314,8 +314,12 @@ class TagQueryHandler(QueryHandler):
     def append_to_final_data_without_type(self, final_data, merged_data):
         """Convert data to final list without a source type."""
         for k, v in merged_data.items():
-            temp = {"key": k, "values": v}
-            final_data.append(temp)
+            dikt = self._get_dictionary_for_key(final_data, k)
+            if dikt and dikt.get("type") is None:
+                dikt["values"].extend(v)
+            else:
+                temp = {"key": k, "values": v}
+                final_data.append(temp)
 
     def execute_query(self):
         """Execute query and return provided data.
