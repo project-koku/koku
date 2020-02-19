@@ -296,7 +296,8 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
     LOG.info(stmt)
 
     updater = ReportChargeUpdater(schema_name, provider_uuid)
-    updater.update_charge_info(start_date, end_date)
+    if updater:
+        updater.update_charge_info(start_date, end_date)
 
 
 @app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name="reporting")
