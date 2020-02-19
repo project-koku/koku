@@ -18,6 +18,7 @@
 from api.models import Provider
 from api.report.ocp.provider_map import OCPProviderMap
 from api.tags.queries import TagQueryHandler
+from reporting.models import OCPStorageVolumeClaimLabelSummary
 from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsagePodLabelSummary
 
@@ -30,6 +31,11 @@ class OCPTagQueryHandler(TagQueryHandler):
         {"db_table": OCPUsagePodLabelSummary, "db_column_period": "report_period__report_period", "type": "pod"},
         {
             "db_table": OCPStorageVolumeLabelSummary,
+            "db_column_period": "report_period__report_period",
+            "type": "storage",
+        },
+        {
+            "db_table": OCPStorageVolumeClaimLabelSummary,
             "db_column_period": "report_period__report_period",
             "type": "storage",
         },
