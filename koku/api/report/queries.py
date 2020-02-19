@@ -355,6 +355,13 @@ class ReportQueryHandler(QueryHandler):
             grouped = ReportQueryHandler._group_data_by_list(group_by_list, (group_index + 1), grouped)
             datapoint = out_data.get(key)
             if datapoint and isinstance(datapoint, dict):
+                if isinstance(grouped, OrderedDict) and isinstance(datapoint, OrderedDict):
+                    datapoint_keys = list(datapoint.keys())
+                    grouped_keys = list(grouped.keys())
+                    intersect_keys = list(set(datapoint_keys).intersection(grouped_keys))
+                    if intersect_keys != []:
+                        for inter_key in intersect_keys:
+                            grouped[inter_key].update(datapoint[inter_key])
                 out_data[key].update(grouped)
             elif datapoint and isinstance(datapoint, list):
                 out_data[key] = grouped + datapoint
