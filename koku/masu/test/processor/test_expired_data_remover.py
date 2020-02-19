@@ -17,16 +17,16 @@
 """Test the ExpiredDataRemover object."""
 from datetime import datetime
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytz
+from dateutil import relativedelta
 
 from api.models import Provider
 from masu.external.date_accessor import DateAccessor
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.expired_data_remover import ExpiredDataRemoverError
 from masu.test import MasuTestCase
-from dateutil import relativedelta
-from uuid import uuid4
 from reporting_common.models import CostUsageReportManifest
 
 
@@ -122,22 +122,18 @@ class ExpiredDataRemoverTest(MasuTestCase):
 
     def test_delete_expired_cost_usage_report_manifest(self):
         """
-        Test remove manifests that are expired.
+        Test that expired CostUsageReportManifests are removed.
 
         All providers should be affected.
 
         This test inserts CostUsageReports and then deletes all of them that are older than
-        the specified expired_date.
+        the calculated expiration_date
         """
-        # expired_date = 3monthsago
         provider_uuid = self.aws_provider_uuid
-        # insertMockCostUsageReports(provider=provider_uuid)
-        ## Insert Mock CostUsageReportManifests
-        # A time for a record which should not be deleted
+        remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
+        expiration_date = remover._calculate_expiration_date()
         this_month = datetime.today().replace(day=1)
-        start = this_month
-        cutoff_two_months_ago = this_month - relativedelta.relativedelta(months=2)  # the expired_date
-        day_before_cutoff = cutoff_two_months_ago - relativedelta.relativedelta(days=1)
+        day_before_cutoff = expiration_date - relativedelta.relativedelta(days=1)
 
         # A time for a record which should be deleted in this test.
         # Record A
@@ -148,7 +144,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
             "assembly_id": record_a_uuid,
             "manifest_creation_datetime": manifest_creation_datetime,
             "manifest_updated_datetime": manifest_updated_datetime,
-            "billing_period_start_datetime": start,
+            "billing_period_start_datetime": this_month,
             "num_processed_files": 1,
             "num_total_files": 1,
             "provider_id": provider_uuid,
@@ -182,7 +178,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
             "assembly_id": record_c_uuid,
             "manifest_creation_datetime": manifest_creation_datetime,
             "manifest_updated_datetime": manifest_updated_datetime,
-            "billing_period_start_datetime": cutoff_two_months_ago,  # Don't delete me!
+            "billing_period_start_datetime": expiration_date,  # Don't delete me!
             "num_processed_files": 1,
             "num_total_files": 1,
             "provider_id": provider_uuid,
@@ -192,9 +188,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
         manifest_entries = CostUsageReportManifest.objects.all()
         assert len(manifest_entries) == 3
 
-        cleaner.purge_expired_report_data(self, expired_date=None, provider_uuid=None, simulate=False)
-        remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
-        remover.remove(provider_uuid=provider_uuid)
+        remover.remove()
 
         # Check if record A still exists (it should):
         record_a = CostUsageReportManifest.objects.filter(assembly_id=record_a_uuid)
@@ -203,26 +197,3 @@ class ExpiredDataRemoverTest(MasuTestCase):
         self.assertEqual(len(record_b), 0)
         record_c = CostUsageReportManifest.objects.filter(assembly_id=record_c_uuid)
         self.assertEqual(len(record_c), 1)
-
-        # # manifest_data_list = CostUsageReportManifest.objects.filter(billing_period=4monthsago).all()
-        # manifest_months_query = CostUsageReportManifest.objects.order_by(
-        #     "billing_period_start_datetime"
-        # ).all()  # Get all the manifests.
-        # # manifests_older_than_expired_date = CostUsageReportManifest.objects.filter(billing_period_date_lt=datetime.datetime.4monthsago)
-        # self.assertEqual(len(manifest_data_list), 0)
-
-    def test_expired_data_does_not_delete_data_before_cutoff(self):
-        """
-        Test that the deletion of expired data does not remove data after the expired date.
-
-        # For example, if today is 2-15-2019 and there are three records
-        # And the expired_date is 12-1-2019, then all records in November and before would be deleted.
-        # All records in December would not be deleted.
-        # All CostUsageReportManifest records in November and all previous months and years would be deleted in all providers.
-
-        Record 1: billing_period_start_datetime = 2-1-2019  (not expired)
-        Record 2: billing_period_start_datetime = 12-1-2019 (not expired)
-        Record 3: billing_period_start_datetime = 11-31-2019 (expired)
-        """
-        assert False
-
