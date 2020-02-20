@@ -872,9 +872,10 @@ class OCPReportViewTest(IamTestCase):
         """Test that same-named nodes across clusters are accounted for."""
         data_config = {"nodes": ["node_one", "node_two"]}
         node_of_interest = data_config["nodes"][0]
-        data_generator = OCPReportDataGenerator(self.tenant, self.provider)
-        data_generator.add_data_to_tenant(**data_config)
-        data_generator.add_data_to_tenant(**data_config)
+        data_generator1 = OCPReportDataGenerator(self.tenant, self.provider)
+        data_generator1.add_data_to_tenant(**data_config)
+        data_generator2 = OCPReportDataGenerator(self.tenant, self.provider)
+        data_generator2.add_data_to_tenant(**data_config)
 
         url = reverse("reports-openshift-cpu")
         client = APIClient()

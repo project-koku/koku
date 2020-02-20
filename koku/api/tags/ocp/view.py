@@ -18,7 +18,6 @@
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.serializers import OCPTagsQueryParamSerializer
 from api.tags.view import TagView
-from reporting.provider.ocp.models import OCPStorageVolumeClaimLabelSummary
 from reporting.provider.ocp.models import OCPStorageVolumeLabelSummary
 from reporting.provider.ocp.models import OCPUsagePodLabelSummary
 
@@ -60,4 +59,4 @@ class OCPTagView(TagView):
     provider = "ocp"
     serializer = OCPTagsQueryParamSerializer
     query_handler = OCPTagQueryHandler
-    tag_handler = [OCPUsagePodLabelSummary, OCPStorageVolumeClaimLabelSummary, OCPStorageVolumeLabelSummary]
+    tag_handler = [OCPUsagePodLabelSummary, OCPStorageVolumeLabelSummary]

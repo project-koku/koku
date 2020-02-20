@@ -578,17 +578,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     # pylint: disable=invalid-name
-    def populate_volume_claim_label_summary_table(self):
-        """Populate the OCP volume claim label summary table."""
-        table_name = OCP_REPORT_TABLE_MAP["volume_claim_label_summary"]
-
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpstoragevolumeclaimlabel_summary.sql")
-        agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema}
-        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
-        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
-
-    # pylint: disable=invalid-name
     def populate_volume_label_summary_table(self):
         """Populate the OCP volume label summary table."""
         table_name = OCP_REPORT_TABLE_MAP["volume_label_summary"]

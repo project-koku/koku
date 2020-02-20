@@ -254,13 +254,9 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = AWS_CUR_TABLE_MAP["tags_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_cloudtags_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_awstags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {
-            "schema": self.schema,
-            "tag_table": "reporting_awstags_summary",
-            "lineitem_table": "reporting_awscostentrylineitem_daily",
-        }
+        agg_sql_params = {"schema": self.schema}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
@@ -291,6 +287,16 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
+
+    def populate_ocp_on_aws_tags_summary_table(self):
+        """Populate the line item aggregated totals data table."""
+        table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_tags_summary"]
+
+        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpawstags_summary.sql")
+        agg_sql = agg_sql.decode("utf-8")
+        agg_sql_params = {"schema": self.schema}
+        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
+        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def populate_markup_cost(self, markup, bill_ids=None):
         """Set markup costs in the database."""

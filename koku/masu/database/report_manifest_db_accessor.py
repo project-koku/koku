@@ -15,12 +15,18 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Report manifest database accessor for cost usage reports."""
+from celery.utils.log import get_task_logger
+from django.db.models import F
+from django.db.models.expressions import Window
+from django.db.models.functions import RowNumber
 from tenant_schemas.utils import schema_context
 
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
+
+LOG = get_task_logger(__name__)
 
 
 class ReportManifestDBAccessor(KokuDBAccess):
@@ -46,13 +52,15 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def mark_manifest_as_updated(self, manifest):
         """Update the updated timestamp."""
-        manifest.manifest_updated_datetime = self.date_accessor.today_with_timezone("UTC")
-        manifest.save()
+        if manifest:
+            manifest.manifest_updated_datetime = self.date_accessor.today_with_timezone("UTC")
+            manifest.save()
 
     def mark_manifest_as_completed(self, manifest):
         """Update the updated timestamp."""
-        manifest.manifest_completed_datetime = self.date_accessor.today_with_timezone("UTC")
-        manifest.save()
+        if manifest:
+            manifest.manifest_completed_datetime = self.date_accessor.today_with_timezone("UTC")
+            manifest.save()
 
     # pylint: disable=arguments-differ
     def add(self, **kwargs):
@@ -111,3 +119,30 @@ class ReportManifestDBAccessor(KokuDBAccess):
         """Return all manifests for a provider and bill date."""
         filters = {"provider_id": provider_uuid, "billing_period_start_datetime__date": bill_date}
         return CostUsageReportManifest.objects.filter(**filters).all()
+
+    def get_last_seen_manifest_ids(self, bill_date):
+        """Return a tuple containing the assembly_id of the last seen manifest and a boolean
+
+        The boolean will state whether or not that manifest has been processed."""
+        assembly_ids = []
+        # The following query uses a window function to rank the manifests for all the providers,
+        # and then just pulls out the top ranked (most recent) manifests
+        manifests = (
+            CostUsageReportManifest.objects.filter(billing_period_start_datetime=bill_date)
+            .annotate(
+                row_number=Window(
+                    expression=RowNumber(),
+                    partition_by=F("provider_id"),
+                    order_by=F("manifest_creation_datetime").desc(),
+                )
+            )
+            .order_by("row_number")
+        )
+        for manifest in [manifest for manifest in manifests if manifest.row_number == 1]:
+            # loop through the manifests and decide if they have finished processing
+            processed = manifest.num_total_files == manifest.num_processed_files
+            # if all of the files for the manifest have been processed we don't want to add it
+            # to assembly_ids because it is safe to delete
+            if not processed:
+                assembly_ids.append(manifest.assembly_id)
+        return assembly_ids

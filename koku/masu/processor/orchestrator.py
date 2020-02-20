@@ -17,8 +17,6 @@
 """Report Processing Orchestrator."""
 import logging
 
-from dateutil.relativedelta import relativedelta
-
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.account_label import AccountLabel
@@ -109,13 +107,7 @@ class Orchestrator:
         else:
             number_of_months = 2
 
-        months = []
-        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
-        for month in reversed(range(number_of_months)):
-            calculated_month = current_month + relativedelta(months=-month)
-            months.append(calculated_month.date())
-
-        return months
+        return DateAccessor().get_billing_months(number_of_months)
 
     def prepare(self):
         """
