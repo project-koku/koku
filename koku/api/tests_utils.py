@@ -17,6 +17,7 @@
 """Test the API utils module."""
 import datetime
 import random
+import unittest
 
 import pint
 from dateutil.relativedelta import relativedelta
@@ -25,7 +26,22 @@ from django.utils import timezone
 from pint.errors import UndefinedUnitError
 
 from api.utils import DateHelper
+from api.utils import merge_dicts
 from api.utils import UnitConverter
+
+
+class MergeDictsTest(unittest.TestCase):
+    """Test the merge_dicts util."""
+
+    def test_merge_dicts(self):
+        dikt1 = {"key": ["value"]}
+        dikt2 = {"k": ["v"]}
+        dikt3 = {"key": ["value2"], "k": ["v"]}
+        expected_1 = {"key": ["value"], "k": ["v"]}
+        expected_2 = {"key": ["value", "value2"], "k": ["v"]}
+        self.assertEqual(merge_dicts(dikt1, dikt2), expected_1)
+        self.assertEqual(merge_dicts(dikt1, dikt3), expected_2)
+        self.assertEqual(merge_dicts(dikt1, dikt2, dikt3), expected_2)
 
 
 class DateHelperTest(TestCase):

@@ -24,14 +24,21 @@ from pint.errors import UndefinedUnitError
 
 
 def merge_dicts(*list_of_dicts):
-    """Merge a list of dictionaries and combine common keys into a list of values."""
+    """Merge a list of dictionaries and combine common keys into a list of values.
+
+        args:
+            list_of_dicts: a list of dictionaries. values within the dicts must be lists
+                dict = {key: [values]}
+
+    """
     output = {}
     for dikt in list_of_dicts:
         for k, v in dikt.items():
             if not output.get(k):
                 output[k] = v
             else:
-                output[k] = [output[k], v]
+                output[k].extend(v)
+                output[k] = list(set(output[k]))
     return output
 
 
