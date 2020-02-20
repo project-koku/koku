@@ -124,6 +124,15 @@ class AWSReportProcessor(ReportProcessorBase):
         """
         row_count = 0
         opener, mode = self._get_file_opener(self._compression)
+
+        if not path.exists(self._report_path):
+            LOG.info(
+                "Skip processing for file: %s and schema: %s as it was not found on disk.",
+                self._report_name,
+                self._schema,
+            )
+            return False
+
         is_finalized_data = self._check_for_finalized_bill()
         is_full_month = self._should_process_full_month()
         self._delete_line_items(AWSReportDBAccessor, self.column_map, is_finalized=is_finalized_data)
@@ -186,9 +195,10 @@ class AWSReportProcessor(ReportProcessorBase):
         # pylint: disable=invalid-name
         with opener(self._report_path, mode) as f:
             reader = csv.DictReader(f)
-            row = reader.__next__()
-            invoice_id = row.get("bill/InvoiceId")
-            return invoice_id is not None and invoice_id != ""
+            for row in reader:
+                invoice_id = row.get("bill/InvoiceId")
+                return invoice_id is not None and invoice_id != ""
+            return False
 
     def _update_mappings(self):
         """Update cache of database objects for reference."""

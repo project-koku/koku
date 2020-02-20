@@ -243,8 +243,8 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             LOG.error("Error decoding authentication header: %s", str(error))
             raise PermissionDenied()
 
-        is_openshift = json_rh_auth.get("entitlements", {}).get("openshift", {}).get("is_entitled", False)
-        if not is_openshift:
+        is_cost_management = json_rh_auth.get("entitlements", {}).get("cost_management", {}).get("is_entitled", False)
+        if not is_cost_management:
             raise PermissionDenied()
 
         account = json_rh_auth.get("identity", {}).get("account_number")

@@ -39,6 +39,22 @@ from api.utils import DateHelper
 from reporting.models import OCPUsageLineItemDailySummary
 
 
+def _calculate_subtotals(data, cost, infra_cost, de_cost):
+    """Returns list of subtotals given data."""
+    for _, value in data.items():
+        if isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    if "values" in item.keys():
+                        value = item["values"][0]
+                        cost.append(value["cost"]["value"])
+                        infra_cost.append(value["infrastructure_cost"]["value"])
+                        de_cost.append(value["derived_cost"]["value"])
+                    else:
+                        cost, infra_cost, de_cost = _calculate_subtotals(item, cost, infra_cost, de_cost)
+            return (cost, infra_cost, de_cost)
+
+
 class OCPReportQueryHandlerTest(IamTestCase):
     """Tests for the OCP report query handler."""
 
@@ -540,3 +556,35 @@ class OCPReportQueryHandlerTest(IamTestCase):
                     self.assertIn("clusters", cluster_value.keys())
                     self.assertIsNotNone(cluster_value["cluster"])
                     self.assertIsNotNone(cluster_value["clusters"])
+
+    def test_subtotals_add_up_to_total(self):
+        """Test the apply_group_by handles different grouping scenerios."""
+        for _ in range(1, 5):
+            OCPReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
+        group_by_list = [
+            ("project", "cluster", "node"),
+            ("project", "node", "cluster"),
+            ("cluster", "project", "node"),
+            ("cluster", "node", "project"),
+            ("node", "cluster", "project"),
+            ("node", "project", "cluster"),
+        ]
+        base_url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3"
+        )  # noqa: E501
+        tolerance = 1
+        for group_by in group_by_list:
+            sub_url = "&group_by[%s]=*&group_by[%s]=*&group_by[%s]=*" % group_by
+            url = base_url + sub_url
+            query_params = self.mocked_query_params(url, OCPCpuView)
+            handler = OCPReportQueryHandler(query_params)
+            query_data = handler.execute_query()
+            the_sum = handler.query_sum
+            data = query_data["data"][0]
+            sub_cost, sub_infra, sub_derived = _calculate_subtotals(data, [], [], [])
+            expected_cost = the_sum["cost"]["value"]
+            expected_infra = the_sum["infrastructure_cost"]["value"]
+            expected_derived = the_sum["derived_cost"]["value"]
+            self.assertLessEqual(abs(expected_cost - sum(sub_cost)), tolerance)
+            self.assertLessEqual(abs(expected_infra - sum(sub_infra)), tolerance)
+            self.assertLessEqual(abs(expected_derived - sum(sub_derived)), tolerance)
