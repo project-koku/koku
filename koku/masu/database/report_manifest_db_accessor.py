@@ -136,7 +136,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
             )
             .order_by("row_number")
         )
-        for manifest in manifests:
+        for manifest in [manifest for manifest in manifests if manifest.row_number == 1]:
             # loop through the manifests and decide if they have finished processing
             processed = manifest.num_total_files == manifest.num_processed_files
             # if all of the files for the manifest have been processed we don't want to add it

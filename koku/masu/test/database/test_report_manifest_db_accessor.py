@@ -145,8 +145,8 @@ class ReportManifestDBAccessorTest(IamTestCase):
         assembly_ids = self.manifest_accessor.get_last_seen_manifest_ids(self.billing_start)
         self.assertEqual(assembly_ids, [manifest.assembly_id])
 
-        # test that of two manifests with the same provider_ids - that the most recently seen is
-        # returned in ranked order
+        # test that of two manifests with the same provider_ids - that only the most recently
+        # seen is returned
         manifest_dict3 = {
             "assembly_id": "91011",
             "billing_period_start_datetime": self.billing_start,
@@ -155,7 +155,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
         }
         manifest3 = self.manifest_accessor.add(**manifest_dict3)
         assembly_ids = self.manifest_accessor.get_last_seen_manifest_ids(self.billing_start)
-        self.assertEqual(assembly_ids, [manifest3.assembly_id, manifest.assembly_id])
+        self.assertEqual(assembly_ids, [manifest3.assembly_id])
 
         # test that manifests for a different billing month are not returned
         current_month = self.billing_start
