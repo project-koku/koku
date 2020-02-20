@@ -18,6 +18,7 @@
 import copy
 import datetime
 
+from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -33,10 +34,10 @@ class ReportManifestDBAccessorTest(IamTestCase):
         """Set up the test class."""
         super().setUp()
         self.schema = self.schema_name
-        billing_start = DateAccessor().today_with_timezone("UTC").replace(day=1)
+        self.billing_start = DateAccessor().today_with_timezone("UTC").replace(day=1)
         self.manifest_dict = {
             "assembly_id": "1234",
-            "billing_period_start_datetime": billing_start,
+            "billing_period_start_datetime": self.billing_start,
             "num_total_files": 2,
             "provider_uuid": self.provider_uuid,
         }
@@ -130,3 +131,43 @@ class ReportManifestDBAccessorTest(IamTestCase):
         result = self.manifest_accessor.get_last_report_completed_datetime(manifest.id)
 
         self.assertEqual(result, later_time)
+
+    def test_get_last_seen_manifest_ids(self):
+        """Test that get_last_seen_manifest_ids returns the appropriate assembly_ids."""
+        # test that the most recently seen manifests that haven't been processed are returned
+        manifest_dict2 = {
+            "assembly_id": "5678",
+            "billing_period_start_datetime": self.billing_start,
+            "num_total_files": 1,
+            "provider_uuid": "00000000-0000-0000-0000-000000000002",
+        }
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
+        manifest2 = self.manifest_accessor.add(**manifest_dict2)
+        assembly_ids = self.manifest_accessor.get_last_seen_manifest_ids(self.billing_start)
+        self.assertEqual(assembly_ids, [manifest.assembly_id, manifest2.assembly_id])
+
+        # test that when the manifest's files have been processed - it is no longer returned
+        manifest2.num_processed_files = manifest_dict2.get("num_total_files")
+        manifest2.save()
+        assembly_ids = self.manifest_accessor.get_last_seen_manifest_ids(self.billing_start)
+        self.assertEqual(assembly_ids, [manifest.assembly_id])
+
+        # test that of two manifests with the same provider_ids - that only the most recently
+        # seen is returned
+        manifest_dict3 = {
+            "assembly_id": "91011",
+            "billing_period_start_datetime": self.billing_start,
+            "num_total_files": 1,
+            "provider_uuid": self.provider_uuid,
+        }
+        manifest3 = self.manifest_accessor.add(**manifest_dict3)
+        assembly_ids = self.manifest_accessor.get_last_seen_manifest_ids(self.billing_start)
+        self.assertEqual(assembly_ids, [manifest3.assembly_id])
+
+        # test that manifests for a different billing month are not returned
+        current_month = self.billing_start
+        calculated_month = current_month + relativedelta(months=-2)
+        manifest3.billing_period_start_datetime = calculated_month
+        manifest3.save()
+        assembly_ids = self.manifest_accessor.get_last_seen_manifest_ids(self.billing_start)
+        self.assertEqual(assembly_ids, [manifest.assembly_id])
