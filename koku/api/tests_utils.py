@@ -33,15 +33,30 @@ from api.utils import UnitConverter
 class MergeDictsTest(unittest.TestCase):
     """Test the merge_dicts util."""
 
-    def test_merge_dicts(self):
+    def test_merge_dicts_simple(self):
+        dikt1 = {"key": ["value"]}
+        dikt2 = {"k": ["v"]}
+        expected_1 = {"key": ["value"], "k": ["v"]}
+        merge1 = merge_dicts(dikt1, dikt2)
+        for k, v in expected_1.items():
+            self.assertEqual(sorted(merge1[k]), sorted(v))
+
+    def test_merge_dicts_more_complex(self):
+        dikt1 = {"key": ["value"]}
+        dikt3 = {"key": ["value2"], "k": ["v"]}
+        expected_2 = {"key": ["value", "value2"], "k": ["v"]}
+        merge2 = merge_dicts(dikt1, dikt3)
+        for k, v in expected_2.items():
+            self.assertEqual(sorted(merge2[k]), sorted(v))
+
+    def test_merge_dicts_even_more_complex(self):
         dikt1 = {"key": ["value"]}
         dikt2 = {"k": ["v"]}
         dikt3 = {"key": ["value2"], "k": ["v"]}
-        expected_1 = {"key": ["value"], "k": ["v"]}
         expected_2 = {"key": ["value", "value2"], "k": ["v"]}
-        self.assertEqual(merge_dicts(dikt1, dikt2), expected_1)
-        self.assertEqual(merge_dicts(dikt1, dikt3), expected_2)
-        self.assertEqual(merge_dicts(dikt1, dikt2, dikt3), expected_2)
+        merge3 = merge_dicts(dikt1, dikt2, dikt3)
+        for k, v in expected_2.items():
+            self.assertEqual(sorted(merge3[k]), sorted(v))
 
 
 class DateHelperTest(TestCase):
