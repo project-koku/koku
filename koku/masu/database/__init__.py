@@ -42,7 +42,6 @@ OCP_REPORT_TABLE_MAP = {
     "pod_label_summary": "reporting_ocpusagepodlabel_summary",
     "storage_line_item": "reporting_ocpstoragelineitem",
     "storage_line_item_daily": "reporting_ocpstoragelineitem_daily",
-    "volume_claim_label_summary": "reporting_ocpstoragevolumeclaimlabel_summary",
     "volume_label_summary": "reporting_ocpstoragevolumelabel_summary",
     "cost_summary": "reporting_ocpcosts_summary",
 }

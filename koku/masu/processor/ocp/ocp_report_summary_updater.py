@@ -105,7 +105,6 @@ class OCPReportSummaryUpdater:
                 accessor.populate_line_item_daily_summary_table(start, end, self._cluster_id)
                 accessor.populate_storage_line_item_daily_summary_table(start, end, self._cluster_id)
             accessor.populate_pod_label_summary_table()
-            # accessor.populate_volume_claim_label_summary_table()
             accessor.populate_volume_label_summary_table()
 
             for period in report_periods:

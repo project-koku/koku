@@ -55,7 +55,6 @@ from reporting.provider.azure.openshift.models import OCPAzureTagsSummary
 from reporting.provider.ocp.costs.models import CostSummary
 from reporting.provider.ocp.models import OCPStorageLineItem
 from reporting.provider.ocp.models import OCPStorageLineItemDaily
-from reporting.provider.ocp.models import OCPStorageVolumeClaimLabelSummary
 from reporting.provider.ocp.models import OCPStorageVolumeLabelSummary
 from reporting.provider.ocp.models import OCPUsageLineItem
 from reporting.provider.ocp.models import OCPUsageLineItemDaily
