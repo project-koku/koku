@@ -115,7 +115,7 @@ class ReportSummaryUpdater:
         """Check if processing should continue."""
         if self._manifest and self._manifest.num_processed_files != self._manifest.num_total_files:
             # Bail if all manifest files have not been processed
-            LOG.error(
+            LOG.info(
                 "Not all manifest files have completed processing."
                 "Summary deferred. Processed Files: %s, Total Files: %s",
                 str(self._manifest.num_processed_files),
