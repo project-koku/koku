@@ -195,9 +195,10 @@ class AWSReportProcessor(ReportProcessorBase):
         # pylint: disable=invalid-name
         with opener(self._report_path, mode) as f:
             reader = csv.DictReader(f)
-            row = reader.__next__()
-            invoice_id = row.get("bill/InvoiceId")
-            return invoice_id is not None and invoice_id != ""
+            for row in reader:
+                invoice_id = row.get("bill/InvoiceId")
+                return invoice_id is not None and invoice_id != ""
+            return False
 
     def _update_mappings(self):
         """Update cache of database objects for reference."""
