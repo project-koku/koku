@@ -116,13 +116,12 @@ app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", 
 CLEAN_VOLUME_DAY_OF_WEEK = ENVIRONMENT.get_value("CLEAN_VOLUME_DAY_OF_WEEK", default="sunday")
 CLEAN_VOLUME_UTC_TIME = ENVIRONMENT.get_value("CLEAN_VOLUME_UTC_TIME", default="00:00")
 CLEAN_HOUR, CLEAN_MINUTE = CLEAN_VOLUME_UTC_TIME.split(":")
-if CLEAN_VOLUME_DAY_OF_WEEK:
-    clean_schedule = crontab(day_of_week=CLEAN_VOLUME_DAY_OF_WEEK, hour=int(CLEAN_HOUR), minute=int(CLEAN_MINUTE))
-else:
-    clean_schedule = crontab(hour=int(CLEAN_HOUR), minute=int(CLEAN_MINUTE))
 # create a task to clean up the volumes - defaults to running every sunday at midnight
 if not settings.DEVELOPMENT:
-    app.conf.beat_schedule["clean_volume"] = {"task": "masu.celery.tasks.clean_volume", "schedule": clean_schedule}
+    app.conf.beat_schedule["clean_volume"] = {
+        "task": "masu.celery.tasks.clean_volume",
+        "schedule": crontab(day_of_week=CLEAN_VOLUME_DAY_OF_WEEK, hour=int(CLEAN_HOUR), minute=int(CLEAN_MINUTE)),
+    }
 
 
 # Toggle to enable/disable S3 archiving of account data.
