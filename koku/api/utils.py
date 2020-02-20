@@ -23,6 +23,25 @@ from django.utils import timezone
 from pint.errors import UndefinedUnitError
 
 
+def merge_dicts(*list_of_dicts):
+    """Merge a list of dictionaries and combine common keys into a list of values.
+
+        args:
+            list_of_dicts: a list of dictionaries. values within the dicts must be lists
+                dict = {key: [values]}
+
+    """
+    output = {}
+    for dikt in list_of_dicts:
+        for k, v in dikt.items():
+            if not output.get(k):
+                output[k] = v
+            else:
+                output[k].extend(v)
+                output[k] = list(set(output[k]))
+    return output
+
+
 class DateHelper:
     """Helper class with convenience functions."""
 
@@ -110,6 +129,15 @@ class DateHelper:
         """Datetime of midnight on the last day of next month."""
         month_end = self.days_in_month(self.next_month_start)
         return self.next_month_start.replace(day=month_end)
+
+    def month_start(self, in_date):
+        """Datetime of midnight on the 1st of in_date month."""
+        return in_date.replace(microsecond=0, second=0, minute=0, hour=0, day=1)
+
+    def month_end(self, in_date):
+        """Datetime of midnight on the last day of the in_date month."""
+        month_end = self.days_in_month(in_date)
+        return in_date.replace(microsecond=0, second=0, minute=0, hour=0, day=month_end)
 
     def next_month(self, in_date):
         """Return the first of the next month from the in_date.

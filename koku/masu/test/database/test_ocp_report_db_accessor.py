@@ -416,49 +416,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
             self.assertEqual(sorted(tag_keys), sorted(expected_tag_keys))
 
-    def test_populate_volume_claim_label_summary_table(self):
-        """Test that the volume claim summary table is populated."""
-        report_table_name = OCP_REPORT_TABLE_MAP["report"]
-        agg_table_name = OCP_REPORT_TABLE_MAP["volume_claim_label_summary"]
-
-        report_table = getattr(self.accessor.report_schema, report_table_name)
-
-        today = DateAccessor().today_with_timezone("UTC")
-        last_month = today - relativedelta.relativedelta(months=1)
-
-        for start_date in (today, last_month):
-            period = self.creator.create_ocp_report_period(self.ocp_provider_uuid, period_date=start_date)
-            report = self.creator.create_ocp_report(period, start_date)
-            self.creator.create_ocp_storage_line_item(period, report)
-
-        with schema_context(self.schema):
-            report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"]
-            end_date = report_entry["interval_start__max"]
-
-        query = self.accessor._get_db_obj_query(agg_table_name)
-        with schema_context(self.schema):
-            initial_count = query.count()
-
-        self.accessor.populate_storage_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_volume_claim_label_summary_table()
-
-        self.assertNotEqual(query.count(), initial_count)
-
-        with schema_context(self.schema):
-            tags = query.all()
-            tag_keys = [tag.key for tag in tags]
-
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """SELECT DISTINCT jsonb_object_keys(persistentvolumeclaim_labels)
-                FROM reporting_ocpstoragelineitem_daily"""
-            )
-            expected_tag_keys = cursor.fetchall()
-            expected_tag_keys = [tag[0] for tag in expected_tag_keys]
-
-        self.assertEqual(sorted(tag_keys), sorted(expected_tag_keys))
-
     def test_populate_volume_label_summary_table(self):
         """Test that the volume label summary table is populated."""
         report_table_name = OCP_REPORT_TABLE_MAP["report"]
@@ -493,7 +450,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         with connection.cursor() as cursor:
             cursor.execute(
-                """SELECT DISTINCT jsonb_object_keys(persistentvolume_labels)
+                """SELECT DISTINCT jsonb_object_keys(persistentvolume_labels || persistentvolumeclaim_labels)
                     FROM reporting_ocpstoragelineitem_daily"""
             )
 

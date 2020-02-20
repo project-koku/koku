@@ -18,14 +18,16 @@
 from api.models import Provider
 from api.report.aws.provider_map import AWSProviderMap
 from api.tags.queries import TagQueryHandler
-from reporting.models import AWSCostEntryLineItemDailySummary
+from reporting.models import AWSTagsSummary
 
 
 class AWSTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for AWS."""
 
-    data_sources = [{"db_table": AWSCostEntryLineItemDailySummary, "db_column": "tags"}]
     provider = Provider.PROVIDER_AWS
+    data_sources = [{"db_table": AWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"}]
+    SUPPORTED_FILTERS = ["account"]
+    FILTER_MAP = {"account": {"field": "accounts", "operation": "icontains", "composition_key": "account_filter"}}
 
     def __init__(self, parameters):
         """Establish AWS report query handler.

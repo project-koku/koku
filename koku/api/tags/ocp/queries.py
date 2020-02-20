@@ -18,17 +18,24 @@
 from api.models import Provider
 from api.report.ocp.provider_map import OCPProviderMap
 from api.tags.queries import TagQueryHandler
-from reporting.models import OCPUsageLineItemDailySummary
+from reporting.models import OCPStorageVolumeLabelSummary
+from reporting.models import OCPUsagePodLabelSummary
 
 
 class OCPTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for OCP."""
 
-    data_sources = [
-        {"db_table": OCPUsageLineItemDailySummary, "db_column": "pod_labels", "type": "pod"},
-        {"db_table": OCPUsageLineItemDailySummary, "db_column": "volume_labels", "type": "storage"},
-    ]
     provider = Provider.PROVIDER_OCP
+    data_sources = [
+        {"db_table": OCPUsagePodLabelSummary, "db_column_period": "report_period__report_period", "type": "pod"},
+        {
+            "db_table": OCPStorageVolumeLabelSummary,
+            "db_column_period": "report_period__report_period",
+            "type": "storage",
+        },
+    ]
+    SUPPORTED_FILTERS = ["project"]
+    FILTER_MAP = {"project": {"field": "namespace", "operation": "icontains"}}
 
     def __init__(self, parameters):
         """Establish AWS report query handler.
