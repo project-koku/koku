@@ -52,13 +52,15 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def mark_manifest_as_updated(self, manifest):
         """Update the updated timestamp."""
-        manifest.manifest_updated_datetime = self.date_accessor.today_with_timezone("UTC")
-        manifest.save()
+        if manifest:
+            manifest.manifest_updated_datetime = self.date_accessor.today_with_timezone("UTC")
+            manifest.save()
 
     def mark_manifest_as_completed(self, manifest):
         """Update the updated timestamp."""
-        manifest.manifest_completed_datetime = self.date_accessor.today_with_timezone("UTC")
-        manifest.save()
+        if manifest:
+            manifest.manifest_completed_datetime = self.date_accessor.today_with_timezone("UTC")
+            manifest.save()
 
     # pylint: disable=arguments-differ
     def add(self, **kwargs):
