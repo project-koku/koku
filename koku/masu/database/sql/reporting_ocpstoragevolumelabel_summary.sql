@@ -14,7 +14,7 @@ FROM (
         li.report_period_id,
         li.namespace
     FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily AS li,
-        jsonb_each_text(li.persistentvolume_labels) labels
+        jsonb_each_text(li.persistentvolume_labels || li.persistentvolumeclaim_labels) labels
 ) l
 GROUP BY l.key, l.report_period_id
 ON CONFLICT (key, report_period_id) DO UPDATE
