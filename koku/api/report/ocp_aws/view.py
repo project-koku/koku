@@ -21,7 +21,7 @@ from api.models import Provider
 from api.report.ocp_aws.query_handler import OCPAWSReportQueryHandler
 from api.report.ocp_aws.serializers import OCPAWSQueryParamSerializer
 from api.report.view import ReportView
-from reporting.provider.aws.models import AWSTagsSummary
+from reporting.models import OCPAWSTagsSummary
 
 
 class OCPAWSView(ReportView):
@@ -31,7 +31,7 @@ class OCPAWSView(ReportView):
     provider = Provider.OCP_AWS
     serializer = OCPAWSQueryParamSerializer
     query_handler = OCPAWSReportQueryHandler
-    tag_handler = [AWSTagsSummary]
+    tag_handler = [OCPAWSTagsSummary]
 
 
 class OCPAWSCostView(OCPAWSView):

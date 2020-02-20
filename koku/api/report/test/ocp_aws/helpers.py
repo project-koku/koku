@@ -124,7 +124,7 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                 for report_date in self.report_ranges[i]:
                     self._populate_ocp_aws_cost_line_item_daily_summary(report_date)
                     self._populate_ocp_aws_cost_line_item_project_daily_summary(report_date)
-            self._populate_aws_tag_summary()
+            self._populate_ocpaws_tag_summary()
 
     def add_aws_data_to_tenant(self, product="ec2"):
         """Populate tenant with AWS data."""
@@ -381,15 +381,11 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                 line_item = OCPAWSCostLineItemProjectDailySummary(**data)
                 line_item.save()
 
-    def _populate_aws_tag_summary(self):
+    def _populate_ocpaws_tag_summary(self):
         """Populate the AWS tag summary table."""
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_cloudtags_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpawstags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {
-            "schema": connection.schema_name,
-            "tag_table": "reporting_awstags_summary",
-            "lineitem_table": "reporting_ocpawscostlineitem_daily_summary",
-        }
+        agg_sql_params = {"schema": connection.schema_name}
         agg_sql, agg_sql_params = JinjaSql().prepare_query(agg_sql, agg_sql_params)
 
         with connection.cursor() as cursor:

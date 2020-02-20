@@ -165,3 +165,21 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
     project_markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
 
     pod_cost = models.DecimalField(max_digits=24, decimal_places=6, null=True)
+
+
+class OCPAzureTagsSummary(models.Model):
+    """A collection of all current existing tag key and values."""
+
+    class Meta:
+        """Meta for AzureTagsSummary."""
+
+        db_table = "reporting_ocpazuretags_summary"
+        unique_together = ("key", "cost_entry_bill")
+
+    id = models.BigAutoField(primary_key=True)
+
+    key = models.CharField(max_length=253)
+    values = ArrayField(models.CharField(max_length=253))
+    cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
+    subscription_guid = ArrayField(models.CharField(max_length=50))
+    namespace = ArrayField(models.CharField(max_length=253, null=False))

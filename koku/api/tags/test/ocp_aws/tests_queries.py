@@ -115,7 +115,7 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
 
     def test_get_tag_keys(self):
         """Test that all OCP-on-AWS tag keys are returned."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly"
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, OCPAWSTagView)
         handler = OCPAWSTagQueryHandler(query_params)
 
