@@ -154,7 +154,10 @@ class ExpiredDataRemover:
                 removed_data = self._cleaner.purge_expired_line_item(expired_date=expiration_date, simulate=simulate)
             else:
                 removed_data = self._cleaner.purge_expired_report_data(expired_date=expiration_date, simulate=simulate)
-            # Separately remove expired CostUsageReportManifests
-            CostUsageReportManifest.objects.filter(billing_period_start_datetime__lt=expiration_date).delete()
+                if not line_items_only:
+                    expiration_date = self._calculate_expiration_date()
+                    CostUsageReportManifest.objects.filter(
+                        provider=self._provider, billing_period_start_datetime__lt=expiration_date
+                    ).delete()
 
         return removed_data
