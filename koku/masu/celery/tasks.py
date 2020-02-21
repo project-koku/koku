@@ -75,6 +75,10 @@ def remove_expired_data(simulate=False, line_items_only=False):
 @app.task(name="masu.celery.tasks.upload_normalized_data", queue_name="upload")
 def upload_normalized_data():
     """Scheduled task to export normalized data to s3."""
+    if not settings.ENABLE_S3_ARCHIVING:
+        LOG.info("S3 Archiving is disabled. Not running task.")
+        return
+
     LOG.info("Beginning upload_normalized_data")
     curr_date = DateAccessor().today()
     curr_month_range = calendar.monthrange(curr_date.year, curr_date.month)
@@ -251,6 +255,10 @@ def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, sta
         end_date (string): end date (inclusive)
 
     """
+    if not settings.ENABLE_S3_ARCHIVING:
+        LOG.info("S3 Archiving is disabled. Not running task.")
+        return
+
     LOG.info(
         "query_and_upload_to_s3: schema %s provider_uuid %s table.output_name %s for %s",
         schema_name,
