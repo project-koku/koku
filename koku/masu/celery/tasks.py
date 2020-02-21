@@ -64,12 +64,12 @@ def check_report_updates():
 
 
 @app.task(name="masu.celery.tasks.remove_expired_data")
-def remove_expired_data():
+def remove_expired_data(simulate=False, line_items_only=False):
     """Scheduled task to initiate a job to remove expired report data."""
     today = DateAccessor().today()
     LOG.info("Removing expired data at %s", str(today))
     orchestrator = Orchestrator()
-    orchestrator.remove_expired_report_data()
+    orchestrator.remove_expired_report_data(simulate, line_items_only)
 
 
 @app.task(name="masu.celery.tasks.upload_normalized_data", queue_name="upload")
