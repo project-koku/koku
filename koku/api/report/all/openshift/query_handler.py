@@ -16,9 +16,17 @@
 #
 """OCP Query Handling for Reports."""
 from api.models import Provider
-from api.report.all.openshift.provider_map import OCPAllProviderMap
+from api.report import provider_pm_map
+from api.report import provider_set_map
 from api.report.ocp_aws.query_handler import OCPInfrastructureReportQueryHandlerBase
 from api.report.queries import is_grouped_or_filtered_by_project
+
+
+def get_key_from_value(value, dikt):
+    for k, v in dikt.items():
+        if value == v:
+            return k
+    return "ocp_all"
 
 
 class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
@@ -33,11 +41,16 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
             parameters    (QueryParameters): parameter object for query
 
         """
-        self._mapper = OCPAllProviderMap(provider=self.provider, report_type=parameters.report_type)
+        self._report_type = parameters.report_type
+
         # Update which field is used to calculate cost by group by param.
         if is_grouped_or_filtered_by_project(parameters):
-            self._report_type = parameters.report_type + "_by_project"
-            self._mapper = OCPAllProviderMap(provider=self.provider, report_type=self._report_type)
+            self._report_type += "_by_project"
+
+        access_providers = parameters.get("access_providers")
+        provider = get_key_from_value(access_providers, provider_set_map)
+        provider, pm = provider_pm_map.get(provider)
+        self._mapper = pm(provider=provider, report_type=self._report_type)
 
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")

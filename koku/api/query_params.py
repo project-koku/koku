@@ -41,6 +41,16 @@ class QueryParameters:
 
     """
 
+    providers = {
+        "aws": [("aws", "account", "aws.account")],
+        "azure": [("azure", "subscription_guid", "azure.subscription_guid")],
+        "ocp": [
+            ("ocp", "cluster", "openshift.cluster", True),
+            ("ocp", "node", "openshift.node", False),
+            ("ocp", "project", "openshift.project", False),
+        ],
+    }
+
     def __init__(self, request, caller):
         """Constructor.
 
@@ -72,12 +82,21 @@ class QueryParameters:
                 self.parameters[item] = OrderedDict()
 
         # configure access params.
+        set_access_list = []
         if self.access:
             provider = caller.query_handler.provider.lower()
-            if not hasattr(self, f"_set_access_{provider}"):
-                msg = f'Invalid provider "{provider}".'
-                raise ValidationError({"details": _(msg)})
-            getattr(self, f"_set_access_{provider}")()
+            set_access_list = self._get_providers(provider)
+
+        access_list = []
+        for set_access in set_access_list:
+            access_list.append(self._set_access(*set_access))
+        access_list = list(set(access_list))
+
+        access_providers = []
+        for tup in access_list:
+            if tup[1] is not ():
+                access_providers.append(tup[0])
+        self._parameters["access_providers"] = set(access_providers)
 
         self._set_time_scope_defaults()
         LOG.debug("Query Parameters: %s", self)
@@ -121,12 +140,26 @@ class QueryParameters:
                 param_tag_keys.add(key)
         return param_tag_keys
 
-    def _set_access(self, filter_key, access_key, raise_exception=True):
+    def _get_providers(self, provider):
+        access = []
+        provider_list = provider.split("_")
+        if "all" in provider_list:
+            for p, v in self.providers.items():
+                access.extend(v)
+        else:
+            for p in provider_list:
+                if self.providers.get(p) is None:
+                    msg = f'Invalid provider "{p}".'
+                    raise ValidationError({"details": _(msg)})
+                access.extend(self.providers[p])
+        return access
+
+    def _set_access(self, provider, filter_key, access_key, raise_exception=True):
         """Alter query parameters based on user access."""
         access_list = self.access.get(access_key, {}).get("read", [])
         access_filter_applied = False
         if ReportQueryHandler.has_wildcard(access_list):
-            return
+            return (provider, None)
 
         # check group by
         group_by = self.parameters.get("group_by", {})
@@ -145,36 +178,7 @@ class QueryParameters:
                     self.parameters["filter"][filter_key] = result
             elif access_list:
                 self.parameters["filter"][filter_key] = access_list
-
-    def _set_access_aws(self):
-        """Alter query parameters based on user access."""
-        self._set_access("account", "aws.account")
-
-    def _set_access_azure(self):
-        """Alter query parameters based on user access."""
-        self._set_access("subscription_guid", "azure.subscription_guid")
-
-    def _set_access_ocp(self):
-        """Alter query parameters based on user access."""
-        params = [("cluster", True), ("node", False), ("project", False)]
-        for name, exc in params:
-            self._set_access(name, f"openshift.{name}", raise_exception=exc)
-
-    def _set_access_ocp_aws(self):
-        """Alter query parameters based on user access."""
-        self._set_access_aws()
-        self._set_access_ocp()
-
-    def _set_access_ocp_azure(self):
-        """Alter query parameters based on user access."""
-        self._set_access_azure()
-        self._set_access_ocp()
-
-    def _set_access_ocp_all(self):
-        """Alter query parameters based on user access."""
-        self._set_access_aws()
-        self._set_access_azure()
-        self._set_access_ocp()
+        return (provider, tuple(access_list))
 
     def _set_time_scope_defaults(self):
         """Set the default filter parameters."""
