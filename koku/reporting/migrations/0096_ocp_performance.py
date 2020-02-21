@@ -19,7 +19,6 @@ drop materialized view if exists reporting_ocpallcostlineitem_project_daily_summ
             model_name="ocpawscostlineitemprojectdailysummary", name="cost__proj_sum_namespace_idx"
         ),
         migrations.RemoveIndex(model_name="ocpawscostlineitemprojectdailysummary", name="cost_proj_sum_node_idx"),
-        migrations.RemoveIndex(model_name="ocpazurecostlineitemdailysummary", name="ocpazure_namespace_idx"),
         migrations.RemoveIndex(model_name="ocpazurecostlineitemdailysummary", name="ocpazure_node_idx"),
         migrations.RemoveIndex(
             model_name="ocpazurecostlineitemprojectdailysummary", name="ocpazure_proj_namespace_idx"
@@ -67,10 +66,6 @@ drop materialized view if exists reporting_ocpallcostlineitem_project_daily_summ
         migrations.AddIndex(
             model_name="ocpawscostlineitemprojectdailysummary",
             index=models.Index(fields=["node"], name="cost_proj_sum_node_idx", opclasses=["varchar_pattern_ops"]),
-        ),
-        migrations.AddIndex(
-            model_name="ocpazurecostlineitemdailysummary",
-            index=models.Index(fields=["namespace"], name="ocpazure_namespace_idx", opclasses=["varchar_pattern_ops"]),
         ),
         migrations.AddIndex(
             model_name="ocpazurecostlineitemdailysummary",
@@ -127,7 +122,7 @@ create extension if not exists pg_trgm schema public;
             """
 /* add namespace index for like trigram ops */
 create index if not exists ocp_namespace_idx
-    on   using gin (UPPER(namespace) gin_trgm_ops);
+    on  reporting_ocpusagelineitem_daily using gin (UPPER(namespace) gin_trgm_ops);
 
 /* add node index for like trigram ops */
 create index if not exists ocp_node_idx
@@ -161,10 +156,6 @@ create index if not exists ocp_storage_li_node_like_idx
         # ocp azure cost
         migrations.RunSQL(
             """
-/* add namespace index for like trigram ops */
-create index if not exists ocpazure_namespace_like_idx
-    on reporting_ocpazurecostlineitem_daily_summary using gin (UPPER(namespace) gin_trgm_ops);
-
 /* add node index for like trigram ops */
 create index if not exists ocpazure_node_like_idx
     on reporting_ocpazurecostlineitem_daily_summary using gin (UPPER(node) gin_trgm_ops);
@@ -185,10 +176,6 @@ create index if not exists ocpazure_proj_node_like_idx
         # reporting_ocpawscostlineitem_daily_summary
         migrations.RunSQL(
             """
-/* add namespace index for like trigram ops */
-create index if not exists cost_summary_namespace_like_idx
-    on reporting_ocpawscostlineitem_daily_summary using gin (UPPER(namespace) gin_trgm_ops);
-
 /* add node index for like trigram ops */
 create index if not exists cost_summary_node_like_idx
     on reporting_ocpawscostlineitem_daily_summary using gin (UPPER(node) gin_trgm_ops);
@@ -285,19 +272,15 @@ create materialized view if not exists reporting_ocpallcostlineitem_daily_summar
             reporting_ocpazurecostlineitem_daily_summary.shared_projects,
             reporting_ocpazurecostlineitem_daily_summary.project_costs
            FROM reporting_ocpazurecostlineitem_daily_summary
-          WHERE reporting_ocpazurecostlineitem_daily_summary.usage_start >= date_trunc('month'::text, date_trunc('month'::text, now()) - '1 day'::interval day)) lids;
+          WHERE reporting_ocpazurecostlineitem_daily_summary.usage_start >= date_trunc('month'::text, date_trunc('month'::text, now()) - '1 day'::interval day)) lids
           with no data;
 
 create index mv_reporting_ocpallcostlineitem_daily_summary_namespace_ix
-    on reporting_ocpallcostlineitem_daily_summary (namespace varchar_pattern_ops);
+    on reporting_ocpallcostlineitem_daily_summary using gin (namespace);
 create index mv_reporting_ocpallcostlineitem_daily_summary_node_ix
     on reporting_ocpallcostlineitem_daily_summary (node varchar_pattern_ops);
-create index mv_reporting_ocpallcostlineitem_daily_summary_namespace_like_ix
-    on reporting_ocpallcostlineitem_daily_summary using gin (namespace gin_trgm_ops);
-create index mv_reporting_ocpallcostlineitem_daily_summary_node_like_ix
-    on reporting_ocpallcostlineitem_daily_summary using gin (node gin_trgm_ops);
 create index mv_reporting_ocpallcostlineitem_daily_summary_usage_ix
-    on reporting_ocpallcostlineitem_daily_summary (usage_star);
+    on reporting_ocpallcostlineitem_daily_summary (usage_start);
 
 
 create materialized view if not exists reporting_ocpallcostlineitem_project_daily_summary as
@@ -375,7 +358,8 @@ create materialized view if not exists reporting_ocpallcostlineitem_project_dail
             reporting_ocpazurecostlineitem_project_daily_summary.pod_cost,
             reporting_ocpazurecostlineitem_project_daily_summary.currency AS currency_code
            FROM reporting_ocpazurecostlineitem_project_daily_summary
-          WHERE reporting_ocpazurecostlineitem_project_daily_summary.usage_start >= date_trunc('month'::text, date_trunc('month'::text, now()) - '1 day'::interval day)) lids;
+          WHERE reporting_ocpazurecostlineitem_project_daily_summary.usage_start >= date_trunc('month'::text, date_trunc('month'::text, now()) - '1 day'::interval day)) lids
+          with no data;
 
 create index mv_reporting_ocpallcostlineitem_prj_daily_summary_namespace_ix
     on reporting_ocpallcostlineitem_project_daily_summary (namespace varchar_pattern_ops);
@@ -386,7 +370,7 @@ create index mv_reporting_ocpallcostlineitem_prj_daily_summary_namespace_like_ix
 create index mv_reporting_ocpallcostlineitem_prj_daily_summary_node_like_ix
     on reporting_ocpallcostlineitem_project_daily_summary using gin (node gin_trgm_ops);
 create index mv_reporting_ocpallcostlineitem_prj_daily_summary_usage_ix
-    on reporting_ocpallcostlineitem_project_daily_summary (usage_star);
+    on reporting_ocpallcostlineitem_project_daily_summary (usage_start);
             """
         ),
         migrations.RunSQL(
