@@ -32,6 +32,7 @@ from masu.config import Config
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
+from reporting.provider.ocp.models import OCPNodeLabelLineItem
 from reporting.provider.ocp.models import OCPStorageLineItem
 from reporting.provider.ocp.models import OCPUsageLineItem
 from reporting.provider.ocp.models import OCPUsageReport
@@ -49,7 +50,8 @@ class OCPReportTypes(Enum):
 
     CPU_MEM_USAGE = 1
     STORAGE = 2
-    UNKNOWN = 3
+    NODE_LABELS = 3
+    UNKNOWN = 4
 
 
 class ProcessedOCPReport:
@@ -115,6 +117,15 @@ class OCPReportProcessor:
         "pod_labels",
     ]
 
+    node_label_columns = [
+        "report_period_start",
+        "report_period_end",
+        "node",
+        "interval_start",
+        "interval_end",
+        "node_labels",
+    ]
+
     def __init__(self, schema_name, report_path, compression, provider_uuid):
         """Initialize the report processor.
 
@@ -131,6 +142,8 @@ class OCPReportProcessor:
             self._processor = OCPCpuMemReportProcessor(schema_name, report_path, compression, provider_uuid)
         elif self.report_type == OCPReportTypes.STORAGE:
             self._processor = OCPStorageProcessor(schema_name, report_path, compression, provider_uuid)
+        elif self.report_type == OCPReportTypes.NODE_LABELS:
+            self._processor = OCPNodeLabelProcessor(schema_name, report_path, compression, provider_uuid)
         elif self.report_type == OCPReportTypes.UNKNOWN:
             raise OCPReportProcessorError("Unknown OCP report type.")
 
@@ -140,10 +153,13 @@ class OCPReportProcessor:
         with open(report_path) as report_file:
             reader = csv.reader(report_file)
             column_names = next(reader)
-            if sorted(column_names) == sorted(self.storage_columns):
+            sorted_columns = sorted(column_names)
+            if sorted_columns == sorted(self.storage_columns):
                 report_type = OCPReportTypes.STORAGE
-            elif sorted(column_names) == sorted(self.cpu_mem_usage_columns):
+            elif sorted_columns == sorted(self.cpu_mem_usage_columns):
                 report_type = OCPReportTypes.CPU_MEM_USAGE
+            elif sorted_columns == sorted(self.node_label_columns):
+                report_type = OCPReportTypes.NODE_LABELS
         return report_type
 
     def process(self):
@@ -252,7 +268,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
         return report_period_id
 
-    def _process_pod_labels(self, label_string):
+    def _process_openshift_labels(self, label_string):
         """Convert the report string to a JSON dictionary.
 
         Args:
@@ -391,7 +407,7 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
 
         data["report_period_id"] = report_period_id
         data["report_id"] = report_id
-        data["pod_labels"] = self._process_pod_labels(pod_label_str)
+        data["pod_labels"] = self._process_openshift_labels(pod_label_str)
         # Deduplicate potential repeated rows in data
         key = tuple(data.get(column) for column in self.line_item_conflict_columns)
         if key in self.processed_report.line_item_keys:
@@ -410,7 +426,7 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
 
 
 class OCPStorageProcessor(OCPReportProcessorBase):
-    """OCP Usage Report processor."""
+    """OCP Storage Report processor."""
 
     def __init__(self, schema_name, report_path, compression, provider_uuid):
         """Initialize the report processor.
@@ -460,8 +476,8 @@ class OCPStorageProcessor(OCPReportProcessorBase):
 
         data["report_period_id"] = report_period_id
         data["report_id"] = report_id
-        data["persistentvolume_labels"] = self._process_pod_labels(persistentvolume_labels_str)
-        data["persistentvolumeclaim_labels"] = self._process_pod_labels(persistentvolumeclaim_labels_str)
+        data["persistentvolume_labels"] = self._process_openshift_labels(persistentvolume_labels_str)
+        data["persistentvolumeclaim_labels"] = self._process_openshift_labels(persistentvolumeclaim_labels_str)
 
         # Deduplicate potential repeated rows in data
         key = tuple(data.get(column) for column in self.line_item_conflict_columns)
@@ -478,3 +494,69 @@ class OCPStorageProcessor(OCPReportProcessorBase):
     def line_item_conflict_columns(self):
         """Create a property to check conflict on line items."""
         return ["report_id", "namespace", "persistentvolumeclaim"]
+
+
+class OCPNodeLabelProcessor(OCPReportProcessorBase):
+    """OCP Node Label Report processor."""
+
+    def __init__(self, schema_name, report_path, compression, provider_uuid):
+        """Initialize the report processor.
+
+        Args:
+            schema_name (str): The name of the customer schema to process into
+            report_path (str): Where the report file lives in the file system
+            compression (CONST): How the report file is compressed.
+                Accepted values: UNCOMPRESSED, GZIP_COMPRESSED
+
+        """
+        super().__init__(
+            schema_name=schema_name, report_path=report_path, compression=compression, provider_uuid=provider_uuid
+        )
+        self.table_name = OCPNodeLabelLineItem()
+        stmt = (
+            f"Initialized report processor for:\n"
+            f" schema_name: {self._schema}\n"
+            f" provider_uuid: {provider_uuid}\n"
+            f" file: {self._report_path}"
+        )
+        LOG.info(stmt)
+
+    def _create_usage_report_line_item(self, row, report_period_id, report_id, report_db_accessor):
+        """Create a cost entry line item object.
+
+        Args:
+            row (dict): A dictionary representation of a CSV file row
+            report_period_id (str): A report period object id
+            report_id (str): A report object id
+
+        Returns:
+            (None)
+
+        """
+        data = self._get_data_for_table(row, self.table_name._meta.db_table)
+
+        node_labels_str = ""
+        if "node_labels" in data:
+            node_labels_str = data.pop("node_labels")
+
+        data = report_db_accessor.clean_data(data, self.table_name._meta.db_table)
+
+        data["report_period_id"] = report_period_id
+        data["report_id"] = report_id
+        data["node_labels"] = self._process_openshift_labels(node_labels_str)
+
+        # Deduplicate potential repeated rows in data
+        key = tuple(data.get(column) for column in self.line_item_conflict_columns)
+        if key in self.processed_report.line_item_keys:
+            return
+
+        self.processed_report.line_items.append(data)
+        self.processed_report.line_item_keys[key] = True
+
+        if self.line_item_columns is None:
+            self.line_item_columns = list(data.keys())
+
+    @property
+    def line_item_conflict_columns(self):
+        """Create a property to check conflict on line items."""
+        return ["report_id", "node"]
