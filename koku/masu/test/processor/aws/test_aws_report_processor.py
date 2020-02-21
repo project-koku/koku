@@ -93,6 +93,7 @@ class AWSReportProcessorTest(MasuTestCase):
         _report_tables.pop("line_item_daily", None)
         _report_tables.pop("line_item_daily_summary", None)
         _report_tables.pop("tags_summary", None)
+        _report_tables.pop("ocp_on_aws_tags_summary", None)
         cls.report_tables = list(_report_tables.values())
         # Grab a single row of test data to work with
         with open(cls.test_report_test_path, "r") as f:
@@ -207,6 +208,36 @@ class AWSReportProcessorTest(MasuTestCase):
                 self.assertTrue(count > counts[table_name])
 
         self.assertFalse(os.path.exists(self.test_report))
+
+    def test_process_no_file_on_disk(self):
+        """Test the processing of when the file is not found on disk."""
+        counts = {}
+        base_name = "test_no_cur.csv"
+        no_report = f"{self.temp_dir}/{base_name}"
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=no_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid,
+            manifest_id=self.manifest.id,
+        )
+        report_db = self.accessor
+        report_schema = report_db.report_schema
+        for table_name in self.report_tables:
+            table = getattr(report_schema, table_name)
+            with schema_context(self.schema):
+                count = table.objects.count()
+            counts[table_name] = count
+
+        expected = (
+            "INFO:masu.processor.aws.aws_report_processor:"
+            f"Skip processing for file: {base_name} and "
+            f"schema: {self.schema} as it was not found on disk."
+        )
+        logging.disable(logging.NOTSET)  # We are currently disabling all logging below CRITICAL in masu/__init__.py
+        with self.assertLogs("masu.processor.aws.aws_report_processor", level="INFO") as logger:
+            processor.process()
+            self.assertIn(expected, logger.output)
 
     def test_process_gzip(self):
         """Test the processing of a gzip compressed file."""
@@ -855,6 +886,22 @@ class AWSReportProcessorTest(MasuTestCase):
 
         result = processor._check_for_finalized_bill()
 
+        self.assertFalse(result)
+
+    def test_check_for_finalized_bill_empty_bill(self):
+        """Verify that an empty file is not marked as finalzed."""
+        tmp_file = "/tmp/test_process_finalized_rows.csv"
+
+        with open(tmp_file, "w"):
+            pass
+
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=tmp_file,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid,
+        )
+        result = processor._check_for_finalized_bill()
         self.assertFalse(result)
 
     def test_delete_line_items_success(self):

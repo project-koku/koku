@@ -19,21 +19,49 @@ import calendar
 import datetime
 
 import pint
+import pytz
 from django.utils import timezone
 from pint.errors import UndefinedUnitError
+
+
+def merge_dicts(*list_of_dicts):
+    """Merge a list of dictionaries and combine common keys into a list of values.
+
+        args:
+            list_of_dicts: a list of dictionaries. values within the dicts must be lists
+                dict = {key: [values]}
+
+    """
+    output = {}
+    for dikt in list_of_dicts:
+        for k, v in dikt.items():
+            if not output.get(k):
+                output[k] = v
+            else:
+                output[k].extend(v)
+                output[k] = list(set(output[k]))
+    return output
 
 
 class DateHelper:
     """Helper class with convenience functions."""
 
-    def __init__(self):
+    def __init__(self, utc=False):
         """Initialize when now is."""
-        self._now = timezone.now()
+        if utc:
+            self._now = datetime.datetime.now(tz=pytz.UTC)
+        else:
+            self._now = timezone.now()
 
     @property
     def now(self):
         """Return current time at timezone."""
         return timezone.now()
+
+    @property
+    def now_utc(self):
+        """Return current time at timezone."""
+        return datetime.datetime.now(tz=pytz.UTC)
 
     @property
     def one_day(self):
@@ -110,6 +138,15 @@ class DateHelper:
         """Datetime of midnight on the last day of next month."""
         month_end = self.days_in_month(self.next_month_start)
         return self.next_month_start.replace(day=month_end)
+
+    def month_start(self, in_date):
+        """Datetime of midnight on the 1st of in_date month."""
+        return in_date.replace(microsecond=0, second=0, minute=0, hour=0, day=1)
+
+    def month_end(self, in_date):
+        """Datetime of midnight on the last day of the in_date month."""
+        month_end = self.days_in_month(in_date)
+        return in_date.replace(microsecond=0, second=0, minute=0, hour=0, day=month_end)
 
     def next_month(self, in_date):
         """Return the first of the next month from the in_date.

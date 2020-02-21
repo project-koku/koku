@@ -50,6 +50,7 @@ class ReportingCommonDBAccessorTest(MasuTestCase):
         tables.remove(AWS_CUR_TABLE_MAP["tags_summary"])
         tables.remove(AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"])
         tables.remove(AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"])
+        tables.remove(AWS_CUR_TABLE_MAP["ocp_on_aws_tags_summary"])
         for table in tables:
             self.assertIn(table, keys)
 

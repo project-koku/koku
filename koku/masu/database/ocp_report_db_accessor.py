@@ -104,13 +104,16 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 .first()
             )
 
-    def get_usage_period_before_date(self, date):
+    def get_usage_period_before_date(self, date, provider_uuid=None):
         """Get the usage report period objects before provided date."""
         table_name = OCP_REPORT_TABLE_MAP["report_period"]
 
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
-            usage_period_query = base_query.filter(report_period_start__lte=date)
+            if provider_uuid:
+                usage_period_query = base_query.filter(report_period_start__lte=date, provider_id=provider_uuid)
+            else:
+                usage_period_query = base_query.filter(report_period_start__lte=date)
             return usage_period_query
 
     # pylint: disable=invalid-name
@@ -569,17 +572,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         table_name = OCP_REPORT_TABLE_MAP["pod_label_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpusagepodlabel_summary.sql")
-        agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema}
-        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
-        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
-
-    # pylint: disable=invalid-name
-    def populate_volume_claim_label_summary_table(self):
-        """Populate the OCP volume claim label summary table."""
-        table_name = OCP_REPORT_TABLE_MAP["volume_claim_label_summary"]
-
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpstoragevolumeclaimlabel_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {"schema": self.schema}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
