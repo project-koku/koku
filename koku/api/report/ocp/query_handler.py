@@ -70,7 +70,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             (Dict): query annotations dictionary
 
         """
-        annotations = {"date": F("usage_start")}
+        annotations = {"date": self.date_trunc("usage_start")}
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get("annotations")
         for q_param, db_field in fields.items():
