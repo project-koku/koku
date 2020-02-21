@@ -22,9 +22,15 @@ from django.test import TestCase
 from faker import Faker
 from rest_framework.serializers import ValidationError
 
+from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from providers.azure.provider import AzureProvider
 
 FAKE = Faker()
+
+
+def throws_azure_nocosterror():
+    """Raise error for testing."""
+    raise AzureCostReportNotFound()
 
 
 class AzureProviderTestCase(TestCase):
@@ -97,6 +103,23 @@ class AzureProviderTestCase(TestCase):
 
         with patch("providers.azure.provider.AzureService") as MockHelper:
             MockHelper.return_value.describe_cost_management_exports.return_value = []
+            azure_provider = AzureProvider()
+            with self.assertRaises(ValidationError):
+                azure_provider.cost_usage_source_is_reachable(credentials, source_name)
+
+    @patch("providers.azure.provider.AzureClientFactory")
+    def test_cost_usage_source_reachable_no_auth_cost_export(self, _):
+        """Test that cost_usage_source_is_reachable raises an exception when no auth to get cost reports."""
+        credentials = {
+            "subscription_id": FAKE.uuid4(),
+            "tenant_id": FAKE.uuid4(),
+            "client_id": FAKE.uuid4(),
+            "client_secret": FAKE.word(),
+        }
+        source_name = {"resource_group": FAKE.word(), "storage_account": FAKE.word()}
+
+        with patch("providers.azure.provider.AzureService") as MockHelper:
+            MockHelper.return_value.describe_cost_management_exports.side_effect = throws_azure_nocosterror
             azure_provider = AzureProvider()
             with self.assertRaises(ValidationError):
                 azure_provider.cost_usage_source_is_reachable(credentials, source_name)
