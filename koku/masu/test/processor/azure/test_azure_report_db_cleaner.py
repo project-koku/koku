@@ -250,18 +250,11 @@ class AzureReportDBCleanerTest(MasuTestCase):
             self.assertEqual(self.accessor._get_db_obj_query(bill_table_name).all().count(), 1)
             self.assertEqual(self.accessor._get_db_obj_query(line_item_table_name).count(), 1)
 
-    def test_purge_expired_line_item_no_args(self):
-        """Test that the provider_uuid deletes all data for the provider."""
+    def test_purge_expired_line_items_not_datetime_obj(self):
+        """Test error raised if expired_date is not datetime.datetime."""
         cleaner = AzureReportDBCleaner(self.schema)
         with self.assertRaises(AzureReportDBCleanerError):
-            cleaner.purge_expired_line_item()
-
-    def test_purge_expired_line_item_both_args(self):
-        """Test that the provider_uuid deletes all data for the provider."""
-        now = datetime.datetime.utcnow()
-        cleaner = AzureReportDBCleaner(self.schema)
-        with self.assertRaises(AzureReportDBCleanerError):
-            cleaner.purge_expired_line_item(expired_date=now, provider_uuid=self.azure_provider_uuid)
+            cleaner.purge_expired_line_item(False)
 
     def test_purge_expired_line_item_on_date(self):
         """Test to remove report data on a provided date."""
@@ -371,11 +364,11 @@ class AzureReportDBCleanerTest(MasuTestCase):
 
         with schema_context(self.schema):
             first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
-
+            cutoff_date = first_bill.billing_period_start
             self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
             self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
 
-        removed_data = cleaner.purge_expired_line_item(provider_uuid=self.azure_provider_uuid)
+        removed_data = cleaner.purge_expired_line_item(cutoff_date, provider_uuid=self.azure_provider_uuid)
 
         self.assertEqual(len(removed_data), 1)
         self.assertEqual(removed_data[0].get("provider_uuid"), first_bill.provider_id)
@@ -423,11 +416,11 @@ class AzureReportDBCleanerTest(MasuTestCase):
         with schema_context(self.schema):
             # Verify that data is cleared for a cutoff date == billing_period_start
             first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
-
+            cutoff_date = first_bill.billing_period_start
             self.assertEqual(self.accessor._get_db_obj_query(bill_table_name).all().count(), 2)
             self.assertEqual(self.accessor._get_db_obj_query(line_item_table_name).all().count(), 2)
 
-        removed_data = cleaner.purge_expired_line_item(provider_uuid=self.azure_provider_uuid)
+        removed_data = cleaner.purge_expired_line_item(cutoff_date, provider_uuid=self.azure_provider_uuid)
 
         self.assertEqual(len(removed_data), 1)
         self.assertEqual(removed_data[0].get("provider_uuid"), first_bill.provider_id)
