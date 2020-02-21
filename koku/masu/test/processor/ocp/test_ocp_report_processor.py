@@ -77,6 +77,7 @@ class OCPReportProcessorTest(MasuTestCase):
             "./koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv"
         )
         cls.storage_report_path = "./koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_storage.csv"
+        cls.node_report_path = "./koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_node_labels.csv"
         cls.unknown_report = "./koku/masu/test/data/test_cur.csv"
         cls.test_report_gzip_path = "./koku/masu/test/data/test_cur.csv.gz"
 
@@ -108,9 +109,11 @@ class OCPReportProcessorTest(MasuTestCase):
         self.temp_dir = tempfile.mkdtemp()
         self.test_report = f"{self.temp_dir}/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv"
         self.storage_report = f"{self.temp_dir}/e6b3701e-1e91-433b-b238-a31e49937558_storage.csv"
+        self.node_report = f"{self.temp_dir}/e6b3701e-1e91-433b-b238-a31e49937558_node_labels.csv"
         self.test_report_gzip = f"{self.temp_dir}/test_cur.csv.gz"
         shutil.copy2(self.test_report_path, self.test_report)
         shutil.copy2(self.storage_report_path, self.storage_report)
+        shutil.copy2(self.node_report_path, self.node_report)
         shutil.copy2(self.test_report_gzip_path, self.test_report_gzip)
 
         self.manifest_dict = {
@@ -168,6 +171,14 @@ class OCPReportProcessorTest(MasuTestCase):
             provider_uuid=self.ocp_provider_uuid,
         )
         self.assertEqual(storage_processor.report_type, OCPReportTypes.STORAGE)
+
+        node_label_processor = OCPReportProcessor(
+            schema_name="acct10001",
+            report_path=self.node_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.ocp_provider_uuid,
+        )
+        self.assertEqual(node_label_processor.report_type, OCPReportTypes.NODE_LABELS)
 
         with self.assertRaises(OCPReportProcessorError):
             OCPReportProcessor(
@@ -490,23 +501,23 @@ class OCPReportProcessorTest(MasuTestCase):
 
         self.assertIsNotNone(self.ocp_processor._processor.line_item_columns)
 
-    def test_process_pod_labels(self):
+    def test_process_openshift_labels(self):
         """Test that our report label string format is parsed."""
         test_label_str = "label_one:first|label_two:next|label_three:final"
 
         expected = json.dumps({"one": "first", "two": "next", "three": "final"})
 
-        result = self.ocp_processor._processor._process_pod_labels(test_label_str)
+        result = self.ocp_processor._processor._process_openshift_labels(test_label_str)
 
         self.assertEqual(result, expected)
 
-    def test_process_pod_labels_bad_label_str(self):
+    def test_process_openshift_labels_bad_label_str(self):
         """Test that a bad string is handled."""
         test_label_str = "label_onefirst|label_twonext|label_threefinal"
 
         expected = json.dumps({})
 
-        result = self.ocp_processor._processor._process_pod_labels(test_label_str)
+        result = self.ocp_processor._processor._process_openshift_labels(test_label_str)
 
         self.assertEqual(result, expected)
 
@@ -570,6 +581,44 @@ class OCPReportProcessorTest(MasuTestCase):
                 count = table.objects.count()
             self.assertTrue(count == counts[table_name])
 
+    def test_process_node_label_duplicates(self):
+        """Test that row duplicate node label rows are not inserted into the DB."""
+        counts = {}
+        processor = OCPReportProcessor(
+            schema_name="acct10001",
+            report_path=self.node_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.ocp_provider_uuid,
+        )
+
+        # Process for the first time
+        processor.process()
+
+        report_db = self.accessor
+        report_schema = report_db.report_schema
+
+        for table_name in self.report_tables:
+            table = getattr(report_schema, table_name)
+            with schema_context(self.schema):
+                count = table.objects.count()
+            counts[table_name] = count
+
+        shutil.copy2(self.node_report_path, self.node_report)
+
+        processor = OCPReportProcessor(
+            schema_name="acct10001",
+            report_path=self.node_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.ocp_provider_uuid,
+        )
+        # Process for the second time
+        processor.process()
+        for table_name in self.report_tables:
+            table = getattr(report_schema, table_name)
+            with schema_context(self.schema):
+                count = table.objects.count()
+            self.assertTrue(count == counts[table_name])
+
     def test_process_usage_and_storage_default(self):
         """Test the processing of an uncompressed storage and usage files."""
         storage_processor = OCPReportProcessor(
@@ -611,3 +660,23 @@ class OCPReportProcessorTest(MasuTestCase):
         with schema_context(self.schema):
             after_count = table.objects.count()
         self.assertGreater(after_count, before_count)
+
+        node_label_processor = OCPReportProcessor(
+            schema_name="acct10001",
+            report_path=self.node_report,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.ocp_provider_uuid,
+        )
+
+        report_db = self.accessor
+        table_name = OCP_REPORT_TABLE_MAP["node_label_line_item"]
+        report_schema = report_db.report_schema
+        table = getattr(report_schema, table_name)
+        with schema_context(self.schema):
+            node_label_before_count = table.objects.count()
+
+        node_label_processor.process()
+
+        with schema_context(self.schema):
+            node_label_after_count = table.objects.count()
+        self.assertGreater(node_label_after_count, node_label_before_count)
