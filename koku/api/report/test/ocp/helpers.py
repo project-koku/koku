@@ -38,6 +38,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.utils import DateHelper
 from reporting.models import CostSummary
+from reporting.models import OCPNodeLabelLineItem
 from reporting.models import OCPStorageLineItem
 from reporting.models import OCPStorageLineItemDaily
 from reporting.models import OCPUsageLineItem
@@ -163,6 +164,7 @@ class OCPReportDataGenerator:
                     report = self.create_ocp_report(report_period, report_date)
                     self.create_line_items(report_period, report, self.resource_id)
                     self.create_storage_line_items(report_period, report)
+                    self.create_node_label_line_items(report_period, report)
                 self.set_manifest_completed(manifest_entry)
 
             self._populate_daily_table()
@@ -187,6 +189,7 @@ class OCPReportDataGenerator:
                 OCPUsageLineItemDailySummary,
                 OCPStorageLineItem,
                 OCPStorageLineItemDaily,
+                OCPNodeLabelLineItem,
                 OCPUsageReport,
                 OCPUsageReportPeriod,
             ):
@@ -220,7 +223,7 @@ class OCPReportDataGenerator:
         report.save()
         return report
 
-    def _gen_pod_labels(self, report):
+    def _gen_openshift_labels(self, report):
         """Create pod labels for output data."""
         apps = [
             self.fake.word(),
@@ -305,7 +308,7 @@ class OCPReportDataGenerator:
                 "node_capacity_cpu_core_seconds": Decimal(node_cpu_cores * 3600),
                 "node_capacity_memory_bytes": Decimal(node_memory_gb * 1e9),
                 "node_capacity_memory_byte_seconds": Decimal(node_memory_gb * 1e7 * 3600),
-                "pod_labels": self._gen_pod_labels(report),
+                "pod_labels": self._gen_openshift_labels(report),
                 "resource_id": f"i-{resource_id}",
             }
             line_item = OCPUsageLineItem(**data)
@@ -519,8 +522,8 @@ class OCPReportDataGenerator:
                 "persistentvolumeclaim_usage_byte_seconds": Decimal(random.uniform(0, 3600) * 1e9),
                 "persistentvolumeclaim_capacity_bytes": Decimal(vol_gb * 1e9),
                 "persistentvolumeclaim_capacity_byte_seconds": Decimal(vol_gb * 1e7 * 3600),
-                "persistentvolume_labels": self._gen_pod_labels(report),
-                "persistentvolumeclaim_labels": self._gen_pod_labels(report),
+                "persistentvolume_labels": self._gen_openshift_labels(report),
+                "persistentvolumeclaim_labels": self._gen_openshift_labels(report),
             }
             line_item = OCPStorageLineItem(**data)
             line_item.save()
@@ -614,3 +617,15 @@ class OCPReportDataGenerator:
 
         with connection.cursor() as cursor:
             cursor.execute(agg_sql)
+
+    def create_node_label_line_items(self, report_period, report):
+        """Create OCP hourly node label line items."""
+        for row in self.line_items:
+            data = {
+                "report_period": report_period,
+                "report": report,
+                "node": row.get("node"),
+                "node_labels": self._gen_openshift_labels(report),
+            }
+            line_item = OCPNodeLabelLineItem(**data)
+            line_item.save()
