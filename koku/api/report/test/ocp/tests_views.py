@@ -511,7 +511,7 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             cost = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__date__gte=self.dh.this_month_start)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
                 .aggregate(
                     total=Sum(
                         Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
@@ -555,7 +555,7 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             current_total = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__date__gte=this_month_start)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=this_month_start)
                 .aggregate(
                     total=Sum(
                         Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
@@ -571,7 +571,7 @@ class OCPReportViewTest(IamTestCase):
             current_total = current_total if current_total is not None else 0
 
             current_totals = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__date__gte=this_month_start)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=this_month_start)
                 .annotate(**{"date": TruncDayString("usage_start")})
                 .values(*["date"])
                 .annotate(
@@ -587,8 +587,8 @@ class OCPReportViewTest(IamTestCase):
             )
 
             prev_totals = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__date__gte=last_month_start)
-                .filter(usage_start__date__lt=this_month_start)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=last_month_start)
+                .filter(usage_start__lt=this_month_start)
                 .annotate(**{"date": TruncDayString("usage_start")})
                 .values(*["date"])
                 .annotate(

@@ -271,8 +271,8 @@ class QueryHandler:
             start = self.start_datetime
             end = self.end_datetime
 
-        start_filter = QueryFilter(field="usage_start__date", operation="gte", parameter=start)
-        end_filter = QueryFilter(field="usage_end__date", operation="lte", parameter=end)
+        start_filter = QueryFilter(field="usage_start", operation="gte", parameter=start)
+        end_filter = QueryFilter(field="usage_end", operation="lte", parameter=end)
         return start_filter, end_filter
 
     def _get_filter(self, delta=False):
