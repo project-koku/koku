@@ -94,12 +94,15 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             bills = bills.filter(billing_period_start=bill_date)
         return bills
 
-    def get_bill_query_before_date(self, date):
+    def get_bill_query_before_date(self, date, provider_uuid=None):
         """Get the cost entry bill objects with billing period before provided date."""
         table_name = AWSCostEntryBill
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
-            cost_entry_bill_query = base_query.filter(billing_period_start__lte=date)
+            if provider_uuid:
+                cost_entry_bill_query = base_query.filter(billing_period_start__lte=date, provider_id=provider_uuid)
+            else:
+                cost_entry_bill_query = base_query.filter(billing_period_start__lte=date)
             return cost_entry_bill_query
 
     def get_lineitem_query_for_billid(self, bill_id):
@@ -251,13 +254,9 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = AWS_CUR_TABLE_MAP["tags_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_cloudtags_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_awstags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {
-            "schema": self.schema,
-            "tag_table": "reporting_awstags_summary",
-            "lineitem_table": "reporting_awscostentrylineitem_daily",
-        }
+        agg_sql_params = {"schema": self.schema}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
@@ -288,6 +287,16 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
+
+    def populate_ocp_on_aws_tags_summary_table(self):
+        """Populate the line item aggregated totals data table."""
+        table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_tags_summary"]
+
+        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpawstags_summary.sql")
+        agg_sql = agg_sql.decode("utf-8")
+        agg_sql_params = {"schema": self.schema}
+        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
+        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def populate_markup_cost(self, markup, bill_ids=None):
         """Set markup costs in the database."""

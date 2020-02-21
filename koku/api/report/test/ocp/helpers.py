@@ -172,7 +172,6 @@ class OCPReportDataGenerator:
             self._populate_charge_info()
             self._populate_storage_charge_info()
             self._populate_pod_label_summary_table()
-            self._populate_volume_claim_label_summary_table()
             self._populate_volume_label_summary_table()
             self._populate_cost_summary_table()
 
@@ -599,16 +598,6 @@ class OCPReportDataGenerator:
     def _populate_pod_label_summary_table(self):
         """Populate pod label key and values."""
         agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpusagepodlabel_summary.sql")
-        agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": connection.schema_name}
-        agg_sql, agg_sql_params = JinjaSql().prepare_query(agg_sql, agg_sql_params)
-
-        with connection.cursor() as cursor:
-            cursor.execute(agg_sql)
-
-    def _populate_volume_claim_label_summary_table(self):
-        """Populate volume claim label key and values."""
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpstoragevolumeclaimlabel_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {"schema": connection.schema_name}
         agg_sql, agg_sql_params = JinjaSql().prepare_query(agg_sql, agg_sql_params)

@@ -336,12 +336,12 @@ class AWSReportDBCleanerTest(MasuTestCase):
         with schema_context(self.schema):
             # Verify that data is cleared for a cutoff date == billing_period_start
             first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
-
+            cutoff_date = first_bill.billing_period_start
             self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
             self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
             self.assertIsNotNone(self.accessor._get_db_obj_query(cost_entry_table_name).first())
 
-        removed_data = cleaner.purge_expired_line_item(provider_uuid=self.aws_provider_uuid)
+        removed_data = cleaner.purge_expired_line_item(cutoff_date, provider_uuid=self.aws_provider_uuid)
 
         self.assertEqual(len(removed_data), 1)
         self.assertEqual(removed_data[0].get("account_payer_id"), first_bill.payer_account_id)
@@ -352,15 +352,8 @@ class AWSReportDBCleanerTest(MasuTestCase):
             self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
             self.assertIsNotNone(self.accessor._get_db_obj_query(cost_entry_table_name).first())
 
-    def test_purge_expired_line_items_no_args(self):
-        """Test that the provider_uuid deletes all data for the provider."""
+    def test_purge_expired_line_items_not_datetime_obj(self):
+        """Test error raised if expired_date is not datetime.datetime."""
         cleaner = AWSReportDBCleaner(self.schema)
         with self.assertRaises(AWSReportDBCleanerError):
-            cleaner.purge_expired_line_item()
-
-    def test_purge_expired_line_items_both_args(self):
-        """Test that the provider_uuid deletes all data for the provider."""
-        now = datetime.datetime.utcnow()
-        cleaner = AWSReportDBCleaner(self.schema)
-        with self.assertRaises(AWSReportDBCleanerError):
-            cleaner.purge_expired_line_item(expired_date=now, provider_uuid=self.aws_provider_uuid)
+            cleaner.purge_expired_line_item(False)

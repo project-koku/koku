@@ -18,14 +18,18 @@
 from api.models import Provider
 from api.report.all.openshift.provider_map import OCPAllProviderMap
 from api.tags.queries import TagQueryHandler
-from reporting.models import OCPAllCostLineItemDailySummary
+from reporting.models import OCPAWSTagsSummary
+from reporting.models import OCPAzureTagsSummary
 
 
 class OCPAllTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for OCP-on-All."""
 
-    data_sources = [{"db_table": OCPAllCostLineItemDailySummary, "db_column": "tags"}]
     provider = Provider.OCP_ALL
+    data_sources = [
+        {"db_table": OCPAWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"},
+        {"db_table": OCPAzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period"},
+    ]
 
     def __init__(self, parameters):
         """Establish OCP on All infrastructure tag query handler.
