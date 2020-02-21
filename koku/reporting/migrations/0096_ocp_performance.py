@@ -228,8 +228,8 @@ create materialized view if not exists reporting_ocpallcostlineitem_daily_summar
             reporting_ocpawscostlineitem_daily_summary.namespace,
             reporting_ocpawscostlineitem_daily_summary.node,
             reporting_ocpawscostlineitem_daily_summary.resource_id,
-            reporting_ocpawscostlineitem_daily_summary.usage_start,
-            reporting_ocpawscostlineitem_daily_summary.usage_end,
+            reporting_ocpawscostlineitem_daily_summary.usage_start::date,
+            reporting_ocpawscostlineitem_daily_summary.usage_end::date,
             reporting_ocpawscostlineitem_daily_summary.usage_account_id,
             reporting_ocpawscostlineitem_daily_summary.account_alias_id,
             reporting_ocpawscostlineitem_daily_summary.product_code,
@@ -254,8 +254,8 @@ create materialized view if not exists reporting_ocpallcostlineitem_daily_summar
             reporting_ocpazurecostlineitem_daily_summary.namespace,
             reporting_ocpazurecostlineitem_daily_summary.node,
             reporting_ocpazurecostlineitem_daily_summary.resource_id,
-            reporting_ocpazurecostlineitem_daily_summary.usage_start,
-            reporting_ocpazurecostlineitem_daily_summary.usage_end,
+            reporting_ocpazurecostlineitem_daily_summary.usage_start::date,
+            reporting_ocpazurecostlineitem_daily_summary.usage_end::date,
             reporting_ocpazurecostlineitem_daily_summary.subscription_guid AS usage_account_id,
             NULL::integer AS account_alias_id,
             reporting_ocpazurecostlineitem_daily_summary.service_name AS product_code,
@@ -282,6 +282,8 @@ create index mv_reporting_ocpallcostlineitem_daily_summary_node_ix
 create index mv_reporting_ocpallcostlineitem_daily_summary_usage_ix
     on reporting_ocpallcostlineitem_daily_summary (usage_start);
 
+
+drop materialized view if exists reporting_ocpallcostlineitem_project_daily_summary;
 
 create materialized view if not exists reporting_ocpallcostlineitem_project_daily_summary as
  SELECT row_number() OVER () AS id,
@@ -316,8 +318,8 @@ create materialized view if not exists reporting_ocpallcostlineitem_project_dail
             reporting_ocpawscostlineitem_project_daily_summary.node,
             reporting_ocpawscostlineitem_project_daily_summary.pod_labels,
             reporting_ocpawscostlineitem_project_daily_summary.resource_id,
-            reporting_ocpawscostlineitem_project_daily_summary.usage_start,
-            reporting_ocpawscostlineitem_project_daily_summary.usage_end,
+            reporting_ocpawscostlineitem_project_daily_summary.usage_start::date,
+            reporting_ocpawscostlineitem_project_daily_summary.usage_end::date,
             reporting_ocpawscostlineitem_project_daily_summary.usage_account_id,
             reporting_ocpawscostlineitem_project_daily_summary.account_alias_id,
             reporting_ocpawscostlineitem_project_daily_summary.product_code,
@@ -342,8 +344,8 @@ create materialized view if not exists reporting_ocpallcostlineitem_project_dail
             reporting_ocpazurecostlineitem_project_daily_summary.node,
             reporting_ocpazurecostlineitem_project_daily_summary.pod_labels,
             reporting_ocpazurecostlineitem_project_daily_summary.resource_id,
-            reporting_ocpazurecostlineitem_project_daily_summary.usage_start,
-            reporting_ocpazurecostlineitem_project_daily_summary.usage_end,
+            reporting_ocpazurecostlineitem_project_daily_summary.usage_start::date,
+            reporting_ocpazurecostlineitem_project_daily_summary.usage_end::date,
             reporting_ocpazurecostlineitem_project_daily_summary.subscription_guid AS usage_account_id,
             NULL::integer AS account_alias_id,
             reporting_ocpazurecostlineitem_project_daily_summary.service_name AS product_code,
