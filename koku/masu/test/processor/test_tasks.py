@@ -20,6 +20,7 @@ import os
 import shutil
 import tempfile
 from datetime import date
+from datetime import datetime
 from datetime import timedelta
 from unittest.mock import ANY
 from unittest.mock import Mock
@@ -803,12 +804,13 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         ce_table_name = OCP_REPORT_TABLE_MAP["report"]
         daily_table_name = OCP_REPORT_TABLE_MAP["line_item_daily"]
 
-        start_date = self.start_date.replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        ) + relativedelta.relativedelta(months=-1)
+        if isinstance(self.start_date, datetime):
+            start_date = self.start_date.date()
+        else:
+            start_date = self.start_date
+        start_date = start_date.replace(day=1) + relativedelta.relativedelta(months=-1)
 
         end_date = start_date + timedelta(days=10)
-        end_date = end_date.replace(hour=23, minute=59, second=59)
 
         daily_table = getattr(self.ocp_accessor.report_schema, daily_table_name)
         ce_table = getattr(self.ocp_accessor.report_schema, ce_table_name)

@@ -707,8 +707,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             return
 
         LOG.info("Removing monthly costs from %s to %s.", start_date, end_date)
-
-        first_month = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        if isinstance(start_date, datetime.datetime):
+            first_month = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        else:
+            first_month = start_date.replace(day=1)
 
         with schema_context(self.schema):
             # Calculate monthly cost for every month

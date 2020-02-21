@@ -639,15 +639,15 @@ class AzureReportQueryHandlerTest(IamTestCase):
             # fetch the expected sums from the DB.
             with tenant_context(self.tenant):
                 curr = AzureCostEntryLineItemDailySummary.objects.filter(
-                    usage_start__date__gte=self.dh.this_month_start,
-                    usage_start__date__lte=self.dh.today,
+                    usage_start__gte=self.dh.this_month_start,
+                    usage_start__lte=self.dh.today,
                     subscription_guid=sub.get("subscription_guid"),
                 ).aggregate(value=Sum(F("pretax_cost") + F("markup_cost")))
                 current_total = Decimal(curr.get("value"))
 
                 prev = AzureCostEntryLineItemDailySummary.objects.filter(
-                    usage_start__date__gte=self.dh.last_month_start,
-                    usage_start__date__lte=self.dh.today - relativedelta(months=1),
+                    usage_start__gte=self.dh.last_month_start,
+                    usage_start__lte=self.dh.today - relativedelta(months=1),
                     subscription_guid=sub.get("subscription_guid"),
                 ).aggregate(value=Sum(F("pretax_cost") + F("markup_cost")))
                 prev_total = Decimal(prev.get("value", Decimal(0)))
