@@ -314,6 +314,7 @@ class OCPUsagePodLabelSummary(models.Model):
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
+    namespace = ArrayField(models.CharField(max_length=253))
 
 
 class OCPStorageLineItem(models.Model):
@@ -420,6 +421,7 @@ class OCPStorageVolumeLabelSummary(models.Model):
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
+    namespace = ArrayField(models.CharField(max_length=253))
 
 
 class OCPStorageVolumeClaimLabelSummary(models.Model):
@@ -436,3 +438,25 @@ class OCPStorageVolumeClaimLabelSummary(models.Model):
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
+    namespace = ArrayField(models.CharField(max_length=253))
+
+
+class OCPNodeLabelLineItem(models.Model):
+    """Raw report label data for OpenShift nodes."""
+
+    class Meta:
+        """Meta for OCPNodeLabelLineItem."""
+
+        db_table = "reporting_ocpnodelabellineitem"
+        unique_together = ("report", "node")
+
+    id = models.BigAutoField(primary_key=True)
+
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
+
+    report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE)
+
+    # Kubernetes objects by convention have a max name length of 253 chars
+    node = models.CharField(max_length=253, null=True)
+
+    node_labels = JSONField(null=True)

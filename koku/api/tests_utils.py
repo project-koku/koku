@@ -17,6 +17,7 @@
 """Test the API utils module."""
 import datetime
 import random
+import unittest
 
 import pint
 from dateutil.relativedelta import relativedelta
@@ -25,7 +26,37 @@ from django.utils import timezone
 from pint.errors import UndefinedUnitError
 
 from api.utils import DateHelper
+from api.utils import merge_dicts
 from api.utils import UnitConverter
+
+
+class MergeDictsTest(unittest.TestCase):
+    """Test the merge_dicts util."""
+
+    def test_merge_dicts_simple(self):
+        dikt1 = {"key": ["value"]}
+        dikt2 = {"k": ["v"]}
+        expected_1 = {"key": ["value"], "k": ["v"]}
+        merge1 = merge_dicts(dikt1, dikt2)
+        for k, v in expected_1.items():
+            self.assertEqual(sorted(merge1[k]), sorted(v))
+
+    def test_merge_dicts_more_complex(self):
+        dikt1 = {"key": ["value"]}
+        dikt3 = {"key": ["value2"], "k": ["v"]}
+        expected_2 = {"key": ["value", "value2"], "k": ["v"]}
+        merge2 = merge_dicts(dikt1, dikt3)
+        for k, v in expected_2.items():
+            self.assertEqual(sorted(merge2[k]), sorted(v))
+
+    def test_merge_dicts_even_more_complex(self):
+        dikt1 = {"key": ["value"]}
+        dikt2 = {"k": ["v"]}
+        dikt3 = {"key": ["value2"], "k": ["v"]}
+        expected_2 = {"key": ["value", "value2"], "k": ["v"]}
+        merge3 = merge_dicts(dikt1, dikt2, dikt3)
+        for k, v in expected_2.items():
+            self.assertEqual(sorted(merge3[k]), sorted(v))
 
 
 class DateHelperTest(TestCase):
@@ -132,6 +163,17 @@ class DateHelperTest(TestCase):
         today = timezone.now().replace(microsecond=0, second=0, minute=0, hour=0)
         two_days_ago = (today - delta_day) - delta_day
         self.assertEqual(self.date_helper.n_days_ago(today, 2), two_days_ago)
+
+    def test_month_start(self):
+        """Test month start method."""
+        today = self.date_helper.today
+        expected = datetime.datetime(1970, 1, 1, 0, 0, 0, 0)
+        self.assertEqual(self.date_helper.month_start(today), expected)
+
+    def test_month_end(self):
+        today = self.date_helper.today
+        expected = datetime.datetime(1970, 1, 31, 0, 0, 0, 0)
+        self.assertEqual(self.date_helper.month_end(today), expected)
 
 
 class APIUtilsUnitConverterTest(TestCase):

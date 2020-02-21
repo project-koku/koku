@@ -29,6 +29,7 @@ from tenant_schemas.utils import schema_context
 
 import masu.prometheus_stats as worker_stats
 from api.provider.models import Provider
+from api.utils import DateHelper
 from koku.celery import app
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
@@ -41,6 +42,7 @@ from masu.processor._tasks.remove_expired import _remove_expired_data
 from masu.processor.report_charge_updater import ReportChargeUpdater
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
+from masu.processor.worker_cache import WorkerCache
 from reporting.models import AWS_MATERIALIZED_VIEWS
 
 LOG = get_task_logger(__name__)
@@ -72,8 +74,9 @@ def get_report_files(
     """
     worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
     month = parser.parse(report_month)
+    cache_key = f"{provider_uuid}:{month}"
     reports = _get_report_files(
-        self, customer_name, authentication, billing_source, provider_type, provider_uuid, month
+        self, customer_name, authentication, billing_source, provider_type, provider_uuid, month, cache_key
     )
 
     try:
@@ -135,12 +138,14 @@ def get_report_files(
         worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
         LOG.error(str(processing_error))
         raise processing_error
+    finally:
+        WorkerCache().remove_task_from_cache(cache_key)
 
     return reports_to_summarize
 
 
 @app.task(name="masu.processor.tasks.remove_expired_data", queue_name="remove_expired")
-def remove_expired_data(schema_name, provider, simulate, provider_uuid=None):
+def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, line_items_only=False):
     """
     Remove expired report data.
 
@@ -158,10 +163,11 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None):
         f" schema_name: {schema_name},\n"
         f" provider: {provider},\n"
         f" simulate: {simulate},\n"
-        f" provider_uuid: {provider_uuid}"
+        f" provider_uuid: {provider_uuid},\n",
+        f" line_items_only: {line_items_only}",
     )
     LOG.info(stmt)
-    _remove_expired_data(schema_name, provider, simulate, provider_uuid)
+    _remove_expired_data(schema_name, provider, simulate, provider_uuid, line_items_only)
 
 
 @app.task(name="masu.processor.tasks.summarize_reports", queue_name="process")
@@ -230,10 +236,27 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
         start_date, end_date = updater.update_daily_tables(start_date, end_date)
         updater.update_summary_tables(start_date, end_date)
     if provider_uuid:
-        chain(
-            update_charge_info.s(schema_name, provider_uuid, start_date, end_date),
-            refresh_materialized_views.si(schema_name, provider, manifest_id),
-        ).apply_async()
+        dh = DateHelper(utc=True)
+        prev_month_last_day = dh.last_month_end
+        start_date_obj = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+        prev_month_last_day = prev_month_last_day.replace(tzinfo=None)
+        prev_month_last_day = prev_month_last_day.replace(microsecond=0, second=0, minute=0, hour=0, day=1)
+        if manifest_id and (start_date_obj <= prev_month_last_day):
+            # We want make sure that the manifest_id is not none, because
+            # we only want to call the delete line items after the summarize_reports
+            # task above
+            simulate = False
+            line_items_only = True
+            chain(
+                update_charge_info.s(schema_name, provider_uuid, start_date, end_date),
+                refresh_materialized_views.si(schema_name, provider, manifest_id),
+                remove_expired_data.si(schema_name, provider, simulate, provider_uuid, line_items_only),
+            ).apply_async()
+        else:
+            chain(
+                update_charge_info.s(schema_name, provider_uuid, start_date, end_date),
+                refresh_materialized_views.si(schema_name, provider, manifest_id),
+            ).apply_async()
     else:
         refresh_materialized_views.delay(schema_name, provider, manifest_id)
 
@@ -292,7 +315,8 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
     LOG.info(stmt)
 
     updater = ReportChargeUpdater(schema_name, provider_uuid)
-    updater.update_charge_info(start_date, end_date)
+    if updater:
+        updater.update_charge_info(start_date, end_date)
 
 
 @app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name="reporting")

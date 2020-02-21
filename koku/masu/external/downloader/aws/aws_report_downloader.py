@@ -27,6 +27,7 @@ import struct
 
 import boto3
 from botocore.exceptions import ClientError
+from django.conf import settings
 
 from masu.config import Config
 from masu.exceptions import MasuProviderError
@@ -71,6 +72,20 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         super().__init__(task, **kwargs)
+
+        if customer_name[4:] in settings.DEMO_ACCOUNTS:
+            demo_account = settings.DEMO_ACCOUNTS.get(customer_name[4:])
+            LOG.info(f"Info found for demo account {customer_name[4:]} = {demo_account}.")
+            if auth_credential in demo_account:
+                demo_info = demo_account.get(auth_credential)
+                self.customer_name = customer_name.replace(" ", "_")
+                self._provider_uuid = kwargs.get("provider_uuid")
+                self.report_name = demo_info.get("report_name")
+                self.report = {"S3Bucket": bucket, "S3Prefix": demo_info.get("report_prefix"), "Compression": "GZIP"}
+                self.bucket = bucket
+                session = utils.get_assume_role_session(utils.AwsArn(auth_credential), "MasuDownloaderSession")
+                self.s3_client = session.client("s3")
+                return
 
         self.customer_name = customer_name.replace(" ", "_")
         self._provider_uuid = kwargs.get("provider_uuid")
@@ -126,7 +141,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         s3fileobj = self.s3_client.get_object(Bucket=self.report.get("S3Bucket"), Key=s3key)
         size = int(s3fileobj.get("ContentLength", -1))
 
-        if size < 1:
+        if size < 0:
             raise AWSReportDownloaderError(f"Invalid size for S3 object: {s3fileobj}")
 
         free_space = shutil.disk_usage(self.download_path)[2]
@@ -136,7 +151,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         LOG.debug("%s is %s bytes; Download path has %s free", s3key, size, free_space)
 
         ext = os.path.splitext(s3key)[1]
-        if ext == ".gz" and check_inflate and size_ok:
+        if ext == ".gz" and check_inflate and size_ok and size > 0:
             # isize block is the last 4 bytes of the file; see: RFC1952
             resp = self.s3_client.get_object(
                 Bucket=self.report.get("S3Bucket"), Key=s3key, Range="bytes={}-{}".format(size - 4, size)

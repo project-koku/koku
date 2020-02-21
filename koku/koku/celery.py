@@ -3,14 +3,15 @@ import datetime
 import logging
 import os
 
+import django
 from celery import Celery
 from celery import Task
 from celery.schedules import crontab
 from django.conf import settings
 
-from . import database
-from . import sentry  # pylint: disable=unused-import # noqa: F401
-from .env import ENVIRONMENT
+from koku import sentry  # pylint: disable=unused-import # noqa: F401
+from koku.env import ENVIRONMENT
+from masu.processor.worker_cache import WorkerCache
 
 # We disable pylint here because we wanted to avoid duplicate code
 # in settings and celery config files, therefore we import a single
@@ -45,7 +46,9 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
 
 LOGGER.info("Starting celery.")
 # Setup the database for use in Celery
-database.config()
+django.setup()
+LOGGER.info("Clearing worker task cache.")
+WorkerCache().invalidate_host()
 LOGGER.info("Database configured.")
 
 # 'app' is the recommended convention from celery docs
@@ -87,7 +90,6 @@ if REMOVE_EXPIRED_REPORT_DATA_ON_DAY != 0:
     }
     app.conf.beat_schedule["remove-expired-data"] = REMOVE_EXPIRED_DATA_DEF
 
-
 # Specify the day of the month for removal of expired report data.
 VACUUM_DATA_DAY_OF_WEEK = ENVIRONMENT.get_value("VACUUM_DATA_DAY_OF_WEEK", default=None)
 
@@ -108,6 +110,19 @@ app.conf.beat_schedule["vacuum-schemas"] = {
 
 # Collect prometheus metrics.
 app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(minute="*/15")}
+
+
+# optionally specify the weekday and time you would like the clean volume task to run
+CLEAN_VOLUME_DAY_OF_WEEK = ENVIRONMENT.get_value("CLEAN_VOLUME_DAY_OF_WEEK", default="sunday")
+CLEAN_VOLUME_UTC_TIME = ENVIRONMENT.get_value("CLEAN_VOLUME_UTC_TIME", default="00:00")
+CLEAN_HOUR, CLEAN_MINUTE = CLEAN_VOLUME_UTC_TIME.split(":")
+# create a task to clean up the volumes - defaults to running every sunday at midnight
+if not settings.DEVELOPMENT:
+    app.conf.beat_schedule["clean_volume"] = {
+        "task": "masu.celery.tasks.clean_volume",
+        "schedule": crontab(day_of_week=CLEAN_VOLUME_DAY_OF_WEEK, hour=int(CLEAN_HOUR), minute=int(CLEAN_MINUTE)),
+    }
+
 
 # Toggle to enable/disable S3 archiving of account data.
 if ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=True):

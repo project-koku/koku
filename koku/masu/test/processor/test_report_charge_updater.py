@@ -67,3 +67,11 @@ class ReportChargeUpdaterTest(MasuTestCase):
 
         with self.assertRaises(ReportChargeUpdaterError):
             ReportChargeUpdater(self.schema, self.ocp_test_provider_uuid)
+
+    @patch("masu.processor.report_charge_updater.ProviderDBAccessor.get_provider", return_value=None)
+    def test_unknown_provider(self, mock_accessor):
+        """Test no exception when initializing unknown provider."""
+        try:
+            ReportChargeUpdater(self.schema, self.unkown_test_provider_uuid)
+        except Exception as err:
+            self.fail(f"Failed with exception: {err}")

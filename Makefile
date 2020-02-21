@@ -56,7 +56,7 @@ help:
 	@echo "  lint                                  run pre-commit against the project"
 	@echo ""
 	@echo "--- Commands using local services ---"
-	@echo "  clear-testing						   Remove stale files/subdirectories from the testing directory.""
+	@echo "  clear-testing						   Remove stale files/subdirectories from the testing directory."
 	@echo "  create-test-customer                  create a test customer and tenant in the database"
 	@echo "  create-test-customer-no-providers     create a test customer and tenant in the database without test providers"
 	@echo "  create-large-ocp-provider-config-file create a config file for nise to generate a large data sample"
@@ -67,6 +67,8 @@ help:
 	@echo "  large-ocp-provider-testing            create a test OCP provider "large_ocp_1" with a larger volume of data"
 	@echo "                                          @param nise_config_dir - directory of nise config files to use"
 	@echo "  load-test-customer-data               load test data for the default providers created in create-test-customer"
+	@echo "                                          @param start - (optional) start date ex. 2019-08-02"
+	@echo "                                          @param end - (optional) end date ex. 2019-12-5"
 	@echo "  backup-local-db-dir                   make a backup copy PostgreSQL database directory (pg_data.bak)"
 	@echo "  restore-local-db-dir                  overwrite the local PostgreSQL database directory with pg_data.bak"
 	@echo "  collect-static                        collect static files to host"
@@ -81,7 +83,8 @@ help:
 	@echo "  unittest                              run unittests"
 	@echo ""
 	@echo "--- Commands using Docker Compose ---"
-	@echo "  docker-up                            run django and database"
+	@echo "  docker-up                            run docker-compose up --build -d"
+	@echo "  docker-up-no-build                   run docker-compose up -d"
 	@echo "  docker-up-db                         run database only"
 	@echo "  docker-down                          shut down all containers"
 	@echo "  docker-rabbit                        run RabbitMQ container"
@@ -489,6 +492,9 @@ docker-test-all:
 
 docker-up:
 	docker-compose up --build -d
+
+docker-up-no-build:
+	docker-compose up -d
 
 docker-up-db:
 	docker-compose up -d db

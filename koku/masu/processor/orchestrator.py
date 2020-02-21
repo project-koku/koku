@@ -17,8 +17,6 @@
 """Report Processing Orchestrator."""
 import logging
 
-from dateutil.relativedelta import relativedelta
-
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.account_label import AccountLabel
@@ -109,13 +107,7 @@ class Orchestrator:
         else:
             number_of_months = 2
 
-        months = []
-        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
-        for month in reversed(range(number_of_months)):
-            calculated_month = current_month + relativedelta(months=-month)
-            months.append(calculated_month.date())
-
-        return months
+        return DateAccessor().get_billing_months(number_of_months)
 
     def prepare(self):
         """
@@ -169,7 +161,7 @@ class Orchestrator:
                     )
         return async_result
 
-    def remove_expired_report_data(self, simulate=False):
+    def remove_expired_report_data(self, simulate=False, line_items_only=False):
         """
         Remove expired report data for each account.
 
@@ -184,7 +176,10 @@ class Orchestrator:
         for account in self._accounts:
             LOG.info("Calling remove_expired_data with account: %s", account)
             async_result = remove_expired_data.delay(
-                schema_name=account.get("schema_name"), provider=account.get("provider_type"), simulate=simulate
+                schema_name=account.get("schema_name"),
+                provider=account.get("provider_type"),
+                simulate=simulate,
+                line_items_only=line_items_only,
             )
             LOG.info(
                 "Expired data removal queued - schema_name: %s, Task ID: %s",
