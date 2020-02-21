@@ -39,6 +39,7 @@ from tenant_schemas.utils import tenant_context
 from api.utils import DateHelper
 from reporting.models import CostSummary
 from reporting.models import OCPNodeLabelLineItem
+from reporting.models import OCPNodeLabelLineItemDaily
 from reporting.models import OCPStorageLineItem
 from reporting.models import OCPStorageLineItemDaily
 from reporting.models import OCPUsageLineItem
@@ -167,6 +168,7 @@ class OCPReportDataGenerator:
                     self.create_node_label_line_items(report_period, report)
                 self.set_manifest_completed(manifest_entry)
 
+            self._populate_node_label_daily_table()
             self._populate_daily_table()
             self._populate_daily_summary_table()
             self._populate_storage_daily_table()
@@ -190,6 +192,7 @@ class OCPReportDataGenerator:
                 OCPStorageLineItem,
                 OCPStorageLineItemDaily,
                 OCPNodeLabelLineItem,
+                OCPNodeLabelLineItemDaily,
                 OCPUsageReport,
                 OCPUsageReportPeriod,
             ):
@@ -629,3 +632,20 @@ class OCPReportDataGenerator:
             }
             line_item = OCPNodeLabelLineItem(**data)
             line_item.save()
+
+    def _populate_node_label_daily_table(self):
+        """Populate the daily table."""
+        included_fields = ["node", "report_period_id", "node_labels"]
+        annotations = {
+            "node": Value(random.choice(self.line_items).get("node"), output_field=CharField()),
+            "usage_start": F("report__interval_start"),
+            "usage_end": F("report__interval_start"),
+            "cluster_id": F("report_period__cluster_id"),
+            "cluster_alias": Value(self.cluster_alias, output_field=CharField()),
+        }
+        entries = OCPNodeLabelLineItem.objects.values(*included_fields).annotate(**annotations)
+
+        for entry in entries:
+            entry["total_seconds"] = 3600
+            daily = OCPNodeLabelLineItemDaily(**entry)
+            daily.save()
