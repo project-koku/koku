@@ -24,6 +24,7 @@ from rest_framework.serializers import ValidationError
 from ..provider_interface import ProviderInterface
 from .client import AzureClientFactory
 from api.models import Provider
+from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.azure.azure_service import AzureServiceError
 
@@ -80,7 +81,7 @@ class AzureProvider(ProviderInterface):
             ValidationError: Error string
 
         """
-        key = "billing_source.bucket"
+        key = "billing_source.data_source"
 
         azure_service = None
 
@@ -101,12 +102,13 @@ class AzureProvider(ProviderInterface):
             azure_client = AzureClientFactory(**credential_name)
             storage_accounts = azure_client.storage_client.storage_accounts
             storage_account = storage_accounts.get_properties(resource_group, storage_account)
+            if azure_service and not azure_service.describe_cost_management_exports():
+                message = "Cost management export was not found."
+                raise ValidationError(error_obj(key, message))
+        except AzureCostReportNotFound as costreport_err:
+            raise ValidationError(error_obj(key, str(costreport_err)))
         except (AdalError, AzureException, AzureServiceError, ClientException, TypeError) as exc:
             raise ValidationError(error_obj(key, str(exc)))
-
-        if azure_service and not azure_service.describe_cost_management_exports():
-            message = "Cost management export was not found."
-            raise ValidationError(error_obj(key, message))
 
         return True
 
