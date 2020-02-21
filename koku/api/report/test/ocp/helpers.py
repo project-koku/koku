@@ -637,7 +637,6 @@ class OCPReportDataGenerator:
         """Populate the daily table."""
         included_fields = ["node", "report_period_id", "node_labels"]
         annotations = {
-            "node": Value(random.choice(self.line_items).get("node"), output_field=CharField()),
             "usage_start": F("report__interval_start"),
             "usage_end": F("report__interval_start"),
             "cluster_id": F("report_period__cluster_id"),
