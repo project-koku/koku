@@ -104,13 +104,16 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 .first()
             )
 
-    def get_usage_period_before_date(self, date):
+    def get_usage_period_before_date(self, date, provider_uuid=None):
         """Get the usage report period objects before provided date."""
         table_name = OCP_REPORT_TABLE_MAP["report_period"]
 
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
-            usage_period_query = base_query.filter(report_period_start__lte=date)
+            if provider_uuid:
+                usage_period_query = base_query.filter(report_period_start__lte=date, provider_id=provider_uuid)
+            else:
+                usage_period_query = base_query.filter(report_period_start__lte=date)
             return usage_period_query
 
     # pylint: disable=invalid-name

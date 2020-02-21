@@ -19,6 +19,7 @@ import calendar
 import datetime
 
 import pint
+import pytz
 from django.utils import timezone
 from pint.errors import UndefinedUnitError
 
@@ -45,14 +46,22 @@ def merge_dicts(*list_of_dicts):
 class DateHelper:
     """Helper class with convenience functions."""
 
-    def __init__(self):
+    def __init__(self, utc=False):
         """Initialize when now is."""
-        self._now = timezone.now()
+        if utc:
+            self._now = datetime.datetime.now(tz=pytz.UTC)
+        else:
+            self._now = timezone.now()
 
     @property
     def now(self):
         """Return current time at timezone."""
         return timezone.now()
+
+    @property
+    def now_utc(self):
+        """Return current time at timezone."""
+        return datetime.datetime.now(tz=pytz.UTC)
 
     @property
     def one_day(self):
