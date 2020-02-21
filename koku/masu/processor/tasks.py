@@ -18,20 +18,18 @@
 # pylint: disable=too-many-arguments, too-many-function-args
 # disabled module-wide due to current state of task signature.
 # we expect this situation to be temporary as we iterate on these details.
-import calendar
 import datetime
 import os
 
-import pytz
 from celery import chain
 from celery.utils.log import get_task_logger
 from dateutil import parser
-from dateutil.relativedelta import relativedelta
 from django.db import connection
 from tenant_schemas.utils import schema_context
 
 import masu.prometheus_stats as worker_stats
 from api.provider.models import Provider
+from api.utils import DateHelper
 from koku.celery import app
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
@@ -238,13 +236,11 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
         start_date, end_date = updater.update_daily_tables(start_date, end_date)
         updater.update_summary_tables(start_date, end_date)
     if provider_uuid:
-        curr_date = datetime.datetime.now(tz=pytz.UTC)
-        previous_month = curr_date - relativedelta(months=1)
-        prev_month_range = calendar.monthrange(previous_month.year, previous_month.month)
-        prev_month_last_day = datetime.date(
-            year=previous_month.year, month=previous_month.month, day=prev_month_range[1]
-        )
-        start_date_obj = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+        dh = DateHelper(utc=True)
+        prev_month_last_day = dh.last_month_end
+        start_date_obj = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+        prev_month_last_day = prev_month_last_day.replace(tzinfo=None)
+        prev_month_last_day = prev_month_last_day.replace(microsecond=0, second=0, minute=0, hour=0, day=1)
         if manifest_id and (start_date_obj <= prev_month_last_day):
             # We want make sure that the manifest_id is not none, because
             # we only want to call the delete line items after the summarize_reports
