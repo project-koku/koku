@@ -81,22 +81,8 @@ class QueryParameters:
             if item not in self.parameters:
                 self.parameters[item] = OrderedDict()
 
-        # configure access params.
-        set_access_list = []
         if self.access:
-            provider = caller.query_handler.provider.lower()
-            set_access_list = self._get_providers(provider)
-
-        access_list = []
-        for set_access in set_access_list:
-            access_list.append(self._set_access(*set_access))
-        access_list = list(set(access_list))
-
-        access_providers = []
-        for tup in access_list:
-            if tup[1] is not ():
-                access_providers.append(tup[0])
-        self._parameters["access_providers"] = set(access_providers)
+            self._configure_access_params(caller)
 
         self._set_time_scope_defaults()
         LOG.debug("Query Parameters: %s", self)
@@ -139,6 +125,27 @@ class QueryParameters:
             if key in tag_key_set:
                 param_tag_keys.add(key)
         return param_tag_keys
+
+    def _configure_access_params(self, caller):
+        # configure access params.
+        provider = caller.query_handler.provider.lower()
+        set_access_list = self._get_providers(provider)
+
+        access_list = []
+        for set_access in set_access_list:
+            access_list.append(self._set_access(*set_access))
+        access_list = list(set(access_list))
+
+        provider_access = []
+        for tup in access_list:
+            if tup[1] is not ():
+                provider_access.append(tup[0])
+        provider_access_set = set(provider_access)
+        self._parameters["provider_access"] = provider_access_set
+
+        if provider == "ocp_all" and provider_access_set != set(self.providers.keys()):
+            access_string = ",".join(provider_access)
+            self.parameters["filter"]["source_type"] = access_string
 
     def _get_providers(self, provider):
         access = []

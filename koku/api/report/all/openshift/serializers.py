@@ -34,6 +34,7 @@ class OCPAllGroupBySerializer(awsser.GroupBySerializer, ocpser.GroupBySerializer
         "project",
         "cluster",
         "node",
+        "source_type",
     )
 
 
