@@ -31,7 +31,7 @@ class FilterSerializer(serializers.Serializer):
     """Serializer for handling tag query parameter filter."""
 
     RESOLUTION_CHOICES = (("daily", "daily"), ("monthly", "monthly"))
-    TIME_CHOICES = (("-10", "-10"), ("-30", "-30"), ("-1", "1"), ("-2", "-2"))
+    TIME_CHOICES = (("-10", "-10"), ("-30", "-30"), ("-1", "-1"), ("-2", "-2"))
     TIME_UNIT_CHOICES = (("day", "day"), ("month", "month"))
 
     resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
@@ -72,6 +72,7 @@ class FilterSerializer(serializers.Serializer):
                 valid_vals = ", ".join(valid_values)
                 error = {"time_scope_value": msg.format(valid_vals, "month")}
                 raise serializers.ValidationError(error)
+
         return data
 
 
@@ -109,15 +110,6 @@ class OCPAWSFilterSerializer(AWSFilterSerializer, OCPFilterSerializer):
         add_operator_specified_fields(self.fields, AWS_FILTER_OP_FIELDS + OCP_FILTER_OP_FIELDS)
 
 
-class OCPAllFilterSerializer(AWSFilterSerializer, OCPFilterSerializer):
-    """Serializer for handling tag query parameter filter."""
-
-    def __init__(self, *args, **kwargs):
-        """Initialize the AWSFilterSerializer."""
-        super().__init__(*args, **kwargs)
-        add_operator_specified_fields(self.fields, AWS_FILTER_OP_FIELDS + OCP_FILTER_OP_FIELDS)
-
-
 class AzureFilterSerializer(FilterSerializer):
     """Serializer for handling tag query parameter filter."""
 
@@ -136,6 +128,17 @@ class OCPAzureFilterSerializer(AzureFilterSerializer, OCPFilterSerializer):
         """Initialize the AzureFilterSerializer."""
         super().__init__(*args, **kwargs)
         add_operator_specified_fields(self.fields, AZURE_FILTER_OP_FIELDS + OCP_FILTER_OP_FIELDS)
+
+
+class OCPAllFilterSerializer(AWSFilterSerializer, AzureFilterSerializer, OCPFilterSerializer):
+    """Serializer for handling tag query parameter filter."""
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the AWSFilterSerializer."""
+        super().__init__(*args, **kwargs)
+        add_operator_specified_fields(
+            self.fields, AWS_FILTER_OP_FIELDS + AZURE_FILTER_OP_FIELDS + OCP_FILTER_OP_FIELDS
+        )
 
 
 class TagsQueryParamSerializer(serializers.Serializer):

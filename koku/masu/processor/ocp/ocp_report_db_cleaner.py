@@ -16,6 +16,7 @@
 #
 """Removes report data from database."""
 import logging
+from datetime import datetime
 
 from tenant_schemas.utils import schema_context
 
@@ -42,7 +43,7 @@ class OCPReportDBCleaner:
         """
         self._schema = schema
 
-    def purge_expired_line_item(self, expired_date=None, provider_uuid=None, simulate=False):
+    def purge_expired_line_item(self, expired_date, provider_uuid=None, simulate=False):
         """Remove raw line item report data with a billing start period before specified date.
 
         Args:
@@ -54,23 +55,20 @@ class OCPReportDBCleaner:
             ([{}]) List of dictionaries containing 'usage_period_id' and 'interval_start'
 
         """
-        LOG.info("Calling purge_expired_lite_item for ocp")
+        LOG.info("Calling purge_expired_line_item for ocp")
+        if not isinstance(expired_date, datetime):
+            err = "Parameter expired_date must be a datetime.datetime object."
+            raise OCPReportDBCleanerError(err)
 
         with ReportingCommonDBAccessor() as reporting_common:
             column_map = reporting_common.column_map
 
         with OCPReportDBAccessor(self._schema, column_map) as accessor:
-            if (expired_date is not None and provider_uuid is not None) or (  # noqa: W504
-                expired_date is None and provider_uuid is None
-            ):
-                err = "This method must be called with expired_date or provider_uuid"
-                raise OCPReportDBCleanerError(err)
             removed_items = []
-
-            if expired_date is not None:
-                usage_period_objs = accessor.get_usage_period_before_date(expired_date)
+            if provider_uuid is not None:
+                usage_period_objs = accessor.get_usage_period_before_date(expired_date, provider_uuid)
             else:
-                usage_period_objs = accessor.get_usage_period_query_by_provider(provider_uuid)
+                usage_period_objs = accessor.get_usage_period_before_date(expired_date)
             with schema_context(self._schema):
                 for usage_period in usage_period_objs.all():
                     report_period_id = usage_period.id
@@ -141,6 +139,9 @@ class OCPReportDBCleaner:
 
                         qty = accessor.get_storage_item_query_report_period_id(report_period_id).delete()
                         LOG.info("Removing %s storage line items for usage period id %s", qty, report_period_id)
+
+                        qty = accessor.get_node_label_item_query_report_period_id(report_period_id).delete()
+                        LOG.info("Removing %s node label line items for usage period id %s", qty, report_period_id)
 
                         qty = accessor.get_daily_storage_item_query_cluster_id(cluster_id).delete()
                         LOG.info("Removing %s storage dailyitems for cluster id %s", qty, cluster_id)

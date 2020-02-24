@@ -68,10 +68,10 @@ class QueryHandler:
         self.default_ordering = self._mapper._report_type_map.get("default_ordering")
 
         self.parameters = parameters
-        self.resolution = None
+        self.resolution = self.parameters.get_filter("resolution")
         self.time_interval = []
-        self.time_scope_units = None
-        self.time_scope_value = None
+        self.time_scope_units = self.parameters.get_filter("time_scope_units")
+        self.time_scope_value = int(self.parameters.get_filter("time_scope_value"))
         self.start_datetime = None
         self.end_datetime = None
         self._max_rank = 0
@@ -145,8 +145,6 @@ class QueryHandler:
             (String): The value of how data will be sliced.
 
         """
-        if self.resolution:
-            return self.resolution
 
         self.resolution = self.parameters.get_filter("resolution", default="daily")
 
