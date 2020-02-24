@@ -816,19 +816,21 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         ce_table = getattr(self.ocp_accessor.report_schema, ce_table_name)
 
         with schema_context(self.schema):
-            ce_start_date = ce_table.objects.filter(interval_start__gte=start_date).aggregate(Min("interval_start"))[
-                "interval_start__min"
-            ]
+            ce_start_date = (
+                ce_table.objects.filter(interval_start__gte=start_date)
+                .aggregate(Min("interval_start"))["interval_start__min"]
+                .date()
+            )
 
-            ce_end_date = ce_table.objects.filter(interval_start__lte=end_date).aggregate(Max("interval_start"))[
-                "interval_start__max"
-            ]
+            ce_end_date = (
+                ce_table.objects.filter(interval_start__lte=end_date)
+                .aggregate(Max("interval_start"))["interval_start__max"]
+                .date()
+            )
 
         # The summary tables will only include dates where there is data
         expected_start_date = max(start_date, ce_start_date)
-        expected_start_date = expected_start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         expected_end_date = min(end_date, ce_end_date)
-        expected_end_date = expected_end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
         update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date)
         with schema_context(self.schema):

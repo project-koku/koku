@@ -109,7 +109,7 @@ ENV/
 
 # Local Postgres data
 pg_data/
-pg_data.bak/
+pg_data.bak*/
 
 # static files
 koku/staticfiles/

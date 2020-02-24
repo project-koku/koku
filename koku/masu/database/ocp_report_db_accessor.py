@@ -648,7 +648,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             # If end_date is not provided, recalculate till the latest month
             end_date = OCPUsageLineItemDailySummary.objects.aggregate(Max("usage_end"))["usage_end__max"]
 
-        first_month = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        if isinstance(start_date, datetime.datetime):
+            first_month = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        else:
+            first_month = start_date.replace(day=1)
 
         with schema_context(self.schema):
             # Calculate monthly cost for every month
