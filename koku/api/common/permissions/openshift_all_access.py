@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Defines the AWS Access Permissions class."""
+"""Defines the OCP-on-ALL Access Permissions class."""
 from rest_framework import permissions
 
 from api.common.permissions import RESOURCE_TYPES
