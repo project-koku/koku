@@ -157,7 +157,7 @@ class ExpiredDataRemover:
                 if not line_items_only:
                     expiration_date = self._calculate_expiration_date()
                     CostUsageReportManifest.objects.filter(
-                        provider=self._provider, billing_period_start_datetime__lt=expiration_date
+                        provider__type=self._provider, billing_period_start_datetime__lt=expiration_date
                     ).delete()
 
         return removed_data
