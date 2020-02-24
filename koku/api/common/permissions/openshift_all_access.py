@@ -24,7 +24,7 @@ class OpenshiftAllAccessPermission(permissions.BasePermission):
     """Determines if a user can view Openshift on All data."""
 
     def has_permission(self, request, view):
-        """Check permission to view AWS data."""
+        """Check permission to view OCP-on-ALL data."""
         if request.user.admin:
             return True
 
