@@ -40,7 +40,7 @@ def _remove_expired_data(schema_name, provider, simulate, provider_uuid=None, li
         f" schema_name: {schema_name}\n"
         f" provider: {provider}\n"
         f" simulate: {simulate}\n"
-        f"line_items_only: {line_items_only}\n"
+        f" line_items_only: {line_items_only}\n"
     )
     LOG.info(log_statement)
 

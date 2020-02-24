@@ -16,6 +16,7 @@
 #
 """Removes report data from database."""
 import logging
+from datetime import datetime
 
 from tenant_schemas.utils import schema_context
 
@@ -42,7 +43,7 @@ class AWSReportDBCleaner:
         """
         self._schema = schema
 
-    def purge_expired_line_item(self, expired_date=None, provider_uuid=None, simulate=False):
+    def purge_expired_line_item(self, expired_date, provider_uuid=None, simulate=False):
         """Remove raw line item report data with a billing start period before specified date.
 
         Args:
@@ -55,22 +56,19 @@ class AWSReportDBCleaner:
 
         """
         LOG.info("Calling purge_expired_line_item for aws")
+        if not isinstance(expired_date, datetime):
+            err = "Parameter expired_date must be a datetime.datetime object."
+            raise AWSReportDBCleanerError(err)
 
         with ReportingCommonDBAccessor() as reporting_common:
             column_map = reporting_common.column_map
 
         with AWSReportDBAccessor(self._schema, column_map) as accessor:
-            if (expired_date is None and provider_uuid is None) or (  # noqa: W504
-                expired_date is not None and provider_uuid is not None
-            ):
-                err = "This method must be called with either expired_date or provider_uuid"
-                raise AWSReportDBCleanerError(err)
             removed_items = []
-
-            if expired_date is not None:
-                bill_objects = accessor.get_bill_query_before_date(expired_date)
+            if provider_uuid is not None:
+                bill_objects = accessor.get_bill_query_before_date(expired_date, provider_uuid)
             else:
-                bill_objects = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
+                bill_objects = accessor.get_bill_query_before_date(expired_date)
             with schema_context(self._schema):
                 for bill in bill_objects.all():
                     bill_id = bill.id
