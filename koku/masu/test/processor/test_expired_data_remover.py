@@ -195,7 +195,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
             # Record C
             # This record should not get deleted as it occurs on the date of the expiration, not before.
             record_c_uuid = uuid4()
-            data_day_of_expiration = {
+            day_of_expiration_data = {
                 "assembly_id": record_c_uuid,
                 "manifest_creation_datetime": manifest_creation_datetime,
                 "manifest_updated_datetime": manifest_updated_datetime,
@@ -204,7 +204,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
                 "num_total_files": 1,
                 "provider_id": provider_uuid,
             }
-            manifest_entry_3 = CostUsageReportManifest(**data_day_of_expiration)
+            manifest_entry_3 = CostUsageReportManifest(**day_of_expiration_data)
             manifest_entry_3.save()
 
             remover.remove()
