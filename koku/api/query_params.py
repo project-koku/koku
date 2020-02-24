@@ -41,7 +41,7 @@ class QueryParameters:
 
     """
 
-    providers = {
+    provider_resource_list = {
         "aws": [("aws", "account", "aws.account")],
         "azure": [("azure", "subscription_guid", "azure.subscription_guid")],
         "ocp": [
@@ -142,21 +142,21 @@ class QueryParameters:
                 provider_access.append(tup[0])
         provider_access_set = set(provider_access)
 
-        if provider == "ocp_all" and provider_access_set != set(self.providers.keys()):
+        if provider == "ocp_all" and provider_access_set != set(self.provider_resource_list.keys()):
             self.parameters["filter"]["source_type"] = provider_access
 
     def _get_providers(self, provider):
         access = []
         provider_list = provider.split("_")
         if "all" in provider_list:
-            for p, v in self.providers.items():
+            for p, v in self.provider_resource_list.items():
                 access.extend(v)
         else:
             for p in provider_list:
-                if self.providers.get(p) is None:
+                if self.provider_resource_list.get(p) is None:
                     msg = f'Invalid provider "{p}".'
                     raise ValidationError({"details": _(msg)})
-                access.extend(self.providers[p])
+                access.extend(self.provider_resource_list[p])
         return access
 
     def _set_access(self, provider, filter_key, access_key, raise_exception=True):
