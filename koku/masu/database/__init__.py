@@ -45,6 +45,7 @@ OCP_REPORT_TABLE_MAP = {
     "volume_label_summary": "reporting_ocpstoragevolumelabel_summary",
     "cost_summary": "reporting_ocpcosts_summary",
     "node_label_line_item": "reporting_ocpnodelabellineitem",
+    "node_label_line_item_daily": "reporting_ocpnodelabellineitem_daily",
 }
 
 AZURE_REPORT_TABLE_MAP = {
