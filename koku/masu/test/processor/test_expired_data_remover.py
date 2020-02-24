@@ -149,7 +149,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
         the calculated expiration_date.
         """
 
-        def delete_provider(provider_type, provider_uuid):
+        def insert_and_assert_delete_cost_usage_manifests(provider_type, provider_uuid):
             """
             Insert CostUsageReportManifests for a specific provider.
 
@@ -216,9 +216,9 @@ class ExpiredDataRemoverTest(MasuTestCase):
             record_c = CostUsageReportManifest.objects.filter(assembly_id=record_c_uuid)
             self.assertEqual(1, len(record_c))
 
-        delete_provider(Provider.PROVIDER_AWS, self.aws_provider_uuid)
-        delete_provider(Provider.PROVIDER_AZURE, self.azure_provider_uuid)
-        delete_provider(Provider.PROVIDER_OCP, self.ocp_provider_uuid)
+        insert_and_assert_delete_cost_usage_manifests(Provider.PROVIDER_AWS, self.aws_provider_uuid)
+        insert_and_assert_delete_cost_usage_manifests(Provider.PROVIDER_AZURE, self.azure_provider_uuid)
+        insert_and_assert_delete_cost_usage_manifests(Provider.PROVIDER_OCP, self.ocp_provider_uuid)
 
         # There should be 6 records left, after the insertion of 9 records, and the deletion of 3.
         self.assertEqual(6, len(CostUsageReportManifest.objects.all()))
