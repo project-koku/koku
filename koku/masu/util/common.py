@@ -96,7 +96,7 @@ def month_date_range_tuple(for_date_time):
 
     """
     if isinstance(for_date_time, datetime):
-        start_month = for_date_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        start_month = for_date_time.date().replace(day=1)
     else:
         start_month = for_date_time.replace(day=1)
     _, num_days = calendar.monthrange(for_date_time.year, for_date_time.month)

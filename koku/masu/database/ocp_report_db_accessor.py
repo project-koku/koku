@@ -649,7 +649,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             end_date = OCPUsageLineItemDailySummary.objects.aggregate(Max("usage_end"))["usage_end__max"]
 
         if isinstance(start_date, datetime.datetime):
-            first_month = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            first_month = start_date.date().replace(day=1)
         else:
             first_month = start_date.replace(day=1)
 
@@ -711,7 +711,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         LOG.info("Removing monthly costs from %s to %s.", start_date, end_date)
         if isinstance(start_date, datetime.datetime):
-            first_month = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            first_month = start_date.date().replace(day=1)
         else:
             first_month = start_date.replace(day=1)
 
