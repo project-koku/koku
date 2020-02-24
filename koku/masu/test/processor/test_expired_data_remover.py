@@ -148,13 +148,12 @@ class ExpiredDataRemoverTest(MasuTestCase):
         And then deletes CostUsageReportManifest objects older than
         the calculated expiration_date.
         """
-        provider_types = {
+        provider_type_dict = {
             Provider.PROVIDER_AWS: self.aws_provider_uuid,
             Provider.PROVIDER_AZURE: self.azure_provider_uuid,
             Provider.PROVIDER_OCP: self.ocp_provider_uuid,
         }
-
-        for provider_type in provider_types:
+        for provider_type in provider_type_dict:
             remover = ExpiredDataRemover(self.schema, provider_type)
             expiration_date = remover._calculate_expiration_date()
             current_month = datetime.today().replace(day=1)
@@ -173,7 +172,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
                     "billing_period_start_datetime": date,
                     "num_processed_files": 1,
                     "num_total_files": 1,
-                    "provider_id": provider_types[provider_type],
+                    "provider_id": provider_type_dict[provider_type],
                 }
                 uuids.append(uuid)
                 if date == day_before_cutoff:
@@ -194,84 +193,20 @@ class ExpiredDataRemoverTest(MasuTestCase):
 
     def test_simulate_delete_expired_cost_usage_report_manifest(self):
         """
-        Test that expired CostUsageReportManifests are removed.
-
-        This test inserts CostUsageReportManifest objects,
-        And then deletes CostUsageReportManifest objects older than
-        the calculated expiration_date.
+        Test that expired CostUsageReportManifest is not removed during simulation.
         """
-
-        def insert_and_assert_delete_cost_usage_manifests(provider_type, provider_uuid):
-            """
-            Insert CostUsageReportManifests for a specific provider.
-
-            Assert that the expired records for that provider are deleted.
-            """
-
-            remover = ExpiredDataRemover(self.schema, provider_type)
-            expiration_date = remover._calculate_expiration_date()
-            this_month = datetime.today().replace(day=1)
-            day_before_cutoff = expiration_date - relativedelta.relativedelta(days=1)
-
-            # Record A
-            manifest_creation_datetime = this_month
-            manifest_updated_datetime = manifest_creation_datetime + relativedelta.relativedelta(days=2)
-            record_a_uuid = uuid4()
-            data = {
-                "assembly_id": record_a_uuid,
-                "manifest_creation_datetime": manifest_creation_datetime,
-                "manifest_updated_datetime": manifest_updated_datetime,
-                "billing_period_start_datetime": this_month,
-                "num_processed_files": 1,
-                "num_total_files": 1,
-                "provider_id": provider_uuid,
-            }
-            manifest_entry = CostUsageReportManifest(**data)
-            manifest_entry.save()
-
-            # Record B
-            # This record should be deleted because the billing_period_start_datetime
-            # is before the expiration_date
-            record_b_uuid = uuid4()
-            day_before_cutoff_data = {
-                "assembly_id": record_b_uuid,
-                "manifest_creation_datetime": manifest_creation_datetime,
-                "manifest_updated_datetime": manifest_updated_datetime,
-                "billing_period_start_datetime": day_before_cutoff,
-                "num_processed_files": 1,
-                "num_total_files": 1,
-                "provider_id": provider_uuid,
-            }
-            manifest_entry_2 = CostUsageReportManifest(**day_before_cutoff_data)
-            manifest_entry_2.save()
-
-            # Record C
-            # This record should not get deleted as it occurs on the date of the expiration, not before.
-            record_c_uuid = uuid4()
-            day_of_expiration_data = {
-                "assembly_id": record_c_uuid,
-                "manifest_creation_datetime": manifest_creation_datetime,
-                "manifest_updated_datetime": manifest_updated_datetime,
-                "billing_period_start_datetime": expiration_date,
-                "num_processed_files": 1,
-                "num_total_files": 1,
-                "provider_id": provider_uuid,
-            }
-            manifest_entry_3 = CostUsageReportManifest(**day_of_expiration_data)
-            manifest_entry_3.save()
-
-            remover.remove(simulate=True)
-            # Check if record A and C still exist. B should be deleted.
-            record_a = CostUsageReportManifest.objects.filter(assembly_id=record_a_uuid)
-            self.assertEqual(1, len(record_a))
-            record_b = CostUsageReportManifest.objects.filter(assembly_id=record_b_uuid)
-            self.assertEqual(1, len(record_b))
-            record_c = CostUsageReportManifest.objects.filter(assembly_id=record_c_uuid)
-            self.assertEqual(1, len(record_c))
-
-        insert_and_assert_delete_cost_usage_manifests(Provider.PROVIDER_AWS, self.aws_provider_uuid)
-        insert_and_assert_delete_cost_usage_manifests(Provider.PROVIDER_AZURE, self.azure_provider_uuid)
-        insert_and_assert_delete_cost_usage_manifests(Provider.PROVIDER_OCP, self.ocp_provider_uuid)
-
-        # There should be 6 records left, after the insertion of 9 records, and the deletion of 3.
-        self.assertEqual(9, len(CostUsageReportManifest.objects.all()))
+        remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
+        expiration_date = remover._calculate_expiration_date()
+        day_before_cutoff = expiration_date - relativedelta.relativedelta(days=1)
+        day_before_cutoff_data = {
+            "assembly_id": uuid4(),
+            "manifest_creation_datetime": None,
+            "manifest_updated_datetime": None,
+            "billing_period_start_datetime": day_before_cutoff,
+            "num_processed_files": 1,
+            "num_total_files": 1,
+            "provider_id": self.aws_provider_uuid,
+        }
+        CostUsageReportManifest(**day_before_cutoff_data).save()
+        remover.remove(simulate=True)
+        self.assertEqual(1, CostUsageReportManifest.objects.count())
