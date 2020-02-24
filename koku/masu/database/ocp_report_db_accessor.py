@@ -192,6 +192,14 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             daily_item_query = base_query.filter(**filters)
             return daily_item_query
 
+    def get_node_label_item_query_report_period_id(self, report_period_id):
+        """Get the node label report line item for a report id query."""
+        table_name = OCP_REPORT_TABLE_MAP["node_label_line_item"]
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            line_item_query = base_query.filter(report_period_id=report_period_id)
+            return line_item_query
+
     def get_ocp_aws_summary_query_for_cluster_id(self, cluster_identifier):
         """Get the OCP-on-AWS report summary item for a given cluster id query."""
         table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
