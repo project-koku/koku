@@ -209,19 +209,19 @@ class ExpiredDataRemoverTest(MasuTestCase):
 
             remover.remove()
             # Check if record A and C still exist. B should be deleted.
-            record_a = CostUsageReportManifest.objects.filter(assembly_id=record_a_uuid)
-            self.assertEqual(1, len(record_a))
-            record_b = CostUsageReportManifest.objects.filter(assembly_id=record_b_uuid)
-            self.assertEqual(0, len(record_b))
-            record_c = CostUsageReportManifest.objects.filter(assembly_id=record_c_uuid)
-            self.assertEqual(1, len(record_c))
+            record_a_count = CostUsageReportManifest.objects.filter(assembly_id=record_a_uuid).count()
+            self.assertEqual(1, record_a_count)
+            record_b_count = CostUsageReportManifest.objects.filter(assembly_id=record_b_uuid).count()
+            self.assertEqual(0, record_b_count)
+            record_c_count = CostUsageReportManifest.objects.filter(assembly_id=record_c_uuid).count()
+            self.assertEqual(1, record_c_count)
 
         insert_and_assert_delete_cost_usage_manifests(Provider.PROVIDER_AWS, self.aws_provider_uuid)
         insert_and_assert_delete_cost_usage_manifests(Provider.PROVIDER_AZURE, self.azure_provider_uuid)
         insert_and_assert_delete_cost_usage_manifests(Provider.PROVIDER_OCP, self.ocp_provider_uuid)
 
         # There should be 6 records left, after the insertion of 9 records, and the deletion of 3.
-        self.assertEqual(6, len(CostUsageReportManifest.objects.all()))
+        self.assertEqual(6, CostUsageReportManifest.objects.count())
 
     def test_simulate_delete_expired_cost_usage_report_manifest(self):
         """
