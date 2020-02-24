@@ -141,7 +141,6 @@ class QueryParameters:
             if tup[1] is not ():
                 provider_access.append(tup[0])
         provider_access_set = set(provider_access)
-        self._parameters["provider_access"] = provider_access_set
 
         if provider == "ocp_all" and provider_access_set != set(self.providers.keys()):
             access_string = ",".join(provider_access)
