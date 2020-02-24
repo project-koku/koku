@@ -143,8 +143,7 @@ class QueryParameters:
         provider_access_set = set(provider_access)
 
         if provider == "ocp_all" and provider_access_set != set(self.providers.keys()):
-            access_string = ",".join(provider_access)
-            self.parameters["filter"]["source_type"] = access_string
+            self.parameters["filter"]["source_type"] = provider_access
 
     def _get_providers(self, provider):
         access = []

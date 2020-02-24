@@ -67,6 +67,7 @@ class OCPAllProviderMap(ProviderMap):
                     "product_family": {"field": "product_family", "operation": "icontains"},
                     "az": {"field": "availability_zone", "operation": "icontains"},
                     "region": {"field": "region", "operation": "icontains"},
+                    "source_type": {"field": "source_type", "operation": "icontains"},
                 },
                 "group_by_options": ["account", "service", "region", "cluster", "project", "node", "product_family"],
                 "tag_column": "tags",
