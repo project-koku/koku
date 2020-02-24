@@ -93,6 +93,7 @@ class AWSReportProcessorTest(MasuTestCase):
         _report_tables.pop("line_item_daily", None)
         _report_tables.pop("line_item_daily_summary", None)
         _report_tables.pop("tags_summary", None)
+        _report_tables.pop("ocp_on_aws_tags_summary", None)
         cls.report_tables = list(_report_tables.values())
         # Grab a single row of test data to work with
         with open(cls.test_report_test_path, "r") as f:
@@ -885,6 +886,22 @@ class AWSReportProcessorTest(MasuTestCase):
 
         result = processor._check_for_finalized_bill()
 
+        self.assertFalse(result)
+
+    def test_check_for_finalized_bill_empty_bill(self):
+        """Verify that an empty file is not marked as finalzed."""
+        tmp_file = "/tmp/test_process_finalized_rows.csv"
+
+        with open(tmp_file, "w"):
+            pass
+
+        processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=tmp_file,
+            compression=UNCOMPRESSED,
+            provider_uuid=self.aws_provider_uuid,
+        )
+        result = processor._check_for_finalized_bill()
         self.assertFalse(result)
 
     def test_delete_line_items_success(self):

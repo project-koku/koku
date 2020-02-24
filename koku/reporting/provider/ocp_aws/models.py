@@ -179,3 +179,21 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
     project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
     pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+
+
+class OCPAWSTagsSummary(models.Model):
+    """A collection of all current existing tag key and values."""
+
+    class Meta:
+        """Meta for OCPUsageTagSummary."""
+
+        db_table = "reporting_ocpawstags_summary"
+        unique_together = ("key", "cost_entry_bill")
+
+    id = models.BigAutoField(primary_key=True)
+
+    key = models.CharField(max_length=253)
+    values = ArrayField(models.CharField(max_length=253))
+    cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE)
+    accounts = ArrayField(models.CharField(max_length=63))
+    namespace = ArrayField(models.CharField(max_length=253))

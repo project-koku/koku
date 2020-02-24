@@ -104,13 +104,16 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 .first()
             )
 
-    def get_usage_period_before_date(self, date):
+    def get_usage_period_before_date(self, date, provider_uuid=None):
         """Get the usage report period objects before provided date."""
         table_name = OCP_REPORT_TABLE_MAP["report_period"]
 
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
-            usage_period_query = base_query.filter(report_period_start__lte=date)
+            if provider_uuid:
+                usage_period_query = base_query.filter(report_period_start__lte=date, provider_id=provider_uuid)
+            else:
+                usage_period_query = base_query.filter(report_period_start__lte=date)
             return usage_period_query
 
     # pylint: disable=invalid-name
@@ -188,6 +191,14 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             base_query = self._get_db_obj_query(table_name)
             daily_item_query = base_query.filter(**filters)
             return daily_item_query
+
+    def get_node_label_item_query_report_period_id(self, report_period_id):
+        """Get the node label report line item for a report id query."""
+        table_name = OCP_REPORT_TABLE_MAP["node_label_line_item"]
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            line_item_query = base_query.filter(report_period_id=report_period_id)
+            return line_item_query
 
     def get_ocp_aws_summary_query_for_cluster_id(self, cluster_identifier):
         """Get the OCP-on-AWS report summary item for a given cluster id query."""
@@ -569,17 +580,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         table_name = OCP_REPORT_TABLE_MAP["pod_label_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpusagepodlabel_summary.sql")
-        agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema}
-        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
-        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
-
-    # pylint: disable=invalid-name
-    def populate_volume_claim_label_summary_table(self):
-        """Populate the OCP volume claim label summary table."""
-        table_name = OCP_REPORT_TABLE_MAP["volume_claim_label_summary"]
-
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpstoragevolumeclaimlabel_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {"schema": self.schema}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)

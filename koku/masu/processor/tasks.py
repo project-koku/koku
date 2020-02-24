@@ -29,6 +29,7 @@ from tenant_schemas.utils import schema_context
 
 import masu.prometheus_stats as worker_stats
 from api.provider.models import Provider
+from api.utils import DateHelper
 from koku.celery import app
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
@@ -162,7 +163,8 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, lin
         f" schema_name: {schema_name},\n"
         f" provider: {provider},\n"
         f" simulate: {simulate},\n"
-        f" provider_uuid: {provider_uuid}"
+        f" provider_uuid: {provider_uuid},\n",
+        f" line_items_only: {line_items_only}",
     )
     LOG.info(stmt)
     _remove_expired_data(schema_name, provider, simulate, provider_uuid, line_items_only)
@@ -234,10 +236,27 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
         start_date, end_date = updater.update_daily_tables(start_date, end_date)
         updater.update_summary_tables(start_date, end_date)
     if provider_uuid:
-        chain(
-            update_charge_info.s(schema_name, provider_uuid, start_date, end_date),
-            refresh_materialized_views.si(schema_name, provider, manifest_id),
-        ).apply_async()
+        dh = DateHelper(utc=True)
+        prev_month_last_day = dh.last_month_end
+        start_date_obj = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+        prev_month_last_day = prev_month_last_day.replace(tzinfo=None)
+        prev_month_last_day = prev_month_last_day.replace(microsecond=0, second=0, minute=0, hour=0, day=1)
+        if manifest_id and (start_date_obj <= prev_month_last_day):
+            # We want make sure that the manifest_id is not none, because
+            # we only want to call the delete line items after the summarize_reports
+            # task above
+            simulate = False
+            line_items_only = True
+            chain(
+                update_charge_info.s(schema_name, provider_uuid, start_date, end_date),
+                refresh_materialized_views.si(schema_name, provider, manifest_id),
+                remove_expired_data.si(schema_name, provider, simulate, provider_uuid, line_items_only),
+            ).apply_async()
+        else:
+            chain(
+                update_charge_info.s(schema_name, provider_uuid, start_date, end_date),
+                refresh_materialized_views.si(schema_name, provider, manifest_id),
+            ).apply_async()
     else:
         refresh_materialized_views.delay(schema_name, provider, manifest_id)
 

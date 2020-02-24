@@ -145,7 +145,10 @@ class ExpiredDataRemover:
         """
         if provider_uuid is not None:
             if line_items_only:
-                removed_data = self._cleaner.purge_expired_line_item(simulate=simulate, provider_uuid=provider_uuid)
+                expiration_date = self._calculate_expiration_date(line_items_only=line_items_only)
+                removed_data = self._cleaner.purge_expired_line_item(
+                    expired_date=expiration_date, simulate=simulate, provider_uuid=provider_uuid
+                )
             else:
                 removed_data = self._cleaner.purge_expired_report_data(simulate=simulate, provider_uuid=provider_uuid)
         else:
