@@ -65,6 +65,7 @@ class TestCeleryTasks(MasuTestCase):
     @patch("masu.celery.tasks.Orchestrator")
     @patch("masu.celery.tasks.query_and_upload_to_s3")
     @patch("masu.external.date_accessor.DateAccessor.today")
+    @override_settings(ENABLE_S3_ARCHIVING=True)
     def test_upload_normalized_data(self, mock_date, mock_upload, mock_orchestrator):
         """Test that the scheduled task uploads the correct normalized data."""
         test_export_setting = TableExportSetting(
@@ -194,6 +195,7 @@ class TestCeleryTasks(MasuTestCase):
         tasks.sync_data_to_customer(data_export_object.uuid)
         self.assertEquals(data_export_object.status, APIExportRequest.ERROR)
 
+    @override_settings(ENABLE_S3_ARCHIVING=True)
     def test_delete_archived_data_bad_inputs_exception(self):
         """Test that delete_archived_data raises an exception when given bad inputs."""
         schema_name, provider_type, provider_uuid = "", "", ""
@@ -212,6 +214,7 @@ class TestCeleryTasks(MasuTestCase):
         mock_resource.assert_not_called()
 
     @patch("masu.util.aws.common.boto3.resource")
+    @override_settings(ENABLE_S3_ARCHIVING=True)
     @override_settings(S3_BUCKET_PATH="")
     def test_delete_archived_data_missing_bucket_path_exception(self, mock_resource):
         """Test that delete_archived_data raises an exception with an empty bucket path."""
@@ -220,8 +223,9 @@ class TestCeleryTasks(MasuTestCase):
             tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
         mock_resource.assert_not_called()
 
-    @patch("masu.util.aws.common.boto3.resource")
+    @override_settings(ENABLE_S3_ARCHIVING=True)
     @override_settings(S3_BUCKET_PATH="data_archive")
+    @patch("masu.util.aws.common.boto3.resource")
     def test_delete_archived_data_success(self, mock_resource):
         """Test that delete_archived_data correctly interacts with AWS S3."""
         schema_name = "acct10001"
