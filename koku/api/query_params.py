@@ -127,7 +127,7 @@ class QueryParameters:
         return param_tag_keys
 
     def _configure_access_params(self, caller):
-        # configure access params.
+        """Configure access for the appropriate providers."""
         provider = caller.query_handler.provider.lower()
         set_access_list = self._get_providers(provider)
 
@@ -146,6 +146,12 @@ class QueryParameters:
             self.parameters["filter"]["source_type"] = provider_access
 
     def _get_providers(self, provider):
+        """Get the providers.
+
+        Return the appropriate provider and provider resource type from self.provider_resource_list
+
+        """
+
         access = []
         provider_list = provider.split("_")
         if "all" in provider_list:
@@ -160,7 +166,12 @@ class QueryParameters:
         return access
 
     def _set_access(self, provider, filter_key, access_key, raise_exception=True):
-        """Alter query parameters based on user access."""
+        """Alter query parameters based on user access.
+
+        Return the provider and it's corresponding access list.
+        If the access list is a WILDCARD, return provider and None.
+
+        """
         access_list = self.access.get(access_key, {}).get("read", [])
         access_filter_applied = False
         if ReportQueryHandler.has_wildcard(access_list):
