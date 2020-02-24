@@ -355,6 +355,7 @@ class TestUploadTaskWithData(MasuTestCase):
         """Get specific TableExportSetting for testing."""
         return [s for s in tasks.table_export_settings if s.output_name == name].pop()
 
+    @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.AwsS3Uploader")
     def test_query_and_upload_to_s3(self, mock_uploader):
         """
@@ -391,6 +392,7 @@ class TestUploadTaskWithData(MasuTestCase):
                 # We ONLY have test data currently for AWS.
                 mock_uploader.return_value.upload_file.assert_not_called()
 
+    @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.AwsS3Uploader")
     def test_query_and_upload_skips_if_no_data(self, mock_uploader):
         """Assert query_and_upload_to_s3 uploads nothing if no data is found."""
@@ -404,6 +406,7 @@ class TestUploadTaskWithData(MasuTestCase):
         )
         mock_uploader.return_value.upload_file.assert_not_called()
 
+    @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.AwsS3Uploader")
     def test_query_and_upload_to_s3_multiple_days_multiple_rows(self, mock_uploader):
         """Assert query_and_upload_to_s3 for multiple days uploads multiple files."""
