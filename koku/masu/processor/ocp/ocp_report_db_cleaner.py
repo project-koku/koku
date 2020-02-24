@@ -140,6 +140,9 @@ class OCPReportDBCleaner:
                         qty = accessor.get_storage_item_query_report_period_id(report_period_id).delete()
                         LOG.info("Removing %s storage line items for usage period id %s", qty, report_period_id)
 
+                        qty = accessor.get_node_label_item_query_report_period_id(report_period_id).delete()
+                        LOG.info("Removing %s node label line items for usage period id %s", qty, report_period_id)
+
                         qty = accessor.get_daily_storage_item_query_cluster_id(cluster_id).delete()
                         LOG.info("Removing %s storage dailyitems for cluster id %s", qty, cluster_id)
 
