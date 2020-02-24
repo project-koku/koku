@@ -15,7 +15,7 @@ FROM (
         value,
         li.cost_entry_bill_id,
         li.subscription_guid,
-        li.namespace
+        UNNEST(li.namespace) as namespace
     FROM {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary AS li,
         jsonb_each_text(li.tags) labels
 ) l
