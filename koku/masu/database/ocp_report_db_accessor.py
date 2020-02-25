@@ -50,9 +50,9 @@ def create_filter(data_source, start_date, end_date, cluster_id):
     """Create filter with data source, start and end dates."""
     filters = {"data_source": data_source}
     if start_date:
-        filters["usage_start__gte"] = start_date.date()
+        filters["usage_start__gte"] = start_date if isinstance(start_date, datetime.date) else start_date.date()
     if end_date:
-        filters["usage_start__lte"] = end_date.date()
+        filters["usage_start__lte"] = end_date if isinstance(end_date, datetime.date) else end_date.date()
     if cluster_id:
         filters["cluster_id"] = cluster_id
     return filters
