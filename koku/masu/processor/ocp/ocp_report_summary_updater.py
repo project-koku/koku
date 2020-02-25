@@ -71,6 +71,7 @@ class OCPReportSummaryUpdater:
                 end,
             )
             with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+                accessor.populate_node_label_line_item_daily_table(start, end, self._cluster_id)
                 accessor.populate_line_item_daily_table(start, end, self._cluster_id)
                 accessor.populate_storage_line_item_daily_table(start, end, self._cluster_id)
 
