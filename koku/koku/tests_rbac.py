@@ -15,7 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the RBAC Service interaction."""
+import logging
 import os
+from json.decoder import JSONDecodeError
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -68,7 +70,13 @@ def mocked_requests_get_404_text(*args, **kwargs):  # pylint: disable=unused-arg
 
 def mocked_requests_get_404_except(*args, **kwargs):  # pylint: disable=unused-argument
     """Mock invalid response that returns non-json."""
-    return MockResponse(None, status.HTTP_404_NOT_FOUND, ValueError("JSON Problem"))
+    return MockResponse(None, status.HTTP_404_NOT_FOUND, JSONDecodeError("JSON Problem", "", 1))
+
+
+def mocked_requests_get_500_text(*args, **kwargs):  # pylint: disable=unused-argument
+    """Mock invalid response that returns non-json."""
+    json_response = "Not JSON"
+    return MockResponse(json_response, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 def mocked_requests_get_200_text(*args, **kwargs):  # pylint: disable=unused-argument
@@ -114,6 +122,14 @@ class RbacServiceTest(TestCase):
         self.assertEqual(access, [])
         mock_get.assert_called()
 
+    @patch("koku.rbac.requests.get", side_effect=mocked_requests_get_500_text)
+    def test_500_error_json(self, mock_get):
+        """Test handling of request with 500 response and json error."""
+        rbac = RbacService()
+        url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
+        with self.assertRaises(RbacConnectionError):
+            rbac._request_user_access(url, headers={})  # pylint: disable=protected-access
+
     @patch("koku.rbac.requests.get", side_effect=mocked_requests_get_404_text)
     def test_non_200_error_text(self, mock_get):
         """Test handling of request with non-200 response and non-json error."""
@@ -128,7 +144,9 @@ class RbacServiceTest(TestCase):
         """Test handling of request with non-200 response and non-json error."""
         rbac = RbacService()
         url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
-        access = rbac._request_user_access(url, headers={})  # pylint: disable=protected-access
+        logging.disable(logging.NOTSET)
+        with self.assertLogs(logger="koku.rbac", level=logging.WARNING):
+            access = rbac._request_user_access(url, headers={})  # pylint: disable=protected-access
         self.assertEqual(access, [])
         mock_get.assert_called()
 

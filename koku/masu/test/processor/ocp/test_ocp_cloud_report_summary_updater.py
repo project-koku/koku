@@ -95,6 +95,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             creator.create_ocp_usage_line_item(period, report, resource_id=resource_id)
         cluster_id = get_cluster_id_from_provider(self.ocp_test_provider_uuid)
         with OCPReportDBAccessor(self.schema, self.column_map) as ocp_accessor:
+            ocp_accessor.populate_node_label_line_item_daily_table(last_month.date(), today.date(), cluster_id)
             ocp_accessor.populate_line_item_daily_table(last_month.date(), today.date(), cluster_id)
 
     def _generate_ocp_on_azure_data(self, cluster_id=None):
@@ -145,6 +146,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
                 start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
                 end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
+            ocp_accessor.populate_node_label_line_item_daily_table(start_date, end_date, cluster_id)
             ocp_accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
             ocp_accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id)
 
