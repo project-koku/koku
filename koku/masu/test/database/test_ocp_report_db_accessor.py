@@ -82,7 +82,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             namespace = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
             self.creator.create_ocp_usage_line_item(self.reporting_period, self.report, pod=pod, namespace=namespace)
             self.creator.create_ocp_storage_line_item(self.reporting_period, self.report, pod=pod, namespace=namespace)
-
+        self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report)
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
             start_date = report_entry["interval_start__min"]
@@ -106,6 +106,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         for _ in range(25):
             self.creator.create_ocp_usage_line_item(self.reporting_period, self.report)
 
+        self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report)
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
             start_date = report_entry["interval_start__min"]
@@ -261,6 +262,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         for _ in range(25):
             self.creator.create_ocp_usage_line_item(self.reporting_period, self.report)
 
+        self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report)
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
             start_date = report_entry["interval_start__min"]
@@ -328,6 +330,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         for _ in range(25):
             self.creator.create_ocp_usage_line_item(self.reporting_period, self.report)
+        self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report)
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
             start_date = report_entry["interval_start__min"]
@@ -392,6 +395,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             period = self.creator.create_ocp_report_period(self.ocp_provider_uuid, period_date=start_date)
             report = self.creator.create_ocp_report(period, start_date)
             self.creator.create_ocp_usage_line_item(period, report)
+            self.creator.create_ocp_node_label_line_item(period, report)
 
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
@@ -716,6 +720,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         for _ in range(5):
             self.creator.create_ocp_usage_line_item(self.reporting_period, self.report)
 
+        self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report)
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
             start_date = report_entry["interval_start__min"]
@@ -750,6 +755,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         for _ in range(5):
             self.creator.create_ocp_usage_line_item(self.reporting_period, self.report)
 
+        self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report)
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
             start_date = report_entry["interval_start__min"]
