@@ -44,7 +44,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
         li.pod,
         li.node,
         max(li.resource_id) as resource_id,
-        li.pod_labels,
+        (li.pod_labels || nlid.node_labels) as pod_labels,
         sum(li.pod_usage_cpu_core_seconds) as pod_usage_cpu_core_seconds,
         sum(li.pod_request_cpu_core_seconds) as pod_request_cpu_core_seconds,
         sum(li.pod_limit_cpu_core_seconds) as pod_limit_cpu_core_seconds,
@@ -70,6 +70,8 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
             AND date(ur.interval_start) = cc.usage_start
     JOIN ocp_capacity_{{uuid | sqlsafe}} AS oc
         ON date(ur.interval_start) = oc.usage_start
+    JOIN {{schema | sqlsafe}}.reporting_ocpnodelabellineitem_daily as nlid
+        ON li.node = nlid.node
     LEFT JOIN public.api_provider AS p
         ON rp.provider_id = p.uuid
     WHERE date(ur.interval_start) >= {{start_date}}
@@ -81,7 +83,8 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
         li.namespace,
         li.pod,
         li.node,
-        li.pod_labels
+        li.pod_labels,
+        nlid.node_labels
 )
 ;
 

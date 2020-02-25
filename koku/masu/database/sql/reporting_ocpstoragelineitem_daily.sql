@@ -24,8 +24,8 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_{{uuid | sqlsafe}} AS 
         li.persistentvolumeclaim,
         li.persistentvolume,
         li.storageclass,
-        li.persistentvolume_labels,
-        li.persistentvolumeclaim_labels,
+        (li.persistentvolume_labels || nlid.node_labels) as persistentvolume_labels,
+        (li.persistentvolumeclaim_labels || nlid.node_labels) as persistentvolumeclaim_labels,
         sum(li.persistentvolumeclaim_capacity_byte_seconds) as persistentvolumeclaim_capacity_byte_seconds,
         sum(li.volume_request_storage_byte_seconds) as volume_request_storage_byte_seconds,
         sum(li.persistentvolumeclaim_usage_byte_seconds) as persistentvolumeclaim_usage_byte_seconds,
@@ -40,6 +40,8 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_{{uuid | sqlsafe}} AS 
         ON rp.provider_id = p.uuid
     LEFT JOIN volume_nodes_{{uuid | sqlsafe}} as uli
         ON li.id = uli.id
+    JOIN {{schema | sqlsafe}}.reporting_ocpnodelabellineitem_daily as nlid
+        ON uli.node = nlid.node
     WHERE date(ur.interval_start) >= {{start_date}}
         AND date(ur.interval_start) <= {{end_date}}
         AND rp.cluster_id = {{cluster_id}}
@@ -52,7 +54,8 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_{{uuid | sqlsafe}} AS 
         li.persistentvolume,
         li.storageclass,
         li.persistentvolume_labels,
-        li.persistentvolumeclaim_labels
+        li.persistentvolumeclaim_labels,
+        nlid.node_labels
 )
 ;
 
