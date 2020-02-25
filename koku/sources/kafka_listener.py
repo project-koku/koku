@@ -66,8 +66,6 @@ SOURCE_PROVIDER_MAP = {
     SOURCES_AZURE_SOURCE_NAME: Provider.PROVIDER_AZURE,
 }
 
-MEMO = {}
-
 
 class SourcesIntegrationError(Exception):
     """Sources Integration error."""
@@ -147,13 +145,8 @@ def storage_callback(sender, instance, **kwargs):
         PROCESS_QUEUE.put_nowait(process_event)
 
     if instance.koku_uuid and not instance.pending_delete:
-        time.sleep(1)
-        async_download_result = check_report_updates.delay(provider_uuid=instance.koku_uuid)
-        LOG.info(f"TASK ID {async_download_result} STARTED")
-        if MEMO.get(instance.koku_uuid):
-            MEMO.get(instance.koku_uuid).revoke(terminate=True)
-            LOG.info(f"TASK ID {MEMO.get(instance.koku_uuid)} REVOKED")
-        MEMO[instance.koku_uuid] = async_download_result
+        check_report_updates.apply_async(countdown=1, provider_uuid=instance.koku_uuid)
+        LOG.info(f"TASK check_report_updates STARTED")
 
 
 def get_sources_msg_data(msg, app_type_id):
