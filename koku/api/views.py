@@ -19,7 +19,6 @@
 # pylint: disable=unused-import
 from api.cloud_accounts.views import CloudAccountViewSet
 from api.dataexport.views import DataExportRequestViewSet
-from api.iam.view.user_preference import UserPreferenceViewSet
 from api.metrics.views import CostModelMetricsMapViewSet
 from api.openapi.view import openapi
 from api.provider.view import ProviderViewSet

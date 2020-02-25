@@ -1,11 +1,11 @@
 User Management
 ===============
 
-This section covers the customer owner, adding and removing users, email on-boarding and user preferences.
+This section covers the customer owner, adding and removing users.
 
 Definitions
 -----------
-Project Koku uses terminology in certain ways to describe key concepts. These are definitions of the term based on how they work within the context of the Koku and Masu applications.
+Project Koku uses terminology in certain ways to describe key concepts. These are definitions of the term based on how they work within the context of the Koku application.
 
 .. _customer:
 
@@ -19,16 +19,6 @@ Provider: A cloud resource provider or cloud data provider. An entity that produ
 
 User - A user of the Project Koku application. Users map to an individual person or login with access to customer_ data.
 
-User Preferences
-----------------
-
-When a user_ is created they will have default preferences. These preferences determine how currency, timezone, and locale will be displayed in the Koku UI.
-
-The default preferences are ::
-
-- **Currency:** USD
-- **Timezone:** UTC
-- **Locale:** English United States *(en_US)*
 
 Development
 -----------
