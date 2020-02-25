@@ -19,7 +19,6 @@ import calendar
 import gzip
 import logging
 import re
-from datetime import datetime
 from datetime import timedelta
 from os import remove
 from tempfile import gettempdir
@@ -95,10 +94,7 @@ def month_date_range_tuple(for_date_time):
             and first day of next month.
 
     """
-    if isinstance(for_date_time, datetime):
-        start_month = for_date_time.date().replace(day=1)
-    else:
-        start_month = for_date_time.replace(day=1)
+    start_month = for_date_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     _, num_days = calendar.monthrange(for_date_time.year, for_date_time.month)
     first_next_month = start_month + timedelta(days=num_days)
 

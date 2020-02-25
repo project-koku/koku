@@ -20,7 +20,6 @@ import os
 import shutil
 import tempfile
 from datetime import date
-from datetime import datetime
 from datetime import timedelta
 from unittest.mock import ANY
 from unittest.mock import Mock
@@ -804,29 +803,24 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         ce_table_name = OCP_REPORT_TABLE_MAP["report"]
         daily_table_name = OCP_REPORT_TABLE_MAP["line_item_daily"]
 
-        if isinstance(self.start_date, datetime):
-            start_date = self.start_date.date()
-        else:
-            start_date = self.start_date
-        start_date = start_date.replace(day=1) + relativedelta.relativedelta(months=-1)
+        start_date = self.start_date.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        ) + relativedelta.relativedelta(months=-1)
 
         end_date = start_date + timedelta(days=10)
+        end_date = end_date.replace(hour=23, minute=59, second=59)
 
         daily_table = getattr(self.ocp_accessor.report_schema, daily_table_name)
         ce_table = getattr(self.ocp_accessor.report_schema, ce_table_name)
 
         with schema_context(self.schema):
-            ce_start_date = (
-                ce_table.objects.filter(interval_start__gte=start_date)
-                .aggregate(Min("interval_start"))["interval_start__min"]
-                .date()
-            )
+            ce_start_date = ce_table.objects.filter(interval_start__gte=start_date).aggregate(Min("interval_start"))[
+                "interval_start__min"
+            ]
 
-            ce_end_date = (
-                ce_table.objects.filter(interval_start__lte=end_date)
-                .aggregate(Max("interval_start"))["interval_start__max"]
-                .date()
-            )
+            ce_end_date = ce_table.objects.filter(interval_start__lte=end_date).aggregate(Max("interval_start"))[
+                "interval_start__max"
+            ]
 
         # The summary tables will only include dates where there is data
         expected_start_date = max(start_date, ce_start_date)
@@ -838,8 +832,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             result_start_date = daily_entry["usage_start__min"]
             result_end_date = daily_entry["usage_end__max"]
 
-        self.assertEqual(result_start_date, expected_start_date)
-        self.assertEqual(result_end_date, expected_end_date)
+        self.assertEqual(result_start_date, expected_start_date.date())
+        self.assertEqual(result_end_date, expected_end_date.date())
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_get_report_data_for_all_providers(self, mock_update):

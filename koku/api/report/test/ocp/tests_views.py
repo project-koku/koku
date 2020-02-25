@@ -451,7 +451,7 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             totals = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .values(*["usage_start"])
                 .annotate(usage=Sum("pod_usage_memory_gigabyte_hours"))
             )
@@ -511,7 +511,7 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             cost = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start.date())
                 .aggregate(
                     total=Sum(
                         Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
@@ -555,7 +555,7 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             current_total = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=this_month_start)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=this_month_start.date())
                 .aggregate(
                     total=Sum(
                         Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
@@ -571,7 +571,7 @@ class OCPReportViewTest(IamTestCase):
             current_total = current_total if current_total is not None else 0
 
             current_totals = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=this_month_start)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=this_month_start.date())
                 .annotate(**{"date": TruncDayString("usage_start")})
                 .values(*["date"])
                 .annotate(
@@ -587,8 +587,8 @@ class OCPReportViewTest(IamTestCase):
             )
 
             prev_totals = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=last_month_start)
-                .filter(usage_start__lt=this_month_start)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=last_month_start.date())
+                .filter(usage_start__lt=this_month_start.date())
                 .annotate(**{"date": TruncDayString("usage_start")})
                 .values(*["date"])
                 .annotate(
@@ -744,7 +744,7 @@ class OCPReportViewTest(IamTestCase):
         with tenant_context(self.tenant):
             # Force Django to do GROUP BY to get nodes
             projects = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .values(*["namespace"])
                 .annotate(project_count=Count("namespace"))
                 .all()
@@ -812,7 +812,7 @@ class OCPReportViewTest(IamTestCase):
         with tenant_context(self.tenant):
             # Force Django to do GROUP BY to get nodes
             clusters = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .values(*["cluster_id"])
                 .annotate(cluster_count=Count("cluster_id"))
                 .all()
@@ -848,7 +848,7 @@ class OCPReportViewTest(IamTestCase):
             # Force Django to do GROUP BY to get nodes
             nodes = (
                 OCPUsageLineItemDailySummary.objects.values(*["node"])
-                .filter(usage_start__gte=self.ten_days_ago)
+                .filter(usage_start__gte=self.ten_days_ago.date())
                 .values(*["node"])
                 .annotate(node_count=Count("node"))
                 .all()
@@ -923,7 +923,7 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             labels = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .filter(pod_labels__has_key=filter_key)
                 .values(*["pod_labels"])
                 .all()
@@ -932,7 +932,7 @@ class OCPReportViewTest(IamTestCase):
             filter_value = label_of_interest.get("pod_labels", {}).get(filter_key)
 
             totals = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .filter(**{f"pod_labels__{filter_key}": filter_value})
                 .aggregate(
                     **{
@@ -969,7 +969,7 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             labels = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .filter(pod_labels__has_key=filter_key)
                 .values("pod_labels")
                 .all()
@@ -978,7 +978,7 @@ class OCPReportViewTest(IamTestCase):
             filter_value = label_of_interest.get("pod_labels", {}).get(filter_key)
 
             totals = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .filter(**{f"pod_labels__{filter_key}": filter_value})
                 .aggregate(
                     cost=Sum(
@@ -1016,7 +1016,7 @@ class OCPReportViewTest(IamTestCase):
         filter_key = tag_keys[0]
 
         with tenant_context(self.tenant):
-            totals = OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago).aggregate(
+            totals = OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date()).aggregate(
                 **{
                     "usage": Sum("pod_usage_cpu_core_hours"),
                     "request": Sum("pod_request_cpu_core_hours"),
@@ -1419,7 +1419,7 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             projects = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .values("namespace")
                 .distinct()
             )
@@ -1448,7 +1448,7 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             clusters = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .values("cluster_id")
                 .distinct()
             )
@@ -1478,7 +1478,7 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             labels = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .filter(pod_labels__has_key=filter_key)
                 .values(*["pod_labels"])
                 .all()
@@ -1509,7 +1509,7 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             labels = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago)
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .filter(pod_labels__has_key=group_by_key)
                 .values(*["pod_labels"])
                 .all()

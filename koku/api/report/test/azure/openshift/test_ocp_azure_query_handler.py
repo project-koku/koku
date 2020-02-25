@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
+from datetime import datetime
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
 from unittest.mock import patch
@@ -575,6 +576,21 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
 
         subs = data[0].get("subscription_guids", [{}])
+        if isinstance(self.dh.this_month_start, datetime):
+            v_this_month_start = self.dh.this_month_start.date()
+        else:
+            v_this_month_start = self.dh.this_month_start
+        if isinstance(self.dh.today, datetime):
+            v_today = self.dh.today.date()
+            v_today_last_month = (self.dh.today - relativedelta(months=1)).date()
+        else:
+            v_today = self.dh.today
+            v_today_last_month = self.dh.today = relativedelta(months=1)
+        if isinstance(self.dh.last_month_start, datetime):
+            v_last_month_start = self.dh.last_month_start.date()
+        else:
+            v_last_month_start = self.dh.last_month_start
+
         for sub in subs:
             current_total = Decimal(0)
             prev_total = Decimal(0)
@@ -582,15 +598,15 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             # fetch the expected sums from the DB.
             with tenant_context(self.tenant):
                 curr = OCPAzureCostLineItemDailySummary.objects.filter(
-                    usage_start__gte=self.dh.this_month_start,
-                    usage_start__lte=self.dh.today,
+                    usage_start__gte=v_this_month_start,
+                    usage_start__lte=v_today,
                     subscription_guid=sub.get("subscription_guid"),
                 ).aggregate(value=Sum(F("pretax_cost") + F("markup_cost")))
                 current_total = Decimal(curr.get("value"))
 
                 prev = OCPAzureCostLineItemDailySummary.objects.filter(
-                    usage_start__gte=self.dh.last_month_start,
-                    usage_start__lte=self.dh.today - relativedelta(months=1),
+                    usage_start__gte=v_last_month_start,
+                    usage_start__lte=v_today_last_month,
                     subscription_guid=sub.get("subscription_guid"),
                 ).aggregate(value=Sum(F("pretax_cost") + F("markup_cost")))
                 prev_total = Decimal(prev.get("value", Decimal(0)))

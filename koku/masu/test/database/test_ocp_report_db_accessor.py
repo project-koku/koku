@@ -259,8 +259,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"].date()
-            end_date = report_entry["interval_start__max"].date()
+            start_date = report_entry["interval_start__min"]
+            end_date = report_entry["interval_start__max"]
+
+        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
         query = self.accessor._get_db_obj_query(daily_table_name)
         with schema_context(self.schema):
@@ -275,8 +278,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
             result_start_date = daily_entry["usage_start__min"]
             result_end_date = daily_entry["usage_start__max"]
 
-        self.assertEqual(result_start_date, start_date)
-        self.assertEqual(result_end_date, end_date)
+        self.assertEqual(result_start_date, start_date.date())
+        self.assertEqual(result_end_date, end_date.date())
 
         with schema_context(self.schema):
             entry = query.first()
@@ -322,8 +325,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
             self.creator.create_ocp_usage_line_item(self.reporting_period, self.report)
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"].date()
-            end_date = report_entry["interval_start__max"].date()
+            start_date = report_entry["interval_start__min"]
+            end_date = report_entry["interval_start__max"]
+
+            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
             query = self.accessor._get_db_obj_query(summary_table_name)
             initial_count = query.count()
@@ -337,8 +343,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
             result_start_date = summary_entry["usage_start__min"]
             result_end_date = summary_entry["usage_start__max"]
 
-            self.assertEqual(result_start_date, start_date)
-            self.assertEqual(result_end_date, end_date)
+            self.assertEqual(result_start_date, start_date.date())
+            self.assertEqual(result_end_date, end_date.date())
 
             entry = query.first()
 
@@ -383,8 +389,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"].date()
-            end_date = report_entry["interval_start__max"].date()
+            start_date = report_entry["interval_start__min"]
+            end_date = report_entry["interval_start__max"]
+
+        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
         query = self.accessor._get_db_obj_query(agg_table_name)
         with schema_context(self.schema):
@@ -426,8 +435,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
             self.creator.create_ocp_storage_line_item(period, report)
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"].date()
-            end_date = report_entry["interval_start__max"].date()
+            start_date = report_entry["interval_start__min"]
+            end_date = report_entry["interval_start__max"]
+
+        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
         query = self.accessor._get_db_obj_query(agg_table_name)
         with schema_context(self.schema):
@@ -704,8 +716,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"].date()
-            end_date = report_entry["interval_start__max"].date()
+            start_date = report_entry["interval_start__min"]
+            end_date = report_entry["interval_start__max"]
+
+        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
         first_month, _ = month_date_range_tuple(start_date)
 
