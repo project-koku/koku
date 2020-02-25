@@ -1,7 +1,7 @@
 User Management
 ===============
 
-This section covers the customer owner, adding and removing users, email on-boarding and user preferences.
+This section covers the customer owner, adding and removing users.
 
 Definitions
 -----------
