@@ -145,7 +145,7 @@ class RbacServiceTest(TestCase):
         rbac = RbacService()
         url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
         logging.disable(logging.NOTSET)
-        with self.assertLogs(logger="koku.rbac", level=logging.ERROR):
+        with self.assertLogs(logger="koku.rbac", level=logging.WARNING):
             access = rbac._request_user_access(url, headers={})  # pylint: disable=protected-access
         self.assertEqual(access, [])
         mock_get.assert_called()

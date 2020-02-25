@@ -190,7 +190,7 @@ class RbacService:  # pylint: disable=too-few-public-methods
         try:
             response = requests.get(url, headers=headers)
         except ConnectionError as err:
-            LOGGER.error("Error requesting user access: %s", err)
+            LOGGER.warning("Error requesting user access: %s", err)
             RBAC_CONNECTION_ERROR_COUNTER.inc()
             raise RbacConnectionError(err)
 
@@ -203,9 +203,9 @@ class RbacService:  # pylint: disable=too-few-public-methods
         if response.status_code != status.HTTP_200_OK:
             try:
                 error = response.json()
-                LOGGER.error("Error requesting user access: %s", error)
+                LOGGER.warning("Error requesting user access: %s", error)
             except (JSONDecodeError, ValueError) as res_error:
-                LOGGER.error("Error processing failed, %s, user access: %s", response.status_code, res_error)
+                LOGGER.warning("Error processing failed, %s, user access: %s", response.status_code, res_error)
             return access
 
         # check for pagination handling
