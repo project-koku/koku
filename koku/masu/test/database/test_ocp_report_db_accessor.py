@@ -89,6 +89,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
+        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, cluster_id)
         self.accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
 
         self.accessor.populate_storage_line_item_daily_table(start_date, end_date, cluster_id)
@@ -111,6 +112,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
+        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, cluster_id)
         self.accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id)
         return (start_date, end_date)
@@ -269,6 +271,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             initial_count = query.count()
 
+        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
 
         self.assertNotEqual(query.count(), initial_count)
@@ -334,6 +337,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             query = self.accessor._get_db_obj_query(summary_table_name)
             initial_count = query.count()
 
+            self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
             self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
             self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
 
@@ -399,6 +403,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             initial_count = query.count()
 
+        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_pod_label_summary_table()
 
@@ -724,6 +729,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         first_month, _ = month_date_range_tuple(start_date)
 
+        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         cluster_alias = "test_cluster_alias"

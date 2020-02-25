@@ -460,3 +460,34 @@ class OCPNodeLabelLineItem(models.Model):
     node = models.CharField(max_length=253, null=True)
 
     node_labels = JSONField(null=True)
+
+
+class OCPNodeLabelLineItemDaily(models.Model):
+    """A daily aggregation of node label line items.
+
+    This table is aggregated by OCP resource.
+
+    """
+
+    class Meta:
+        """Meta for OCPNodeLabelLineItemDaily."""
+
+        db_table = "reporting_ocpnodelabellineitem_daily"
+
+    id = models.BigAutoField(primary_key=True)
+
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
+
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
+
+    # Kubernetes objects by convention have a max name length of 253 chars
+    node = models.CharField(max_length=253, null=True)
+
+    usage_start = models.DateTimeField(null=False)
+    usage_end = models.DateTimeField(null=False)
+
+    node_labels = JSONField(null=True)
+
+    total_seconds = models.IntegerField()
