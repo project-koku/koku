@@ -133,6 +133,9 @@ class QueryParameters:
 
         access_list = []
         for set_access in set_access_list:
+            if provider == "ocp_all" and set_access[0] != "ocp":
+                # for ocp_all, set filter_key to account for non-ocp providers
+                set_access = (set_access[0], "account", *set_access[2:])
             access_list.append(self._set_access(*set_access))
         access_list = list(set(access_list))
 
