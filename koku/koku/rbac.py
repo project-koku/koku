@@ -16,6 +16,7 @@
 #
 """Interactions with the rbac service."""
 import logging
+from json.decoder import JSONDecodeError
 
 import requests
 from prometheus_client import Counter
@@ -183,7 +184,7 @@ class RbacService:  # pylint: disable=too-few-public-methods
         }
         return rbac_conn_info
 
-    def _request_user_access(self, url, headers):
+    def _request_user_access(self, url, headers):  # noqa: C901
         """Send request to RBAC service and handle pagination case."""
         access = []
         try:
@@ -193,11 +194,17 @@ class RbacService:  # pylint: disable=too-few-public-methods
             RBAC_CONNECTION_ERROR_COUNTER.inc()
             raise RbacConnectionError(err)
 
+        if response.status_code >= status.HTTP_500_INTERNAL_SERVER_ERROR:
+            msg = ">=500 Response from RBAC"
+            LOGGER.warning(msg)
+            RBAC_CONNECTION_ERROR_COUNTER.inc()
+            raise RbacConnectionError(msg)
+
         if response.status_code != status.HTTP_200_OK:
             try:
                 error = response.json()
                 LOGGER.error("Error requesting user access: %s", error)
-            except ValueError as res_error:
+            except (JSONDecodeError, ValueError) as res_error:
                 LOGGER.error("Error processing failed, %s, user access: %s", response.status_code, res_error)
             return access
 
