@@ -756,8 +756,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"].date()
-            end_date = report_entry["interval_start__max"].date()
+            start_date = report_entry["interval_start__min"]
+            end_date = report_entry["interval_start__max"]
 
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
@@ -766,7 +766,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         first_month, _ = month_date_range_tuple(start_date)
         monthly_cost = self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary).filter(
-            usage_start=first_month, monthly_cost__isnull=False
+            usage_start=first_month.date(), monthly_cost__isnull=False
         )
         self.assertTrue(monthly_cost.exists())
         self.accessor.remove_monthly_cost()
