@@ -68,4 +68,4 @@ customer:
 koku:
   host: localhost
   port: 8000
-  prefix: /api/cost-management
+  prefix: /api
