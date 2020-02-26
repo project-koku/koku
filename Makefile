@@ -77,6 +77,7 @@ help:
 	@echo "  manifest                              create/update manifest for product security"
 	@echo "  check-manifest                        check that the manifest is up to date"
 	@echo "  remove-db                             remove local directory $(TOPDIR)/pg_data"
+	@echo "  reset-db-statistics                   clear the pg_stat_statements statistics"
 	@echo "  run-migrations                        run migrations against database"
 	@echo "  serve                                 run the Django app on localhost"
 	@echo "  superuser                             create a Django super user"
@@ -86,6 +87,10 @@ help:
 	@echo "  docker-up                            run docker-compose up --build -d"
 	@echo "  docker-up-no-build                   run docker-compose up -d"
 	@echo "  docker-up-db                         run database only"
+	@echo "  docker-up-db-monitor                 run the database monitoring via grafana"
+	@echo "                                         url:      localhost:3001"
+	@echo "                                         user:     admin"
+	@echo "                                         password: admin12"
 	@echo "  docker-down                          shut down all containers"
 	@echo "  docker-rabbit                        run RabbitMQ container"
 	@echo "  docker-reinitdb                      drop and recreate the database"
@@ -186,6 +191,14 @@ make-migrations:
 
 remove-db:
 	$(PREFIX) rm -rf $(TOPDIR)/pg_data
+
+reset-db-statistics:
+	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
+                                         -p $$POSTGRES_SQL_SERVICE_PORT \
+                                         -d $$DATABASE_NAME \
+                                         -U $$DATABASE_USER \
+                                         -c "select pg_stat_statements_reset();" >/dev/null
+	@echo "Statistics have been reset"
 
 requirements:
 	pipenv lock
@@ -504,6 +517,10 @@ docker-up-db:
     done
 	@echo ' PostgreSQL is available!'
 
+docker-up-db-monitor:
+	docker-compose up --build -d grafana
+	@echo "Monitor is up at localhost:3001  User=admin  Password=admin12"
+
 docker-iqe-smokes-tests:
 	$(MAKE) docker-reinitdb
 	$(MAKE) clear-testing
@@ -629,7 +646,7 @@ endif
 
 
 # Restore local database
-restore-local-db:
+load-local-db:
 ifndef dump_outfile
 	$(error param dump_outfile not set)
 endif
@@ -648,19 +665,26 @@ endif
 backup-local-db-dir:
 	docker-compose stop db
 	@cd $(TOPDIR)
+	@echo "Copying pg_data to pg_data.bak..."
 	@$(PREFIX) cp -rp ./pg_data ./pg_data.bak
-	@cd -
+	@cd - >/dev/null
 	docker-compose start db
 
 
 restore-local-db-dir:
-	docker-compose stop db
 	@cd $(TOPDIR)
-	@$(PREFIX) rm -rf ./pg_data
-	@$(PREFIX) mv -f ./pg_data.bak ./pg_data && echo "SUCCESS" || echo "FAILED!!"
-	@cd -
-	docker-compose start db
-	@echo "Migrations may need to be run."
+	@if [ -d ./pg_data.bak ] ; then \
+	    docker-compose stop db ; \
+	    echo "Removing pg_data..." ; \
+	    $(PREFIX) rm -rf ./pg_data ; \
+	    echo "Renaming pg_data.bak to pg_data..." ; \
+	    $(PREFIX) mv -f ./pg_data.bak ./pg_data ; \
+	    docker-compose start db ; \
+	    echo "NOTE :: Migrations may need to be run." ; \
+	else \
+	    echo "NOTE :: There is no pg_data.bak dir to restore from." ; \
+	fi
+	@cd - >/dev/null
 
 
 ########################
