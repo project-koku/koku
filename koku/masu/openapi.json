@@ -411,7 +411,7 @@
             }
           }
         },
-        "UpdateChargeGetResponse": {
+        "UpdateCostModelCostGetResponse": {
           "type": "object",
           "properties": {
             "Update Cost Model Cost Task ID": {
