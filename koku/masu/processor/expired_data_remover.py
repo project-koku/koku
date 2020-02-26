@@ -27,11 +27,11 @@ import pytz
 
 from api.models import Provider
 from masu.config import Config
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleaner
 from masu.processor.azure.azure_report_db_cleaner import AzureReportDBCleaner
 from masu.processor.ocp.ocp_report_db_cleaner import OCPReportDBCleaner
-from reporting_common.models import CostUsageReportManifest
 
 LOG = logging.getLogger(__name__)
 
@@ -157,21 +157,13 @@ class ExpiredDataRemover:
                 removed_data = self._cleaner.purge_expired_line_item(expired_date=expiration_date, simulate=simulate)
             else:
                 removed_data = self._cleaner.purge_expired_report_data(expired_date=expiration_date, simulate=simulate)
-                if not simulate:
-                    recordsToDelete = CostUsageReportManifest.objects.filter(
-                        provider__type=self._provider, billing_period_start_datetime__lt=expiration_date
-                    ).count()
-                    CostUsageReportManifest.objects.filter(
-                        provider__type=self._provider, billing_period_start_datetime__lt=expiration_date
-                    ).delete()
-                    LOG.info(
-                        "Deleted %s expired CostUsageReportManifests of provider type: %s"
-                        % (recordsToDelete, self._provider)
-                    )
-                else:
-                    numberOfRowsDeleted = CostUsageReportManifest.objects.filter(
-                        provider__type=self._provider, billing_period_start_datetime__lt=expiration_date
-                    ).count()
-                    LOG.info("Simulated deletion of %s expired CostUsageReportManifests" % numberOfRowsDeleted)
+                with ReportManifestDBAccessor() as manifest_accessor:
+                    if not simulate:
+                        manifest_accessor.delete_cost_usage_reports_older_than(self._provider, expiration_date)
+                    else:
+                        expiredManifestCount = manifest_accessor.count_manifests_older_than(
+                            self._provider, expiration_date
+                        )
+                        LOG.info("Simulated deletion of %s expired CostUsageReportManifests" % expiredManifestCount)
 
         return removed_data
