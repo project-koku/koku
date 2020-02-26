@@ -250,6 +250,17 @@ class TestCeleryTasks(MasuTestCase):
         mock_bucket.objects.filter.assert_has_calls([call(Prefix=expected_prefix), call(Prefix=expected_prefix)])
         self.assertIn("Found 1 objects after attempting", captured_logs.output[-1])
 
+    @override_settings(ENABLE_S3_ARCHIVING=False)
+    def test_delete_archived_data_archiving_false(self):
+        """Test that delete_archived_data correctly interacts with AWS S3."""
+        schema_name = "acct10001"
+        provider_type = Provider.PROVIDER_AWS
+        provider_uuid = "00000000-0000-0000-0000-000000000001"
+
+        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+            tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
+            self.assertIn("Skipping delete_archived_data. Upload feature is disabled.", captured_logs.output[0])
+
     @patch("masu.celery.tasks.vacuum_schema")
     def test_vacuum_schemas(self, mock_vacuum):
         """Test that the vacuum_schemas scheduled task runs for all schemas."""
@@ -391,6 +402,26 @@ class TestUploadTaskWithData(MasuTestCase):
             else:
                 # We ONLY have test data currently for AWS.
                 mock_uploader.return_value.upload_file.assert_not_called()
+
+    @override_settings(ENABLE_S3_ARCHIVING=False)
+    def test_query_and_upload_to_s3_archiving_false(self):
+        """Assert query_and_upload_to_s3 not run."""
+        today = self.today
+        _, last_day_of_month = calendar.monthrange(today.year, today.month)
+        curr_month_first_day = date(year=today.year, month=today.month, day=1)
+        curr_month_last_day = date(year=today.year, month=today.month, day=last_day_of_month)
+
+        date_range = (curr_month_first_day, curr_month_last_day)
+        for table_export_setting in tasks.table_export_settings:
+            with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+                tasks.query_and_upload_to_s3(
+                    self.schema,
+                    self.aws_provider_uuid,
+                    dictify_table_export_settings(table_export_setting),
+                    date_range[0],
+                    date_range[1],
+                )
+                self.assertIn("S3 Archiving is disabled. Not running task.", captured_logs.output[0])
 
     @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.AwsS3Uploader")

@@ -157,7 +157,7 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
         raise TypeError("delete_archived_data() %s", ", ".join(messages))
 
     if not settings.ENABLE_S3_ARCHIVING:
-        LOG.info("Skipping delete_archived_data; upload feature is disabled")
+        LOG.info("Skipping delete_archived_data. Upload feature is disabled.")
         return
 
     if not settings.S3_BUCKET_PATH:
