@@ -125,7 +125,7 @@ if not settings.DEVELOPMENT:
 
 
 # Toggle to enable/disable S3 archiving of account data.
-if ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=True):
+if settings.ENABLE_S3_ARCHIVING:
     app.conf.beat_schedule["daily_upload_normalized_reports_to_s3"] = {
         "task": "masu.celery.tasks.upload_normalized_data",
         "schedule": int(os.getenv("UPLOAD_NORMALIZED_DATA_INTERVAL", "86400")),
