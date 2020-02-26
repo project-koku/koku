@@ -149,7 +149,7 @@ class QueryParameters:
         """
 
         access = []
-        provider_list = provider.lower().split("_")
+        provider_list = provider.split("_")
         if "all" in provider_list:
             for p, v in self.provider_resource_list.items():
                 access.extend(v)
