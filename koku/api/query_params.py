@@ -162,12 +162,7 @@ class QueryParameters:
         return access
 
     def _set_access(self, provider, filter_key, access_key, raise_exception=True):
-        """Alter query parameters based on user access.
-
-        Return the provider and it's corresponding access list.
-        If the access list is a WILDCARD, return provider and None.
-
-        """
+        """Alter query parameters based on user access."""
         access_list = self.access.get(access_key, {}).get("read", [])
         access_filter_applied = False
         if ReportQueryHandler.has_wildcard(access_list):
@@ -192,12 +187,7 @@ class QueryParameters:
                 self.parameters["filter"][filter_key] = access_list
 
     def _set_access_ocp_all(self, provider, filter_key, access_key, raise_exception=True):
-        """Alter query parameters based on user access.
-
-        Return the provider and it's corresponding access list.
-        If the access list is a WILDCARD, return provider and None.
-
-        """
+        """Alter query parameters based on user access."""
         access_list = self.access.get(access_key, {}).get("read", [])
         access_filter_applied = False
         if ReportQueryHandler.has_wildcard(access_list):
