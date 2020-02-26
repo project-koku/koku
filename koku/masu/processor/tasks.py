@@ -39,7 +39,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
-from masu.processor.cost_model_cost_updater import ReportChargeUpdater
+from masu.processor.cost_model_cost_updater import CostModelCostUpdater
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.worker_cache import WorkerCache
@@ -316,7 +316,7 @@ def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_dat
     )
     LOG.info(stmt)
 
-    updater = ReportChargeUpdater(schema_name, provider_uuid)
+    updater = CostModelCostUpdater(schema_name, provider_uuid)
     if updater:
         updater.update_cost_model_costs(start_date, end_date)
 

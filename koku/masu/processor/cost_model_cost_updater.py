@@ -26,12 +26,12 @@ from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdat
 LOG = logging.getLogger(__name__)
 
 
-class ReportChargeUpdaterError(Exception):
+class CostModelCostUpdaterError(Exception):
     """Expired Data Removalerror."""
 
 
 # pylint: disable=too-few-public-methods
-class ReportChargeUpdater:
+class CostModelCostUpdater:
     """Update reporting summary tables."""
 
     def __init__(self, customer_schema, provider_uuid):
@@ -50,7 +50,7 @@ class ReportChargeUpdater:
         try:
             self._updater = self._set_updater()
         except Exception as err:
-            raise ReportChargeUpdaterError(err)
+            raise CostModelCostUpdaterError(err)
 
     def _set_updater(self):
         """
