@@ -350,8 +350,9 @@ CORS_ALLOW_HEADERS = default_headers + ("x-rh-identity", "HTTP_X_RH_IDENTITY")
 
 APPEND_SLASH = False
 
+DISABLE_LOGGING = ENVIRONMENT.bool("DISABLE_LOGGING", default=False)
 # disable log messages less than CRITICAL when running unit tests.
-if len(sys.argv) > 1 and sys.argv[1] == "test" and not DEBUG:
+if len(sys.argv) > 1 and sys.argv[1] == "test" and DISABLE_LOGGING:
     logging.disable(logging.CRITICAL)
 
 # Masu API Endpoints
@@ -380,7 +381,7 @@ CELERY_WORKER_TASK_LOG_FORMAT = (
 S3_BUCKET_NAME = ENVIRONMENT.get_value("S3_BUCKET_NAME", default="koku-reports")
 S3_BUCKET_PATH = ENVIRONMENT.get_value("S3_BUCKET_PATH", default="data_archive")
 S3_REGION = ENVIRONMENT.get_value("S3_REGION", default="us-east-1")
-ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=True)
+ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
 
 # Time to wait between cold storage retrieval for data export. Default is 3 hours
 COLD_STORAGE_RETRIVAL_WAIT_TIME = int(os.getenv("COLD_STORAGE_RETRIVAL_WAIT_TIME", default="10800"))
