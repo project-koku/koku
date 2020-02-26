@@ -50,4 +50,4 @@ def update_cost_model_costs(request):
 
     async_result = cost_task.delay(schema_name, provider_uuid)
 
-    return Response({"Update Charge Task ID": str(async_result)})
+    return Response({"Update Cost Model Cost Task ID": str(async_result)})

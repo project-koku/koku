@@ -23,14 +23,14 @@ from django.urls import reverse
 
 
 @override_settings(ROOT_URLCONF="masu.urls")
-class UpdateChargeTest(TestCase):
+class UpdateCostModelCostTest(TestCase):
     """Test Cases for the update_cost_model_costs endpoint."""
 
-    @patch("masu.api.update_cost_model_costs.update_cost_model_costs")
+    @patch("masu.api.update_cost_model_costs.cost_task")
     def test_get_update_cost_model_costs(self, mock_update):
         """Test the GET report_data endpoint."""
         params = {"schema": "acct10001", "provider_uuid": "3c6e687e-1a09-4a05-970c-2ccf44b0952e"}
-        expected_key = "Update Charge Task ID"
+        expected_key = "Update Cost Model Cost Task ID"
 
         response = self.client.get(reverse("update_cost_model_costs"), params)
         body = response.json()
@@ -39,7 +39,7 @@ class UpdateChargeTest(TestCase):
         self.assertIn(expected_key, body)
         mock_update.delay.assert_called_with(params["schema"], params["provider_uuid"])
 
-    @patch("masu.api.update_cost_model_costs.update_cost_model_costs")
+    @patch("masu.api.update_cost_model_costs.cost_task")
     def test_get_update_cost_model_costs_schema_missing(self, mock_update):
         """Test GET report_data endpoint returns a 400 for missing schema."""
         params = {"provider_uuid": "3c6e687e-1a09-4a05-970c-2ccf44b0952e"}
@@ -53,7 +53,7 @@ class UpdateChargeTest(TestCase):
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)
 
-    @patch("masu.api.update_cost_model_costs.update_cost_model_costs")
+    @patch("masu.api.update_cost_model_costs.cost_task")
     def test_get_update_cost_model_costs_provider_missing(self, mock_update):
         """Test GET report_data endpoint returns a 400 for missing schema."""
         params = {"schema": "acct10001"}
