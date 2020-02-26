@@ -171,14 +171,14 @@ create-test-customer: run-migrations
 	$(DJANGO_MANAGE) runserver > /dev/null 2>&1 &
 	sleep 5
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
-	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
+	kill -HUP $$(ps -o pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}') || true
 
 create-test-customer-no-providers: run-migrations
 	sleep 1
 	$(DJANGO_MANAGE) runserver > /dev/null 2>&1 &
 	sleep 5
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-providers --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
-	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
+	kill -HUP $$(ps -o pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}') || true
 
 load-test-customer-data:
 	$(TOPDIR)/scripts/load_test_customer_data.sh $(TOPDIR) $(start) $(end)
