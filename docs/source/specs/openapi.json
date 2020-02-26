@@ -3140,6 +3140,13 @@
                                     "enum": [
                                         "USD"
                                     ]
+                                },
+                                "cost_type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "Infrastructure",
+                                        "Supplementary"
+                                    ]
                                 }
                             }
                         },
