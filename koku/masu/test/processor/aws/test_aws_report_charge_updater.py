@@ -76,14 +76,14 @@ class AWSCostModelCostUpdaterTest(MasuTestCase):
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
-    def test_update_summary_charge_info(self, mock_markup):
+    def test_update_summary_cost_model_costs(self, mock_markup):
         """Test to verify AWS derived cost summary is calculated."""
         markup = {"value": 10, "unit": "percent"}
         mock_markup.return_value = markup
         start_date = self.date_accessor.today_with_timezone("UTC")
         bill_date = start_date.replace(day=1).date()
 
-        self.updater.update_summary_charge_info()
+        self.updater.update_summary_cost_model_costs()
         with AWSReportDBAccessor("acct10001", self.column_map) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             self.assertIsNotNone(bill.derived_cost_datetime)

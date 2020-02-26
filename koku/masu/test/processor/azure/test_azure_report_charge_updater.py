@@ -72,12 +72,12 @@ class AzureCostModelCostUpdaterTest(MasuTestCase):
 
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 
-    def test_azure_update_summary_charge_info(self):
+    def test_azure_update_summary_cost_model_costs(self):
         """Test to verify Azure derived cost summary is calculated."""
         start_date = self.date_accessor.today_with_timezone("UTC")
         bill_date = start_date.replace(day=1).date()
 
-        self.updater.update_summary_charge_info()
+        self.updater.update_summary_cost_model_costs()
 
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]

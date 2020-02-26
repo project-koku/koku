@@ -90,4 +90,4 @@ class CostModelCostUpdater:
 
         """
         if self._updater:
-            self._updater.update_summary_charge_info(start_date, end_date)
+            self._updater.update_summary_cost_model_costs(start_date, end_date)

@@ -63,7 +63,7 @@ class AzureCostModelCostUpdater:
         except AzureCostModelCostUpdaterError as error:
             LOG.error("Unable to update markup costs. Error: %s", str(error))
 
-    def update_summary_charge_info(self, start_date=None, end_date=None):
+    def update_summary_cost_model_costs(self, start_date=None, end_date=None):
         """Update the Azure summary table with the charge information.
 
         Args:

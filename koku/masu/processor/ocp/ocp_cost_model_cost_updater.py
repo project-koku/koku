@@ -324,7 +324,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         except OCPCostModelCostUpdaterError as error:
             LOG.error("Unable to update monthly costs. Error: %s", str(error))
 
-    def update_summary_charge_info(self, start_date, end_date):
+    def update_summary_cost_model_costs(self, start_date, end_date):
         """Update the OCP summary table with the charge information.
 
         Args:

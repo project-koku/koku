@@ -28,7 +28,7 @@ from masu.test import MasuTestCase
 class CostModelCostUpdaterTest(MasuTestCase):
     """Test class for the report summary updater."""
 
-    @patch("masu.processor.cost_model_cost_updater.OCPCostModelCostUpdater.update_summary_charge_info")
+    @patch("masu.processor.cost_model_cost_updater.OCPCostModelCostUpdater.update_summary_cost_model_costs")
     def test_ocp_route(self, mock_update):
         """Test that OCP charge updating works as expected."""
         updater = CostModelCostUpdater(self.schema, self.ocp_test_provider_uuid)
@@ -36,7 +36,7 @@ class CostModelCostUpdaterTest(MasuTestCase):
         updater.update_cost_model_costs()
         mock_update.assert_called()
 
-    @patch("masu.processor.cost_model_cost_updater.AzureCostModelCostUpdater.update_summary_charge_info")
+    @patch("masu.processor.cost_model_cost_updater.AzureCostModelCostUpdater.update_summary_cost_model_costs")
     def test_azure_local_route(self, mock_update):
         """Test that AZURE-local charge updating works as expected."""
         updater = CostModelCostUpdater(self.schema, self.azure_test_provider_uuid)
@@ -44,7 +44,7 @@ class CostModelCostUpdaterTest(MasuTestCase):
         updater.update_cost_model_costs()
         mock_update.assert_called()
 
-    @patch("masu.processor.cost_model_cost_updater.AWSCostModelCostUpdater.update_summary_charge_info")
+    @patch("masu.processor.cost_model_cost_updater.AWSCostModelCostUpdater.update_summary_cost_model_costs")
     def test_aws_route(self, mock_update):
         """Test that AWS charge updating works as expected."""
         updater = CostModelCostUpdater(self.schema, self.aws_provider_uuid)
@@ -52,7 +52,7 @@ class CostModelCostUpdaterTest(MasuTestCase):
         updater.update_cost_model_costs()
         mock_update.assert_called()
 
-    @patch("masu.processor.cost_model_cost_updater.AzureCostModelCostUpdater.update_summary_charge_info")
+    @patch("masu.processor.cost_model_cost_updater.AzureCostModelCostUpdater.update_summary_cost_model_costs")
     def test_azure_route(self, mock_update):
         """Test that Azure charge updating works as expected."""
         updater = CostModelCostUpdater(self.schema, self.azure_test_provider_uuid)
