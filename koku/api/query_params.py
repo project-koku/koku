@@ -27,7 +27,9 @@ from tenant_schemas.utils import tenant_context
 
 from api.models import Tenant
 from api.models import User
+from api.provider.models import Provider
 from api.report.queries import ReportQueryHandler
+from reporting.models import OCPAllCostLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
 
@@ -42,12 +44,12 @@ class QueryParameters:
     """
 
     provider_resource_list = {
-        "aws": [("aws", "account", "aws.account")],
-        "azure": [("azure", "subscription_guid", "azure.subscription_guid")],
+        "aws": [(Provider.PROVIDER_AWS, "account", "aws.account")],
+        "azure": [(Provider.PROVIDER_AZURE, "subscription_guid", "azure.subscription_guid")],
         "ocp": [
-            ("ocp", "cluster", "openshift.cluster", True),
-            ("ocp", "node", "openshift.node", False),
-            ("ocp", "project", "openshift.project", False),
+            (Provider.PROVIDER_OCP, "cluster", "openshift.cluster", True),
+            (Provider.PROVIDER_OCP, "node", "openshift.node", False),
+            (Provider.PROVIDER_OCP, "project", "openshift.project", False),
         ],
     }
 
@@ -131,22 +133,13 @@ class QueryParameters:
         provider = caller.query_handler.provider.lower()
         set_access_list = self._get_providers(provider)
 
-        access_list = []
         for set_access in set_access_list:
-            if provider == "ocp_all" and set_access[0] != "ocp":
+            if provider == "ocp_all" and set_access[0] != Provider.PROVIDER_OCP:
                 # for ocp_all, set filter_key to account for non-ocp providers
                 set_access = (set_access[0], "account", *set_access[2:])
-            access_list.append(self._set_access(*set_access))
-        access_list = list(set(access_list))
-
-        provider_access = []
-        for tup in access_list:
-            if tup[1] is not ():
-                provider_access.append(tup[0])
-        provider_access_set = set(provider_access)
-
-        if provider == "ocp_all" and provider_access_set != set(self.provider_resource_list.keys()):
-            self.parameters["filter"]["source_type"] = provider_access
+                self._set_access_ocp_all(*set_access)
+            else:
+                self._set_access(*set_access)
 
     def _get_providers(self, provider):
         """Get the providers.
@@ -156,7 +149,7 @@ class QueryParameters:
         """
 
         access = []
-        provider_list = provider.split("_")
+        provider_list = provider.lower().split("_")
         if "all" in provider_list:
             for p, v in self.provider_resource_list.items():
                 access.extend(v)
@@ -178,7 +171,7 @@ class QueryParameters:
         access_list = self.access.get(access_key, {}).get("read", [])
         access_filter_applied = False
         if ReportQueryHandler.has_wildcard(access_list):
-            return (provider, None)
+            return
 
         # check group by
         group_by = self.parameters.get("group_by", {})
@@ -197,7 +190,39 @@ class QueryParameters:
                     self.parameters["filter"][filter_key] = result
             elif access_list:
                 self.parameters["filter"][filter_key] = access_list
-        return (provider, tuple(access_list))
+
+    def _set_access_ocp_all(self, provider, filter_key, access_key, raise_exception=True):
+        """Alter query parameters based on user access.
+
+        Return the provider and it's corresponding access list.
+        If the access list is a WILDCARD, return provider and None.
+
+        """
+        access_list = self.access.get(access_key, {}).get("read", [])
+        access_filter_applied = False
+        if ReportQueryHandler.has_wildcard(access_list):
+            access_list = list(
+                OCPAllCostLineItemDailySummary.objects.filter(source_type=provider)
+                .values_list("usage_account_id", flat=True)
+                .distinct()
+            )
+
+        # check group by
+        group_by = self.parameters.get("group_by", {})
+        if group_by.get(filter_key):
+            items = set(group_by.get(filter_key))
+            items.update(access_list)
+            if set(group_by.get(filter_key)) != items:
+                self.parameters["group_by"][filter_key] = list(items)
+                access_filter_applied = True
+
+        if not access_filter_applied:
+            if self.parameters.get("filter", {}).get(filter_key):
+                items = set(self.get_filter(filter_key))
+                items.update(access_list)
+                self.parameters["filter"][filter_key] = list(items)
+            elif access_list:
+                self.parameters["filter"][filter_key] = access_list
 
     def _set_time_scope_defaults(self):
         """Set the default filter parameters."""
