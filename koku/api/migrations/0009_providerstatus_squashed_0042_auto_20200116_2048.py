@@ -34,6 +34,7 @@ def load_openshift_metric_map(apps, schema_editor):
     data = json.loads(data)
 
     for entry in data:
+        del entry["default_cost_type"]
         map = CostModelMetricsMap(**entry)
         map.save()
 

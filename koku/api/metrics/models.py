@@ -56,3 +56,5 @@ class CostModelMetricsMap(models.Model):
     label_measurement = models.CharField(max_length=256, null=False)
 
     label_measurement_unit = models.CharField(max_length=64, null=False)
+
+    default_cost_type = models.TextField(null=True)
