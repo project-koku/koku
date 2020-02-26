@@ -162,5 +162,10 @@ class ExpiredDataRemover:
                         provider__type=self._provider, billing_period_start_datetime__lt=expiration_date
                     ).delete()
                     LOG.info("Deleted expired CostUsageReportManifests of provider type: %s" % (self._provider))
+                else:
+                    numberOfRowsDeleted = CostUsageReportManifest.objects.filter(
+                        provider__type=self._provider, billing_period_start_datetime__lt=expiration_date
+                    ).count()
+                    LOG.info("Simulated deletion of %s expired CostUsageReportManifests" % numberOfRowsDeleted)
 
         return removed_data

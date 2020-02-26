@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the ExpiredDataRemover object."""
+import logging
+import re
 from datetime import datetime
 from unittest.mock import patch
 from uuid import uuid4
@@ -194,7 +196,10 @@ class ExpiredDataRemoverTest(MasuTestCase):
     def test_simulate_delete_expired_cost_usage_report_manifest(self):
         """
         Test that expired CostUsageReportManifest is not removed during simulation.
+
+        Test that the number of records that would have been deleted is logged.
         """
+
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
         expiration_date = remover._calculate_expiration_date()
         day_before_cutoff = expiration_date - relativedelta.relativedelta(days=1)
@@ -208,5 +213,15 @@ class ExpiredDataRemoverTest(MasuTestCase):
             "provider_id": self.aws_provider_uuid,
         }
         CostUsageReportManifest(**day_before_cutoff_data).save()
-        remover.remove(simulate=True)
+        with self.assertLogs(logger="masu.processor.expired_data_remover", level="INFO") as cm:
+            logging.disable(logging.NOTSET)
+            remover.remove(simulate=True)
+            expected_log_message = "Simulated deletion of 1 expired CostUsageReportManifests"
+            # Check if the log message exists in the log output:
+            self.assertTrue(
+                any(match is not None for match in [re.search(expected_log_message, line) for line in cm.output])
+            )
+        # Re-enable log suppression
+        logging.disable(logging.CRITICAL)
+
         self.assertEqual(1, CostUsageReportManifest.objects.count())
