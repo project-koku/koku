@@ -50,7 +50,6 @@ from api.views import openapi
 from api.views import ProviderViewSet
 from api.views import SourcesProxyViewSet
 from api.views import StatusView
-from api.views import UserPreferenceViewSet
 
 
 ROUTER = DefaultRouter()
@@ -58,7 +57,6 @@ ROUTER.register(r"dataexportrequests", DataExportRequestViewSet, basename="datae
 ROUTER.register(r"metrics", CostModelMetricsMapViewSet, basename="metrics")
 ROUTER.register(r"providers", ProviderViewSet)
 ROUTER.register(r"sources", SourcesProxyViewSet, basename="sources-proxy")
-ROUTER.register(r"preferences", UserPreferenceViewSet, basename="preferences")
 ROUTER.register(r"cloud-accounts", CloudAccountViewSet, basename="cloud_accounts")
 # pylint: disable=invalid-name
 urlpatterns = [
