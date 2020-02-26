@@ -158,10 +158,16 @@ class ExpiredDataRemover:
             else:
                 removed_data = self._cleaner.purge_expired_report_data(expired_date=expiration_date, simulate=simulate)
                 if not simulate:
+                    recordsToDelete = CostUsageReportManifest.objects.filter(
+                        provider__type=self._provider, billing_period_start_datetime__lt=expiration_date
+                    ).count()
                     CostUsageReportManifest.objects.filter(
                         provider__type=self._provider, billing_period_start_datetime__lt=expiration_date
                     ).delete()
-                    LOG.info("Deleted expired CostUsageReportManifests of provider type: %s" % (self._provider))
+                    LOG.info(
+                        "Deleted %s expired CostUsageReportManifests of provider type: %s"
+                        % (recordsToDelete, self._provider)
+                    )
                 else:
                     numberOfRowsDeleted = CostUsageReportManifest.objects.filter(
                         provider__type=self._provider, billing_period_start_datetime__lt=expiration_date
