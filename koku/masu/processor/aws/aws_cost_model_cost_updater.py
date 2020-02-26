@@ -28,12 +28,12 @@ from masu.util.aws.common import get_bills_from_provider
 LOG = logging.getLogger(__name__)
 
 
-class AWSReportChargeUpdaterError(Exception):
-    """AWSReportChargeUpdater error."""
+class AWSCostModelCostUpdaterError(Exception):
+    """AWSCostModelCostUpdater error."""
 
 
 # pylint: disable=too-few-public-methods
-class AWSReportChargeUpdater:
+class AWSCostModelCostUpdater:
     """Class to update AWS report summary data with charge information."""
 
     def __init__(self, schema, provider):
@@ -60,7 +60,7 @@ class AWSReportChargeUpdater:
                 with schema_context(self._schema):
                     bill_ids = [str(bill.id) for bill in bills]
                 report_accessor.populate_markup_cost(markup_value, bill_ids)
-        except AWSReportChargeUpdaterError as error:
+        except AWSCostModelCostUpdaterError as error:
             LOG.error("Unable to update markup costs. Error: %s", str(error))
 
     def update_summary_charge_info(self, start_date=None, end_date=None):

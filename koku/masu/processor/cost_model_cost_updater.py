@@ -19,9 +19,9 @@ import logging
 
 from api.models import Provider
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.processor.aws.aws_report_charge_updater import AWSReportChargeUpdater
-from masu.processor.azure.azure_report_charge_updater import AzureReportChargeUpdater
-from masu.processor.ocp.ocp_report_charge_updater import OCPReportChargeUpdater
+from masu.processor.aws.aws_cost_model_cost_updater import AWSCostModelCostUpdater
+from masu.processor.azure.azure_cost_model_cost_updater import AzureCostModelCostUpdater
+from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 
 LOG = logging.getLogger(__name__)
 
@@ -69,15 +69,15 @@ class ReportChargeUpdater:
             return None
 
         if self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            return AWSReportChargeUpdater(self._schema, self._provider)
+            return AWSCostModelCostUpdater(self._schema, self._provider)
         if self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            return AzureReportChargeUpdater(self._schema, self._provider)
+            return AzureCostModelCostUpdater(self._schema, self._provider)
         if self._provider.type in (Provider.PROVIDER_OCP,):
-            return OCPReportChargeUpdater(self._schema, self._provider)
+            return OCPCostModelCostUpdater(self._schema, self._provider)
 
         return None
 
-    def update_charge_info(self, start_date=None, end_date=None):
+    def update_cost_model_costs(self, start_date=None, end_date=None):
         """
         Update usage charge information.
 

@@ -39,7 +39,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
-from masu.processor.report_charge_updater import ReportChargeUpdater
+from masu.processor.cost_model_cost_updater import ReportChargeUpdater
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.worker_cache import WorkerCache
@@ -248,13 +248,13 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
             simulate = False
             line_items_only = True
             chain(
-                update_charge_info.s(schema_name, provider_uuid, start_date, end_date),
+                update_cost_model_costs.s(schema_name, provider_uuid, start_date, end_date),
                 refresh_materialized_views.si(schema_name, provider, manifest_id),
                 remove_expired_data.si(schema_name, provider, simulate, provider_uuid, line_items_only),
             ).apply_async()
         else:
             chain(
-                update_charge_info.s(schema_name, provider_uuid, start_date, end_date),
+                update_cost_model_costs.s(schema_name, provider_uuid, start_date, end_date),
                 refresh_materialized_views.si(schema_name, provider, manifest_id),
             ).apply_async()
     else:
@@ -293,8 +293,8 @@ def update_all_summary_tables(start_date, end_date=None):
         LOG.error("Unable to get accounts. Error: %s", str(error))
 
 
-@app.task(name="masu.processor.tasks.update_charge_info", queue_name="reporting")
-def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=None):
+@app.task(name="masu.processor.tasks.update_cost_model_costs", queue_name="reporting")
+def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_date=None):
     """Update usage charge information.
 
     Args:
@@ -307,16 +307,18 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
         None
 
     """
-    worker_stats.CHARGE_UPDATE_ATTEMPTS_COUNTER.inc()
+    worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
 
     stmt = (
-        f"update_charge_info called with args:\n" f" schema_name: {schema_name},\n" f" provider_uuid: {provider_uuid}"
+        f"update_cost_model_costs called with args:\n"
+        f" schema_name: {schema_name},\n"
+        f" provider_uuid: {provider_uuid}"
     )
     LOG.info(stmt)
 
     updater = ReportChargeUpdater(schema_name, provider_uuid)
     if updater:
-        updater.update_charge_info(start_date, end_date)
+        updater.update_cost_model_costs(start_date, end_date)
 
 
 @app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name="reporting")

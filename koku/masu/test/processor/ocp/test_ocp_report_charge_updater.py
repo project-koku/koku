@@ -28,15 +28,15 @@ from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.processor.ocp.ocp_report_charge_updater import OCPReportChargeUpdater
-from masu.processor.ocp.ocp_report_charge_updater import OCPReportChargeUpdaterError
+from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
+from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdaterError
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
 
-class OCPReportChargeUpdaterTest(MasuTestCase):
-    """Test Cases for the OCPReportChargeUpdater object."""
+class OCPCostModelCostUpdaterTest(MasuTestCase):
+    """Test Cases for the OCPCostModelCostUpdater object."""
 
     @classmethod
     def setUpClass(cls):
@@ -63,7 +63,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         )
 
         report = self.creator.create_ocp_report(reporting_period, reporting_period.report_period_start)
-        self.updater = OCPReportChargeUpdater(schema=self.schema, provider=self.provider)
+        self.updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
         pod = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
         namespace = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
         self.creator.create_ocp_usage_line_item(reporting_period, report, pod=pod, namespace=namespace)
@@ -116,7 +116,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
             {"usage": {"usage_start": "10", "usage_end": "20"}, "value": "0.20", "unit": "USD"},
             {"usage": {"usage_start": "30", "usage_end": "40"}, "value": "0.40", "unit": "USD"},
         ]
-        with self.assertRaises(OCPReportChargeUpdaterError) as error:
+        with self.assertRaises(OCPCostModelCostUpdaterError) as error:
             self.updater._normalize_tier(rate_json)
             self.assertIn("Missing first tier", error)
 
@@ -128,7 +128,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
             {"usage": {"usage_start": "10", "usage_end": "20"}, "value": "0.20", "unit": "USD"},
             {"usage": {"usage_start": "30"}, "value": "0.40", "unit": "USD"},
         ]
-        with self.assertRaises(OCPReportChargeUpdaterError) as error:
+        with self.assertRaises(OCPCostModelCostUpdaterError) as error:
             self.updater._normalize_tier(rate_json)
             self.assertIn("Two starting tiers", error)
 
@@ -140,7 +140,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
             {"usage": {"usage_start": "10", "usage_end": None}, "value": "0.20", "unit": "USD"},
             {"usage": {"usage_start": "30"}, "value": "0.40", "unit": "USD"},
         ]
-        with self.assertRaises(OCPReportChargeUpdaterError) as error:
+        with self.assertRaises(OCPCostModelCostUpdaterError) as error:
             self.updater._normalize_tier(rate_json)
             self.assertIn("Two final tiers", error)
 
@@ -151,7 +151,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
             {"usage": {"usage_start": "10", "usage_end": "20"}, "value": "0.20", "unit": "USD"},
             {"usage": {"usage_start": "30", "usage_end": None}, "value": "0.40", "unit": "USD"},
         ]
-        with self.assertRaises(OCPReportChargeUpdaterError) as error:
+        with self.assertRaises(OCPCostModelCostUpdaterError) as error:
             self.updater._normalize_tier(rate_json)
             self.assertIn("Missing final tier", error)
 
@@ -199,7 +199,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         }
         request_charge = {3: {"usage": Decimal("0.000173"), "charge": Decimal("0.043250")}}
 
-        with self.assertRaises(OCPReportChargeUpdaterError):
+        with self.assertRaises(OCPCostModelCostUpdaterError):
             self.updater._aggregate_charges(usage_charge, request_charge)
 
     def test_aggregate_charges_extra_request(self):
@@ -210,7 +210,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
             4: {"usage": Decimal("0.06"), "charge": Decimal("0.20")},
         }
 
-        with self.assertRaises(OCPReportChargeUpdaterError):
+        with self.assertRaises(OCPCostModelCostUpdaterError):
             self.updater._aggregate_charges(usage_charge, request_charge)
 
     def test_aggregate_charges_mismatched_keys(self):
@@ -224,7 +224,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
             5: {"usage": Decimal("0.06"), "charge": Decimal("0.20")},
         }
 
-        with self.assertRaises(OCPReportChargeUpdaterError):
+        with self.assertRaises(OCPCostModelCostUpdaterError):
             self.updater._aggregate_charges(usage_charge, request_charge)
 
     def test_calculate_variable_charge(self):

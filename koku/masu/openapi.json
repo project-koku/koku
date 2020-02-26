@@ -299,9 +299,9 @@
         },
         "parameters": []
       },
-      "/update_charge/": {
+      "/update_cost_model_costs/": {
         "get": {
-          "operationId": "update_charge_list",
+          "operationId": "update_cost_model_costs_list",
           "description": "Update report summary tables in the database.",
           "parameters": [
             {

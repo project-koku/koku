@@ -23,13 +23,13 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
-from masu.processor.aws.aws_report_charge_updater import AWSReportChargeUpdater
+from masu.processor.aws.aws_cost_model_cost_updater import AWSCostModelCostUpdater
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 
 
-class AWSReportChargeUpdaterTest(MasuTestCase):
-    """Test Cases for the AWSReportChargeUpdater object."""
+class AWSCostModelCostUpdaterTest(MasuTestCase):
+    """Test Cases for the AWSCostModelCostUpdater object."""
 
     @classmethod
     def setUpClass(cls):
@@ -64,7 +64,7 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
         with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
             self.provider = provider_accessor.get_provider()
 
-        self.updater = AWSReportChargeUpdater(schema=self.schema, provider=self.provider)
+        self.updater = AWSCostModelCostUpdater(schema=self.schema, provider=self.provider)
         today = DateAccessor().today_with_timezone("UTC")
         bill = self.creator.create_cost_entry_bill(provider_uuid=self.provider.uuid, bill_date=today)
         cost_entry = self.creator.create_cost_entry(bill, today)
