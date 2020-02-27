@@ -33,12 +33,12 @@ from masu.util.ocp.common import get_cluster_id_from_provider
 LOG = logging.getLogger(__name__)
 
 
-class OCPReportChargeUpdaterError(Exception):
-    """OCPReportChargeUpdater error."""
+class OCPCostModelCostUpdaterError(Exception):
+    """OCPCostModelCostUpdater error."""
 
 
 # pylint: disable=too-few-public-methods
-class OCPReportChargeUpdater(OCPCloudUpdaterBase):
+class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
     """Class to update OCP report summary data with charge information."""
 
     def __init__(self, schema, provider):
@@ -64,20 +64,20 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
         # Ensure that there is only 1 starting tier. (i.e. 1 'usage_start': None, if provided)
         if not first_tier:
             LOG.error("Failed Tier: %s", str(input_tier))
-            raise OCPReportChargeUpdaterError("Missing first tier.")
+            raise OCPCostModelCostUpdaterError("Missing first tier.")
 
         if len(first_tier) != 1:
             LOG.error("Failed Tier: %s", str(input_tier))
-            raise OCPReportChargeUpdaterError("Two starting tiers.")
+            raise OCPCostModelCostUpdaterError("Two starting tiers.")
 
         # Ensure that there is only 1 final tier. (i.e. 1 'usage_end': None, if provided)
         if not last_tier:
             LOG.error("Failed Tier: %s", str(input_tier))
-            raise OCPReportChargeUpdaterError("Missing last tier.")
+            raise OCPCostModelCostUpdaterError("Missing last tier.")
 
         if len(last_tier) != 1:
             LOG.error("Failed Tier: %s", str(input_tier))
-            raise OCPReportChargeUpdaterError("Two final tiers.")
+            raise OCPCostModelCostUpdaterError("Two final tiers.")
 
         # Remove last 'usage_end' for consistency to avoid 'usage_end: 0' situations.
         last_tier[0].pop("usage_end", None)
@@ -147,7 +147,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
     def _aggregate_charges(usage_charge, request_charge):
         """Combine the usage and request charges."""
         if usage_charge.keys() != request_charge.keys():
-            raise OCPReportChargeUpdaterError("Usage and request charge mismatched.")
+            raise OCPCostModelCostUpdaterError("Usage and request charge mismatched.")
 
         charge_dictionary = {}
         for key, value in usage_charge.items():
@@ -237,7 +237,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
                     cpu_request_charge = self._calculate_charge(cpu_request_rates, cpu_request)
 
                     total_cpu_charge = self._aggregate_charges(cpu_usage_charge, cpu_request_charge)
-                except OCPReportChargeUpdaterError as error:
+                except OCPCostModelCostUpdaterError as error:
                     total_cpu_charge = {}
                     LOG.error("Unable to calculate cpu charge. Error: %s", str(error))
 
@@ -255,14 +255,14 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
                     mem_request_charge = self._calculate_charge(mem_request_rates, mem_request)
 
                     total_memory_charge = self._aggregate_charges(mem_usage_charge, mem_request_charge)
-                except OCPReportChargeUpdaterError as error:
+                except OCPCostModelCostUpdaterError as error:
                     total_memory_charge = {}
                     LOG.error("Unable to calculate memory charge. Error: %s", str(error))
 
                 mem_temp_table = self._write_to_temp_table(report_accessor, total_memory_charge)
 
                 report_accessor.populate_pod_charge(cpu_temp_table, mem_temp_table)
-        except OCPReportChargeUpdaterError as error:
+        except OCPCostModelCostUpdaterError as error:
             LOG.error("Unable to calculate charge. Error: %s", str(error))
 
     def _update_storage_charge(self, start_date, end_date):
@@ -286,7 +286,7 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
                 temp_table = self._write_to_temp_table(report_accessor, total_storage_charge)
                 report_accessor.populate_storage_charge(temp_table)
 
-        except OCPReportChargeUpdaterError as error:
+        except OCPCostModelCostUpdaterError as error:
             LOG.error("Unable to calculate storage usage charge. Error: %s", str(error))
 
     def _update_monthly_cost(self, start_date, end_date):
@@ -321,10 +321,10 @@ class OCPReportChargeUpdater(OCPCloudUpdaterBase):
                         "Removing Monthly Cost for" "Schema: %s, Provider: %s ", self._schema, self._provider_uuid
                     )
                     report_accessor.remove_monthly_cost()
-        except OCPReportChargeUpdaterError as error:
+        except OCPCostModelCostUpdaterError as error:
             LOG.error("Unable to update monthly costs. Error: %s", str(error))
 
-    def update_summary_charge_info(self, start_date, end_date):
+    def update_summary_cost_model_costs(self, start_date, end_date):
         """Update the OCP summary table with the charge information.
 
         Args:
