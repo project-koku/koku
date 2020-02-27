@@ -28,15 +28,15 @@ from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.processor.ocp.ocp_report_charge_updater import OCPReportChargeUpdater
-from masu.processor.ocp.ocp_report_charge_updater import OCPReportChargeUpdaterError
+from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
+from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdaterError
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
 
-class OCPReportChargeUpdaterTest(MasuTestCase):
-    """Test Cases for the OCPReportChargeUpdater object."""
+class OCPCostModelCostUpdaterTest(MasuTestCase):
+    """Test Cases for the OCPCostModelCostUpdater object."""
 
     @classmethod
     def setUpClass(cls):
@@ -63,12 +63,14 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         )
 
         report = self.creator.create_ocp_report(reporting_period, reporting_period.report_period_start)
-        self.updater = OCPReportChargeUpdater(schema=self.schema, provider=self.provider)
+        self.updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
         pod = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
         namespace = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
+        node = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
         self.creator.create_ocp_usage_line_item(reporting_period, report, pod=pod, namespace=namespace)
         self.creator.create_ocp_storage_line_item(reporting_period, report, pod=pod, namespace=namespace)
         self.creator.create_ocp_usage_line_item(reporting_period, report, null_cpu_usage=True)
+        self.creator.create_ocp_node_label_line_item(reporting_period, report, node=node)
 
     def test_normalize_tier(self):
         """Test the tier helper function to normalize rate tier."""
@@ -116,7 +118,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
             {"usage": {"usage_start": "10", "usage_end": "20"}, "value": "0.20", "unit": "USD"},
             {"usage": {"usage_start": "30", "usage_end": "40"}, "value": "0.40", "unit": "USD"},
         ]
-        with self.assertRaises(OCPReportChargeUpdaterError) as error:
+        with self.assertRaises(OCPCostModelCostUpdaterError) as error:
             self.updater._normalize_tier(rate_json)
             self.assertIn("Missing first tier", error)
 
@@ -128,7 +130,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
             {"usage": {"usage_start": "10", "usage_end": "20"}, "value": "0.20", "unit": "USD"},
             {"usage": {"usage_start": "30"}, "value": "0.40", "unit": "USD"},
         ]
-        with self.assertRaises(OCPReportChargeUpdaterError) as error:
+        with self.assertRaises(OCPCostModelCostUpdaterError) as error:
             self.updater._normalize_tier(rate_json)
             self.assertIn("Two starting tiers", error)
 
@@ -140,7 +142,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
             {"usage": {"usage_start": "10", "usage_end": None}, "value": "0.20", "unit": "USD"},
             {"usage": {"usage_start": "30"}, "value": "0.40", "unit": "USD"},
         ]
-        with self.assertRaises(OCPReportChargeUpdaterError) as error:
+        with self.assertRaises(OCPCostModelCostUpdaterError) as error:
             self.updater._normalize_tier(rate_json)
             self.assertIn("Two final tiers", error)
 
@@ -151,7 +153,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
             {"usage": {"usage_start": "10", "usage_end": "20"}, "value": "0.20", "unit": "USD"},
             {"usage": {"usage_start": "30", "usage_end": None}, "value": "0.40", "unit": "USD"},
         ]
-        with self.assertRaises(OCPReportChargeUpdaterError) as error:
+        with self.assertRaises(OCPCostModelCostUpdaterError) as error:
             self.updater._normalize_tier(rate_json)
             self.assertIn("Missing final tier", error)
 
@@ -199,7 +201,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         }
         request_charge = {3: {"usage": Decimal("0.000173"), "charge": Decimal("0.043250")}}
 
-        with self.assertRaises(OCPReportChargeUpdaterError):
+        with self.assertRaises(OCPCostModelCostUpdaterError):
             self.updater._aggregate_charges(usage_charge, request_charge)
 
     def test_aggregate_charges_extra_request(self):
@@ -210,7 +212,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
             4: {"usage": Decimal("0.06"), "charge": Decimal("0.20")},
         }
 
-        with self.assertRaises(OCPReportChargeUpdaterError):
+        with self.assertRaises(OCPCostModelCostUpdaterError):
             self.updater._aggregate_charges(usage_charge, request_charge)
 
     def test_aggregate_charges_mismatched_keys(self):
@@ -224,7 +226,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
             5: {"usage": Decimal("0.06"), "charge": Decimal("0.20")},
         }
 
-        with self.assertRaises(OCPReportChargeUpdaterError):
+        with self.assertRaises(OCPCostModelCostUpdaterError):
             self.updater._aggregate_charges(usage_charge, request_charge)
 
     def test_calculate_variable_charge(self):
@@ -321,7 +323,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
 
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map")
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
-    def test_update_summary_charge_info_mem_cpu(self, mock_markup, mock_rate_map):
+    def test_update_summary_cost_model_costs_mem_cpu(self, mock_markup, mock_rate_map):
         """Test that OCP charge information is updated for cpu and memory."""
         markup = {}
         mem_rate_usage = {"tiered_rates": [{"value": "100", "unit": "USD"}]}
@@ -350,7 +352,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
-        self.updater.update_summary_charge_info(
+        self.updater.update_summary_cost_model_costs(
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
 
@@ -371,7 +373,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
 
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map")
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
-    def test_update_summary_charge_info_cpu(self, mock_markup, mock_rate_map):
+    def test_update_summary_cost_model_costs_cpu(self, mock_markup, mock_rate_map):
         """Test that OCP charge information is updated for cpu."""
         markup = {}
         mem_rate = None
@@ -391,7 +393,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
-        self.updater.update_summary_charge_info(
+        self.updater.update_summary_cost_model_costs(
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
 
@@ -406,7 +408,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
 
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map")
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
-    def test_update_summary_charge_info_mem(self, mock_markup, mock_rate_map):
+    def test_update_summary_cost_model_costs_mem(self, mock_markup, mock_rate_map):
         """Test that OCP charge information is updated for cpu and memory."""
         markup = {}
         mem_rate = {"tiered_rates": [{"value": "100", "unit": "USD"}]}
@@ -425,7 +427,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
-        self.updater.update_summary_charge_info(
+        self.updater.update_summary_cost_model_costs(
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
 
@@ -464,7 +466,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_storage_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_storage_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
-        self.updater.update_summary_charge_info(
+        self.updater.update_summary_cost_model_costs(
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
 
@@ -492,7 +494,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
-        self.updater.update_summary_charge_info(
+        self.updater.update_summary_cost_model_costs(
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
@@ -534,7 +536,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 item.infra_cost = Decimal(1.0)
                 item.project_infra_cost = Decimal(0.5)
                 item.save()
-        self.updater.update_summary_charge_info(
+        self.updater.update_summary_cost_model_costs(
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
         with OCPReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
@@ -594,7 +596,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
 
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map")
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
-    def test_update_summary_charge_info_mem_cpu_malformed_mem(self, mock_markup, mock_rate_map):
+    def test_update_summary_cost_model_costs_mem_cpu_malformed_mem(self, mock_markup, mock_rate_map):
         """Test that OCP charge information is updated for cpu and memory with malformed memory rates."""
         markup = {}
         mem_rate = {
@@ -618,7 +620,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
-        self.updater.update_summary_charge_info(
+        self.updater.update_summary_cost_model_costs(
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
 
@@ -632,7 +634,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
 
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map")
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
-    def test_update_summary_charge_info_mem_cpu_malformed_cpu(self, mock_markup, mock_rate_map):
+    def test_update_summary_cost_model_costs_mem_cpu_malformed_cpu(self, mock_markup, mock_rate_map):
         """Test that OCP charge information is updated for cpu and memory with malformed cpu rates."""
         markup = {}
         mem_rate = {"tiered_rates": [{"value": "100", "unit": "USD"}]}
@@ -656,7 +658,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
-        self.updater.update_summary_charge_info(
+        self.updater.update_summary_cost_model_costs(
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
 
@@ -667,7 +669,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 self.assertIsNone(item.pod_charge_cpu_core_hours)
                 self.assertIsNone(item.pod_charge_memory_gigabyte_hours)
 
-    def test_update_summary_charge_info_cpu_real_rates(self):
+    def test_update_summary_cost_model_costs_cpu_real_rates(self):
         """Test that OCP charge information is updated for cpu from the right provider uuid."""
         cpu_usage_rate = [
             {"metric": {"name": "cpu_core_usage_per_hour"}, "tiered_rates": [{"value": 1.5, "unit": "USD"}]}
@@ -689,7 +691,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
-        self.updater.update_summary_charge_info(
+        self.updater.update_summary_cost_model_costs(
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
 
@@ -722,7 +724,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
-        self.updater.update_summary_charge_info(
+        self.updater.update_summary_cost_model_costs(
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
 

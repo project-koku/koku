@@ -93,6 +93,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             )
             report = creator.create_ocp_report(period, cost_entry_date)
             creator.create_ocp_usage_line_item(period, report, resource_id=resource_id)
+            creator.create_ocp_node_label_line_item(period, report)
         cluster_id = get_cluster_id_from_provider(self.ocp_test_provider_uuid)
         with OCPReportDBAccessor(self.schema, self.column_map) as ocp_accessor:
             ocp_accessor.populate_node_label_line_item_daily_table(last_month.date(), today.date(), cluster_id)
@@ -135,6 +136,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
                 )
                 report = creator.create_ocp_report(period, cost_entry_date)
                 creator.create_ocp_usage_line_item(period, report, node=node)
+                creator.create_ocp_node_label_line_item(period, report, node=node)
             ocp_report_table_name = OCP_REPORT_TABLE_MAP["report"]
             with schema_context(self.schema):
                 report_table = getattr(ocp_accessor.report_schema, ocp_report_table_name)
