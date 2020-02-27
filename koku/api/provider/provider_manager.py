@@ -167,7 +167,7 @@ class ProviderManager:
 
     def update(self, from_sources=False):
         """Check if provider is a sources model."""
-        if self.sources_model and not from_sources:
+        if self.sources_model and from_sources:
             err_msg = f"Provider {self._uuid} must be updated via Sources Integration Service"
             raise ProviderManagerError(err_msg)
 
@@ -177,7 +177,7 @@ class ProviderManager:
         current_user = user
         if current_user is None and request and request.user:
             current_user = request.user
-        if self.sources_model and not from_sources:
+        if self.sources_model and from_sources:
             err_msg = f"Provider {self._uuid} must be deleted via Sources Integration Service"
             raise ProviderManagerError(err_msg)
 

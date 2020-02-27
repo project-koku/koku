@@ -160,6 +160,7 @@ class KafkaSourceManager:
 
     def create_provider(self, name, provider_type, authentication, billing_source, source_uuid=None):
         """Call to create provider."""
+        connection.set_schema_to_public()
         context, customer, user = self._create_context()
         tenant = Tenant.objects.get(schema_name=customer.schema_name)
         json_data = {
@@ -180,6 +181,7 @@ class KafkaSourceManager:
 
     def update_provider(self, provider_uuid, name, provider_type, authentication, billing_source):
         """Call to update provider."""
+        connection.set_schema_to_public()
         context, customer, _ = self._create_context()
         tenant = Tenant.objects.get(schema_name=customer.schema_name)
         json_data = {
@@ -198,6 +200,7 @@ class KafkaSourceManager:
 
     def destroy_provider(self, provider_uuid):
         """Call to destroy provider."""
+        connection.set_schema_to_public()
         _, customer, user = self._create_context()
         tenant = Tenant.objects.get(schema_name=customer.schema_name)
         connection.set_tenant(tenant)
