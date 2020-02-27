@@ -1,14 +1,3 @@
-CREATE TEMPORARY TABLE node_label_nodes_{{uuid | sqlsafe}} AS (
-    SELECT li.id,
-        uli.node
-    FROM {{schema | sqlsafe}}.reporting_ocpnodelabellineitem as li
-    JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
-        ON li.report_period_id = rp.id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as uli
-        ON rp.cluster_id = uli.cluster_id
-    GROUP BY li.id, uli.node
-)
-;
 
 CREATE TEMPORARY TABLE reporting_ocpnodelabellineitem_daily_{{uuid | sqlsafe}} AS (
     SELECT li.report_period_id,
@@ -16,7 +5,7 @@ CREATE TEMPORARY TABLE reporting_ocpnodelabellineitem_daily_{{uuid | sqlsafe}} A
         coalesce(max(p.name), rp.cluster_id) as cluster_alias,
         date(ur.interval_start) as usage_start,
         date(ur.interval_start) as usage_end,
-        max(uli.node) as node,
+        max(li.node) as node,
         li.node_labels,
         count(ur.interval_start) * 3600 as total_seconds
     FROM {{schema | sqlsafe}}.reporting_ocpnodelabellineitem AS li
@@ -26,8 +15,6 @@ CREATE TEMPORARY TABLE reporting_ocpnodelabellineitem_daily_{{uuid | sqlsafe}} A
         ON li.report_period_id = rp.id
     LEFT JOIN public.api_provider as p
         ON rp.provider_id = p.uuid
-    LEFT JOIN node_label_nodes_{{uuid | sqlsafe}} as uli
-        ON li.id = uli.id
     WHERE date(ur.interval_start) >= {{start_date}}
         AND date(ur.interval_start) <= {{end_date}}
         AND rp.cluster_id = {{cluster_id}}

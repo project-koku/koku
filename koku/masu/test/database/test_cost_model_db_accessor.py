@@ -39,6 +39,7 @@ class CostModelDBAccessorTest(MasuTestCase):
         reporting_period = self.creator.create_ocp_report_period(provider_uuid=self.provider_uuid)
         report = self.creator.create_ocp_report(reporting_period)
         self.creator.create_ocp_usage_line_item(reporting_period, report)
+        self.creator.create_ocp_node_label_line_item(reporting_period, report)
         self.rates = [
             {"metric": {"name": "cpu_core_usage_per_hour"}, "tiered_rates": [{"value": 1.5, "unit": "USD"}]},
             {"metric": {"name": "memory_gb_usage_per_hour"}, "tiered_rates": [{"value": 2.5, "unit": "USD"}]},
@@ -181,6 +182,7 @@ class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
         reporting_period = self.creator.create_ocp_report_period(self.ocp_provider_uuid)
         report = self.creator.create_ocp_report(reporting_period)
         self.creator.create_ocp_usage_line_item(reporting_period, report)
+        self.creator.create_ocp_node_label_line_item(reporting_period, report)
 
         self.cost_model = self.creator.create_cost_model(self.provider_uuid, Provider.PROVIDER_OCP)
 

@@ -14,64 +14,64 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Test the ReportChargeUpdater object."""
+"""Test the CostModelCostUpdater object."""
 from unittest.mock import patch
 
-from masu.processor.aws.aws_report_charge_updater import AWSReportChargeUpdater
-from masu.processor.azure.azure_report_charge_updater import AzureReportChargeUpdater
-from masu.processor.ocp.ocp_report_charge_updater import OCPReportChargeUpdater
-from masu.processor.report_charge_updater import ReportChargeUpdater
-from masu.processor.report_charge_updater import ReportChargeUpdaterError
+from masu.processor.aws.aws_cost_model_cost_updater import AWSCostModelCostUpdater
+from masu.processor.azure.azure_cost_model_cost_updater import AzureCostModelCostUpdater
+from masu.processor.cost_model_cost_updater import CostModelCostUpdater
+from masu.processor.cost_model_cost_updater import CostModelCostUpdaterError
+from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.test import MasuTestCase
 
 
-class ReportChargeUpdaterTest(MasuTestCase):
+class CostModelCostUpdaterTest(MasuTestCase):
     """Test class for the report summary updater."""
 
-    @patch("masu.processor.report_charge_updater.OCPReportChargeUpdater.update_summary_charge_info")
+    @patch("masu.processor.cost_model_cost_updater.OCPCostModelCostUpdater.update_summary_cost_model_costs")
     def test_ocp_route(self, mock_update):
         """Test that OCP charge updating works as expected."""
-        updater = ReportChargeUpdater(self.schema, self.ocp_test_provider_uuid)
-        self.assertIsInstance(updater._updater, OCPReportChargeUpdater)
-        updater.update_charge_info()
+        updater = CostModelCostUpdater(self.schema, self.ocp_test_provider_uuid)
+        self.assertIsInstance(updater._updater, OCPCostModelCostUpdater)
+        updater.update_cost_model_costs()
         mock_update.assert_called()
 
-    @patch("masu.processor.report_charge_updater.AzureReportChargeUpdater.update_summary_charge_info")
+    @patch("masu.processor.cost_model_cost_updater.AzureCostModelCostUpdater.update_summary_cost_model_costs")
     def test_azure_local_route(self, mock_update):
         """Test that AZURE-local charge updating works as expected."""
-        updater = ReportChargeUpdater(self.schema, self.azure_test_provider_uuid)
-        self.assertIsInstance(updater._updater, AzureReportChargeUpdater)
-        updater.update_charge_info()
+        updater = CostModelCostUpdater(self.schema, self.azure_test_provider_uuid)
+        self.assertIsInstance(updater._updater, AzureCostModelCostUpdater)
+        updater.update_cost_model_costs()
         mock_update.assert_called()
 
-    @patch("masu.processor.report_charge_updater.AWSReportChargeUpdater.update_summary_charge_info")
+    @patch("masu.processor.cost_model_cost_updater.AWSCostModelCostUpdater.update_summary_cost_model_costs")
     def test_aws_route(self, mock_update):
         """Test that AWS charge updating works as expected."""
-        updater = ReportChargeUpdater(self.schema, self.aws_provider_uuid)
-        self.assertIsInstance(updater._updater, AWSReportChargeUpdater)
-        updater.update_charge_info()
+        updater = CostModelCostUpdater(self.schema, self.aws_provider_uuid)
+        self.assertIsInstance(updater._updater, AWSCostModelCostUpdater)
+        updater.update_cost_model_costs()
         mock_update.assert_called()
 
-    @patch("masu.processor.report_charge_updater.AzureReportChargeUpdater.update_summary_charge_info")
+    @patch("masu.processor.cost_model_cost_updater.AzureCostModelCostUpdater.update_summary_cost_model_costs")
     def test_azure_route(self, mock_update):
         """Test that Azure charge updating works as expected."""
-        updater = ReportChargeUpdater(self.schema, self.azure_test_provider_uuid)
-        self.assertIsInstance(updater._updater, AzureReportChargeUpdater)
-        updater.update_charge_info()
+        updater = CostModelCostUpdater(self.schema, self.azure_test_provider_uuid)
+        self.assertIsInstance(updater._updater, AzureCostModelCostUpdater)
+        updater.update_cost_model_costs()
         mock_update.assert_called()
 
-    @patch("masu.processor.report_charge_updater.OCPReportChargeUpdater.__init__")
+    @patch("masu.processor.cost_model_cost_updater.OCPCostModelCostUpdater.__init__")
     def test_init_fail(self, mock_updater):
         """Test that an unimplemented provider throws an error."""
         mock_updater.side_effect = Exception("general error")
 
-        with self.assertRaises(ReportChargeUpdaterError):
-            ReportChargeUpdater(self.schema, self.ocp_test_provider_uuid)
+        with self.assertRaises(CostModelCostUpdaterError):
+            CostModelCostUpdater(self.schema, self.ocp_test_provider_uuid)
 
-    @patch("masu.processor.report_charge_updater.ProviderDBAccessor.get_provider", return_value=None)
+    @patch("masu.processor.cost_model_cost_updater.ProviderDBAccessor.get_provider", return_value=None)
     def test_unknown_provider(self, mock_accessor):
         """Test no exception when initializing unknown provider."""
         try:
-            ReportChargeUpdater(self.schema, self.unkown_test_provider_uuid)
+            CostModelCostUpdater(self.schema, self.unkown_test_provider_uuid)
         except Exception as err:
             self.fail(f"Failed with exception: {err}")
