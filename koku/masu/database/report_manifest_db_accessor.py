@@ -159,7 +159,8 @@ class ReportManifestDBAccessor(KokuDBAccess):
             provider__type=provider_type, billing_period_start_datetime__lt=billing_period_start_datetime
         ).delete()
         LOG.info(
-            "Removed %s CostUsageReportManifest(s) that had a billing period start date before %s",
+            "Removed %s CostUsageReportManifest(s) for provider type %s that had a billing period start date before %s",
             delete_count,
+            provider_type,
             billing_period_start_datetime,
         )
