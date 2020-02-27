@@ -26,7 +26,11 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AddField(
-            model_name="costmodelmetricsmap", name="default_cost_type", field=models.TextField(null=True)
+            model_name="costmodelmetricsmap",
+            name="default_cost_type",
+            field=models.TextField(
+                choices=[("Infrastructure", "Infrastructure"), ("Supplementary", "Supplementary")], null=True
+            ),
         ),
         migrations.RunPython(reload_cost_model_metric_map),
     ]

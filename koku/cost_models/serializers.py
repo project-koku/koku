@@ -28,7 +28,6 @@ from cost_models.models import CostModel
 
 CURRENCY_CHOICES = (("USD", "USD"),)
 MARKUP_CHOICES = (("percent", "%"),)
-COST_TYPE_CHOICES = (("Infrastructure", "Infrastructure"), ("Supplementary", "Supplementary"))
 
 
 class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
@@ -66,7 +65,9 @@ class TieredRateSerializer(serializers.Serializer):
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
     usage = serializers.DictField(required=False)
     unit = serializers.ChoiceField(choices=CURRENCY_CHOICES)
-    cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICES, default=COST_TYPE_CHOICES[1][0])
+    cost_type = serializers.ChoiceField(
+        choices=CostModelMetricsMap.COST_TYPE_CHOICES, default=CostModelMetricsMap.COST_TYPE_CHOICES[1][0]
+    )
 
     def validate_value(self, value):
         """Check that value is a positive value."""

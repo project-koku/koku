@@ -47,6 +47,8 @@ class CostModelMetricsMap(models.Model):
         (OCP_NODE_MONTH, OCP_NODE_MONTH),
     )
 
+    COST_TYPE_CHOICES = (("Infrastructure", "Infrastructure"), ("Supplementary", "Supplementary"))
+
     source_type = models.CharField(max_length=50, null=False, choices=Provider.PROVIDER_CHOICES)
 
     metric = models.CharField(max_length=256, null=False, choices=METRIC_CHOICES)
@@ -57,4 +59,4 @@ class CostModelMetricsMap(models.Model):
 
     label_measurement_unit = models.CharField(max_length=64, null=False)
 
-    default_cost_type = models.TextField(null=True)
+    default_cost_type = models.TextField(null=True, choices=COST_TYPE_CHOICES)
