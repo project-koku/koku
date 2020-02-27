@@ -81,6 +81,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         report = self.creator.create_ocp_report(self.report_period, self.today)
         self.creator.create_ocp_usage_line_item(self.report_period, report)
         self.creator.create_ocp_storage_line_item(self.report_period, report)
+        self.creator.create_ocp_node_label_line_item(self.report_period, report)
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 
         self.updater = OCPReportSummaryUpdater(self.schema, self.provider, self.manifest)

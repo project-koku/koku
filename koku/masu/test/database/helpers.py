@@ -213,6 +213,17 @@ class ReportObjectCreator:
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
+    def create_ocp_node_label_line_item(self, report_period, report, node=None, node_labels=None):
+        """Create an OCP node label line item database object for test."""
+        table_name = OCP_REPORT_TABLE_MAP["node_label_line_item"]
+        data = self.create_columns_for_table(table_name)
+        data["report_period_id"] = report_period.id
+        data["report_id"] = report.id
+        if node:
+            data["node"] = node
+        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
+
     def create_columns_for_table(self, table):
         """Generate data for a table."""
         data = {}
