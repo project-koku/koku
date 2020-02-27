@@ -639,6 +639,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             report = self.creator.create_ocp_report(period, period_date)
             for _ in range(25):
                 self.creator.create_ocp_usage_line_item(period, report)
+            self.creator.create_ocp_node_label_line_item(period, report)
 
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.refresh_materialized_views")
