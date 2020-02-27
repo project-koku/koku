@@ -133,13 +133,27 @@ class QueryParameters:
         provider = caller.query_handler.provider.lower()
         set_access_list = self._get_providers(provider)
 
+        restricted_access = False
+        if provider == "ocp_all":
+            restricted_access = self._check_restrictions(set_access_list)
+
         for set_access in set_access_list:
-            if provider == "ocp_all" and set_access[0] != Provider.PROVIDER_OCP:
+            if provider == "ocp_all" and restricted_access and set_access[0] != Provider.PROVIDER_OCP:
                 # for ocp_all, set filter_key to account for non-ocp providers
                 set_access = (set_access[0], "account", *set_access[2:])
                 self._set_access_ocp_all(*set_access)
             else:
                 self._set_access(*set_access)
+
+    def _check_restrictions(self, set_access_list):
+        """Check if all non-ocp providers have wildcard access."""
+        all_wildcard = []
+        for set_access in set_access_list:
+            provider, __, access_key, *__ = set_access
+            if provider != Provider.PROVIDER_OCP:
+                access_list = self.access.get(access_key, {}).get("read", [])
+                all_wildcard.append(ReportQueryHandler.has_wildcard(access_list))
+        return False in all_wildcard
 
     def _get_providers(self, provider):
         """Get the providers.

@@ -745,3 +745,71 @@ class QueryParametersTests(TestCase):
             mock_object.filter.return_value.values_list.return_value.distinct.return_value = ["999999999"]
             params = QueryParameters(fake_request, fake_view)
             self.assertEqual(sorted(params.get_filter("account")), sorted(["999999999", str(guid)]))
+
+    def test_check_wildcard_access(self):
+        """Test check restrictions returns False when all access is wildcard."""
+        self.test_read_access = {"aws.account": {"read": ["*"]}, "azure.subscription_guid": {"read": ["*"]}}
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
+            GET=Mock(urlencode=Mock(return_value="")),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=Provider.OCP_ALL,
+            query_handler=Mock(provider=Provider.OCP_ALL),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        params = QueryParameters(fake_request, fake_view)
+        access_list = params._get_providers(Provider.OCP_ALL.lower())
+        result = params._check_restrictions(access_list)
+        self.assertFalse(result)
+
+    def test_check_wildcard_access_with_restrictions(self):
+        """Test check restrictions returns True when 1 provider is restricted."""
+        self.test_read_access = {"aws.account": {"read": ["999999999"]}, "azure.subscription_guid": {"read": ["*"]}}
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
+            GET=Mock(urlencode=Mock(return_value="")),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=Provider.OCP_ALL,
+            query_handler=Mock(provider=Provider.OCP_ALL),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        with patch("reporting.models.OCPAllCostLineItemDailySummary.objects", return_value=[]):
+            params = QueryParameters(fake_request, fake_view)
+            access_list = params._get_providers(Provider.OCP_ALL.lower())
+            result = params._check_restrictions(access_list)
+        self.assertTrue(result)
+
+    def test_check_wildcard_access_with_ocp_restrictions(self):
+        """Test check restrictions returns False when non-ocp have wildcard, but ocp is restricted."""
+        self.test_read_access = {
+            "aws.account": {"read": ["*"]},
+            "azure.subscription_guid": {"read": ["*"]},
+            "openshift.cluster": {"read": ["my-ocp-cluster"]},
+        }
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
+            GET=Mock(urlencode=Mock(return_value="")),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=Provider.OCP_ALL,
+            query_handler=Mock(provider=Provider.OCP_ALL),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        params = QueryParameters(fake_request, fake_view)
+        access_list = params._get_providers(Provider.OCP_ALL.lower())
+        result = params._check_restrictions(access_list)
+        self.assertFalse(result)
