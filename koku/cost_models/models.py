@@ -73,17 +73,17 @@ def cost_model_pre_delete_callback(*args, **kwargs):
     cost_model = kwargs["instance"]
 
     # Local import of task function to avoid potential import cycle.
-    from masu.processor.tasks import update_charge_info
+    from masu.processor.tasks import update_cost_model_costs
 
     cost_model_maps = CostModelMap.objects.filter(cost_model=cost_model)
     for cost_model_map in cost_model_maps:
         try:
             provider = Provider.objects.get(uuid=cost_model_map.provider_uuid)
             if not provider.customer:
-                LOG.warning("Provider %s has no Customer; we cannot call update_charge_info.", provider.uuid)
+                LOG.warning("Provider %s has no Customer; we cannot call update_cost_model_costs.", provider.uuid)
                 continue
             schema_name = provider.customer.schema_name
-            delete_func = partial(update_charge_info.delay, schema_name, cost_model_map.provider_uuid)
+            delete_func = partial(update_cost_model_costs.delay, schema_name, cost_model_map.provider_uuid)
             transaction.on_commit(delete_func)
         except Provider.DoesNotExist:
             LOG.warning(

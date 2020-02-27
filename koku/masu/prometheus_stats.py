@@ -47,7 +47,7 @@ PROCESS_REPORT_ERROR_COUNTER = Counter(
 REPORT_SUMMARY_ATTEMPTS_COUNTER = Counter(
     "report_summary_attempts_count", "Number of report summary attempts", ["provider_type"], registry=WORKER_REGISTRY
 )
-CHARGE_UPDATE_ATTEMPTS_COUNTER = Counter(
+COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER = Counter(
     "charge_update_attempts_count", "Number of derivied cost update attempts", registry=WORKER_REGISTRY
 )
 
