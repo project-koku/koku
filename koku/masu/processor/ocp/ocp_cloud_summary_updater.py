@@ -90,7 +90,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
             aws_bill_ids = [str(bill.id) for bill in aws_bills]
 
         with CostModelDBAccessor(self._schema, aws_provider_uuid) as cost_model_accessor:
-            markup = cost_model_accessor.get_markup()
+            markup = cost_model_accessor.markup
             markup_value = Decimal(markup.get("value", 0)) / 100
 
         # OpenShift on AWS
@@ -130,7 +130,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
             azure_bill_ids = [str(bill.id) for bill in azure_bills]
 
         with CostModelDBAccessor(self._schema, azure_provider_uuid) as cost_model_accessor:
-            markup = cost_model_accessor.get_markup()
+            markup = cost_model_accessor.markup
             markup_value = Decimal(markup.get("value", 0)) / 100
 
         # OpenShift on Azure
