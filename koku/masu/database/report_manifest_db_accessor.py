@@ -155,13 +155,14 @@ class ReportManifestDBAccessor(KokuDBAccess):
             provider_type   (String) the provider type to delete
             billing_period_start_datetime (datetime.datetime) delete all manifests older than this date, exclusive.
         """
-        recordsToDelete = CostUsageReportManifest.objects.filter(
-            provider__type=provider_type, billing_period_start_datetime__lt=billing_period_start_datetime
-        ).count()
-        CostUsageReportManifest.objects.filter(
+        delete_count = CostUsageReportManifest.objects.filter(
             provider__type=provider_type, billing_period_start_datetime__lt=billing_period_start_datetime
         ).delete()
-        LOG.info(f"Deleted {recordsToDelete} expired CostUsageReportManifests of provider type: {provider_type}")
+        LOG.info(
+            "Removed %s CostUsageReportManifest(s) before billing period start %s",
+            delete_count,
+            billing_period_start_datetime,
+        )
 
     def count_manifests_older_than(self, provider_type, billing_period_start_datetime):
         """Count the number of manifests older than date_ exclusive

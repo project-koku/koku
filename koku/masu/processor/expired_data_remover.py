@@ -161,9 +161,10 @@ class ExpiredDataRemover:
                     if not simulate:
                         manifest_accessor.delete_cost_usage_reports_older_than(self._provider, expiration_date)
                     else:
-                        expiredManifestCount = manifest_accessor.count_manifests_older_than(
-                            self._provider, expiration_date
+                        LOG.info(
+                            "Cost usage report manifest removed for provider type: %s with billing period: %s",
+                            self._provider,
+                            expiration_date,
                         )
-                        LOG.info("Simulated deletion of %s expired CostUsageReportManifests" % expiredManifestCount)
 
         return removed_data
