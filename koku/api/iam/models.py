@@ -17,7 +17,6 @@
 """Models for identity and access management."""
 from uuid import uuid4
 
-from django.contrib.postgres.fields import JSONField
 from django.db import models
 from tenant_schemas.models import TenantMixin
 
@@ -57,26 +56,6 @@ class User(models.Model):
 
     class Meta:
         ordering = ["username"]
-
-
-class UserPreference(models.Model):
-    """A user preference."""
-
-    uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
-    user = models.ForeignKey("User", null=False, on_delete=models.CASCADE)
-    preference = JSONField(null=False)
-    name = models.CharField(max_length=255, null=False, default=uuid4)
-    description = models.CharField(max_length=255, null=True)
-
-    class Meta:
-        """Meta for UserPreference."""
-
-        unique_together = ("name", "user")
-        ordering = ("name",)
-
-    def __str__(self):
-        """Return string representation of user preferences."""
-        return f"UserPreference({self.name}): User: {self.user}, Preference: {self.preference}"
 
 
 class Tenant(TenantMixin):

@@ -50,6 +50,7 @@ class OCPReportDBCleanerTest(MasuTestCase):
         report = self.creator.create_ocp_report(reporting_period)
         self.creator.create_ocp_usage_line_item(reporting_period, report)
         self.creator.create_ocp_storage_line_item(reporting_period, report)
+        self.creator.create_ocp_node_label_line_item(reporting_period, report)
 
     def test_initializer(self):
         """Test initializer."""
