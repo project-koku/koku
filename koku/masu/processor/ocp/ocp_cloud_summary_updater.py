@@ -89,7 +89,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
         with schema_context(self._schema):
             aws_bill_ids = [str(bill.id) for bill in aws_bills]
 
-        with CostModelDBAccessor(self._schema, aws_provider_uuid, self._column_map) as cost_model_accessor:
+        with CostModelDBAccessor(self._schema, aws_provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.get_markup()
             markup_value = Decimal(markup.get("value", 0)) / 100
 
@@ -129,7 +129,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
         with schema_context(self._schema):
             azure_bill_ids = [str(bill.id) for bill in azure_bills]
 
-        with CostModelDBAccessor(self._schema, azure_provider_uuid, self._column_map) as cost_model_accessor:
+        with CostModelDBAccessor(self._schema, azure_provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.get_markup()
             markup_value = Decimal(markup.get("value", 0)) / 100
 

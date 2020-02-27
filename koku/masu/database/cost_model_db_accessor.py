@@ -20,16 +20,16 @@ import logging
 from tenant_schemas.utils import schema_context
 
 from cost_models.models import CostModel
-from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.database.koku_database_access import KokuDBAccess
 
 LOG = logging.getLogger(__name__)
 
 
 # pylint: disable=too-many-public-methods
-class CostModelDBAccessor(ReportDBAccessorBase):
+class CostModelDBAccessor(KokuDBAccess):
     """Class to interact with customer reporting tables."""
 
-    def __init__(self, schema, provider_uuid, column_map):
+    def __init__(self, schema, provider_uuid):
         """Establish the database connection.
 
         Args:
@@ -38,44 +38,45 @@ class CostModelDBAccessor(ReportDBAccessorBase):
             provider_uuid (str): Provider uuid
 
         """
-        super().__init__(schema, column_map)
+        super().__init__(schema)
         self.provider_uuid = provider_uuid
-        self.column_map = column_map
-        self.cost_model = None
-        self.markup = None
-        self.rates = None
+        self._cost_model = None
 
-    def _get_cost_model(self):
-        """Get the cost model for a provider."""
-        if self.cost_model is None:
+    @property
+    def cost_model(self):
+        """Return the cost model database object."""
+        if self._cost_model is None:
             with schema_context(self.schema):
-                self.cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
-        return self.cost_model
+                self._cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+        return self._cost_model
 
-    def _make_rate_by_metric_map(self):
-        """Convert the rates JSON list to a dict keyed on metric."""
-        if self._get_cost_model() is None:
-            return {}
+    @property
+    def price_list(self):
+        """Return the rates definied on this cost model."""
         metric_rate_map = {}
-        rates = self._get_cost_model().rates
-        if not rates:
+        price_list = self.cost_model.rates
+        if not price_list:
             return {}
-        for rate in rates:
+        for rate in price_list:
             metric_rate_map[rate.get("metric", {}).get("name")] = rate
         return metric_rate_map
 
-    def get_markup(self):
-        """Get the cost model for a provider."""
-        if self._get_cost_model() is None:
-            self.markup = {}
-        if self.markup is None:
-            self.markup = self._get_cost_model().markup
-        return self.markup
+    @property
+    def infrastructure_rates(self):
+        """Return the rates designated as infrastructure cost."""
+        return {key: value for key, value in self.price_list.items() if value.get("cost_type") == "Infrastructure"}
+
+    @property
+    def supplementary_rates(self):
+        """Return the rates designated as infrastructure cost."""
+        return {key: value for key, value in self.price_list.items() if value.get("cost_type") == "Supplementary"}
+
+    @property
+    def markup(self):
+        return self.cost_model.markup
 
     def get_rates(self, value):
         """Get the rates."""
-        if self.rates is None:
-            self.rates = self._make_rate_by_metric_map()
         return self.rates.get(value)
 
     def get_cpu_core_usage_per_hour_rates(self):
