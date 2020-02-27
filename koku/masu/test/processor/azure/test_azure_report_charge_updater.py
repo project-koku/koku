@@ -14,20 +14,20 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Test the AzureReportChargeUpdater object."""
+"""Test the AzureCostModelCostUpdater object."""
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
-from masu.processor.azure.azure_report_charge_updater import AzureReportChargeUpdater
+from masu.processor.azure.azure_cost_model_cost_updater import AzureCostModelCostUpdater
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 
 
-class AzureReportChargeUpdaterTest(MasuTestCase):
-    """Test Cases for the AzureReportChargeUpdater object."""
+class AzureCostModelCostUpdaterTest(MasuTestCase):
+    """Test Cases for the AzureCostModelCostUpdater object."""
 
     @classmethod
     def setUpClass(cls):
@@ -62,7 +62,7 @@ class AzureReportChargeUpdaterTest(MasuTestCase):
         with ProviderDBAccessor(self.azure_test_provider_uuid) as provider_accessor:
             self.provider = provider_accessor.get_provider()
 
-        self.updater = AzureReportChargeUpdater(schema=self.schema, provider=self.provider)
+        self.updater = AzureCostModelCostUpdater(schema=self.schema, provider=self.provider)
 
         today = DateAccessor().today_with_timezone("UTC")
         bill = self.creator.create_azure_cost_entry_bill(provider_uuid=self.provider.uuid, bill_date=today)
@@ -72,12 +72,12 @@ class AzureReportChargeUpdaterTest(MasuTestCase):
 
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 
-    def test_azure_update_summary_charge_info(self):
+    def test_azure_update_summary_cost_model_costs(self):
         """Test to verify Azure derived cost summary is calculated."""
         start_date = self.date_accessor.today_with_timezone("UTC")
         bill_date = start_date.replace(day=1).date()
 
-        self.updater.update_summary_charge_info()
+        self.updater.update_summary_cost_model_costs()
 
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]

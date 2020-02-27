@@ -33,7 +33,7 @@ from masu.test.database.helpers import ReportObjectCreator
 
 
 class AzureReportDBCleanerTest(MasuTestCase):
-    """Test Cases for the AzureReportChargeUpdater object."""
+    """Test Cases for the AzureCostModelCostUpdater object."""
 
     @classmethod
     def setUpClass(cls):

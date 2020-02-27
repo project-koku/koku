@@ -20,7 +20,7 @@ from masu.api.views import download_report
 from masu.api.views import expired_data
 from masu.api.views import get_status
 from masu.api.views import report_data
-from masu.api.views import update_charge
+from masu.api.views import update_cost_model_costs
 from masu.api.views import upload_normalized_data
 
 urlpatterns = [
@@ -28,6 +28,6 @@ urlpatterns = [
     url(r"^download/$", download_report, name="report_download"),
     url(r"^expired_data/$", expired_data, name="expired_data"),
     url(r"^report_data/$", report_data, name="report_data"),
-    url(r"^update_charge/$", update_charge, name="update_charge"),
+    url(r"^update_cost_model_costs/$", update_cost_model_costs, name="update_cost_model_costs"),
     url(r"^upload_normalized_data/$", upload_normalized_data, name="upload_normalized_data"),
 ]

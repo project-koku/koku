@@ -122,8 +122,8 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         """Test case where another request may create the customer in a race condition."""
         customer = self._create_customer_data()
         account_id = customer["account_id"]
-        orig_cust = IdentityHeaderMiddleware._create_customer(account_id)  # pylint: disable=W0212
-        dup_cust = IdentityHeaderMiddleware._create_customer(account_id)  # pylint: disable=W0212
+        orig_cust = IdentityHeaderMiddleware.create_customer(account_id)  # pylint: disable=W0212
+        dup_cust = IdentityHeaderMiddleware.create_customer(account_id)  # pylint: disable=W0212
         self.assertEqual(orig_cust, dup_cust)
 
     def test_race_condition_user(self):
@@ -136,7 +136,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         self.assertIsNotNone(customer)
         user = User.objects.get(username=self.user_data["username"])
         self.assertIsNotNone(user)
-        IdentityHeaderMiddleware._create_user(
+        IdentityHeaderMiddleware.create_user(
             username=self.user_data["username"],  # pylint: disable=W0212
             email=self.user_data["email"],
             customer=customer,
