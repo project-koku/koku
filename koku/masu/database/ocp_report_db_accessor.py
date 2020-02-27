@@ -596,31 +596,16 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
-    def populate_markup_cost(self, infra_provider_markup, ocp_markup, cluster_id):
+    def populate_markup_cost(self, markup, cluster_id):
         """Set markup cost for OCP including infrastructure cost markup."""
         with schema_context(self.schema):
             OCPUsageLineItemDailySummary.objects.filter(cluster_id=cluster_id).update(
-                markup_cost=(
-                    (
-                        Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField()))
-                    )
-                    * ocp_markup
-                    + (Coalesce(F("infra_cost"), Value(0, output_field=DecimalField()))) * infra_provider_markup
-                )
-            )
-            OCPUsageLineItemDailySummary.objects.filter(cluster_id=cluster_id).update(
-                project_markup_cost=(
-                    (
-                        Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField()))
-                    )
-                    * ocp_markup
-                    + (Coalesce(F("project_infra_cost"), Value(0, output_field=DecimalField())))
-                    * infra_provider_markup
-                )
+                infrastructure_markup_cost=(
+                    (Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))) * markup
+                ),
+                infrastructure_project_markup_cost=(
+                    (Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))) * markup
+                ),
             )
 
     # pylint: disable=too-many-arguments
@@ -638,17 +623,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         """
         if isinstance(start_date, str):
-            start_date = parse(start_date)
+            start_date = parse(start_date).date()
         if isinstance(end_date, str):
-            end_date = parse(end_date)
-        if not start_date:
-            # If start_date is not provided, recalculate from the first month
-            start_date = OCPUsageLineItemDailySummary.objects.aggregate(Min("usage_start"))["usage_start__min"]
-        if not end_date:
-            # If end_date is not provided, recalculate till the latest month
-            end_date = OCPUsageLineItemDailySummary.objects.aggregate(Max("usage_end"))["usage_end__max"]
+            end_date = parse(end_date).date()
 
-        first_month = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        first_month = start_date.replace(day=1)
 
         with schema_context(self.schema):
             # Calculate monthly cost for every month
@@ -752,3 +731,37 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         }
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
         self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
+
+    def populate_usage_costs(self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id):
+        """Update the reporting_ocpusagelineitem_daily_summary table with usage costs."""
+        # Cast start_date and end_date to date object, if they aren't already
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
+        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+
+        summary_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagelineitem_daily_summary_usage_costs.sql")
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "cluster_id": cluster_id,
+            "schema": self.schema,
+            "infra_cpu_usage_rate": infrastructure_rates.get("cpu_core_usage_per_hour", 0),
+            "infra_cpu_request_rate": infrastructure_rates.get("cpu_core_request_per_hour", 0),
+            "infra_memory_usage_rate": infrastructure_rates.get("memory_gb_usage_per_hour", 0),
+            "infra_memory_request_rate": infrastructure_rates.get("memory_gb_request_per_hour", 0),
+            "infra_storage_usage_rate": infrastructure_rates.get("storage_gb_usage_per_month", 0),
+            "infra_storage_request_rate": infrastructure_rates.get("storage_gb_request_per_month", 0),
+            "sup_cpu_usage_rate": supplementary_rates.get("cpu_core_usage_per_hour", 0),
+            "sup_cpu_request_rate": supplementary_rates.get("cpu_core_request_per_hour", 0),
+            "sup_memory_usage_rate": supplementary_rates.get("memory_gb_usage_per_hour", 0),
+            "sup_memory_request_rate": supplementary_rates.get("memory_gb_request_per_hour", 0),
+            "sup_storage_usage_rate": supplementary_rates.get("storage_gb_usage_per_month", 0),
+            "sup_storage_request_rate": supplementary_rates.get("storage_gb_request_per_month", 0),
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        self._execute_raw_sql_query(table_name, summary_sql, start_date, end_date, list(summary_sql_params))

@@ -146,9 +146,9 @@ class CostModelDBAccessorTest(MasuTestCase):
     def test_get_markup(self):
         """Test to make sure markup dictionary is returned."""
         with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
-            markup = cost_model_accessor.get_markup()
+            markup = cost_model_accessor.markup
             self.assertEqual(markup, self.markup)
-            markup = cost_model_accessor.get_markup()
+            markup = cost_model_accessor.markup
             self.assertEqual(markup, self.markup)
 
     def test_get_cost_model(self):
@@ -217,5 +217,5 @@ class CostModelDBAccessorNoCostModel(MasuTestCase):
     def test_get_markup_no_cost_model(self):
         """Test that get_markup returns empty dict when cost model does not exist."""
         with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
-            markup = cost_model_accessor.get_markup()
+            markup = cost_model_accessor.markup
             self.assertFalse(markup)
