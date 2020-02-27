@@ -127,13 +127,6 @@ drop materialized view if exists reporting_ocpallcostlineitem_project_daily_summ
             model_name="costsummary",
             index=django.contrib.postgres.indexes.GinIndex(fields=["pod_labels"], name="ocpcostsum_pod_labels_idx"),
         ),
-        # This extension will help specifically with "col LIKE %val%"
-        # operations. (As long as val is at least 3 characters)
-        migrations.RunSQL(
-            """
-create extension if not exists pg_trgm schema public;
-            """
-        ),
         # Create indexes to aid with text searching.
         # These cases will specifically help with case-insensitive
         # and contains (vs startswith) searches
