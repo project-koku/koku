@@ -285,7 +285,7 @@ class ProviderManagerTest(IamTestCase):
         delete_request = self._create_delete_request(self.user, {"Sources-Client": "True"})
         with tenant_context(self.tenant):
             manager = ProviderManager(provider_uuid)
-            manager.remove(delete_request)
+            manager.remove(delete_request, from_sources=True)
         provider_query = Provider.objects.all().filter(uuid=provider_uuid)
         self.assertFalse(provider_query)
 
