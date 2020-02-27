@@ -163,15 +163,3 @@ class ReportManifestDBAccessor(KokuDBAccess):
             delete_count,
             billing_period_start_datetime,
         )
-
-    def count_manifests_older_than(self, provider_type, billing_period_start_datetime):
-        """Count the number of manifests older than date_ exclusive
-
-        Args:
-            provider_type                 (String) the provider type of the manifests
-            billing_period_start_datetime (datetime.datetime)
-                counts all records that occur before this datetime exclusively
-        """
-        return CostUsageReportManifest.objects.filter(
-            provider__type=provider_type, billing_period_start_datetime__lt=billing_period_start_datetime
-        ).count()

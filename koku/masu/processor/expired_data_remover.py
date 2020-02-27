@@ -162,7 +162,8 @@ class ExpiredDataRemover:
                         manifest_accessor.delete_cost_usage_reports_older_than(self._provider, expiration_date)
                     else:
                         LOG.info(
-                            "Cost usage report manifest removed for provider type: %s with billing period: %s",
+                            """Simulated removing CostUsageReportManifest for
+                            provider type: %s before billing period: %s""",
                             self._provider,
                             expiration_date,
                         )
