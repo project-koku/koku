@@ -66,9 +66,11 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.updater = OCPReportChargeUpdater(schema=self.schema, provider=self.provider)
         pod = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
         namespace = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
+        node = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
         self.creator.create_ocp_usage_line_item(reporting_period, report, pod=pod, namespace=namespace)
         self.creator.create_ocp_storage_line_item(reporting_period, report, pod=pod, namespace=namespace)
         self.creator.create_ocp_usage_line_item(reporting_period, report, null_cpu_usage=True)
+        self.creator.create_ocp_node_label_line_item(reporting_period, report, node=node)
 
     def test_normalize_tier(self):
         """Test the tier helper function to normalize rate tier."""
