@@ -15,9 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for OpenShift on All infrastructure Usage Reports."""
-from api.common.permissions.aws_access import AwsAccessPermission
-from api.common.permissions.azure_access import AzureAccessPermission
-from api.common.permissions.openshift_access import OpenShiftAccessPermission
+from api.common.permissions.openshift_all_access import OpenshiftAllAccessPermission
 from api.models import Provider
 from api.report.all.openshift.query_handler import OCPAllReportQueryHandler
 from api.report.all.openshift.serializers import OCPAllQueryParamSerializer
@@ -29,7 +27,7 @@ from reporting.models import OCPAzureTagsSummary
 class OCPAllView(ReportView):
     """OCP on All Infrastructure Base View."""
 
-    permission_classes = [AwsAccessPermission, AzureAccessPermission, OpenShiftAccessPermission]
+    permission_classes = [OpenshiftAllAccessPermission]
     provider = Provider.OCP_ALL
     serializer = OCPAllQueryParamSerializer
     query_handler = OCPAllReportQueryHandler
