@@ -165,17 +165,19 @@ class ProviderManager:
         cost_models = [m.cost_model for m in cost_models_map]
         return cost_models
 
-    def update(self, request):
+    def update(self, from_sources=False):
         """Check if provider is a sources model."""
-        if self.sources_model and not request.headers.get("Sources-Client"):
+        if self.sources_model and from_sources:
             err_msg = f"Provider {self._uuid} must be updated via Sources Integration Service"
             raise ProviderManagerError(err_msg)
 
     @transaction.atomic
-    def remove(self, request, customer_remove_context=False):
+    def remove(self, request=None, user=None, from_sources=False):
         """Remove the provider with current_user."""
-        current_user = request.user
-        if self.sources_model and not request.headers.get("Sources-Client"):
+        current_user = user
+        if current_user is None and request and request.user:
+            current_user = request.user
+        if self.sources_model and not from_sources:
             err_msg = f"Provider {self._uuid} must be deleted via Sources Integration Service"
             raise ProviderManagerError(err_msg)
 
