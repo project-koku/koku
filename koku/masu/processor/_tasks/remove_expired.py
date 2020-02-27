@@ -46,7 +46,7 @@ def _remove_expired_data(schema_name, provider, simulate, provider_uuid=None, li
 
     remover = ExpiredDataRemover(schema_name, provider)
     removed_data = remover.remove(simulate=simulate, provider_uuid=provider_uuid, line_items_only=line_items_only)
-
-    status_msg = "Expired Data" if simulate else "Removed Data"
-    result_msg = f"{status_msg}:\n {str(removed_data)}"
-    LOG.info(result_msg)
+    if removed_data:
+        status_msg = "Expired Data" if simulate else "Removed Data"
+        result_msg = f"{status_msg}:\n {str(removed_data)}"
+        LOG.info(result_msg)
