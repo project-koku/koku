@@ -55,7 +55,7 @@ from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import update_all_summary_tables
-from masu.processor.tasks import update_charge_info
+from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_summary_tables
 from masu.processor.tasks import vacuum_schema
 from masu.test import MasuTestCase
@@ -639,10 +639,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             report = self.creator.create_ocp_report(period, period_date)
             for _ in range(25):
                 self.creator.create_ocp_usage_line_item(period, report)
+            self.creator.create_ocp_node_label_line_item(period, report)
 
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.refresh_materialized_views")
-    @patch("masu.processor.tasks.update_charge_info")
+    @patch("masu.processor.tasks.update_cost_model_costs")
     def test_update_summary_tables_aws(self, mock_charge_info, mock_views, mock_chain):
         """Test that the summary table task runs."""
         provider = Provider.PROVIDER_AWS
@@ -670,7 +671,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         mock_chain.return_value.apply_async.assert_called()
 
-    @patch("masu.processor.tasks.update_charge_info")
+    @patch("masu.processor.tasks.update_cost_model_costs")
     def test_update_summary_tables_aws_end_date(self, mock_charge_info):
         """Test that the summary table task respects a date range."""
         provider = Provider.PROVIDER_AWS
@@ -724,7 +725,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.refresh_materialized_views")
-    @patch("masu.processor.tasks.update_charge_info")
+    @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map")
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
     def test_update_summary_tables_ocp(self, mock_markup, mock_rate_map, mock_charge_info, mock_view, mock_chain):
@@ -757,7 +758,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with schema_context(self.schema):
             self.assertNotEqual(daily_query.count(), initial_daily_count)
 
-        update_charge_info(
+        update_cost_model_costs(
             schema_name=self.schema, provider_uuid=provider_ocp_uuid, start_date=start_date, end_date=end_date
         )
 
@@ -791,7 +792,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         mock_chain.return_value.apply_async.assert_called()
 
-    @patch("masu.processor.tasks.update_charge_info")
+    @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_memory_gb_usage_per_hour_rates")
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_cpu_core_usage_per_hour_rates")
     def test_update_summary_tables_ocp_end_date(self, mock_cpu_rate, mock_mem_rate, mock_charge_info):

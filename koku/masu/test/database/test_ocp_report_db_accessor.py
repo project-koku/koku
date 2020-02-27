@@ -66,8 +66,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.report = self.creator.create_ocp_report(self.reporting_period)
         pod = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
         namespace = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
+        node = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
         self.creator.create_ocp_usage_line_item(self.reporting_period, self.report, pod=pod, namespace=namespace)
         self.creator.create_ocp_storage_line_item(self.reporting_period, self.report, pod=pod, namespace=namespace)
+        self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report, node=node)
 
     def _populate_storage_summary(self, cluster_id=None):
         """Generate storage summary data."""
@@ -80,7 +82,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             namespace = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
             self.creator.create_ocp_usage_line_item(self.reporting_period, self.report, pod=pod, namespace=namespace)
             self.creator.create_ocp_storage_line_item(self.reporting_period, self.report, pod=pod, namespace=namespace)
-
+        self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report)
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
             start_date = report_entry["interval_start__min"]
@@ -104,6 +106,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         for _ in range(25):
             self.creator.create_ocp_usage_line_item(self.reporting_period, self.report)
 
+        self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report)
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
             start_date = report_entry["interval_start__min"]
@@ -259,6 +262,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         for _ in range(25):
             self.creator.create_ocp_usage_line_item(self.reporting_period, self.report)
 
+        self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report)
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
             start_date = report_entry["interval_start__min"]
@@ -326,6 +330,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         for _ in range(25):
             self.creator.create_ocp_usage_line_item(self.reporting_period, self.report)
+        self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report)
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
             start_date = report_entry["interval_start__min"]
@@ -390,6 +395,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             period = self.creator.create_ocp_report_period(self.ocp_provider_uuid, period_date=start_date)
             report = self.creator.create_ocp_report(period, start_date)
             self.creator.create_ocp_usage_line_item(period, report)
+            self.creator.create_ocp_node_label_line_item(period, report)
 
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
@@ -450,6 +456,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             initial_count = query.count()
 
+        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_storage_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_volume_label_summary_table()
 
@@ -719,6 +726,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         for _ in range(5):
             self.creator.create_ocp_usage_line_item(self.reporting_period, self.report)
 
+        self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report)
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
             start_date = report_entry["interval_start__min"]
@@ -754,11 +762,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
         for _ in range(5):
             self.creator.create_ocp_usage_line_item(self.reporting_period, self.report)
 
+        self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report)
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
             start_date = report_entry["interval_start__min"]
             end_date = report_entry["interval_start__max"]
 
+        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         cluster_alias = "test_cluster_alias"
@@ -782,3 +792,46 @@ class OCPReportDBAccessorTest(MasuTestCase):
             self.accessor.remove_monthly_cost()
         except Exception as err:
             self.fail(f"Exception thrown: {err}")
+
+    def test_populate_node_label_line_item_daily_table(self):
+        """Test that the node label line item daily table populates."""
+        report_table_name = OCP_REPORT_TABLE_MAP["report"]
+        daily_table_name = OCP_REPORT_TABLE_MAP["node_label_line_item_daily"]
+
+        report_table = getattr(self.accessor.report_schema, report_table_name)
+        daily_table = getattr(self.accessor.report_schema, daily_table_name)
+
+        for _ in range(25):
+            self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report)
+
+        with schema_context(self.schema):
+            report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
+            start_date = report_entry["interval_start__min"]
+            end_date = report_entry["interval_start__max"]
+
+        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        query = self.accessor._get_db_obj_query(daily_table_name)
+        with schema_context(self.schema):
+            initial_count = query.count()
+
+        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
+
+        self.assertNotEqual(query.count(), initial_count)
+
+        with schema_context(self.schema):
+            daily_entry = daily_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
+            result_start_date = daily_entry["usage_start__min"]
+            result_end_date = daily_entry["usage_start__max"]
+
+        self.assertEqual(result_start_date, start_date)
+        self.assertEqual(result_end_date, end_date)
+
+        with schema_context(self.schema):
+            entry = query.first()
+
+            summary_columns = ["cluster_id", "node", "node_labels", "total_seconds", "usage_end", "usage_start"]
+
+            for column in summary_columns:
+                self.assertIsNotNone(getattr(entry, column))
