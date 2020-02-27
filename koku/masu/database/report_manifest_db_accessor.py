@@ -149,7 +149,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def delete_cost_usage_reports_older_than(self, provider_type, billing_period_start_datetime):
         """
-        Deletes Cost usage Reports older than expiration_date
+        Deletes Cost usage Reports older than billing_period_start_datetime
 
         Args:
             provider_type   (String) the provider type to delete
@@ -159,7 +159,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
             provider__type=provider_type, billing_period_start_datetime__lt=billing_period_start_datetime
         ).delete()
         LOG.info(
-            "Removed %s CostUsageReportManifest(s) before billing period start %s",
+            "Removed %s CostUsageReportManifest(s) that had a billing period start date before %s",
             delete_count,
             billing_period_start_datetime,
         )

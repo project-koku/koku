@@ -216,9 +216,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
         with self.assertLogs(logger="masu.processor.expired_data_remover", level="INFO") as cm:
             logging.disable(logging.NOTSET)
             remover.remove(simulate=True)
-            expected_log_message = (
-                "Simulated removing CostUsageReportManifest for provider type: AWS before billing period: "
-            )
+            expected_log_message = "Simulated removing CostUsageReportManifest"
             # Check if the log message exists in the log output:
             self.assertTrue(
                 any(match is not None for match in [re.search(expected_log_message, line) for line in cm.output]),
