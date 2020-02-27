@@ -33,7 +33,7 @@ class OCPAllCostLineItemDailySummary(models.Model):
         indexes = [
             models.Index(fields=["usage_start"], name="ocpall_usage_idx"),
             models.Index(fields=["namespace"], name="ocpall_namespace_idx"),
-            models.Index(fields=["node"], name="ocpall_node_idx"),
+            models.Index(fields=["node"], name="ocpall_node_idx", opclasses=["varcahr_pattern_ops"]),
             models.Index(fields=["resource_id"], name="ocpall_resource_idx"),
             GinIndex(fields=["tags"], name="ocpall_tags_idx"),
             models.Index(fields=["product_family"], name="ocpall_product_family_idx"),
@@ -57,9 +57,9 @@ class OCPAllCostLineItemDailySummary(models.Model):
 
     resource_id = models.CharField(max_length=253, null=True)
 
-    usage_start = models.DateTimeField(null=False)
+    usage_start = models.DateField(null=False)
 
-    usage_end = models.DateTimeField(null=False)
+    usage_end = models.DateField(null=False)
 
     # Infrastructure source fields
     usage_account_id = models.CharField(max_length=50, null=False)
@@ -143,9 +143,9 @@ class OCPAllCostLineItemProjectDailySummary(models.Model):
 
     resource_id = models.CharField(max_length=253, null=True)
 
-    usage_start = models.DateTimeField(null=False)
+    usage_start = models.DateField(null=False)
 
-    usage_end = models.DateTimeField(null=False)
+    usage_end = models.DateField(null=False)
 
     # AWS Fields
     usage_account_id = models.CharField(max_length=50, null=False)
