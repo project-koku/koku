@@ -82,8 +82,10 @@ class KafkaSourceManager:
         """Build authentication json data for provider type."""
         provider_map = {
             Provider.PROVIDER_AWS: self._authentication_for_aws,
+            Provider.PROVIDER_AWS_LOCAL: self._authentication_for_aws,
             Provider.PROVIDER_OCP: self._authentication_for_ocp,
             Provider.PROVIDER_AZURE: self._authentication_for_azure,
+            Provider.PROVIDER_AZURE_LOCAL: self._authentication_for_azure,
         }
         provider_fn = provider_map.get(provider_type)
         if provider_fn:
@@ -117,8 +119,10 @@ class KafkaSourceManager:
         """Build billing source json data for provider type."""
         provider_map = {
             Provider.PROVIDER_AWS: self._billing_source_for_aws,
+            Provider.PROVIDER_AWS_LOCAL: self._billing_source_for_aws,
             Provider.PROVIDER_OCP: self._billing_source_for_ocp,
             Provider.PROVIDER_AZURE: self._billing_source_for_azure,
+            Provider.PROVIDER_AZURE_LOCAL: self._billing_source_for_azure,
         }
         provider_fn = provider_map.get(provider_type)
         if provider_fn:
