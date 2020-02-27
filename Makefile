@@ -159,19 +159,13 @@ lint:
 clear-testing:
 	$(PYTHON) $(TOPDIR)/scripts/clear_testing.py -p $(TOPDIR)/testing
 
-create-test-customer: run-migrations
-	sleep 1
-	$(DJANGO_MANAGE) runserver > /dev/null 2>&1 &
-	sleep 5
+create-test-customer:
+	$(TOPDIR)/scripts/check_for_koku_server.sh $(TOPDIR) || exit 1
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
-	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
 
-create-test-customer-no-providers: run-migrations
-	sleep 1
-	$(DJANGO_MANAGE) runserver > /dev/null 2>&1 &
-	sleep 5
+create-test-customer-no-providers:
+	$(TOPDIR)/scripts/check_for_koku_server.sh $(TOPDIR) || exit 1
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-providers --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
-	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
 
 load-test-customer-data:
 	$(TOPDIR)/scripts/load_test_customer_data.sh $(TOPDIR) $(start) $(end)
@@ -476,10 +470,18 @@ docker-logs:
 docker-rabbit:
 	docker-compose up -d rabbit
 
-docker-reinitdb: docker-down-db remove-db docker-up-db
+docker-reinitdb:
+	$(MAKE) docker-down-db
+	$(MAKE) remove-db
+	$(MAKE) docker-up-db
+	$(MAKE) run-migrations
 	$(MAKE) create-test-customer-no-providers
 
-docker-reinitdb-with-providers: docker-down-db remove-db docker-up-db
+docker-reinitdb-with-providers:
+	$(MAKE) docker-down-db
+	$(MAKE) remove-db
+	$(MAKE) docker-up-db
+	$(MAKE) run-migrations
 	$(MAKE) create-test-customer
 
 docker-shell:
