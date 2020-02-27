@@ -825,9 +825,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         # The summary tables will only include dates where there is data
         expected_start_date = max(start_date, ce_start_date)
-        expected_start_date = expected_start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         expected_end_date = min(end_date, ce_end_date)
-        expected_end_date = expected_end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
         update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date)
         with schema_context(self.schema):
@@ -835,8 +833,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             result_start_date = daily_entry["usage_start__min"]
             result_end_date = daily_entry["usage_end__max"]
 
-        self.assertEqual(result_start_date, expected_start_date)
-        self.assertEqual(result_end_date, expected_end_date)
+        self.assertEqual(result_start_date, expected_start_date.date())
+        self.assertEqual(result_end_date, expected_end_date.date())
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_get_report_data_for_all_providers(self, mock_update):

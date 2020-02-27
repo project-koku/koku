@@ -16,6 +16,7 @@
 #
 """Models for OCP cost view tables."""
 from django.contrib.postgres.fields import JSONField
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
 
@@ -26,6 +27,12 @@ class CostSummary(models.Model):
         """Meta for CostSummary."""
 
         db_table = "reporting_ocpcosts_summary"
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocpcostsum_usage_start_idx"),
+            models.Index(fields=["namespace"], name="ocpcostsum_namespace_idx", opclasses=["varchar_pattern_ops"]),
+            models.Index(fields=["node"], name="ocpcostsum_node_idx", opclasses=["varchar_pattern_ops"]),
+            GinIndex(fields=["pod_labels"], name="ocpcostsum_pod_labels_idx"),
+        ]
 
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
 
@@ -40,8 +47,8 @@ class CostSummary(models.Model):
 
     node = models.CharField(max_length=253, null=True)
 
-    usage_start = models.DateTimeField(null=False)
-    usage_end = models.DateTimeField(null=False)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
 
     pod_charge_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
