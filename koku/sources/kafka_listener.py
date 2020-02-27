@@ -30,16 +30,18 @@ from django.db import OperationalError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from kafka.errors import KafkaError
+from rest_framework.exceptions import ValidationError
 
 from api.provider.models import Provider
 from api.provider.models import Sources
+from api.provider.provider_manager import ProviderManagerError
 from masu.celery.tasks import check_report_updates
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from sources import storage
 from sources.config import Config
-from sources.koku_http_client import KokuHTTPClient
-from sources.koku_http_client import KokuHTTPClientError
-from sources.koku_http_client import KokuHTTPClientNonRecoverableError
+from sources.kafka_source_manager import KafkaSourceManager
+from sources.kafka_source_manager import KafkaSourceManagerError
+from sources.kafka_source_manager import KafkaSourceManagerNonRecoverableError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 
@@ -443,32 +445,30 @@ def execute_koku_provider_op(msg, cost_management_type_id):
     """
     provider = msg.get("provider")
     operation = msg.get("operation")
-    koku_client = KokuHTTPClient(provider.auth_header)
+    source_mgr = KafkaSourceManager(provider.auth_header)
     sources_client = SourcesHTTPClient(provider.auth_header, provider.source_id)
     try:
         if operation == "create":
             LOG.info(f"Creating Koku Provider for Source ID: {str(provider.source_id)}")
-            koku_details = koku_client.create_provider(
+            koku_details = source_mgr.create_provider(
                 provider.name,
                 provider.source_type,
                 provider.authentication,
                 provider.billing_source,
                 provider.source_uuid,
             )
-            LOG.info(f'Koku Provider UUID {koku_details.get("uuid")} assigned to Source ID {str(provider.source_id)}.')
-            storage.add_provider_koku_uuid(provider.source_id, koku_details.get("uuid"))
+            LOG.info(f"Koku Provider UUID {str(koku_details.uuid)} assigned to Source ID {str(provider.source_id)}.")
+            storage.add_provider_koku_uuid(provider.source_id, str(koku_details.uuid))
         elif operation == "destroy":
             if provider.koku_uuid:
                 try:
-                    response = koku_client.destroy_provider(provider.koku_uuid)
-                    LOG.info(
-                        f"Koku Provider UUID ({provider.koku_uuid}) Removal Status Code: {str(response.status_code)}"
-                    )
-                except KokuHTTPClientNonRecoverableError:
-                    LOG.info(f"Koku Provider already removed.  Remove Source ID: {str(provider.source_id)}.")
+                    source_mgr.destroy_provider(provider.koku_uuid)
+                    LOG.info(f"Koku Provider UUID ({str(provider.koku_uuid)}) Removal Succeeded")
+                except Exception as err:
+                    LOG.info(f"Koku Provider removal failed. Error: {str(err)}.")
             storage.destroy_source_event(provider.source_id)
         elif operation == "update":
-            koku_details = koku_client.update_provider(
+            koku_details = source_mgr.update_provider(
                 provider.koku_uuid,
                 provider.name,
                 provider.source_type,
@@ -476,14 +476,17 @@ def execute_koku_provider_op(msg, cost_management_type_id):
                 provider.billing_source,
             )
             storage.clear_update_flag(provider.source_id)
-            LOG.info(
-                f'Koku Provider UUID {koku_details.get("uuid")} with Source ID {str(provider.source_id)} updated.'
-            )
+            LOG.info(f"Koku Provider UUID {str(koku_details.uuid)} with Source ID {str(provider.source_id)} updated.")
         sources_client.set_source_status(None, cost_management_type_id)
 
-    except KokuHTTPClientError as koku_error:
+    except KafkaSourceManagerError as koku_error:
         raise SourcesIntegrationError("Koku provider error: ", str(koku_error))
-    except KokuHTTPClientNonRecoverableError as koku_error:
+    except (
+        KafkaSourceManagerNonRecoverableError,
+        ValidationError,
+        ProviderManagerError,
+        Provider.DoesNotExist,
+    ) as koku_error:
         err_msg = f"Unable to {operation} provider for Source ID: {str(provider.source_id)}. Reason: {str(koku_error)}"
         LOG.error(err_msg)
         sources_client.set_source_status(str(koku_error), cost_management_type_id)
