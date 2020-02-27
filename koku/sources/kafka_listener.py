@@ -68,7 +68,7 @@ SOURCE_PROVIDER_MAP = {
     SOURCES_AZURE_SOURCE_NAME: Provider.PROVIDER_AZURE,
 }
 
-CACHE = {}
+TASK_ID_CACHE = {}
 
 
 class SourcesIntegrationError(Exception):
@@ -149,7 +149,7 @@ def storage_callback(sender, instance, **kwargs):
         PROCESS_QUEUE.put_nowait(process_event)
 
     if instance.koku_uuid and instance.pending_update and not instance.pending_delete:
-        task_id = CACHE.pop(instance.source_id, None)
+        task_id = TASK_ID_CACHE.pop(instance.source_id, None)
         if task_id:
             task_id.revoke(terminate=True)
             LOG.info(f"check_report_updates {task_id} REVOKED for Source ID: {instance.source_id}")
@@ -157,7 +157,7 @@ def storage_callback(sender, instance, **kwargs):
     if instance.koku_uuid and not instance.pending_update and not instance.pending_delete:
         result = check_report_updates.apply_async(countdown=1, provider_uuid=instance.koku_uuid)
         LOG.info(f"check_report_updates {result} STARTED for Source ID: {instance.source_id}")
-        CACHE[instance.source_id] = result
+        TASK_ID_CACHE[instance.source_id] = result
 
 
 def get_sources_msg_data(msg, app_type_id):
