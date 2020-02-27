@@ -28,10 +28,8 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
 
     def __init__(self, parameters):
         """Establish OCP report query handler.
-
         Args:
             parameters    (QueryParameters): parameter object for query
-
         """
         self._mapper = OCPAllProviderMap(provider=self.provider, report_type=parameters.report_type)
         # Update which field is used to calculate cost by group by param.

@@ -23,8 +23,8 @@
         "description": "Operations about summarizing report data"
       },
       {
-        "name": "Update Charge",
-        "description": "Operations about updating derived cost"
+        "name": "Update Cost Model Cost",
+        "description": "Operations about updating cost model costs"
       },
       {
         "name": "Upload Normalized Data",
@@ -299,9 +299,9 @@
         },
         "parameters": []
       },
-      "/update_charge/": {
+      "/update_cost_model_costs/": {
         "get": {
-          "operationId": "update_charge_list",
+          "operationId": "update_cost_model_costs_list",
           "description": "Update report summary tables in the database.",
           "parameters": [
             {
@@ -332,14 +332,14 @@
               "content": {
                 "application/json": {
                   "schema": {
-                    "$ref": "#/components/schemas/UpdateChargeGetResponse"
+                    "$ref": "#/components/schemas/UpdateCostModelCostGetResponse"
                   }
                 }
               }
             }
           },
           "tags": [
-            "Update Charge"
+            "Update Cost Model Cost"
           ]
         },
         "parameters": []
@@ -411,10 +411,10 @@
             }
           }
         },
-        "UpdateChargeGetResponse": {
+        "UpdateCostModelCostGetResponse": {
           "type": "object",
           "properties": {
-            "Update Charge Task ID": {
+            "Update Cost Model Cost Task ID": {
               "type": "string",
               "format": "uuid",
               "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"

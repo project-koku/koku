@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""View for update_charge endpoint."""
+"""View for update_cost_model_costs endpoint."""
 import logging
 
 from django.views.decorators.cache import never_cache
@@ -26,7 +26,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from masu.processor.tasks import update_charge_info
+from masu.processor.tasks import update_cost_model_costs as cost_task
 
 LOG = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ LOG = logging.getLogger(__name__)
 @api_view(http_method_names=["GET", "DELETE"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def update_charge(request):
+def update_cost_model_costs(request):
     """Update report summary tables in the database."""
     params = request.query_params
 
@@ -46,8 +46,8 @@ def update_charge(request):
         errmsg = "provider_uuid and schema_name are required parameters."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-    LOG.info("Calling update_charge_info async task.")
+    LOG.info("Calling update_cost_model_costs async task.")
 
-    async_result = update_charge_info.delay(schema_name, provider_uuid)
+    async_result = cost_task.delay(schema_name, provider_uuid)
 
-    return Response({"Update Charge Task ID": str(async_result)})
+    return Response({"Update Cost Model Cost Task ID": str(async_result)})

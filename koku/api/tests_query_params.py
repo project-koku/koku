@@ -37,12 +37,25 @@ from api.report.serializers import ParamSerializer
 from api.report.view import ReportView
 
 LOG = logging.getLogger(__name__)
-PROVIDERS = [Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE, Provider.PROVIDER_OCP, Provider.OCP_AWS, Provider.OCP_ALL]
+PROVIDERS = [
+    Provider.PROVIDER_AWS,
+    Provider.PROVIDER_AZURE,
+    Provider.PROVIDER_OCP,
+    Provider.OCP_AWS,
+    Provider.OCP_AZURE,
+    Provider.OCP_ALL,
+]
 ACCESS_KEYS = {
     Provider.PROVIDER_AWS.lower(): ["aws.account"],
     Provider.PROVIDER_AZURE.lower(): ["azure.subscription_guid"],
     Provider.PROVIDER_OCP.lower(): ["openshift.cluster", "openshift.project", "openshift.node"],
     Provider.OCP_AWS.lower(): ["aws.account", "openshift.cluster", "openshift.project", "openshift.node"],
+    Provider.OCP_AZURE.lower(): [
+        "azure.subscription_guid",
+        "openshift.cluster",
+        "openshift.project",
+        "openshift.node",
+    ],
     Provider.OCP_ALL.lower(): [
         "aws.account",
         "azure.subscription_guid",
@@ -625,3 +638,178 @@ class QueryParametersTests(TestCase):
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.tag_keys, expected)
+
+    def test_get_providers(self):
+        """Test get providers returns the correct access keys."""
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="acct10001")),
+            GET=Mock(urlencode=Mock(return_value="")),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=self.FAKE.word(),
+            query_handler=Mock(provider=random.choice(PROVIDERS)),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        params = QueryParameters(fake_request, fake_view)
+        for provider in PROVIDERS:
+            provider = provider.lower()
+            with self.subTest(provider=provider):
+                temp = params._get_providers(provider)
+                result = []
+                for res in temp:
+                    result.append(res[2])
+                expected = ACCESS_KEYS[provider]
+                self.assertEqual(sorted(result), sorted(expected))
+
+    def test_get_providers_with_nonsense_provider(self):
+        """Test get providers raises validation error with nonsense provider."""
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="acct10001")),
+            GET=Mock(urlencode=Mock(return_value="")),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=self.FAKE.word(),
+            query_handler=Mock(provider=random.choice(PROVIDERS)),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        params = QueryParameters(fake_request, fake_view)
+        with self.assertRaises(ValidationError):
+            params._get_providers("nonsense")
+
+    def test_partial_access_ocp_all_partial_aws(self):
+        """Test set access returns account numbers."""
+        self.test_read_access = {"aws.account": {"read": ["999999999"]}, "azure.subscription_guid": {"read": ["*"]}}
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
+            GET=Mock(urlencode=Mock(return_value="")),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=Provider.OCP_ALL,
+            query_handler=Mock(provider=Provider.OCP_ALL),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        with patch("reporting.models.OCPAllCostLineItemDailySummary.objects", return_value=[]):
+            params = QueryParameters(fake_request, fake_view)
+            self.assertEqual(params.get_filter("account"), ["999999999"])
+
+    def test_partial_access_ocp_all_no_azure_access(self):
+        """Test set access returns account numbers."""
+        self.test_read_access = {"aws.account": {"read": ["999999999"]}, "azure.subscription_guid": {"read": []}}
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
+            GET=Mock(urlencode=Mock(return_value="")),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=Provider.OCP_ALL,
+            query_handler=Mock(provider=Provider.OCP_ALL),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        with patch("reporting.models.OCPAllCostLineItemDailySummary.objects", return_value=[]):
+            params = QueryParameters(fake_request, fake_view)
+            self.assertEqual(params.get_filter("account"), ["999999999"])
+
+    def test_partial_access_ocp_all_partial_azure_access(self):
+        """Test set access returns account numbers."""
+        guid = uuid4()
+        self.test_read_access = {"aws.account": {"read": ["*"]}, "azure.subscription_guid": {"read": [str(guid)]}}
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
+            GET=Mock(urlencode=Mock(return_value="")),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=Provider.OCP_ALL,
+            query_handler=Mock(provider=Provider.OCP_ALL),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        with patch("reporting.models.OCPAllCostLineItemDailySummary.objects") as mock_object:
+            mock_object.filter.return_value.values_list.return_value.distinct.return_value = ["999999999"]
+            params = QueryParameters(fake_request, fake_view)
+            self.assertEqual(sorted(params.get_filter("account")), sorted(["999999999", str(guid)]))
+
+    def test_check_wildcard_access(self):
+        """Test check restrictions returns False when all access is wildcard."""
+        self.test_read_access = {"aws.account": {"read": ["*"]}, "azure.subscription_guid": {"read": ["*"]}}
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
+            GET=Mock(urlencode=Mock(return_value="")),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=Provider.OCP_ALL,
+            query_handler=Mock(provider=Provider.OCP_ALL),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        params = QueryParameters(fake_request, fake_view)
+        access_list = params._get_providers(Provider.OCP_ALL.lower())
+        result = params._check_restrictions(access_list)
+        self.assertFalse(result)
+
+    def test_check_wildcard_access_with_restrictions(self):
+        """Test check restrictions returns True when 1 provider is restricted."""
+        self.test_read_access = {"aws.account": {"read": ["999999999"]}, "azure.subscription_guid": {"read": ["*"]}}
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
+            GET=Mock(urlencode=Mock(return_value="")),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=Provider.OCP_ALL,
+            query_handler=Mock(provider=Provider.OCP_ALL),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        with patch("reporting.models.OCPAllCostLineItemDailySummary.objects", return_value=[]):
+            params = QueryParameters(fake_request, fake_view)
+            access_list = params._get_providers(Provider.OCP_ALL.lower())
+            result = params._check_restrictions(access_list)
+        self.assertTrue(result)
+
+    def test_check_wildcard_access_with_ocp_restrictions(self):
+        """Test check restrictions returns False when non-ocp have wildcard, but ocp is restricted."""
+        self.test_read_access = {
+            "aws.account": {"read": ["*"]},
+            "azure.subscription_guid": {"read": ["*"]},
+            "openshift.cluster": {"read": ["my-ocp-cluster"]},
+        }
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
+            GET=Mock(urlencode=Mock(return_value="")),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=Provider.OCP_ALL,
+            query_handler=Mock(provider=Provider.OCP_ALL),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        params = QueryParameters(fake_request, fake_view)
+        access_list = params._get_providers(Provider.OCP_ALL.lower())
+        result = params._check_restrictions(access_list)
+        self.assertFalse(result)

@@ -23,13 +23,13 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
-from masu.processor.aws.aws_report_charge_updater import AWSReportChargeUpdater
+from masu.processor.aws.aws_cost_model_cost_updater import AWSCostModelCostUpdater
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 
 
-class AWSReportChargeUpdaterTest(MasuTestCase):
-    """Test Cases for the AWSReportChargeUpdater object."""
+class AWSCostModelCostUpdaterTest(MasuTestCase):
+    """Test Cases for the AWSCostModelCostUpdater object."""
 
     @classmethod
     def setUpClass(cls):
@@ -64,7 +64,7 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
         with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
             self.provider = provider_accessor.get_provider()
 
-        self.updater = AWSReportChargeUpdater(schema=self.schema, provider=self.provider)
+        self.updater = AWSCostModelCostUpdater(schema=self.schema, provider=self.provider)
         today = DateAccessor().today_with_timezone("UTC")
         bill = self.creator.create_cost_entry_bill(provider_uuid=self.provider.uuid, bill_date=today)
         cost_entry = self.creator.create_cost_entry(bill, today)
@@ -76,14 +76,14 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
-    def test_update_summary_charge_info(self, mock_markup):
+    def test_update_summary_cost_model_costs(self, mock_markup):
         """Test to verify AWS derived cost summary is calculated."""
         markup = {"value": 10, "unit": "percent"}
         mock_markup.return_value = markup
         start_date = self.date_accessor.today_with_timezone("UTC")
         bill_date = start_date.replace(day=1).date()
 
-        self.updater.update_summary_charge_info()
+        self.updater.update_summary_cost_model_costs()
         with AWSReportDBAccessor("acct10001", self.column_map) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             self.assertIsNotNone(bill.derived_cost_datetime)

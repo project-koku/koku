@@ -92,28 +92,35 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ("uuid", "username", "email")
 
+    def get_customer_from_context(self):
+        """Get customer from context."""
+        customer = self.context.get("customer")
+        if customer:
+            return customer
+        else:
+            request = self.context.get("request")
+            if request and hasattr(request, "META"):
+                _, json_rh_auth = extract_header(request, RH_IDENTITY_HEADER)
+                if (
+                    json_rh_auth
+                    and "identity" in json_rh_auth
+                    and "account_number" in json_rh_auth["identity"]  # noqa: W504
+                ):
+                    account = json_rh_auth["identity"]["account_number"]
+                if account:
+                    schema_name = create_schema_name(account)
+                    customer = Customer.objects.get(schema_name=schema_name)
+                else:
+                    key = "customer"
+                    message = "Customer for requesting user could not be found."
+                    raise serializers.ValidationError(error_obj(key, message))
+        return customer
+
     @transaction.atomic
     def create(self, validated_data):
         """Create a user from validated data."""
         user = None
-        customer = None
-        request = self.context.get("request")
-        if request and hasattr(request, "META"):
-            _, json_rh_auth = extract_header(request, RH_IDENTITY_HEADER)
-            if (
-                json_rh_auth
-                and "identity" in json_rh_auth
-                and "account_number" in json_rh_auth["identity"]  # noqa: W504
-            ):
-                account = json_rh_auth["identity"]["account_number"]
-            if account:
-                schema_name = create_schema_name(account)
-                customer = Customer.objects.get(schema_name=schema_name)
-            else:
-                key = "customer"
-                message = "Customer for requesting user could not be found."
-                raise serializers.ValidationError(error_obj(key, message))
-
+        customer = self.get_customer_from_context()
         user = _create_user(
             username=validated_data.get("username"), email=validated_data.get("email"), customer=customer
         )
