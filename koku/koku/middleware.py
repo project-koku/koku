@@ -60,7 +60,7 @@ def is_no_auth(request):
         "download",
         "report_data",
         "expired_data",
-        "update_charge",
+        "update_cost_model_costs",
         "upload_normalized_data",
         "authentication",
         "billing_source",
