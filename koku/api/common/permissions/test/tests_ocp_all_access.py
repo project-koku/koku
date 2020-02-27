@@ -39,7 +39,6 @@ class OCPAllAccessPermissionTest(TestCase):
         accessPerm = OpenshiftAllAccessPermission()
         s = ACCESS_KEYS.keys()
         for key in chain.from_iterable(combinations(s, r) for r in range(1, len(s) + 1)):
-            print(key)
             with self.subTest(permission=key):
                 access = {}
                 for k in key:
