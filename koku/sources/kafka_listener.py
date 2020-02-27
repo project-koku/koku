@@ -146,9 +146,9 @@ def storage_callback(sender, instance, **kwargs):
         LOG.debug(f"Create Event Queued for:\n{str(instance)}")
         PROCESS_QUEUE.put_nowait(process_event)
 
-    if instance.koku_uuid and not instance.pending_delete:
+    if instance.koku_uuid and not instance.pending_update and not instance.pending_delete:
         check_report_updates.apply_async(countdown=1, provider_uuid=instance.koku_uuid)
-        LOG.info(f"TASK check_report_updates STARTED")
+        LOG.info(f"check_report_updates STARTED for Source ID: {instance.source_id}")
 
 
 def get_sources_msg_data(msg, app_type_id):
