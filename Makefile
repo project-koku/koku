@@ -58,15 +58,15 @@ help:
 	@echo "--- Commands using local services ---"
 	@echo "  clear-testing						   Remove stale files/subdirectories from the testing directory."
 	@echo "  create-test-customer                  create a test customer and tenant in the database"
-	@echo "  create-test-customer-no-providers     create a test customer and tenant in the database without test providers"
-	@echo "  create-large-ocp-provider-config-file create a config file for nise to generate a large data sample"
+	@echo "  create-test-customer-no-sources       create a test customer and tenant in the database without test sources"
+	@echo "  create-large-ocp-source-config-file   create a config file for nise to generate a large data sample"
 	@echo "                                          @param generator_config_file - config for the generator"
 	@echo "                                          @param generator_template_file - jinja2 template to render output"
 	@echo "                                          @param output_file_name - file name for output"
 	@echo "                                          @param generator_flags - (optional) additional cli flags and args"
-	@echo "  large-ocp-provider-testing            create a test OCP provider "large_ocp_1" with a larger volume of data"
+	@echo "  large-ocp-source-testing              create a test OCP source "large_ocp_1" with a larger volume of data"
 	@echo "                                          @param nise_config_dir - directory of nise config files to use"
-	@echo "  load-test-customer-data               load test data for the default providers created in create-test-customer"
+	@echo "  load-test-customer-data               load test data for the default sources created in create-test-customer"
 	@echo "                                          @param start - (optional) start date ex. 2019-08-02"
 	@echo "                                          @param end - (optional) end date ex. 2019-12-5"
 	@echo "  backup-local-db-dir                   make a backup copy PostgreSQL database directory (pg_data.bak)"
@@ -94,7 +94,7 @@ help:
 	@echo "  docker-down                          shut down all containers"
 	@echo "  docker-rabbit                        run RabbitMQ container"
 	@echo "  docker-reinitdb                      drop and recreate the database"
-	@echo "  docker-reinitdb-with-providers       drop and recreate the database with fake providers"
+	@echo "  docker-reinitdb-with-sources         drop and recreate the database with fake sources"
 	@echo "  docker-shell                         run Django and database containers with shell access to server (for pdb)"
 	@echo "  docker-logs                          connect to console logs for all services"
 	@echo "  docker-test-all                      run unittests"
@@ -143,13 +143,13 @@ help:
 	@echo "  oc-up-all                             run app in openshift cluster"
 	@echo "  oc-up-db                              run Postgres in an openshift cluster"
 	@echo ""
-	@echo "--- Create Providers ---"
-	@echo "  ocp-provider-from-yaml                Create ocp provider using a yaml file."
+	@echo "--- Create Sources ---"
+	@echo "  ocp-source-from-yaml                  Create ocp source using a yaml file."
 	@echo "      cluster_id=<cluster_name>           @param - Required. The name of your cluster (ex. my-ocp-cluster-0)"
 	@echo "      srf_yaml=<filename>                 @param - Required. Path of static-report-file yaml (ex. '/ocp_static_report.yml')"
-	@echo "      ocp_name=<provider_name>            @param - Required. The name of the provider. (ex. 'OCPprovider')"
-	@echo "  aws-provider                          Create aws provider using environment variables"
-	@echo "      aws_name=<provider_name>            @param - Required. Name of the provider"
+	@echo "      ocp_name=<source_name>              @param - Required. The name of the source. (ex. 'OCPsource')"
+	@echo "  aws-source                            Create aws source using environment variables"
+	@echo "      aws_name=<source_name>              @param - Required. Name of the source"
 	@echo "      bucket=<bucket_name>                @param - Required. Name of the bucket"
 
 ### General Commands ###
@@ -170,9 +170,9 @@ create-test-customer:
 	$(TOPDIR)/scripts/check_for_koku_server.sh $(TOPDIR) || exit 1
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
 
-create-test-customer-no-providers:
+create-test-customer-no-sources:
 	$(TOPDIR)/scripts/check_for_koku_server.sh $(TOPDIR) || exit 1
-	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-providers --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
+	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-sources --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
 
 load-test-customer-data:
 	$(TOPDIR)/scripts/load_test_customer_data.sh $(TOPDIR) $(start) $(end)
@@ -490,9 +490,9 @@ docker-reinitdb:
 	$(MAKE) remove-db
 	$(MAKE) docker-up-db
 	$(MAKE) run-migrations
-	$(MAKE) create-test-customer-no-providers
+	$(MAKE) create-test-customer-no-sources
 
-docker-reinitdb-with-providers:
+docker-reinitdb-with-sources:
 	$(MAKE) docker-down-db
 	$(MAKE) remove-db
 	$(MAKE) docker-up-db
@@ -538,8 +538,8 @@ docker-iqe-vortex-tests:
 	$(MAKE) clear-testing
 	./testing/run_vortex_api_tests.sh
 
-### Provider targets ###
-ocp-provider-from-yaml:
+### Source targets ###
+ocp-source-from-yaml:
 #parameter validation
 ifndef cluster_id
 	$(error param cluster_id is not set)
@@ -553,11 +553,11 @@ endif
 	(command -v nise > /dev/null 2>&1) || (echo 'nise is not installed, please install nise.' && exit 1 )
 	mkdir -p testing/pvc_dir/insights_local
 	nise --ocp --ocp-cluster-id $(cluster_id) --insights-upload testing/pvc_dir/insights_local --static-report-file $(srf_yaml)
-	curl -d '{"name": "$(ocp_name)", "type": "OCP", "authentication": {"provider_resource_name": "$(cluster_id)"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/providers/
+	curl -d '{"name": "$(ocp_name)", "type": "OCP", "authentication": {"resource_name": "$(cluster_id)"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
 # From here you can hit the http://127.0.0.1:5000/api/cost-management/v1/download/ endpoint to start running masu.
 # After masu has run these endpoints should have data in them: (v1/reports/openshift/memory, v1/reports/openshift/compute/, v1/reports/openshift/volumes/)
 
-aws-provider:
+aws-source:
 ifndef aws_name
 	$(error param aws_name is not set)
 endif
@@ -565,14 +565,14 @@ ifndef bucket
 	$(error param bucket is not set)
 endif
 	(printenv AWS_RESOURCE_NAME > /dev/null 2>&1) || (echo 'AWS_RESOURCE_NAME is not set in .env' && exit 1)
-	curl -d '{"name": "$(aws_name)", "type": "AWS", "authentication": {"provider_resource_name": "${AWS_RESOURCE_NAME}"}, "billing_source": {"bucket": "$(bucket)"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/providers/
+	curl -d '{"name": "$(aws_name)", "type": "AWS", "authentication": {"resource_name": "${AWS_RESOURCE_NAME}"}, "billing_source": {"bucket": "$(bucket)"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
 
 
 ###################################################
 #  This section is for larger data volume testing
 ###################################################
 
-create-large-ocp-provider-config-file:
+create-large-ocp-source-config-file:
 ifndef output_file_name
 	$(error param output_file_name is not set)
 endif
@@ -587,36 +587,36 @@ endif
 													 -o $(output_file_name) $(generator_flags)
 
 
-create-large-ocp-provider-testing-files:
+create-large-ocp-source-testing-files:
 ifndef nise_config_dir
 	$(error param nise_config_dir is not set)
 endif
 	make purge-large-testing-ocp-files
 	@for FILE in $(foreach f, $(wildcard $(nise_config_dir)/*.yml), $(f)) ; \
     do \
-        make ocp-provider-from-yaml cluster_id=large_ocp_1 srf_yaml=$$FILE ocp_name=large_ocp_1 ; \
+        make ocp-source-from-yaml cluster_id=large_ocp_1 srf_yaml=$$FILE ocp_name=large_ocp_1 ; \
 	done
 
-import-large-ocp-provider-testing-costmodel:
+import-large-ocp-source-testing-costmodel:
 	curl --header 'Content-Type: application/json' \
 	     --request POST \
-	     --data '{"name": "Cost Management OpenShift Cost Model", "description": "A cost model of on-premises OpenShift clusters.", "source_type": "OCP", "provider_uuids": $(shell make -s find-large-testing-provider-uuid), "rates": [{"metric": {"name": "cpu_core_usage_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.007, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "node_cost_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.2, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "cpu_core_request_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.2, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "memory_gb_usage_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.009, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "memory_gb_request_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.05, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "storage_gb_usage_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.01, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "storage_gb_request_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.01, "usage_start": null, "usage_end": null}]}]}' \
+	     --data '{"name": "Cost Management OpenShift Cost Model", "description": "A cost model of on-premises OpenShift clusters.", "source_type": "OCP", "provider_uuids": $(shell make -s find-large-testing-source-uuid), "rates": [{"metric": {"name": "cpu_core_usage_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.007, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "node_cost_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.2, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "cpu_core_request_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.2, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "memory_gb_usage_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.009, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "memory_gb_request_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.05, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "storage_gb_usage_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.01, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "storage_gb_request_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.01, "usage_start": null, "usage_end": null}]}]}' \
 	     http://$(KOKU_SERVER):$(KOKU_SERVER_PORT)/api/cost-management/v1/costmodels/
 
-import-large-ocp-provider-testing-data:
+import-large-ocp-source-testing-data:
 	curl --request GET http://$(MASU_SERVER):$(MASU_SERVER_PORT)/api/cost-management/v1/download/
 
-# Create a large volume of data for a test OCP provider
+# Create a large volume of data for a test OCP source
 # Will create the files, add the cost model and process the data
-large-ocp-provider-testing:
+large-ocp-source-testing:
 ifndef nise_config_dir
 	$(error param nise_config_dir is not set)
 endif
-	make create-large-ocp-provider-testing-files nise_config_dir="$(nise_config_dir)"
-	make import-large-ocp-provider-testing-costmodel
-	make import-large-ocp-provider-testing-data
+	make create-large-ocp-source-testing-files nise_config_dir="$(nise_config_dir)"
+	make import-large-ocp-source-testing-costmodel
+	make import-large-ocp-source-testing-data
 
-# Delete the testing large ocp provider local files
+# Delete the testing large ocp source local files
 purge-large-testing-ocp-files:
 	rm -rf $(OCP_PROVIDER_TEMP_DIR)/large_ocp_1
 
@@ -624,9 +624,9 @@ purge-large-testing-ocp-files:
 purge-all-testing-ocp-files:
 	rm -rf $(OCP_PROVIDER_TEMP_DIR)/*
 
-# currently locked to the large ocp provider
-find-large-testing-provider-uuid:
-	@curl "http://$(KOKU_SERVER):$(KOKU_SERVER_PORT)/api/cost-management/v1/providers/?name=large_ocp_1" | python3 -c "import sys, json; data_list=json.load(sys.stdin)['data']; print([data['uuid'] for data in data_list if data['type']=='OCP']);" | tr "'" '"'
+# currently locked to the large ocp source
+find-large-testing-source-uuid:
+	@curl "http://$(KOKU_SERVER):$(KOKU_SERVER_PORT)/api/cost-management/v1/sources/?name=large_ocp_1" | python3 -c "import sys, json; data_list=json.load(sys.stdin)['data']; print([data['koku_uuid'] for data in data_list if data['type']=='OCP']);" | tr "'" '"'
 
 
 # Dump local database

@@ -16,7 +16,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """
-This script creates a customer and provider in Koku for development and
+This script creates a customer and source in Koku for development and
 testing purposes.
 
 Configuration for this script is stored in a YAML file, using this syntax:
@@ -27,12 +27,12 @@ customer:
   customer_name: Koku Customer Name
   email: Customer Koku Customer E-Mail Address
   user: Koku Customer Admin Username
-  providers:
-    $provider_class_name:
-      provider_name: Koku Provider Name
-      provider_type: One of "AWS", "OCP", or "AZURE"
+  sources:
+    $source_class_name:
+      source_name: Koku source Name
+      source_type: One of "AWS", "OCP", or "AZURE"
       authentication:
-        provider_resource_name: AWS Role ARN
+        resource_name: AWS Role ARN
       billing_source:
         bucket: AWS S3 Bucket Name
 koku:
@@ -55,7 +55,7 @@ from yaml import safe_load
 
 BASEDIR = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_CONFIG = BASEDIR + "/test_customer.yaml"
-SUPPORTED_PROVIDERS = ["AWS", "AWS-local", "Azure", "Azure-local", "OCP"]
+SUPPORTED_SOURCES = ["AWS", "AWS-local", "Azure", "Azure-local", "OCP"]
 
 
 class KokuCustomerOnboarder:
@@ -83,29 +83,27 @@ class KokuCustomerOnboarder:
         response = requests.get(self.endpoint_base + "reports/aws/costs/", headers=get_headers(self.auth_token))
         print(f"Response: [{response.status_code}] {response.text}")
 
-    def create_provider_api(self):
-        """Create a Koku Provider using the Koku API."""
-        for provider in self.customer.get("providers", []):
-            provider_type = provider.get("provider_type")
-            if provider_type not in SUPPORTED_PROVIDERS:
-                print(f"{provider_type} is not a valid provider type. Skipping.")
+    def create_source_api(self):
+        """Create a Koku Source using the Koku API."""
+        for source in self.customer.get("sources", []):
+            source_type = source.get("source_type")
+            if source_type not in SUPPORTED_SOURCES:
+                print(f"{source_type} is not a valid source type. Skipping.")
                 continue
 
-            print(f"\nAdding {provider}...")
+            print(f"\nAdding {source}...")
             data = {
-                "name": provider.get("provider_name"),
-                "type": provider.get("provider_type"),
-                "authentication": provider.get("authentication", {}),
-                "billing_source": provider.get("billing_source", {}),
+                "name": source.get("source_name"),
+                "source_type": source.get("source_type"),
+                "authentication": source.get("authentication", {}),
+                "billing_source": source.get("billing_source", {}),
             }
 
-            response = requests.post(
-                self.endpoint_base + "providers/", headers=get_headers(self.auth_token), json=data
-            )
+            response = requests.post(self.endpoint_base + "sources/", headers=get_headers(self.auth_token), json=data)
             print(f"Response: [{response.status_code}] {response.text}")
         return response
 
-    def create_provider_db(self, provider_type):
+    def create_provider_source(self, source_type):
         """Create a single provider, auth, and billing source in the DB."""
         dbinfo = {
             "database": os.getenv("DATABASE_NAME"),
@@ -117,20 +115,18 @@ class KokuCustomerOnboarder:
         with psycopg2.connect(**dbinfo) as conn:
             cursor = conn.cursor()
 
-        if provider_type.lower() == "aws":
-            provider = "aws_provider"
-        elif provider_type.lower() == "ocp":
-            provider = "ocp_provider"
-        elif provider_type.lower() == "azure":
-            provider = "azure_provider"
+        if source_type.lower() == "aws":
+            source = "aws_source"
+        elif source_type.lower() == "ocp":
+            source = "ocp_source"
+        elif source_type.lower() == "azure":
+            source = "azure_source"
 
-        provider_resource_name = (
-            self.customer.get("providers").get(provider).get("authentication").get("provider_resource_name")
-        )
-        credentials = self.customer.get("providers").get(provider).get("authentication").get("credentials", {})
+        source_resource_name = self.customer.get("sources").get(source).get("authentication").get("resource_name")
+        credentials = self.customer.get("sources").get(source).get("authentication").get("credentials", {})
 
-        bucket = self.customer.get("providers").get(provider).get("billing_source").get("bucket")
-        data_source = self.customer.get("providers").get(provider).get("billing_source").get("data_source", {})
+        bucket = self.customer.get("sources").get(source).get("billing_source").get("bucket")
+        data_source = self.customer.get("sources").get(source).get("billing_source").get("data_source", {})
 
         billing_sql = """
             SELECT id FROM api_providerbillingsource
@@ -168,7 +164,7 @@ class KokuCustomerOnboarder:
             RETURNING id
             ;
         """
-        values = [str(uuid4()), provider_resource_name, json_dumps(credentials)]
+        values = [str(uuid4()), source_resource_name, json_dumps(credentials)]
 
         cursor.execute(auth_sql, values)
         auth_id = cursor.fetchone()[0]
@@ -181,26 +177,26 @@ class KokuCustomerOnboarder:
             RETURNING uuid
             ;
         """
-        values = [str(uuid4()), provider, provider_type, auth_id, billing_id]
+        values = [str(uuid4()), source, source_type, auth_id, billing_id]
 
         cursor.execute(provider_sql, values)
         conn.commit()
         conn.close()
 
-    def create_providers_db(self, skip_providers):
-        """Create a Koku Provider by inserting into the Koku DB."""
-        if not skip_providers:
-            for provider_type in ["AWS", "OCP", "Azure"]:
-                self.create_provider_db(provider_type)
-                print(f"Created {provider_type} provider.")
+    def create_sources_db(self, skip_sources):
+        """Create a Koku source by inserting into the Koku DB."""
+        if not skip_sources:
+            for source_type in ["AWS", "OCP", "Azure"]:
+                self.create_source_db(source_type)
+                print(f"Created {source_type} source.")
 
     def onboard(self):
         """Execute Koku onboarding steps."""
         self.create_customer()
         if self._config.get("bypass_api"):
-            self.create_providers_db(self._config.get("no_providers", True))
+            self.create_sources_db(self._config.get("no_sources", True))
         else:
-            self.create_provider_api()
+            self.create_source_api()
 
 
 def get_headers(token):
@@ -234,18 +230,16 @@ if __name__ == "__main__":
         "-f", "--file", dest="config_file", help="YAML-formatted configuration file name", default=DEFAULT_CONFIG
     )
     PARSER.add_argument(
-        "--bypass-api", dest="bypass_api", action="store_true", help="Create Provider in DB, bypassing Koku API"
+        "--bypass-api", dest="bypass_api", action="store_true", help="Create Sources in DB, bypassing Koku API"
     )
-    PARSER.add_argument(
-        "--no-providers", dest="no_providers", action="store_true", help="Don't create providers at all"
-    )
+    PARSER.add_argument("--no-sources", dest="no_sources", action="store_true", help="Don't create sources at all")
     PARSER.add_argument(
         "--api-prefix", dest="api_prefix", help="API path prefix", default=os.getenv("API_PATH_PREFIX")
     )
     ARGS = vars(PARSER.parse_args())
 
-    if ARGS["no_providers"] and not ARGS["bypass_api"]:
-        PARSER.error("--bypass-api must be supplied with --no-providers")
+    if ARGS["no_sources"] and not ARGS["bypass_api"]:
+        PARSER.error("--bypass-api must be supplied with --no-sources")
 
     try:
         CONFIG = load_yaml(ARGS.get("config_file"))

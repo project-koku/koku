@@ -22,7 +22,6 @@ import faker
 from rest_framework import serializers
 from tenant_schemas.utils import tenant_context
 
-from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.models import CostModelMetricsMap
 from api.metrics.serializers import SOURCE_TYPE_MAP
@@ -42,11 +41,6 @@ class CostModelSerializerTest(IamTestCase):
     def setUp(self):
         """Set up the tests."""
         super().setUp()
-        request = self.request_context["request"]
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            user = serializer.save()
-            request.user = user
 
         provider_data = {
             "name": "test_provider",

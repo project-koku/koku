@@ -140,7 +140,7 @@ Examples
 
 Example 1. Using docker-compose to wipe and rebuild the local database with test data::
 
-    make docker-reinitdb-with-providers
+    make docker-reinitdb-with-sources
     make load-test-customer-data
 
 Example 2. Assuming the database is already clean and does not need to be rebuilt::

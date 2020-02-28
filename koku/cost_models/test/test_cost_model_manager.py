@@ -18,7 +18,7 @@
 from tenant_schemas.utils import tenant_context
 
 from api.iam.models import Customer
-from api.iam.serializers import UserSerializer
+from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider
@@ -43,9 +43,7 @@ class CostModelManagerTest(IamTestCase):
         """Set up the cost model manager tests."""
         super().setUp()
         self.customer = Customer.objects.get(account_id=self.customer_data["account_id"])
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            self.user = serializer.save()
+        self.user = User.objects.get(username=self.user_data["username"])
 
     def tearDown(self):
         """Clean up database after test case."""

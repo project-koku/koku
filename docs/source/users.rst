@@ -13,7 +13,7 @@ Customer: An organization or entity that uses Project Koku for cost management a
 
 .. _provider:
 
-Provider: A cloud resource provider or cloud data provider. An entity that produces cost and resource usage data. This could be a public or private cloud.
+Source: A cloud resource provider or cloud data provider. An entity that produces cost and resource usage data. This could be a public or private cloud.
 
 .. _user:
 

@@ -27,7 +27,6 @@ from rest_framework import status
 from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.models import User
-from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from koku.middleware import HttpResponseUnauthorizedRequest
 from koku.middleware import IdentityHeaderMiddleware
@@ -42,11 +41,7 @@ class KokuTenantMiddlewareTest(IamTestCase):
         """Set up middleware tests."""
         super().setUp()
         request = self.request_context["request"]
-        request.path = "/api/v1/providers/"
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            user = serializer.save()
-            request.user = user
+        request.path = "/api/v1/tags/aws/"
 
     def test_get_tenant_with_user(self):
         """Test that the customer tenant is returned."""
@@ -57,7 +52,7 @@ class KokuTenantMiddlewareTest(IamTestCase):
 
     def test_get_tenant_with_no_user(self):
         """Test that a 401 is returned."""
-        mock_request = Mock(path="/api/v1/providers/", user=None)
+        mock_request = Mock(path="/api/v1/tags/aws/", user=None)
         middleware = KokuTenantMiddleware()
         result = middleware.process_request(mock_request)
         self.assertIsInstance(result, HttpResponseUnauthorizedRequest)
@@ -65,7 +60,7 @@ class KokuTenantMiddlewareTest(IamTestCase):
     def test_get_tenant_user_not_found(self):
         """Test that a 401 is returned."""
         mock_user = Mock(username="mockuser")
-        mock_request = Mock(path="/api/v1/providers/", user=mock_user)
+        mock_request = Mock(path="/api/v1/tags/aws/", user=mock_user)
         middleware = KokuTenantMiddleware()
         result = middleware.process_request(mock_request)
         self.assertIsInstance(result, HttpResponseUnauthorizedRequest)
@@ -78,7 +73,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         """Set up middleware tests."""
         super().setUp()
         self.request = self.request_context["request"]
-        self.request.path = "/api/v1/providers/"
+        self.request.path = "/api/v1/tags/aws/"
         self.request.META["QUERY_STRING"] = ""
 
     def test_process_status(self):
@@ -104,11 +99,12 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
     def test_process_no_customer(self):
         """Test that the customer, tenant and user are not created."""
         customer = self._create_customer_data()
+        user_data = self._create_user_data()
         account_id = "12345"
         del customer["account_id"]
-        request_context = self._create_request_context(customer, self.user_data, create_customer=False)
+        request_context = self._create_request_context(customer, user_data, create_customer=False, create_user=False)
         mock_request = request_context["request"]
-        mock_request.path = "/api/v1/providers/"
+        mock_request.path = "/api/v1/tags/aws/"
         middleware = IdentityHeaderMiddleware()
         middleware.process_request(mock_request)
         self.assertTrue(hasattr(mock_request, "user"))
@@ -116,7 +112,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
             customer = Customer.objects.get(account_id=account_id)
 
         with self.assertRaises(User.DoesNotExist):
-            User.objects.get(username=self.user_data["username"])
+            User.objects.get(username=user_data["username"])
 
     def test_race_condition_customer(self):
         """Test case where another request may create the customer in a race condition."""
@@ -162,7 +158,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
             customer, user_data, create_customer=True, create_tenant=True, is_admin=False
         )
         mock_request = request_context["request"]
-        mock_request.path = "/api/v1/providers/"
+        mock_request.path = "/api/v1/tags/aws/"
         mock_request.META["QUERY_STRING"] = ""
 
         middleware = IdentityHeaderMiddleware()
@@ -184,7 +180,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
             customer, user_data, create_customer=True, create_tenant=True, is_admin=True, is_cost_management=False
         )
         mock_request = request_context["request"]
-        mock_request.path = "/api/v1/providers/"
+        mock_request.path = "/api/v1/tags/aws/"
         mock_request.META["QUERY_STRING"] = ""
 
         middleware = IdentityHeaderMiddleware()
@@ -199,7 +195,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
             customer, user_data, create_customer=True, create_tenant=True, is_admin=True, is_cost_management=False
         )
         mock_request = request_context["request"]
-        mock_request.path = "/api/v1/providers/"
+        mock_request.path = "/api/v1/tags/aws/"
         mock_request.META["HTTP_X_RH_IDENTITY"] = "not a header"
 
         middleware = IdentityHeaderMiddleware()
@@ -214,7 +210,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
             customer, user_data, create_customer=True, create_tenant=True, is_admin=True, is_cost_management=True
         )
         mock_request = request_context["request"]
-        mock_request.path = "/api/v1/providers/"
+        mock_request.path = "/api/v1/tags/aws/"
         mock_request.META["QUERY_STRING"] = ""
 
         with patch("koku.middleware.Customer.objects") as mock_customer:
@@ -233,7 +229,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
             customer, user_data, create_customer=True, create_tenant=True, is_admin=False, is_cost_management=True
         )
         mock_request = request_context["request"]
-        mock_request.path = "/api/v1/providers/"
+        mock_request.path = "/api/v1/tags/aws/"
         mock_request.META["QUERY_STRING"] = ""
 
         middleware = IdentityHeaderMiddleware()
@@ -250,7 +246,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
             customer, user_data, create_customer=True, create_tenant=True, is_admin=False, is_cost_management=True
         )
         mock_request = request_context["request"]
-        mock_request.path = "/api/v1/providers/"
+        mock_request.path = "/api/v1/tags/aws/"
         mock_request.META["QUERY_STRING"] = ""
 
         middleware = IdentityHeaderMiddleware()
