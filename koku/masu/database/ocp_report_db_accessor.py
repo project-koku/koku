@@ -34,6 +34,7 @@ from django.db.models.functions import Coalesce
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
+from koku.database import JSONBBuildObject
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -609,8 +610,21 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 ),
             )
 
+    def get_distinct_nodes(self, start_date, end_date, cluster_id):
+        """Return a list of nodes for a cluster between given dates."""
+        with schema_context(self.schema):
+            unique_nodes = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=start_date, usage_start__lt=end_date, cluster_id=cluster_id, node__isnull=False
+                )
+                .values_list("node")
+                .distinct()
+            )
+
+        return [node[0] for node in unique_nodes]
+
     # pylint: disable=too-many-arguments
-    def populate_monthly_cost(self, node_cost, start_date, end_date, cluster_id, cluster_alias):
+    def populate_monthly_cost(self, cost_type, rate_type, rate, start_date, end_date, cluster_id, cluster_alias):
         """
         Populate the monthly cost of a customer.
 
@@ -632,50 +646,49 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         first_month = datetime.datetime(*start_date.replace(day=1).timetuple()[:3]).replace(tzinfo=pytz.UTC)
         end_date = datetime.datetime(*end_date.timetuple()[:3]).replace(hour=23, minute=59, second=59, tzinfo=pytz.UTC)
 
+        # Calculate monthly cost for each month from start date to end date
+        for curr_month in rrule(freq=MONTHLY, until=end_date, dtstart=first_month):
+            first_curr_month, first_next_month = month_date_range_tuple(curr_month)
+            LOG.info("Populating monthly cost from %s to %s.", first_curr_month, first_next_month)
+            if cost_type == "Node":
+                self.upsert_monthly_node_cost_line_item(
+                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate
+                )
+
+    def upsert_monthly_node_cost_line_item(
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, node_cost
+    ):
+        """Update or insert a daily summary line item for node cost."""
+        unique_nodes = self.get_distinct_nodes(start_date, end_date, cluster_id)
+        report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
         with schema_context(self.schema):
-            # Calculate monthly cost for every month
-            for curr_month in rrule(freq=MONTHLY, until=end_date, dtstart=first_month):
-                first_curr_month, first_next_month = month_date_range_tuple(curr_month)
-                LOG.info("Populating Monthly node cost from %s to %s.", first_curr_month, first_next_month)
-
-                unique_nodes = (
-                    OCPUsageLineItemDailySummary.objects.filter(
-                        usage_start__gte=first_curr_month.date(),
-                        usage_start__lt=first_next_month.date(),
-                        cluster_id=cluster_id,
-                        node__isnull=False,
-                    )
-                    .values_list("node")
-                    .distinct()
-                )
-
-                report_period = self.get_usage_period_by_dates_and_cluster(
-                    first_curr_month, first_next_month, cluster_id
-                )
-
-                for node in unique_nodes:
-                    LOG.info("Node (%s) has a monthly cost of %s.", node[0], node_cost)
-                    # delete node cost per month
-                    OCPUsageLineItemDailySummary.objects.filter(
-                        usage_start=first_curr_month.date(),
-                        usage_end=first_curr_month.date(),
-                        monthly_cost=node_cost,
+            for node in unique_nodes:
+                line_item = OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start=start_date,
+                    usage_end=start_date,
+                    report_period=report_period,
+                    cluster_id=cluster_id,
+                    cluster_alias=cluster_alias,
+                    monthly_cost_type="Node",
+                    node=node,
+                ).first()
+                if not line_item:
+                    line_item = OCPUsageLineItemDailySummary(
+                        usage_start=start_date,
+                        usage_end=start_date,
                         report_period=report_period,
                         cluster_id=cluster_id,
                         cluster_alias=cluster_alias,
-                        monthly_cost__isnull=False,
-                        node=node[0],
-                    ).delete()
-                    # add node cost per month
-                    OCPUsageLineItemDailySummary.objects.create(
-                        usage_start=first_curr_month.date(),
-                        usage_end=first_curr_month.date(),
-                        monthly_cost=node_cost,
-                        report_period=report_period,
-                        cluster_id=cluster_id,
-                        cluster_alias=cluster_alias,
-                        node=node[0],
+                        monthly_cost_type="Node",
+                        node=node,
                     )
+                if rate_type == "Infrastructure":
+                    LOG.info("Node (%s) has a monthly infrastructure cost of %s.", node, node_cost)
+                    line_item.infrastructure_monthly_cost = node_cost
+                elif rate_type == "Supplementary":
+                    LOG.info("Node (%s) has a monthly supplemenarty cost of %s.", node, node_cost)
+                    line_item.supplementary_monthly_cost = node_cost
+                line_item.save()
 
     def remove_monthly_cost(self):
         """Delete all the monthly costs of a customer."""
@@ -745,27 +758,88 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         if isinstance(start_date, datetime.datetime):
             start_date = start_date.date()
             end_date = end_date.date()
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
-        summary_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagelineitem_daily_summary_usage_costs.sql")
-        summary_sql = summary_sql.decode("utf-8")
-        summary_sql_params = {
-            "start_date": start_date,
-            "end_date": end_date,
-            "cluster_id": cluster_id,
-            "schema": self.schema,
-            "infra_cpu_usage_rate": infrastructure_rates.get("cpu_core_usage_per_hour", 0),
-            "infra_cpu_request_rate": infrastructure_rates.get("cpu_core_request_per_hour", 0),
-            "infra_memory_usage_rate": infrastructure_rates.get("memory_gb_usage_per_hour", 0),
-            "infra_memory_request_rate": infrastructure_rates.get("memory_gb_request_per_hour", 0),
-            "infra_storage_usage_rate": infrastructure_rates.get("storage_gb_usage_per_month", 0),
-            "infra_storage_request_rate": infrastructure_rates.get("storage_gb_request_per_month", 0),
-            "sup_cpu_usage_rate": supplementary_rates.get("cpu_core_usage_per_hour", 0),
-            "sup_cpu_request_rate": supplementary_rates.get("cpu_core_request_per_hour", 0),
-            "sup_memory_usage_rate": supplementary_rates.get("memory_gb_usage_per_hour", 0),
-            "sup_memory_request_rate": supplementary_rates.get("memory_gb_request_per_hour", 0),
-            "sup_storage_usage_rate": supplementary_rates.get("storage_gb_usage_per_month", 0),
-            "sup_storage_request_rate": supplementary_rates.get("storage_gb_request_per_month", 0),
-        }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        self._execute_raw_sql_query(table_name, summary_sql, start_date, end_date, list(summary_sql_params))
+        OCPUsageLineItemDailySummary.objects.filter(
+            cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date
+        ).update(
+            infrastructure_usage_cost=JSONBBuildObject(
+                Value("cpu"),
+                Coalesce(
+                    Value(infrastructure_rates.get("cpu_core_usage_per_hour", 0), output_field=DecimalField())
+                    * Coalesce(F("pod_usage_cpu_core_hours"), Value(0), output_field=DecimalField())
+                    + Value(infrastructure_rates.get("cpu_core_request_per_hour", 0), output_field=DecimalField())
+                    * Coalesce(F("pod_request_cpu_core_hours"), Value(0), output_field=DecimalField()),
+                    0,
+                    output_field=DecimalField(),
+                ),
+                Value("memory"),
+                Coalesce(
+                    Value(infrastructure_rates.get("memory_gb_usage_per_hour", 0), output_field=DecimalField())
+                    * Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0), output_field=DecimalField())
+                    + Value(infrastructure_rates.get("memory_gb_request_per_hour", 0), output_field=DecimalField())
+                    * Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0), output_field=DecimalField()),
+                    0,
+                    output_field=DecimalField(),
+                ),
+                Value("storage"),
+                Coalesce(
+                    Value(infrastructure_rates.get("storage_gb_usage_per_month", 0), output_field=DecimalField())
+                    * Coalesce(F("persistentvolumeclaim_usage_gigabyte_months"), Value(0), output_field=DecimalField())
+                    + Value(infrastructure_rates.get("storage_gb_request_per_month", 0), output_field=DecimalField())
+                    * Coalesce(F("volume_request_storage_gigabyte_months"), Value(0), output_field=DecimalField()),
+                    0,
+                    output_field=DecimalField(),
+                ),
+            ),
+            supplementary_usage_cost=JSONBBuildObject(
+                Value("cpu"),
+                Coalesce(
+                    Value(supplementary_rates.get("cpu_core_usage_per_hour", 0), output_field=DecimalField())
+                    * Coalesce(F("pod_usage_cpu_core_hours"), Value(0), output_field=DecimalField())
+                    + Value(supplementary_rates.get("cpu_core_request_per_hour", 0), output_field=DecimalField())
+                    * Coalesce(F("pod_request_cpu_core_hours"), Value(0), output_field=DecimalField()),
+                    0,
+                    output_field=DecimalField(),
+                ),
+                Value("memory"),
+                Coalesce(
+                    Value(supplementary_rates.get("memory_gb_usage_per_hour", 0), output_field=DecimalField())
+                    * Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0), output_field=DecimalField())
+                    + Value(supplementary_rates.get("memory_gb_request_per_hour", 0), output_field=DecimalField())
+                    * Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0), output_field=DecimalField()),
+                    0,
+                    output_field=DecimalField(),
+                ),
+                Value("storage"),
+                Coalesce(
+                    Value(supplementary_rates.get("storage_gb_usage_per_month", 0), output_field=DecimalField())
+                    * Coalesce(F("persistentvolumeclaim_usage_gigabyte_months"), Value(0), output_field=DecimalField())
+                    + Value(supplementary_rates.get("storage_gb_request_per_month", 0), output_field=DecimalField())
+                    * Coalesce(F("volume_request_storage_gigabyte_months"), Value(0), output_field=DecimalField()),
+                    0,
+                    output_field=DecimalField(),
+                ),
+            ),
+        )
+
+        # summary_sql = summary_sql.decode("utf-8")
+        # summary_sql_params = {
+        #     "start_date": start_date,
+        #     "end_date": end_date,
+        #     "cluster_id": cluster_id,
+        #     "schema": self.schema,
+        #     "infra_cpu_usage_rate": infrastructure_rates.get("cpu_core_usage_per_hour", 0),
+        #     "infra_cpu_request_rate": infrastructure_rates.get("cpu_core_request_per_hour", 0),
+        #     "infra_memory_usage_rate": infrastructure_rates.get("memory_gb_usage_per_hour", 0),
+        #     "infra_memory_request_rate": infrastructure_rates.get("memory_gb_request_per_hour", 0),
+        #     "infra_storage_usage_rate": infrastructure_rates.get("storage_gb_usage_per_month", 0),
+        #     "infra_storage_request_rate": infrastructure_rates.get("storage_gb_request_per_month", 0),
+        #     "sup_cpu_usage_rate": supplementary_rates.get("cpu_core_usage_per_hour", 0),
+        #     "sup_cpu_request_rate": supplementary_rates.get("cpu_core_request_per_hour", 0),
+        #     "sup_memory_usage_rate": supplementary_rates.get("memory_gb_usage_per_hour", 0),
+        #     "sup_memory_request_rate": supplementary_rates.get("memory_gb_request_per_hour", 0),
+        #     "sup_storage_usage_rate": supplementary_rates.get("storage_gb_usage_per_month", 0),
+        #     "sup_storage_request_rate": supplementary_rates.get("storage_gb_request_per_month", 0),
+        # }
+        # summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        # self._execute_raw_sql_query(table_name, summary_sql, start_date, end_date, list(summary_sql_params))
