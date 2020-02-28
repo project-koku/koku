@@ -230,3 +230,50 @@ class ExpiredDataRemoverTest(MasuTestCase):
         logging.disable(logging.CRITICAL)
 
         self.assertEqual(1, CostUsageReportManifest.objects.count())
+
+    def test_remove_cost_usage_manifests_by_provider_uuid(self):
+        """
+        Test that calling remove(provider_uuid) deletes CostUsageReportManifests.
+
+        CostUsageReportManifests that are associated with the provider_uuid
+        should be deleted.
+        """
+        remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
+        expiration_date = remover._calculate_expiration_date()
+        current_month = datetime.today().replace(day=1)
+        day_before_cutoff = expiration_date - relativedelta.relativedelta(days=1)
+        random_aws_uuid = uuid4()
+        fixture_records = [
+            (self.aws_provider_uuid, expiration_date),  # not expired, should not delete
+            (self.aws_provider_uuid, day_before_cutoff),  # expired, should delete
+            (random_aws_uuid, day_before_cutoff),  # expired, should not delete
+            (self.azure_provider_uuid, day_before_cutoff),  # expired, should not delete
+        ]
+        manifest_uuids = []
+        manifest_uuids_to_be_deleted = []
+        manifest_creation_datetime = current_month
+        manifest_updated_datetime = manifest_creation_datetime + relativedelta.relativedelta(days=2)
+        for fixture_record in fixture_records:
+            manifest_uuid = uuid4()
+            data = {
+                "assembly_id": manifest_uuid,
+                "manifest_creation_datetime": manifest_creation_datetime,
+                "manifest_updated_datetime": manifest_updated_datetime,
+                "billing_period_start_datetime": fixture_record[1],
+                "num_processed_files": 1,
+                "num_total_files": 1,
+                "provider_id": fixture_record[0],
+            }
+            CostUsageReportManifest(**data).save()
+            manifest_uuids.append(manifest_uuid)
+            if fixture_record[1] == day_before_cutoff and fixture_record[0] == self.aws_provider_uuid:
+                manifest_uuids_to_be_deleted.append(manifest_uuid)
+
+        remover.remove(self.aws_provider_uuid)
+
+        for manifest_uuid in manifest_uuids:
+            record_count = CostUsageReportManifest.objects.filter(assembly_id=manifest_uuid).count()
+            if manifest_uuid in manifest_uuids_to_be_deleted:
+                self.assertEqual(0, record_count)
+            else:
+                self.assertEqual(1, record_count)

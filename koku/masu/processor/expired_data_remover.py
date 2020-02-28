@@ -151,6 +151,7 @@ class ExpiredDataRemover:
                 )
             else:
                 removed_data = self._cleaner.purge_expired_report_data(simulate=simulate, provider_uuid=provider_uuid)
+                # manifest_accessor.delete_cost_usage_reports_older_than(self._provider, expiration_date)
         else:
             expiration_date = self._calculate_expiration_date(line_items_only=line_items_only)
             if line_items_only:
