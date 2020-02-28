@@ -34,6 +34,8 @@ def load_openshift_metric_map(apps, schema_editor):
     data = json.loads(data)
 
     for entry in data:
+        # Deleting this entry as it does not exist in the table/model at this point in migrations
+        del entry["default_cost_type"]
         map = CostModelMetricsMap(**entry)
         map.save()
 
