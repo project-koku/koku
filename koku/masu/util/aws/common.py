@@ -233,11 +233,11 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
         (list): AWS cost entry bill objects.
 
     """
-    if isinstance(start_date, datetime.datetime):
+    if isinstance(start_date, (datetime.datetime, datetime.date)):
         start_date = start_date.replace(day=1)
         start_date = start_date.strftime("%Y-%m-%d")
 
-    if isinstance(end_date, datetime.datetime):
+    if isinstance(end_date, (datetime.datetime, datetime.date)):
         end_date = end_date.strftime("%Y-%m-%d")
 
     with ReportingCommonDBAccessor() as reporting_common:

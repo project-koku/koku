@@ -20,6 +20,7 @@ import logging
 import pkgutil
 import uuid
 
+import pytz
 from dateutil.parser import parse
 from dateutil.rrule import MONTHLY
 from dateutil.rrule import rrule
@@ -49,9 +50,9 @@ def create_filter(data_source, start_date, end_date, cluster_id):
     """Create filter with data source, start and end dates."""
     filters = {"data_source": data_source}
     if start_date:
-        filters["usage_start__gte"] = start_date
+        filters["usage_start__gte"] = start_date if isinstance(start_date, datetime.date) else start_date.date()
     if end_date:
-        filters["usage_start__lte"] = end_date
+        filters["usage_start__lte"] = end_date if isinstance(end_date, datetime.date) else end_date.date()
     if cluster_id:
         filters["cluster_id"] = cluster_id
     return filters
@@ -627,7 +628,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         if isinstance(end_date, str):
             end_date = parse(end_date).date()
 
-        first_month = start_date.replace(day=1)
+        # usage_start, usage_end are date types
+        first_month = datetime.datetime(*start_date.replace(day=1).timetuple()[:3]).replace(tzinfo=pytz.UTC)
+        end_date = datetime.datetime(*end_date.timetuple()[:3]).replace(hour=23, minute=59, second=59, tzinfo=pytz.UTC)
 
         with schema_context(self.schema):
             # Calculate monthly cost for every month
@@ -637,8 +640,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
                 unique_nodes = (
                     OCPUsageLineItemDailySummary.objects.filter(
-                        usage_start__gte=first_curr_month,
-                        usage_start__lt=first_next_month,
+                        usage_start__gte=first_curr_month.date(),
+                        usage_start__lt=first_next_month.date(),
                         cluster_id=cluster_id,
                         node__isnull=False,
                     )
@@ -654,8 +657,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     LOG.info("Node (%s) has a monthly cost of %s.", node[0], node_cost)
                     # delete node cost per month
                     OCPUsageLineItemDailySummary.objects.filter(
-                        usage_start=first_curr_month,
-                        usage_end=first_curr_month,
+                        usage_start=first_curr_month.date(),
+                        usage_end=first_curr_month.date(),
                         monthly_cost=node_cost,
                         report_period=report_period,
                         cluster_id=cluster_id,
@@ -665,8 +668,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     ).delete()
                     # add node cost per month
                     OCPUsageLineItemDailySummary.objects.create(
-                        usage_start=first_curr_month,
-                        usage_end=first_curr_month,
+                        usage_start=first_curr_month.date(),
+                        usage_end=first_curr_month.date(),
                         monthly_cost=node_cost,
                         report_period=report_period,
                         cluster_id=cluster_id,
@@ -686,8 +689,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             return
 
         LOG.info("Removing monthly costs from %s to %s.", start_date, end_date)
-
-        first_month = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        # usage_start, usage_end are date types
+        first_month = datetime.datetime(*start_date.replace(day=1).timetuple()[:3]).replace(tzinfo=pytz.UTC)
+        end_date = datetime.datetime(*end_date.timetuple()[:3]).replace(hour=23, minute=59, second=59, tzinfo=pytz.UTC)
 
         with schema_context(self.schema):
             # Calculate monthly cost for every month
@@ -696,7 +700,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
                 # Remove existing monthly costs
                 OCPUsageLineItemDailySummary.objects.filter(
-                    usage_start=first_curr_month, monthly_cost__isnull=False
+                    usage_start=first_curr_month.date(), monthly_cost__isnull=False
                 ).delete()
 
     def populate_node_label_line_item_daily_table(self, start_date, end_date, cluster_id):
