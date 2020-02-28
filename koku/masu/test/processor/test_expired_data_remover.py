@@ -266,7 +266,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
             manifest_uuids.append(manifest_uuid)
             if fixture_record[1] == day_before_cutoff and fixture_record[0] == self.aws_provider_uuid:
                 manifest_uuids_to_be_deleted.append(manifest_uuid)
-        assert CostUsageReportManifest.objects.filter(provider_id=self.aws_provider_uuid).count() == 2
+        self.assertEqual(CostUsageReportManifest.objects.filter(provider_id=self.aws_provider_uuid).count(), 2)
         remover.remove(provider_uuid=self.aws_provider_uuid)
         self.assertEqual(CostUsageReportManifest.objects.filter(provider_id=self.aws_provider_uuid).count(), 1)
 
