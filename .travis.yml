@@ -20,16 +20,14 @@ addons:
     - postgresql-client-10
 
 env:
-  global:
-    PGPORT=5433
-    DATABASE_SERVICE_NAME=POSTGRES_SQL
-    DATABASE_ENGINE=postgresql
-    DATABASE_NAME=koku_test
-    POSTGRES_SQL_SERVICE_HOST=localhost
-    POSTGRES_SQL_SERVICE_PORT=5432
-    DATABASE_USER=postgres
-    DATABASE_PASSWORD=''
-    TOXENV=for_travis
+  DATABASE_SERVICE_NAME=POSTGRES_SQL
+  DATABASE_ENGINE=postgresql
+  DATABASE_NAME=koku_test
+  POSTGRES_SQL_SERVICE_HOST=localhost
+  POSTGRES_SQL_SERVICE_PORT=5432
+  DATABASE_USER=postgres
+  DATABASE_PASSWORD=''
+  TOXENV=for_travis
 
 before_install:
   - sudo rm -f /etc/boto.cfg
