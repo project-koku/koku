@@ -18,6 +18,7 @@
 import os
 
 from django.conf import settings
+from django.db.models.aggregates import Func
 
 from .env import ENVIRONMENT
 
@@ -62,3 +63,9 @@ def config():
 
     database_cert = ENVIRONMENT.get_value("DATABASE_SERVICE_CERT", default=None)
     return _cert_config(db_config, database_cert)
+
+
+class JSONBBuildObject(Func):
+    """Expose the Postgres jsonb_build_object function for use by ORM."""
+
+    function = "jsonb_build_object"
