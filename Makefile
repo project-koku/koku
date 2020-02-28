@@ -11,10 +11,10 @@ PYTHON	= $(shell which python)
 TOPDIR  = $(shell pwd)
 PYDIR	= koku
 APIDOC  = apidoc
-KOKU_SERVER = $(shell echo "${KOKU_API_HOST:-localhost})
-KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000})
-MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost})
-MASU_SERVER_PORT = $(shell echo "${MASU_SERVICE_PORT:-5000})
+KOKU_SERVER = $(shell echo "${KOKU_API_HOST:-localhost}")
+KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000}")
+MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost}")
+MASU_SERVER_PORT = $(shell echo "${MASU_SERVICE_PORT:-5000}")
 
 # Testing directories
 TESTINGDIR = $(TOPDIR)/testing
@@ -86,6 +86,8 @@ help:
 	@echo "--- Commands using Docker Compose ---"
 	@echo "  docker-up                            run docker-compose up --build -d"
 	@echo "  docker-up-no-build                   run docker-compose up -d"
+	@echo "  docker-up-koku                       run docker-compose up -d koku-server"
+	@echo "                                         @param build : set to '--build' to build the container"
 	@echo "  docker-up-db                         run database only"
 	@echo "  docker-up-db-monitor                 run the database monitoring via grafana"
 	@echo "                                         url:      localhost:3001"
@@ -166,16 +168,10 @@ lint:
 clear-testing:
 	$(PYTHON) $(TOPDIR)/scripts/clear_testing.py -p $(TOPDIR)/testing
 
-create-test-customer: run-migrations
-	@sleep 1
-	@docker-compose up -d koku-server
-	@sleep 5
+create-test-customer: run-migrations docker-up-koku
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
 
-create-test-customer-no-providers: run-migrations
-	@sleep 1
-	@docker-compose up -d koku-server
-	@sleep 5
+create-test-customer-no-providers: run-migrations docker-up-koku
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-providers --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
 
 load-test-customer-data:
@@ -489,17 +485,26 @@ docker-logs:
 docker-rabbit:
 	docker-compose up -d rabbit
 
-docker-reinitdb: docker-down-db remove-db docker-up-db
-	$(MAKE) create-test-customer-no-providers
+docker-reinitdb: docker-down-db remove-db docker-up-db run-migrations create-test-customer-no-providers
+	@echo "Local database re-initialized with a test customer."
 
-docker-reinitdb-with-providers: docker-down-db remove-db docker-up-db
-	$(MAKE) create-test-customer
+docker-reinitdb-with-providers: docker-down-db remove-db docker-up-db run-migrations create-test-customer
+	@echo "Local database re-initialized with a test customer and providers."
 
 docker-shell:
 	docker-compose run --service-ports koku-server
 
 docker-test-all:
 	docker-compose -f koku-test.yml up --build
+
+docker-up-koku:
+	@docker-compose up $(build) -d koku-server
+	@echo -n "Waiting on koku status: "
+	@until ./scripts/check_for_koku_server.sh $(KOKU_SERVER) $$API_PATH_PREFIX $(KOKU_SERVER_PORT) >/dev/null 2>&1 ; do \
+        echo -n "." ; \
+        sleep 1 ; \
+    done
+	@echo " koku is available!"
 
 docker-up:
 	docker-compose up --build -d

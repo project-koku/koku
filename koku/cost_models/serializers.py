@@ -65,6 +65,9 @@ class TieredRateSerializer(serializers.Serializer):
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
     usage = serializers.DictField(required=False)
     unit = serializers.ChoiceField(choices=CURRENCY_CHOICES)
+    cost_type = serializers.ChoiceField(
+        choices=CostModelMetricsMap.COST_TYPE_CHOICES, default=CostModelMetricsMap.COST_TYPE_CHOICES[1][0]
+    )
 
     def validate_value(self, value):
         """Check that value is a positive value."""
