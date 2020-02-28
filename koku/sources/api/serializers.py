@@ -157,7 +157,6 @@ class AdminSourcesSerializer(SourcesSerializer):
         return get_account_from_header(self.context.get("request"))
 
     def validate(self, data):
-        print(f"context={self.context}")
         data["source_id"] = self._validate_source_id(data.get("source_id"))
         data["offset"] = self._validate_offset(data.get("offset"))
         data["account_id"] = self._validate_account_id(data.get("account_id"))
