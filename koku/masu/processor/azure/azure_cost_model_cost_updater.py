@@ -52,7 +52,7 @@ class AzureCostModelCostUpdater:
         """Store markup costs."""
         try:
             bills = get_bills_from_provider(self._provider.uuid, self._schema, start_date, end_date)
-            with CostModelDBAccessor(self._schema, self._provider_uuid) as cost_model_accessor:
+            with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:
                 markup = cost_model_accessor.markup
                 markup_value = float(markup.get("value", 0)) / 100
 
