@@ -181,3 +181,9 @@ class SourcesViewTests(IamTestCase):
 
             response = self.client.get(url, content_type="application/json", **request_context["request"].META)
             self.assertEqual(response.status_code, 404)
+
+    def test_source_destroy_not_allowed(self):
+        """Test access to the destroy endpoint."""
+        url = reverse("sources-detail", kwargs={"source_id": self.test_source_id})
+        response = self.client.delete(url, content_type="application/json", **self.request_context["request"].META)
+        self.assertEqual(response.status_code, 405)

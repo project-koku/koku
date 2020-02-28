@@ -14,16 +14,17 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""View for Sources."""
-import binascii
-import logging
-from base64 import b64decode
-from json import loads as json_loads
-from json.decoder import JSONDecodeError
+from django.shortcuts import get_object_or_404
 
+"""View for Sources."""
+import logging
+
+from django.conf import settings
 from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
+from django_filters import FilterSet
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import permissions
 from rest_framework import mixins
 from rest_framework import status
 from rest_framework import viewsets
@@ -31,12 +32,47 @@ from rest_framework.exceptions import APIException
 from rest_framework.exceptions import ParseError
 from rest_framework.permissions import AllowAny
 
+from api.common.filters import CharListFilter
 from api.provider.models import Sources
+from sources.api import get_account_from_header, get_auth_header
 from sources.api.serializers import SourcesSerializer
+from sources.api.serializers import AdminSourcesSerializer
 from sources.storage import SourcesStorageError
+from sources.kafka_source_manager import KafkaSourceManager
 
 
 LOG = logging.getLogger(__name__)
+MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet]
+
+
+class DestroySourceMixin(mixins.DestroyModelMixin):
+    """A mixin for destroying a source."""
+
+    @never_cache
+    def destroy(self, request, *args, **kwargs):
+        """Delete a source."""
+        account_id = get_account_from_header(request)
+        source = get_object_or_404(Sources, source_id=kwargs.get("source_id"), account_id=account_id)
+        manager = KafkaSourceManager(get_auth_header(request))
+        manager.destroy_provider(source.koku_uuid)
+        response = super().destroy(request, *args, **kwargs)
+        return response
+
+
+if settings.DEVELOPMENT:
+    MIXIN_LIST.append(mixins.CreateModelMixin)
+    MIXIN_LIST.append(DestroySourceMixin)
+
+
+class SourceFilter(FilterSet):
+    """Source custom filters."""
+
+    name = CharListFilter(field_name="name", lookup_expr="name__icontains")
+    type = CharListFilter(field_name="source_type", lookup_expr="source_type__iexact")
+
+    class Meta:
+        model = Sources
+        fields = ["source_type", "name"]
 
 
 class SourcesException(APIException):
@@ -49,20 +85,18 @@ class SourcesException(APIException):
         self.detail = {"detail": force_text(error_msg)}
 
 
-class SourcesViewSet(
-    mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet
-):
+class SourcesViewSet(*MIXIN_LIST):
     """Sources View.
 
     A viewset that provides default `retrieve()`,
     `update()`, and `list()` actions.
     """
 
-    serializer_class = SourcesSerializer
     lookup_field = "source_id"
     queryset = Sources.objects.all()
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
+    filterset_class = SourceFilter
 
     @property
     def allowed_methods(self):
@@ -71,6 +105,13 @@ class SourcesViewSet(
             self.http_method_names.remove("put")
         return [method.upper() for method in self.http_method_names if hasattr(self, method)]
 
+    def get_serializer_class(self):
+        """Return the appropriate serializer depending on the method."""
+        if self.request.method in permissions.SAFE_METHODS:
+            return SourcesSerializer
+        else:
+            return AdminSourcesSerializer
+
     def get_queryset(self):
         """Get a queryset.
 
@@ -78,17 +119,11 @@ class SourcesViewSet(
         by filtering against a `account_id` in the request.
         """
         queryset = Sources.objects.none()
-        auth_header = self.request.headers.get("X-Rh-Identity")
-        if auth_header:
-            try:
-                decoded_rh_auth = b64decode(auth_header)
-                json_rh_auth = json_loads(decoded_rh_auth)
-                account_id = json_rh_auth.get("identity", {}).get("account_number")
-                queryset = Sources.objects.filter(account_id=account_id)
-            except Sources.DoesNotExist:
-                LOG.error("No sources found for account id %s.", account_id)
-            except (binascii.Error, JSONDecodeError) as error:
-                LOG.error(f"Error decoding authentication header: {str(error)}")
+        account_id = get_account_from_header(self.request)
+        try:
+            queryset = Sources.objects.filter(account_id=account_id)
+        except Sources.DoesNotExist:
+            LOG.error("No sources found for account id %s.", account_id)
 
         return queryset
 
