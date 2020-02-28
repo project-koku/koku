@@ -41,7 +41,9 @@ before_script:
 script:
   - .travis/check_manifest.sh
   - pre-commit run --all-files
+  - df -h
   - tox
+  - df -h
 
 after_success:
   - codecov --required || (sleep 5 && codecov --required) || (sleep 5 && codecov --required) || (sleep 5 && codecov --required) || (sleep 5 && codecov --required)
