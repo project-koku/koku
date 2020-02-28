@@ -167,18 +167,16 @@ clear-testing:
 	$(PYTHON) $(TOPDIR)/scripts/clear_testing.py -p $(TOPDIR)/testing
 
 create-test-customer: run-migrations
-	sleep 1
-	$(DJANGO_MANAGE) runserver > /dev/null 2>&1 &
-	sleep 5
+	@sleep 1
+	@docker-compose up -d koku-server
+	@sleep 5
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
-	kill -HUP $$(ps -o pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}') || true
 
 create-test-customer-no-providers: run-migrations
-	sleep 1
-	$(DJANGO_MANAGE) runserver > /dev/null 2>&1 &
-	sleep 5
+	@sleep 1
+	@docker-compose up -d koku-server
+	@sleep 5
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-providers --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
-	kill -HUP $$(ps -o pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}') || true
 
 load-test-customer-data:
 	$(TOPDIR)/scripts/load_test_customer_data.sh $(TOPDIR) $(start) $(end)
@@ -521,19 +519,17 @@ docker-up-db-monitor:
 	docker-compose up --build -d grafana
 	@echo "Monitor is up at localhost:3001  User=admin  Password=admin12"
 
-docker-iqe-smokes-tests:
-	$(MAKE) docker-reinitdb
-	$(MAKE) clear-testing
+_set-test-dir-permissions:
+	@$(PREFIX) chmod -R o+rw,g+rw ./testing
+	@$(PREFIX) find ./testing -type d -exec chmod o+x,g+x {} \;
+
+docker-iqe-smokes-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_smoke_tests.sh
 
-docker-iqe-api-tests:
-	$(MAKE) docker-reinitdb
-	$(MAKE) clear-testing
+docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_api_tests.sh
 
-docker-iqe-vortex-tests:
-	$(MAKE) docker-reinitdb
-	$(MAKE) clear-testing
+docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_vortex_api_tests.sh
 
 ### Provider targets ###
