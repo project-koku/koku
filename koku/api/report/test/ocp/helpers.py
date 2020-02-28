@@ -19,6 +19,7 @@ import hashlib
 import math
 import pkgutil
 import random
+from datetime import datetime
 from decimal import Decimal
 from uuid import uuid4
 
@@ -443,10 +444,9 @@ class OCPReportDataGenerator:
     def _populate_monthly_charge_info(self, start_date, node_cost, num_nodes):
         """Populate the charge information in summary table."""
         total_cost = node_cost * num_nodes
+        st_date = start_date.date() if isinstance(start_date, datetime) else start_date
 
-        OCPUsageLineItemDailySummary.objects.create(
-            usage_start=start_date, usage_end=start_date, monthly_cost=total_cost
-        )
+        OCPUsageLineItemDailySummary.objects.create(usage_start=st_date, usage_end=st_date, monthly_cost=total_cost)
 
     def _populate_storage_charge_info(self):
         """Populate the storage charge information in summary table."""
