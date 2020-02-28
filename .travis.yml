@@ -4,7 +4,7 @@ python:
   - "3.6"
   - "3.7"
 
-dist: xenial # needed for py37
+dist: bionic # needed for py37
 
 cache:
   - pip
@@ -14,7 +14,10 @@ services:
   - postgresql
 
 addons:
-  postgresql: '9.6'
+  postgresql: "10"
+  apt:
+    packages:
+    - postgresql-client-10
 
 env:
   DATABASE_SERVICE_NAME=POSTGRES_SQL
@@ -28,6 +31,7 @@ env:
 
 before_install:
   - sudo rm -f /etc/boto.cfg
+  - sudo mount -o remount,size=25% /var/ramfs
 
 install:
   - pip install tox-travis codecov python-coveralls coveralls "coverage<5.0" pre-commit
@@ -38,7 +42,9 @@ before_script:
 script:
   - .travis/check_manifest.sh
   - pre-commit run --all-files
+  - df -h
   - tox
+  - df -h
 
 after_success:
   - codecov --required || (sleep 5 && codecov --required) || (sleep 5 && codecov --required) || (sleep 5 && codecov --required) || (sleep 5 && codecov --required)
