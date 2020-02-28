@@ -15,12 +15,21 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the sources serializer."""
+from unittest.mock import Mock
+from unittest.mock import patch
+
 from faker import Faker
+from rest_framework.serializers import ValidationError
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
+from providers.provider_access import ProviderAccessor
+from sources.api import get_account_from_header
+from sources.api import HEADER_X_RH_IDENTITY
+from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesSerializer
+from sources.config import Config
 from sources.storage import SourcesStorageError
 
 fake = Faker()
@@ -197,3 +206,55 @@ class SourcesSerializerTests(IamTestCase):
         validated_data = {"billing_source": {"bucket": test_bucket}}
         with self.assertRaises(SourcesStorageError):
             serializer.update(self.aws_obj, validated_data)
+
+    def test_create_via_admin_serializer(self):
+        """Test create source with admin serializer."""
+        source_data = {
+            "name": "test1",
+            "source_type": "AWS",
+            "authentication": {"resource_name": "arn:aws::foo:bar"},
+            "billing_source": {"bucket": "/tmp/s3bucket"},
+        }
+        mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
+        context = {"request": mock_request}
+        serializer = AdminSourcesSerializer(data=source_data, context=context)
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+                provider = Provider.objects.get(uuid=instance.koku_uuid)
+                self.assertIsNotNone(provider)
+                self.assertEqual(provider.name, instance.name)
+
+        source_data["name"] = "test2"
+        source_data["authentication"]["resource_name"] = "arn:aws::foo:bar2"
+        source_data["billing_source"]["bucket"] = "/tmp/mybucket"
+        serializer = AdminSourcesSerializer(data=source_data, context=context)
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+                provider = Provider.objects.get(uuid=instance.koku_uuid)
+                self.assertIsNotNone(provider)
+                self.assertEqual(provider.name, instance.name)
+
+    def test_create_via_admin_serializer_bad_source_type(self):
+        """Raise error for bad source type on create."""
+        source_data = {
+            "name": "test",
+            "source_type": "BAD",
+            "authentication": {"resource_name": "arn:aws::foo:bar"},
+            "billing_source": {"bucket": "/tmp/s3bucket"},
+        }
+        mock_request = Mock(headers={HEADER_X_RH_IDENTITY: Config.SOURCES_FAKE_HEADER})
+        context = {"request": mock_request}
+        serializer = AdminSourcesSerializer(data=source_data, context=context)
+        with self.assertRaises(ValidationError):
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
+
+    def test_negative_get_account_from_header(self):
+        """Test flow with out header."""
+        account = get_account_from_header(Mock(headers={}))
+        self.assertIsNone(account)
+
+        account = get_account_from_header(Mock(headers={HEADER_X_RH_IDENTITY: "badencoding&&&"}))
+        self.assertIsNone(account)

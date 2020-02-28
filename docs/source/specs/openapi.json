@@ -540,7 +540,10 @@
                         "required": false,
                         "schema": {
                             "type": "string",
-                            "enum": ["true", "false"]
+                            "enum": [
+                                "true",
+                                "false"
+                            ]
                         }
                     },
                     {
@@ -588,24 +591,29 @@
                 "summary": "Get a provider",
                 "operationId": "getProvider",
                 "parameters": [{
-                    "name": "uuid",
-                    "in": "path",
-                    "description": "ID of provider to get",
-                    "required": true,
-                    "schema": {
-                        "type": "string",
-                        "format": "uuid"
+                        "name": "uuid",
+                        "in": "path",
+                        "description": "ID of provider to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "stats",
+                        "in": "query",
+                        "description": "Include provider status",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "true",
+                                "false"
+                            ]
+                        }
                     }
-                }, {
-                    "name": "stats",
-                    "in": "query",
-                    "description": "Include provider status",
-                    "required": false,
-                    "schema": {
-                        "type": "string",
-                        "enum": ["true", "false"]
-                    }
-                }],
+                ],
                 "responses": {
                     "200": {
                         "description": "A Provider object",
@@ -1826,6 +1834,25 @@
                 ],
                 "summary": "List the sources",
                 "operationId": "listSources",
+                "parameters": [{
+                        "name": "type",
+                        "in": "query",
+                        "description": "The type of source to filter for.",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "name",
+                        "in": "query",
+                        "description": "The name of the source to filter for.",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "A paginated list of source objects",
@@ -3139,6 +3166,13 @@
                                     "type": "string",
                                     "enum": [
                                         "USD"
+                                    ]
+                                },
+                                "cost_type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "Infrastructure",
+                                        "Supplementary"
                                     ]
                                 }
                             }

@@ -143,19 +143,30 @@ class ExpiredDataRemover:
             ([{}]) List of dictionaries containing 'account_payer_id' and 'billing_period_start'
 
         """
+        removed_data = None
+        disable_purge_line_item = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL)
+        no_data_msg = "%s has no line item data to be be removed."
         if provider_uuid is not None:
             if line_items_only:
-                expiration_date = self._calculate_expiration_date(line_items_only=line_items_only)
-                removed_data = self._cleaner.purge_expired_line_item(
-                    expired_date=expiration_date, simulate=simulate, provider_uuid=provider_uuid
-                )
+                if self._provider in disable_purge_line_item:
+                    LOG.info(no_data_msg % self._provider)
+                else:
+                    expiration_date = self._calculate_expiration_date(line_items_only=line_items_only)
+                    removed_data = self._cleaner.purge_expired_line_item(
+                        expired_date=expiration_date, simulate=simulate, provider_uuid=provider_uuid
+                    )
             else:
                 removed_data = self._cleaner.purge_expired_report_data(simulate=simulate, provider_uuid=provider_uuid)
                 # manifest_accessor.delete_cost_usage_reports_older_than(self._provider, expiration_date)
         else:
             expiration_date = self._calculate_expiration_date(line_items_only=line_items_only)
             if line_items_only:
-                removed_data = self._cleaner.purge_expired_line_item(expired_date=expiration_date, simulate=simulate)
+                if self._provider in disable_purge_line_item:
+                    LOG.info(no_data_msg % self._provider)
+                else:
+                    removed_data = self._cleaner.purge_expired_line_item(
+                        expired_date=expiration_date, simulate=simulate
+                    )
             else:
                 removed_data = self._cleaner.purge_expired_report_data(expired_date=expiration_date, simulate=simulate)
                 with ReportManifestDBAccessor() as manifest_accessor:

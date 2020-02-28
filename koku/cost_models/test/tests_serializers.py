@@ -386,3 +386,50 @@ class CostModelSerializerTest(IamTestCase):
             serializer = CostModelSerializer(data=self.ocp_data)
             with self.assertRaises(serializers.ValidationError):
                 serializer._check_for_duplicate_metrics(self.ocp_data["rates"])
+
+    def test_rate_cost_type_valid(self):
+        """Test that a valid cost type is accepted."""
+        self.ocp_data["rates"][0]["tiered_rates"] = [
+            {
+                "unit": "USD",
+                "value": 0.22,
+                "usage": {"usage_start": None, "usage_end": None},
+                "cost_type": "Infrastructure",
+            }
+        ]
+
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.ocp_data)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
+
+        self.ocp_data["rates"][0]["tiered_rates"] = [
+            {
+                "unit": "USD",
+                "value": 0.22,
+                "usage": {"usage_start": None, "usage_end": None},
+                "cost_type": "Supplementary",
+            }
+        ]
+
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.ocp_data)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
+
+    def test_rate_cost_type_invalid(self):
+        """Test that an invalid cost type is rejected."""
+        self.ocp_data["rates"][0]["tiered_rates"] = [
+            {
+                "unit": "USD",
+                "value": 0.22,
+                "usage": {"usage_start": None, "usage_end": None},
+                "cost_type": "Infrastructurez",
+            }
+        ]
+
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.ocp_data)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
