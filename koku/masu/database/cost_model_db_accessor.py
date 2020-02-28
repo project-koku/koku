@@ -54,7 +54,9 @@ class CostModelDBAccessor(KokuDBAccess):
     def price_list(self):
         """Return the rates definied on this cost model."""
         metric_rate_map = {}
-        price_list = self.cost_model.rates
+        price_list = None
+        if self.cost_model:
+            price_list = self.cost_model.rates
         if not price_list:
             return {}
         for rate in price_list:
@@ -67,7 +69,7 @@ class CostModelDBAccessor(KokuDBAccess):
         return {
             key: value.get("tiered_rates")[0].get("value")
             for key, value in self.price_list.items()
-            if value.get("cost_type") == "Infrastructure"
+            if value.get("tiered_rates")[0].get("cost_type") == "Infrastructure"
         }
 
     @property
@@ -76,16 +78,18 @@ class CostModelDBAccessor(KokuDBAccess):
         return {
             key: value.get("tiered_rates")[0].get("value")
             for key, value in self.price_list.items()
-            if value.get("cost_type") == "Supplementary"
+            if value.get("tiered_rates")[0].get("cost_type") == "Supplementary"
         }
 
     @property
     def markup(self):
-        return self.cost_model.markup
+        if self.cost_model:
+            return self.cost_model.markup
+        return {}
 
     def get_rates(self, value):
         """Get the rates."""
-        return self.rates.get(value)
+        return self.price_list.get(value)
 
     def get_cpu_core_usage_per_hour_rates(self):
         """Get cpu usage rates."""
