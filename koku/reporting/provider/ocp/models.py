@@ -192,6 +192,9 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     """
 
+    MONTHLY_COST_TYPES = (("Node", "Node"), ("Cluster", "Cluster"))
+    MONTHLY_COST_RATE_MAP = {"Node": "node_cost_per_month", "Cluster": "cluster_cost_per_month"}
+
     class Meta:
         """Meta for OCPUsageLineItemDailySummary."""
 
@@ -237,13 +240,9 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     pod_limit_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
-    pod_charge_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
     pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
-    pod_charge_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
@@ -281,23 +280,32 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
-    persistentvolumeclaim_charge_gb_month = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    # Cost fields
 
-    # Cost columns moved in from the CostSummary table
-    # Need more precision on calculated fields, otherwise there will be
-    # Rounding errors
-    infra_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    # Infrastructure raw cost comes from a Cloud Provider
+    infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    # This field is used in place of infrastructure_cost when
-    # grouping by project
-    project_infra_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_project_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    infrastructure_usage_cost = JSONField(null=True)
 
-    project_markup_cost = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    # This is the one time monthly costs for a given user.
-    monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    infrastructure_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    supplementary_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    supplementary_project_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    supplementary_usage_cost = JSONField(null=True)
+
+    supplementary_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    monthly_cost_type = models.TextField(null=True, choices=MONTHLY_COST_TYPES)
 
 
 class OCPUsagePodLabelSummary(models.Model):
