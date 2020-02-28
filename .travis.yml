@@ -31,6 +31,7 @@ env:
 
 before_install:
   - sudo rm -f /etc/boto.cfg
+  - sudo mount -o remount,size=50% /var/ramfs
 
 install:
   - pip install tox-travis codecov python-coveralls coveralls "coverage<5.0" pre-commit
