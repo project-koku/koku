@@ -242,11 +242,9 @@ class ExpiredDataRemoverTest(MasuTestCase):
         expiration_date = remover._calculate_expiration_date()
         current_month = datetime.today().replace(day=1)
         day_before_cutoff = expiration_date - relativedelta.relativedelta(days=1)
-        random_aws_uuid = uuid4()
         fixture_records = [
             (self.aws_provider_uuid, expiration_date),  # not expired, should not delete
             (self.aws_provider_uuid, day_before_cutoff),  # expired, should delete
-            (random_aws_uuid, day_before_cutoff),  # expired, should not delete
             (self.azure_provider_uuid, day_before_cutoff),  # expired, should not delete
         ]
         manifest_uuids = []
@@ -268,8 +266,9 @@ class ExpiredDataRemoverTest(MasuTestCase):
             manifest_uuids.append(manifest_uuid)
             if fixture_record[1] == day_before_cutoff and fixture_record[0] == self.aws_provider_uuid:
                 manifest_uuids_to_be_deleted.append(manifest_uuid)
-
-        remover.remove(self.aws_provider_uuid)
+        assert CostUsageReportManifest.objects.filter(provider_id=self.aws_provider_uuid).count() == 2
+        remover.remove(provider_uuid=self.aws_provider_uuid)
+        self.assertEqual(CostUsageReportManifest.objects.filter(provider_id=self.aws_provider_uuid).count(), 1)
 
         for manifest_uuid in manifest_uuids:
             record_count = CostUsageReportManifest.objects.filter(assembly_id=manifest_uuid).count()
