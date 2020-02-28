@@ -29,8 +29,8 @@ CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
         LOWER(value) as value
     FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp,
         jsonb_each_text(ocp.persistentvolume_labels) labels
-    WHERE date(ocp.usage_start) >= {{start_date}}
-        AND date(ocp.usage_start) <= {{end_date}}
+    WHERE ocp.usage_start >= {{start_date}}::date
+        AND ocp.usage_start <= {{end_date}}::date
         --ocp_where_clause
         {% if cluster_id %}
         AND cluster_id = {{cluster_id}}
@@ -43,8 +43,8 @@ CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
         LOWER(value) as value
     FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp,
         jsonb_each_text(ocp.persistentvolumeclaim_labels) labels
-    WHERE date(ocp.usage_start) >= {{start_date}}
-        AND date(ocp.usage_start) <= {{end_date}}
+    WHERE ocp.usage_start >= {{start_date}}::date
+        AND ocp.usage_start <= {{end_date}}::date
         --ocp_where_clause
         {% if cluster_id %}
         AND cluster_id = {{cluster_id}}
@@ -61,8 +61,8 @@ CREATE TEMPORARY TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
         LOWER(value) as value
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp,
         jsonb_each_text(ocp.pod_labels) labels
-    WHERE date(ocp.usage_start) >= {{start_date}}
-        AND date(ocp.usage_start) <= {{end_date}}
+    WHERE ocp.usage_start >= {{start_date}}::date
+        AND ocp.usage_start <= {{end_date}}::date
         --ocp_where_clause
         {% if cluster_id %}
         AND cluster_id = {{cluster_id}}

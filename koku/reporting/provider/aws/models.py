@@ -128,6 +128,7 @@ class AWSCostEntryLineItemDaily(models.Model):
             models.Index(fields=["product_code"], name="product_code_idx"),
             models.Index(fields=["usage_account_id"], name="usage_account_id_idx"),
             GinIndex(fields=["tags"], name="aws_cost_entry"),
+            GinIndex(fields=["product_code"], name="aws_cost_pcode_like", opclasses=["gin_trgm_ops"]),
         ]
 
     id = models.BigAutoField(primary_key=True)
@@ -183,6 +184,8 @@ class AWSCostEntryLineItemDailySummary(models.Model):
             models.Index(fields=["account_alias"], name="summary_account_alias_idx"),
             models.Index(fields=["product_family"], name="summary_product_family_idx"),
             models.Index(fields=["instance_type"], name="summary_instance_type_idx"),
+            GinIndex(fields=["product_code"], name="aws_summ_usage_pcode_like", opclasses=["gin_trgm_ops"]),
+            GinIndex(fields=["product_family"], name="aws_summ_usage_pfam_like", opclasses=["gin_trgm_ops"]),
         ]
 
     id = models.BigAutoField(primary_key=True)

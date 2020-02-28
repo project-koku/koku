@@ -474,8 +474,8 @@ class OCPNodeLabelLineItemDaily(models.Model):
 
         db_table = "reporting_ocpnodelabellineitem_daily"
         indexes = [
-            models.Index(fields=["usage_start"], name="ocplabellineitemdaily_usage_start"),
-            GinIndex(fields=["node_labels"], name="ocplabellineitemdaily_node_labels"),
+            models.Index(fields=["usage_start"], name="ocplblnitdly_usage_start"),
+            GinIndex(fields=["node_labels"], name="ocplblnitdly_node_labels"),
         ]
 
     id = models.BigAutoField(primary_key=True)

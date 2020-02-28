@@ -12,8 +12,8 @@ CREATE TEMPORARY TABLE reporting_aws_tags_{{uuid | sqlsafe}} AS (
         LOWER(value) as value
         FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily as aws,
             jsonb_each_text(aws.tags) labels
-        WHERE date(aws.usage_start) >= {{start_date}}
-            AND date(aws.usage_start) <= {{end_date}}
+        WHERE aws.usage_start >= {{start_date}}::date
+            AND aws.usage_start <= {{end_date}}::date
             --aws_where_clause
             {% if bill_ids %}
             AND cost_entry_bill_id IN (
@@ -34,8 +34,8 @@ CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
         LOWER(value) as value
     FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp,
         jsonb_each_text(ocp.persistentvolume_labels) labels
-    WHERE date(ocp.usage_start) >= {{start_date}}
-        AND date(ocp.usage_start) <= {{end_date}}
+    WHERE ocp.usage_start >= {{start_date}}::date
+        AND ocp.usage_start <= {{end_date}}::date
         --ocp_where_clause
         {% if cluster_id %}
         AND cluster_id = {{cluster_id}}
@@ -48,8 +48,8 @@ CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
         LOWER(value) as value
     FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp,
         jsonb_each_text(ocp.persistentvolumeclaim_labels) labels
-    WHERE date(ocp.usage_start) >= {{start_date}}
-        AND date(ocp.usage_start) <= {{end_date}}
+    WHERE ocp.usage_start >= {{start_date}}::date
+        AND ocp.usage_start <= {{end_date}}::date
         --ocp_where_clause
         {% if cluster_id %}
         AND cluster_id = {{cluster_id}}
@@ -66,8 +66,8 @@ CREATE TEMPORARY TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
         LOWER(value) as value
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp,
         jsonb_each_text(ocp.pod_labels) labels
-    WHERE date(ocp.usage_start) >= {{start_date}}
-        AND date(ocp.usage_start) <= {{end_date}}
+    WHERE ocp.usage_start >= {{start_date}}::date
+        AND ocp.usage_start <= {{end_date}}::date
         --ocp_where_clause
         {% if cluster_id %}
         AND cluster_id = {{cluster_id}}
@@ -127,9 +127,9 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_resource_id_matched_{{uuid | sqlsafe}} 
         FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily as aws
         JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
             ON aws.resource_id = ocp.resource_id
-                AND aws.usage_start::date = ocp.usage_start::date
-        WHERE date(aws.usage_start) >= {{start_date}}
-            AND date(aws.usage_start) <= {{end_date}}
+                AND aws.usage_start = ocp.usage_start
+        WHERE aws.usage_start >= {{start_date}}::date
+            AND aws.usage_start <= {{end_date}}::date
             -- aws_where_clause
             {% if bill_ids %}
             AND cost_entry_bill_id IN (
@@ -221,11 +221,11 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_direct_tag_matched_{{uuid | sqlsafe}} A
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
             ON aws.key = ocp.key
                 AND aws.value = ocp.value
-                AND aws.usage_start::date = ocp.usage_start::date
+                AND aws.usage_start = ocp.usage_start
         LEFT JOIN reporting_ocp_aws_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.aws_id = aws.id
-        WHERE date(aws.usage_start) >= {{start_date}}
-            AND date(aws.usage_start) <= {{end_date}}
+        WHERE aws.usage_start >= {{start_date}}::date
+            AND aws.usage_start <= {{end_date}}::date
             AND rm.aws_id IS NULL
     ),
     cte_number_of_shared_projects AS (
@@ -304,13 +304,13 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_project_tag_matched_{{uuid | 
         FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
             ON aws.key = 'openshift_project' AND aws.value = ocp.namespace
-                AND aws.usage_start::date = ocp.usage_start::date
+                AND aws.usage_start = ocp.usage_start
         LEFT JOIN reporting_ocp_aws_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.aws_id = aws.id
         LEFT JOIN reporting_ocp_aws_direct_tag_matched_{{uuid | sqlsafe}} AS dtm
             ON dtm.aws_id = aws.id
-        WHERE date(aws.usage_start) >= {{start_date}}
-            AND date(aws.usage_start) <= {{end_date}}
+        WHERE aws.usage_start >= {{start_date}}::date
+            AND aws.usage_start <= {{end_date}}::date
             AND rm.aws_id IS NULL
             AND dtm.aws_id IS NULL
 
@@ -391,7 +391,7 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_node_tag_matched_{{uuid | sql
         FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
             ON aws.key = 'openshift_node' AND aws.value = ocp.node
-                AND aws.usage_start::date = ocp.usage_start::date
+                AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocp_aws_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.aws_id = aws.id
@@ -399,8 +399,8 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_node_tag_matched_{{uuid | sql
             ON dtm.aws_id = aws.id
         LEFT JOIN reporting_ocp_aws_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
             ON ptm.aws_id = aws.id
-        WHERE date(aws.usage_start) >= {{start_date}}
-            AND date(aws.usage_start) <= {{end_date}}
+        WHERE aws.usage_start >= {{start_date}}::date
+            AND aws.usage_start <= {{end_date}}::date
             AND rm.aws_id IS NULL
             AND dtm.aws_id IS NULL
             AND ptm.aws_id IS NULL
@@ -482,7 +482,7 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_cluster_tag_matched_{{uuid | 
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
             ON (aws.key = 'openshift_cluster' AND aws.value = ocp.cluster_id
                 OR aws.key = 'openshift_cluster' AND aws.value = ocp.cluster_alias)
-                AND aws.usage_start::date = ocp.usage_start::date
+                AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocp_aws_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.aws_id = aws.id
@@ -492,8 +492,8 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_cluster_tag_matched_{{uuid | 
             ON ptm.aws_id = aws.id
         LEFT JOIN reporting_ocp_aws_openshift_node_tag_matched_{{uuid | sqlsafe}} as ntm
             ON ntm.aws_id = aws.id
-        WHERE date(aws.usage_start) >= {{start_date}}
-            AND date(aws.usage_start) <= {{end_date}}
+        WHERE aws.usage_start >= {{start_date}}::date
+            AND aws.usage_start <= {{end_date}}::date
             AND rm.aws_id IS NULL
             AND dtm.aws_id IS NULL
             AND ptm.aws_id IS NULL
@@ -600,9 +600,9 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_storage_direct_tag_matched_{{uuid | sql
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
             ON aws.key = ocp.key
                 AND aws.value = ocp.value
-                AND aws.usage_start::date = ocp.usage_start::date
-        WHERE date(aws.usage_start) >= {{start_date}}
-            AND date(aws.usage_start) <= {{end_date}}
+                AND aws.usage_start = ocp.usage_start
+        WHERE aws.usage_start >= {{start_date}}::date
+            AND aws.usage_start <= {{end_date}}::date
     ),
     cte_number_of_shared_projects AS (
         SELECT aws_id,
@@ -677,11 +677,11 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_storage_openshift_project_tag_matched_{
         FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
             ON aws.key = 'openshift_project' AND aws.value = ocp.namespace
-                AND aws.usage_start::date = ocp.usage_start::date
+                AND aws.usage_start = ocp.usage_start
         LEFT JOIN reporting_ocp_aws_storage_direct_tag_matched_{{uuid | sqlsafe}} AS dtm
             ON dtm.aws_id = aws.id
-        WHERE date(aws.usage_start) >= {{start_date}}
-            AND date(aws.usage_start) <= {{end_date}}
+        WHERE aws.usage_start >= {{start_date}}::date
+            AND aws.usage_start <= {{end_date}}::date
             AND dtm.aws_id IS NULL
 
     ),
@@ -758,14 +758,14 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_storage_openshift_node_tag_matched_{{uu
         FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
             ON aws.key = 'openshift_node' AND aws.value = ocp.node
-                AND aws.usage_start::date = ocp.usage_start::date
+                AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocp_aws_storage_direct_tag_matched_{{uuid | sqlsafe}} AS dtm
             ON dtm.aws_id = aws.id
         LEFT JOIN reporting_ocp_aws_storage_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
             ON ptm.aws_id = aws.id
-        WHERE date(aws.usage_start) >= {{start_date}}
-            AND date(aws.usage_start) <= {{end_date}}
+        WHERE aws.usage_start >= {{start_date}}::date
+            AND aws.usage_start <= {{end_date}}::date
             AND dtm.aws_id IS NULL
             AND ptm.aws_id IS NULL
     ),
@@ -843,7 +843,7 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_storage_openshift_cluster_tag_matched_{
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
             ON (aws.key = 'openshift_cluster' AND aws.value = ocp.cluster_id
                 OR aws.key = 'openshift_cluster' AND aws.value = ocp.cluster_alias)
-                AND aws.usage_start::date = ocp.usage_start::date
+                AND aws.usage_start = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocp_aws_storage_direct_tag_matched_{{uuid | sqlsafe}} AS dtm
             ON dtm.aws_id = aws.id
@@ -851,8 +851,8 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_storage_openshift_cluster_tag_matched_{
             ON ptm.aws_id = aws.id
         LEFT JOIN reporting_ocp_aws_storage_openshift_node_tag_matched_{{uuid | sqlsafe}} as ntm
             ON ntm.aws_id = aws.id
-        WHERE date(aws.usage_start) >= {{start_date}}
-            AND date(aws.usage_start) <= {{end_date}}
+        WHERE aws.usage_start >= {{start_date}}::date
+            AND aws.usage_start <= {{end_date}}::date
             AND dtm.aws_id IS NULL
             AND ptm.aws_id IS NULL
             AND ntm.aws_id IS NULL
@@ -967,8 +967,8 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         ON li.cost_entry_pricing_id = pr.id
     LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
-    WHERE date(li.usage_start) >= {{start_date}}
-        AND date(li.usage_start) <= {{end_date}}
+    WHERE li.usage_start >= {{start_date}}::date
+        AND li.usage_start <= {{end_date}}::date
     -- Dedup on AWS line item so we never double count usage or cost
     GROUP BY li.aws_id, li.tags, pc.project_costs
 
@@ -1009,8 +1009,8 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         ON li.usage_account_id = aa.account_id
     LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.aws_id = li.aws_id
-    WHERE date(li.usage_start) >= {{start_date}}
-        AND date(li.usage_start) <= {{end_date}}
+    WHERE li.usage_start >= {{start_date}}::date
+        AND li.usage_start <= {{end_date}}::date
         AND ulid.aws_id IS NULL
     GROUP BY li.aws_id, li.tags, pc.project_costs
 )
@@ -1057,8 +1057,8 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         ON li.cost_entry_pricing_id = pr.id
     LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
-    WHERE date(li.usage_start) >= {{start_date}}
-        AND date(li.usage_start) <= {{end_date}}
+    WHERE li.usage_start >= {{start_date}}::date
+        AND li.usage_start <= {{end_date}}::date
     -- Grouping by OCP this time for the by project view
     GROUP BY li.report_period_id,
         li.ocp_id,
@@ -1106,8 +1106,8 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         ON li.usage_account_id = aa.account_id
     LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.aws_id = li.aws_id
-    WHERE date(li.usage_start) >= {{start_date}}
-        AND date(li.usage_start) <= {{end_date}}
+    WHERE li.usage_start >= {{start_date}}::date
+        AND li.usage_start <= {{end_date}}::date
         AND ulid.aws_id IS NULL
     GROUP BY li.ocp_id,
         li.report_period_id,
