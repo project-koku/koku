@@ -1124,8 +1124,8 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
 
 -- Clear out old entries first
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary
-WHERE date(usage_start) >= {{start_date}}
-    AND date(usage_start) <= {{end_date}}
+WHERE usage_start >= {{start_date}}
+    AND usage_start <= {{end_date}}
     --aws_where_clause
     {% if bill_ids %}
     AND cost_entry_bill_id IN (
@@ -1195,8 +1195,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
 ;
 
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary
-WHERE date(usage_start) >= {{start_date}}
-    AND date(usage_start) <= {{end_date}}
+WHERE usage_start >= {{start_date}}
+    AND usage_start <= {{end_date}}
     --aws_where_clause
     {% if bill_ids %}
     AND cost_entry_bill_id IN (
