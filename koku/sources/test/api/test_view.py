@@ -27,6 +27,7 @@ from api.iam.models import Customer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
+from koku.middleware import IdentityHeaderMiddleware
 from sources.api.view import SourcesViewSet
 
 
@@ -140,8 +141,9 @@ class SourcesViewTests(IamTestCase):
     def test_source_list_other_header(self):
         """Test the LIST endpoint with other auth header not matching test data."""
         user_data = self._create_user_data()
-
-        customer = self._create_customer_data(account="10002")
+        other_account = "10002"
+        customer = self._create_customer_data(account=other_account)
+        IdentityHeaderMiddleware.create_customer(other_account)
         request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=False)
         with requests_mock.mock() as m:
             m.get(f"http://www.sourcesclient.com/api/v1/sources/", status_code=200)
