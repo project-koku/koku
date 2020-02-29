@@ -16,12 +16,14 @@
 #
 """Test the sources view."""
 import json
+from unittest.mock import patch
 from unittest.mock import PropertyMock
 
 import requests_mock
 from django.test.utils import override_settings
 from django.urls import reverse
 
+from api.iam.models import Customer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
@@ -40,6 +42,10 @@ class SourcesViewTests(IamTestCase):
         customer = self._create_customer_data(account=self.test_account)
         self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=False)
         self.test_source_id = 1
+        name = "Test Azure Source"
+        customer_obj = Customer.objects.get(account_id=customer.get("account_id"))
+        self.azure_provider = Provider(name=name, type=Provider.PROVIDER_AZURE, customer=customer_obj)
+        self.azure_provider.save()
 
         self.azure_obj = Sources(
             source_id=self.test_source_id,
@@ -47,10 +53,11 @@ class SourcesViewTests(IamTestCase):
             account_id=customer.get("account_id"),
             offset=1,
             source_type=Provider.PROVIDER_AZURE,
-            name="Test Azure Source",
+            name=name,
             authentication={
                 "credentials": {"client_id": "test_client", "tenant_id": "test_tenant", "client_secret": "test_secret"}
             },
+            source_uuid=self.azure_provider.uuid,
         )
         self.azure_obj.save()
 
@@ -187,3 +194,12 @@ class SourcesViewTests(IamTestCase):
         url = reverse("sources-detail", kwargs={"source_id": self.test_source_id})
         response = self.client.delete(url, content_type="application/json", **self.request_context["request"].META)
         self.assertEqual(response.status_code, 405)
+
+    @patch("sources.api.view.ProviderManager.provider_statistics", return_value={})
+    def test_source_get_stats(self, _):
+        """Test the GET status endpoint."""
+        url = reverse("sources-stats", kwargs={"pk": self.test_source_id})
+        response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(body)
