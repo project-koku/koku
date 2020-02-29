@@ -315,7 +315,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                     )
 
                     report_accessor.populate_monthly_cost(
-                        rate_type, cost_type, rate, start_date, end_date, self._cluster_id, self._cluster_alias
+                        cost_type, rate_type, rate, start_date, end_date, self._cluster_id, self._cluster_alias
                     )
 
         except OCPCostModelCostUpdaterError as error:
