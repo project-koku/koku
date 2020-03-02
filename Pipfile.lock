@@ -1362,11 +1362,10 @@
         },
         "pre-commit": {
             "hashes": [
-                "sha256:0385479a0fe0765b1d32241f6b5358668cb4b6496a09aaf9c79acc6530489dbb",
-                "sha256:bf80d9dd58bea4f45d5d71845456fdcb78c1027eda9ed562db6fa2bd7a680c3a"
+                "sha256:09ebe467f43ce24377f8c2f200fe3cd2570d328eb2ce0568c8e96ce19da45fa6",
+                "sha256:f8d555e31e2051892c7f7b3ad9f620bd2c09271d87e9eedb2ad831737d6211eb"
             ],
-            "index": "pypi",
-            "version": "==2.0.1"
+            "version": "==2.1.1"
         },
         "protobuf": {
             "hashes": [
