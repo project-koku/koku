@@ -390,7 +390,7 @@ class ReportObjectCreator:
             "cost_entry_bill_id": bill.id,
             "cost_entry_product_id": product.id,
             "meter_id": meter.id,
-            "usage_date_time": usage_date_time if usage_date_time else random_usage_date_time,
+            "usage_date": usage_date_time.date() if usage_date_time else random_usage_date_time.date(),
             "tags": {
                 "environment": random.choice(["dev", "qa", "prod"]),
                 self.fake.pystr()[:8]: self.fake.pystr()[:8],

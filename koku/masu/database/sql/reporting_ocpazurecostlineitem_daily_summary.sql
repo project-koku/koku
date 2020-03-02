@@ -7,8 +7,8 @@ CREATE TEMPORARY TABLE reporting_azure_tags_{{uuid | sqlsafe}} AS (
         LOWER(value) as value
         FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily as azure,
             jsonb_each_text(azure.tags) labels
-        WHERE date(azure.usage_date_time) >= {{start_date}}
-            AND date(azure.usage_date_time) <= {{end_date}}
+        WHERE azure.usage_date >= {{start_date}}::date
+            AND azure.usage_date <= {{end_date}}::date
             --azure_where_clause
             {% if bill_ids %}
             AND cost_entry_bill_id IN (
@@ -98,7 +98,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}
             azure.cost_entry_product_id,
             azure.meter_id,
             azure.subscription_guid,
-            azure.usage_date_time,
+            azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
             azure.offer_id,
@@ -113,9 +113,9 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}
             -- so we are matching only on the node name
             -- which should match the split Azure instance ID
             ON split_part(aps.instance_id, '/', 9) = ocp.node
-                AND date(azure.usage_date_time) = date(ocp.usage_start)
-        WHERE date(azure.usage_date_time) >= {{start_date}}
-            AND date(azure.usage_date_time) <= {{end_date}}
+                AND azure.usage_date = ocp.usage_start
+        WHERE azure.usage_date >= {{start_date}}::date
+            AND azure.usage_date <= {{end_date}}::date
             -- azure_where_clause
             {% if bill_ids %}
             AND cost_entry_bill_id IN (
@@ -182,7 +182,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_project_tag_matched_{{uuid 
             azure.cost_entry_product_id,
             azure.meter_id,
             azure.subscription_guid,
-            azure.usage_date_time,
+            azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
             azure.offer_id,
@@ -190,12 +190,12 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_project_tag_matched_{{uuid 
         FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
             ON azure.key = 'openshift_project' AND azure.value = lower(ocp.namespace)
-                AND date(azure.usage_date_time) = date(ocp.usage_start)
+                AND azure.usage_date = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.azure_id = azure.id
-        WHERE date(azure.usage_date_time) >= {{start_date}}
-            AND date(azure.usage_date_time) <= {{end_date}}
+        WHERE azure.usage_date >= {{start_date}}::date
+            AND azure.usage_date <= {{end_date}}::date
             AND rm.azure_id IS NULL
     ),
     cte_number_of_shared_projects AS (
@@ -250,7 +250,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_node_tag_matched_{{uuid | s
             azure.cost_entry_product_id,
             azure.meter_id,
             azure.subscription_guid,
-            azure.usage_date_time,
+            azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
             azure.offer_id,
@@ -258,14 +258,14 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_node_tag_matched_{{uuid | s
         FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
             ON azure.key = 'openshift_node' AND azure.value = lower(ocp.node)
-                AND date(azure.usage_date_time) = date(ocp.usage_start)
+                AND azure.usage_date = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.azure_id = azure.id
         LEFT JOIN reporting_ocp_azure_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
             ON ptm.azure_id = azure.id
-        WHERE date(azure.usage_date_time) >= {{start_date}}
-            AND date(azure.usage_date_time) <= {{end_date}}
+        WHERE azure.usage_date >= {{start_date}}::date
+            AND azure.usage_date <= {{end_date}}::date
             AND rm.azure_id IS NULL
             AND ptm.azure_id IS NULL
     ),
@@ -321,7 +321,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_cluster_tag_matched_{{uuid 
             azure.cost_entry_product_id,
             azure.meter_id,
             azure.subscription_guid,
-            azure.usage_date_time,
+            azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
             azure.offer_id,
@@ -330,7 +330,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_cluster_tag_matched_{{uuid 
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
             ON (azure.key = 'openshift_cluster' AND azure.value = ocp.cluster_id
                 OR azure.key = 'openshift_cluster' AND azure.value = ocp.cluster_alias)
-                AND date(azure.usage_date_time) = date(ocp.usage_start)
+                AND azure.usage_date = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.azure_id = azure.id
@@ -338,8 +338,8 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_openshift_cluster_tag_matched_{{uuid 
             ON ptm.azure_id = azure.id
         LEFT JOIN reporting_ocp_azure_openshift_node_tag_matched_{{uuid | sqlsafe}} as ntm
             ON ntm.azure_id = azure.id
-        WHERE date(azure.usage_date_time) >= {{start_date}}
-            AND date(azure.usage_date_time) <= {{end_date}}
+        WHERE azure.usage_date >= {{start_date}}::date
+            AND azure.usage_date <= {{end_date}}::date
             AND rm.azure_id IS NULL
             AND ptm.azure_id IS NULL
             AND ntm.azure_id IS NULL
@@ -396,7 +396,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_direct_tag_matched_{{uuid | sqlsafe}}
             azure.cost_entry_product_id,
             azure.meter_id,
             azure.subscription_guid,
-            azure.usage_date_time,
+            azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
             azure.offer_id,
@@ -405,7 +405,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_direct_tag_matched_{{uuid | sqlsafe}}
         JOIN reporting_ocp_pod_tags_{{uuid | sqlsafe}} as ocp
             ON azure.key = ocp.key
                 AND azure.value = ocp.value
-                AND date(azure.usage_date_time) = date(ocp.usage_start)
+                AND azure.usage_date = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocp_azure_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.azure_id = azure.id
@@ -415,8 +415,8 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_direct_tag_matched_{{uuid | sqlsafe}}
             ON ntm.azure_id = azure.id
         LEFT JOIN reporting_ocp_azure_openshift_cluster_tag_matched_{{uuid | sqlsafe}} AS ctm
             ON ctm.azure_id = azure.id
-        WHERE date(azure.usage_date_time) >= {{start_date}}
-            AND date(azure.usage_date_time) <= {{end_date}}
+        WHERE azure.usage_date >= {{start_date}}::date
+            AND azure.usage_date <= {{end_date}}::date
             AND rm.azure_id IS NULL
             AND ptm.azure_id IS NULL
             AND ntm.azure_id IS NULL
@@ -498,7 +498,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_resource_id_matched_{{uuid | 
             azure.cost_entry_product_id,
             azure.meter_id,
             azure.subscription_guid,
-            azure.usage_date_time,
+            azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
             azure.offer_id,
@@ -509,9 +509,9 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_resource_id_matched_{{uuid | 
         JOIN {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp
             -- Need the doubl percent here for Jinja templating
             ON split_part(aps.instance_id, '/', 9) LIKE '%%' || ocp.persistentvolume
-                AND date(azure.usage_date_time) = date(ocp.usage_start)
-        WHERE date(azure.usage_date_time) >= {{start_date}}
-            AND date(azure.usage_date_time) <= {{end_date}}
+                AND azure.usage_date = ocp.usage_start
+        WHERE azure.usage_date >= {{start_date}}::date
+            AND azure.usage_date <= {{end_date}}::date
             -- azure_where_clause
             {% if bill_ids %}
             AND cost_entry_bill_id IN (
@@ -575,7 +575,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_project_tag_matched
             azure.cost_entry_product_id,
             azure.meter_id,
             azure.subscription_guid,
-            azure.usage_date_time,
+            azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
             azure.offer_id,
@@ -583,11 +583,11 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_project_tag_matched
         FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
             ON azure.key = 'openshift_project' AND azure.value = ocp.namespace
-                AND date(azure.usage_date_time) = date(ocp.usage_start)
+                AND azure.usage_date = ocp.usage_start
         LEFT JOIN reporting_ocp_azure_storage_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.azure_id = azure.id
-        WHERE date(azure.usage_date_time) >= {{start_date}}
-            AND date(azure.usage_date_time) <= {{end_date}}
+        WHERE azure.usage_date >= {{start_date}}::date
+            AND azure.usage_date <= {{end_date}}::date
             AND rm.azure_id IS NULL
 
     ),
@@ -640,7 +640,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_node_tag_matched_{{
             azure.cost_entry_product_id,
             azure.meter_id,
             azure.subscription_guid,
-            azure.usage_date_time,
+            azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
             azure.offer_id,
@@ -648,14 +648,14 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_node_tag_matched_{{
         FROM reporting_azure_tags_{{uuid | sqlsafe}} as azure
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
             ON azure.key = 'openshift_node' AND azure.value = ocp.node
-                AND date(azure.usage_date_time) = date(ocp.usage_start)
+                AND azure.usage_date = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocp_azure_storage_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.azure_id = azure.id
         LEFT JOIN reporting_ocp_azure_storage_openshift_project_tag_matched_{{uuid | sqlsafe}} as ptm
             ON ptm.azure_id = azure.id
-        WHERE date(azure.usage_date_time) >= {{start_date}}
-            AND date(azure.usage_date_time) <= {{end_date}}
+        WHERE azure.usage_date >= {{start_date}}::date
+            AND azure.usage_date <= {{end_date}}::date
             AND rm.azure_id IS NULL
             AND ptm.azure_id IS NULL
     ),
@@ -708,7 +708,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_cluster_tag_matched
             azure.cost_entry_product_id,
             azure.meter_id,
             azure.subscription_guid,
-            azure.usage_date_time,
+            azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
             azure.offer_id,
@@ -717,7 +717,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_cluster_tag_matched
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
             ON (azure.key = 'openshift_cluster' AND azure.value = ocp.cluster_id
                 OR azure.key = 'openshift_cluster' AND azure.value = ocp.cluster_alias)
-                AND date(azure.usage_date_time) = date(ocp.usage_start)
+                AND azure.usage_date = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocp_azure_storage_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.azure_id = azure.id
@@ -725,8 +725,8 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_openshift_cluster_tag_matched
             ON ptm.azure_id = azure.id
         LEFT JOIN reporting_ocp_azure_storage_openshift_node_tag_matched_{{uuid | sqlsafe}} as ntm
             ON ntm.azure_id = azure.id
-        WHERE date(azure.usage_date_time) >= {{start_date}}
-            AND date(azure.usage_date_time) <= {{end_date}}
+        WHERE azure.usage_date >= {{start_date}}::date
+            AND azure.usage_date <= {{end_date}}::date
             AND rm.azure_id IS NULL
             AND ptm.azure_id IS NULL
             AND ntm.azure_id IS NULL
@@ -780,7 +780,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_direct_tag_matched_{{uuid | s
             azure.cost_entry_product_id,
             azure.meter_id,
             azure.subscription_guid,
-            azure.usage_date_time,
+            azure.usage_date,
             azure.usage_quantity,
             azure.pretax_cost,
             azure.offer_id,
@@ -798,7 +798,7 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_direct_tag_matched_{{uuid | s
                         AND azure.value = ocp.persistentvolume
                     )
             )
-                AND date(azure.usage_date_time) = date(ocp.usage_start)
+                AND azure.usage_date = ocp.usage_start
         -- ANTI JOIN to remove rows that already matched
         LEFT JOIN reporting_ocp_azure_storage_resource_id_matched_{{uuid | sqlsafe}} AS rm
             ON rm.azure_id = azure.id
@@ -808,8 +808,8 @@ CREATE TEMPORARY TABLE reporting_ocp_azure_storage_direct_tag_matched_{{uuid | s
             ON ntm.azure_id = azure.id
         LEFT JOIN reporting_ocp_azure_storage_openshift_cluster_tag_matched_{{uuid | sqlsafe}} AS ctm
             ON ctm.azure_id = azure.id
-        WHERE date(azure.usage_date_time) >= {{start_date}}
-            AND date(azure.usage_date_time) <= {{end_date}}
+        WHERE azure.usage_date >= {{start_date}}::date
+            AND azure.usage_date <= {{end_date}}::date
             AND rm.azure_id IS NULL
             AND ptm.azure_id IS NULL
             AND ntm.azure_id IS NULL
@@ -902,8 +902,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         array_agg(DISTINCT li.namespace) as namespace,
         array_agg(DISTINCT li.pod) as pod,
         max(li.node) as node,
-        max(li.usage_date_time) as usage_start,
-        max(li.usage_date_time) as usage_end,
+        max(li.usage_date) as usage_start,
+        max(li.usage_date) as usage_end,
         max(li.cost_entry_bill_id) as cost_entry_bill_id,
         max(li.subscription_guid) as subscription_guid,
         max(p.service_name) as service_name,
@@ -925,8 +925,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         ON li.meter_id = m.id
     JOIN cte_pod_project_cost as pc
         ON li.azure_id = pc.azure_id
-    WHERE date(li.usage_date_time) >= {{start_date}}
-        AND date(li.usage_date_time) <= {{end_date}}
+    WHERE li.usage_date >= {{start_date}}::date
+        AND li.usage_date <= {{end_date}}::date
     -- Dedup on azure line item so we never double count usage or cost
     GROUP BY li.azure_id, li.tags, pc.project_costs
 
@@ -938,8 +938,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         array_agg(DISTINCT li.namespace) as namespace,
         array_agg(DISTINCT li.pod) as pod,
         max(li.node) as node,
-        max(li.usage_date_time) as usage_start,
-        max(li.usage_date_time) as usage_end,
+        max(li.usage_date) as usage_start,
+        max(li.usage_date) as usage_end,
         max(li.cost_entry_bill_id) as cost_entry_bill_id,
         max(li.subscription_guid) as subscription_guid,
         max(p.service_name) as service_name,
@@ -963,8 +963,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         ON li.azure_id = pc.azure_id
     LEFT JOIN reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.azure_id = li.azure_id
-    WHERE date(li.usage_date_time) >= {{start_date}}
-        AND date(li.usage_date_time) <= {{end_date}}
+    WHERE li.usage_date >= {{start_date}}::date
+        AND li.usage_date <= {{end_date}}::date
         AND ulid.azure_id IS NULL
     GROUP BY li.azure_id, li.tags, pc.project_costs
 )
@@ -987,8 +987,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         li.pod,
         li.node,
         li.pod_labels,
-        max(li.usage_date_time) as usage_start,
-        max(li.usage_date_time) as usage_end,
+        max(li.usage_date) as usage_start,
+        max(li.usage_date) as usage_end,
         max(li.cost_entry_bill_id) as cost_entry_bill_id,
         max(li.subscription_guid) as subscription_guid,
         max(p.service_name) as service_name,
@@ -1007,8 +1007,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         ON li.cost_entry_product_id = p.id
     JOIN {{schema | sqlsafe}}.reporting_azuremeter as m
         ON li.meter_id = m.id
-    WHERE date(li.usage_date_time) >= {{start_date}}
-        AND date(li.usage_date_time) <= {{end_date}}
+    WHERE li.usage_date >= {{start_date}}::date
+        AND li.usage_date <= {{end_date}}::date
     -- Grouping by OCP this time for the by project view
     GROUP BY li.report_period_id,
         li.ocp_id,
@@ -1030,8 +1030,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         li.pod,
         li.node,
         li.persistentvolume_labels || li.persistentvolumeclaim_labels as pod_labels,
-        max(li.usage_date_time) as usage_start,
-        max(li.usage_date_time) as usage_end,
+        max(li.usage_date) as usage_start,
+        max(li.usage_date) as usage_end,
         max(li.cost_entry_bill_id) as cost_entry_bill_id,
         max(li.subscription_guid) as subscription_guid,
         max(p.service_name) as service_name,
@@ -1052,8 +1052,8 @@ JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice AS p
         ON li.meter_id = m.id
     LEFT JOIN reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.azure_id = li.azure_id
-    WHERE date(li.usage_date_time) >= {{start_date}}
-        AND date(li.usage_date_time) <= {{end_date}}
+    WHERE li.usage_date >= {{start_date}}::date
+        AND li.usage_date <= {{end_date}}::date
         AND ulid.azure_id IS NULL
     GROUP BY li.report_period_id,
         li.ocp_id,

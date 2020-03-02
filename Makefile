@@ -500,7 +500,7 @@ docker-test-all:
 docker-up-koku:
 	@docker-compose up $(build) -d koku-server
 	@echo -n "Waiting on koku status: "
-	@until ./scripts/check_for_koku_server.sh $(KOKU_SERVER) $$API_PATH_PREFIX $(KOKU_SERVER_PORT) >/dev/null 2>&1 ; do \
+	@until ./scripts/check_for_koku_server.sh $${KOKU_API_HOST:-localhost} $$API_PATH_PREFIX $${KOKU_API_PORT:-8000} >/dev/null 2>&1 ; do \
         echo -n "." ; \
         sleep 1 ; \
     done

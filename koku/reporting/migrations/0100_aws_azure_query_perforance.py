@@ -119,6 +119,12 @@ DROP MATERIALIZED VIEW IF EXISTS reporting_aws_compute_summary_by_account;
             model_name="ocpnodelabellineitemdaily",
             index=django.contrib.postgres.indexes.GinIndex(fields=["node_labels"], name="ocplblnitdly_node_labels"),
         ),
+        migrations.AlterField(
+            model_name="azurecostentrylineitemdaily", name="usage_date_time", field=models.DateField(null=False)
+        ),
+        migrations.RenameField(
+            model_name="azurecostentrylineitemdaily", old_name="usage_date_time", new_name="usage_date"
+        ),
         migrations.RunSQL(
             sql="""
 CREATE MATERIALIZED VIEW reporting_aws_cost_summary AS(
@@ -466,10 +472,10 @@ CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary AS (
 )
 ;
 
-CREATE INDEX ocpallcstprjdlysumm_node on reporting_ocpallcostlineitem_daily_summary (node text_pattern_ops);
-CREATE index ocpallcstprjdlysumm_nsp on reporting_ocpallcostlineitem_daily_summary (namespace text_pattern_ops);
-CREATE INDEX ocpallcstprjdlysumm_node_like on reporting_ocpallcostlineitem_daily_summary USING GIN (node gin_trgm_ops);
-CREATE index ocpallcstprjdlysumm_nsp_like on reporting_ocpallcostlineitem_daily_summary USING GIN (namespace gin_trgm_ops);
+CREATE INDEX ocpallcstprjdlysumm_node on reporting_ocpallcostlineitem_project_daily_summary (node text_pattern_ops);
+CREATE index ocpallcstprjdlysumm_nsp on reporting_ocpallcostlineitem_project_daily_summary (namespace text_pattern_ops);
+CREATE INDEX ocpallcstprjdlysumm_node_like on reporting_ocpallcostlineitem_project_daily_summary USING GIN (node gin_trgm_ops);
+CREATE index ocpallcstprjdlysumm_nsp_like on reporting_ocpallcostlineitem_project_daily_summary USING GIN (namespace gin_trgm_ops);
 
 CREATE MATERIALIZED VIEW reporting_aws_compute_summary AS(
 SELECT ROW_NUMBER() OVER(ORDER BY c.usage_start, c.instance_type) AS id,

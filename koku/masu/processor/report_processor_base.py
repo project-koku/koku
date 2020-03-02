@@ -249,7 +249,7 @@ class ReportProcessorBase:
         with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
             type = provider_accessor.get_type().lower()
         if type == "azure":
-            return {"usage_date_time__gte": self.data_cutoff_date}
+            return {"usage_date__gte": self.data_cutoff_date}
         else:
             return {"usage_start__gte": self.data_cutoff_date}
 

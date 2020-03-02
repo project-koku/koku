@@ -41,15 +41,15 @@
         ON azure.cost_entry_bill_id = bill.id
     JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
         ON split_part(aps.instance_id, '/', 9) = ocp.node
-            AND date(azure.usage_date_time) = ocp.usage_start
+            AND azure.usage_date = ocp.usage_start
     JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as rp
         ON ocp.report_period_id = rp.id
     JOIN public.api_provider as p
         ON bill.provider_id = p.uuid
-    WHERE azure.usage_date_time) >= {{start_date}}::date
-        AND azure.usage_date_time) <= {{end_date}}::date
-        AND ocp.usage_start) >= {{start_date}}::date
-        AND ocp.usage_start) <= {{end_date}}::date
+    WHERE azure.usage_date >= {{start_date}}::date
+        AND azure.usage_date <= {{end_date}}::date
+        AND ocp.usage_start >= {{start_date}}::date
+        AND ocp.usage_start <= {{end_date}}::date
         {% if azure_provider_uuid %}
         AND bill.provider_id = {{azure_provider_uuid}}
         {% endif %}
