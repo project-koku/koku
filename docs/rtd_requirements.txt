@@ -46,7 +46,7 @@ importlib-metadata==1.5.0 ; python_version < '3.8'
 isodate==0.6.0
 jinja2==2.11.1
 jinjasql==0.1.7
-jmespath==0.9.4
+jmespath==0.9.5
 kafka-python==1.4.6
 kombu==4.6.7
 markupsafe==1.1.1
