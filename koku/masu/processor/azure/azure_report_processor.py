@@ -124,7 +124,7 @@ class AzureReportProcessor(ReportProcessorBase):
 
         """
         table_name = AzureCostEntryBill
-        row_date = row.get("UsageDateTime")
+        row_date = row.get("UsageDate")
 
         report_date_range = utils.month_date_range(parser.parse(row_date))
         start_date, end_date = report_date_range.split("-")
@@ -285,7 +285,7 @@ class AzureReportProcessor(ReportProcessorBase):
                 LOG.info("File %s opened for processing", str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
-                    if not self._should_process_row(row, "UsageDateTime", is_full_month):
+                    if not self._should_process_row(row, "UsageDate", is_full_month):
                         continue
                     self.create_cost_entry_objects(row, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:
