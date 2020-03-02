@@ -216,7 +216,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
         with self.assertLogs(logger="masu.processor.expired_data_remover", level="INFO") as cm:
             logging.disable(logging.NOTSET)
             remover.remove(simulate=True)
-            expected_log_message = "Simulated removing CostUsageReportManifest"
+            expected_log_message = "Removed CostUsageReportManifest"
             # Check if the log message exists in the log output:
             self.assertTrue(
                 any(match is not None for match in [re.search(expected_log_message, line) for line in cm.output]),
@@ -226,7 +226,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
                 + " but the list of log messages was instead : "
                 + str(cm.output),
             )
-        # Re-enable log suppression
+        # Re-enable log suppressionjjn
         logging.disable(logging.CRITICAL)
 
         self.assertEqual(1, CostUsageReportManifest.objects.count())
@@ -276,6 +276,43 @@ class ExpiredDataRemoverTest(MasuTestCase):
                 self.assertEqual(0, record_count)
             else:
                 self.assertEqual(1, record_count)
+
+    def test_simulate_delete_expired_cost_usage_report_manifest_by_provider_uuid(self):
+        """
+        Test simulating the deletion of expired CostUsageReportManifests.
+
+        using remove(provider_uuid)
+        """
+        remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
+        expiration_date = remover._calculate_expiration_date()
+        day_before_cutoff = expiration_date - relativedelta.relativedelta(days=1)
+        day_before_cutoff_data = {
+            "assembly_id": uuid4(),
+            "manifest_creation_datetime": None,
+            "manifest_updated_datetime": None,
+            "billing_period_start_datetime": day_before_cutoff,
+            "num_processed_files": 1,
+            "num_total_files": 1,
+            "provider_id": self.aws_provider_uuid,
+        }
+        CostUsageReportManifest(**day_before_cutoff_data).save()
+        with self.assertLogs(logger="masu.processor.expired_data_remover", level="INFO") as cm:
+            logging.disable(logging.NOTSET)
+            remover.remove(simulate=True, provider_uuid=self.aws_provider_uuid)
+            expected_log_message = "Removed CostUsageReportManifest"
+            # Check if the log message exists in the log output:
+            self.assertTrue(
+                any(match is not None for match in [re.search(expected_log_message, line) for line in cm.output]),
+                "Expected to see log message: "
+                + expected_log_message
+                + "in the list of log messages"
+                + " but the list of log messages was instead : "
+                + str(cm.output),
+            )
+        # Re-enable log suppression
+        logging.disable(logging.CRITICAL)
+
+        self.assertEqual(1, CostUsageReportManifest.objects.count())
 
     def test_remove_items_only_azure(self):
         """Test that remove is called with provider_uuid items only."""

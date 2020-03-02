@@ -160,7 +160,14 @@ class ExpiredDataRemover:
                 with ReportManifestDBAccessor() as manifest_accessor:
                     # Remove expired CostUsageReportManifests
                     expiration_date = self._calculate_expiration_date()
-                    manifest_accessor.delete_provider_cost_usage_reports_older_than(provider_uuid, expiration_date)
+                    if not simulate:
+                        manifest_accessor.delete_provider_cost_usage_reports_older_than(provider_uuid, expiration_date)
+                    LOG.info(
+                        """Removed CostUsageReportManifest for
+                        provider uuid: %s before billing period: %s""",
+                        provider_uuid,
+                        expiration_date,
+                    )
         else:
             expiration_date = self._calculate_expiration_date(line_items_only=line_items_only)
             if line_items_only:
