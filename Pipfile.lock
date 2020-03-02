@@ -548,11 +548,10 @@
         },
         "pint": {
             "hashes": [
-                "sha256:d5b5bcb570b2a8e0a598621fc41684497ff248f418bbfe00f69bd6e13caa14b8",
-                "sha256:d739c364b8326fe3d70773d5720fa8b005ea6158695cad042677a588480c86e6"
+                "sha256:308f1070500e102f83b6adfca6db53debfce2ffc5d3cbe3f6c367da359b5cf4d",
+                "sha256:5690c85948dfb283382aa73357c3d5a333e8c7d818be7d8643db18e07597dd99"
             ],
-            "index": "pypi",
-            "version": "==0.10.1"
+            "version": "==0.11"
         },
         "prometheus-client": {
             "hashes": [
