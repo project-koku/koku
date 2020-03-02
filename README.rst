@@ -150,7 +150,49 @@ If you see this error, run the following command (assuming you are at the projec
 
     setfacl -m u:26:-wx ./pg_data
 
-See  https://access.redhat.com/containers/?tab=overview#/registry.access.redhat.com/rhel8/postgresql-96
+See  https://access.redhat.com/containers/?tab=overview#/registry.access.redhat.com/rhel8/postgresql-10
+
+
+Database Query Monitoring
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A basic level of query monitoring has been included leveraging a local grafana container which will be built with the `docker-up` make target.
+
+To use the monitor, open a new web browser tab or window and enter the following URL:
+    
+    http://localhost:3001
+
+You will be presented with the grafana login page. For this monitor, use the following credentials::
+
+    User: admin
+    Password: admin12
+
+Once you have logged into the server, you will be taken straight to the main dashboard. It will have 5 panels. 
+
+    +--------------------------+
+    |                          |
+    | Query statistics         |
+    |                          |
+    +---------+----------------+
+    | Connect | Active Queries |
+    | States  |                |
+    +---------+----------------+
+    | Lock    | Lock Detail    |
+    | Types   |                |
+    +---------+----------------+
+
+- Query Statistics - The max execution time, the mean execution time, number of calls and the query text
+- Connect States   - Shows the connection states (active, idle, idle in transaction, etc)
+- Active Queries   - Shows the approximate run time (based on the probe time) and the query text of queries detected
+- Lock Types       - Shows the discrete lock types detected during the probe
+- Lock Detail      - Shows any detail informaiton for the lock and the affected query.
+
+The Query Statistics panel is cumulative. The remaining panels are ephemeral.
+
+Information about PostgreSQL statistics can be found here: https://www.postgresql.org/docs/10/monitoring-stats.html
+
+Information about Grafana dashboards can be found here: https://grafana.com/docs/grafana/latest/features/dashboard/dashboards/
+
 
 Developing with OpenShift
 -------------------------
