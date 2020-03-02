@@ -1,5 +1,5 @@
 FROM grafana/grafana:latest
-USER 0
+USER root
 RUN apk add sqlite
 USER grafana
 COPY --chown=grafana:grafana grafana.db.sql /var/lib/grafana/grafana.db.sql
