@@ -179,7 +179,6 @@ class ExpiredDataRemover:
                     )
             else:
                 # Remove expired CostUsageReportManifests
-                expiration_date = self._calculate_expiration_date()
                 removed_data = self._cleaner.purge_expired_report_data(expired_date=expiration_date, simulate=simulate)
                 with ReportManifestDBAccessor() as manifest_accessor:
                     if not simulate:
