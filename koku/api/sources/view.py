@@ -22,15 +22,10 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import mixins
 from rest_framework import status
-from rest_framework import viewsets
 from rest_framework.exceptions import APIException
-from rest_framework.permissions import AllowAny
 
-from api.provider.models import Sources
-from sources.api.serializers import SourcesSerializer
+from sources.api.views import SourcesViewSet
 
 
 LOG = logging.getLogger(__name__)
@@ -57,17 +52,12 @@ class SourcesMethodException(APIException):
         self.detail = {"detail": force_text(message)}
 
 
-class SourcesProxyViewSet(mixins.UpdateModelMixin, viewsets.GenericViewSet):
+class SourcesProxyViewSet(SourcesViewSet):
     """Sources View.
     A viewset that provides default `create()`, `retrieve()`,
     `update()`, and `list()` actions.
     """
 
-    lookup_field = "source_id"
-    serializer_class = SourcesSerializer
-    queryset = Sources.objects.all()
-    permission_classes = (AllowAny,)
-    filter_backends = (DjangoFilterBackend,)
     url = f"{settings.SOURCES_CLIENT_BASE_URL}/sources/"
 
     @never_cache
