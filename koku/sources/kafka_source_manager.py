@@ -14,13 +14,16 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+"""Kafka Source Manager."""
+import json
+from base64 import b64decode
+
 from django.db import connection
 
-"""Kafka Source Manager."""
-from base64 import b64decode
-import json
-
-from api.models import Provider, User, Customer, Tenant
+from api.models import Customer
+from api.models import Provider
+from api.models import Tenant
+from api.models import User
 from api.provider.provider_manager import ProviderManager
 from api.provider.serializers import ProviderSerializer
 from koku.middleware import IdentityHeaderMiddleware
