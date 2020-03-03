@@ -128,7 +128,7 @@ class SourcesSerializer(serializers.ModelSerializer):
         if authentication:
             instance, auth_fields = self._update_authentication(instance, authentication)
 
-        update_fields = billing_fields + auth_fields
+        update_fields = list(set(billing_fields + auth_fields))
         instance.save(update_fields=update_fields)
 
         source_mgr = KafkaSourceManager(instance.auth_header)
