@@ -298,25 +298,38 @@ class TestCeleryTasks(MasuTestCase):
         #  as the assembly_id in the manifest above
         with tempfile.TemporaryDirectory() as tmpdirname:
             mock_config.PVC_DIR = tmpdirname
-            filepath1 = os.path.join(tmpdirname, "%s.csv" % manifest.assembly_id)
-            filepath2 = os.path.join(tmpdirname, "otherfile.csv")
-            filepaths = [filepath1, filepath2]
+            mock_config.VOLUME_FILE_RETENTION = 60 * 60 * 24
+            old_matching_file = os.path.join(tmpdirname, "%s.csv" % manifest.assembly_id)
+            new_no_match_file = os.path.join(tmpdirname, "newfile.csv")
+            old_no_match_file = os.path.join(tmpdirname, "oldfile.csv")
+            filepaths = [old_matching_file, new_no_match_file, old_no_match_file]
             for path in filepaths:
                 open(path, "a").close()
                 self.assertEqual(os.path.exists(path), True)
+
+            # Update timestame for oldfile.csv
+            now = datetime.now()
+            old_datetime = now - timedelta(seconds=mock_config.VOLUME_FILE_RETENTION * 2)
+            oldtime = old_datetime.timestamp()
+            os.utime(old_matching_file, (oldtime, oldtime))
+            os.utime(old_no_match_file, (oldtime, oldtime))
+
             # now run the clean volume task
             tasks.clean_volume()
             # make sure that the file with the matching id still exists and that
             # the file with the other id is gone
-            self.assertEqual(os.path.exists(filepath1), True)
-            self.assertEqual(os.path.exists(filepath2), False)
+            self.assertEqual(os.path.exists(old_matching_file), True)
+            self.assertEqual(os.path.exists(new_no_match_file), True)
+            self.assertEqual(os.path.exists(old_no_match_file), False)
             # now edit the manifest to say that all the files have been processed
             # and rerun the clean_volumes task
             manifest.num_processed_files = manifest_dict.get("num_total_files")
             manifest.save()
             tasks.clean_volume()
             # ensure that the original file is deleted from the volume
-            self.assertEqual(os.path.exists(filepath1), False)
+            self.assertEqual(os.path.exists(old_matching_file), False)
+            self.assertEqual(os.path.exists(new_no_match_file), True)
+
         # assert the tempdir is cleaned up
         self.assertEqual(os.path.exists(tmpdirname), False)
         # test no files found for codecov
