@@ -159,7 +159,7 @@ Database Query Monitoring
 A basic level of query monitoring has been included leveraging a local grafana container which will be built with the `docker-up` make target.
 
 To use the monitor, open a new web browser tab or window and enter the following URL:
-    
+
     http://localhost:3001
 
 You will be presented with the grafana login page. For this monitor, use the following credentials::
@@ -167,7 +167,7 @@ You will be presented with the grafana login page. For this monitor, use the fol
     User: admin
     Password: admin12
 
-Once you have logged into the server, you will be taken straight to the main dashboard. It will have 5 panels. 
+Once you have logged into the server, you will be taken straight to the main dashboard. It will have 5 panels.
 
     +--------------------------+
     |                          |

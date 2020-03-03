@@ -4,4 +4,3 @@ RUN apk add sqlite
 USER grafana
 COPY --chown=grafana:grafana grafana.db.sql /var/lib/grafana/grafana.db.sql
 RUN cat /var/lib/grafana/grafana.db.sql | sqlite3 /var/lib/grafana/grafana.db && rm /var/lib/grafana/grafana.db.sql
-
