@@ -246,11 +246,11 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 "gt": ">",
                 "gte": ">=",
                 "contains": "like",
-                "icontains": "ilike",
+                "icontains": "like",
                 "startswith": "like",
-                "istartswith": "ilike",
+                "istartswith": "like",
                 "endswith": "like",
-                "iendswith": "ilike",
+                "iendswith": "like",
             }
 
             return op_map[op_str]
@@ -284,11 +284,11 @@ class AWSReportQueryHandler(ReportQueryHandler):
                     op = __resolve_op(dj_op) if len(conditional_parts) > 1 else __resolve_op(None)
                     where.append(f" {'not ' if condition.negated else ''}{alias}.{col}{cast} {op} %s{cast} ")
                     values.append(
-                        f"%{cond[1]}%"
+                        f"%{str(cond[1]).upper() if dj_op.startswth('i') else cond[1]}%"
                         if dj_op.endswith("contains")
-                        else f"%{cond[1]}"
+                        else f"%{str(cond[1]).upper() if dj_op.startswth('i') else cond[1]}"
                         if dj_op.endswith("startswith")
-                        else f"{cond[1]}%"
+                        else f"{str(cond[1]).upper() if dj_op.startswth('i') else cond[1]}%"
                         if dj_op.endswith("endswith")
                         else cond[1]
                     )
