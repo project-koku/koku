@@ -94,7 +94,7 @@ class SourcesSerializer(serializers.ModelSerializer):
         self._validate_billing_source(instance.source_type, billing_source)
         instance.billing_source = billing_source
         update_fields = []
-        if instance.koku_uuid:
+        if instance.source_uuid:
             instance.pending_update = True
             update_fields = ["billing_source", "pending_update"]
         return instance, update_fields
@@ -109,7 +109,7 @@ class SourcesSerializer(serializers.ModelSerializer):
         auth_dict["credentials"]["subscription_id"] = subscription_id
         instance.authentication = auth_dict
         update_fields = []
-        if instance.koku_uuid:
+        if instance.source_uuid:
             instance.pending_update = True
             update_fields = ["authentication", "pending_update"]
         return instance, update_fields
@@ -137,12 +137,20 @@ class SourcesSerializer(serializers.ModelSerializer):
             obj = Provider.objects.get(uuid=uuid)
         except Provider.DoesNotExist:
             obj = source_mgr.create_provider(
-                instance.name, instance.source_type, instance.authentication, instance.billing_source, instance.uuid
+                instance.name,
+                instance.source_type,
+                instance.authentication,
+                instance.billing_source,
+                instance.source_uuid,
             )
             clear_update_flag(instance.source_id)
         else:
             obj = source_mgr.update_provider(
-                instance.uuid, instance.name, instance.source_type, instance.authentication, instance.billing_source
+                instance.source_uuid,
+                instance.name,
+                instance.source_type,
+                instance.authentication,
+                instance.billing_source,
             )
             add_provider_koku_uuid(instance.source_id, str(obj.uuid))
 
