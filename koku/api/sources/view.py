@@ -66,7 +66,7 @@ class SourcesProxyViewSet(SourcesViewSet):
         if request.method == "PUT":
             raise SourcesMethodException("PUT not supported")
 
-        source_id = kwargs.get("source_id")
+        source_id = kwargs.get("pk")
         url = f"{self.url}{source_id}/"
         try:
             r = requests.patch(url, json=request.data, headers=self.request.headers)
