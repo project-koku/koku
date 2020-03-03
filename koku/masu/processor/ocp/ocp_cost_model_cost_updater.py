@@ -169,7 +169,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             dictionary_data.append(line_item)
 
         file_obj = io.StringIO()
-        writer = csv.writer(file_obj, delimiter="\t", quoting=csv.QUOTE_NONE, quotechar="")
+        writer = csv.writer(file_obj, delimiter=",", quoting=csv.QUOTE_MINIMAL, quotechar="")
         writer.writerows(dictionary_data)
         file_obj.seek(0)
 

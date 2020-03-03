@@ -603,18 +603,6 @@ class AWSReportProcessorTest(MasuTestCase):
         self.assertNotIn(row["notATag"], actual)
         self.assertEqual(expected, actual)
 
-    def test_process_tags_escape_characters(self):
-        """Test that tags are properly escaped and packaged in a JSON string."""
-        row = {
-            "resourceTags/user:environment": '"prod"',
-            "resourceTags/System": "\\value\\",
-            "resourceTags/system:system_key": "system's_value",
-        }
-        expected = '{"environment": "\\\\\\"prod\\\\\\"", "system_key": "system\'s_value"}'
-        actual = self.processor._process_tags(row)
-
-        self.assertEqual(actual, expected)
-
     def test_get_cost_entry_time_interval(self):
         """Test that an interval string is properly split."""
         fmt = Config.AWS_DATETIME_STR_FORMAT

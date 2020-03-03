@@ -253,11 +253,7 @@ class AWSReportProcessor(ReportProcessorBase):
             if tag_prefix in key and row[key]:
                 key_value = key.split(":")
                 if len(key_value) > 1:
-                    # fmt: off
-                    tag_dict[key_value[-1]] = (
-                        value.replace("\\", "\\\\").replace('"', '\"').replace("'", "\'")
-                    )
-                    # fmt: on
+                    tag_dict[key_value[-1]] = value
         return json.dumps(tag_dict)
 
     # pylint: disable=no-self-use
