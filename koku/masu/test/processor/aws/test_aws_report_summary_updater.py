@@ -143,6 +143,8 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         expected_start_date = dates.pop(0)
         expected_calls = []
         for date in dates:
+            if expected_start_date > expected_end_date:
+                break
             expected_calls.append(call(expected_start_date.date(), date.date(), [str(bill.id)]))
             expected_start_date = date + datetime.timedelta(days=1)
 
@@ -200,6 +202,8 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         expected_start_date = dates.pop(0)
         expected_calls = []
         for date in dates:
+            if expected_start_date > expected_end_date:
+                break
             expected_calls.append(call(expected_start_date.date(), date.date(), [str(bill.id)]))
             expected_start_date = date + datetime.timedelta(days=1)
 
@@ -281,12 +285,13 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         expected_start_date = dates.pop(0)
         expected_calls = []
         for date in dates:
+            if expected_start_date > expected_end_date:
+                break
             expected_calls.append(call(expected_start_date.date(), date.date(), [str(bill.id)]))
             expected_start_date = date + datetime.timedelta(days=1)
 
         self.assertIsNone(bill.summary_data_creation_datetime)
         self.assertIsNone(bill.summary_data_updated_datetime)
-
         self.updater.update_daily_tables(start_date_str, end_date_str)
         self.assertEqual(mock_daily.call_args_list, expected_calls)
         mock_summary.assert_not_called()

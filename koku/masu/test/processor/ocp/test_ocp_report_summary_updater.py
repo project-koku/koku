@@ -176,6 +176,8 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         dates.pop(0)
         expected_calls = []
         for date in dates:
+            if expected_start_date > expected_end_date:
+                break
             expected_calls.append(call(expected_start_date.date(), date.date(), self.report_period.cluster_id))
             expected_start_date = date + datetime.timedelta(days=1)
 
@@ -251,6 +253,8 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         expected_start_date = dates.pop(0)
         expected_calls = []
         for date in dates:
+            if expected_start_date > expected_end_date:
+                break
             expected_calls.append(call(expected_start_date.date(), date.date(), self.report_period.cluster_id))
             expected_start_date = date + datetime.timedelta(days=1)
 

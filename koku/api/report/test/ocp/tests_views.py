@@ -961,15 +961,14 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_costs_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        url = "?filter[type]=pod"
+        url = "?filter[type]=pod&filter[time_scope_value]=-1"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
-
         with tenant_context(self.tenant):
             labels = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start.date())
                 .filter(pod_labels__has_key=filter_key)
                 .values("pod_labels")
                 .all()
@@ -978,7 +977,7 @@ class OCPReportViewTest(IamTestCase):
             filter_value = label_of_interest.get("pod_labels", {}).get(filter_key)
 
             totals = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start.date())
                 .filter(**{f"pod_labels__{filter_key}": filter_value})
                 .aggregate(
                     cost=Sum(
@@ -1501,7 +1500,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_and_tag_group_by(self):
         """Test the group_by[and:tag:] param in the view."""
-        url = "?filter[type]=pod"
+        url = "?filter[type]=pod&filter[time_scope_value]=-1"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
@@ -1509,7 +1508,7 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             labels = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start.date())
                 .filter(pod_labels__has_key=group_by_key)
                 .values(*["pod_labels"])
                 .all()
