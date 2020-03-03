@@ -27,6 +27,8 @@ from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
 from sources.api import get_account_from_header
 from sources.api import get_auth_header
 from sources.kafka_source_manager import KafkaSourceManager
+from sources.storage import add_provider_koku_uuid
+from sources.storage import clear_update_flag
 from sources.storage import SourcesStorageError
 
 
@@ -85,40 +87,61 @@ class SourcesSerializer(serializers.ModelSerializer):
 
     def _update_billing_source(self, instance, billing_source):
         if instance.source_type not in (Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE):
-            raise SourcesStorageError(f"Option not supported by " f"source type {instance.source_type}.")
+            raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
         self._validate_billing_source(instance.source_type, billing_source)
         instance.billing_source = billing_source
+        update_fields = []
         if instance.koku_uuid:
             instance.pending_update = True
-            instance.save(update_fields=["billing_source", "pending_update"])
-        else:
-            instance.save()
+            update_fields = ["billing_source", "pending_update"]
+        return instance, update_fields
 
     def _update_authentication(self, instance, authentication):
         if instance.source_type not in (Provider.PROVIDER_AZURE,):
-            raise SourcesStorageError(f"Option not supported by " f"source type {instance.source_type}.")
+            raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
         auth_dict = instance.authentication
         if not auth_dict.get("credentials"):
             auth_dict["credentials"] = {"subscription_id": None}
         subscription_id = authentication.get("credentials", {}).get("subscription_id")
         auth_dict["credentials"]["subscription_id"] = subscription_id
         instance.authentication = auth_dict
+        update_fields = []
         if instance.koku_uuid:
             instance.pending_update = True
-            instance.save(update_fields=["authentication", "pending_update"])
-        else:
-            instance.save()
+            update_fields = ["authentication", "pending_update"]
+        return instance, update_fields
 
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
+        uuid = instance.source_uuid
         billing_source = validated_data.get("billing_source")
         authentication = validated_data.get("authentication")
 
+        billing_fields = []
         if billing_source:
-            self._update_billing_source(instance, billing_source)
+            instance, billing_fields = self._update_billing_source(instance, billing_source)
 
+        auth_fields = []
         if authentication:
-            self._update_authentication(instance, authentication)
+            instance, auth_fields = self._update_authentication(instance, authentication)
+
+        update_fields = billing_fields + auth_fields
+        instance.save(update_fields=update_fields)
+
+        source_mgr = KafkaSourceManager(instance.auth_header)
+
+        try:
+            obj = Provider.objects.get(uuid=uuid)
+        except Provider.DoesNotExist:
+            obj = source_mgr.create_provider(
+                instance.name, instance.source_type, instance.authentication, instance.billing_source, instance.uuid
+            )
+            clear_update_flag(instance.source_id)
+        else:
+            obj = source_mgr.update_provider(
+                instance.uuid, instance.name, instance.source_type, instance.authentication, instance.billing_source
+            )
+            add_provider_koku_uuid(instance.source_id, str(obj.uuid))
 
         return instance
 
