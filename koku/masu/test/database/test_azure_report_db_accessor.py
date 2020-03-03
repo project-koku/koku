@@ -218,7 +218,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             end_date = li_entry["usage_date__max"]
 
         start_date = start_date.date() if isinstance(start_date, datetime.datetime) else start_date
-        end_date = end_date.date() if isinstance(end_date, datetime) else end_date
+        end_date = end_date.date() if isinstance(end_date, datetime.datetime) else end_date
 
         query = self.accessor._get_db_obj_query(summary_table_name)
         with schema_context(self.schema):
@@ -293,7 +293,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             end_date = li_entry["usage_date__max"]
 
         start_date = start_date.date() if isinstance(start_date, datetime.datetime) else start_date
-        end_date = end_date.date() if isinstance(end_date, datetime) else end_date
+        end_date = end_date.date() if isinstance(end_date, datetime.datetime) else end_date
 
         query = self.accessor._get_db_obj_query(summary_table_name)
 
@@ -331,7 +331,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             end_date = li_entry["usage_date__max"]
 
         start_date = start_date.date() if isinstance(start_date, datetime.datetime) else start_date
-        end_date = end_date.date() if isinstance(end_date, datetime) else end_date
+        end_date = end_date.date() if isinstance(end_date, datetime.datetime) else end_date
 
         query = self.accessor._get_db_obj_query(summary_table_name)
 
