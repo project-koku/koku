@@ -56,7 +56,7 @@ ROUTER = DefaultRouter()
 ROUTER.register(r"dataexportrequests", DataExportRequestViewSet, basename="dataexportrequests")
 ROUTER.register(r"metrics", CostModelMetricsMapViewSet, basename="metrics")
 ROUTER.register(r"providers", ProviderViewSet)
-ROUTER.register(r"sources", SourcesProxyViewSet, basename="sources")
+ROUTER.register(r"sources", SourcesProxyViewSet, basename="sources-proxy")
 ROUTER.register(r"cloud-accounts", CloudAccountViewSet, basename="cloud_accounts")
 # pylint: disable=invalid-name
 urlpatterns = [
