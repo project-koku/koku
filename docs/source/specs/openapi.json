@@ -10,48 +10,40 @@
         }
     },
     "tags": [{
-            "name": "Provider",
-            "description": "Operations about provider interaction"
+            "name": "AWS Reports",
+            "description": "Operations about AWS report interactions"
+        },
+        {
+            "name": "Azure Reports",
+            "description": "Operations about Azure report interactions"
+        },
+        {
+            "name": "OpenShift Reports",
+            "description": "Operations about OpenShift report interactions"
+        },
+        {
+            "name": "Providers",
+            "description": "Operations about provider interactions"
         },
         {
             "name": "Sources",
             "description": "Operations about platform sources interactions"
         },
         {
-            "name": "Cost Model",
-            "description": "Operations about cost model interaction"
+            "name": "Cost Models",
+            "description": "Operations about cost model interactions"
         },
         {
-            "name": "AWS Report",
-            "description": "Operations about AWS report interaction"
-        },
-        {
-            "name": "Azure Report",
-            "description": "Operations about Azure report interaction"
-        },
-        {
-            "name": "OpenShift Report",
-            "description": "Operations about OpenShift report interaction"
+            "name": "Metrics",
+            "description": "Operations about cost model metrics"
         },
         {
             "name": "Tags",
-            "description": "Operations about tags interaction"
+            "description": "Operations about tag interactions"
         },
         {
             "name": "Status",
             "description": "Operations about status"
-        },
-        {
-            "name": "Cloud Accounts",
-            "description": "Operations about Cost Management cloud accounts"
-        },
-        {
-            "name": "Data Export Request",
-            "description": "Operations about data export requests"
-        },
-        {
-            "name": "Metrics",
-            "description": "Operations about cost model metrics."
         }
     ],
     "paths": {
@@ -86,44 +78,10 @@
                 }
             }
         },
-        "/cloud-accounts/": {
-            "get": {
-                "tags": [
-                    "Cloud Accounts"
-                ],
-                "summary": "Obtain defined cloud accounts",
-                "operationId": "getCloudAccounts",
-                "security": [{
-                    "basic_auth": []
-                }],
-                "responses": {
-                    "200": {
-                        "description": "An object describing the cloud accounts",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/CloudAccountPagination"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Unexpected Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/costmodels/": {
             "get": {
                 "tags": [
-                    "Cost Model"
+                    "Cost Models"
                 ],
                 "summary": "List the cost models",
                 "operationId": "listCostModels",
@@ -216,7 +174,7 @@
             },
             "post": {
                 "tags": [
-                    "Cost Model"
+                    "Cost Models"
                 ],
                 "summary": "Create a new cost model.",
                 "operationId": "createCostModel",
@@ -263,7 +221,7 @@
         "/costmodels/{cost_model_uuid}/": {
             "get": {
                 "tags": [
-                    "Cost Model"
+                    "Cost Models"
                 ],
                 "summary": "Get a Cost Model.",
                 "operationId": "getCostModel",
@@ -318,7 +276,7 @@
             },
             "put": {
                 "tags": [
-                    "Cost Model"
+                    "Cost Models"
                 ],
                 "summary": "Update a Cost Model",
                 "operationId": "updateCostModel",
@@ -384,7 +342,7 @@
             },
             "delete": {
                 "tags": [
-                    "Cost Model"
+                    "Cost Models"
                 ],
                 "summary": "Delete a Cost Model",
                 "operationId": "deleteCostModel",
@@ -465,7 +423,7 @@
         "/providers/": {
             "post": {
                 "tags": [
-                    "Provider"
+                    "Providers"
                 ],
                 "summary": "Create a provider",
                 "operationId": "createProvider",
@@ -511,7 +469,7 @@
             },
             "get": {
                 "tags": [
-                    "Provider"
+                    "Providers"
                 ],
                 "summary": "List the providers",
                 "operationId": "listProviders",
@@ -586,7 +544,7 @@
         "/providers/{uuid}/": {
             "get": {
                 "tags": [
-                    "Provider"
+                    "Providers"
                 ],
                 "summary": "Get a provider",
                 "operationId": "getProvider",
@@ -655,7 +613,7 @@
             },
             "put": {
                 "tags": [
-                    "Provider"
+                    "Providers"
                 ],
                 "summary": "Update a provider",
                 "operationId": "updateProvider",
@@ -720,7 +678,7 @@
             },
             "delete": {
                 "tags": [
-                    "Provider"
+                    "Providers"
                 ],
                 "summary": "Delete a provider",
                 "operationId": "deleteProvider",
@@ -780,7 +738,7 @@
         "/reports/aws/costs/": {
             "get": {
                 "tags": [
-                    "AWS Report"
+                    "AWS Reports"
                 ],
                 "summary": "Query to obtain cost reports",
                 "operationId": "getAWSCostReports",
@@ -846,7 +804,7 @@
         "/reports/azure/costs/": {
             "get": {
                 "tags": [
-                    "Azure Report"
+                    "Azure Reports"
                 ],
                 "summary": "Query to obtain cost reports",
                 "operationId": "getAzureCostReports",
@@ -912,7 +870,7 @@
         "/reports/openshift/costs/": {
             "get": {
                 "tags": [
-                    "OpenShift Report"
+                    "OpenShift Reports"
                 ],
                 "summary": "Query to obtain cost reports",
                 "operationId": "getOpenShiftCostReports",
@@ -978,7 +936,7 @@
         "/reports/aws/instance-types/": {
             "get": {
                 "tags": [
-                    "AWS Report"
+                    "AWS Reports"
                 ],
                 "summary": "Query to obtain AWS instance type data",
                 "operationId": "getAWSInstanceReports",
@@ -1047,7 +1005,7 @@
         "/reports/azure/instance-types/": {
             "get": {
                 "tags": [
-                    "Azure Report"
+                    "Azure Reports"
                 ],
                 "summary": "Query to obtain Azure instance type data",
                 "operationId": "getAzureInstanceReports",
@@ -1113,7 +1071,7 @@
         "/reports/aws/storage/": {
             "get": {
                 "tags": [
-                    "AWS Report"
+                    "AWS Reports"
                 ],
                 "summary": "Query to obtain AWS storage data",
                 "operationId": "getAWSStorageReports",
@@ -1179,7 +1137,7 @@
         "/reports/azure/storage/": {
             "get": {
                 "tags": [
-                    "Azure Report"
+                    "Azure Reports"
                 ],
                 "summary": "Query to obtain AWS storage data",
                 "operationId": "getAzureStorageReports",
@@ -1245,7 +1203,7 @@
         "/reports/openshift/compute/": {
             "get": {
                 "tags": [
-                    "OpenShift Report"
+                    "OpenShift Reports"
                 ],
                 "summary": "Query to obtain OpenShift compute usage information",
                 "operationId": "getOpenShiftComputeReports",
@@ -1308,7 +1266,7 @@
         "/reports/openshift/memory/": {
             "get": {
                 "tags": [
-                    "OpenShift Report"
+                    "OpenShift Reports"
                 ],
                 "summary": "Query to obtain OpenShift memory usage information",
                 "operationId": "getOpenShiftMemoryReports",
@@ -1371,7 +1329,7 @@
         "/reports/openshift/volumes/": {
             "get": {
                 "tags": [
-                    "OpenShift Report"
+                    "OpenShift Reports"
                 ],
                 "summary": "Query to obtain OpenShift volume usage information",
                 "operationId": "getOpenShiftVolumeReports",
@@ -1434,7 +1392,7 @@
         "/reports/openshift/infrastructures/aws/costs/": {
             "get": {
                 "tags": [
-                    "OpenShift Report"
+                    "OpenShift Reports"
                 ],
                 "summary": "Query to obtain OpenShift on AWS cost reports",
                 "operationId": "getOpenShiftAWSCostReports",
@@ -1500,7 +1458,7 @@
         "/reports/openshift/infrastructures/aws/storage/": {
             "get": {
                 "tags": [
-                    "OpenShift Report"
+                    "OpenShift Reports"
                 ],
                 "summary": "Query to obtain OpenShift on AWS storage data",
                 "operationId": "getOpenShiftAWSInventoryStorageReport",
@@ -1566,7 +1524,7 @@
         "/reports/openshift/infrastructures/aws/instance-types/": {
             "get": {
                 "tags": [
-                    "OpenShift Report"
+                    "OpenShift Reports"
                 ],
                 "summary": "Query to obtain OpenShift on AWS instance data",
                 "operationId": "getOpenShiftAWSInventoryInstanceReport",
@@ -1632,7 +1590,7 @@
         "/reports/openshift/infrastructures/azure/costs/": {
             "get": {
                 "tags": [
-                    "OpenShift Report"
+                    "OpenShift Reports"
                 ],
                 "summary": "Query to obtain OpenShift on Azure cost reports",
                 "operationId": "getOpenShiftAzureCostReports",
@@ -1698,7 +1656,7 @@
         "/reports/openshift/infrastructures/azure/storage/": {
             "get": {
                 "tags": [
-                    "OpenShift Report"
+                    "OpenShift Reports"
                 ],
                 "summary": "Query to obtain OpenShift on Azure storage data",
                 "operationId": "getOpenShiftAzureInventoryStorageReport",
@@ -1764,7 +1722,7 @@
         "/reports/openshift/infrastructures/azure/instance-types/": {
             "get": {
                 "tags": [
-                    "OpenShift Report"
+                    "OpenShift Reports"
                 ],
                 "summary": "Query to obtain OpenShift on Azure instance data",
                 "operationId": "getOpenShiftAzureInventoryInstanceReport",
@@ -1968,6 +1926,73 @@
                                 }
                             }
                         }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/sources/{source_id}/stats": {
+            "get": {
+                "tags": [
+                    "Sources"
+                ],
+                "summary": "Get a source statistics",
+                "operationId": "getSourceStats",
+                "parameters": [{
+                    "name": "source_id",
+                    "in": "path",
+                    "description": "ID of source to get",
+                    "required": true,
+                    "schema": {
+                        "type": "integer",
+                        "format": "int64",
+                        "example": 1
+                    }
+                }],
+                "responses": {
+                    "200": {
+                        "description": "A Source Statistics object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "description": "Dictionary key is the start of a billing month.  Value is report processing statistics.",
+                                    "example": {
+                                        "2019-01-01": [{
+                                            "assembly_id": "f0d262ff-cc93-449c-a834-74c4d958d45f",
+                                            "billing_period_start": "2019-01-01T00:00:00.000Z",
+                                            "files_processed": "1/1",
+                                            "last_process_start_date": "2019-01-07T21:50:58.000Z",
+                                            "last_process_complete_date": "2019-01-07T21:51:01.000Z",
+                                            "summary_data_creation_datetime": "2019-01-07T21:51:32.000Z",
+                                            "summary_data_updated_datetime": "2019-01-07T21:51:32.000Z"
+                                        }]
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
                     },
                     "404": {
                         "description": "Not Found",
@@ -2225,154 +2250,6 @@
                     },
                     "401": {
                         "description": "Unauthorized"
-                    },
-                    "500": {
-                        "description": "Unexpected Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [{
-                    "basic_auth": []
-                }]
-            }
-        },
-        "/dataexportrequests/": {
-            "get": {
-                "tags": [
-                    "Data Export Request"
-                ],
-                "summary": "List the data export requests",
-                "operationId": "ListDataExportRequests",
-                "parameters": [{
-                        "$ref": "#/components/parameters/QueryOffset"
-                    },
-                    {
-                        "$ref": "#/components/parameters/QueryLimit"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/DataExportRequestPagination"
-                                }
-                            }
-                        },
-                        "description": "List of DataExportRequest objects"
-                    },
-                    "401": {
-                        "description": "Unauthorized"
-                    },
-                    "500": {
-                        "description": "Unexpected Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [{
-                    "basic_auth": []
-                }]
-            },
-            "post": {
-                "tags": [
-                    "Data Export Request"
-                ],
-                "summary": "Create a data export request",
-                "operationId": "createDataExportRequest",
-                "parameters": [],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/DataExportRequest"
-                            }
-                        }
-                    },
-                    "description": "Data export request to create",
-                    "required": true
-                },
-                "responses": {
-                    "201": {
-                        "description": "An object describing the data export request",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/DataExportRequestOut"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized"
-                    },
-                    "500": {
-                        "description": "Unexpected Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [{
-                    "basic_auth": []
-                }]
-            }
-        },
-        "/dataexportrequests/{uuid}/": {
-            "get": {
-                "tags": [
-                    "Data Export Request"
-                ],
-                "summary": "Get a data export request",
-                "operationId": "retrieveDataExportRequest",
-                "parameters": [{
-                    "name": "uuid",
-                    "in": "path",
-                    "required": true,
-                    "description": "ID of data export request to get",
-                    "schema": {
-                        "type": "string",
-                        "format": "uuid"
-                    }
-                }],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/DataExportRequestOut"
-                                }
-                            }
-                        },
-                        "description": "A DataExportRequest object"
-                    },
-                    "401": {
-                        "description": "Unauthorized"
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
                     },
                     "500": {
                         "description": "Unexpected Error",
@@ -3019,11 +2896,11 @@
             },
             "Source": {
                 "required": [
-                    "source_id",
+                    "id",
                     "source_type"
                 ],
                 "properties": {
-                    "source_id": {
+                    "id": {
                         "type": "integer",
                         "example": "Platform source identifier"
                     },
@@ -3069,13 +2946,18 @@
                     {
                         "type": "object",
                         "required": [
-                            "source_id"
+                            "id"
                         ],
                         "properties": {
-                            "source_id": {
+                            "id": {
                                 "type": "integer",
                                 "format": "int64",
                                 "example": 1
+                            },
+                            "uuid": {
+                                "type": "string",
+                                "format": "uuid",
+                                "example": "57e60f90-8c0c-4bd1-87a0-2143759aae1d"
                             },
                             "name": {
                                 "type": "string",
@@ -3099,15 +2981,28 @@
                                     "bucket": "test-bucket"
                                 }
                             },
-                            "koku_uuid": {
+                            "infrastructure": {
                                 "type": "string",
-                                "format": "uuid",
-                                "example": "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
+                                "description": "OpenShift foundational infrastructure type.",
+                                "example": "AWS"
                             },
-                            "source_uuid": {
-                                "type": "string",
-                                "format": "uuid",
-                                "example": "57e60f90-8c0c-4bd1-87a0-2143759aae1d"
+                            "cost_models": {
+                                "type": "array",
+                                "description": "List of cost model name and UUIDs associated with this provider.",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "uuid": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "example": "D823A725-DC10-496A-AF08-12533E4F8FE4"
+                                        },
+                                        "name": {
+                                            "type": "string",
+                                            "example": "My Great Cost Model"
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -3166,6 +3061,13 @@
                                     "type": "string",
                                     "enum": [
                                         "USD"
+                                    ]
+                                },
+                                "cost_type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "Infrastructure",
+                                        "Supplementary"
                                     ]
                                 }
                             }
@@ -5089,125 +4991,6 @@
                                 "type": "string",
                                 "format": "uuid",
                                 "example": "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
-                            }
-                        }
-                    }
-                ]
-            },
-            "DataExportRequest": {
-                "required": [
-                    "start_date",
-                    "end_date",
-                    "bucket_name"
-                ],
-                "properties": {
-                    "start_date": {
-                        "type": "string",
-                        "format": "date"
-                    },
-                    "end_date": {
-                        "type": "string",
-                        "format": "date"
-                    },
-                    "bucket_name": {
-                        "type": "string"
-                    }
-                }
-            },
-            "DataExportRequestOut": {
-                "allOf": [{
-                        "$ref": "#/components/schemas/DataExportRequest"
-                    },
-                    {
-                        "type": "object",
-                        "required": [
-                            "uuid",
-                            "user"
-                        ],
-                        "properties": {
-                            "uuid": {
-                                "type": "string",
-                                "format": "uuid"
-                            },
-                            "created_timestamp": {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            "updated_timestamp": {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            "status": {
-                                "type": "string",
-                                "enum": [
-                                    "pending",
-                                    "complete"
-                                ]
-                            },
-                            "bucket_name": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                ]
-            },
-            "DataExportRequestPagination": {
-                "allOf": [{
-                        "$ref": "#/components/schemas/ListPagination"
-                    },
-                    {
-                        "type": "object",
-                        "required": [
-                            "data"
-                        ],
-                        "properties": {
-                            "data": {
-                                "type": "array",
-                                "items": {
-                                    "$ref": "#/components/schemas/DataExportRequestOut"
-                                }
-                            }
-                        }
-                    }
-                ]
-            },
-            "CloudAccountOut": {
-                "type": "object",
-                "required": [
-                    "name",
-                    "value"
-                ],
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "value": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "updated_timestamp": {
-                        "type": "string",
-                        "format": "date-time"
-                    }
-                }
-            },
-            "CloudAccountPagination": {
-                "allOf": [{
-                        "$ref": "#/components/schemas/ListPagination"
-                    },
-                    {
-                        "type": "object",
-                        "required": [
-                            "data"
-                        ],
-                        "properties": {
-                            "data": {
-                                "type": "array",
-                                "items": {
-                                    "$ref": "#/components/schemas/CloudAccountOut"
-                                }
                             }
                         }
                     }

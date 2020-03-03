@@ -48,26 +48,29 @@ def validate_field(data, valid_fields, key):
 class SourcesSerializer(serializers.ModelSerializer):
     """Serializer for the Sources model."""
 
-    source_id = serializers.IntegerField(required=False, read_only=True)
+    id = serializers.SerializerMethodField("get_source_id", read_only=True)
     name = serializers.CharField(max_length=256, required=False, allow_null=False, allow_blank=False, read_only=True)
     authentication = serializers.JSONField(required=False)
     billing_source = serializers.JSONField(required=False)
     source_type = serializers.CharField(
         max_length=50, required=False, allow_null=False, allow_blank=False, read_only=True
     )
-    koku_uuid = serializers.CharField(
-        max_length=512, required=False, allow_null=False, allow_blank=False, read_only=True
-    )
-    source_uuid = serializers.CharField(
-        max_length=512, required=False, allow_null=False, allow_blank=False, read_only=True
-    )
+    uuid = serializers.SerializerMethodField("get_source_uuid", read_only=True)
 
     # pylint: disable=too-few-public-methods
     class Meta:
         """Metadata for the serializer."""
 
         model = Sources
-        fields = ("source_id", "name", "source_type", "authentication", "billing_source", "koku_uuid", "source_uuid")
+        fields = ("id", "uuid", "name", "source_type", "authentication", "billing_source")
+
+    def get_source_id(self, obj):
+        """Get the source_id."""
+        return obj.source_id
+
+    def get_source_uuid(self, obj):
+        """Get the source_uuid."""
+        return obj.source_uuid
 
     def _validate_billing_source(self, provider_type, billing_source):
         """Validate billing source parameters."""
@@ -157,7 +160,7 @@ class AdminSourcesSerializer(SourcesSerializer):
         return get_account_from_header(self.context.get("request"))
 
     def validate(self, data):
-        data["source_id"] = self._validate_source_id(data.get("source_id"))
+        data["source_id"] = self._validate_source_id(data.get("id"))
         data["offset"] = self._validate_offset(data.get("offset"))
         data["account_id"] = self._validate_account_id(data.get("account_id"))
         data["source_uuid"] = uuid4()
@@ -173,7 +176,7 @@ class AdminSourcesSerializer(SourcesSerializer):
             validated_data.get("source_type"),
             validated_data.get("authentication"),
             validated_data.get("billing_source"),
-            validated_data.get("source_uuid"),
+            validated_data.get("uuid"),
         )
         validated_data["koku_uuid"] = provider.uuid
         source = Sources.objects.create(**validated_data)
