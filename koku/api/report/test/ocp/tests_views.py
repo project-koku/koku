@@ -946,7 +946,7 @@ class OCPReportViewTest(IamTestCase):
 
         url = reverse("reports-openshift-cpu")
         client = APIClient()
-        params = {f"filter[tag:{filter_key}]": filter_value}
+        params = {f"filter[tag:{filter_key}]": filter_value, "filter[time_scope_value]": -1}
 
         url = url + "?" + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
@@ -992,7 +992,7 @@ class OCPReportViewTest(IamTestCase):
 
         url = reverse("reports-openshift-costs")
         client = APIClient()
-        params = {f"filter[tag:{filter_key}]": filter_value}
+        params = {f"filter[tag:{filter_key}]": filter_value, "filter[time_scope_value]": -1}
 
         url = url + "?" + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
@@ -1521,7 +1521,7 @@ class OCPReportViewTest(IamTestCase):
         self.data_generator.add_data_to_tenant()
         params = {
             "filter[resolution]": "daily",
-            "filter[time_scope_value]": "-10",
+            "filter[time_scope_value]": "-1",
             "filter[time_scope_units]": "day",
             f"group_by[and:tag:{group_by_key}]": group_by_value,
         }
