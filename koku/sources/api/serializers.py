@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Sources Model Serializers."""
+import logging
 from uuid import uuid4
 
 from django.db import transaction
@@ -30,6 +31,8 @@ from sources.kafka_source_manager import KafkaSourceManager
 from sources.storage import add_provider_koku_uuid
 from sources.storage import clear_update_flag
 from sources.storage import SourcesStorageError
+
+LOG = logging.getLogger(__name__)
 
 
 def error_obj(key, message):
@@ -144,6 +147,7 @@ class SourcesSerializer(serializers.ModelSerializer):
                 instance.source_uuid,
             )
             clear_update_flag(instance.source_id)
+            LOG.info(f"Provider created: {obj.uuid}")
         else:
             obj = source_mgr.update_provider(
                 instance.source_uuid,
@@ -153,6 +157,7 @@ class SourcesSerializer(serializers.ModelSerializer):
                 instance.billing_source,
             )
             add_provider_koku_uuid(instance.source_id, str(obj.uuid))
+            LOG.info(f"Provider updated: {obj.uuid}")
 
         return instance
 
