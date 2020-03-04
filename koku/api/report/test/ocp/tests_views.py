@@ -946,7 +946,7 @@ class OCPReportViewTest(IamTestCase):
 
         url = reverse("reports-openshift-cpu")
         client = APIClient()
-        params = {f"filter[tag:{filter_key}]": filter_value, "filter[time_scope_value]": -1}
+        params = {f"filter[tag:{filter_key}]": filter_value, "filter[time_scope_value]": -10}
 
         url = url + "?" + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
@@ -961,23 +961,23 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_costs_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        url = "?filter[type]=pod&filter[time_scope_value]=-1"
+        url = "?filter[type]=pod&filter[time_scope_value]=-10"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
         with tenant_context(self.tenant):
             labels = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start.date())
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .filter(pod_labels__has_key=filter_key)
-                .values("pod_labels")
+                .values(*["pod_labels"])
                 .all()
             )
             label_of_interest = labels[0]
             filter_value = label_of_interest.get("pod_labels", {}).get(filter_key)
 
             totals = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start.date())
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .filter(**{f"pod_labels__{filter_key}": filter_value})
                 .aggregate(
                     cost=Sum(
@@ -992,7 +992,7 @@ class OCPReportViewTest(IamTestCase):
 
         url = reverse("reports-openshift-costs")
         client = APIClient()
-        params = {f"filter[tag:{filter_key}]": filter_value, "filter[time_scope_value]": -1}
+        params = {f"filter[tag:{filter_key}]": filter_value, "filter[time_scope_value]": -10}
 
         url = url + "?" + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
@@ -1469,7 +1469,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_and_tag_filter(self):
         """Test the filter[and:tag:] param in the view."""
-        url = "?filter[type]=pod"
+        url = "?filter[type]=pod&filter[time_scope_value]=-1"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
@@ -1477,7 +1477,9 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             labels = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
+                OCPUsageLineItemDailySummary.objects.filter(
+                    report_period__report_period_start__gte=self.dh.this_month_start.date()
+                )
                 .filter(pod_labels__has_key=filter_key)
                 .values(*["pod_labels"])
                 .all()
@@ -1489,9 +1491,9 @@ class OCPReportViewTest(IamTestCase):
         client = APIClient()
 
         params = {
-            "filter[resolution]": "daily",
-            "filter[time_scope_value]": "-10",
-            "filter[time_scope_units]": "day",
+            "filter[resolution]": "monthly",
+            "filter[time_scope_value]": "-1",
+            "filter[time_scope_units]": "month",
             f"filter[and:tag:{filter_key}]": filter_value,
         }
         url = url + "?" + urlencode(params, quote_via=quote_plus)
@@ -1508,7 +1510,9 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             labels = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start.date())
+                OCPUsageLineItemDailySummary.objects.filter(
+                    report_period__report_period_start__gte=self.dh.this_month_start.date()
+                )
                 .filter(pod_labels__has_key=group_by_key)
                 .values(*["pod_labels"])
                 .all()
@@ -1520,9 +1524,9 @@ class OCPReportViewTest(IamTestCase):
         client = APIClient()
         self.data_generator.add_data_to_tenant()
         params = {
-            "filter[resolution]": "daily",
+            "filter[resolution]": "monthly",
             "filter[time_scope_value]": "-1",
-            "filter[time_scope_units]": "day",
+            "filter[time_scope_units]": "month",
             f"group_by[and:tag:{group_by_key}]": group_by_value,
         }
         url = url + "?" + urlencode(params, quote_via=quote_plus)
