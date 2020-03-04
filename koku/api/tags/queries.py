@@ -257,14 +257,24 @@ class TagQueryHandler(QueryHandler):
             ]
         """
         type_filter = self.parameters.get_filter("type")
+        type_filter_array = []
 
         # Sort the data_sources so that those with a "type" go first
         sources = sorted(self.data_sources, key=lambda dikt: dikt.get("type", ""), reverse=True)
+
+        if type_filter and type_filter == "*":
+            for source in sources:
+                source_type = source.get("type")
+                if source_type:
+                    type_filter_array.append(source_type)
+        elif type_filter:
+            type_filter_array.append(type_filter)
+
         final_data = []
         with tenant_context(self.tenant):
             tag_keys = {}
             for source in sources:
-                if type_filter and type_filter != source.get("type"):
+                if type_filter and source.get("type") not in type_filter_array:
                     continue
                 exclusion = self._get_exclusions("key")
 
@@ -278,7 +288,7 @@ class TagQueryHandler(QueryHandler):
 
                 converted = self._convert_to_dict(tag_keys)
 
-                if source.get("type"):
+                if type_filter and source.get("type"):
                     self.append_to_final_data_with_type(final_data, converted, source)
                 else:
                     self.append_to_final_data_without_type(final_data, converted)
