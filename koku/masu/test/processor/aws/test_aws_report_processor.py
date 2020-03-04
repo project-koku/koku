@@ -569,9 +569,7 @@ class AWSReportProcessorTest(MasuTestCase):
 
         reader = csv.reader(file_obj)
         new_row = next(reader)
-        new_row = new_row[0].split("\t")
         actual = {}
-
         for i, key in enumerate(line_item_data.keys()):
             actual[key] = new_row[i] if new_row[i] else None
 
