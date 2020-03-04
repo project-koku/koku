@@ -744,8 +744,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
             result_start_date = summary_entry["usage_start__min"]
             result_end_date = summary_entry["usage_start__max"]
 
-            self.assertEqual(result_start_date, start_date)
-            self.assertEqual(result_end_date, end_date)
+            self.assertEqual(result_start_date, start_date.date())
+            self.assertEqual(result_end_date, end_date.date())
 
             entry = query.order_by("-id")
 

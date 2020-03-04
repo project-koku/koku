@@ -720,8 +720,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             result_start_date = summary_entry["usage_start__min"]
             result_end_date = summary_entry["usage_end__max"]
 
-        self.assertEqual(result_start_date, expected_start_date)
-        self.assertEqual(result_end_date, expected_end_date)
+        self.assertEqual(result_start_date, expected_start_date.date())
+        self.assertEqual(result_end_date, expected_end_date.date())
 
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.refresh_materialized_views")
