@@ -14,13 +14,16 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+"""Kafka Source Manager."""
+import json
+from base64 import b64decode
+
 from django.db import connection
 
-"""Kafka Source Manager."""
-from base64 import b64decode
-import json
-
-from api.models import Provider, User, Customer, Tenant
+from api.models import Customer
+from api.models import Provider
+from api.models import Tenant
+from api.models import User
 from api.provider.provider_manager import ProviderManager
 from api.provider.serializers import ProviderSerializer
 from koku.middleware import IdentityHeaderMiddleware
@@ -82,8 +85,10 @@ class KafkaSourceManager:
         """Build authentication json data for provider type."""
         provider_map = {
             Provider.PROVIDER_AWS: self._authentication_for_aws,
+            Provider.PROVIDER_AWS_LOCAL: self._authentication_for_aws,
             Provider.PROVIDER_OCP: self._authentication_for_ocp,
             Provider.PROVIDER_AZURE: self._authentication_for_azure,
+            Provider.PROVIDER_AZURE_LOCAL: self._authentication_for_azure,
         }
         provider_fn = provider_map.get(provider_type)
         if provider_fn:
@@ -117,8 +122,10 @@ class KafkaSourceManager:
         """Build billing source json data for provider type."""
         provider_map = {
             Provider.PROVIDER_AWS: self._billing_source_for_aws,
+            Provider.PROVIDER_AWS_LOCAL: self._billing_source_for_aws,
             Provider.PROVIDER_OCP: self._billing_source_for_ocp,
             Provider.PROVIDER_AZURE: self._billing_source_for_azure,
+            Provider.PROVIDER_AZURE_LOCAL: self._billing_source_for_azure,
         }
         provider_fn = provider_map.get(provider_type)
         if provider_fn:

@@ -15,11 +15,18 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Sources Model Serializers."""
+from uuid import uuid4
+
+from django.db import transaction
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
 from api.provider.models import Provider
 from api.provider.models import Sources
+from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
+from sources.api import get_account_from_header
+from sources.api import get_auth_header
+from sources.kafka_source_manager import KafkaSourceManager
 from sources.storage import SourcesStorageError
 
 
@@ -41,26 +48,29 @@ def validate_field(data, valid_fields, key):
 class SourcesSerializer(serializers.ModelSerializer):
     """Serializer for the Sources model."""
 
-    source_id = serializers.IntegerField(required=False, read_only=True)
+    id = serializers.SerializerMethodField("get_source_id", read_only=True)
     name = serializers.CharField(max_length=256, required=False, allow_null=False, allow_blank=False, read_only=True)
     authentication = serializers.JSONField(required=False)
     billing_source = serializers.JSONField(required=False)
     source_type = serializers.CharField(
         max_length=50, required=False, allow_null=False, allow_blank=False, read_only=True
     )
-    koku_uuid = serializers.CharField(
-        max_length=512, required=False, allow_null=False, allow_blank=False, read_only=True
-    )
-    source_uuid = serializers.CharField(
-        max_length=512, required=False, allow_null=False, allow_blank=False, read_only=True
-    )
+    uuid = serializers.SerializerMethodField("get_source_uuid", read_only=True)
 
     # pylint: disable=too-few-public-methods
     class Meta:
         """Metadata for the serializer."""
 
         model = Sources
-        fields = ("source_id", "name", "source_type", "authentication", "billing_source", "koku_uuid", "source_uuid")
+        fields = ("id", "uuid", "name", "source_type", "authentication", "billing_source")
+
+    def get_source_id(self, obj):
+        """Get the source_id."""
+        return obj.source_id
+
+    def get_source_uuid(self, obj):
+        """Get the source_uuid."""
+        return obj.source_uuid
 
     def _validate_billing_source(self, provider_type, billing_source):
         """Validate billing source parameters."""
@@ -114,3 +124,60 @@ class SourcesSerializer(serializers.ModelSerializer):
             self._update_authentication(instance, authentication)
 
         return instance
+
+
+class AdminSourcesSerializer(SourcesSerializer):
+    """Source serializer specific to administration."""
+
+    name = serializers.CharField(max_length=256, required=False, allow_null=False, allow_blank=False)
+    source_type = serializers.CharField(max_length=50, required=False, allow_null=False, allow_blank=False)
+
+    def validate_source_type(self, source_type):
+        """Validate credentials field."""
+        if source_type.lower() in LCASE_PROVIDER_CHOICE_LIST:
+            return source_type
+        key = "source_type"
+        message = f"Invalid source_type, {source_type}, provided."
+        raise serializers.ValidationError(error_obj(key, message))
+
+    def _validate_source_id(self, source_id):
+        sources_set = Sources.objects.all()
+        if sources_set:
+            ordered_id = Sources.objects.all().order_by("-source_id").first().source_id
+            return ordered_id + 1
+        else:
+            return 1
+
+    def _validate_offset(self, offset):
+        sources_set = Sources.objects.all()
+        if sources_set:
+            ordered_offset = Sources.objects.all().order_by("-offset").first().offset
+            return ordered_offset + 1
+        else:
+            return 1
+
+    def _validate_account_id(self, account_id):
+        return get_account_from_header(self.context.get("request"))
+
+    def validate(self, data):
+        data["source_id"] = self._validate_source_id(data.get("id"))
+        data["offset"] = self._validate_offset(data.get("offset"))
+        data["account_id"] = self._validate_account_id(data.get("account_id"))
+        data["source_uuid"] = uuid4()
+        return data
+
+    @transaction.atomic
+    def create(self, validated_data):
+        """Create a source from validated data."""
+        auth_header = get_auth_header(self.context.get("request"))
+        manager = KafkaSourceManager(auth_header)
+        provider = manager.create_provider(
+            validated_data.get("name"),
+            validated_data.get("source_type"),
+            validated_data.get("authentication"),
+            validated_data.get("billing_source"),
+            validated_data.get("uuid"),
+        )
+        validated_data["koku_uuid"] = provider.uuid
+        source = Sources.objects.create(**validated_data)
+        return source

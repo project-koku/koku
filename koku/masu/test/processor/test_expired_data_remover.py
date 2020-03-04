@@ -136,3 +136,13 @@ class ExpiredDataRemoverTest(MasuTestCase):
         date = remover._calculate_expiration_date(line_items_only=True)
         remover.remove(line_items_only=True)
         mock_purge.assert_called_with(expired_date=date, simulate=False)
+
+    def test_remove_items_only_azure(self):
+        """Test that remove is called with provider_uuid items only."""
+        azure_types = [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]
+        for az_type in azure_types:
+            remover = ExpiredDataRemover(self.schema, az_type)
+            result_no_provider = remover.remove(line_items_only=True)
+            self.assertIsNone(result_no_provider)
+            result_with_provider = remover.remove(line_items_only=True, provider_uuid="1234")
+            self.assertIsNone(result_with_provider)
