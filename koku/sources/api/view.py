@@ -212,12 +212,13 @@ class SourcesViewSet(*MIXIN_LIST):
         account_id = get_account_from_header(request)
         schema_name = create_schema_name(account_id)
         source = self.get_object()
-        stats = None
+        stats = {}
         try:
             manager = ProviderManager(source.source_uuid)
         except ProviderManagerError:
-            pass
+            stats["provider_linked"] = False
         else:
+            stats["provider_linked"] = True
             tenant = Tenant.objects.get(schema_name=schema_name)
-            stats = manager.provider_statistics(tenant)
+            stats.update(manager.provider_statistics(tenant))
         return Response(stats)
