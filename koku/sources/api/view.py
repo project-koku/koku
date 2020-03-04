@@ -171,6 +171,8 @@ class SourcesViewSet(*MIXIN_LIST):
         response = super().list(request=request, args=args, kwargs=kwargs)
         _, tenant = self._get_account_and_tenant(request)
         for source in response.data["data"]:
+            source_obj = Sources.objects.get(source_uuid=source["uuid"])
+            source["provider_linked"] = source_obj.provider_linked
             try:
                 manager = ProviderManager(source["uuid"])
             except ProviderManagerError:
