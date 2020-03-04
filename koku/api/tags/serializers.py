@@ -79,7 +79,7 @@ class FilterSerializer(serializers.Serializer):
 class OCPFilterSerializer(FilterSerializer):
     """Serializer for handling tag query parameter filter."""
 
-    TYPE_CHOICES = (("pod", "pod"), ("storage", "storage"))
+    TYPE_CHOICES = (("pod", "pod"), ("storage", "storage"), ("*", "*"))
     type = serializers.ChoiceField(choices=TYPE_CHOICES, required=False)
 
     project = StringOrListField(child=serializers.CharField(), required=False)
