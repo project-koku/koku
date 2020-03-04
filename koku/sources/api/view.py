@@ -41,6 +41,7 @@ from api.iam.models import Tenant
 from api.iam.serializers import create_schema_name
 from api.provider.models import Sources
 from api.provider.provider_manager import ProviderManager
+from api.provider.provider_manager import ProviderManagerError
 from sources.api import get_account_from_header
 from sources.api import get_auth_header
 from sources.api.serializers import AdminSourcesSerializer
@@ -170,13 +171,17 @@ class SourcesViewSet(*MIXIN_LIST):
         response = super().list(request=request, args=args, kwargs=kwargs)
         _, tenant = self._get_account_and_tenant(request)
         for source in response.data["data"]:
-            manager = ProviderManager(source["uuid"])
-            source["infrastructure"] = manager.get_infrastructure_name()
-            connection.set_tenant(tenant)
-            source["cost_models"] = [
-                {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
-            ]
-            connection.set_schema_to_public()
+            try:
+                manager = ProviderManager(source["uuid"])
+            except ProviderManagerError:
+                pass
+            else:
+                source["infrastructure"] = manager.get_infrastructure_name()
+                connection.set_tenant(tenant)
+                source["cost_models"] = [
+                    {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
+                ]
+                connection.set_schema_to_public()
         connection.set_schema_to_public()
         return response
 
@@ -185,12 +190,16 @@ class SourcesViewSet(*MIXIN_LIST):
         """Get a source."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
         _, tenant = self._get_account_and_tenant(request)
-        manager = ProviderManager(response.data["uuid"])
-        response.data["infrastructure"] = manager.get_infrastructure_name()
-        connection.set_tenant(tenant)
-        response.data["cost_models"] = [
-            {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
-        ]
+        try:
+            manager = ProviderManager(response.data["uuid"])
+        except ProviderManagerError:
+            pass
+        else:
+            response.data["infrastructure"] = manager.get_infrastructure_name()
+            connection.set_tenant(tenant)
+            response.data["cost_models"] = [
+                {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
+            ]
         connection.set_schema_to_public()
         return response
 
