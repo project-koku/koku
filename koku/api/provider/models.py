@@ -209,9 +209,6 @@ class Sources(models.Model):
     # Unique identifier for koku Provider
     koku_uuid = models.CharField(max_length=512, null=True, unique=True)
 
-    # Bool flag to indicate status of provider creation
-    provider_linked = models.BooleanField(default=False)
-
     # When source has been deleted on Platform-Sources this is True indicating it hasn't been
     # removed on the Koku side yet.  Entry is removed entirely once Koku-Provider was successfully
     # removed.

@@ -171,13 +171,12 @@ class SourcesViewSet(*MIXIN_LIST):
         response = super().list(request=request, args=args, kwargs=kwargs)
         _, tenant = self._get_account_and_tenant(request)
         for source in response.data["data"]:
-            source_obj = Sources.objects.get(source_uuid=source["uuid"])
-            source["provider_linked"] = source_obj.provider_linked
             try:
                 manager = ProviderManager(source["uuid"])
             except ProviderManagerError:
-                pass
+                source["provider_linked"] = False
             else:
+                source["provider_linked"] = True
                 source["infrastructure"] = manager.get_infrastructure_name()
                 connection.set_tenant(tenant)
                 source["cost_models"] = [
@@ -191,14 +190,13 @@ class SourcesViewSet(*MIXIN_LIST):
     def retrieve(self, request, *args, **kwargs):
         """Get a source."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
-        source = self.get_object()
-        response.data["provider_linked"] = source.provider_linked
         _, tenant = self._get_account_and_tenant(request)
         try:
             manager = ProviderManager(response.data["uuid"])
         except ProviderManagerError:
-            pass
+            response.data["provider_linked"] = False
         else:
+            response.data["provider_linked"] = True
             response.data["infrastructure"] = manager.get_infrastructure_name()
             connection.set_tenant(tenant)
             response.data["cost_models"] = [

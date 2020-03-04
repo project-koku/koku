@@ -402,7 +402,6 @@ def add_provider_koku_uuid(source_id, koku_uuid):
     source = get_source(source_id, f"Source ID {source_id} does not exist.")
     if source and source.koku_uuid != koku_uuid:
         source.koku_uuid = koku_uuid
-        source.provider_linked = True
         source.save()
 
 
