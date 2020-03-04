@@ -344,7 +344,8 @@ def clean_volume():
     deleted_files = []
     retain_files = []
 
-    now = datetime.now()
+    datehelper = DateHelper()
+    now = datehelper.now()
     expiration_date = now - timedelta(seconds=Config.VOLUME_FILE_RETENTION)
     for [root, _, filenames] in os.walk(Config.PVC_DIR):
         for file in filenames:
