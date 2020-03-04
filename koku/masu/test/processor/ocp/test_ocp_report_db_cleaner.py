@@ -50,6 +50,7 @@ class OCPReportDBCleanerTest(MasuTestCase):
         report = self.creator.create_ocp_report(reporting_period)
         self.creator.create_ocp_usage_line_item(reporting_period, report)
         self.creator.create_ocp_storage_line_item(reporting_period, report)
+        self.creator.create_ocp_node_label_line_item(reporting_period, report)
 
     def test_initializer(self):
         """Test initializer."""
@@ -360,13 +361,13 @@ class OCPReportDBCleanerTest(MasuTestCase):
         with schema_context(self.schema):
             # Verify that data is cleared for a cutoff date == billing_period_start
             first_period = self.accessor._get_db_obj_query(report_period_table_name).first()
-
+            cutoff_date = first_period.report_period_start
             self.assertIsNotNone(self.accessor._get_db_obj_query(report_period_table_name).first())
             self.assertIsNotNone(self.accessor._get_db_obj_query(report_table_name).first())
             self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
             self.assertIsNotNone(self.accessor._get_db_obj_query(storage_line_item_table_name).first())
 
-        removed_data = cleaner.purge_expired_line_item(provider_uuid=self.ocp_provider_uuid)
+        removed_data = cleaner.purge_expired_line_item(cutoff_date, provider_uuid=self.ocp_provider_uuid)
 
         self.assertEqual(len(removed_data), 1)
         self.assertEqual(removed_data[0].get("usage_period_id"), first_period.id)
@@ -378,15 +379,8 @@ class OCPReportDBCleanerTest(MasuTestCase):
             self.assertIsNotNone(self.accessor._get_db_obj_query(report_table_name).first())
             self.assertIsNotNone(self.accessor._get_db_obj_query(storage_line_item_table_name).first())
 
-    def test_purge_expired_line_item_no_args(self):
-        """Test that the provider_uuid deletes all data for the provider."""
-        cleaner = OCPReportDBCleaner("acct10001")
+    def test_purge_expired_line_items_not_datetime_obj(self):
+        """Test error raised if expired_date is not datetime.datetime."""
+        cleaner = OCPReportDBCleaner(self.schema)
         with self.assertRaises(OCPReportDBCleanerError):
-            cleaner.purge_expired_line_item()
-
-    def test_purge_expired_line_item_both_args(self):
-        """Test that the provider_uuid deletes all data for the provider."""
-        now = datetime.datetime.utcnow()
-        cleaner = OCPReportDBCleaner("acct10001")
-        with self.assertRaises(OCPReportDBCleanerError):
-            cleaner.purge_expired_line_item(expired_date=now, provider_uuid=self.ocp_provider_uuid)
+            cleaner.purge_expired_line_item(False)

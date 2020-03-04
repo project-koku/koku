@@ -110,7 +110,7 @@ class ReportProcessorBase:
         values = [tuple(item.values()) for item in self.processed_report.line_items]
 
         file_obj = io.StringIO()
-        writer = csv.writer(file_obj, delimiter="\t", quoting=csv.QUOTE_NONE, quotechar="")
+        writer = csv.writer(file_obj, delimiter=",", quoting=csv.QUOTE_MINIMAL, quotechar='"')
         writer.writerows(values)
         file_obj.seek(0)
 

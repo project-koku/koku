@@ -27,7 +27,9 @@ from tenant_schemas.utils import tenant_context
 
 from api.models import Tenant
 from api.models import User
+from api.provider.models import Provider
 from api.report.queries import ReportQueryHandler
+from reporting.models import OCPAllCostLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
 
@@ -40,6 +42,16 @@ class QueryParameters:
     parameters for use by the QueryHandler objects.
 
     """
+
+    provider_resource_list = {
+        "aws": [(Provider.PROVIDER_AWS, "account", "aws.account")],
+        "azure": [(Provider.PROVIDER_AZURE, "subscription_guid", "azure.subscription_guid")],
+        "ocp": [
+            (Provider.PROVIDER_OCP, "cluster", "openshift.cluster", True),
+            (Provider.PROVIDER_OCP, "node", "openshift.node", False),
+            (Provider.PROVIDER_OCP, "project", "openshift.project", False),
+        ],
+    }
 
     def __init__(self, request, caller):
         """Constructor.
@@ -71,13 +83,8 @@ class QueryParameters:
             if item not in self.parameters:
                 self.parameters[item] = OrderedDict()
 
-        # configure access params.
         if self.access:
-            provider = caller.query_handler.provider.lower()
-            if not hasattr(self, f"_set_access_{provider}"):
-                msg = f'Invalid provider "{provider}".'
-                raise ValidationError({"details": _(msg)})
-            getattr(self, f"_set_access_{provider}")()
+            self._configure_access_params(caller)
 
         self._set_time_scope_defaults()
         LOG.debug("Query Parameters: %s", self)
@@ -121,7 +128,54 @@ class QueryParameters:
                 param_tag_keys.add(key)
         return param_tag_keys
 
-    def _set_access(self, filter_key, access_key, raise_exception=True):
+    def _configure_access_params(self, caller):
+        """Configure access for the appropriate providers."""
+        provider = caller.query_handler.provider.lower()
+        set_access_list = self._get_providers(provider)
+
+        restricted_access = False
+        if provider == "ocp_all":
+            restricted_access = self._check_restrictions(set_access_list)
+
+        for set_access in set_access_list:
+            if provider == "ocp_all" and restricted_access and set_access[0] != Provider.PROVIDER_OCP:
+                # for ocp_all, set filter_key to account for non-ocp providers
+                set_access = (set_access[0], "account", *set_access[2:])
+                self._set_access_ocp_all(*set_access)
+            else:
+                self._set_access(*set_access)
+
+    def _check_restrictions(self, set_access_list):
+        """Check if all non-ocp providers have wildcard access."""
+        all_wildcard = []
+        for set_access in set_access_list:
+            provider, __, access_key, *__ = set_access
+            if provider != Provider.PROVIDER_OCP:
+                access_list = self.access.get(access_key, {}).get("read", [])
+                all_wildcard.append(ReportQueryHandler.has_wildcard(access_list))
+        return False in all_wildcard
+
+    def _get_providers(self, provider):
+        """Get the providers.
+
+        Return the appropriate provider and provider resource type from self.provider_resource_list
+
+        """
+
+        access = []
+        provider_list = provider.split("_")
+        if "all" in provider_list:
+            for p, v in self.provider_resource_list.items():
+                access.extend(v)
+        else:
+            for p in provider_list:
+                if self.provider_resource_list.get(p) is None:
+                    msg = f'Invalid provider "{p}".'
+                    raise ValidationError({"details": _(msg)})
+                access.extend(self.provider_resource_list[p])
+        return access
+
+    def _set_access(self, provider, filter_key, access_key, raise_exception=True):
         """Alter query parameters based on user access."""
         access_list = self.access.get(access_key, {}).get("read", [])
         access_filter_applied = False
@@ -146,35 +200,33 @@ class QueryParameters:
             elif access_list:
                 self.parameters["filter"][filter_key] = access_list
 
-    def _set_access_aws(self):
+    def _set_access_ocp_all(self, provider, filter_key, access_key, raise_exception=True):
         """Alter query parameters based on user access."""
-        self._set_access("account", "aws.account")
+        access_list = self.access.get(access_key, {}).get("read", [])
+        access_filter_applied = False
+        if ReportQueryHandler.has_wildcard(access_list):
+            access_list = list(
+                OCPAllCostLineItemDailySummary.objects.filter(source_type=provider)
+                .values_list("usage_account_id", flat=True)
+                .distinct()
+            )
 
-    def _set_access_azure(self):
-        """Alter query parameters based on user access."""
-        self._set_access("subscription_guid", "azure.subscription_guid")
+        # check group by
+        group_by = self.parameters.get("group_by", {})
+        if group_by.get(filter_key):
+            items = set(group_by.get(filter_key))
+            items.update(access_list)
+            if set(group_by.get(filter_key)) != items:
+                self.parameters["group_by"][filter_key] = list(items)
+                access_filter_applied = True
 
-    def _set_access_ocp(self):
-        """Alter query parameters based on user access."""
-        params = [("cluster", True), ("node", False), ("project", False)]
-        for name, exc in params:
-            self._set_access(name, f"openshift.{name}", raise_exception=exc)
-
-    def _set_access_ocp_aws(self):
-        """Alter query parameters based on user access."""
-        self._set_access_aws()
-        self._set_access_ocp()
-
-    def _set_access_ocp_azure(self):
-        """Alter query parameters based on user access."""
-        self._set_access_azure()
-        self._set_access_ocp()
-
-    def _set_access_ocp_all(self):
-        """Alter query parameters based on user access."""
-        self._set_access_aws()
-        self._set_access_azure()
-        self._set_access_ocp()
+        if not access_filter_applied:
+            if self.parameters.get("filter", {}).get(filter_key):
+                items = set(self.get_filter(filter_key))
+                items.update(access_list)
+                self.parameters["filter"][filter_key] = list(items)
+            elif access_list:
+                self.parameters["filter"][filter_key] = access_list
 
     def _set_time_scope_defaults(self):
         """Set the default filter parameters."""

@@ -268,13 +268,9 @@ class OCPAzureReportDataGenerator:
 
     def _populate_azure_tag_summary(self):
         """Populate the Azure tag summary table."""
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_cloudtags_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpazuretags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {
-            "schema": connection.schema_name,
-            "tag_table": "reporting_azuretags_summary",
-            "lineitem_table": "reporting_ocpazurecostlineitem_daily_summary",
-        }
+        agg_sql_params = {"schema": connection.schema_name}
         agg_sql, agg_sql_params = JinjaSql().prepare_query(agg_sql, agg_sql_params)
 
         with connection.cursor() as cursor:

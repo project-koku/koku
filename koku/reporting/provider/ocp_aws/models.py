@@ -32,7 +32,7 @@ class OCPAWSCostLineItemDailySummary(models.Model):
         indexes = [
             models.Index(fields=["usage_start"], name="cost_summary_ocp_usage_idx"),
             models.Index(fields=["namespace"], name="cost_summary_namespace_idx"),
-            models.Index(fields=["node"], name="cost_summary_node_idx"),
+            models.Index(fields=["node"], name="cost_summary_node_idx", opclasses=["varchar_pattern_ops"]),
             models.Index(fields=["resource_id"], name="cost_summary_resource_idx"),
             GinIndex(fields=["tags"], name="cost_tags_idx"),
             models.Index(fields=["product_family"], name="ocp_aws_product_family_idx"),
@@ -114,8 +114,8 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
 
         indexes = [
             models.Index(fields=["usage_start"], name="cost_proj_sum_ocp_usage_idx"),
-            models.Index(fields=["namespace"], name="cost__proj_sum_namespace_idx"),
-            models.Index(fields=["node"], name="cost_proj_sum_node_idx"),
+            models.Index(fields=["namespace"], name="cost__proj_sum_namespace_idx", opclasses=["varchar_pattern_ops"]),
+            models.Index(fields=["node"], name="cost_proj_sum_node_idx", opclasses=["varchar_pattern_ops"]),
             models.Index(fields=["resource_id"], name="cost_proj_sum_resource_idx"),
             GinIndex(fields=["pod_labels"], name="cost_proj_pod_labels_idx"),
             models.Index(fields=["product_family"], name="ocp_aws_proj_prod_fam_idx"),
@@ -143,9 +143,9 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
 
     resource_id = models.CharField(max_length=253, null=True)
 
-    usage_start = models.DateTimeField(null=False)
+    usage_start = models.DateField(null=False)
 
-    usage_end = models.DateTimeField(null=False)
+    usage_end = models.DateField(null=False)
 
     # AWS Fields
     cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE, null=True)
@@ -179,3 +179,21 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
     project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
     pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+
+
+class OCPAWSTagsSummary(models.Model):
+    """A collection of all current existing tag key and values."""
+
+    class Meta:
+        """Meta for OCPUsageTagSummary."""
+
+        db_table = "reporting_ocpawstags_summary"
+        unique_together = ("key", "cost_entry_bill")
+
+    id = models.BigAutoField(primary_key=True)
+
+    key = models.CharField(max_length=253)
+    values = ArrayField(models.CharField(max_length=253))
+    cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE)
+    accounts = ArrayField(models.CharField(max_length=63))
+    namespace = ArrayField(models.CharField(max_length=253))

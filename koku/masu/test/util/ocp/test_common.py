@@ -50,6 +50,7 @@ class OCPUtilTests(MasuTestCase):
         report = self.creator.create_ocp_report(reporting_period, reporting_period.report_period_start)
         self.creator.create_ocp_usage_line_item(reporting_period, report)
         self.creator.create_ocp_storage_line_item(reporting_period, report)
+        self.creator.create_ocp_node_label_line_item(reporting_period, report)
 
     def test_get_cluster_id_from_provider(self):
         """Test that the cluster ID is returned from OCP provider."""

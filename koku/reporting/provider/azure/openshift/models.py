@@ -32,7 +32,7 @@ class OCPAzureCostLineItemDailySummary(models.Model):
         indexes = [
             models.Index(fields=["usage_start"], name="ocpazure_usage_start_idx"),
             models.Index(fields=["namespace"], name="ocpazure_namespace_idx"),
-            models.Index(fields=["node"], name="ocpazure_node_idx"),
+            models.Index(fields=["node"], name="ocpazure_node_idx", opclasses=["varchar_pattern_ops"]),
             models.Index(fields=["resource_id"], name="ocpazure_resource_idx"),
             GinIndex(fields=["tags"], name="ocpazure_tags_idx"),
             models.Index(fields=["service_name"], name="ocpazure_service_name_idx"),
@@ -55,9 +55,9 @@ class OCPAzureCostLineItemDailySummary(models.Model):
 
     resource_id = models.CharField(max_length=253, null=True)
 
-    usage_start = models.DateTimeField(null=False)
+    usage_start = models.DateField(null=False)
 
-    usage_end = models.DateTimeField(null=False)
+    usage_end = models.DateField(null=False)
 
     # Azure Fields
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
@@ -108,8 +108,8 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
 
         indexes = [
             models.Index(fields=["usage_start"], name="ocpazure_proj_usage_start_idx"),
-            models.Index(fields=["namespace"], name="ocpazure_proj_namespace_idx"),
-            models.Index(fields=["node"], name="ocpazure_proj_node_idx"),
+            models.Index(fields=["namespace"], name="ocpazure_proj_namespace_idx", opclasses=["varchar_pattern_ops"]),
+            models.Index(fields=["node"], name="ocpazure_proj_node_idx", opclasses=["varchar_pattern_ops"]),
             models.Index(fields=["resource_id"], name="ocpazure_proj_resource_id_idx"),
             GinIndex(fields=["pod_labels"], name="ocpazure_proj_pod_labels_idx"),
             models.Index(fields=["service_name"], name="ocpazure_proj_service_name_idx"),
@@ -137,9 +137,9 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
 
     resource_id = models.CharField(max_length=253, null=True)
 
-    usage_start = models.DateTimeField(null=False)
+    usage_start = models.DateField(null=False)
 
-    usage_end = models.DateTimeField(null=False)
+    usage_end = models.DateField(null=False)
 
     # Azure Fields
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
@@ -165,3 +165,21 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
     project_markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
 
     pod_cost = models.DecimalField(max_digits=24, decimal_places=6, null=True)
+
+
+class OCPAzureTagsSummary(models.Model):
+    """A collection of all current existing tag key and values."""
+
+    class Meta:
+        """Meta for AzureTagsSummary."""
+
+        db_table = "reporting_ocpazuretags_summary"
+        unique_together = ("key", "cost_entry_bill")
+
+    id = models.BigAutoField(primary_key=True)
+
+    key = models.CharField(max_length=253)
+    values = ArrayField(models.CharField(max_length=253))
+    cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
+    subscription_guid = ArrayField(models.CharField(max_length=50))
+    namespace = ArrayField(models.CharField(max_length=253, null=False))

@@ -1,5 +1,7 @@
 """Tests for celery tasks."""
 import calendar
+import os
+import tempfile
 import uuid
 from collections import namedtuple
 from datetime import date
@@ -23,6 +25,7 @@ from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.models import Provider
 from masu.celery import tasks
 from masu.celery.export import TableExportSetting
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
@@ -62,6 +65,7 @@ class TestCeleryTasks(MasuTestCase):
     @patch("masu.celery.tasks.Orchestrator")
     @patch("masu.celery.tasks.query_and_upload_to_s3")
     @patch("masu.external.date_accessor.DateAccessor.today")
+    @override_settings(ENABLE_S3_ARCHIVING=True)
     def test_upload_normalized_data(self, mock_date, mock_upload, mock_orchestrator):
         """Test that the scheduled task uploads the correct normalized data."""
         test_export_setting = TableExportSetting(
@@ -191,6 +195,7 @@ class TestCeleryTasks(MasuTestCase):
         tasks.sync_data_to_customer(data_export_object.uuid)
         self.assertEquals(data_export_object.status, APIExportRequest.ERROR)
 
+    @override_settings(ENABLE_S3_ARCHIVING=True)
     def test_delete_archived_data_bad_inputs_exception(self):
         """Test that delete_archived_data raises an exception when given bad inputs."""
         schema_name, provider_type, provider_uuid = "", "", ""
@@ -209,6 +214,7 @@ class TestCeleryTasks(MasuTestCase):
         mock_resource.assert_not_called()
 
     @patch("masu.util.aws.common.boto3.resource")
+    @override_settings(ENABLE_S3_ARCHIVING=True)
     @override_settings(S3_BUCKET_PATH="")
     def test_delete_archived_data_missing_bucket_path_exception(self, mock_resource):
         """Test that delete_archived_data raises an exception with an empty bucket path."""
@@ -217,8 +223,9 @@ class TestCeleryTasks(MasuTestCase):
             tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
         mock_resource.assert_not_called()
 
-    @patch("masu.util.aws.common.boto3.resource")
+    @override_settings(ENABLE_S3_ARCHIVING=True)
     @override_settings(S3_BUCKET_PATH="data_archive")
+    @patch("masu.util.aws.common.boto3.resource")
     def test_delete_archived_data_success(self, mock_resource):
         """Test that delete_archived_data correctly interacts with AWS S3."""
         schema_name = "acct10001"
@@ -243,6 +250,17 @@ class TestCeleryTasks(MasuTestCase):
         mock_bucket.objects.filter.assert_has_calls([call(Prefix=expected_prefix), call(Prefix=expected_prefix)])
         self.assertIn("Found 1 objects after attempting", captured_logs.output[-1])
 
+    @override_settings(ENABLE_S3_ARCHIVING=False)
+    def test_delete_archived_data_archiving_false(self):
+        """Test that delete_archived_data correctly interacts with AWS S3."""
+        schema_name = "acct10001"
+        provider_type = Provider.PROVIDER_AWS
+        provider_uuid = "00000000-0000-0000-0000-000000000001"
+
+        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+            tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
+            self.assertIn("Skipping delete_archived_data. Upload feature is disabled.", captured_logs.output[0])
+
     @patch("masu.celery.tasks.vacuum_schema")
     def test_vacuum_schemas(self, mock_vacuum):
         """Test that the vacuum_schemas scheduled task runs for all schemas."""
@@ -261,6 +279,48 @@ class TestCeleryTasks(MasuTestCase):
 
         for schema_name in [schema_one, schema_two]:
             mock_vacuum.delay.assert_any_call(schema_name)
+
+    @patch("masu.celery.tasks.Config")
+    @patch("masu.external.date_accessor.DateAccessor.get_billing_months")
+    def test_clean_volume(self, mock_date, mock_config):
+        """Test that the clean volume function is cleaning the appropriate files"""
+        # create a manifest
+        mock_date.return_value = ["2020-02-01"]
+        manifest_dict = {
+            "assembly_id": "1234",
+            "billing_period_start_datetime": "2020-02-01",
+            "num_total_files": 2,
+            "provider_uuid": self.aws_provider_uuid,
+        }
+        manifest_accessor = ReportManifestDBAccessor()
+        manifest = manifest_accessor.add(**manifest_dict)
+        # create two files on the temporary volume one with a matching prefix id
+        #  as the assembly_id in the manifest above
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            mock_config.PVC_DIR = tmpdirname
+            filepath1 = os.path.join(tmpdirname, "%s.csv" % manifest.assembly_id)
+            filepath2 = os.path.join(tmpdirname, "otherfile.csv")
+            filepaths = [filepath1, filepath2]
+            for path in filepaths:
+                open(path, "a").close()
+                self.assertEqual(os.path.exists(path), True)
+            # now run the clean volume task
+            tasks.clean_volume()
+            # make sure that the file with the matching id still exists and that
+            # the file with the other id is gone
+            self.assertEqual(os.path.exists(filepath1), True)
+            self.assertEqual(os.path.exists(filepath2), False)
+            # now edit the manifest to say that all the files have been processed
+            # and rerun the clean_volumes task
+            manifest.num_processed_files = manifest_dict.get("num_total_files")
+            manifest.save()
+            tasks.clean_volume()
+            # ensure that the original file is deleted from the volume
+            self.assertEqual(os.path.exists(filepath1), False)
+        # assert the tempdir is cleaned up
+        self.assertEqual(os.path.exists(tmpdirname), False)
+        # test no files found for codecov
+        tasks.clean_volume()
 
 
 class TestUploadTaskWithData(MasuTestCase):
@@ -306,6 +366,7 @@ class TestUploadTaskWithData(MasuTestCase):
         """Get specific TableExportSetting for testing."""
         return [s for s in tasks.table_export_settings if s.output_name == name].pop()
 
+    @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.AwsS3Uploader")
     def test_query_and_upload_to_s3(self, mock_uploader):
         """
@@ -342,6 +403,27 @@ class TestUploadTaskWithData(MasuTestCase):
                 # We ONLY have test data currently for AWS.
                 mock_uploader.return_value.upload_file.assert_not_called()
 
+    @override_settings(ENABLE_S3_ARCHIVING=False)
+    def test_query_and_upload_to_s3_archiving_false(self):
+        """Assert query_and_upload_to_s3 not run."""
+        today = self.today
+        _, last_day_of_month = calendar.monthrange(today.year, today.month)
+        curr_month_first_day = date(year=today.year, month=today.month, day=1)
+        curr_month_last_day = date(year=today.year, month=today.month, day=last_day_of_month)
+
+        date_range = (curr_month_first_day, curr_month_last_day)
+        for table_export_setting in tasks.table_export_settings:
+            with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+                tasks.query_and_upload_to_s3(
+                    self.schema,
+                    self.aws_provider_uuid,
+                    dictify_table_export_settings(table_export_setting),
+                    date_range[0],
+                    date_range[1],
+                )
+                self.assertIn("S3 Archiving is disabled. Not running task.", captured_logs.output[0])
+
+    @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.AwsS3Uploader")
     def test_query_and_upload_skips_if_no_data(self, mock_uploader):
         """Assert query_and_upload_to_s3 uploads nothing if no data is found."""
@@ -355,6 +437,7 @@ class TestUploadTaskWithData(MasuTestCase):
         )
         mock_uploader.return_value.upload_file.assert_not_called()
 
+    @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.AwsS3Uploader")
     def test_query_and_upload_to_s3_multiple_days_multiple_rows(self, mock_uploader):
         """Assert query_and_upload_to_s3 for multiple days uploads multiple files."""

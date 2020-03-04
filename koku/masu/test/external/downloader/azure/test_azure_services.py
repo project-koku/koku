@@ -20,6 +20,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
+from azure.common import AzureException
 from azure.storage.blob import BlobClient
 from azure.storage.blob import BlobServiceClient
 from azure.storage.blob import ContainerClient
@@ -32,6 +33,11 @@ from masu.test import MasuTestCase
 from providers.azure.client import AzureClientFactory
 
 FAKE = Faker()
+
+
+def throw_azure_exception(scope):
+    """Raises azure exception."""
+    raise AzureException()
 
 
 class AzureServiceTest(MasuTestCase):
@@ -226,6 +232,13 @@ class AzureServiceTest(MasuTestCase):
         svc = self.get_mock_client(cost_exports=[mock_export])
         exports = svc.describe_cost_management_exports()
         self.assertEquals(exports, [])
+
+    def test_describe_cost_management_exports_no_auth(self):
+        """Test that cost management exports are not returned from incorrect account."""
+        svc = self.get_mock_client(cost_exports=[Mock()])
+        svc._factory.cost_management_client.exports.list.side_effect = throw_azure_exception
+        with self.assertRaises(AzureCostReportNotFound):
+            svc.describe_cost_management_exports()
 
     def test_download_cost_export(self):
         """Test that cost management exports are downloaded."""

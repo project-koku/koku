@@ -1,5 +1,5 @@
 #
-# Copyright 2018 Red Hat, Inc.
+# Copyright 2019 Red Hat, Inc.
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -14,27 +14,27 @@
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Updates AWS report summary tables in the database with charge information."""
+"""Updates Azure report summary tables in the database with charge information."""
 import logging
 
 from tenant_schemas.utils import schema_context
 
-from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
-from masu.util.aws.common import get_bills_from_provider
+from masu.util.azure.common import get_bills_from_provider
 
 LOG = logging.getLogger(__name__)
 
 
-class AWSReportChargeUpdaterError(Exception):
-    """AWSReportChargeUpdater error."""
+class AzureCostModelCostUpdaterError(Exception):
+    """AzureCostModelCostUpdater error."""
 
 
 # pylint: disable=too-few-public-methods
-class AWSReportChargeUpdater:
-    """Class to update AWS report summary data with charge information."""
+class AzureCostModelCostUpdater:
+    """Class to update Azure report summary data with charge information."""
 
     def __init__(self, schema, provider):
         """Establish the database connection.
@@ -56,15 +56,15 @@ class AWSReportChargeUpdater:
                 markup = cost_model_accessor.get_markup()
                 markup_value = float(markup.get("value", 0)) / 100
 
-            with AWSReportDBAccessor(self._schema, self._column_map) as report_accessor:
+            with AzureReportDBAccessor(self._schema, self._column_map) as report_accessor:
                 with schema_context(self._schema):
                     bill_ids = [str(bill.id) for bill in bills]
                 report_accessor.populate_markup_cost(markup_value, bill_ids)
-        except AWSReportChargeUpdaterError as error:
+        except AzureCostModelCostUpdaterError as error:
             LOG.error("Unable to update markup costs. Error: %s", str(error))
 
-    def update_summary_charge_info(self, start_date=None, end_date=None):
-        """Update the AWS summary table with the charge information.
+    def update_summary_cost_model_costs(self, start_date=None, end_date=None):
+        """Update the Azure summary table with the charge information.
 
         Args:
             start_date (str, Optional) - Start date of range to update derived cost.
@@ -83,9 +83,11 @@ class AWSReportChargeUpdater:
 
         self._update_markup_cost(start_date, end_date)
 
-        with AWSReportDBAccessor(self._schema, self._column_map) as accessor:
+        with AzureReportDBAccessor(self._schema, self._column_map) as accessor:
             LOG.debug(
-                "Updating AWS derived cost summary for schema: %s and provider: %s", self._schema, self._provider.uuid
+                "Updating Azure derived cost summary for schema: %s and provider: %s",
+                self._schema,
+                self._provider.uuid,
             )
             bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
             with schema_context(self._schema):

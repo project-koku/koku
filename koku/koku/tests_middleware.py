@@ -32,6 +32,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from koku.middleware import HttpResponseUnauthorizedRequest
 from koku.middleware import IdentityHeaderMiddleware
 from koku.middleware import KokuTenantMiddleware
+from koku.tests_rbac import mocked_requests_get_500_text
 
 
 class KokuTenantMiddlewareTest(IamTestCase):
@@ -121,8 +122,8 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         """Test case where another request may create the customer in a race condition."""
         customer = self._create_customer_data()
         account_id = customer["account_id"]
-        orig_cust = IdentityHeaderMiddleware._create_customer(account_id)  # pylint: disable=W0212
-        dup_cust = IdentityHeaderMiddleware._create_customer(account_id)  # pylint: disable=W0212
+        orig_cust = IdentityHeaderMiddleware.create_customer(account_id)  # pylint: disable=W0212
+        dup_cust = IdentityHeaderMiddleware.create_customer(account_id)  # pylint: disable=W0212
         self.assertEqual(orig_cust, dup_cust)
 
     def test_race_condition_user(self):
@@ -135,7 +136,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         self.assertIsNotNone(customer)
         user = User.objects.get(username=self.user_data["username"])
         self.assertIsNotNone(user)
-        IdentityHeaderMiddleware._create_user(
+        IdentityHeaderMiddleware.create_user(
             username=self.user_data["username"],  # pylint: disable=W0212
             email=self.user_data["email"],
             customer=customer,
@@ -226,6 +227,23 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
     @patch("koku.rbac.requests.get", side_effect=ConnectionError("test exception"))
     def test_rbac_connection_error_return_424(self, mocked_get):
         """Test RbacConnectionError causes 424 Reponse."""
+        user_data = self._create_user_data()
+        customer = self._create_customer_data()
+        request_context = self._create_request_context(
+            customer, user_data, create_customer=True, create_tenant=True, is_admin=False, is_cost_management=True
+        )
+        mock_request = request_context["request"]
+        mock_request.path = "/api/v1/providers/"
+        mock_request.META["QUERY_STRING"] = ""
+
+        middleware = IdentityHeaderMiddleware()
+        response = middleware.process_request(mock_request)
+        self.assertEqual(response.status_code, status.HTTP_424_FAILED_DEPENDENCY)
+        mocked_get.assert_called()
+
+    @patch("koku.rbac.requests.get", side_effect=mocked_requests_get_500_text)
+    def test_rbac_500_response_return_424(self, mocked_get):
+        """Test 500 RBAC response causes 424 Reponse."""
         user_data = self._create_user_data()
         customer = self._create_customer_data()
         request_context = self._create_request_context(

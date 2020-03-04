@@ -15,8 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """OCP-on-All infrastructure Report Serializers."""
+from rest_framework import serializers
+
 import api.report.aws.serializers as awsser
 import api.report.ocp.serializers as ocpser
+from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 
 
@@ -34,6 +37,7 @@ class OCPAllGroupBySerializer(awsser.GroupBySerializer, ocpser.GroupBySerializer
         "project",
         "cluster",
         "node",
+        "source_type",
     )
 
 
@@ -46,7 +50,9 @@ class OCPAllOrderBySerializer(awsser.OrderBySerializer, ocpser.OrderBySerializer
 class OCPAllFilterSerializer(awsser.FilterSerializer, ocpser.FilterSerializer):
     """Serializer for handling query parameter filter."""
 
-    pass
+    _opfields = ("source_type",)
+
+    source_type = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class OCPAllQueryParamSerializer(awsser.QueryParamSerializer):

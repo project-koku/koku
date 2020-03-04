@@ -16,7 +16,6 @@
 #
 """Test the OCP tag view."""
 import calendar
-import datetime
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
 
@@ -90,12 +89,6 @@ class OCPTagsViewTest(IamTestCase):
 
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             data = response.json()
-            start_range, end_range = self._calculate_expected_range(case.get("value"), case.get("unit"))
-
-            for label in data.get("data"):
-                label_date = datetime.datetime.strptime(label.split("*")[0], "%m-%d-%Y")
-                self.assertGreaterEqual(label_date.date(), start_range)
-                self.assertLessEqual(label_date.date(), end_range)
 
             self.assertTrue(data.get("data"))
             self.assertTrue(isinstance(data.get("data"), list))
@@ -122,13 +115,8 @@ class OCPTagsViewTest(IamTestCase):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             data = response.json()
-            start_range, end_range = self._calculate_expected_range(case.get("value"), case.get("unit"))
 
             for tag in data.get("data"):
-                label = tag.get("key")
-                label_date = datetime.datetime.strptime(label.split("*")[0], "%m-%d-%Y")
-                self.assertGreaterEqual(label_date.date(), start_range)
-                self.assertLessEqual(label_date.date(), end_range)
                 self.assertIsNotNone(tag.get("values"))
 
             self.assertTrue(data.get("data"))
@@ -141,6 +129,7 @@ class OCPTagsViewTest(IamTestCase):
             {"value": "-2", "unit": "month", "resolution": "monthly", "type": "pod"},
             {"value": "-10", "unit": "day", "resolution": "daily", "type": "pod"},
             {"value": "-30", "unit": "day", "resolution": "daily", "type": "storage"},
+            {"value": "-10", "unit": "day", "resolution": "daily", "type": "*"},
         ]
 
         for case in test_cases:
@@ -157,13 +146,8 @@ class OCPTagsViewTest(IamTestCase):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             data = response.json()
-            start_range, end_range = self._calculate_expected_range(case.get("value"), case.get("unit"))
 
             for tag in data.get("data"):
-                label = tag.get("key")
-                label_date = datetime.datetime.strptime(label.split("*")[0], "%m-%d-%Y")
-                self.assertGreaterEqual(label_date.date(), start_range)
-                self.assertLessEqual(label_date.date(), end_range)
                 self.assertIsNotNone(tag.get("values"))
 
             self.assertTrue(data.get("data"))

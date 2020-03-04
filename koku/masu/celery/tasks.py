@@ -21,6 +21,7 @@
 import calendar
 import csv
 import math
+import os
 from datetime import date
 
 import boto3
@@ -42,6 +43,8 @@ from api.dataexport.uploader import AwsS3Uploader
 from api.iam.models import Tenant
 from koku.celery import app
 from masu.celery.export import table_export_settings
+from masu.config import Config
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import vacuum_schema
@@ -61,17 +64,21 @@ def check_report_updates():
 
 
 @app.task(name="masu.celery.tasks.remove_expired_data")
-def remove_expired_data():
+def remove_expired_data(simulate=False, line_items_only=False):
     """Scheduled task to initiate a job to remove expired report data."""
     today = DateAccessor().today()
     LOG.info("Removing expired data at %s", str(today))
     orchestrator = Orchestrator()
-    orchestrator.remove_expired_report_data()
+    orchestrator.remove_expired_report_data(simulate, line_items_only)
 
 
 @app.task(name="masu.celery.tasks.upload_normalized_data", queue_name="upload")
 def upload_normalized_data():
     """Scheduled task to export normalized data to s3."""
+    if not settings.ENABLE_S3_ARCHIVING:
+        LOG.info("S3 Archiving is disabled. Not running task.")
+        return
+
     LOG.info("Beginning upload_normalized_data")
     curr_date = DateAccessor().today()
     curr_month_range = calendar.monthrange(curr_date.year, curr_date.month)
@@ -150,7 +157,7 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
         raise TypeError("delete_archived_data() %s", ", ".join(messages))
 
     if not settings.ENABLE_S3_ARCHIVING:
-        LOG.info("Skipping delete_archived_data; upload feature is disabled")
+        LOG.info("Skipping delete_archived_data. Upload feature is disabled.")
         return
 
     if not settings.S3_BUCKET_PATH:
@@ -248,6 +255,10 @@ def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, sta
         end_date (string): end date (inclusive)
 
     """
+    if not settings.ENABLE_S3_ARCHIVING:
+        LOG.info("S3 Archiving is disabled. Not running task.")
+        return
+
     LOG.info(
         "query_and_upload_to_s3: schema %s provider_uuid %s table.output_name %s for %s",
         schema_name,
@@ -312,3 +323,36 @@ def vacuum_schemas():
     for schema_name in schema_names:
         LOG.info("Scheduling VACUUM task for %s", schema_name)
         vacuum_schema.delay(schema_name)
+
+
+@app.task(name="masu.celery.tasks.clean_volume", queue_name="clean_volume")
+def clean_volume():
+    """Clean up the volume in the worker pod."""
+    LOG.info("Cleaning up the volume at %s " % Config.PVC_DIR)
+    # get the billing months to use below
+    months = DateAccessor().get_billing_months(Config.INITIAL_INGEST_NUM_MONTHS)
+    db_accessor = ReportManifestDBAccessor()
+    # this list is initialized with the .gitkeep file so that it does not get deleted
+    assembly_ids_to_exclude = [".gitkeep"]
+    # grab the assembly ids to exclude for each month
+    for month in months:
+        assembly_ids = db_accessor.get_last_seen_manifest_ids(month)
+        assembly_ids_to_exclude.extend(assembly_ids)
+    # now we want to loop through the files and clean up the ones that are not in the exclude list
+    deleted_files = []
+    for [root, dirnames, filenames] in os.walk(Config.PVC_DIR):
+        for file in filenames:
+            match = False
+            for assembly_id in assembly_ids_to_exclude:
+                if assembly_id in file:
+                    match = True
+            # if none of the assembly_ids that we care about were in the filename - we can safely delete it
+            if not match:
+                if os.path.exists(os.path.join(root, file)):
+                    os.remove(os.path.join(root, file))
+                    deleted_files.append(os.path.join(root, file))
+    if deleted_files:
+        LOG.info("The following files were deleted: ")
+        LOG.info(deleted_files)
+    else:
+        LOG.info("No files found that met requirements for deletion.")
