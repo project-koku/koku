@@ -362,7 +362,7 @@ class OCPReportProcessorTest(MasuTestCase):
         # Convert data to CSV format
         expected_values = [str(value) if value else None for value in line_item_data.values()]
 
-        reader = csv.reader(file_obj, delimiter="\t")
+        reader = csv.reader(file_obj, delimiter=",")
         new_row = next(reader)
 
         actual = {}
