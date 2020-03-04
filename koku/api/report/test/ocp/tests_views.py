@@ -915,10 +915,11 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        url = "?filter[type]=pod"
+        url = "?filter[type]=pod&filter[time_scope_value]=-10"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
+        tag_keys.sort(reverse=True)
         filter_key = tag_keys[0]
 
         with tenant_context(self.tenant):
@@ -965,6 +966,7 @@ class OCPReportViewTest(IamTestCase):
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
+        tag_keys.sort(reverse=True)
         filter_key = tag_keys[0]
         with tenant_context(self.tenant):
             labels = (
