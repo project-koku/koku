@@ -347,9 +347,14 @@ async def process_messages(app_type_id, msg_pending_queue):  # noqa: C901; pragm
                 msg_data["source_id"] = sources_network.get_source_id_from_endpoint_id(msg_data.get("resource_id"))
                 app_id = sources_network.get_application_type_id_from_source_id(msg_data.get("source_id"))
                 if app_id == app_type_id:
+
+                    storage.create_source_event(  # this will create source if it does not exist.
+                        msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset")
+                    )
+
                     with concurrent.futures.ThreadPoolExecutor() as pool:
                         await EVENT_LOOP.run_in_executor(
-                            pool, sources_network_auth_info, msg_data.get("resource_id"), msg_data.get("auth_header")
+                            pool, save_auth_info, msg_data.get("auth_header"), msg_data.get("source_id")
                         )
                 else:
                     LOG.info(f"Resource id {msg_data.get('resource_id')} not associated with cost-management.")

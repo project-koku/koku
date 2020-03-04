@@ -294,7 +294,7 @@ def get_source_type(source_id):
     source_type = None
     source = get_source(
         source_id, f"[get_source_type] Unable to get Source Type.  Source ID: {source_id} does not exist"
-    )  # noqa
+    )
     if source:
         source_type = source.source_type
     return source_type
