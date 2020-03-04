@@ -41,10 +41,9 @@ from api.iam.models import Tenant
 from api.iam.serializers import create_schema_name
 from api.provider.models import Sources
 from api.provider.provider_manager import ProviderManager
-from api.iam.models import Tenant
-from api.iam.serializers import create_schema_name
-from sources.api import get_account_from_header, get_auth_header
-from sources.api.serializers import SourcesSerializer
+from api.provider.provider_manager import ProviderManagerError
+from sources.api import get_account_from_header
+from sources.api import get_auth_header
 from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesSerializer
 from sources.kafka_source_manager import KafkaSourceManager
@@ -206,12 +205,12 @@ class SourcesViewSet(*MIXIN_LIST):
 
     @never_cache
     @action(methods=["get"], detail=True, permission_classes=[AllowAny])
-    def stats(self, request, source_id=None):
+    def stats(self, request, pk=None):
         """Get source stats."""
         account_id = get_account_from_header(request)
         schema_name = create_schema_name(account_id)
-        source = get_object_or_404(Sources, source_id=source_id, account_id=account_id)
-        manager = ProviderManager(source.koku_uuid)
+        source = self.get_object()
+        manager = ProviderManager(source.source_uuid)
         tenant = Tenant.objects.get(schema_name=schema_name)
         stats = manager.provider_statistics(tenant)
         return Response(stats)
