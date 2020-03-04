@@ -129,6 +129,7 @@ class OCPTagsViewTest(IamTestCase):
             {"value": "-2", "unit": "month", "resolution": "monthly", "type": "pod"},
             {"value": "-10", "unit": "day", "resolution": "daily", "type": "pod"},
             {"value": "-30", "unit": "day", "resolution": "daily", "type": "storage"},
+            {"value": "-10", "unit": "day", "resolution": "daily", "type": "*"},
         ]
 
         for case in test_cases:
