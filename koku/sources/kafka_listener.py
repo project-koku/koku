@@ -257,6 +257,7 @@ def sources_network_auth_info(resource_id, auth_header):
         None
 
     """
+    # check db for source. If exists, add authentication info.
     source_id = storage.get_source_from_endpoint(resource_id)
     if source_id:
         save_auth_info(auth_header, source_id)
@@ -331,10 +332,7 @@ async def process_messages(msg_pending_queue):  # noqa: C901; pragma: no cover
 
         LOG.info(f"Processing Event: {str(msg_data)}")
         try:
-            if msg_data.get("event_type") in (KAFKA_APPLICATION_CREATE, KAFKA_AUTHENTICATION_CREATE):
-                if msg_data.get("event_type") == KAFKA_AUTHENTICATION_CREATE:
-                    sources_network = SourcesHTTPClient(msg_data.get("auth_header"))
-                    msg_data["source_id"] = sources_network.get_source_id_from_endpoint_id(msg_data.get("resource_id"))
+            if msg_data.get("event_type") in (KAFKA_APPLICATION_CREATE,):
 
                 storage.create_source_event(
                     msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset")
@@ -343,6 +341,12 @@ async def process_messages(msg_pending_queue):  # noqa: C901; pragma: no cover
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     await EVENT_LOOP.run_in_executor(
                         pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
+                    )
+
+            if msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE,):
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    await EVENT_LOOP.run_in_executor(
+                        pool, sources_network_auth_info, msg_data.get("resource_id"), msg_data.get("auth_header")
                     )
 
             elif msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE,):

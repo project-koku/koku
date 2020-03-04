@@ -189,6 +189,8 @@ class SourcesViewSet(*MIXIN_LIST):
     def retrieve(self, request, *args, **kwargs):
         """Get a source."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
+        source = self.get_object()
+        response.data["provider_linked"] = source.provider_linked
         _, tenant = self._get_account_and_tenant(request)
         try:
             manager = ProviderManager(response.data["uuid"])
@@ -210,7 +212,12 @@ class SourcesViewSet(*MIXIN_LIST):
         account_id = get_account_from_header(request)
         schema_name = create_schema_name(account_id)
         source = self.get_object()
-        manager = ProviderManager(source.source_uuid)
-        tenant = Tenant.objects.get(schema_name=schema_name)
-        stats = manager.provider_statistics(tenant)
+        stats = None
+        try:
+            manager = ProviderManager(source.source_uuid)
+        except ProviderManagerError:
+            pass
+        else:
+            tenant = Tenant.objects.get(schema_name=schema_name)
+            stats = manager.provider_statistics(tenant)
         return Response(stats)
