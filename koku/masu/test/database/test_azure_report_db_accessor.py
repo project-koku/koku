@@ -102,7 +102,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
                     provider_uuid=self.azure_provider.uuid, instance_id=instance_id
                 )
                 meter = self.creator.create_azure_meter(provider_uuid=self.azure_provider.uuid)
-                self.creator.create_azure_cost_entry_line_item(bill, product, meter, usage_date_time=cost_entry_date)
+                self.creator.create_azure_cost_entry_line_item(bill, product, meter, usage_date=cost_entry_date.date())
         with OCPReportDBAccessor(self.schema, self.column_map) as ocp_accessor:
             cluster_id = "testcluster"
             for cost_entry_date in (today, last_month):
@@ -213,12 +213,12 @@ class AzureReportDBAccessorTest(MasuTestCase):
                 possible_keys += list(item.tags.keys())
                 possible_values += list(item.tags.values())
 
-            li_entry = line_item_table.objects.all().aggregate(Min("usage_date_time"), Max("usage_date_time"))
-            start_date = li_entry["usage_date_time__min"]
-            end_date = li_entry["usage_date_time__max"]
+            li_entry = line_item_table.objects.all().aggregate(Min("usage_date"), Max("usage_date"))
+            start_date = li_entry["usage_date__min"]
+            end_date = li_entry["usage_date__max"]
 
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        start_date = start_date.date() if isinstance(start_date, datetime.datetime) else start_date
+        end_date = end_date.date() if isinstance(end_date, datetime.datetime) else end_date
 
         query = self.accessor._get_db_obj_query(summary_table_name)
         with schema_context(self.schema):
@@ -288,12 +288,12 @@ class AzureReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             possible_value = tag_query[0].pretax_cost * decimal.Decimal(0.1)
 
-            li_entry = line_item_table.objects.all().aggregate(Min("usage_date_time"), Max("usage_date_time"))
-            start_date = li_entry["usage_date_time__min"]
-            end_date = li_entry["usage_date_time__max"]
+            li_entry = line_item_table.objects.all().aggregate(Min("usage_date"), Max("usage_date"))
+            start_date = li_entry["usage_date__min"]
+            end_date = li_entry["usage_date__max"]
 
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        start_date = start_date.date() if isinstance(start_date, datetime.datetime) else start_date
+        end_date = end_date.date() if isinstance(end_date, datetime.datetime) else end_date
 
         query = self.accessor._get_db_obj_query(summary_table_name)
 
@@ -326,12 +326,12 @@ class AzureReportDBAccessorTest(MasuTestCase):
             for item in tag_query:
                 possible_values.update({item.cost_entry_bill_id: item.pretax_cost * decimal.Decimal(0.1)})
 
-            li_entry = line_item_table.objects.all().aggregate(Min("usage_date_time"), Max("usage_date_time"))
-            start_date = li_entry["usage_date_time__min"]
-            end_date = li_entry["usage_date_time__max"]
+            li_entry = line_item_table.objects.all().aggregate(Min("usage_date"), Max("usage_date"))
+            start_date = li_entry["usage_date__min"]
+            end_date = li_entry["usage_date__max"]
 
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        start_date = start_date.date() if isinstance(start_date, datetime.datetime) else start_date
+        end_date = end_date.date() if isinstance(end_date, datetime.datetime) else end_date
 
         query = self.accessor._get_db_obj_query(summary_table_name)
 
