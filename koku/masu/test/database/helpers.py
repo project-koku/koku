@@ -254,7 +254,7 @@ class ReportObjectCreator:
     def create_csv_file_stream(self, row):
         """Create a CSV file object for bulk upload testing."""
         file_obj = io.StringIO()
-        writer = csv.writer(file_obj, delimiter="\t", quoting=csv.QUOTE_NONE, quotechar="")
+        writer = csv.writer(file_obj, delimiter=",", quoting=csv.QUOTE_MINIMAL, quotechar='"')
         writer.writerow(row)
         file_obj.seek(0)
 
