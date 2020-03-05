@@ -375,6 +375,52 @@ class SourcesHTTPClientTest(TestCase):
                 client.get_source_id_from_endpoint_id(resource_id)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_application_type_id_from_source_id(self):
+        """Test to get application_type_id from source_id."""
+        application_type_id = 2
+        source_id = 3
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sources.com/api/v1.0/applications?filter[source_id]={source_id}",
+                status_code=200,
+                json={"data": [{"application_type_id": application_type_id}]},
+            )
+            response = client.get_application_type_id_from_source_id(source_id)
+            self.assertEqual(response, application_type_id)
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_application_type_id_from_source_id_misconfigured(self):
+        """Test to get application_type_id from source_id with route not found."""
+        application_type_id = 2
+        source_id = 3
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sources.com/api/v1.0/applications?filter[source_id]={source_id}",
+                status_code=404,
+                json={"data": [{"application_type_id": application_type_id}]},
+            )
+            with self.assertRaises(SourcesHTTPClientError):
+                client.get_application_type_id_from_source_id(source_id)
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_application_type_id_from_source_id_no_data(self):
+        """Test to get application_type_id from source_id with no data in response."""
+        source_id = 3
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sources.com/api/v1.0/applications?filter[source_id]={source_id}",
+                status_code=200,
+                json={"data": []},
+            )
+            self.assertIsNone(client.get_application_type_id_from_source_id(source_id))
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_set_source_status(self):
         """Test to set source status."""
         test_source_id = 1
