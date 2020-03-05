@@ -40,7 +40,6 @@ ciso8601 = ">=2.1"
 pandas = ">=0.25"
 sentry-sdk = ">=0.13"
 ujson = ">=1.35"
-responses = "*"
 
 [dev-packages]
 astroid = ">=2.3"
@@ -62,7 +61,7 @@ python-coveralls = ">=2.9"
 model-bakery = ">=1.1"
 koku-nise = "~=1.0"
 pre-commit = ">=2.0"
-responses = "*"
+responses = ">=0.10"
 
 [requires]
 python_version = "3.6"
