@@ -129,8 +129,8 @@ class SourcesSerializer(serializers.ModelSerializer):
 class AdminSourcesSerializer(SourcesSerializer):
     """Source serializer specific to administration."""
 
-    name = serializers.CharField(max_length=256, required=False, allow_null=False, allow_blank=False)
-    source_type = serializers.CharField(max_length=50, required=False, allow_null=False, allow_blank=False)
+    name = serializers.CharField(max_length=256, required=True, allow_null=False, allow_blank=False)
+    source_type = serializers.CharField(max_length=50, required=True, allow_null=False, allow_blank=False)
 
     def validate_source_type(self, source_type):
         """Validate credentials field."""

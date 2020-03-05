@@ -83,6 +83,7 @@ class KafkaSourceManager:
 
     def get_authentication_for_provider(self, provider_type, authentication):
         """Build authentication json data for provider type."""
+        provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower())
         provider_map = {
             Provider.PROVIDER_AWS: self._authentication_for_aws,
             Provider.PROVIDER_AWS_LOCAL: self._authentication_for_aws,
@@ -120,6 +121,7 @@ class KafkaSourceManager:
 
     def get_billing_source_for_provider(self, provider_type, billing_source):
         """Build billing source json data for provider type."""
+        provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower())
         provider_map = {
             Provider.PROVIDER_AWS: self._billing_source_for_aws,
             Provider.PROVIDER_AWS_LOCAL: self._billing_source_for_aws,
