@@ -134,7 +134,7 @@ class SourcesSerializer(serializers.ModelSerializer):
         update_fields = list(set(billing_fields + auth_fields))
         instance.save(update_fields=update_fields)
 
-        source_mgr = KafkaSourceManager(instance.auth_header)
+        source_mgr = KafkaSourceManager(get_auth_header(self.context.get("request")))
 
         try:
             obj = Provider.objects.get(uuid=uuid)
