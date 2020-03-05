@@ -113,7 +113,7 @@ class KafkaSourceManager:
         return self._build_provider_bucket(billing_source)
 
     def _billing_source_for_ocp(self, billing_source):
-        # billing_source = {}
+        billing_source = {}
         billing_source["bucket"] = ""
         return self._build_provider_bucket(billing_source)
 
