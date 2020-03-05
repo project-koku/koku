@@ -115,7 +115,7 @@ class SourcesViewSet(*MIXIN_LIST):
 
     def get_serializer_class(self):
         """Return the appropriate serializer depending on the method."""
-        if self.request.method in permissions.SAFE_METHODS:
+        if self.request.method in (permissions.SAFE_METHODS, "PATCH"):
             return SourcesSerializer
         else:
             return AdminSourcesSerializer
