@@ -70,16 +70,14 @@ OC=$(which oc)
 OCDEPLOYER=$(which ocdeployer)
 IQE=$(which iqe)
 
-pushd $E2E_REPO
-
 ### validation
 if [ -z "$REGISTRY_REDHAT_IO_SECRETS" ]; then
-    echo 'Please specify a secrets file for registry.redhat.io'
+    echo 'Please specify a secrets file for registry.redhat.io using $REGISTRY_REDHAT_IO_SECRETS'
     exit 1
 fi
 
 if [ -z "$E2E_REPO" ]; then
-    echo 'Please specify the location of the e2e-deploy repo'
+    echo 'Please specify the location of the e2e-deploy repo using $E2E_REPO'
     exit 1
 fi
 
@@ -90,6 +88,8 @@ for cmd in "${OC}" "${OCDEPLOYER}" "${IQE}"; do
         exit 1
     fi
 done
+
+pushd $E2E_REPO
 
 ### ensure we're logged in
 ${OC} login -u ${OCP_USER} -p ${OCP_PASSWORD} $OPENSHIFT_API_URL
@@ -144,7 +144,11 @@ ${OC} policy add-role-to-user system:image-puller system:serviceaccount:${DEPLOY
 # Until we come up with a more intelligent design, the user will need to spot
 # build failures and elect to not continue the deploy when prompted.
 echo "Creating builds in project ${BUILDFACTORY_PROJECT}"
-${OCDEPLOYER} deploy -s hccm -t buildfactory ${BUILDFACTORY_PROJECT} || true
+if [[ ${DEPLOY_HCCM_OPTIONAL} ]]; then
+    ${OCDEPLOYER} deploy -s hccm,hccm-optional -t buildfactory ${BUILDFACTORY_PROJECT} || true
+else
+    ${OCDEPLOYER} deploy -s hccm -t buildfactory ${BUILDFACTORY_PROJECT} || true
+fi
 
 # wait until builds are finished if ocdeployer timedout
 CMD="${OC} get build -o name -n ${BUILDFACTORY_PROJECT} --field-selector status!=Complete,status!=Cancelled,status!=Failed"
@@ -160,8 +164,13 @@ EOM
 done
 
 ### deploy application
-echo "Creating HCCM application."
-${IQE} oc deploy -t templates -s hccm -e dev-self-contained hccm
+if [[ ${DEPLOY_HCCM_OPTIONAL} ]]; then
+    echo "Creating HCCM & HCCM-Optional application."
+    ${IQE} oc deploy -t templates -s hccm,hccm-optional -e dev-self-contained hccm
+else
+    echo "Creating HCCM application."
+    ${IQE} oc deploy -t templates -s hccm -e dev-self-contained hccm
+fi
 
 ### expose API route
 echo "Exposing API endpoint."
