@@ -138,20 +138,21 @@ class ReportDBAccessorBase(KokuDBAccess):
             cursor.execute(delete_sql)
 
     # pylint: disable=too-many-arguments
-    def bulk_insert_rows(self, file_obj, table, columns, sep="\t", null=""):
+    def bulk_insert_rows(self, file_obj, table, columns, sep=","):
         """Insert many rows using Postgres copy functionality.
 
         Args:
             file_obj (file): A file-like object containing CSV rows
             table (str): The table name in the databse to copy to
             columns (list): A list of columns in the order of the CSV file
-            sep (str): The separator in the file. Default: '\t'
-            null (str): How null is represented in the CSV. Default: ''
+            sep (str): The separator in the file. Default: ','
 
         """
+        columns = ", ".join(columns)
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
-            cursor.copy_from(file_obj, table, sep=sep, columns=columns, null=null)
+            statement = f"COPY {table} ({columns}) FROM STDIN WITH CSV DELIMITER '{sep}'"
+            cursor.copy_expert(statement, file_obj)
 
     # pylint: disable=arguments-differ
     def _get_db_obj_query(self, table, columns=None):

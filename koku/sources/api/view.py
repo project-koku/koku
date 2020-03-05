@@ -41,6 +41,7 @@ from api.iam.models import Tenant
 from api.iam.serializers import create_schema_name
 from api.provider.models import Sources
 from api.provider.provider_manager import ProviderManager
+from api.provider.provider_manager import ProviderManagerError
 from sources.api import get_account_from_header
 from sources.api import get_auth_header
 from sources.api.serializers import AdminSourcesSerializer
@@ -114,7 +115,7 @@ class SourcesViewSet(*MIXIN_LIST):
 
     def get_serializer_class(self):
         """Return the appropriate serializer depending on the method."""
-        if self.request.method in permissions.SAFE_METHODS:
+        if self.request.method in (permissions.SAFE_METHODS, "PATCH"):
             return SourcesSerializer
         else:
             return AdminSourcesSerializer
@@ -170,13 +171,18 @@ class SourcesViewSet(*MIXIN_LIST):
         response = super().list(request=request, args=args, kwargs=kwargs)
         _, tenant = self._get_account_and_tenant(request)
         for source in response.data["data"]:
-            manager = ProviderManager(source["uuid"])
-            source["infrastructure"] = manager.get_infrastructure_name()
-            connection.set_tenant(tenant)
-            source["cost_models"] = [
-                {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
-            ]
-            connection.set_schema_to_public()
+            try:
+                manager = ProviderManager(source["uuid"])
+            except ProviderManagerError:
+                source["provider_linked"] = False
+            else:
+                source["provider_linked"] = True
+                source["infrastructure"] = manager.get_infrastructure_name()
+                connection.set_tenant(tenant)
+                source["cost_models"] = [
+                    {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
+                ]
+                connection.set_schema_to_public()
         connection.set_schema_to_public()
         return response
 
@@ -185,12 +191,17 @@ class SourcesViewSet(*MIXIN_LIST):
         """Get a source."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
         _, tenant = self._get_account_and_tenant(request)
-        manager = ProviderManager(response.data["uuid"])
-        response.data["infrastructure"] = manager.get_infrastructure_name()
-        connection.set_tenant(tenant)
-        response.data["cost_models"] = [
-            {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
-        ]
+        try:
+            manager = ProviderManager(response.data["uuid"])
+        except ProviderManagerError:
+            response.data["provider_linked"] = False
+        else:
+            response.data["provider_linked"] = True
+            response.data["infrastructure"] = manager.get_infrastructure_name()
+            connection.set_tenant(tenant)
+            response.data["cost_models"] = [
+                {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
+            ]
         connection.set_schema_to_public()
         return response
 
@@ -201,7 +212,13 @@ class SourcesViewSet(*MIXIN_LIST):
         account_id = get_account_from_header(request)
         schema_name = create_schema_name(account_id)
         source = self.get_object()
-        manager = ProviderManager(source.source_uuid)
-        tenant = Tenant.objects.get(schema_name=schema_name)
-        stats = manager.provider_statistics(tenant)
+        stats = {}
+        try:
+            manager = ProviderManager(source.source_uuid)
+        except ProviderManagerError:
+            stats["provider_linked"] = False
+        else:
+            stats["provider_linked"] = True
+            tenant = Tenant.objects.get(schema_name=schema_name)
+            stats.update(manager.provider_statistics(tenant))
         return Response(stats)
