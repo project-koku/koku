@@ -42,53 +42,38 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
             namespace,
             pod,
             node,
-            jsonb_object_agg(key, value) as pod_labels
+            pod_labels
         FROM (
-            SELECT report_period_id,
-                cluster_id,
-                usage_start,
-                namespace,
-                pod,
-                node,
-                key,
-                value
-            FROM (
-                SELECT li.report_period_id,
-                    rp.cluster_id,
-                    date(ur.interval_start) as usage_start,
-                    li.namespace,
-                    li.pod,
-                    li.node,
-                    (li.pod_labels || coalesce(nlid.node_labels, '{}'::jsonb)) as pod_labels
-                FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem AS li
-                JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
-                    ON li.report_period_id = rp.id
-                JOIN {{schema | sqlsafe}}.reporting_ocpusagereport AS ur
-                    ON li.report_id = ur.id
-                LEFT JOIN {{schema | sqlsafe}}.reporting_ocpnodelabellineitem_daily as nlid
-                    ON li.node = nlid.node
-                        AND date(ur.interval_start) = nlid.usage_start
-                        AND nlid.node_labels <> NULL
-                WHERE date(ur.interval_start) >= {{start_date}}
-                    AND date(ur.interval_start) <= {{end_date}}
-                    AND rp.cluster_id = {{cluster_id}}
-                GROUP BY li.report_period_id,
-                    rp.cluster_id,
-                    date(ur.interval_start),
-                    li.namespace,
-                    li.pod,
-                    li.node,
-                    li.pod_labels,
-                    nlid.node_labels
-            ) AS nil,
-            jsonb_each(nil.pod_labels) labels
-        ) AS pl
+            SELECT li.report_period_id,
+                rp.cluster_id,
+                date(ur.interval_start) as usage_start,
+                li.namespace,
+                li.pod,
+                li.node,
+                -- Setting pod labels as the second item here
+                -- allows a value for a label specifically set on the pod
+                -- to take precedence
+                COALESCE(nli.node_labels, '{}'::jsonb) || pod_labels as pod_labels
+            FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem AS li
+            JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
+                ON li.report_period_id = rp.id
+            JOIN {{schema | sqlsafe}}.reporting_ocpusagereport AS ur
+                ON li.report_id = ur.id
+            LEFT JOIN {{schema | sqlsafe}}.reporting_ocpnodelabellineitem as nli
+                ON li.report_period_id = nli.report_period_id
+                    AND li.node = nli.node
+                    AND li.report_id = nli.report_id
+            WHERE date(ur.interval_start) >= {{start_date}}
+                AND date(ur.interval_start) <= {{end_date}}
+                AND rp.cluster_id = {{cluster_id}}
+        ) as labels
         GROUP BY report_period_id,
             cluster_id,
             usage_start,
             namespace,
             pod,
-            node
+            node,
+            pod_labels
     )
     SELECT  li.report_period_id,
         rp.cluster_id,
@@ -99,7 +84,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
         li.pod,
         li.node,
         max(li.resource_id) as resource_id,
-        (li.pod_labels || cte.pod_labels) as pod_labels,
+        cte.pod_labels,
         sum(li.pod_usage_cpu_core_seconds) as pod_usage_cpu_core_seconds,
         sum(li.pod_request_cpu_core_seconds) as pod_request_cpu_core_seconds,
         sum(li.pod_limit_cpu_core_seconds) as pod_limit_cpu_core_seconds,
@@ -143,7 +128,6 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
         li.namespace,
         li.pod,
         li.node,
-        li.pod_labels,
         cte.pod_labels
 )
 ;
