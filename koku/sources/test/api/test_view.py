@@ -27,6 +27,7 @@ from api.iam.models import Customer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
+from api.provider.provider_manager import ProviderManagerError
 from koku.middleware import IdentityHeaderMiddleware
 from sources.api.view import SourcesViewSet
 
@@ -205,3 +206,34 @@ class SourcesViewTests(IamTestCase):
         body = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertIsNotNone(body)
+
+    @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
+    def test_source_list_error(self, _):
+        """Test provider_linked is False in list when Provider does not exist."""
+        url = reverse("sources-list")
+        response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(body)
+        self.assertTrue(body.get("data"))
+        self.assertFalse(body.get("data")[0]["provider_linked"])
+
+    @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
+    def test_source_retrieve_error(self, _):
+        """Test provider_linked is False in Source when Provider does not exist."""
+        url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
+        response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(body)
+        self.assertFalse(body["provider_linked"])
+
+    @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
+    def test_source_get_stats_error(self, _):
+        """Test provider_linked is False in source-stats when Provider does not exist."""
+        url = reverse("sources-stats", kwargs={"pk": self.test_source_id})
+        response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(body)
+        self.assertFalse(body["provider_linked"])

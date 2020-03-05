@@ -2981,6 +2981,11 @@
                                     "bucket": "test-bucket"
                                 }
                             },
+                            "provider_linked": {
+                                "type": "boolean",
+                                "description": "Flag to indicate if provider is linked to source.",
+                                "default": false
+                            },
                             "infrastructure": {
                                 "type": "string",
                                 "description": "OpenShift foundational infrastructure type.",
