@@ -82,6 +82,9 @@ class Config:
     # Data directory for processing incoming data.  This is the OCP PVC mount point.
     PVC_DIR = os.getenv("PVC_DIR", default="/var/tmp/masu")
 
+    # File retention time for cleaning out the volume (in seconds) # defaults to 1 day
+    VOLUME_FILE_RETENTION = int(os.getenv("VOLUME_FILE_RETENTION", (60 * 60 * 24)))
+
     # OCP intermediate report storage
     INSIGHTS_LOCAL_REPORT_DIR = f"{PVC_DIR}/insights_local"
 

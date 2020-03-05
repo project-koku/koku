@@ -23,6 +23,8 @@ import csv
 import math
 import os
 from datetime import date
+from datetime import datetime
+from datetime import timedelta
 
 import boto3
 from botocore.exceptions import ClientError
@@ -35,12 +37,14 @@ from dateutil.rrule import rrule
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
+from django.utils import timezone
 
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer
 from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.dataexport.uploader import AwsS3Uploader
 from api.iam.models import Tenant
+from api.utils import DateHelper
 from koku.celery import app
 from masu.celery.export import table_export_settings
 from masu.config import Config
@@ -340,7 +344,12 @@ def clean_volume():
         assembly_ids_to_exclude.extend(assembly_ids)
     # now we want to loop through the files and clean up the ones that are not in the exclude list
     deleted_files = []
-    for [root, dirnames, filenames] in os.walk(Config.PVC_DIR):
+    retain_files = []
+
+    datehelper = DateHelper()
+    now = datehelper.now
+    expiration_date = now - timedelta(seconds=Config.VOLUME_FILE_RETENTION)
+    for [root, _, filenames] in os.walk(Config.PVC_DIR):
         for file in filenames:
             match = False
             for assembly_id in assembly_ids_to_exclude:
@@ -348,11 +357,16 @@ def clean_volume():
                     match = True
             # if none of the assembly_ids that we care about were in the filename - we can safely delete it
             if not match:
-                if os.path.exists(os.path.join(root, file)):
-                    os.remove(os.path.join(root, file))
-                    deleted_files.append(os.path.join(root, file))
-    if deleted_files:
-        LOG.info("The following files were deleted: ")
-        LOG.info(deleted_files)
-    else:
-        LOG.info("No files found that met requirements for deletion.")
+                potential_delete = os.path.join(root, file)
+                if os.path.exists(potential_delete):
+                    file_datetime = datetime.fromtimestamp(os.path.getmtime(potential_delete))
+                    file_datetime = timezone.make_aware(file_datetime)
+                    if file_datetime < expiration_date:
+                        os.remove(potential_delete)
+                        deleted_files.append(potential_delete)
+                    else:
+                        retain_files.append(potential_delete)
+
+    LOG.info("Removing all files older than %s", expiration_date)
+    LOG.info("The following files were too new to delete: %s", retain_files)
+    LOG.info("The following files were deleted: %s", deleted_files)
