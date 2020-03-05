@@ -174,8 +174,9 @@ class SourcesViewSet(*MIXIN_LIST):
             try:
                 manager = ProviderManager(source["uuid"])
             except ProviderManagerError:
-                pass
+                source["provider_linked"] = False
             else:
+                source["provider_linked"] = True
                 source["infrastructure"] = manager.get_infrastructure_name()
                 connection.set_tenant(tenant)
                 source["cost_models"] = [
@@ -193,8 +194,9 @@ class SourcesViewSet(*MIXIN_LIST):
         try:
             manager = ProviderManager(response.data["uuid"])
         except ProviderManagerError:
-            pass
+            response.data["provider_linked"] = False
         else:
+            response.data["provider_linked"] = True
             response.data["infrastructure"] = manager.get_infrastructure_name()
             connection.set_tenant(tenant)
             response.data["cost_models"] = [
@@ -210,7 +212,13 @@ class SourcesViewSet(*MIXIN_LIST):
         account_id = get_account_from_header(request)
         schema_name = create_schema_name(account_id)
         source = self.get_object()
-        manager = ProviderManager(source.source_uuid)
-        tenant = Tenant.objects.get(schema_name=schema_name)
-        stats = manager.provider_statistics(tenant)
+        stats = {}
+        try:
+            manager = ProviderManager(source.source_uuid)
+        except ProviderManagerError:
+            stats["provider_linked"] = False
+        else:
+            stats["provider_linked"] = True
+            tenant = Tenant.objects.get(schema_name=schema_name)
+            stats.update(manager.provider_statistics(tenant))
         return Response(stats)
