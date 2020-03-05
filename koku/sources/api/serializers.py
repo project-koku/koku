@@ -178,13 +178,10 @@ class AdminSourcesSerializer(SourcesSerializer):
         """Create a source from validated data."""
         auth_header = get_auth_header(self.context.get("request"))
         manager = KafkaSourceManager(auth_header)
-        provider = manager.create_provider(
-            validated_data.get("name"),
-            validated_data.get("source_type"),
-            validated_data.get("authentication"),
-            validated_data.get("billing_source"),
-            validated_data.get("uuid"),
-        )
-        validated_data["koku_uuid"] = provider.uuid
         source = Sources.objects.create(**validated_data)
+        provider = manager.create_provider(
+            source.name, source.source_type, source.authentication, source.billing_source, source.source_uuid
+        )
+        source.koku_uuid = provider.uuid
+        source.save()
         return source
