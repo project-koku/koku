@@ -257,6 +257,7 @@ def sources_network_auth_info(resource_id, auth_header):
         None
 
     """
+    # check db for source. If exists, add authentication info.
     source_id = storage.get_source_from_endpoint(resource_id)
     if source_id:
         save_auth_info(auth_header, source_id)
