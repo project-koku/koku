@@ -101,7 +101,6 @@ class KokuCustomerOnboarder:
 
             response = requests.post(self.endpoint_base + "sources/", headers=get_headers(self.auth_token), json=data)
             print(f"Response: [{response.status_code}] {response.text}")
-        return response
 
     def create_provider_source(self, source_type):
         """Create a single provider, auth, and billing source in the DB."""
