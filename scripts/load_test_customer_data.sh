@@ -34,6 +34,16 @@ KOKU_PATH=$1
 START_DATE=$2
 END_DATE=$3
 
+if [ -z "${KOKU_API_HOSTNAME}" ]; then
+    echo "Please set the KOKU_API_HOSTNAME environment variable. Exiting."
+    exit 2
+fi
+
+if [ -z "${MASU_API_HOSTNAME}" ]; then
+    echo "Please set the MASU_API_HOSTNAME environment variable. Exiting."
+    exit 2
+fi
+
 KOKU_API=$KOKU_API_HOSTNAME
 MASU_API=$MASU_API_HOSTNAME
 

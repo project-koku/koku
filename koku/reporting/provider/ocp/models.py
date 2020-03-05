@@ -473,6 +473,10 @@ class OCPNodeLabelLineItemDaily(models.Model):
         """Meta for OCPNodeLabelLineItemDaily."""
 
         db_table = "reporting_ocpnodelabellineitem_daily"
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocplblnitdly_usage_start"),
+            GinIndex(fields=["node_labels"], name="ocplblnitdly_node_labels"),
+        ]
 
     id = models.BigAutoField(primary_key=True)
 
@@ -485,8 +489,8 @@ class OCPNodeLabelLineItemDaily(models.Model):
     # Kubernetes objects by convention have a max name length of 253 chars
     node = models.CharField(max_length=253, null=True)
 
-    usage_start = models.DateTimeField(null=False)
-    usage_end = models.DateTimeField(null=False)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
 
     node_labels = JSONField(null=True)
 

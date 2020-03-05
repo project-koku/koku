@@ -18,6 +18,7 @@
 import logging
 import pkgutil
 import uuid
+from datetime import datetime
 
 from dateutil.parser import parse
 from django.db.models import F
@@ -117,13 +118,17 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+
+        _start_date = start_date.date() if isinstance(start_date, datetime) else start_date
+        _end_date = end_date.date() if isinstance(end_date, datetime) else end_date
+
         table_name = AZURE_REPORT_TABLE_MAP["line_item_daily_summary"]
         summary_sql = pkgutil.get_data("masu.database", "sql/reporting_azurecostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
             "uuid": str(uuid.uuid4()).replace("-", "_"),
-            "start_date": start_date,
-            "end_date": end_date,
+            "start_date": _start_date,
+            "end_date": _end_date,
             "bill_ids": bill_ids,
             "schema": self.schema,
         }
