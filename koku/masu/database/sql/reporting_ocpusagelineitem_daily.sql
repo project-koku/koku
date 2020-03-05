@@ -53,20 +53,20 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
                 -- Setting pod labels as the second item here
                 -- allows a value for a label specifically set on the pod
                 -- to take precedence
-                COALESCE(nli.node_labels, '{}'::jsonb) || pod_labels as pod_labels
+                COALESCE(nli.node_labels, '{}'::jsonb) || li.pod_labels AS pod_labels
             FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem AS li
             JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
                 ON li.report_period_id = rp.id
             JOIN {{schema | sqlsafe}}.reporting_ocpusagereport AS ur
                 ON li.report_id = ur.id
-            LEFT JOIN {{schema | sqlsafe}}.reporting_ocpnodelabellineitem as nli
+            LEFT JOIN {{schema | sqlsafe}}.reporting_ocpnodelabellineitem AS nli
                 ON li.report_period_id = nli.report_period_id
-                    AND li.node = nli.node
                     AND li.report_id = nli.report_id
+                    AND li.node = nli.node
             WHERE date(ur.interval_start) >= {{start_date}}
                 AND date(ur.interval_start) <= {{end_date}}
                 AND rp.cluster_id = {{cluster_id}}
-        ) as labels
+        ) AS labels
         GROUP BY report_period_id,
             cluster_id,
             usage_start,
@@ -112,8 +112,8 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
         ON date(ur.interval_start) = oc.usage_start
     JOIN cte_node_inherited_labels as cte
         ON li.report_period_id = cte.report_period_id
-            AND cc.cluster_id = cte.cluster_id
-            AND cc.usage_start = cte.usage_start
+            AND rp.cluster_id = cte.cluster_id
+            AND date(ur.interval_start) = cte.usage_start
             AND li.namespace = cte.namespace
             AND li.pod = cte.pod
             AND li.node = cte.node
