@@ -23,7 +23,7 @@ import csv
 import math
 import os
 from datetime import date
-from api.util import DateHelper
+from datetime import datetime
 from datetime import timedelta
 
 import boto3
@@ -37,12 +37,14 @@ from dateutil.rrule import rrule
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
+from django.utils import timezone
 
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer
 from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.dataexport.uploader import AwsS3Uploader
 from api.iam.models import Tenant
+from api.utils import DateHelper
 from koku.celery import app
 from masu.celery.export import table_export_settings
 from masu.config import Config
@@ -345,7 +347,7 @@ def clean_volume():
     retain_files = []
 
     datehelper = DateHelper()
-    now = datehelper.now()
+    now = datehelper.now
     expiration_date = now - timedelta(seconds=Config.VOLUME_FILE_RETENTION)
     for [root, _, filenames] in os.walk(Config.PVC_DIR):
         for file in filenames:
@@ -358,6 +360,7 @@ def clean_volume():
                 potential_delete = os.path.join(root, file)
                 if os.path.exists(potential_delete):
                     file_datetime = datetime.fromtimestamp(os.path.getmtime(potential_delete))
+                    file_datetime = timezone.make_aware(file_datetime)
                     if file_datetime < expiration_date:
                         os.remove(potential_delete)
                         deleted_files.append(potential_delete)

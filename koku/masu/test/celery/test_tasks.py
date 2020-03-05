@@ -23,6 +23,7 @@ from django.test import override_settings
 from api.dataexport.models import DataExportRequest as APIExportRequest
 from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.models import Provider
+from api.utils import DateHelper
 from masu.celery import tasks
 from masu.celery.export import TableExportSetting
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -308,7 +309,8 @@ class TestCeleryTasks(MasuTestCase):
                 self.assertEqual(os.path.exists(path), True)
 
             # Update timestame for oldfile.csv
-            now = datetime.now()
+            datehelper = DateHelper()
+            now = datehelper.now
             old_datetime = now - timedelta(seconds=mock_config.VOLUME_FILE_RETENTION * 2)
             oldtime = old_datetime.timestamp()
             os.utime(old_matching_file, (oldtime, oldtime))
