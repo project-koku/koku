@@ -237,6 +237,7 @@ def save_auth_info(auth_header, source_id):
             return
         storage.add_provider_sources_auth_info(source_id, authentication)
         storage.clear_update_flag(source_id)
+        LOG.info(f"Authentication attached to Source ID: {source_id}")
     except SourcesHTTPClientError as error:
         LOG.info(f"Authentication info not available for Source ID: {source_id}")
         sources_network.set_source_status(str(error))
@@ -346,8 +347,8 @@ async def process_messages(app_type_id, msg_pending_queue):  # noqa: C901; pragm
             elif msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE,):
                 sources_network = SourcesHTTPClient(msg_data.get("auth_header"))
                 msg_data["source_id"] = sources_network.get_source_id_from_endpoint_id(msg_data.get("resource_id"))
-                app_id = sources_network.get_application_type_id_from_source_id(msg_data.get("source_id"))
-                if app_id and int(app_id) == int(app_type_id):
+                is_cost_mgmt = sources_network.get_application_type_is_cost_management(msg_data.get("source_id"))
+                if is_cost_mgmt:
 
                     storage.create_source_event(  # this will create source if it does not exist.
                         msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset")

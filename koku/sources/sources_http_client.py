@@ -79,19 +79,20 @@ class SourcesHTTPClient:
 
         return source_id
 
-    def get_application_type_id_from_source_id(self, source_id):
+    def get_application_type_is_cost_management(self, source_id):
         """Get application_type_id from source_id."""
-        endpoint_url = f"{self._base_url}/applications?filter[source_id]={source_id}"
+        cost_mgmt_id = self.get_cost_management_application_type_id()
+        endpoint_url = f"{self._base_url}/application_types/{cost_mgmt_id}/sources?&filter[id][]={source_id}"
         r = requests.get(endpoint_url, headers=self._identity_header)
         if r.status_code != 200:
             raise SourcesHTTPClientError("Status Code: ", r.status_code)
         endpoint_response = r.json()
 
-        application_type_id = None
+        cost_mgmt_type = False
         if endpoint_response.get("data"):
-            application_type_id = endpoint_response.get("data")[0].get("application_type_id")
+            cost_mgmt_type = len(endpoint_response.get("data")) > 0
 
-        return application_type_id
+        return cost_mgmt_type
 
     def get_cost_management_application_type_id(self):
         """Get the cost management application type id."""
