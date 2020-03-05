@@ -15,28 +15,72 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for Sources."""
-import binascii
 import logging
-from base64 import b64decode
-from json import loads as json_loads
-from json.decoder import JSONDecodeError
 
+from django.conf import settings
+from django.db import connection
+from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
+from django_filters import FilterSet
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins
+from rest_framework import permissions
 from rest_framework import status
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
 from rest_framework.exceptions import ParseError
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.serializers import UUIDField
+from rest_framework.serializers import ValidationError
 
+from api.common.filters import CharListFilter
+from api.iam.models import Tenant
+from api.iam.serializers import create_schema_name
 from api.provider.models import Sources
+from api.provider.provider_manager import ProviderManager
+from api.provider.provider_manager import ProviderManagerError
+from sources.api import get_account_from_header
+from sources.api import get_auth_header
+from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesSerializer
+from sources.kafka_source_manager import KafkaSourceManager
 from sources.storage import SourcesStorageError
 
 
+class DestroySourceMixin(mixins.DestroyModelMixin):
+    """A mixin for destroying a source."""
+
+    @never_cache
+    def destroy(self, request, *args, **kwargs):
+        """Delete a source."""
+        source = self.get_object()
+        manager = KafkaSourceManager(get_auth_header(request))
+        manager.destroy_provider(source.koku_uuid)
+        response = super().destroy(request, *args, **kwargs)
+        return response
+
+
 LOG = logging.getLogger(__name__)
+MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet]
+
+
+if settings.DEVELOPMENT:
+    MIXIN_LIST.append(mixins.CreateModelMixin)
+    MIXIN_LIST.append(DestroySourceMixin)
+
+
+class SourceFilter(FilterSet):
+    """Source custom filters."""
+
+    name = CharListFilter(field_name="name", lookup_expr="name__icontains")
+    type = CharListFilter(field_name="source_type", lookup_expr="source_type__iexact")
+
+    class Meta:
+        model = Sources
+        fields = ["source_type", "name"]
 
 
 class SourcesException(APIException):
@@ -49,20 +93,18 @@ class SourcesException(APIException):
         self.detail = {"detail": force_text(error_msg)}
 
 
-class SourcesViewSet(
-    mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet
-):
+class SourcesViewSet(*MIXIN_LIST):
     """Sources View.
 
     A viewset that provides default `retrieve()`,
     `update()`, and `list()` actions.
     """
 
-    serializer_class = SourcesSerializer
-    lookup_field = "source_id"
+    lookup_fields = ("source_id", "source_uuid")
     queryset = Sources.objects.all()
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
+    filterset_class = SourceFilter
 
     @property
     def allowed_methods(self):
@@ -71,6 +113,13 @@ class SourcesViewSet(
             self.http_method_names.remove("put")
         return [method.upper() for method in self.http_method_names if hasattr(self, method)]
 
+    def get_serializer_class(self):
+        """Return the appropriate serializer depending on the method."""
+        if self.request.method in permissions.SAFE_METHODS:
+            return SourcesSerializer
+        else:
+            return AdminSourcesSerializer
+
     def get_queryset(self):
         """Get a queryset.
 
@@ -78,19 +127,35 @@ class SourcesViewSet(
         by filtering against a `account_id` in the request.
         """
         queryset = Sources.objects.none()
-        auth_header = self.request.headers.get("X-Rh-Identity")
-        if auth_header:
-            try:
-                decoded_rh_auth = b64decode(auth_header)
-                json_rh_auth = json_loads(decoded_rh_auth)
-                account_id = json_rh_auth.get("identity", {}).get("account_number")
-                queryset = Sources.objects.filter(account_id=account_id)
-            except Sources.DoesNotExist:
-                LOG.error("No sources found for account id %s.", account_id)
-            except (binascii.Error, JSONDecodeError) as error:
-                LOG.error(f"Error decoding authentication header: {str(error)}")
+        account_id = get_account_from_header(self.request)
+        try:
+            queryset = Sources.objects.filter(account_id=account_id)
+        except Sources.DoesNotExist:
+            LOG.error("No sources found for account id %s.", account_id)
 
         return queryset
+
+    def get_object(self):
+        queryset = self.get_queryset()
+        queryset = self.filter_queryset(queryset)
+        pk = self.kwargs.get("pk")
+        try:
+            uuid = UUIDField().to_internal_value(data=pk)
+            obj = Sources.objects.get(source_uuid=uuid)
+            if obj:
+                return obj
+        except ValidationError:
+            pass
+        obj = get_object_or_404(queryset, **{"pk": pk})
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def _get_account_and_tenant(self, request):
+        """Get account_id and tenant from request."""
+        account_id = get_account_from_header(request)
+        schema_name = create_schema_name(account_id)
+        tenant = tenant = Tenant.objects.get(schema_name=schema_name)
+        return (account_id, tenant)
 
     @never_cache
     def update(self, request, *args, **kwargs):
@@ -103,11 +168,49 @@ class SourcesViewSet(
     @never_cache
     def list(self, request, *args, **kwargs):
         """Obtain the list of sources."""
-        return super().list(request=request, args=args, kwargs=kwargs)
+        response = super().list(request=request, args=args, kwargs=kwargs)
+        _, tenant = self._get_account_and_tenant(request)
+        for source in response.data["data"]:
+            try:
+                manager = ProviderManager(source["uuid"])
+            except ProviderManagerError:
+                pass
+            else:
+                source["infrastructure"] = manager.get_infrastructure_name()
+                connection.set_tenant(tenant)
+                source["cost_models"] = [
+                    {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
+                ]
+                connection.set_schema_to_public()
+        connection.set_schema_to_public()
+        return response
 
     @never_cache
     def retrieve(self, request, *args, **kwargs):
         """Get a source."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
-
+        _, tenant = self._get_account_and_tenant(request)
+        try:
+            manager = ProviderManager(response.data["uuid"])
+        except ProviderManagerError:
+            pass
+        else:
+            response.data["infrastructure"] = manager.get_infrastructure_name()
+            connection.set_tenant(tenant)
+            response.data["cost_models"] = [
+                {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
+            ]
+        connection.set_schema_to_public()
         return response
+
+    @never_cache
+    @action(methods=["get"], detail=True, permission_classes=[AllowAny])
+    def stats(self, request, pk=None):
+        """Get source stats."""
+        account_id = get_account_from_header(request)
+        schema_name = create_schema_name(account_id)
+        source = self.get_object()
+        manager = ProviderManager(source.source_uuid)
+        tenant = Tenant.objects.get(schema_name=schema_name)
+        stats = manager.provider_statistics(tenant)
+        return Response(stats)

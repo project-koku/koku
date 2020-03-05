@@ -22,15 +22,10 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import mixins
 from rest_framework import status
-from rest_framework import viewsets
 from rest_framework.exceptions import APIException
-from rest_framework.permissions import AllowAny
 
-from api.provider.models import Sources
-from sources.api.serializers import SourcesSerializer
+from sources.api.views import SourcesViewSet
 
 
 LOG = logging.getLogger(__name__)
@@ -57,21 +52,12 @@ class SourcesMethodException(APIException):
         self.detail = {"detail": force_text(message)}
 
 
-class SourcesProxyViewSet(
-    mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet
-):
+class SourcesProxyViewSet(SourcesViewSet):
     """Sources View.
-
     A viewset that provides default `create()`, `retrieve()`,
     `update()`, and `list()` actions.
-
     """
 
-    lookup_field = "source_id"
-    serializer_class = SourcesSerializer
-    queryset = Sources.objects.all()
-    permission_classes = (AllowAny,)
-    filter_backends = (DjangoFilterBackend,)
     url = f"{settings.SOURCES_CLIENT_BASE_URL}/sources/"
 
     @never_cache
@@ -80,34 +66,10 @@ class SourcesProxyViewSet(
         if request.method == "PUT":
             raise SourcesMethodException("PUT not supported")
 
-        source_id = kwargs.get("source_id")
+        source_id = kwargs.get("pk")
         url = f"{self.url}{source_id}/"
         try:
             r = requests.patch(url, json=request.data, headers=self.request.headers)
-        except requests.exceptions.ConnectionError as error:
-            raise SourcesProxyException(str(error))
-        response = HttpResponse(content=r.content, status=r.status_code, content_type=r.headers["Content-Type"])
-
-        return response
-
-    @never_cache
-    def list(self, request, *args, **kwargs):
-        """Obtain the list of sources."""
-        try:
-            r = requests.get(self.url, headers=self.request.headers)
-        except requests.exceptions.ConnectionError as error:
-            raise SourcesProxyException(str(error))
-        response = HttpResponse(content=r.content, status=r.status_code, content_type=r.headers["Content-Type"])
-
-        return response
-
-    @never_cache
-    def retrieve(self, request, *args, **kwargs):
-        """Get a source."""
-        source_id = kwargs.get("source_id")
-        url = f"{self.url}{source_id}/"
-        try:
-            r = requests.get(url, headers=self.request.headers)
         except requests.exceptions.ConnectionError as error:
             raise SourcesProxyException(str(error))
         response = HttpResponse(content=r.content, status=r.status_code, content_type=r.headers["Content-Type"])

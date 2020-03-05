@@ -111,7 +111,7 @@ services:
     ports:
       - "15432:5432"
     volumes:
-      - ./pg_data:/var/lib/pgsql/data
+      - ./pg_data:/var/lib/postgresql/data
       - ./pg_init:/docker-entrypoint-initdb.d
 
   pgadmin:
@@ -124,6 +124,18 @@ services:
     - "${PGADMIN_PORT-8432}:80"
     volumes:
       - ./pgadmin_servers.json:/pgadmin4/servers.json
+
+  grafana:
+    container_name: koku_grafana
+    build:
+        context: grafana
+        dockerfile: Dockerfile-grafana
+    ports:
+        - 3001:3000
+    links:
+        - db
+    depends_on:
+        - db
 
   koku-rabbit:
       container_name: koku_rabbit
@@ -159,7 +171,7 @@ services:
         - DJANGO_SETTINGS_MODULE=koku.settings
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
-        - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-True}
+        - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
         - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
         - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
         - PVC_DIR=${PVC_DIR-/testing/pvc_dir}

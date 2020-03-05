@@ -72,6 +72,7 @@ class CostModelViewTests(IamTestCase):
                 "value": round(Decimal(random.random()), 6),
                 "unit": "USD",
                 "usage": {"usage_start": None, "usage_end": None},
+                "cost_type": "Infrastructure",
             }
         ]
         self.fake_data = {
@@ -147,6 +148,23 @@ class CostModelViewTests(IamTestCase):
 
         test_data = copy.deepcopy(self.fake_data)
         test_data["source_type"] = "Bad Source"
+        response = client.post(url, test_data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_cost_model_invalid_cost_type(self):
+        """Test that an invalid cost type causes an HTTP 400."""
+        url = reverse("costmodels-list")
+        client = APIClient()
+
+        test_data = copy.deepcopy(self.fake_data)
+        test_data["rates"][0]["tiered_rates"] = [
+            {
+                "unit": "USD",
+                "value": 0.22,
+                "usage": {"usage_start": None, "usage_end": None},
+                "cost_type": "Infrastructurez",
+            }
+        ]
         response = client.post(url, test_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 

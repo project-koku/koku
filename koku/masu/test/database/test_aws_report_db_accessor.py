@@ -967,6 +967,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 )
                 report = self.creator.create_ocp_report(period, cost_entry_date)
                 self.creator.create_ocp_usage_line_item(period, report, resource_id=resource_id)
+                self.creator.create_ocp_node_label_line_item(period, report)
 
             ocp_report_table_name = OCP_REPORT_TABLE_MAP["report"]
             with schema_context(self.schema):
@@ -979,6 +980,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
                 end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
+            ocp_accessor.populate_node_label_line_item_daily_table(start_date, end_date, cluster_id)
             ocp_accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
             ocp_accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id)
         with schema_context(self.schema):

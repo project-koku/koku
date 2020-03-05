@@ -64,7 +64,7 @@ class ReportObjectCreator:
         if entry_datetime:
             start_datetime = entry_datetime
         else:
-            start_datetime = self.fake.past_datetime(start_date="-60d")  # pylint: ignore=no-member
+            start_datetime = self.fake.past_datetime(start_date="-60d")
         end_datetime = start_datetime + datetime.timedelta(hours=1)
         data = {"bill_id": bill.id, "interval_start": start_datetime, "interval_end": end_datetime}
         with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
@@ -120,6 +120,7 @@ class ReportObjectCreator:
             "cost_entry_reservation_id": reservation.id,
             "usage_start": cost_entry.interval_start,
             "usage_end": cost_entry.interval_end,
+            "usage_account_id": self.fake.pystr()[:8],
             "resource_id": resource_id,
             "tags": {
                 "environment": random.choice(["dev", "qa", "prod"]),
@@ -212,6 +213,17 @@ class ReportObjectCreator:
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
+    def create_ocp_node_label_line_item(self, report_period, report, node=None, node_labels=None):
+        """Create an OCP node label line item database object for test."""
+        table_name = OCP_REPORT_TABLE_MAP["node_label_line_item"]
+        data = self.create_columns_for_table(table_name)
+        data["report_period_id"] = report_period.id
+        data["report_id"] = report.id
+        if node:
+            data["node"] = node
+        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
+
     def create_columns_for_table(self, table):
         """Generate data for a table."""
         data = {}
@@ -242,7 +254,7 @@ class ReportObjectCreator:
     def create_csv_file_stream(self, row):
         """Create a CSV file object for bulk upload testing."""
         file_obj = io.StringIO()
-        writer = csv.writer(file_obj, delimiter="\t", quoting=csv.QUOTE_NONE, quotechar="")
+        writer = csv.writer(file_obj, delimiter=",", quoting=csv.QUOTE_MINIMAL, quotechar='"')
         writer.writerow(row)
         file_obj.seek(0)
 
@@ -296,7 +308,7 @@ class ReportObjectCreator:
 
             data = {
                 "account_alias_id": account_alias.id,
-                "cost_entry_bill": self.create_cost_entry_bill(),
+                "cost_entry_bill": self.create_cost_entry_bill(str(uuid.uuid4())),
                 "namespace": self.fake.pystr()[:8],
                 "pod": self.fake.pystr()[:8],
                 "node": self.fake.pystr()[:8],

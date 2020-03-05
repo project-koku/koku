@@ -267,8 +267,11 @@ class ProviderSerializer(serializers.ModelSerializer):
 
     def get_request_info(self):
         """Obtain request information like user and customer context."""
-        user = None
-        customer = None
+        user = self.context.get("user")
+        customer = self.context.get("customer")
+        if user and customer:
+            return user, customer
+
         request = self.context.get("request")
         if request and hasattr(request, "user"):
             user = request.user
@@ -282,12 +285,12 @@ class ProviderSerializer(serializers.ModelSerializer):
             key = "created_by"
             message = "Requesting user could not be found."
             raise serializers.ValidationError(error_obj(key, message))
-        return request, user, customer
+        return user, customer
 
     @transaction.atomic
     def create(self, validated_data):
         """Create a provider from validated data."""
-        _, user, customer = self.get_request_info()
+        user, customer = self.get_request_info()
 
         if "billing_source" in validated_data:
             billing_source = validated_data.pop("billing_source")
@@ -337,7 +340,7 @@ class ProviderSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
-        _, _, customer = self.get_request_info()
+        _, customer = self.get_request_info()
         provider_type = validated_data["type"].lower()
         provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type)
         validated_data["type"] = provider_type

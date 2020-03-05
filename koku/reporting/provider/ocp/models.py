@@ -125,9 +125,9 @@ class OCPUsageLineItemDaily(models.Model):
 
         indexes = [
             models.Index(fields=["usage_start"], name="ocp_usage_idx"),
-            models.Index(fields=["namespace"], name="namespace_idx"),
+            models.Index(fields=["namespace"], name="namespace_idx", opclasses=["varchar_pattern_ops"]),
             models.Index(fields=["pod"], name="pod_idx"),
-            models.Index(fields=["node"], name="node_idx"),
+            models.Index(fields=["node"], name="node_idx", opclasses=["varchar_pattern_ops"]),
         ]
 
     id = models.BigAutoField(primary_key=True)
@@ -148,8 +148,8 @@ class OCPUsageLineItemDaily(models.Model):
     # Another node identifier used to tie the node to an EC2 instance
     resource_id = models.CharField(max_length=253, null=True)
 
-    usage_start = models.DateTimeField(null=False)
-    usage_end = models.DateTimeField(null=False)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
 
     pod_usage_cpu_core_seconds = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
@@ -199,8 +199,8 @@ class OCPUsageLineItemDailySummary(models.Model):
 
         indexes = [
             models.Index(fields=["usage_start"], name="summary_ocp_usage_idx"),
-            models.Index(fields=["namespace"], name="summary_namespace_idx"),
-            models.Index(fields=["node"], name="summary_node_idx"),
+            models.Index(fields=["namespace"], name="summary_namespace_idx", opclasses=["varchar_pattern_ops"]),
+            models.Index(fields=["node"], name="summary_node_idx", opclasses=["varchar_pattern_ops"]),
             models.Index(fields=["data_source"], name="summary_data_source_idx"),
             GinIndex(fields=["pod_labels"], name="pod_labels_idx"),
         ]
@@ -226,8 +226,8 @@ class OCPUsageLineItemDailySummary(models.Model):
     # Another node identifier used to tie the node to an EC2 instance
     resource_id = models.CharField(max_length=253, null=True)
 
-    usage_start = models.DateTimeField(null=False)
-    usage_end = models.DateTimeField(null=False)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
 
     pod_labels = JSONField(null=True)
 
@@ -314,6 +314,7 @@ class OCPUsagePodLabelSummary(models.Model):
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
+    namespace = ArrayField(models.CharField(max_length=253))
 
 
 class OCPStorageLineItem(models.Model):
@@ -364,6 +365,10 @@ class OCPStorageLineItemDaily(models.Model):
         """Meta for OCPUStorageLineItemDaily."""
 
         db_table = "reporting_ocpstoragelineitem_daily"
+        indexes = [
+            models.Index(fields=["namespace"], name="ocp_storage_li_namespace_idx", opclasses=["varchar_pattern_ops"]),
+            models.Index(fields=["node"], name="ocp_storage_li_node_idx", opclasses=["varchar_pattern_ops"]),
+        ]
 
     id = models.BigAutoField(primary_key=True)
 
@@ -385,8 +390,8 @@ class OCPStorageLineItemDaily(models.Model):
     persistentvolume = models.CharField(max_length=253)
 
     storageclass = models.CharField(max_length=50, null=True)
-    usage_start = models.DateTimeField(null=False)
-    usage_end = models.DateTimeField(null=False)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
 
     persistentvolumeclaim_capacity_bytes = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
@@ -416,6 +421,7 @@ class OCPStorageVolumeLabelSummary(models.Model):
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
+    namespace = ArrayField(models.CharField(max_length=253))
 
 
 class OCPStorageVolumeClaimLabelSummary(models.Model):
@@ -432,3 +438,56 @@ class OCPStorageVolumeClaimLabelSummary(models.Model):
     key = models.CharField(max_length=253)
     values = ArrayField(models.CharField(max_length=253))
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
+    namespace = ArrayField(models.CharField(max_length=253))
+
+
+class OCPNodeLabelLineItem(models.Model):
+    """Raw report label data for OpenShift nodes."""
+
+    class Meta:
+        """Meta for OCPNodeLabelLineItem."""
+
+        db_table = "reporting_ocpnodelabellineitem"
+        unique_together = ("report", "node")
+
+    id = models.BigAutoField(primary_key=True)
+
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
+
+    report = models.ForeignKey("OCPUsageReport", on_delete=models.CASCADE)
+
+    # Kubernetes objects by convention have a max name length of 253 chars
+    node = models.CharField(max_length=253, null=True)
+
+    node_labels = JSONField(null=True)
+
+
+class OCPNodeLabelLineItemDaily(models.Model):
+    """A daily aggregation of node label line items.
+
+    This table is aggregated by OCP resource.
+
+    """
+
+    class Meta:
+        """Meta for OCPNodeLabelLineItemDaily."""
+
+        db_table = "reporting_ocpnodelabellineitem_daily"
+
+    id = models.BigAutoField(primary_key=True)
+
+    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
+
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
+
+    # Kubernetes objects by convention have a max name length of 253 chars
+    node = models.CharField(max_length=253, null=True)
+
+    usage_start = models.DateTimeField(null=False)
+    usage_end = models.DateTimeField(null=False)
+
+    node_labels = JSONField(null=True)
+
+    total_seconds = models.IntegerField()

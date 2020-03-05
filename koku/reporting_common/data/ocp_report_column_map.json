@@ -215,5 +215,17 @@
         "provider_column_name":"persistentvolumeclaim_labels",
         "report_type":"OCP-STORAGE",
         "provider_type":"OCP"
+    }, {
+        "database_column": "node",
+        "database_table": "reporting_ocpnodelabellineitem",
+        "provider_column_name": "node",
+        "report_type": "OCP-NODE-LABELS",
+        "provider_type": "OCP"
+    }, {
+        "database_column": "node_labels",
+        "database_table": "reporting_ocpnodelabellineitem",
+        "provider_column_name": "node_labels",
+        "report_type": "OCP-NODE-LABELS",
+        "provider_type": "OCP"
     }
 ]

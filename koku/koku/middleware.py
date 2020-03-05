@@ -60,7 +60,7 @@ def is_no_auth(request):
         "download",
         "report_data",
         "expired_data",
-        "update_charge",
+        "update_cost_model_costs",
         "upload_normalized_data",
         "authentication",
         "billing_source",
@@ -160,7 +160,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
     rbac = RbacService()
 
     @staticmethod
-    def _create_customer(account):
+    def create_customer(account):
         """Create a customer.
 
         Args:
@@ -185,7 +185,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         return customer
 
     @staticmethod
-    def _create_user(username, email, customer, request):
+    def create_user(username, email, customer, request):
         """Create a user for a customer.
 
         Args:
@@ -202,7 +202,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         try:
             with transaction.atomic():
                 user_data = {"username": username, "email": email}
-                context = {"request": request}
+                context = {"request": request, "customer": customer}
                 serializer = UserSerializer(data=user_data, context=context)
                 if serializer.is_valid(raise_exception=True):
                     new_user = serializer.save()
@@ -268,7 +268,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             try:
                 customer = Customer.objects.filter(account_id=account).get()
             except Customer.DoesNotExist:
-                customer = IdentityHeaderMiddleware._create_customer(account)
+                customer = IdentityHeaderMiddleware.create_customer(account)
             except OperationalError as err:
                 LOG.error("IdentityHeaderMiddleware exception: %s", err)
                 DB_CONNECTION_ERRORS_COUNTER.inc()
@@ -277,7 +277,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             try:
                 user = User.objects.get(username=username)
             except User.DoesNotExist:
-                user = IdentityHeaderMiddleware._create_user(username, email, customer, request)
+                user = IdentityHeaderMiddleware.create_user(username, email, customer, request)
 
             user.identity_header = {"encoded": rh_auth_header, "decoded": json_rh_auth}
             user.admin = is_admin

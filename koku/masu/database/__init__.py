@@ -28,6 +28,7 @@ AWS_CUR_TABLE_MAP = {
     "tags_summary": "reporting_awstags_summary",
     "ocp_on_aws_daily_summary": "reporting_ocpawscostlineitem_daily_summary",
     "ocp_on_aws_project_daily_summary": "reporting_ocpawscostlineitem_project_daily_summary",
+    "ocp_on_aws_tags_summary": "reporting_ocpawstags_summary",
 }
 
 OCP_REPORT_TABLE_MAP = {
@@ -41,9 +42,10 @@ OCP_REPORT_TABLE_MAP = {
     "pod_label_summary": "reporting_ocpusagepodlabel_summary",
     "storage_line_item": "reporting_ocpstoragelineitem",
     "storage_line_item_daily": "reporting_ocpstoragelineitem_daily",
-    "volume_claim_label_summary": "reporting_ocpstoragevolumeclaimlabel_summary",
     "volume_label_summary": "reporting_ocpstoragevolumelabel_summary",
     "cost_summary": "reporting_ocpcosts_summary",
+    "node_label_line_item": "reporting_ocpnodelabellineitem",
+    "node_label_line_item_daily": "reporting_ocpnodelabellineitem_daily",
 }
 
 AZURE_REPORT_TABLE_MAP = {
@@ -55,4 +57,5 @@ AZURE_REPORT_TABLE_MAP = {
     "tags_summary": "reporting_azuretags_summary",
     "ocp_on_azure_daily_summary": "reporting_ocpazurecostlineitem_daily_summary",
     "ocp_on_azure_project_daily_summary": "reporting_ocpazurecostlineitem_project_daily_summary",
+    "ocp_on_azure_tags_summary": "reporting_ocpazuretags_summary",
 }
