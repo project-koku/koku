@@ -99,17 +99,6 @@ class SourcesSerializerTests(IamTestCase):
         source.save()
         return source
 
-    def test_azure_source_authentication_update(self):
-        """Test the updating azure subscription id."""
-        serializer = SourcesSerializer(context=self.request_context)
-        validated_data = {"authentication": {"credentials": {"subscription_id": "subscription-uuid"}}}
-        instance = serializer.update(self.azure_obj, validated_data)
-        self.assertIn("credentials", instance.authentication.keys())
-        self.assertIn("client_id", instance.authentication.get("credentials").keys())
-        self.assertIn("tenant_id", instance.authentication.get("credentials").keys())
-        self.assertIn("subscription_id", instance.authentication.get("credentials").keys())
-        self.assertEqual("subscription-uuid", instance.authentication.get("credentials").get("subscription_id"))
-
     @patch("api.provider.serializers.ProviderSerializer.get_request_info")
     @patch("sources.kafka_source_manager.KafkaSourceManager._create_context")
     def test_azure_source_update_missing_credential(self, mock_context, mock_request_info):
