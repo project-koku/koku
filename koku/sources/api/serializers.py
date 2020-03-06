@@ -28,8 +28,6 @@ from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
 from sources.api import get_account_from_header
 from sources.api import get_auth_header
 from sources.kafka_source_manager import KafkaSourceManager
-from sources.storage import add_provider_koku_uuid
-from sources.storage import clear_update_flag
 from sources.storage import SourcesStorageError
 
 LOG = logging.getLogger(__name__)
@@ -146,7 +144,9 @@ class SourcesSerializer(serializers.ModelSerializer):
                 instance.billing_source,
                 instance.source_uuid,
             )
-            clear_update_flag(instance.source_id)
+            instance.koku_uuid = obj.uuid
+            instance.pending_update = False
+            instance.save()
             LOG.info(f"Provider created: {obj.uuid}")
         else:
             obj = source_mgr.update_provider(
@@ -156,7 +156,8 @@ class SourcesSerializer(serializers.ModelSerializer):
                 instance.authentication,
                 instance.billing_source,
             )
-            add_provider_koku_uuid(instance.source_id, str(obj.uuid))
+            instance.koku_uuid = obj.uuid
+            instance.save()
             LOG.info(f"Provider updated: {obj.uuid}")
 
         return instance
