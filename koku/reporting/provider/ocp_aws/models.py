@@ -55,9 +55,9 @@ class OCPAWSCostLineItemDailySummary(models.Model):
 
     resource_id = models.CharField(max_length=253, null=True)
 
-    usage_start = models.DateTimeField(null=False)
+    usage_start = models.DateField(null=False)
 
-    usage_end = models.DateTimeField(null=False)
+    usage_end = models.DateField(null=False)
 
     # AWS Fields
     cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE, null=True)

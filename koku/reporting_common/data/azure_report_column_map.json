@@ -140,7 +140,7 @@
         "provider_type":"AZURE"
     },
     {
-        "database_column":"usage_date_time",
+        "database_column":"usage_date",
         "database_table":"reporting_azurecostentrylineitem_daily",
         "provider_column_name":"UsageDateTime",
         "report_type":"AZURE-CUR",

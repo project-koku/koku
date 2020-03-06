@@ -224,6 +224,7 @@ class SourcesSerializerTests(IamTestCase):
                 provider = Provider.objects.get(uuid=instance.koku_uuid)
                 self.assertIsNotNone(provider)
                 self.assertEqual(provider.name, instance.name)
+                self.assertEqual(instance.source_uuid, instance.koku_uuid)
 
         source_data["name"] = "test2"
         source_data["authentication"]["resource_name"] = "arn:aws::foo:bar2"
@@ -235,6 +236,7 @@ class SourcesSerializerTests(IamTestCase):
                 provider = Provider.objects.get(uuid=instance.koku_uuid)
                 self.assertIsNotNone(provider)
                 self.assertEqual(provider.name, instance.name)
+                self.assertEqual(instance.source_uuid, instance.koku_uuid)
 
     def test_create_via_admin_serializer_bad_source_type(self):
         """Raise error for bad source type on create."""
