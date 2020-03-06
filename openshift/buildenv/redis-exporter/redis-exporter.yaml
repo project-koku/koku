@@ -136,15 +136,6 @@ objects:
       app: redis-exporter
       template: redis-exporter-template
     name: ${NAME}
-- apiVersion: v1
-  kind: Secret
-  metadata:
-    labels:
-      app: redis-exporter
-      template: redis-exporter-template
-    name: ${NAME}
-  stringData:
-    data-source-name: ${DATA_SOURCE_NAME}
 parameters:
 - description: The name assigned to all objects defined in this template.
   displayName: Name
@@ -170,10 +161,6 @@ parameters:
   displayName: Context Directory
   name: CONTEXT_DIR
   value: openshift/redis-exporter
-- description: redis connection string
-  displayName: Data source name
-  from: ${DATA_SOURCE_NAME}
-  name: DATA_SOURCE_NAME
 - description: Github trigger secret.  A difficult to guess string encoded as part of the webhook URL.  Not encrypted.
   displayName: GitHub Webhook Secret
   from: '[a-zA-Z0-9]{40}'
