@@ -74,7 +74,6 @@ class SourcesViewTests(IamTestCase):
             "tenant_id": "12345678-1234-5678-1234-567812345678",
             "client_id": "12345678-1234-5678-1234-567812345678",
         }
-        # credentials = {"subscription_id": "subscription-uuid"}
 
         with requests_mock.mock() as m:
             m.patch(
