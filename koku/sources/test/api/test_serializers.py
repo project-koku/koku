@@ -110,17 +110,6 @@ class SourcesSerializerTests(IamTestCase):
         self.assertIn("subscription_id", instance.authentication.get("credentials").keys())
         self.assertEqual("subscription-uuid", instance.authentication.get("credentials").get("subscription_id"))
 
-    def test_azure_source_update_with_koku_uuid(self):
-        """Test the updating azure subscription id with a koku_uuid."""
-        self.azure_obj.koku_uuid = fake.uuid4()
-        self.azure_obj.pending_update = False
-        self.azure_obj.save()
-
-        serializer = SourcesSerializer(context=self.request_context)
-        validated_data = {"authentication": {"credentials": {"subscription_id": "subscription-uuid"}}}
-        instance = serializer.update(self.azure_obj, validated_data)
-        self.assertTrue(instance.pending_update)
-
     @patch("api.provider.serializers.ProviderSerializer.get_request_info")
     @patch("sources.kafka_source_manager.KafkaSourceManager._create_context")
     def test_azure_source_update_missing_credential(self, mock_context, mock_request_info):
@@ -149,8 +138,14 @@ class SourcesSerializerTests(IamTestCase):
         with self.assertRaises(SourcesStorageError):
             serializer.update(self.azure_obj, validated_data)
 
-    def test_azure_source_billing_source_update(self):
+    @patch("api.provider.serializers.ProviderSerializer.get_request_info")
+    @patch("sources.kafka_source_manager.KafkaSourceManager._create_context")
+    def test_azure_source_billing_source_update(self, mock_context, mock_request_info):
         """Test the updating azure billing_source."""
+        mock_context.return_value = self.request_context, self.Customer, self.User
+        mock_request_info.return_value = self.User, self.Customer
+        source = self._create_source_and_provider(Provider.PROVIDER_AZURE, self.test_azure_source_id)
+
         serializer = SourcesSerializer(context=self.request_context)
         test_resource_group = "TESTRG"
         test_storage_account = "testsa"
@@ -159,27 +154,11 @@ class SourcesSerializerTests(IamTestCase):
                 "data_source": {"resource_group": test_resource_group, "storage_account": test_storage_account}
             }
         }
-        instance = serializer.update(self.azure_obj, validated_data)
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            instance = serializer.update(source, validated_data)
         self.assertIn("data_source", instance.billing_source.keys())
         self.assertEqual(test_resource_group, instance.billing_source.get("data_source").get("resource_group"))
         self.assertEqual(test_storage_account, instance.billing_source.get("data_source").get("storage_account"))
-
-    def test_azure_source_billing_source_update_with_koku_uuid(self):
-        """Test the updating azure billing_source with koku_uuid."""
-        self.azure_obj.koku_uuid = fake.uuid4()
-        self.azure_obj.pending_update = False
-        self.azure_obj.save()
-
-        serializer = SourcesSerializer(context=self.request_context)
-        test_resource_group = "TESTRG"
-        test_storage_account = "testsa"
-        validated_data = {
-            "billing_source": {
-                "data_source": {"resource_group": test_resource_group, "storage_account": test_storage_account}
-            }
-        }
-        instance = serializer.update(self.azure_obj, validated_data)
-        self.assertTrue(instance.pending_update)
 
     def test_azure_source_billing_source_update_missing_data_source(self):
         """Test the updating azure billing_source with missing data_source."""
