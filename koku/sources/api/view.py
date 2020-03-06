@@ -65,11 +65,13 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
 
 LOG = logging.getLogger(__name__)
 MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet]
-
+HTTP_METHOD_LIST = ["get", "head", "patch"]
 
 if settings.DEVELOPMENT:
     MIXIN_LIST.append(mixins.CreateModelMixin)
     MIXIN_LIST.append(DestroySourceMixin)
+    HTTP_METHOD_LIST.append("post")
+    HTTP_METHOD_LIST.append("delete")
 
 
 class SourceFilter(FilterSet):
@@ -105,13 +107,7 @@ class SourcesViewSet(*MIXIN_LIST):
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = SourceFilter
-
-    @property
-    def allowed_methods(self):
-        """Return the list of allowed HTTP methods, uppercased."""
-        if "put" in self.http_method_names:
-            self.http_method_names.remove("put")
-        return [method.upper() for method in self.http_method_names if hasattr(self, method)]
+    http_method_names = HTTP_METHOD_LIST
 
     def get_serializer_class(self):
         """Return the appropriate serializer depending on the method."""
