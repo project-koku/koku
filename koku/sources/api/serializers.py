@@ -48,26 +48,29 @@ def validate_field(data, valid_fields, key):
 class SourcesSerializer(serializers.ModelSerializer):
     """Serializer for the Sources model."""
 
-    source_id = serializers.IntegerField(required=False, read_only=True)
+    id = serializers.SerializerMethodField("get_source_id", read_only=True)
     name = serializers.CharField(max_length=256, required=False, allow_null=False, allow_blank=False, read_only=True)
     authentication = serializers.JSONField(required=False)
     billing_source = serializers.JSONField(required=False)
     source_type = serializers.CharField(
         max_length=50, required=False, allow_null=False, allow_blank=False, read_only=True
     )
-    koku_uuid = serializers.CharField(
-        max_length=512, required=False, allow_null=False, allow_blank=False, read_only=True
-    )
-    source_uuid = serializers.CharField(
-        max_length=512, required=False, allow_null=False, allow_blank=False, read_only=True
-    )
+    uuid = serializers.SerializerMethodField("get_source_uuid", read_only=True)
 
     # pylint: disable=too-few-public-methods
     class Meta:
         """Metadata for the serializer."""
 
         model = Sources
-        fields = ("source_id", "name", "source_type", "authentication", "billing_source", "koku_uuid", "source_uuid")
+        fields = ("id", "uuid", "name", "source_type", "authentication", "billing_source")
+
+    def get_source_id(self, obj):
+        """Get the source_id."""
+        return obj.source_id
+
+    def get_source_uuid(self, obj):
+        """Get the source_uuid."""
+        return obj.source_uuid
 
     def _validate_billing_source(self, provider_type, billing_source):
         """Validate billing source parameters."""
@@ -85,7 +88,7 @@ class SourcesSerializer(serializers.ModelSerializer):
 
     def _update_billing_source(self, instance, billing_source):
         if instance.source_type not in (Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE):
-            raise SourcesStorageError(f"Option not supported by " f"source type {instance.source_type}.")
+            raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
         self._validate_billing_source(instance.source_type, billing_source)
         instance.billing_source = billing_source
         if instance.koku_uuid:
@@ -96,7 +99,7 @@ class SourcesSerializer(serializers.ModelSerializer):
 
     def _update_authentication(self, instance, authentication):
         if instance.source_type not in (Provider.PROVIDER_AZURE,):
-            raise SourcesStorageError(f"Option not supported by " f"source type {instance.source_type}.")
+            raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
         auth_dict = instance.authentication
         if not auth_dict.get("credentials"):
             auth_dict["credentials"] = {"subscription_id": None}
@@ -126,8 +129,8 @@ class SourcesSerializer(serializers.ModelSerializer):
 class AdminSourcesSerializer(SourcesSerializer):
     """Source serializer specific to administration."""
 
-    name = serializers.CharField(max_length=256, required=False, allow_null=False, allow_blank=False)
-    source_type = serializers.CharField(max_length=50, required=False, allow_null=False, allow_blank=False)
+    name = serializers.CharField(max_length=256, required=True, allow_null=False, allow_blank=False)
+    source_type = serializers.CharField(max_length=50, required=True, allow_null=False, allow_blank=False)
 
     def validate_source_type(self, source_type):
         """Validate credentials field."""
@@ -157,7 +160,7 @@ class AdminSourcesSerializer(SourcesSerializer):
         return get_account_from_header(self.context.get("request"))
 
     def validate(self, data):
-        data["source_id"] = self._validate_source_id(data.get("source_id"))
+        data["source_id"] = self._validate_source_id(data.get("id"))
         data["offset"] = self._validate_offset(data.get("offset"))
         data["account_id"] = self._validate_account_id(data.get("account_id"))
         data["source_uuid"] = uuid4()
@@ -168,13 +171,10 @@ class AdminSourcesSerializer(SourcesSerializer):
         """Create a source from validated data."""
         auth_header = get_auth_header(self.context.get("request"))
         manager = KafkaSourceManager(auth_header)
-        provider = manager.create_provider(
-            validated_data.get("name"),
-            validated_data.get("source_type"),
-            validated_data.get("authentication"),
-            validated_data.get("billing_source"),
-            validated_data.get("source_uuid"),
-        )
-        validated_data["koku_uuid"] = provider.uuid
         source = Sources.objects.create(**validated_data)
+        provider = manager.create_provider(
+            source.name, source.source_type, source.authentication, source.billing_source, source.source_uuid
+        )
+        source.koku_uuid = provider.uuid
+        source.save()
         return source

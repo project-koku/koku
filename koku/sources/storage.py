@@ -294,7 +294,7 @@ def get_source_type(source_id):
     source_type = None
     source = get_source(
         source_id, f"[get_source_type] Unable to get Source Type.  Source ID: {source_id} does not exist"
-    )  # noqa
+    )
     if source:
         source_type = source.source_type
     return source_type
@@ -307,7 +307,7 @@ def get_source_from_endpoint(endpoint_id):
         query = Sources.objects.get(endpoint_id=endpoint_id)
         source_id = query.source_id
     except Sources.DoesNotExist:
-        LOG.debug("Unable to find Source ID from Endpoint ID: %s", str(endpoint_id))
+        LOG.info(f"Endpoint ID {endpoint_id} not associated with Cost Management")
     except (InterfaceError, OperationalError) as error:
         LOG.error(f"source.storage.get_source_from_endpoint {type(error).__name__}: {error}")
         raise error

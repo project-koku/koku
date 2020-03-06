@@ -237,6 +237,7 @@ def save_auth_info(auth_header, source_id):
             return
         storage.add_provider_sources_auth_info(source_id, authentication)
         storage.clear_update_flag(source_id)
+        LOG.info(f"Authentication attached to Source ID: {source_id}")
     except SourcesHTTPClientError as error:
         LOG.info(f"Authentication info not available for Source ID: {source_id}")
         sources_network.set_source_status(str(error))
@@ -257,6 +258,7 @@ def sources_network_auth_info(resource_id, auth_header):
         None
 
     """
+    # check db for source. If exists, add authentication info.
     source_id = storage.get_source_from_endpoint(resource_id)
     if source_id:
         save_auth_info(auth_header, source_id)
@@ -306,7 +308,7 @@ def sources_network_info(source_id, auth_header):
     save_auth_info(auth_header, source_id)
 
 
-async def process_messages(msg_pending_queue):  # noqa: C901; pragma: no cover
+async def process_messages(app_type_id, msg_pending_queue):  # noqa: C901; pragma: no cover
     """
     Process messages from Platform-Sources kafka service.
 
@@ -331,10 +333,7 @@ async def process_messages(msg_pending_queue):  # noqa: C901; pragma: no cover
 
         LOG.info(f"Processing Event: {str(msg_data)}")
         try:
-            if msg_data.get("event_type") in (KAFKA_APPLICATION_CREATE, KAFKA_AUTHENTICATION_CREATE):
-                if msg_data.get("event_type") == KAFKA_AUTHENTICATION_CREATE:
-                    sources_network = SourcesHTTPClient(msg_data.get("auth_header"))
-                    msg_data["source_id"] = sources_network.get_source_id_from_endpoint_id(msg_data.get("resource_id"))
+            if msg_data.get("event_type") in (KAFKA_APPLICATION_CREATE,):
 
                 storage.create_source_event(
                     msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset")
@@ -344,6 +343,23 @@ async def process_messages(msg_pending_queue):  # noqa: C901; pragma: no cover
                     await EVENT_LOOP.run_in_executor(
                         pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
                     )
+
+            elif msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE,):
+                sources_network = SourcesHTTPClient(msg_data.get("auth_header"))
+                msg_data["source_id"] = sources_network.get_source_id_from_endpoint_id(msg_data.get("resource_id"))
+                is_cost_mgmt = sources_network.get_application_type_is_cost_management(msg_data.get("source_id"))
+                if is_cost_mgmt:
+
+                    storage.create_source_event(  # this will create source if it does not exist.
+                        msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset")
+                    )
+
+                    with concurrent.futures.ThreadPoolExecutor() as pool:
+                        await EVENT_LOOP.run_in_executor(
+                            pool, save_auth_info, msg_data.get("auth_header"), msg_data.get("source_id")
+                        )
+                else:
+                    LOG.info(f"Resource id {msg_data.get('resource_id')} not associated with cost-management.")
 
             elif msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE,):
                 with concurrent.futures.ThreadPoolExecutor() as pool:
@@ -648,7 +664,7 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
         load_process_queue()
         try:  # Finally, after the connections are established, start the message processing tasks
             event_loop.create_task(listen_for_messages(consumer, cost_management_type_id, PENDING_PROCESS_QUEUE))
-            event_loop.create_task(process_messages(PENDING_PROCESS_QUEUE))
+            event_loop.create_task(process_messages(cost_management_type_id, PENDING_PROCESS_QUEUE))
             event_loop.create_task(synchronize_sources(PROCESS_QUEUE, cost_management_type_id))
             event_loop.run_forever()
         except KeyboardInterrupt:

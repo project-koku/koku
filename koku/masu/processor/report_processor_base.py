@@ -110,7 +110,7 @@ class ReportProcessorBase:
         values = [tuple(item.values()) for item in self.processed_report.line_items]
 
         file_obj = io.StringIO()
-        writer = csv.writer(file_obj, delimiter="\t", quoting=csv.QUOTE_NONE, quotechar="")
+        writer = csv.writer(file_obj, delimiter=",", quoting=csv.QUOTE_MINIMAL, quotechar='"')
         writer.writerows(values)
         file_obj.seek(0)
 
@@ -249,7 +249,7 @@ class ReportProcessorBase:
         with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
             type = provider_accessor.get_type().lower()
         if type == "azure":
-            return {"usage_date_time__gte": self.data_cutoff_date}
+            return {"usage_date__gte": self.data_cutoff_date}
         else:
             return {"usage_start__gte": self.data_cutoff_date}
 
