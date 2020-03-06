@@ -125,6 +125,15 @@ class CostModelViewSet(
     ordering_fields = ("name", "source_type", "updated_timestamp")
     ordering = ("name",)
 
+    @property
+    def allowed_methods(self):
+        """Return the list of allowed HTTP methods, uppercased."""
+        if "patch" in self.http_method_names:
+            self.http_method_names.remove("patch")
+        if "put" not in self.http_method_names:
+            self.http_method_names.append("put")
+        return [method.upper() for method in self.http_method_names if hasattr(self, method)]
+
     @staticmethod
     def check_fields(dict_, model, exception):
         """Check if GET fields are valid."""
@@ -178,7 +187,4 @@ class CostModelViewSet(
 
     @never_cache
     def update(self, request, *args, **kwargs):
-        """Update a rate."""
-        if request.method == "PATCH":
-            raise CostModelProviderMethodException("PATCH not supported")
         return super().update(request=request, args=args, kwargs=kwargs)
