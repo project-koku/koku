@@ -37,6 +37,8 @@ class FilterSerializer(serializers.Serializer):
     resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
     time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)
     time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)
+    limit = serializers.IntegerField(required=False, min_value=1)
+    offset = serializers.IntegerField(required=False, min_value=0)
 
     def validate(self, data):
         """Validate incoming data.
@@ -79,7 +81,7 @@ class FilterSerializer(serializers.Serializer):
 class OCPFilterSerializer(FilterSerializer):
     """Serializer for handling tag query parameter filter."""
 
-    TYPE_CHOICES = (("pod", "pod"), ("storage", "storage"))
+    TYPE_CHOICES = (("pod", "pod"), ("storage", "storage"), ("*", "*"))
     type = serializers.ChoiceField(choices=TYPE_CHOICES, required=False)
 
     project = StringOrListField(child=serializers.CharField(), required=False)
@@ -146,6 +148,8 @@ class TagsQueryParamSerializer(serializers.Serializer):
 
     filter = FilterSerializer(required=False)
     key_only = serializers.BooleanField(default=False)
+    limit = serializers.IntegerField(required=False, min_value=1)
+    offset = serializers.IntegerField(required=False, min_value=0)
 
     def validate(self, data):
         """Validate incoming data.

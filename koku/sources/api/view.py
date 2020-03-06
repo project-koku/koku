@@ -14,35 +14,40 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-from django.shortcuts import get_object_or_404
-
 """View for Sources."""
 import logging
 
 from django.conf import settings
+from django.db import connection
+from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
 from django_filters import FilterSet
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import permissions
 from rest_framework import mixins
+from rest_framework import permissions
 from rest_framework import status
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
 from rest_framework.exceptions import ParseError
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.serializers import UUIDField
+from rest_framework.serializers import ValidationError
 
 from api.common.filters import CharListFilter
+from api.iam.models import Tenant
+from api.iam.serializers import create_schema_name
 from api.provider.models import Sources
-from sources.api import get_account_from_header, get_auth_header
-from sources.api.serializers import SourcesSerializer
+from api.provider.provider_manager import ProviderManager
+from api.provider.provider_manager import ProviderManagerError
+from sources.api import get_account_from_header
+from sources.api import get_auth_header
 from sources.api.serializers import AdminSourcesSerializer
-from sources.storage import SourcesStorageError
+from sources.api.serializers import SourcesSerializer
 from sources.kafka_source_manager import KafkaSourceManager
-
-
-LOG = logging.getLogger(__name__)
-MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet]
+from sources.storage import SourcesStorageError
 
 
 class DestroySourceMixin(mixins.DestroyModelMixin):
@@ -51,12 +56,15 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
     @never_cache
     def destroy(self, request, *args, **kwargs):
         """Delete a source."""
-        account_id = get_account_from_header(request)
-        source = get_object_or_404(Sources, source_id=kwargs.get("source_id"), account_id=account_id)
+        source = self.get_object()
         manager = KafkaSourceManager(get_auth_header(request))
         manager.destroy_provider(source.koku_uuid)
         response = super().destroy(request, *args, **kwargs)
         return response
+
+
+LOG = logging.getLogger(__name__)
+MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet]
 
 
 if settings.DEVELOPMENT:
@@ -92,7 +100,7 @@ class SourcesViewSet(*MIXIN_LIST):
     `update()`, and `list()` actions.
     """
 
-    lookup_field = "source_id"
+    lookup_fields = ("source_id", "source_uuid")
     queryset = Sources.objects.all()
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
@@ -107,7 +115,7 @@ class SourcesViewSet(*MIXIN_LIST):
 
     def get_serializer_class(self):
         """Return the appropriate serializer depending on the method."""
-        if self.request.method in permissions.SAFE_METHODS:
+        if self.request.method in (permissions.SAFE_METHODS, "PATCH"):
             return SourcesSerializer
         else:
             return AdminSourcesSerializer
@@ -127,6 +135,28 @@ class SourcesViewSet(*MIXIN_LIST):
 
         return queryset
 
+    def get_object(self):
+        queryset = self.get_queryset()
+        queryset = self.filter_queryset(queryset)
+        pk = self.kwargs.get("pk")
+        try:
+            uuid = UUIDField().to_internal_value(data=pk)
+            obj = Sources.objects.get(source_uuid=uuid)
+            if obj:
+                return obj
+        except ValidationError:
+            pass
+        obj = get_object_or_404(queryset, **{"pk": pk})
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def _get_account_and_tenant(self, request):
+        """Get account_id and tenant from request."""
+        account_id = get_account_from_header(request)
+        schema_name = create_schema_name(account_id)
+        tenant = tenant = Tenant.objects.get(schema_name=schema_name)
+        return (account_id, tenant)
+
     @never_cache
     def update(self, request, *args, **kwargs):
         """Update a Source."""
@@ -138,11 +168,57 @@ class SourcesViewSet(*MIXIN_LIST):
     @never_cache
     def list(self, request, *args, **kwargs):
         """Obtain the list of sources."""
-        return super().list(request=request, args=args, kwargs=kwargs)
+        response = super().list(request=request, args=args, kwargs=kwargs)
+        _, tenant = self._get_account_and_tenant(request)
+        for source in response.data["data"]:
+            try:
+                manager = ProviderManager(source["uuid"])
+            except ProviderManagerError:
+                source["provider_linked"] = False
+            else:
+                source["provider_linked"] = True
+                source["infrastructure"] = manager.get_infrastructure_name()
+                connection.set_tenant(tenant)
+                source["cost_models"] = [
+                    {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
+                ]
+                connection.set_schema_to_public()
+        connection.set_schema_to_public()
+        return response
 
     @never_cache
     def retrieve(self, request, *args, **kwargs):
         """Get a source."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
-
+        _, tenant = self._get_account_and_tenant(request)
+        try:
+            manager = ProviderManager(response.data["uuid"])
+        except ProviderManagerError:
+            response.data["provider_linked"] = False
+        else:
+            response.data["provider_linked"] = True
+            response.data["infrastructure"] = manager.get_infrastructure_name()
+            connection.set_tenant(tenant)
+            response.data["cost_models"] = [
+                {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
+            ]
+        connection.set_schema_to_public()
         return response
+
+    @never_cache
+    @action(methods=["get"], detail=True, permission_classes=[AllowAny])
+    def stats(self, request, pk=None):
+        """Get source stats."""
+        account_id = get_account_from_header(request)
+        schema_name = create_schema_name(account_id)
+        source = self.get_object()
+        stats = {}
+        try:
+            manager = ProviderManager(source.source_uuid)
+        except ProviderManagerError:
+            stats["provider_linked"] = False
+        else:
+            stats["provider_linked"] = True
+            tenant = Tenant.objects.get(schema_name=schema_name)
+            stats.update(manager.provider_statistics(tenant))
+        return Response(stats)

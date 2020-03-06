@@ -128,7 +128,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
                     provider_uuid=self.azure_provider.uuid, instance_id=instance_id
                 )
                 meter = creator.create_azure_meter(provider_uuid=self.azure_provider.uuid)
-                creator.create_azure_cost_entry_line_item(bill, product, meter, usage_date_time=cost_entry_date)
+                creator.create_azure_cost_entry_line_item(bill, product, meter, usage_date=cost_entry_date)
         with OCPReportDBAccessor(self.schema, self.column_map) as ocp_accessor:
             for cost_entry_date in (today, last_month):
                 period = creator.create_ocp_report_period(

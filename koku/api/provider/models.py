@@ -172,6 +172,7 @@ class Sources(models.Model):
         """Meta for Sources."""
 
         db_table = "api_sources"
+        ordering = ["name"]
 
     # Backend Platform-Services data.
     # Source ID is unique identifier

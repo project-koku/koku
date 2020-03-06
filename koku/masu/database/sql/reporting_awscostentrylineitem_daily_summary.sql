@@ -31,8 +31,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sql
         ON li.cost_entry_pricing_id = pr.id
     LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
-    WHERE date(li.usage_start) >= {{start_date}}
-        AND date(li.usage_start) <= {{end_date}}
+    WHERE li.usage_start >= {{start_date}}::date
+        AND li.usage_start <= {{end_date}}::date
         {% if bill_ids %}
         AND cost_entry_bill_id IN (
             {%- for bill_id in bill_ids  -%}

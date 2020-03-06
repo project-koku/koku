@@ -254,7 +254,7 @@ class ReportObjectCreator:
     def create_csv_file_stream(self, row):
         """Create a CSV file object for bulk upload testing."""
         file_obj = io.StringIO()
-        writer = csv.writer(file_obj, delimiter="\t", quoting=csv.QUOTE_NONE, quotechar="")
+        writer = csv.writer(file_obj, delimiter=",", quoting=csv.QUOTE_MINIMAL, quotechar='"')
         writer.writerow(row)
         file_obj.seek(0)
 
@@ -380,17 +380,21 @@ class ReportObjectCreator:
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
-    def create_azure_cost_entry_line_item(self, bill, product, meter, usage_date_time=None):
+    def create_azure_cost_entry_line_item(self, bill, product, meter, usage_date=None):
         """Create an Azure cost entry line item database object for test."""
         table_name = AZURE_REPORT_TABLE_MAP["line_item"]
         data = self.create_columns_for_table(table_name)
 
-        random_usage_date_time = bill.billing_period_start + relativedelta.relativedelta(days=random.randint(1, 15))
+        if usage_date:
+            usage_date = usage_date.date() if isinstance(usage_date, datetime.datetime) else usage_date
+        else:
+            usage_date = (bill.billing_period_start + relativedelta.relativedelta(days=random.randint(1, 15))).date()
+
         extra_data = {
             "cost_entry_bill_id": bill.id,
             "cost_entry_product_id": product.id,
             "meter_id": meter.id,
-            "usage_date_time": usage_date_time if usage_date_time else random_usage_date_time,
+            "usage_date": usage_date,
             "tags": {
                 "environment": random.choice(["dev", "qa", "prod"]),
                 self.fake.pystr()[:8]: self.fake.pystr()[:8],
