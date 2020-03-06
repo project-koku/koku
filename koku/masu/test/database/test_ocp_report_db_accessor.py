@@ -825,8 +825,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
             result_start_date = daily_entry["usage_start__min"]
             result_end_date = daily_entry["usage_start__max"]
 
-        self.assertEqual(result_start_date, start_date)
-        self.assertEqual(result_end_date, end_date)
+        self.assertEqual(result_start_date, start_date.date())
+        self.assertEqual(result_end_date, end_date.date())
 
         with schema_context(self.schema):
             entry = query.first()
