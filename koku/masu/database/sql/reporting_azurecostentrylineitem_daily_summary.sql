@@ -1,8 +1,8 @@
 -- Place our query in a temporary table
 CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | sqlsafe}} AS (
     SELECT cost_entry_bill_id,
-                date(usage_date_time) AS usage_start,
-                date(usage_date_time) AS usage_end,
+                li.usage_date AS usage_start,
+                li.usage_date AS usage_end,
                 subscription_guid, -- account ID
                 p.resource_location AS resource_location, -- region
                 p.service_name AS service_name, -- service
@@ -22,8 +22,8 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | s
         ON li.cost_entry_product_id = p.id
     JOIN {{schema | safe}}.reporting_azuremeter AS m
         ON li.meter_id = m.id
-    WHERE date(li.usage_date_time) >= {{start_date}}
-        AND date(li.usage_date_time) <= {{end_date}}
+    WHERE li.usage_date >= {{start_date}}::date
+        AND li.usage_date <= {{end_date}}::date
         {% if bill_ids %}
         AND li.cost_entry_bill_id IN (
             {%- for bill_id in bill_ids  -%}
@@ -31,7 +31,7 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | s
             {%- endfor -%}
         )
         {% endif %}
-    GROUP BY date(li.usage_date_time),
+    GROUP BY li.usage_date,
         li.cost_entry_bill_id,
         li.cost_entry_product_id,
         li.offer_id,
