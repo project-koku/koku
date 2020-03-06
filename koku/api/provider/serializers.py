@@ -98,6 +98,13 @@ class AzureAuthenticationSerializer(ProviderAuthenticationSerializer):
         fields = ["subscription_id", "tenant_id", "client_id", "client_secret"]
         return validate_field(creds, fields, key)
 
+    def to_representation(self, instance):
+        """Control output of serializer."""
+        provider = super().to_representation(instance)
+        if provider.get("authentication", {}).get("credentials", {}).get("client_secret"):
+            del provider["authentication"]["credentials"]["client_secret"]
+        return provider
+
 
 class GCPAuthenticationSerializer(ProviderAuthenticationSerializer):
     """GCP auth serializer."""
