@@ -246,11 +246,11 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 "gt": ">",
                 "gte": ">=",
                 "contains": "like",
-                "icontains": "ilike",
+                "icontains": "like",
                 "startswith": "like",
-                "istartswith": "ilike",
+                "istartswith": "like",
                 "endswith": "like",
-                "iendswith": "ilike",
+                "iendswith": "like",
             }
 
             return op_map[op_str]
@@ -278,20 +278,24 @@ class AWSReportQueryHandler(ReportQueryHandler):
                     __resolve_conditions(cond, alias, where, values)
                 else:
                     conditional_parts = cond[0].split("__")
-                    col = conditional_parts[0]
                     cast = f"::{conditional_parts[1]}" if len(conditional_parts) > 2 else ""
                     dj_op = conditional_parts[-1]
                     op = __resolve_op(dj_op) if len(conditional_parts) > 1 else __resolve_op(None)
-                    where.append(f" {'not ' if condition.negated else ''}{alias}.{col}{cast} {op} %s{cast} ")
+                    col = (
+                        f"UPPER({alias}.{conditional_parts[0]})"
+                        if dj_op in ("icontains", "istartswith", "iendswith")
+                        else f"{alias}.{conditional_parts[0]}"
+                    )
                     values.append(
-                        f"%{cond[1]}%"
+                        f"%{str(cond[1]).upper() if dj_op.startswith('i') else cond[1]}%"
                         if dj_op.endswith("contains")
-                        else f"%{cond[1]}"
+                        else f"%{str(cond[1]).upper() if dj_op.startswith('i') else cond[1]}"
                         if dj_op.endswith("startswith")
-                        else f"{cond[1]}%"
+                        else f"{str(cond[1]).upper() if dj_op.startswith('i') else cond[1]}%"
                         if dj_op.endswith("endswith")
                         else cond[1]
                     )
+                    where.append(f" {'not ' if condition.negated else ''}{col}{cast} {op} %s{cast} ")
 
             return f"( {condition.connector.join(where)} )", values
 

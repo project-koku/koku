@@ -161,13 +161,6 @@ class SourcesSerializer(serializers.ModelSerializer):
 
         return instance
 
-    def to_representation(self, instance):
-        """Control output of serializer."""
-        source = super().to_representation(instance)
-        if source.get("authentication", {}).get("credentials", {}).get("client_secret"):
-            del source["authentication"]["credentials"]["client_secret"]
-        return source
-
 
 class AdminSourcesSerializer(SourcesSerializer):
     """Source serializer specific to administration."""

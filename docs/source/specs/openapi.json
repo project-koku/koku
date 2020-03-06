@@ -1950,7 +1950,7 @@
                 }
             }
         },
-        "/sources/{source_id}/stats": {
+        "/sources/{source_id}/stats/": {
             "get": {
                 "tags": [
                     "Sources"
