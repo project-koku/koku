@@ -19,6 +19,7 @@ from unittest.mock import patch
 
 import requests
 import requests_mock
+import responses
 from django.test import TestCase
 from faker import Faker
 
@@ -444,3 +445,84 @@ class SourcesHTTPClientTest(TestCase):
             )
             with self.assertRaises(SourcesHTTPClientError):
                 client.set_source_status(error_msg, application_type_id)
+
+
+class SourcesHTTPClientCheckAppTypeTest(TestCase):
+    def setUp(self):
+        """Test case setup."""
+        super().setUp()
+        self.name = "Test Source"
+        self.application_type = 2
+        self.source_id = 1
+        self.authentication = "testauth"
+
+    @responses.activate
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_application_type_is_cost_management(self):
+        """Test to get application_type_id from source_id."""
+        application_type_id = 2
+        source_id = 3
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
+        responses.add(
+            responses.GET,
+            f"http://www.sources.com/api/v1.0/application_types/{application_type_id}/sources",
+            json={"data": [{"name": "test-source"}]},
+            status=200,
+        )
+        responses.add(
+            responses.GET,
+            f"http://www.sources.com/api/v1.0/application_types",
+            json={"data": [{"id": self.application_type}]},
+            status=200,
+        )
+
+        response = client.get_application_type_is_cost_management(source_id)
+        self.assertTrue(response)
+
+    @responses.activate
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_application_type_is_cost_management_misconfigured(self):
+        """Test to get application_type_id from source_id with route not found."""
+        application_type_id = 2
+        source_id = 3
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
+        responses.add(
+            responses.GET,
+            f"http://www.sources.com/api/v1.0/application_types/{application_type_id}/sources",
+            json={"data": [{"name": "test-source"}]},
+            status=404,
+        )
+        responses.add(
+            responses.GET,
+            f"http://www.sources.com/api/v1.0/application_types",
+            json={"data": [{"id": self.application_type}]},
+            status=200,
+        )
+
+        with self.assertRaises(SourcesHTTPClientError):
+            client.get_application_type_is_cost_management(source_id)
+
+    @responses.activate
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_application_type_is_cost_management_no_data(self):
+        """Test to get application_type_id from source_id with no data in response."""
+        application_type_id = 2
+        source_id = 3
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
+        responses.add(
+            responses.GET,
+            f"http://www.sources.com/api/v1.0/application_types/{application_type_id}/sources",
+            json={"data": []},
+            status=200,
+        )
+        responses.add(
+            responses.GET,
+            f"http://www.sources.com/api/v1.0/application_types",
+            json={"data": [{"id": self.application_type}]},
+            status=200,
+        )
+
+        self.assertFalse(client.get_application_type_is_cost_management(source_id))
