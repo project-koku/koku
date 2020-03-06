@@ -32,14 +32,14 @@ from sources.storage import SourcesStorageError
 
 LOG = logging.getLogger(__name__)
 
-BILLING_SOURCE_PROVIDERS = (
+ALLOWED_BILLING_SOURCE_PROVIDERS = (
     Provider.PROVIDER_AWS,
     Provider.PROVIDER_AWS_LOCAL,
     Provider.PROVIDER_AZURE,
     Provider.PROVIDER_AZURE_LOCAL,
 )
 
-AUTHENTICATION_PROVIDERS = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL)
+ALLOWED_AUTHENTICATION_PROVIDERS = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL)
 
 
 def error_obj(key, message):
@@ -99,7 +99,7 @@ class SourcesSerializer(serializers.ModelSerializer):
                 raise SourcesStorageError("Missing AZURE storage_account")
 
     def _update_billing_source(self, instance, billing_source):
-        if instance.source_type not in BILLING_SOURCE_PROVIDERS:
+        if instance.source_type not in ALLOWED_BILLING_SOURCE_PROVIDERS:
             raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
         self._validate_billing_source(instance.source_type, billing_source)
         instance.billing_source = billing_source
@@ -110,7 +110,7 @@ class SourcesSerializer(serializers.ModelSerializer):
         return instance, update_fields
 
     def _update_authentication(self, instance, authentication):
-        if instance.source_type not in AUTHENTICATION_PROVIDERS:
+        if instance.source_type not in ALLOWED_AUTHENTICATION_PROVIDERS:
             raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
         auth_dict = instance.authentication
         if not auth_dict.get("credentials"):
