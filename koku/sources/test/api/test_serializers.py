@@ -225,6 +225,8 @@ class SourcesSerializerTests(IamTestCase):
                 self.assertIsNotNone(provider)
                 self.assertEqual(provider.name, instance.name)
                 self.assertEqual(instance.source_uuid, instance.koku_uuid)
+            else:
+                self.fail("test_create_via_admin_serializer failed")
 
         source_data["name"] = "test2"
         source_data["authentication"]["resource_name"] = "arn:aws::foo:bar2"
@@ -237,6 +239,8 @@ class SourcesSerializerTests(IamTestCase):
                 self.assertIsNotNone(provider)
                 self.assertEqual(provider.name, instance.name)
                 self.assertEqual(instance.source_uuid, instance.koku_uuid)
+            else:
+                self.fail("test_create_via_admin_serializer failed")
 
     def test_create_via_admin_serializer_bad_source_type(self):
         """Raise error for bad source type on create."""
@@ -260,3 +264,30 @@ class SourcesSerializerTests(IamTestCase):
 
         account = get_account_from_header(Mock(headers={HEADER_X_RH_IDENTITY: "badencoding&&&"}))
         self.assertIsNone(account)
+
+    @patch("api.provider.serializers.ProviderSerializer.get_request_info")
+    @patch("sources.kafka_source_manager.KafkaSourceManager._create_context")
+    def test_provider_create(self, mock_context, mock_request_info):
+        mock_context.return_value = self.request_context, self.Customer, self.User
+        mock_request_info.return_value = self.User, self.Customer
+
+        serializer = AdminSourcesSerializer(context=self.request_context)
+        source = {
+            "source_id": 10,
+            "name": "ProviderAWS",
+            "source_type": "AWS",
+            "authentication": {"resource_name": "arn:aws:iam::111111111111:role/CostManagement"},
+            "billing_source": {"bucket": "first-bucket"},
+            "auth_header": self.request_context["request"].META,
+            "account_id": "acct10001",
+            "offset": 10,
+        }
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            instance = serializer.create(source)
+        self.assertEqual(instance.billing_source.get("bucket"), "first-bucket")
+
+        serializer = SourcesSerializer(context=self.request_context)
+        validated = {"billing_source": {"bucket": "second-bucket"}}
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            instance2 = serializer.update(instance, validated)
+        self.assertEqual(instance2.billing_source.get("bucket"), "second-bucket")
