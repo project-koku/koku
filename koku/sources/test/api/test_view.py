@@ -29,6 +29,7 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from api.provider.provider_manager import ProviderManagerError
 from koku.middleware import IdentityHeaderMiddleware
+from providers.provider_access import ProviderAccessor
 from sources.api.view import SourcesViewSet
 
 
@@ -68,7 +69,12 @@ class SourcesViewTests(IamTestCase):
 
     def test_source_update(self):
         """Test the PATCH endpoint."""
-        credentials = {"subscription_id": "subscription-uuid"}
+        credentials = {
+            "subscription_id": "12345678-1234-5678-1234-567812345678",
+            "tenant_id": "12345678-1234-5678-1234-567812345678",
+            "client_id": "12345678-1234-5678-1234-567812345678",
+        }
+        # credentials = {"subscription_id": "subscription-uuid"}
 
         with requests_mock.mock() as m:
             m.patch(
@@ -77,12 +83,16 @@ class SourcesViewTests(IamTestCase):
                 json={"credentials": credentials},
             )
 
-            params = {"credentials": credentials}
+            params = {
+                "authentication": {"credentials": {"subscription_id": "this-ain't-real"}},
+                "billing_source": {"data_source": {"resource_group": "group", "storage_account": "storage"}},
+            }
             url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
 
-            response = self.client.patch(
-                url, json.dumps(params), content_type="application/json", **self.request_context["request"].META
-            )
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                response = self.client.patch(
+                    url, json.dumps(params), content_type="application/json", **self.request_context["request"].META
+                )
 
             self.assertEqual(response.status_code, 200)
 
