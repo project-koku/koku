@@ -340,4 +340,4 @@ class AzureReportProcessorTest(MasuTestCase):
         )
         date_filter = processor.get_date_column_filter()
 
-        self.assertIn("usage_date_time__gte", date_filter)
+        self.assertIn("usage_date__gte", date_filter)
