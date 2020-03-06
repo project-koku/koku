@@ -397,7 +397,7 @@ class AWSReportQueryTest(IamTestCase):
         expected_counts = AWSCostEntryLineItemDaily.objects.values(**annotations)
         count_dict = defaultdict(int)
         for item in expected_counts:
-            count_dict[str(item["date"].date())] += item["count"]
+            count_dict[str(item["date"])] += item["count"]
 
         for data_item in data:
             instance_types = data_item.get("instance_types")
