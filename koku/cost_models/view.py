@@ -124,15 +124,7 @@ class CostModelViewSet(
     filterset_class = CostModelsFilter
     ordering_fields = ("name", "source_type", "updated_timestamp")
     ordering = ("name",)
-
-    @property
-    def allowed_methods(self):
-        """Return the list of allowed HTTP methods, uppercased."""
-        if "patch" in self.http_method_names:
-            self.http_method_names.remove("patch")
-        if "put" not in self.http_method_names:
-            self.http_method_names.append("put")
-        return [method.upper() for method in self.http_method_names if hasattr(self, method)]
+    http_method_names = ["get", "post", "head", "delete", "put"]
 
     @staticmethod
     def check_fields(dict_, model, exception):
