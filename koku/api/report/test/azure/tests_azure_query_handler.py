@@ -398,8 +398,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
             for month_item in month_data:
                 self.assertIsInstance(month_item.get("subscription_guid"), str)
                 self.assertIsInstance(month_item.get("values"), list)
-                self.assertIsNotNone(month_item.get("values")[0].get("cost", {}).get("value"))
-                data_point_total = month_item.get("values")[0].get("cost", {}).get("value")
+                data_point_total = month_item.get("values")[0].get("cost", {}).get("total", {}).get("value")
+                self.assertIsNotNone(data_point_total)
                 self.assertLess(current_total, data_point_total)
                 current_total = data_point_total
 
@@ -714,11 +714,12 @@ class AzureReportQueryHandlerTest(IamTestCase):
         query_output = handler.execute_query()
         data = query_output.get("data")
         self.assertIsNotNone(data)
-        total_cost = query_output.get("total", {}).get("cost", {}).get("value")
+        total_cost = query_output.get("total", {}).get("cost", {}).get("total")
+        self.assertIsNotNone(total_cost)
         delta = query_output.get("delta")
         self.assertIsNotNone(delta.get("value"))
         self.assertIsNone(delta.get("percent"))
-        self.assertEqual(delta.get("value"), total_cost)
+        self.assertEqual(delta.get("value"), total_cost.get("value"))
         self.assertEqual(delta.get("percent"), None)
 
     def test_execute_query_orderby_delta(self):
@@ -754,8 +755,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
-        self.assertEqual(result.get("cost", {}).get("value"), current_totals.get("cost"))
-        self.assertEqual(result.get("cost", {}).get("units"), expected_units)
+        cost_total = result.get("cost", {}).get("total")
+        self.assertIsNotNone(cost_total)
+        self.assertEqual(cost_total.get("value"), current_totals.get("cost_total"))
+        self.assertEqual(cost_total.get("units"), expected_units)
 
     def test_percent_delta(self):
         """Test _percent_delta() utility method."""
@@ -780,12 +783,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
             {"subscription_guid": "2", "total": 4, "rank": 2},
             {
                 "subscription_guid": "2 Others",
-                "cost": 0,
-                "markup_cost": 0,
-                "derived_cost": 0,
-                "infrastructure_cost": 0,
                 "total": 5,
                 "rank": 3,
+                "cost_total": 0,
+                "infra_total": 0,
+                "sup_total": 0,
             },
         ]
         ranked_list = handler._ranked_list(data_list)
@@ -805,15 +807,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         expected = [
             {"service_name": "1", "total": 5, "rank": 1},
             {"service_name": "2", "total": 4, "rank": 2},
-            {
-                "cost": 0,
-                "derived_cost": 0,
-                "infrastructure_cost": 0,
-                "markup_cost": 0,
-                "service_name": "2 Others",
-                "total": 5,
-                "rank": 3,
-            },
+            {"service_name": "2 Others", "total": 5, "rank": 3, "cost_total": 0, "infra_total": 0, "sup_total": 0},
         ]
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
@@ -854,8 +848,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 self.assertIsNotNone(subscription_guid.get("values"))
                 self.assertGreater(len(subscription_guid.get("values")), 0)
                 for value in subscription_guid.get("values"):
-                    self.assertIsInstance(value.get("cost", {}).get("value"), Decimal)
-                    self.assertGreater(value.get("cost", {}).get("value"), Decimal(0))
+                    cost_total_value = value.get("cost", {}).get("total", {}).get("value")
+                    self.assertIsInstance(cost_total_value, Decimal)
+                    self.assertGreater(cost_total_value, Decimal(0))
 
     def test_query_instance_types_with_totals(self):
         """Test execute_query() - instance types with totals.
@@ -878,10 +873,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 self.assertIsNotNone(it.get("values"))
                 self.assertGreater(len(it.get("values")), 0)
                 for value in it.get("values"):
-                    self.assertIsInstance(value.get("cost", {}).get("value"), Decimal)
-                    self.assertGreaterEqual(
-                        value.get("cost", {}).get("value").quantize(Decimal(".0001"), ROUND_HALF_UP), Decimal(0)
-                    )
+                    cost_value = value.get("cost", {}).get("total", {}).get("value")
+                    self.assertIsNotNone(cost_value)
+                    self.assertIsInstance(cost_value, Decimal)
+                    self.assertGreaterEqual(cost_value.quantize(Decimal(".0001"), ROUND_HALF_UP), Decimal(0))
                     # FIXME: usage doesn't have units yet. waiting on MSFT
                     # self.assertIsInstance(value.get('usage', {}).get('value'), Decimal)
                     # self.assertGreater(value.get('usage', {}).get('value'), Decimal(0))
@@ -912,8 +907,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 self.assertIsNotNone(srv.get("values"))
                 self.assertGreater(len(srv.get("values")), 0)
                 for value in srv.get("values"):
-                    self.assertIsInstance(value.get("cost", {}).get("value"), Decimal)
-                    self.assertGreater(value.get("cost", {}).get("value"), Decimal(0))
+                    cost_value = value.get("cost", {}).get("total", {}).get("value")
+                    self.assertIsNotNone(cost_value)
+                    self.assertIsInstance(cost_value, Decimal)
+                    self.assertGreater(cost_value, Decimal(0))
                     # FIXME: usage doesn't have units yet. waiting on MSFT
                     # self.assertIsInstance(value.get('usage', {}).get('value'), Decimal)
                     # self.assertGreater(value.get('usage', {}).get('value'), Decimal(0))
@@ -988,6 +985,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         filter_key = tag_keys[0]
         tag_keys = ["tag:" + tag for tag in tag_keys]
 
+        ag_key = "cost_total"
         with tenant_context(self.tenant):
             labels = (
                 AzureCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
@@ -1001,7 +999,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             totals = (
                 AzureCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
                 .filter(**{f"tags__{filter_key}": filter_value})
-                .aggregate(**{"cost": Sum(F("pretax_cost") + F("markup_cost"))})
+                .aggregate(**{ag_key: Sum(F("pretax_cost") + F("markup_cost"))})
             )
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[tag:{filter_key}]={filter_value}"  # noqa: E501
@@ -1010,9 +1008,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
         data = handler.execute_query()
         data_totals = data.get("total", {})
-        for key in totals:
-            result = data_totals.get(key, {}).get("value")
-            self.assertAlmostEqual(result, totals[key], 6)
+        result = data_totals.get("cost", {}).get("total")
+        self.assertIsNotNone(result)
+        self.assertAlmostEqual(result.get("value"), totals[ag_key], 6)
 
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
@@ -1024,10 +1022,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         filter_key = tag_keys[0]
         tag_keys = ["tag:" + tag for tag in tag_keys]
 
+        ag_key = "cost_total"
         with tenant_context(self.tenant):
             totals = AzureCostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=self.dh.this_month_start
-            ).aggregate(**{"cost": Sum(F("pretax_cost") + F("markup_cost"))})
+            ).aggregate(**{ag_key: Sum(F("pretax_cost") + F("markup_cost"))})
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[tag:{filter_key}]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -1035,9 +1034,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
         data = handler.execute_query()
         data_totals = data.get("total", {})
-        for key in totals:
-            result = data_totals.get(key, {}).get("value")
-            self.assertAlmostEqual(result, totals[key], 6)
+        result = data_totals.get("cost", {}).get("total")
+        self.assertIsNotNone(result)
+        self.assertAlmostEqual(result.get("value"), totals[ag_key], 6)
 
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
@@ -1049,10 +1048,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         group_by_key = tag_keys[0]
         tag_keys = ["tag:" + tag for tag in tag_keys]
 
+        ag_key = "cost_total"
         with tenant_context(self.tenant):
             totals = AzureCostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=self.dh.this_month_start
-            ).aggregate(**{"cost": Sum(F("pretax_cost") + F("markup_cost"))})
+            ).aggregate(**{ag_key: Sum(F("pretax_cost") + F("markup_cost"))})
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[tag:{group_by_key}]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -1064,6 +1064,6 @@ class AzureReportQueryHandlerTest(IamTestCase):
         expected_keys = ["date", group_by_key + "s"]
         for entry in data:
             self.assertEqual(list(entry.keys()), expected_keys)
-        for key in totals:
-            result = data_totals.get(key, {}).get("value")
-            self.assertAlmostEqual(result, totals[key], 6)
+        result = data_totals.get("cost", {}).get("total")
+        self.assertIsNotNone(result)
+        self.assertAlmostEqual(result.get("value"), totals[ag_key], 6)

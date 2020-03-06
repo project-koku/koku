@@ -56,8 +56,8 @@ class OCPAWSQueryHandlerTestNoData(IamTestCase):
         total = query_output.get("total")
         self.assertIsNotNone(total.get("cost"))
         self.assertIsInstance(total.get("cost"), dict)
-        self.assertEqual(total.get("cost").get("value"), 0)
-        self.assertEqual(total.get("cost").get("units"), "USD")
+        self.assertEqual(total.get("cost").get("total", {}).get("value"), 0)
+        self.assertEqual(total.get("cost").get("total", {}).get("units"), "USD")
         self.assertIsNotNone(total.get("usage"))
         self.assertIsInstance(total.get("usage"), dict)
         self.assertEqual(total.get("usage").get("value"), 0)
@@ -106,7 +106,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
     def test_execute_query_current_month_daily(self):
         """Test execute_query for current month on daily breakdown."""
@@ -121,7 +121,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
     def test_execute_query_current_month_monthly(self):
         """Test execute_query for current month on monthly breakdown."""
@@ -136,7 +136,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
@@ -152,7 +152,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -179,7 +179,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -206,7 +206,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -233,7 +233,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -258,7 +258,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:

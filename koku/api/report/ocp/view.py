@@ -367,7 +367,7 @@ class OCPCostView(OCPView):
 class OCPVolumeView(OCPView):
     """Get OpenShift volume usage data.
 
-    @api {get} /cost-management/v1/reports/openshift/volume/ Get volume usage data
+    @api {get} /cost-management/v1/reports/openshift/volumes/ Get volume usage data
     @apiName getOpenShiftVolumeData
     @apiGroup OpenShift Report
     @apiVersion 1.0.0

@@ -237,11 +237,9 @@ class AWSReportQueryTest(IamTestCase):
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
-        self.assertIsNotNone(query_output.get("data"))
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertAlmostEqual(total.get("cost", {}).get("value"), self.generator.current_month_total, 6)
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
+        self.assertIsNotNone(total_cost_total)
+        self.assertAlmostEqual(total_cost_total.get("value"), self.generator.current_month_total, 6)
 
     def test_execute_query_current_month_monthly(self):
         """Test execute_query for current month on monthly breakdown."""
@@ -249,11 +247,10 @@ class AWSReportQueryTest(IamTestCase):
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertAlmostEqual(total.get("cost", {}).get("value"), self.generator.current_month_total, 6)
+        self.assertAlmostEqual(total_cost_total.get("value"), self.generator.current_month_total, 6)
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
@@ -262,11 +259,10 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertAlmostEqual(total.get("cost", {}).get("value"), self.generator.current_month_total, 6)
+        self.assertIsNotNone(total_cost_total)
+        self.assertAlmostEqual(total_cost_total.get("value"), self.generator.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -286,11 +282,10 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertAlmostEqual(total.get("cost", {}).get("value"), self.generator.current_month_total, 6)
+        self.assertIsNotNone(total_cost_total)
+        self.assertAlmostEqual(total_cost_total.get("value"), self.generator.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -310,11 +305,10 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertAlmostEqual(total.get("cost", {}).get("value"), self.generator.current_month_total, 6)
+        self.assertIsNotNone(total_cost_total)
+        self.assertAlmostEqual(total_cost_total.get("value"), self.generator.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -334,11 +328,10 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertAlmostEqual(total.get("cost", {}).get("value"), self.generator.current_month_total, 6)
+        self.assertIsNotNone(total_cost_total)
+        self.assertAlmostEqual(total_cost_total.get("value"), self.generator.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -358,11 +351,10 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertAlmostEqual(total.get("cost", {}).get("value"), self.generator.current_month_total, 6)
+        self.assertIsNotNone(total_cost_total)
+        self.assertAlmostEqual(total_cost_total.get("value"), self.generator.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -439,11 +431,10 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertAlmostEqual(total.get("cost", {}).get("value"), self.generator.current_month_total, 6)
+        self.assertIsNotNone(total_cost_total)
+        self.assertAlmostEqual(total_cost_total.get("value"), self.generator.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -465,11 +456,10 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertAlmostEqual(total.get("cost", {}).get("value"), self.generator.current_month_total, 6)
+        self.assertIsNotNone(total_cost_total)
+        self.assertAlmostEqual(total_cost_total.get("value"), self.generator.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -482,8 +472,8 @@ class AWSReportQueryTest(IamTestCase):
             for month_item in month_data:
                 self.assertIsInstance(month_item.get("account"), str)
                 self.assertIsInstance(month_item.get("values"), list)
-                self.assertIsNotNone(month_item.get("values")[0].get("cost", {}).get("value"))
-                data_point_total = month_item.get("values")[0].get("cost", {}).get("value")
+                data_point_total = month_item.get("values")[0].get("cost", {}).get("total", {}).get("value")
+                self.assertIsNotNone(data_point_total)
                 self.assertLess(current_total, data_point_total)
                 current_total = data_point_total
 
@@ -496,11 +486,10 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertAlmostEqual(total.get("cost", {}).get("value"), self.generator.current_month_total, 6)
+        self.assertIsNotNone(total_cost_total)
+        self.assertAlmostEqual(total_cost_total.get("value"), self.generator.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -527,11 +516,10 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertAlmostEqual(total.get("cost", {}).get("value"), self.generator.current_month_total, 6)
+        self.assertIsNotNone(total_cost_total)
+        self.assertAlmostEqual(total_cost_total.get("value"), self.generator.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -552,11 +540,10 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertGreater(total.get("cost", {}).get("value"), 0)
+        self.assertIsNotNone(total_cost_total)
+        self.assertGreater(total_cost_total.get("value"), 0)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -578,11 +565,10 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertAlmostEqual(total.get("cost", {}).get("value"), self.generator.current_month_total, 6)
+        self.assertIsNotNone(total_cost_total)
+        self.assertAlmostEqual(total_cost_total.get("value"), self.generator.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -628,11 +614,10 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertAlmostEqual(total.get("cost", {}).get("value"), self.generator.current_month_total, 6)
+        self.assertIsNotNone(total_cost_total)
+        self.assertAlmostEqual(total_cost_total.get("value"), self.generator.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -649,12 +634,10 @@ class AWSReportQueryTest(IamTestCase):
         query_output = handler.execute_query()
 
         data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertAlmostEqual(total.get("cost", {}).get("value"), self.generator.current_month_total, 6)
+        self.assertIsNotNone(total_cost_total)
+        self.assertAlmostEqual(total_cost_total.get("value"), self.generator.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -670,11 +653,10 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertGreater(total.get("cost", {}).get("value"), 0)
+        self.assertIsNotNone(total_cost_total)
+        self.assertGreater(total_cost_total.get("value"), 0)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -690,11 +672,10 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertAlmostEqual(total.get("cost", {}).get("value"), self.generator.current_month_total, 6)
+        self.assertIsNotNone(total_cost_total)
+        self.assertAlmostEqual(total_cost_total.get("value"), self.generator.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -712,12 +693,10 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertAlmostEqual(total.get("cost", {}).get("value"), self.generator.current_month_total, 6)
-
+        self.assertAlmostEqual(total_cost_total.get("value"), self.generator.current_month_total, 6)
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         self.assertEqual(len(data), 1)
         for data_item in data:
@@ -735,12 +714,10 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
         self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertAlmostEqual(total.get("cost", {}).get("value"), self.generator.current_month_total, 6)
+        self.assertIsNotNone(total_cost_total)
+        self.assertAlmostEqual(total_cost_total.get("value", {}), self.generator.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         self.assertEqual(len(data), 2)
@@ -791,10 +768,13 @@ class AWSReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
 
         values = data[0].get("accounts", [])[0].get("values", [])[0]
-        self.assertIn("delta_value", values)
-        self.assertIn("delta_percent", values)
-        self.assertEqual(values.get("delta_value"), expected_delta_value)
-        self.assertEqual(values.get("delta_percent"), expected_delta_percent)
+        result_delta_value = values.get("delta_value")
+        result_delta_percent = values.get("delta_percent")
+
+        self.assertIsNotNone(result_delta_percent)
+        self.assertIsNotNone(result_delta_value)
+        self.assertEqual(result_delta_value, expected_delta_value)
+        self.assertEqual(result_delta_percent, expected_delta_percent)
 
         delta = query_output.get("delta")
         self.assertIsNotNone(delta.get("value"))
@@ -907,9 +887,12 @@ class AWSReportQueryTest(IamTestCase):
         expected_units = "USD"
         with tenant_context(self.tenant):
             result = handler.calculate_total(**{"cost_units": expected_units})
-
-        self.assertAlmostEqual(result.get("cost", {}).get("value"), self.generator.current_month_total, 6)
-        self.assertEqual(result.get("cost", {}).get("units"), expected_units)
+        cost_total_value = result.get("cost", {}).get("total", {}).get("value")
+        cost_total_units = result.get("cost", {}).get("total", {}).get("units")
+        self.assertIsNotNone(cost_total_value)
+        self.assertIsNotNone(cost_total_units)
+        self.assertAlmostEqual(cost_total_value, self.generator.current_month_total, 6)
+        self.assertEqual(cost_total_units, expected_units)
 
     def test_percent_delta(self):
         """Test _percent_delta() utility method."""
@@ -935,12 +918,11 @@ class AWSReportQueryTest(IamTestCase):
             {
                 "account": "2 Others",
                 "account_alias": "2 Others",
-                "cost": 0,
-                "markup_cost": 0,
-                "derived_cost": 0,
-                "infrastructure_cost": 0,
                 "total": 5,
                 "rank": 3,
+                "cost_total": 0,
+                "infra_total": 0,
+                "sup_total": 0,
             },
         ]
         ranked_list = handler._ranked_list(data_list)
@@ -960,15 +942,7 @@ class AWSReportQueryTest(IamTestCase):
         expected = [
             {"service": "1", "total": 5, "rank": 1},
             {"service": "2", "total": 4, "rank": 2},
-            {
-                "cost": 0,
-                "derived_cost": 0,
-                "infrastructure_cost": 0,
-                "markup_cost": 0,
-                "service": "2 Others",
-                "total": 5,
-                "rank": 3,
-            },
+            {"service": "2 Others", "total": 5, "rank": 3, "cost_total": 0, "infra_total": 0, "sup_total": 0},
         ]
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
@@ -1009,8 +983,9 @@ class AWSReportQueryTest(IamTestCase):
                 self.assertIsNotNone(account.get("values"))
                 self.assertGreater(len(account.get("values")), 0)
                 for value in account.get("values"):
-                    self.assertIsInstance(value.get("cost", {}).get("value"), Decimal)
-                    self.assertGreater(value.get("cost", {}).get("value"), Decimal(0))
+                    cost_total = value.get("cost", {}).get("total", {}).get("value")
+                    self.assertIsInstance(cost_total, Decimal)
+                    self.assertGreater(cost_total, Decimal(0))
 
     def test_query_instance_types_with_totals(self):
         """Test execute_query() - instance types with totals.
@@ -1032,8 +1007,9 @@ class AWSReportQueryTest(IamTestCase):
                 self.assertIsNotNone(it.get("values"))
                 self.assertGreater(len(it.get("values")), 0)
                 for value in it.get("values"):
-                    self.assertIsInstance(value.get("cost", {}).get("value"), Decimal)
-                    self.assertGreater(value.get("cost", {}).get("value"), Decimal(0))
+                    cost_total = value.get("cost", {}).get("total", {}).get("value")
+                    self.assertIsInstance(cost_total, Decimal)
+                    self.assertGreater(cost_total, Decimal(0))
                     self.assertIsInstance(value.get("usage", {}).get("value"), Decimal)
                     self.assertGreater(value.get("usage", {}).get("value"), Decimal(0))
 
@@ -1060,8 +1036,9 @@ class AWSReportQueryTest(IamTestCase):
                     self.assertIsNotNone(srv.get("values"))
                     self.assertGreater(len(srv.get("values")), 0)
                     for value in srv.get("values"):
-                        self.assertIsInstance(value.get("cost", {}).get("value"), Decimal)
-                        self.assertGreater(value.get("cost", {}).get("value"), Decimal(0))
+                        cost_total = value.get("cost", {}).get("total", {}).get("value")
+                        self.assertIsInstance(cost_total, Decimal)
+                        self.assertGreater(cost_total, Decimal(0))
                         self.assertIsInstance(value.get("usage", {}).get("value"), Decimal)
                         self.assertGreater(value.get("usage", {}).get("value"), Decimal(0))
 
@@ -1120,16 +1097,15 @@ class AWSReportQueryTest(IamTestCase):
         with tenant_context(self.tenant):
             totals = AWSCostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=self.dh.this_month_start
-            ).aggregate(**{"cost": Sum(F("unblended_cost") + F("markup_cost"))})
+            ).aggregate(**{"cost_total": Sum(F("unblended_cost") + F("markup_cost"))})
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[tag:{filter_key}]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         data = handler.execute_query()
         data_totals = data.get("total", {})
-        for key in totals:
-            result = data_totals.get(key, {}).get("value")
-            self.assertEqual(result, totals[key])
+        result = data_totals.get("cost", {}).get("total", {}).get("value")
+        self.assertEqual(result, totals["cost_total"])
 
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
@@ -1143,7 +1119,7 @@ class AWSReportQueryTest(IamTestCase):
         with tenant_context(self.tenant):
             totals = AWSCostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=self.dh.this_month_start
-            ).aggregate(**{"cost": Sum(F("unblended_cost") + F("markup_cost"))})
+            ).aggregate(**{"cost_total": Sum(F("unblended_cost") + F("markup_cost"))})
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[tag:{group_by_key}]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -1155,9 +1131,8 @@ class AWSReportQueryTest(IamTestCase):
         expected_keys = ["date", group_by_key + "s"]
         for entry in data:
             self.assertEqual(list(entry.keys()), expected_keys)
-        for key in totals:
-            result = data_totals.get(key, {}).get("value")
-            self.assertEqual(result, totals[key])
+        result = data_totals.get("cost", {}).get("total", {}).get("value")
+        self.assertEqual(totals["cost_total"], result)
 
     def test_execute_query_return_others_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
@@ -1168,16 +1143,17 @@ class AWSReportQueryTest(IamTestCase):
         group_by_key = tag_keys[0]
         tag_keys = ["tag:" + tag for tag in tag_keys]
 
+        totals_key = "cost"
         with tenant_context(self.tenant):
             totals = (
                 AWSCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
                 .filter(**{"tags__has_key": group_by_key})
-                .aggregate(**{"cost": Sum(F("unblended_cost") + F("markup_cost"))})
+                .aggregate(**{totals_key: Sum(F("unblended_cost") + F("markup_cost"))})
             )
             others_totals = (
                 AWSCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
                 .exclude(**{"tags__has_key": group_by_key})
-                .aggregate(**{"cost": Sum(F("unblended_cost") + F("markup_cost"))})
+                .aggregate(**{totals_key: Sum(F("unblended_cost") + F("markup_cost"))})
             )
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[or:tag:{group_by_key}]=*"  # noqa: E501
@@ -1190,9 +1166,8 @@ class AWSReportQueryTest(IamTestCase):
         expected_keys = ["date", group_by_key + "s"]
         for entry in data:
             self.assertEqual(list(entry.keys()), expected_keys)
-        for key in totals:
-            result = data_totals.get(key, {}).get("value")
-            self.assertAlmostEqual(result, (totals[key] + others_totals[key]), 6)
+        result = data_totals.get(totals_key, {}).get("total", {}).get("value")
+        self.assertAlmostEqual(result, (totals[totals_key] + others_totals[totals_key]), 6)
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
@@ -1216,18 +1191,16 @@ class AWSReportQueryTest(IamTestCase):
             totals = (
                 AWSCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
                 .filter(**{f"tags__{filter_key}": filter_value})
-                .aggregate(**{"cost": Sum(F("unblended_cost") + F("markup_cost"))})
+                .aggregate(**{"cost_total": Sum(F("unblended_cost") + F("markup_cost"))})
             )
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[tag:{filter_key}]={filter_value}"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
-
         data = handler.execute_query()
         data_totals = data.get("total", {})
-        for key in totals:
-            result = data_totals.get(key, {}).get("value")
-            self.assertEqual(result, totals[key])
+        result = data_totals.get("cost", {}).get("total", {}).get("value")
+        self.assertEqual(result, totals["cost_total"])
 
 
 class AWSReportQueryLogicalAndTest(IamTestCase):
@@ -1250,41 +1223,33 @@ class AWSReportQueryLogicalAndTest(IamTestCase):
         account_ac_fake_aws = FakeAWSCostData(self.provider, account_alias="ac")
         self.generator.add_data_to_tenant(account_ac_fake_aws, product="ec2")
 
-        # Query 1 - a AND b
-        query_1_url = "?group_by[and:account]=a&group_by[and:account]=b&filter[time_scope_value]=-1&filter[time_scope_units]=month"  # noqa
-        query_1_params = self.mocked_query_params(query_1_url, AWSCostView)
-        query_1_handler = AWSReportQueryHandler(query_1_params)
-        query_1_output = query_1_handler.execute_query()
-        query_1_total = query_1_output.get("total").get("cost").get("value", 0)
+        data_to_test = {
+            "1": {
+                "url": "?group_by[and:account]=a&group_by[and:account]=b&filter[time_scope_value]=-1&filter[time_scope_units]=month"  # noqa
+            },
+            "2": {"url": "?group_by[account]=ab&filter[time_scope_value]=-1&filter[time_scope_units]=month"},
+            "3": {
+                "url": "?group_by[and:account]=a&group_by[and:account]=b&group_by[and:account]=c&filter[time_scope_value]=-1&filter[time_scope_units]=month"  # noqa
+            },
+            "4": {
+                "url": "?group_by[account]=a&group_by[account]=b&filter[time_scope_value]=-1&filter[time_scope_units]=month"  # noqa
+            },
+        }
 
-        # Query 2 - ab
-        query_2_url = "?group_by[account]=ab&filter[time_scope_value]=-1&filter[time_scope_units]=month"  # noqa
-        query_2_params = self.mocked_query_params(query_2_url, AWSCostView)
-        query_2_handler = AWSReportQueryHandler(query_2_params)
-        query_2_output = query_2_handler.execute_query()
-        query_2_total = query_2_output.get("total").get("cost").get("value", 1)
-        with self.subTest("query1 vs query2"):
-            self.assertEqual(query_1_total, query_2_total)
+        for key in data_to_test.keys():
+            query_params = self.mocked_query_params(data_to_test[key]["url"], AWSCostView)
+            query_handler = AWSReportQueryHandler(query_params)
+            query_output = query_handler.execute_query()
+            query_total = query_output.get("total", {}).get("cost", {}).get("total", {}).get("value")
+            self.assertIsNotNone(query_total)
+            data_to_test[key]["total"] = query_total
 
-        # Query 3 - (a AND b AND c) == 0
-        query_3_url = "?group_by[and:account]=a&group_by[and:account]=b&group_by[and:account]=c&filter[time_scope_value]=-1&filter[time_scope_units]=month"  # noqa
-        query_3_params = self.mocked_query_params(query_3_url, AWSCostView)
-        query_3_handler = AWSReportQueryHandler(query_3_params)
-        query_3_output = query_3_handler.execute_query()
-        query_3_total = query_3_output.get("total").get("cost").get("value", 2)
-        with self.subTest("query3 vs 0"):
-            self.assertEqual(0, query_3_total)
-
-        # Query 4 - (a OR b) > (a AND b)
-        query_4_url = (
-            "?group_by[account]=a&group_by[account]=b&filter[time_scope_value]=-1&filter[time_scope_units]=month"
-        )  # noqa
-        query_4_params = self.mocked_query_params(query_4_url, AWSCostView)
-        query_4_handler = AWSReportQueryHandler(query_4_params)
-        query_4_output = query_4_handler.execute_query()
-        query_4_total = query_4_output.get("total").get("cost").get("value", 0)
-        with self.subTest("query4 vs query1"):
-            self.assertGreater(query_4_total, query_1_total)
+        # Query 1: (a AND b) == Query 2: (ab)
+        self.assertEqual(data_to_test["1"]["total"], data_to_test["2"]["total"])
+        # Query 3: (a AND b AND c) == 0
+        self.assertEqual(data_to_test["3"]["total"], 0)  # Test c == 0
+        # Query 4: (a OR b) > Query 1: (a AND b)
+        self.assertGreater(data_to_test["4"]["total"], data_to_test["1"]["total"])
 
 
 class AWSQueryHandlerTest(IamTestCase):

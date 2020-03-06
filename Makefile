@@ -515,7 +515,7 @@ docker-up-no-build:
 docker-up-db:
 	docker-compose up -d db
 	@until pg_isready -h $$POSTGRES_SQL_SERVICE_HOST -p $$POSTGRES_SQL_SERVICE_PORT >/dev/null ; do \
-	    echo -n '.' ; \
+	    printf '.'; \
 	    sleep 0.5 ; \
     done
 	@echo ' PostgreSQL is available!'

@@ -269,13 +269,13 @@ class OCPReportViewTest(IamTestCase):
         total = response_json.get("meta", {}).get("total", {})
         data = response_json.get("data", {})
         self.assertTrue("cost" in total)
-        self.assertEqual(total.get("cost", {}).get("units"), "USD")
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("units"), "USD")
 
         for item in data:
             if item.get("values"):
                 values = item.get("values")[0]
                 self.assertTrue("cost" in values)
-                self.assertEqual(values.get("cost", {}).get("units"), "USD")
+                self.assertEqual(values.get("cost", {}).get("total").get("units"), "USD")
 
     def test_cpu_api_has_units(self):
         """Test that the CPU API returns units."""
@@ -524,7 +524,7 @@ class OCPReportViewTest(IamTestCase):
                 .get("total")
             )
             expected_total = cost if cost is not None else 0
-        total = data.get("meta", {}).get("total", {}).get("cost", {}).get("value", 0)
+        total = data.get("meta", {}).get("total", {}).get("cost", {}).get("total", {}).get("value", 0)
         self.assertNotEqual(total, Decimal(0))
         self.assertEqual(total, expected_total)
 
@@ -957,7 +957,10 @@ class OCPReportViewTest(IamTestCase):
         data_totals = data.get("meta", {}).get("total", {})
         for key in totals:
             expected = totals[key]
-            result = data_totals.get(key, {}).get("value")
+            if key == "cost":
+                result = data_totals.get(key, {}).get("total", {}).get("value")
+            else:
+                result = data_totals.get(key, {}).get("value")
             self.assertEqual(result, expected)
 
     def test_execute_costs_query_with_tag_filter(self):
@@ -1004,7 +1007,7 @@ class OCPReportViewTest(IamTestCase):
         data_totals = data.get("meta", {}).get("total", {})
         for key in totals:
             expected = totals[key]
-            result = data_totals.get(key, {}).get("value")
+            result = data_totals.get(key, {}).get("total", {}).get("value")
             self.assertNotEqual(result, Decimal(0))
             self.assertEqual(result, expected)
 
@@ -1022,7 +1025,7 @@ class OCPReportViewTest(IamTestCase):
                     "usage": Sum("pod_usage_cpu_core_hours"),
                     "request": Sum("pod_request_cpu_core_hours"),
                     "limit": Sum("pod_limit_cpu_core_hours"),
-                    "derived_cost": Sum("pod_charge_cpu_core_hours"),
+                    "cost": Sum("pod_charge_cpu_core_hours"),
                 }
             )
 
@@ -1043,7 +1046,10 @@ class OCPReportViewTest(IamTestCase):
         data_totals = data.get("meta", {}).get("total", {})
         for key in totals:
             expected = totals[key]
-            result = data_totals.get(key, {}).get("value")
+            if key == "cost":
+                result = data_totals.get(key, {}).get("total", {}).get("value")
+            else:
+                result = data_totals.get(key, {}).get("value")
             self.assertEqual(result, expected)
 
     def test_execute_query_with_tag_group_by(self):
@@ -1135,7 +1141,9 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_group_by_order_by_and_limit(self):
         """Test that data is grouped by and limited on order by."""
-        order_by_options = ["cost", "derived_cost", "infrastructure_cost", "usage", "request", "limit"]
+        order_by_options = ["cost_total", "infra_total", "sup_total", "usage", "request", "limit"]
+        order_mapping = {"cost_total": "cost", "infra_total": "infrastructure", "sup_total": "supplementary"}
+
         for option in order_by_options:
             url = reverse("reports-openshift-cpu")
             client = APIClient()
@@ -1155,15 +1163,25 @@ class OCPReportViewTest(IamTestCase):
 
             data = response.json()
             data = data.get("data", [])
-            previous_value = data[0].get("nodes", [])[0].get("values", [])[0].get(option, {}).get("value")
+            data_key = None
+            if option in order_mapping.keys():
+                data_key = order_mapping[option]
+                previous_value = (
+                    data[0].get("nodes", [])[0].get("values", [])[0].get(data_key, {}).get("total", {}).get("value")
+                )
+            else:
+                previous_value = data[0].get("nodes", [])[0].get("values", [])[0].get(option, {}).get("value")
             for entry in data[0].get("nodes", []):
-                current_value = entry.get("values", [])[0].get(option, {}).get("value")
+                if data_key:
+                    current_value = entry.get("values", [])[0].get(data_key, {}).get("total", {}).get("value")
+                else:
+                    current_value = entry["values"][0][option]["value"]
                 self.assertTrue(current_value <= previous_value)
                 previous_value = current_value
 
     def test_execute_query_with_order_by(self):
         """Test that the possible order by options work."""
-        order_by_options = ["cost", "derived_cost", "infrastructure_cost", "usage", "request", "limit"]
+        order_by_options = ["cost_total", "infra_total", "sup_total", "usage", "request", "limit"]
         for option in order_by_options:
             url = reverse("reports-openshift-cpu")
             client = APIClient()

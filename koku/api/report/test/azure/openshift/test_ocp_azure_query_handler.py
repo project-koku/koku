@@ -66,12 +66,23 @@ class OCPAWSQueryHandlerTestNoData(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        keys_units = {"cost": "USD", "markup_cost": "USD", "usage": "Instance Type Placeholder", "count": "instances"}
+        keys_units = {
+            "cost": "USD",
+            "infrastructure": "USD",
+            "supplementary": "USD",
+            "usage": "Instance Type Placeholder",
+            "count": "instances",
+        }
+        has_total_list = ["cost", "infrastructure", "supplementary"]
         for key, unit in keys_units.items():
             self.assertIsNotNone(total.get(key))
             self.assertIsInstance(total.get(key), dict)
-            self.assertEqual(total.get(key).get("value"), 0)
-            self.assertEqual(total.get(key).get("units"), unit)
+            if key in has_total_list:
+                self.assertEqual(total.get(key).get("total", {}).get("value"), 0)
+                self.assertEqual(total.get(key).get("total", {}).get("units"), unit)
+            else:
+                self.assertEqual(total.get(key).get("value"), 0)
+                self.assertEqual(total.get(key).get("units"), unit)
 
 
 class OCPAzureQueryHandlerTest(IamTestCase):
@@ -114,7 +125,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         filt.update(self.ten_day_filter)
         current_totals = self.get_totals_by_time_scope(aggregates, filt)
         total = query_output.get("total")
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
     def test_execute_sum_query_instance_types(self):
         """Test that the sum query runs properly."""
@@ -129,7 +140,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.ten_day_filter)
         total = query_output.get("total")
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
     def test_execute_query_current_month_daily(self):
         """Test execute_query for current month on daily breakdown."""
@@ -145,7 +156,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
     def test_execute_query_current_month_by_account(self):
         """Test execute_query for current month on monthly breakdown by account."""
@@ -162,7 +173,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -189,7 +200,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -215,9 +226,9 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         handler = OCPAzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-        self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(total)
         aggregates = handler._mapper.report_type_map.get("aggregates")
         filters = {**self.this_month_filter, "service_name__icontains": service}
         for filt in handler._mapper.report_type_map.get("filter"):
@@ -226,7 +237,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                 filters.update({qf.composed_query_string(): qf.parameter})
         current_totals = self.get_totals_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -255,7 +266,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -284,7 +295,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -297,8 +308,8 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             for month_item in month_data:
                 self.assertIsInstance(month_item.get("subscription_guid"), str)
                 self.assertIsInstance(month_item.get("values"), list)
-                self.assertIsNotNone(month_item.get("values")[0].get("cost", {}).get("value"))
-                data_point_total = month_item.get("values")[0].get("cost", {}).get("value")
+                self.assertIsNotNone(month_item.get("values")[0].get("cost", {}).get("total", {}).get("value"))
+                data_point_total = month_item.get("values")[0].get("cost", {}).get("total", {}).get("value")
                 self.assertLess(current_total, data_point_total)
                 current_total = data_point_total
 
@@ -318,7 +329,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -352,7 +363,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -386,7 +397,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                 filters.update({qf.composed_query_string(): qf.parameter})
         current_totals = self.get_totals_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -414,7 +425,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -442,7 +453,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -477,7 +488,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                 filters.update({qf.composed_query_string(): qf.parameter})
         current_totals = self.get_totals_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -501,7 +512,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -526,7 +537,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         self.assertEqual(len(data), 1)
@@ -553,7 +564,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
+        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         self.assertEqual(len(data), 2)
@@ -656,7 +667,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         query_output = handler.execute_query()
         data = query_output.get("data")
         self.assertIsNotNone(data)
-        total_cost = query_output.get("total", {}).get("cost", {}).get("value", 1)
+        total_cost = query_output.get("total", {}).get("cost", {}).get("total").get("value", 1)
         delta = query_output.get("delta")
         self.assertIsNotNone(delta.get("value"))
         self.assertIsNone(delta.get("percent", 0))
@@ -697,8 +708,8 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
-        self.assertEqual(result.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
-        self.assertEqual(result.get("cost", {}).get("units", "not-USD"), expected_units)
+        self.assertEqual(result.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
+        self.assertEqual(result.get("cost", {}).get("total", {}).get("units", "not-USD"), expected_units)
 
     def test_percent_delta(self):
         """Test _percent_delta() utility method."""
@@ -724,12 +735,11 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             {"subscription_guid": "2", "total": 4, "rank": 2},
             {
                 "subscription_guid": "2 Others",
-                "cost": 0,
-                "markup_cost": 0,
-                "derived_cost": 0,
-                "infrastructure_cost": 0,
                 "total": 5,
                 "rank": 3,
+                "cost_total": 0,
+                "sup_total": 0,
+                "infra_total": 0,
             },
         ]
         ranked_list = handler._ranked_list(data_list)
@@ -750,15 +760,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         expected = [
             {"service_name": "1", "total": 5, "rank": 1},
             {"service_name": "2", "total": 4, "rank": 2},
-            {
-                "cost": 0,
-                "derived_cost": 0,
-                "infrastructure_cost": 0,
-                "markup_cost": 0,
-                "service_name": "2 Others",
-                "total": 5,
-                "rank": 3,
-            },
+            {"service_name": "2 Others", "total": 5, "rank": 3, "cost_total": 0, "sup_total": 0, "infra_total": 0},
         ]
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
@@ -801,8 +803,8 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                 self.assertIsNotNone(subscription_guid.get("values"))
                 self.assertGreater(len(subscription_guid.get("values")), 0)
                 for value in subscription_guid.get("values"):
-                    self.assertIsInstance(value.get("cost", {}).get("value"), Decimal)
-                    self.assertGreater(value.get("cost", {}).get("value"), Decimal(0))
+                    self.assertIsInstance(value.get("cost", {}).get("total", {}).get("value"), Decimal)
+                    self.assertGreater(value.get("cost", {}).get("total", {}).get("value"), Decimal(0))
 
     def test_query_instance_types_with_totals(self):
         """Test execute_query() - instance types with totals.
@@ -826,9 +828,10 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                 self.assertIsNotNone(it.get("values"))
                 self.assertGreater(len(it.get("values")), 0)
                 for value in it.get("values"):
-                    self.assertIsInstance(value.get("cost", {}).get("value"), Decimal)
+                    self.assertIsInstance(value.get("cost", {}).get("total", {}).get("value"), Decimal)
                     self.assertGreaterEqual(
-                        value.get("cost", {}).get("value").quantize(Decimal(".0001"), ROUND_HALF_UP), Decimal(0)
+                        value.get("cost", {}).get("total", {}).get("value").quantize(Decimal(".0001"), ROUND_HALF_UP),
+                        Decimal(0),
                     )
                     # FIXME: usage doesn't have units yet. waiting on MSFT
                     # self.assertIsInstance(value.get('usage', {}).get('value'), Decimal)
@@ -861,8 +864,8 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                 self.assertIsNotNone(srv.get("values"))
                 self.assertGreater(len(srv.get("values")), 0)
                 for value in srv.get("values"):
-                    self.assertIsInstance(value.get("cost", {}).get("value"), Decimal)
-                    self.assertGreater(value.get("cost", {}).get("value"), Decimal(0))
+                    self.assertIsInstance(value.get("cost", {}).get("total", {}).get("value"), Decimal)
+                    self.assertGreater(value.get("cost", {}).get("total", {}).get("value"), Decimal(0))
                     # FIXME: usage doesn't have units yet. waiting on MSFT
                     # self.assertIsInstance(value.get('usage', {}).get('value'), Decimal)
                     # self.assertGreater(value.get('usage', {}).get('value'), Decimal(0))

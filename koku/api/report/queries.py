@@ -426,24 +426,47 @@ class ReportQueryHandler(QueryHandler):
             bucket_by_date[date] = grouped
         return bucket_by_date
 
-    def _pack_data_object(self, data, **kwargs):
+    def _pack_data_object(self, data, **kwargs):  # noqa: C901
         """Pack data into object format."""
         tag_prefix = self._mapper.tag_column + "__"
         if not isinstance(data, dict):
             return data
 
         all_pack_keys = ["date", "delta_value", "delta_percent"]
-        for pack_def in kwargs.values():
+        kwargs_values = kwargs.values()
+        for pack_def in kwargs_values:
+            remove_keys = []
             key_items = pack_def.get("keys")
             key_units = pack_def.get("units")
-            units = data.get(key_units)
-            all_pack_keys += key_items
-            for key in key_items:
-                value = data.get(key)
-                if value is not None and units is not None:
-                    data[key] = {"value": value, "units": units}
+            if isinstance(key_items, dict):
+                for data_key, group_info in key_items.items():
+                    value = data.get(data_key)
+                    units = data.get(key_units)
+                    if value is not None and units is not None:
+                        group_key = group_info.get("group")
+                        new_key = group_info.get("key")
+                        if data.get(group_key):
+                            if isinstance(data[group_key], str):
+                                # This if is to overwrite the "cost": "no-cost"
+                                # that is provided by the order_by function.
+                                data[group_key] = {}
+                            data[group_key][new_key] = {"value": value, "units": units}
+                        else:
+                            data[group_key] = {}
+                            data[group_key][new_key] = {"value": value, "units": units}
+                        remove_keys.append(data_key)
+            else:
+                if key_items:
+                    all_pack_keys += key_items
+                for key in key_items:
+                    units = data.get(key_units)
+                    value = data.get(key)
+                    if value is not None and units is not None:
+                        data[key] = {"value": value, "units": units}
             if units is not None:
                 del data[key_units]
+            for key in remove_keys:
+                del data[key]
         delete_keys = []
         new_data = {}
         for data_key in data.keys():
@@ -455,7 +478,8 @@ class ReportQueryHandler(QueryHandler):
                     new_data[new_tag] = data[data_key]
                 delete_keys.append(data_key)
         for del_key in delete_keys:
-            del data[del_key]
+            if data.get(del_key):
+                del data[del_key]
         data.update(new_data)
         return data
 
@@ -511,9 +535,9 @@ class ReportQueryHandler(QueryHandler):
             "usage",
             "request",
             "limit",
-            "cost",
-            "infrastructure_cost",
-            "derived_cost",
+            "sup_total",
+            "infra_total",
+            "cost_total",
         ]
         tag_str = "tag:"
         db_tag_prefix = self._mapper.tag_column + "__"
@@ -749,7 +773,7 @@ class ReportQueryHandler(QueryHandler):
                 current_total_sum = Decimal(query_sum.get(self._delta) or 0)
         else:
             if isinstance(query_sum.get("cost"), dict):
-                current_total_sum = Decimal(query_sum.get("cost", {}).get("value") or 0)
+                current_total_sum = Decimal(query_sum.get("cost", {}).get("total").get("value") or 0)
             else:
                 current_total_sum = Decimal(query_sum.get("cost") or 0)
         delta_field = self._mapper._report_type_map.get("delta_key").get(self._delta)
