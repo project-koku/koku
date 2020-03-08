@@ -140,7 +140,7 @@ class SourcesViewSet(*MIXIN_LIST):
             obj = Sources.objects.get(source_uuid=uuid)
             if obj:
                 return obj
-        except ValidationError:
+        except (ValidationError, Sources.DoesNotExist):
             pass
         obj = get_object_or_404(queryset, **{"pk": pk})
         self.check_object_permissions(self.request, obj)
