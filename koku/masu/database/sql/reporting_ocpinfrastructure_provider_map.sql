@@ -7,16 +7,16 @@
     JOIN {{schema | sqlsafe}}.reporting_awscostentrybill as bill
         ON aws.cost_entry_bill_id = bill.id
     JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
-        ON date(aws.usage_start) = date(ocp.usage_start)
+        ON aws.usage_start = ocp.usage_start
             AND aws.resource_id = ocp.resource_id
     JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as rp
         ON ocp.report_period_id = rp.id
     JOIN public.api_provider as p
         ON bill.provider_id = p.uuid
-    WHERE date(aws.usage_start) >= {{start_date}}
-        AND date(aws.usage_start) <= {{end_date}}
-        AND date(ocp.usage_start) >= {{start_date}}
-        AND date(ocp.usage_start) <= {{end_date}}
+    WHERE aws.usage_start >= {{start_date}}::date
+        AND aws.usage_start <= {{end_date}}::date
+        AND ocp.usage_start >= {{start_date}}::date
+        AND ocp.usage_start <= {{end_date}}::date
         {% if aws_provider_uuid %}
         AND bill.provider_id = {{aws_provider_uuid}}
         {% endif %}
@@ -41,15 +41,15 @@
         ON azure.cost_entry_bill_id = bill.id
     JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp
         ON split_part(aps.instance_id, '/', 9) = ocp.node
-            AND date(azure.usage_date_time) = date(ocp.usage_start)
+            AND azure.usage_date = ocp.usage_start
     JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as rp
         ON ocp.report_period_id = rp.id
     JOIN public.api_provider as p
         ON bill.provider_id = p.uuid
-    WHERE date(azure.usage_date_time) >= {{start_date}}
-        AND date(azure.usage_date_time) <= {{end_date}}
-        AND date(ocp.usage_start) >= {{start_date}}
-        AND date(ocp.usage_start) <= {{end_date}}
+    WHERE azure.usage_date >= {{start_date}}::date
+        AND azure.usage_date <= {{end_date}}::date
+        AND ocp.usage_start >= {{start_date}}::date
+        AND ocp.usage_start <= {{end_date}}::date
         {% if azure_provider_uuid %}
         AND bill.provider_id = {{azure_provider_uuid}}
         {% endif %}

@@ -22,38 +22,7 @@ from reporting.provider.aws.models import AWSTagsSummary
 
 
 class OCPAWSTagView(TagView):
-    """Get OpenShift-on-AWS tags.
-
-    @api {get} /cost-management/v1/tags/openshift/infrastructures/aws/
-    @apiName getOpenShiftAwsTagData
-    @apiGroup Tag
-    @apiVersion 1.0.0
-    @apiDescription Get OpenShift-on-AWS tag keys.
-
-    @apiHeader {String} token User authorization token.
-
-    @apiParam (Query Param) {Object} filter The filter to apply to the report.
-    @apiParamExample {json} Query Param:
-        ?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly
-
-    @apiSuccess {Object} filter  The filter to applied to the report.
-    @apiSuccess {Object} data  The report data.
-    @apiSuccessExample {json} Success-Response:
-        HTTP/1.1 200 OK
-        {
-            "filter": {
-                "resolution": "daily",
-                "time_scope_value": "-10",
-                "time_scope_units": "day"
-            },
-            "data": [
-                "production",
-                "staging",
-                "test",
-            ]
-        }
-
-    """
+    """Get OpenShift-on-AWS tags."""
 
     provider = "ocp_aws"
     serializer = OCPAWSTagsQueryParamSerializer

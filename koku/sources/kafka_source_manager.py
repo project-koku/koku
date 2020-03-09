@@ -16,21 +16,27 @@
 #
 """Kafka Source Manager."""
 import json
+import logging
 from base64 import b64decode
 
 from django.db import connection
+from rest_framework.exceptions import ValidationError
 
 from api.models import Customer
 from api.models import Provider
 from api.models import Tenant
 from api.models import User
 from api.provider.provider_manager import ProviderManager
+from api.provider.provider_manager import ProviderManagerError
 from api.provider.serializers import ProviderSerializer
 from koku.middleware import IdentityHeaderMiddleware
 from sources.config import Config
 
 
-class KafkaSourceManagerError(Exception):
+LOG = logging.getLogger(__name__)
+
+
+class KafkaSourceManagerError(ValidationError):
     """KafkaSourceManager Error."""
 
     pass
@@ -83,6 +89,7 @@ class KafkaSourceManager:
 
     def get_authentication_for_provider(self, provider_type, authentication):
         """Build authentication json data for provider type."""
+        provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower())
         provider_map = {
             Provider.PROVIDER_AWS: self._authentication_for_aws,
             Provider.PROVIDER_AWS_LOCAL: self._authentication_for_aws,
@@ -112,6 +119,8 @@ class KafkaSourceManager:
         return self._build_provider_bucket(billing_source)
 
     def _billing_source_for_ocp(self, billing_source):
+        if not billing_source:
+            billing_source = {}
         billing_source["bucket"] = ""
         return self._build_provider_bucket(billing_source)
 
@@ -120,6 +129,7 @@ class KafkaSourceManager:
 
     def get_billing_source_for_provider(self, provider_type, billing_source):
         """Build billing source json data for provider type."""
+        provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower())
         provider_map = {
             Provider.PROVIDER_AWS: self._billing_source_for_aws,
             Provider.PROVIDER_AWS_LOCAL: self._billing_source_for_aws,
@@ -211,6 +221,10 @@ class KafkaSourceManager:
         _, customer, user = self._create_context()
         tenant = Tenant.objects.get(schema_name=customer.schema_name)
         connection.set_tenant(tenant)
-        manager = ProviderManager(provider_uuid)
-        manager.remove(user=user, from_sources=True)
+        try:
+            manager = ProviderManager(provider_uuid)
+        except ProviderManagerError:
+            LOG.info("Provider does not exist, skipping Provider delete.")
+        else:
+            manager.remove(user=user, from_sources=True)
         connection.set_schema_to_public()
