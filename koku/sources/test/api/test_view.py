@@ -16,8 +16,10 @@
 #
 """Test the sources view."""
 import json
+from random import randint
 from unittest.mock import patch
 from unittest.mock import PropertyMock
+from uuid import uuid4
 
 import requests_mock
 from django.test.utils import override_settings
@@ -246,3 +248,39 @@ class SourcesViewTests(IamTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIsNotNone(body)
         self.assertFalse(body["provider_linked"])
+
+    def test_source_get_random_int(self):
+        """Test the GET endpoint with non-existent source int id."""
+        source_id = randint(20, 100)
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sourcesclient.com/api/v1/sources/{source_id}/",
+                status_code=404,
+                headers={"Content-Type": "application/json"},
+            )
+
+            url = reverse("sources-detail", kwargs={"pk": source_id})
+
+            response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
+            body = response.json()
+
+            self.assertEqual(response.status_code, 404)
+            self.assertIsNotNone(body)
+
+    def test_source_get_random_uuid(self):
+        """Test the GET endpoint with non-existent source uuid."""
+        source_id = uuid4()
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sourcesclient.com/api/v1/sources/{source_id}/",
+                status_code=404,
+                headers={"Content-Type": "application/json"},
+            )
+
+            url = reverse("sources-detail", kwargs={"pk": source_id})
+
+            response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
+            body = response.json()
+
+            self.assertEqual(response.status_code, 404)
+            self.assertIsNotNone(body)
