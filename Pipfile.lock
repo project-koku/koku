@@ -1199,11 +1199,10 @@
         },
         "importlib-resources": {
             "hashes": [
-                "sha256:6aefffdf63634bd94600dd0691fd6430902272bace0572934fa23c81473a7ff7",
-                "sha256:ce84b1c9c05078e1797700505bd1bc386cee9561002a9bdcfcba634adc6333e5"
+                "sha256:1dff36d42d94bd523eeb847c25c7dd327cb56686d74a26dfcc8d67c504922d59",
+                "sha256:7f0e1b2b5f3981e39c52da0f99b2955353c5a139c314994d1126c2551ace9bdf"
             ],
-            "markers": "python_version < '3.7'",
-            "version": "==1.2.0"
+            "version": "==1.3.1"
         },
         "isodate": {
             "hashes": [
