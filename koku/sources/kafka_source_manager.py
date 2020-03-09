@@ -20,6 +20,7 @@ import logging
 from base64 import b64decode
 
 from django.db import connection
+from rest_framework.exceptions import ValidationError
 
 from api.models import Customer
 from api.models import Provider
@@ -35,7 +36,7 @@ from sources.config import Config
 LOG = logging.getLogger(__name__)
 
 
-class KafkaSourceManagerError(Exception):
+class KafkaSourceManagerError(ValidationError):
     """KafkaSourceManager Error."""
 
     pass
