@@ -16,6 +16,7 @@
 #
 """Kafka Source Manager."""
 import json
+import logging
 from base64 import b64decode
 
 from django.db import connection
@@ -25,9 +26,13 @@ from api.models import Provider
 from api.models import Tenant
 from api.models import User
 from api.provider.provider_manager import ProviderManager
+from api.provider.provider_manager import ProviderManagerError
 from api.provider.serializers import ProviderSerializer
 from koku.middleware import IdentityHeaderMiddleware
 from sources.config import Config
+
+
+LOG = logging.getLogger(__name__)
 
 
 class KafkaSourceManagerError(Exception):
@@ -215,6 +220,10 @@ class KafkaSourceManager:
         _, customer, user = self._create_context()
         tenant = Tenant.objects.get(schema_name=customer.schema_name)
         connection.set_tenant(tenant)
-        manager = ProviderManager(provider_uuid)
-        manager.remove(user=user, from_sources=True)
+        try:
+            manager = ProviderManager(provider_uuid)
+        except ProviderManagerError:
+            LOG.info("Provider does not exist, skipping Provider delete.")
+        else:
+            manager.remove(user=user, from_sources=True)
         connection.set_schema_to_public()
