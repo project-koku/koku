@@ -1,35 +1,6 @@
-                       Materialized view "acct10001.reporting_ocpallcostlineitem_daily_summary"
-      Column       |           Type           | Collation | Nullable | Default | Storage  | Stats target | Description
--------------------+--------------------------+-----------+----------+---------+----------+--------------+-------------
- id                | bigint                   |           |          |         | plain    |              |
- source_type       | text                     |           |          |         | extended |              |
- cluster_id        | character varying(50)    |           |          |         | extended |              |
- cluster_alias     | character varying(256)   |           |          |         | extended |              |
- namespace         | character varying(253)[] |           |          |         | extended |              |
- node              | text                     |           |          |         | extended |              |
- resource_id       | character varying(253)   |           |          |         | extended |              |
- usage_start       | date                     |           |          |         | plain    |              |
- usage_end         | date                     |           |          |         | plain    |              |
- usage_account_id  | character varying(50)    |           |          |         | extended |              |
- account_alias_id  | integer                  |           |          |         | plain    |              |
- product_code      | character varying(50)    |           |          |         | extended |              |
- product_family    | character varying        |           |          |         | extended |              |
- instance_type     | character varying(50)    |           |          |         | extended |              |
- region            | character varying(50)    |           |          |         | extended |              |
- availability_zone | character varying        |           |          |         | extended |              |
- tags              | jsonb                    |           |          |         | extended |              |
- usage_amount      | numeric(24,9)            |           |          |         | main     |              |
- unit              | character varying(63)    |           |          |         | extended |              |
- unblended_cost    | numeric                  |           |          |         | main     |              |
- markup_cost       | numeric                  |           |          |         | main     |              |
- currency_code     | character varying(10)    |           |          |         | extended |              |
- shared_projects   | integer                  |           |          |         | plain    |              |
- project_costs     | jsonb                    |           |          |         | extended |              |
-Indexes:
-    "ocpallcstdlysumm_node" btree (node text_pattern_ops)
-    "ocpallcstdlysumm_node_like" gin (node gin_trgm_ops)
-    "ocpallcstdlysumm_nsp" gin (namespace)
-View definition:
+DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_daily_summary;
+
+CREATE OR REPLACE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary AS
  SELECT row_number() OVER () AS id,
     lids.source_type,
     lids.cluster_id,
@@ -106,6 +77,13 @@ View definition:
            FROM acct10001.reporting_ocpazurecostlineitem_daily_summary
           WHERE reporting_ocpazurecostlineitem_daily_summary.usage_start >= date_trunc('month'::text, now() - '1 mon'::interval)::date) lids;
 
+CREATE INDEX ocpallcstdlysumm_node ON reporting_ocpallcostlineitem_daily_summary (node text_pattern_ops);
+CREATE INDEX ocpallcstdlysumm_node_like ON reporting_ocpallcostlineitem_daily_summary USING GIN (node gin_trgm_ops);
+CREATE INDEX ocpallcstdlysumm_nsp ON reporting_ocpallcostlineitem_daily_summary USING GIN (namespace);
+
+
+
+
                    Materialized view "acct10001.reporting_ocpallcostlineitem_project_daily_summary"
        Column        |          Type          | Collation | Nullable | Default | Storage  | Stats target | Description
 ---------------------+------------------------+-----------+----------+---------+----------+--------------+-------------
@@ -139,6 +117,8 @@ Indexes:
     "ocpallcstprjdlysumm_nsp" btree (namespace text_pattern_ops)
     "ocpallcstprjdlysumm_nsp_like" gin (namespace gin_trgm_ops)
 View definition:
+
+
  SELECT row_number() OVER () AS id,
     lids.source_type,
     lids.cluster_id,
@@ -214,3 +194,8 @@ View definition:
             reporting_ocpazurecostlineitem_project_daily_summary.currency AS currency_code
            FROM acct10001.reporting_ocpazurecostlineitem_project_daily_summary
           WHERE reporting_ocpazurecostlineitem_project_daily_summary.usage_start >= date_trunc('month'::text, now() - '1 mon'::interval)::date) lids;
+
+    "ocpallcstprjdlysumm_node" btree (node text_pattern_ops)
+    "ocpallcstprjdlysumm_node_like" gin (node gin_trgm_ops)
+    "ocpallcstprjdlysumm_nsp" btree (namespace text_pattern_ops)
+    "ocpallcstprjdlysumm_nsp_like" gin (namespace gin_trgm_ops)
