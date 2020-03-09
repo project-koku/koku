@@ -31,14 +31,14 @@ def get_test_data_dates():
     return [(prev_month_start, prev_month_end, dh.last_month_start), (start_date, end_date, dh.this_month_start)]
 
 
-def load_openshift_data():
+def load_openshift_data(static_data_file, cluster_id):
     """Load OpenShift data into the database."""
     schema = "acct10001"
-    cluster_id = "test-cluster"
+    # cluster_id = "test-cluster"
     provider_type = "OCP"
     provider = baker.make("Provider", type=provider_type, authentication__provider_resource_name=cluster_id)
     dh = DateHelper()
-    static_data = pkgutil.get_data("api.report.test", "ocp_aws_static_data.yml")
+    static_data = pkgutil.get_data("api.report.test", static_data_file)
     template = Template(static_data.decode("utf8"))
     static_data_path = f"/tmp/{provider_type}_static_data.yml"
     # nise_data_path = "/tmp/nise/ocp_data"
@@ -141,11 +141,15 @@ def load_azure_data():
     nise_provider_type = provider_type.replace("-local", "")
     report_name = "Test"
 
-    provider_resource_name = "arn:aws:iam::111111111117:role/CostManagement"
-    provider = baker.make(
-        "Provider", type=provider_type, authentication__provider_resource_name=provider_resource_name
-    )
-    static_data = pkgutil.get_data("api.report.test", "aws_static_data.yml")
+    credentials = {
+        "subscription_id": "11111111-1111-1111-1111-11111111",
+        "tenant_id": "22222222-2222-2222-2222-22222222",
+        "client_id": "33333333-3333-3333-3333-33333333",
+        "client_secret": "MyPassW0rd!",
+    }
+
+    provider = baker.make("Provider", type=provider_type, authentication__credentials=credentials)
+    static_data = pkgutil.get_data("api.report.test", "azure_static_data.yml")
     template = Template(static_data.decode("utf8"))
     static_data_path = f"/tmp/{provider_type}_static_data.yml"
     # nise_data_path = "/tmp/nise/ocp_data"
@@ -161,25 +165,23 @@ def load_azure_data():
             f.write(template.render(start_date=start_date, end_date=end_date))
         options = {
             "static_report_file": static_data_path,
-            "aws_report_name": report_name,
-            "aws_bucket_name": nise_data_path,
+            "azure_report_name": report_name,
+            "azure_container_name": nise_data_path,
         }
         run(nise_provider_type.lower(), options)
         this_month_str = bill_date.strftime("%Y%m%d")
-        next_month = bill_date + relativedelta(months=1)
+        next_month = bill_date + relativedelta(months=1) - relativedelta(days=1)
         next_month_str = next_month.strftime("%Y%m%d")
         base_path = f"{nise_data_path}/{report_name}"
         desired_path = f"{base_path}/{this_month_str}-{next_month_str}"
         for report in os.scandir(desired_path):
             if os.path.isdir(report):
-                for report in [f.path for f in os.scandir(f"{desired_path}/{report.name}")]:
-                    if os.path.isdir(report):
-                        continue
-                    elif "manifest" in report.lower():
-                        continue
-                    print(report)
-                    baker.make("CostUsageReportStatus", manifest=manifest, report_name=report)
-                    ReportProcessor(schema, report, "GZIP", provider_type, provider.uuid, manifest.id).process()
+                continue
+            elif "manifest" in report.name.lower():
+                continue
+            print(report)
+            baker.make("CostUsageReportStatus", manifest=manifest, report_name=report.name)
+            ReportProcessor(schema, report.path, "PLAIN", provider_type, provider.uuid, manifest.id).process()
     with patch("masu.processor.tasks.chain"):
         update_summary_tables(schema, provider_type, provider.uuid, dh.last_month_start, dh.today)
     update_cost_model_costs(schema, provider.uuid, dh.last_month_start, dh.today)
