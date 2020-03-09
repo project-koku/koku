@@ -19,6 +19,7 @@ import logging
 
 from django.conf import settings
 from django.db import connection
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
@@ -65,11 +66,13 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
 
 LOG = logging.getLogger(__name__)
 MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet]
-
+HTTP_METHOD_LIST = ["get", "head", "patch"]
 
 if settings.DEVELOPMENT:
     MIXIN_LIST.append(mixins.CreateModelMixin)
     MIXIN_LIST.append(DestroySourceMixin)
+    HTTP_METHOD_LIST.append("post")
+    HTTP_METHOD_LIST.append("delete")
 
 
 class SourceFilter(FilterSet):
@@ -105,17 +108,11 @@ class SourcesViewSet(*MIXIN_LIST):
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = SourceFilter
-
-    @property
-    def allowed_methods(self):
-        """Return the list of allowed HTTP methods, uppercased."""
-        if "put" in self.http_method_names:
-            self.http_method_names.remove("put")
-        return [method.upper() for method in self.http_method_names if hasattr(self, method)]
+    http_method_names = HTTP_METHOD_LIST
 
     def get_serializer_class(self):
         """Return the appropriate serializer depending on the method."""
-        if self.request.method in permissions.SAFE_METHODS:
+        if self.request.method in (permissions.SAFE_METHODS, "PATCH"):
             return SourcesSerializer
         else:
             return AdminSourcesSerializer
@@ -144,10 +141,16 @@ class SourcesViewSet(*MIXIN_LIST):
             obj = Sources.objects.get(source_uuid=uuid)
             if obj:
                 return obj
-        except ValidationError:
+        except (ValidationError, Sources.DoesNotExist):
             pass
-        obj = get_object_or_404(queryset, **{"pk": pk})
-        self.check_object_permissions(self.request, obj)
+
+        try:
+            int(pk)
+            obj = get_object_or_404(queryset, **{"pk": pk})
+            self.check_object_permissions(self.request, obj)
+        except ValueError:
+            raise Http404
+
         return obj
 
     def _get_account_and_tenant(self, request):
@@ -174,8 +177,9 @@ class SourcesViewSet(*MIXIN_LIST):
             try:
                 manager = ProviderManager(source["uuid"])
             except ProviderManagerError:
-                pass
+                source["provider_linked"] = False
             else:
+                source["provider_linked"] = True
                 source["infrastructure"] = manager.get_infrastructure_name()
                 connection.set_tenant(tenant)
                 source["cost_models"] = [
@@ -193,8 +197,9 @@ class SourcesViewSet(*MIXIN_LIST):
         try:
             manager = ProviderManager(response.data["uuid"])
         except ProviderManagerError:
-            pass
+            response.data["provider_linked"] = False
         else:
+            response.data["provider_linked"] = True
             response.data["infrastructure"] = manager.get_infrastructure_name()
             connection.set_tenant(tenant)
             response.data["cost_models"] = [
@@ -210,7 +215,13 @@ class SourcesViewSet(*MIXIN_LIST):
         account_id = get_account_from_header(request)
         schema_name = create_schema_name(account_id)
         source = self.get_object()
-        manager = ProviderManager(source.source_uuid)
-        tenant = Tenant.objects.get(schema_name=schema_name)
-        stats = manager.provider_statistics(tenant)
+        stats = {}
+        try:
+            manager = ProviderManager(source.source_uuid)
+        except ProviderManagerError:
+            stats["provider_linked"] = False
+        else:
+            stats["provider_linked"] = True
+            tenant = Tenant.objects.get(schema_name=schema_name)
+            stats.update(manager.provider_statistics(tenant))
         return Response(stats)

@@ -124,6 +124,7 @@ class CostModelViewSet(
     filterset_class = CostModelsFilter
     ordering_fields = ("name", "source_type", "updated_timestamp")
     ordering = ("name",)
+    http_method_names = ["get", "post", "head", "delete", "put"]
 
     @staticmethod
     def check_fields(dict_, model, exception):
@@ -178,7 +179,4 @@ class CostModelViewSet(
 
     @never_cache
     def update(self, request, *args, **kwargs):
-        """Update a rate."""
-        if request.method == "PATCH":
-            raise CostModelProviderMethodException("PATCH not supported")
         return super().update(request=request, args=args, kwargs=kwargs)
