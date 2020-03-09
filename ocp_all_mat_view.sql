@@ -48,7 +48,7 @@ CREATE OR REPLACE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary A
             reporting_ocpawscostlineitem_daily_summary.currency_code,
             reporting_ocpawscostlineitem_daily_summary.shared_projects,
             reporting_ocpawscostlineitem_daily_summary.project_costs
-           FROM acct10001.reporting_ocpawscostlineitem_daily_summary
+           FROM reporting_ocpawscostlineitem_daily_summary
           WHERE reporting_ocpawscostlineitem_daily_summary.usage_start >= date_trunc('month'::text, now() - '1 mon'::interval)::date
         UNION
          SELECT 'Azure'::text AS source_type,
@@ -74,51 +74,19 @@ CREATE OR REPLACE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary A
             reporting_ocpazurecostlineitem_daily_summary.currency AS currency_code,
             reporting_ocpazurecostlineitem_daily_summary.shared_projects,
             reporting_ocpazurecostlineitem_daily_summary.project_costs
-           FROM acct10001.reporting_ocpazurecostlineitem_daily_summary
+           FROM reporting_ocpazurecostlineitem_daily_summary
           WHERE reporting_ocpazurecostlineitem_daily_summary.usage_start >= date_trunc('month'::text, now() - '1 mon'::interval)::date) lids;
 
 CREATE INDEX ocpallcstdlysumm_node ON reporting_ocpallcostlineitem_daily_summary (node text_pattern_ops);
 CREATE INDEX ocpallcstdlysumm_node_like ON reporting_ocpallcostlineitem_daily_summary USING GIN (node gin_trgm_ops);
 CREATE INDEX ocpallcstdlysumm_nsp ON reporting_ocpallcostlineitem_daily_summary USING GIN (namespace);
+CREATE INDEX ocpallcstdlysumm_usage_start on reporting_ocpallcostlineitem_daily_summary (usage_start); -- new!
 
 
 
+DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_project_daily_summary;
 
-                   Materialized view "acct10001.reporting_ocpallcostlineitem_project_daily_summary"
-       Column        |          Type          | Collation | Nullable | Default | Storage  | Stats target | Description
----------------------+------------------------+-----------+----------+---------+----------+--------------+-------------
- id                  | bigint                 |           |          |         | plain    |              |
- source_type         | text                   |           |          |         | extended |              |
- cluster_id          | character varying(50)  |           |          |         | extended |              |
- cluster_alias       | character varying(256) |           |          |         | extended |              |
- data_source         | character varying(64)  |           |          |         | extended |              |
- namespace           | text                   |           |          |         | extended |              |
- node                | text                   |           |          |         | extended |              |
- pod_labels          | jsonb                  |           |          |         | extended |              |
- resource_id         | character varying(253) |           |          |         | extended |              |
- usage_start         | date                   |           |          |         | plain    |              |
- usage_end           | date                   |           |          |         | plain    |              |
- usage_account_id    | character varying(50)  |           |          |         | extended |              |
- account_alias_id    | integer                |           |          |         | plain    |              |
- product_code        | character varying(50)  |           |          |         | extended |              |
- product_family      | character varying      |           |          |         | extended |              |
- instance_type       | character varying(50)  |           |          |         | extended |              |
- region              | character varying(50)  |           |          |         | extended |              |
- availability_zone   | character varying      |           |          |         | extended |              |
- usage_amount        | numeric                |           |          |         | main     |              |
- unit                | character varying(63)  |           |          |         | extended |              |
- unblended_cost      | numeric                |           |          |         | main     |              |
- project_markup_cost | numeric                |           |          |         | main     |              |
- pod_cost            | numeric                |           |          |         | main     |              |
- currency_code       | character varying(10)  |           |          |         | extended |              |
-Indexes:
-    "ocpallcstprjdlysumm_node" btree (node text_pattern_ops)
-    "ocpallcstprjdlysumm_node_like" gin (node gin_trgm_ops)
-    "ocpallcstprjdlysumm_nsp" btree (namespace text_pattern_ops)
-    "ocpallcstprjdlysumm_nsp_like" gin (namespace gin_trgm_ops)
-View definition:
-
-
+CREATE OR RELPACE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary AS
  SELECT row_number() OVER () AS id,
     lids.source_type,
     lids.cluster_id,
@@ -166,7 +134,7 @@ View definition:
             reporting_ocpawscostlineitem_project_daily_summary.project_markup_cost,
             reporting_ocpawscostlineitem_project_daily_summary.pod_cost,
             reporting_ocpawscostlineitem_project_daily_summary.currency_code
-           FROM acct10001.reporting_ocpawscostlineitem_project_daily_summary
+           FROM reporting_ocpawscostlineitem_project_daily_summary
           WHERE reporting_ocpawscostlineitem_project_daily_summary.usage_start >= date_trunc('month'::text, now() - '1 mon'::interval)::date
         UNION
          SELECT 'Azure'::text AS source_type,
@@ -192,10 +160,11 @@ View definition:
             reporting_ocpazurecostlineitem_project_daily_summary.project_markup_cost,
             reporting_ocpazurecostlineitem_project_daily_summary.pod_cost,
             reporting_ocpazurecostlineitem_project_daily_summary.currency AS currency_code
-           FROM acct10001.reporting_ocpazurecostlineitem_project_daily_summary
+           FROM reporting_ocpazurecostlineitem_project_daily_summary
           WHERE reporting_ocpazurecostlineitem_project_daily_summary.usage_start >= date_trunc('month'::text, now() - '1 mon'::interval)::date) lids;
 
-    "ocpallcstprjdlysumm_node" btree (node text_pattern_ops)
-    "ocpallcstprjdlysumm_node_like" gin (node gin_trgm_ops)
-    "ocpallcstprjdlysumm_nsp" btree (namespace text_pattern_ops)
-    "ocpallcstprjdlysumm_nsp_like" gin (namespace gin_trgm_ops)
+CREATE INDEX ocpallcstprjdlysumm_node ON reporting_ocpallcostlineitem_project_daily_summary (node text_pattern_ops);
+CREATE INDEX ocpallcstprjdlysumm_node_like ON reporting_ocpallcostlineitem_project_daily_summary USING GIN (node gin_trgm_ops);
+CREATE INDEX ocpallcstprjdlysumm_nsp ON reporting_ocpallcostlineitem_project_daily_summary (namespace text_pattern_ops);
+CREATE INDEX ocpallcstprjdlysumm_nsp_like ON reporting_ocpallcostlineitem_project_daily_summary USING GIN (namespace gin_trgm_ops);
+CREATE INDEX ocpallcstprjdlysumm_usage_start ON reporting_ocpallcostlineitem_project_daily_summary (usage_start);  -- new
