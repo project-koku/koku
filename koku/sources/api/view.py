@@ -19,6 +19,7 @@ import logging
 
 from django.conf import settings
 from django.db import connection
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
@@ -140,10 +141,16 @@ class SourcesViewSet(*MIXIN_LIST):
             obj = Sources.objects.get(source_uuid=uuid)
             if obj:
                 return obj
-        except ValidationError:
+        except (ValidationError, Sources.DoesNotExist):
             pass
-        obj = get_object_or_404(queryset, **{"pk": pk})
-        self.check_object_permissions(self.request, obj)
+
+        try:
+            int(pk)
+            obj = get_object_or_404(queryset, **{"pk": pk})
+            self.check_object_permissions(self.request, obj)
+        except ValueError:
+            raise Http404
+
         return obj
 
     def _get_account_and_tenant(self, request):
