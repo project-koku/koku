@@ -771,10 +771,9 @@
         },
         "ujson": {
             "hashes": [
-                "sha256:f66073e5506e91d204ab0c614a148d5aa938bdbf104751be66f8ad7a222f5f86"
+                "sha256:0a88069adf9f99acb301c9902c7e31f73cd928f63a03657805a9e79e3b391f44"
             ],
-            "index": "pypi",
-            "version": "==1.35"
+            "version": "==2.0.1"
         },
         "unicodecsv": {
             "hashes": [
