@@ -67,7 +67,7 @@ SOURCE_PROVIDER_MAP = {
 }
 
 
-class SourcesIntegrationError(Exception):
+class SourcesIntegrationError(ValidationError):
     """Sources Integration error."""
 
 
