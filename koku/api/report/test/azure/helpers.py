@@ -19,6 +19,7 @@ import hashlib
 import pkgutil
 import random
 from collections import UserDict
+from datetime import datetime
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
@@ -517,7 +518,7 @@ class AzureReportDataGenerator:
             meter=self._meter(),
             subscription_guid=self.config.subscription_guid,
             tags=self.select_tags(),
-            usage_date_time=usage_dt,
+            usage_date=usage_dt.date() if isinstance(usage_dt, datetime) else usage_dt,
             usage_quantity=usage_qty,
             pretax_cost=usage_qty * self.config.meter_rate,
             offer_id=random.choice([None, self.fake.pyint()]),
@@ -536,8 +537,8 @@ class AzureReportDataGenerator:
             service_name=line_item.cost_entry_product.service_name,
             resource_location=line_item.cost_entry_product.resource_location,
             tags=line_item.tags,
-            usage_start=line_item.usage_date_time,
-            usage_end=line_item.usage_date_time,
+            usage_start=line_item.usage_date,
+            usage_end=line_item.usage_date,
             usage_quantity=line_item.usage_quantity,
             pretax_cost=line_item.pretax_cost,
             markup_cost=line_item.pretax_cost * 0.1,

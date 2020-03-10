@@ -1,4 +1,4 @@
-FROM ubi7/go-toolset
+FROM ubi7-go-toolset
 
 USER root
 
@@ -16,7 +16,7 @@ ENV LC_ALL=en_US.UTF-8 \
     ENV=/opt/rh/go-toolset-${GO_TOOLSET_VERSION}/enable \
     PROMPT_COMMAND=". /opt/rh/go-toolset-${GO_TOOLSET_VERSION}/enable"
 
-RUN scl enable go-toolset-${GO_TOOLSET_VERSION} -- go get -u github.com/wrouesnel/postgres_exporter/cmd/postgres_exporter
+RUN scl enable go-toolset-${GO_TOOLSET_VERSION} -- go get -u github.com/oliver006/redis_exporter
 
-EXPOSE      9187
-ENTRYPOINT  [ "/opt/app-root/bin/postgres_exporter" ]
+EXPOSE      9121
+ENTRYPOINT  [ "/opt/app-root/bin/redis_exporter" ]

@@ -16,8 +16,10 @@
 #
 """Test the sources view."""
 import json
+from random import randint
 from unittest.mock import patch
 from unittest.mock import PropertyMock
+from uuid import uuid4
 
 import requests_mock
 from django.test.utils import override_settings
@@ -27,7 +29,9 @@ from api.iam.models import Customer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
+from api.provider.provider_manager import ProviderManagerError
 from koku.middleware import IdentityHeaderMiddleware
+from providers.provider_access import ProviderAccessor
 from sources.api.view import SourcesViewSet
 
 
@@ -67,7 +71,11 @@ class SourcesViewTests(IamTestCase):
 
     def test_source_update(self):
         """Test the PATCH endpoint."""
-        credentials = {"subscription_id": "subscription-uuid"}
+        credentials = {
+            "subscription_id": "12345678-1234-5678-1234-567812345678",
+            "tenant_id": "12345678-1234-5678-1234-567812345678",
+            "client_id": "12345678-1234-5678-1234-567812345678",
+        }
 
         with requests_mock.mock() as m:
             m.patch(
@@ -76,12 +84,16 @@ class SourcesViewTests(IamTestCase):
                 json={"credentials": credentials},
             )
 
-            params = {"credentials": credentials}
+            params = {
+                "authentication": {"credentials": {"subscription_id": "this-ain't-real"}},
+                "billing_source": {"data_source": {"resource_group": "group", "storage_account": "storage"}},
+            }
             url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
 
-            response = self.client.patch(
-                url, json.dumps(params), content_type="application/json", **self.request_context["request"].META
-            )
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                response = self.client.patch(
+                    url, json.dumps(params), content_type="application/json", **self.request_context["request"].META
+                )
 
             self.assertEqual(response.status_code, 200)
 
@@ -205,3 +217,70 @@ class SourcesViewTests(IamTestCase):
         body = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertIsNotNone(body)
+
+    @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
+    def test_source_list_error(self, _):
+        """Test provider_linked is False in list when Provider does not exist."""
+        url = reverse("sources-list")
+        response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(body)
+        self.assertTrue(body.get("data"))
+        self.assertFalse(body.get("data")[0]["provider_linked"])
+
+    @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
+    def test_source_retrieve_error(self, _):
+        """Test provider_linked is False in Source when Provider does not exist."""
+        url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
+        response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(body)
+        self.assertFalse(body["provider_linked"])
+
+    @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
+    def test_source_get_stats_error(self, _):
+        """Test provider_linked is False in source-stats when Provider does not exist."""
+        url = reverse("sources-stats", kwargs={"pk": self.test_source_id})
+        response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(body)
+        self.assertFalse(body["provider_linked"])
+
+    def test_source_get_random_int(self):
+        """Test the GET endpoint with non-existent source int id."""
+        source_id = randint(20, 100)
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sourcesclient.com/api/v1/sources/{source_id}/",
+                status_code=404,
+                headers={"Content-Type": "application/json"},
+            )
+
+            url = reverse("sources-detail", kwargs={"pk": source_id})
+
+            response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
+            body = response.json()
+
+            self.assertEqual(response.status_code, 404)
+            self.assertIsNotNone(body)
+
+    def test_source_get_random_uuid(self):
+        """Test the GET endpoint with non-existent source uuid."""
+        source_id = uuid4()
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sourcesclient.com/api/v1/sources/{source_id}/",
+                status_code=404,
+                headers={"Content-Type": "application/json"},
+            )
+
+            url = reverse("sources-detail", kwargs={"pk": source_id})
+
+            response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
+            body = response.json()
+
+            self.assertEqual(response.status_code, 404)
+            self.assertIsNotNone(body)

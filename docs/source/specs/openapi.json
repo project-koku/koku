@@ -1809,6 +1809,12 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
                     }
                 ],
                 "responses": {
@@ -1950,7 +1956,7 @@
                 }
             }
         },
-        "/sources/{source_id}/stats": {
+        "/sources/{source_id}/stats/": {
             "get": {
                 "tags": [
                     "Sources"
@@ -2980,6 +2986,11 @@
                                 "example": {
                                     "bucket": "test-bucket"
                                 }
+                            },
+                            "provider_linked": {
+                                "type": "boolean",
+                                "description": "Flag to indicate if provider is linked to source.",
+                                "default": false
                             },
                             "infrastructure": {
                                 "type": "string",

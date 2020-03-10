@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Sources Model Serializers."""
+import logging
 from uuid import uuid4
 
 from django.db import transaction
@@ -28,6 +29,17 @@ from sources.api import get_account_from_header
 from sources.api import get_auth_header
 from sources.kafka_source_manager import KafkaSourceManager
 from sources.storage import SourcesStorageError
+
+LOG = logging.getLogger(__name__)
+
+ALLOWED_BILLING_SOURCE_PROVIDERS = (
+    Provider.PROVIDER_AWS,
+    Provider.PROVIDER_AWS_LOCAL,
+    Provider.PROVIDER_AZURE,
+    Provider.PROVIDER_AZURE_LOCAL,
+)
+
+ALLOWED_AUTHENTICATION_PROVIDERS = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL)
 
 
 def error_obj(key, message):
@@ -87,41 +99,75 @@ class SourcesSerializer(serializers.ModelSerializer):
                 raise SourcesStorageError("Missing AZURE storage_account")
 
     def _update_billing_source(self, instance, billing_source):
-        if instance.source_type not in (Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE):
-            raise SourcesStorageError(f"Option not supported by " f"source type {instance.source_type}.")
+        if instance.source_type not in ALLOWED_BILLING_SOURCE_PROVIDERS:
+            raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
         self._validate_billing_source(instance.source_type, billing_source)
         instance.billing_source = billing_source
-        if instance.koku_uuid:
+        update_fields = []
+        if instance.source_uuid:
             instance.pending_update = True
-            instance.save(update_fields=["billing_source", "pending_update"])
-        else:
-            instance.save()
+            update_fields = ["billing_source", "pending_update"]
+        return instance, update_fields
 
     def _update_authentication(self, instance, authentication):
-        if instance.source_type not in (Provider.PROVIDER_AZURE,):
-            raise SourcesStorageError(f"Option not supported by " f"source type {instance.source_type}.")
+        if instance.source_type not in ALLOWED_AUTHENTICATION_PROVIDERS:
+            raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
         auth_dict = instance.authentication
         if not auth_dict.get("credentials"):
             auth_dict["credentials"] = {"subscription_id": None}
         subscription_id = authentication.get("credentials", {}).get("subscription_id")
         auth_dict["credentials"]["subscription_id"] = subscription_id
         instance.authentication = auth_dict
-        if instance.koku_uuid:
+        update_fields = []
+        if instance.source_uuid:
             instance.pending_update = True
-            instance.save(update_fields=["authentication", "pending_update"])
-        else:
-            instance.save()
+            update_fields = ["authentication", "pending_update"]
+        return instance, update_fields
 
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
+        uuid = instance.source_uuid
         billing_source = validated_data.get("billing_source")
         authentication = validated_data.get("authentication")
 
+        billing_fields = []
         if billing_source:
-            self._update_billing_source(instance, billing_source)
+            instance, billing_fields = self._update_billing_source(instance, billing_source)
 
+        auth_fields = []
         if authentication:
-            self._update_authentication(instance, authentication)
+            instance, auth_fields = self._update_authentication(instance, authentication)
+
+        update_fields = list(set(billing_fields + auth_fields))
+        instance.save(update_fields=update_fields)
+
+        source_mgr = KafkaSourceManager(get_auth_header(self.context.get("request")))
+
+        try:
+            obj = Provider.objects.get(uuid=uuid)
+        except Provider.DoesNotExist:
+            obj = source_mgr.create_provider(
+                instance.name,
+                instance.source_type,
+                instance.authentication,
+                instance.billing_source,
+                instance.source_uuid,
+            )
+            instance.koku_uuid = obj.uuid
+            instance.pending_update = False
+            instance.save()
+            LOG.info(f"Provider created: {obj.uuid}")
+        else:
+            obj = source_mgr.update_provider(
+                instance.source_uuid,
+                instance.name,
+                instance.source_type,
+                instance.authentication,
+                instance.billing_source,
+            )
+            instance.koku_uuid = obj.uuid
+            instance.save()
+            LOG.info(f"Provider updated: {obj.uuid}")
 
         return instance
 
@@ -129,8 +175,8 @@ class SourcesSerializer(serializers.ModelSerializer):
 class AdminSourcesSerializer(SourcesSerializer):
     """Source serializer specific to administration."""
 
-    name = serializers.CharField(max_length=256, required=False, allow_null=False, allow_blank=False)
-    source_type = serializers.CharField(max_length=50, required=False, allow_null=False, allow_blank=False)
+    name = serializers.CharField(max_length=256, required=True, allow_null=False, allow_blank=False)
+    source_type = serializers.CharField(max_length=50, required=True, allow_null=False, allow_blank=False)
 
     def validate_source_type(self, source_type):
         """Validate credentials field."""
@@ -171,13 +217,10 @@ class AdminSourcesSerializer(SourcesSerializer):
         """Create a source from validated data."""
         auth_header = get_auth_header(self.context.get("request"))
         manager = KafkaSourceManager(auth_header)
-        provider = manager.create_provider(
-            validated_data.get("name"),
-            validated_data.get("source_type"),
-            validated_data.get("authentication"),
-            validated_data.get("billing_source"),
-            validated_data.get("uuid"),
-        )
-        validated_data["koku_uuid"] = provider.uuid
         source = Sources.objects.create(**validated_data)
+        provider = manager.create_provider(
+            source.name, source.source_type, source.authentication, source.billing_source, source.source_uuid
+        )
+        source.koku_uuid = provider.uuid
+        source.save()
         return source
