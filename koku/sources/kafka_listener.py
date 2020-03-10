@@ -573,7 +573,11 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
             # loop remains active in the event that provider synchronization fails unexpectedly.
             provider = msg.get("provider")
             source_id = provider.source_id if provider else "unknown"
-            LOG.error(f"Source {source_id} Unexpected synchronization error: {str(error)}", exc_info=True)
+            LOG.error(
+                f"Source ID {source_id}:  Unexpected synchronization error "
+                f"encountered: {type(error).__name__}: {error}",
+                exc_info=True,
+            )
 
 
 def backoff(interval, maximum=120):
