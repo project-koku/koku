@@ -47,7 +47,6 @@ from api.views import OCPMemoryView
 from api.views import OCPTagView
 from api.views import OCPVolumeView
 from api.views import openapi
-from api.views import ProviderViewSet
 from api.views import StatusView
 from sources.api.views import SourcesViewSet
 
@@ -55,7 +54,6 @@ from sources.api.views import SourcesViewSet
 ROUTER = DefaultRouter()
 ROUTER.register(r"dataexportrequests", DataExportRequestViewSet, basename="dataexportrequests")
 ROUTER.register(r"metrics", CostModelMetricsMapViewSet, basename="metrics")
-ROUTER.register(r"providers", ProviderViewSet)
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 ROUTER.register(r"cloud-accounts", CloudAccountViewSet, basename="cloud_accounts")
 # pylint: disable=invalid-name

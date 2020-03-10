@@ -81,7 +81,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
         self.dh = DateHelper()
-        _, self.provider = create_generic_provider(Provider.PROVIDER_OCP, self.headers)
+        _, self.provider = create_generic_provider(Provider.PROVIDER_OCP, self.request_context)
 
         self.this_month_filter = {"usage_start__gte": self.dh.this_month_start}
         self.ten_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 9)}

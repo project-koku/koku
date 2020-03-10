@@ -223,7 +223,7 @@ def main(args):  # noqa
         authentication_id = generator.create_aws_authentication(endpoint_id, "user@example.com", role_arn)
 
         print(
-            f"AWS Provider Setup Successfully\n\tSource ID: {source_id}\n\tEndpoint ID: {endpoint_id}\n\tAuthentication ID: {authentication_id}"  # noqa
+            f"AWS Source Setup Successfully\n\tSource ID: {source_id}\n\tEndpoint ID: {endpoint_id}\n\tAuthentication ID: {authentication_id}"  # noqa
         )
 
         if create_application:
@@ -235,7 +235,7 @@ def main(args):  # noqa
         source_id = generator.create_source(name, "openshift", cluster_id)
         print(f"Creating OCP Source. Source ID: {source_id}")
 
-        print(f"OCP Provider Setup Successfully\n\tSource ID: {source_id}")
+        print(f"OCP Source Setup Successfully\n\tSource ID: {source_id}")
         if create_application:
             application_id = generator.create_application(source_id, "/insights/platform/cost-management")
             print(f"Attached Cost Management Application ID {application_id} to Source ID {source_id}")
@@ -267,7 +267,7 @@ def main(args):  # noqa
         tenant_id = parameters.get("tenant_id")
         authentication_id = generator.create_azure_authentication(endpoint_id, client_id, client_secret, tenant_id)
         print(
-            f"Azure Provider Setup Successfully\n\tSource ID: {source_id}\n\tEndpoint ID: {endpoint_id}\n\tAuthentication ID: {authentication_id}"  # noqa
+            f"Azure Source Setup Successfully\n\tSource ID: {source_id}\n\tEndpoint ID: {endpoint_id}\n\tAuthentication ID: {authentication_id}"  # noqa
         )
 
         if create_application:

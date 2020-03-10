@@ -21,7 +21,6 @@ from api.cloud_accounts.views import CloudAccountViewSet
 from api.dataexport.views import DataExportRequestViewSet
 from api.metrics.views import CostModelMetricsMapViewSet
 from api.openapi.view import openapi
-from api.provider.view import ProviderViewSet
 from api.report.all.openshift.view import OCPAllCostView
 from api.report.all.openshift.view import OCPAllInstanceTypeView
 from api.report.all.openshift.view import OCPAllStorageView
