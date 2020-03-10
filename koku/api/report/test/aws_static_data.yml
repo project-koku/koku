@@ -216,6 +216,6 @@ generators:
 
 
 accounts:
-  payer: 9999999999999
+  payer: {{ account_id }}
   user:
     - 9999999999999
