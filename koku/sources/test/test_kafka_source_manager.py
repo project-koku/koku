@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Kafka Source Manager."""
+import logging
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -22,7 +23,6 @@ from faker import Faker
 from rest_framework.exceptions import ValidationError
 
 from api.models import Provider
-from api.provider.provider_manager import ProviderManagerError
 from koku.middleware import IdentityHeaderMiddleware
 from providers.provider_access import ProviderAccessor
 from sources.config import Config
@@ -102,7 +102,8 @@ class KafkaSourceManagerTest(TestCase):
             )
             self.assertEqual(provider.name, self.name)
             self.assertEqual(str(provider.uuid), source_uuid)
-            with self.assertRaises(ProviderManagerError):
+            logging.disable(logging.NOTSET)
+            with self.assertLogs(logger="sources.kafka_source_manager", level=logging.INFO):
                 client.destroy_provider(faker.uuid4())
 
     def test_update_provider(self):
