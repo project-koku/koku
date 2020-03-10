@@ -574,7 +574,7 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
             provider = msg.get("provider")
             source_id = provider.source_id if provider else "unknown"
             LOG.error(
-                f"Source ID {source_id}:  Unexpected synchronization error "
+                f"[synchronize_sources] Unexpected synchronization error for Source ID {source_id} "
                 f"encountered: {type(error).__name__}: {error}",
                 exc_info=True,
             )
