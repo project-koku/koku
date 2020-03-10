@@ -2,13 +2,14 @@ version: '3'
 
 services:
   koku-base:
+      image: koku_base
       build:
         context: .
         dockerfile: Dockerfile-env
 
   koku-server:
       container_name: koku_server
-      image: koku_koku-base
+      image: koku_base
       working_dir: /koku
       entrypoint:
         - /koku/run_server.sh
@@ -55,7 +56,7 @@ services:
 
   masu-server:
       container_name: masu_server
-      image: koku_koku-base
+      image: koku_base
       working_dir: /koku
       entrypoint:
         - /koku/run_internal.sh
@@ -154,7 +155,7 @@ services:
   koku-worker:
       container_name: koku_worker
       hostname: koku_worker
-      image: koku_koku-base
+      image: koku_base
       working_dir: /koku/koku
       entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
       environment:
@@ -203,7 +204,7 @@ services:
 
   koku-listener:
       container_name: koku_listener
-      image: koku_koku-base
+      image: koku_base
       working_dir: /koku/
       entrypoint: ['python', 'koku/manage.py', 'listener']
       environment:
@@ -243,7 +244,7 @@ services:
 
   sources-client:
       container_name: sources_client
-      image: koku_koku-base
+      image: koku_base
       working_dir: /koku/
       entrypoint:
         - /koku/run_sources.sh
@@ -277,7 +278,7 @@ services:
   koku-beat:
       container_name: koku_beat
       hostname: koku_beat
-      image: koku_koku-base
+      image: koku_base
       working_dir: /koku/koku
       entrypoint: ['celery', '--pidfile=/opt/celeryd.pid', '-A', 'koku', 'beat', '-l', 'info']
 
