@@ -32,7 +32,7 @@ class OCPAllCostLineItemDailySummary(models.Model):
 
         indexes = [
             models.Index(fields=["usage_start"], name="ocpall_usage_idx"),
-            models.Index(fields=["namespace"], name="ocpall_namespace_idx"),
+            GinIndex(fields=["namespace"], name="ocpall_namespace_idx"),
             models.Index(fields=["node"], name="ocpall_node_idx", opclasses=["varcahr_pattern_ops"]),
             models.Index(fields=["resource_id"], name="ocpall_resource_idx"),
             GinIndex(fields=["tags"], name="ocpall_tags_idx"),
@@ -51,7 +51,7 @@ class OCPAllCostLineItemDailySummary(models.Model):
     cluster_alias = models.CharField(max_length=256, null=True)
 
     # Kubernetes objects by convention have a max name length of 253 chars
-    namespace = ArrayField(models.CharField(max_length=253, null=False))
+    namespace = ArrayField(models.TextField(null=False))
 
     node = models.CharField(max_length=253, null=False)
 
@@ -132,7 +132,7 @@ class OCPAllCostLineItemProjectDailySummary(models.Model):
     cluster_alias = models.CharField(max_length=256, null=True)
 
     # Whether the data comes from a pod or volume report
-    data_source = models.CharField(max_length=64, null=True)
+    data_source = models.TextField(null=True)
 
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)

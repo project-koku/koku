@@ -31,7 +31,7 @@ class OCPAWSCostLineItemDailySummary(models.Model):
 
         indexes = [
             models.Index(fields=["usage_start"], name="cost_summary_ocp_usage_idx"),
-            models.Index(fields=["namespace"], name="cost_summary_namespace_idx"),
+            GinIndex(fields=["namespace"], name="cost_summary_namespace_idx"),
             models.Index(fields=["node"], name="cost_summary_node_idx", opclasses=["varchar_pattern_ops"]),
             models.Index(fields=["resource_id"], name="cost_summary_resource_idx"),
             GinIndex(fields=["tags"], name="cost_tags_idx"),
