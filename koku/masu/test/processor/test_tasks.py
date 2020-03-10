@@ -32,8 +32,6 @@ from django.db.models import Min
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
-from api.report.test import FakeAWSCostData
-from api.report.test.aws.helpers import AWSReportDataGenerator
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -853,9 +851,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "provider_uuid": self.aws_provider_uuid,
             "task": "170653c0-3e66-4b7e-a764-336496d7ca5a",
         }
-        fake_aws = FakeAWSCostData(self.aws_provider)
-        generator = AWSReportDataGenerator(self.tenant)
-        generator.add_data_to_tenant(fake_aws)
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.add(**manifest_dict)

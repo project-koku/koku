@@ -21,7 +21,6 @@ from api.functions import JSONBObjectKeys
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Provider
 from api.provider.test import create_generic_provider
-from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.tags.ocp_aws.queries import OCPAWSTagQueryHandler
 from api.tags.ocp_aws.view import OCPAWSTagView
 from api.utils import DateHelper
@@ -37,9 +36,6 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
         super().setUp()
         self.dh = DateHelper()
         _, self.provider = create_generic_provider(Provider.PROVIDER_AZURE, self.headers)
-        generator = OCPAWSReportDataGenerator(self.tenant, self.provider)
-        generator.add_data_to_tenant()
-        generator.add_aws_data_to_tenant()
 
     def test_no_parameters(self):
         """Test that the execute_query() succeeds with no parameters."""

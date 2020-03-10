@@ -19,9 +19,6 @@ from tenant_schemas.utils import tenant_context
 
 from api.functions import JSONBObjectKeys
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Provider
-from api.provider.test import create_generic_provider
-from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
@@ -37,12 +34,6 @@ class OCPTagQueryHandlerTest(IamTestCase):
         """Set up the test class."""
         super().setUpClass()
         cls.dh = DateHelper()
-
-    def setUp(self):
-        """Set up the customer view tests."""
-        super().setUp()
-        _, self.provider = create_generic_provider(Provider.PROVIDER_OCP, self.headers)
-        OCPReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
     def test_execute_query_no_query_parameters(self):
         """Test that the execute query runs properly with no query."""

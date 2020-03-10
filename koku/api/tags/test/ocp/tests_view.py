@@ -26,9 +26,6 @@ from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Provider
-from api.provider.test import create_generic_provider
-from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.utils import DateHelper
 from reporting.models import OCPUsageLineItemDailySummary
 
@@ -42,13 +39,6 @@ class OCPTagsViewTest(IamTestCase):
         super().setUpClass()
         cls.dh = DateHelper()
         cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
-
-    def setUp(self):
-        """Set up the customer view tests."""
-        super().setUp()
-        _, self.provider = create_generic_provider(Provider.PROVIDER_OCP, self.headers)
-        self.data_generator = OCPReportDataGenerator(self.tenant, self.provider)
-        self.data_generator.add_data_to_tenant()
 
     def _calculate_expected_range(self, time_scope_value, time_scope_units):
         today = self.dh.today

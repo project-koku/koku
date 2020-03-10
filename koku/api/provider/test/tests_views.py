@@ -316,7 +316,7 @@ class ProviderViewTest(IamTestCase):
         json_result = response.json()
         results = json_result.get("data")
         self.assertIsNotNone(results)
-        self.assertEqual(len(results), 1)
+        self.assertEqual(len(results), Provider.objects.count())
 
     def test_filter_providers_by_name_not_contain(self):
         """Test that all providers that do not contain name will not appear."""

@@ -45,7 +45,6 @@ from api.provider.test import create_generic_provider
 from api.query_handler import TruncDayString
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
-from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
@@ -66,8 +65,6 @@ class OCPReportViewTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
         _, self.provider = create_generic_provider(Provider.PROVIDER_OCP, self.headers)
-        self.data_generator = OCPReportDataGenerator(self.tenant, self.provider)
-        self.data_generator.add_data_to_tenant()
 
         self.report_ocp_cpu = {
             "group_by": {"project": ["*"]},
@@ -688,8 +685,10 @@ class OCPReportViewTest(IamTestCase):
 
         delta_one, delta_two = delta.split("__")
         data = response.data
-        for entry in data.get("data", []):
-            values = entry.get("values", {})[0]
+        data = [entry for entry in data.get("data", []) if entry.get("values")]
+        self.assertNotEqual(len(data), 0)
+        for entry in data:
+            values = entry.get("values")[0]
             delta_percent = (
                 (values.get(delta_one, {}).get("value") / values.get(delta_two, {}).get("value") * 100)  # noqa: W504
                 if values.get(delta_two, {}).get("value")
@@ -709,8 +708,10 @@ class OCPReportViewTest(IamTestCase):
 
         delta_one, delta_two = delta.split("__")
         data = response.data
-        for entry in data.get("data", []):
-            values = entry.get("values", {})[0]
+        data = [entry for entry in data.get("data", []) if entry.get("values")]
+        self.assertNotEqual(len(data), 0)
+        for entry in data:
+            values = entry.get("values")[0]
             delta_percent = (
                 (values.get(delta_one, {}).get("value") / values.get(delta_two, {}).get("value") * 100)  # noqa: W504
                 if values.get(delta_two, {}).get("value")
@@ -730,8 +731,10 @@ class OCPReportViewTest(IamTestCase):
 
         delta_one, delta_two = delta.split("__")
         data = response.json()
-        for entry in data.get("data", []):
-            values = entry.get("values", {})[0]
+        data = [entry for entry in data.get("data", []) if entry.get("values")]
+        self.assertNotEqual(len(data), 0)
+        for entry in data:
+            values = entry.get("values")[0]
             delta_percent = (
                 (values.get(delta_one, {}).get("value") / values.get(delta_two, {}).get("value") * 100)  # noqa: W504
                 if values.get(delta_two)
@@ -768,8 +771,6 @@ class OCPReportViewTest(IamTestCase):
         """Test that same-named projects across clusters are accounted for."""
         data_config = {"namespaces": ["project_one", "project_two"]}
         project_of_interest = data_config["namespaces"][0]
-        self.data_generator.add_data_to_tenant(**data_config)
-        self.data_generator.add_data_to_tenant(**data_config)
 
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -790,9 +791,6 @@ class OCPReportViewTest(IamTestCase):
         """Test that same-named projects across clusters are accounted for."""
         data_config = {"namespaces": ["project_one", "project_two"]}
         project_of_interest = data_config["namespaces"][0]
-        data_generator = OCPReportDataGenerator(self.tenant, self.provider)
-        data_generator.add_data_to_tenant(**data_config)
-        data_generator.add_data_to_tenant(**data_config)
 
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -872,10 +870,6 @@ class OCPReportViewTest(IamTestCase):
         """Test that same-named nodes across clusters are accounted for."""
         data_config = {"nodes": ["node_one", "node_two"]}
         node_of_interest = data_config["nodes"][0]
-        data_generator1 = OCPReportDataGenerator(self.tenant, self.provider)
-        data_generator1.add_data_to_tenant(**data_config)
-        data_generator2 = OCPReportDataGenerator(self.tenant, self.provider)
-        data_generator2.add_data_to_tenant(**data_config)
 
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -896,9 +890,6 @@ class OCPReportViewTest(IamTestCase):
         """Test that same-named nodes across clusters are accounted for."""
         data_config = {"nodes": ["node_one", "node_two"]}
         node_of_interest = data_config["nodes"][0]
-        data_generator = OCPReportDataGenerator(self.tenant, self.provider)
-        data_generator.add_data_to_tenant(**data_config)
-        data_generator.add_data_to_tenant(**data_config)
 
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -1092,8 +1083,6 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_group_by_tag_and_limit(self):
         """Test that data is grouped by tag key and limited."""
-        data_generator = OCPReportDataGenerator(self.tenant, self.provider, dated_tags=False)
-        data_generator.add_data_to_tenant()
         group_by_key = "app_label"
 
         url = reverse("reports-openshift-cpu")
@@ -1445,7 +1434,6 @@ class OCPReportViewTest(IamTestCase):
         """Test the group_by[and:] param in the view."""
         url = reverse("reports-openshift-cpu")
         client = APIClient()
-        self.data_generator.add_data_to_tenant()
 
         with tenant_context(self.tenant):
             clusters = (
@@ -1524,7 +1512,6 @@ class OCPReportViewTest(IamTestCase):
 
         url = reverse("reports-openshift-cpu")
         client = APIClient()
-        self.data_generator.add_data_to_tenant()
         params = {
             "filter[resolution]": "monthly",
             "filter[time_scope_value]": "-1",
@@ -1540,8 +1527,12 @@ class OCPReportViewTest(IamTestCase):
         baseurl = reverse("reports-openshift-cpu")
         client = APIClient()
 
-        _, labels = self.data_generator.labels[0]
-        for key, val in labels.items():
+        tag_url = reverse("openshift-tags")
+        tag_url = tag_url + "?filter[time_scope_value]=-1&key_only=True"
+        response = client.get(tag_url, **self.headers)
+        tag_keys = response.data.get("data", [])
+
+        for key in tag_keys:
             order_by_dict_key = f"order_by[tag:{key}]"
             params = {
                 "filter[resolution]": "monthly",
@@ -1559,8 +1550,12 @@ class OCPReportViewTest(IamTestCase):
         baseurl = reverse("reports-openshift-cpu")
         client = APIClient()
 
-        _, labels = self.data_generator.labels[0]
-        for key, val in labels.items():
+        tag_url = reverse("openshift-tags")
+        tag_url = tag_url + "?filter[time_scope_value]=-1&key_only=True"
+        response = client.get(tag_url, **self.headers)
+        tag_keys = response.data.get("data", [])
+
+        for key in tag_keys:
             order_by_dict_key = f"order_by[tag:{key}]"
             params = {
                 "filter[resolution]": "monthly",
@@ -1579,8 +1574,12 @@ class OCPReportViewTest(IamTestCase):
         baseurl = reverse("reports-openshift-cpu")
         client = APIClient()
 
-        _, labels = self.data_generator.labels[0]
-        for key, val in labels.items():
+        tag_url = reverse("openshift-tags")
+        tag_url = tag_url + "?filter[time_scope_value]=-1&key_only=True"
+        response = client.get(tag_url, **self.headers)
+        tag_keys = response.data.get("data", [])
+
+        for key in tag_keys:
             order_by_dict_key = f"order_by[tag:{key}]"
             group_by_dict_key = f"group_by[tag:{key}]"
             params = {
