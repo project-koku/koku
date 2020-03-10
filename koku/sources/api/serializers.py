@@ -18,6 +18,7 @@
 import logging
 from uuid import uuid4
 
+from django.conf import settings
 from django.db import transaction
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
@@ -32,14 +33,12 @@ from sources.storage import SourcesStorageError
 
 LOG = logging.getLogger(__name__)
 
-ALLOWED_BILLING_SOURCE_PROVIDERS = (
-    Provider.PROVIDER_AWS,
-    Provider.PROVIDER_AWS_LOCAL,
-    Provider.PROVIDER_AZURE,
-    Provider.PROVIDER_AZURE_LOCAL,
-)
+ALLOWED_AUTHENTICATION_PROVIDERS = (Provider.PROVIDER_AZURE,)
+ALLOWED_BILLING_SOURCE_PROVIDERS = (Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE)
 
-ALLOWED_AUTHENTICATION_PROVIDERS = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL)
+if settings.DEVELOPMENT:
+    ALLOWED_AUTHENTICATION_PROVIDERS += (Provider.PROVIDER_AZURE_LOCAL,)
+    ALLOWED_BILLING_SOURCE_PROVIDERS += (Provider.PROVIDER_AWS_LOCAL, Provider.PROVIDER_AZURE_LOCAL)
 
 
 def error_obj(key, message):
@@ -165,7 +164,7 @@ class SourcesSerializer(serializers.ModelSerializer):
                 instance.authentication,
                 instance.billing_source,
             )
-            instance.koku_uuid = obj.uuid
+            instance.pending_update = False
             instance.save()
             LOG.info(f"Provider updated: {obj.uuid}")
 
