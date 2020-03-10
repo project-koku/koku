@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+# flake8: noqa
 """Koku Test Runner."""
 import logging
 
@@ -21,7 +22,11 @@ from django.db import connections
 from django.test.runner import DiscoverRunner
 from django.test.utils import get_unique_databases_and_mirrors
 
+from api.models import Customer
 from api.models import Tenant
+from api.report.test.utils import load_aws_data
+from api.report.test.utils import load_azure_data
+from api.report.test.utils import load_openshift_data
 
 LOG = logging.getLogger(__name__)
 
@@ -34,6 +39,7 @@ class KokuTestRunner(DiscoverRunner):
 
     def setup_databases(self, **kwargs):
         """Set up database tenant schema."""
+        self.keepdb = True
         main_db = setup_databases(
             self.verbosity, self.interactive, self.keepdb, self.debug_sql, self.parallel, **kwargs
         )
@@ -68,8 +74,20 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                     keepdb=keepdb,
                     serialize=connection.settings_dict.get("TEST", {}).get("SERIALIZE", True),
                 )
-                tenant = Tenant.objects.get_or_create(schema_name=KokuTestRunner.schema)[0]
-                tenant.save()
+
+                try:
+                    tenant = Tenant.objects.get_or_create(schema_name=KokuTestRunner.schema)[0]
+                    tenant.save()
+                    customer, __ = Customer.objects.get_or_create(
+                        account_id=KokuTestRunner.account, schema_name=KokuTestRunner.schema
+                    )
+                    load_openshift_data(customer, "ocp_aws_static_data.yml", "OCP-on-AWS")
+                    load_openshift_data(customer, "ocp_azure_static_data.yml", "OCP-on-Azure")
+                    load_aws_data(customer)
+                    load_azure_data(customer)
+                except Exception:
+                    pass
+
                 if parallel > 1:
                     for index in range(parallel):
                         connection.creation.clone_test_db(suffix=str(index + 1), verbosity=verbosity, keepdb=keepdb)

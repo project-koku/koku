@@ -7,6 +7,7 @@ from dateutil.relativedelta import relativedelta
 from jinja2 import Template
 from model_bakery import baker
 from nise.__main__ import run
+from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
 from masu.config import Config
@@ -31,12 +32,18 @@ def get_test_data_dates():
     return [(prev_month_start, prev_month_end, dh.last_month_start), (start_date, end_date, dh.this_month_start)]
 
 
-def load_openshift_data(static_data_file, cluster_id):
+def load_openshift_data(customer, static_data_file, cluster_id):
     """Load OpenShift data into the database."""
     schema = "acct10001"
     # cluster_id = "test-cluster"
     provider_type = "OCP"
-    provider = baker.make("Provider", type=provider_type, authentication__provider_resource_name=cluster_id)
+    provider = baker.make(
+        "Provider",
+        type=provider_type,
+        authentication__provider_resource_name=cluster_id,
+        billing_source__bucket="",
+        customer=customer,
+    )
     dh = DateHelper()
     static_data = pkgutil.get_data("api.report.test", static_data_file)
     template = Template(static_data.decode("utf8"))
@@ -49,7 +56,9 @@ def load_openshift_data(static_data_file, cluster_id):
     dates = get_test_data_dates()
 
     for start_date, end_date, bill_date in dates:
-        manifest = baker.make("CostUsageReportManifest", _fill_optional=True, provider=provider)
+        manifest = baker.make(
+            "CostUsageReportManifest", _fill_optional=True, provider=provider, billing_period_start_datetime=bill_date
+        )
         with open(static_data_path, "w") as f:
             f.write(template.render(start_date=start_date, end_date=end_date))
         options = {
@@ -71,25 +80,33 @@ def load_openshift_data(static_data_file, cluster_id):
             elif "manifest" in report.lower():
                 continue
             print(report)
-            baker.make("CostUsageReportStatus", manifest=manifest, report_name=report)
+            status = baker.make("CostUsageReportStatus", manifest=manifest, report_name=report)
+            status.last_started_datetime = dh.now
             ReportProcessor(schema, report, "PLAIN", provider_type, provider.uuid, manifest.id).process()
-    with patch("masu.processor.tasks.chain"):
-        update_summary_tables(schema, provider_type, provider.uuid, dh.last_month_start, dh.today)
+            status.last_completed_datetime = dh.now
+            status.save()
+        with patch("masu.processor.tasks.chain"):
+            update_summary_tables(schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id)
     update_cost_model_costs(schema, provider.uuid, dh.last_month_start, dh.today)
     refresh_materialized_views(schema, provider_type)
     shutil.rmtree(desired_path, ignore_errors=True)
 
 
-def load_aws_data():
+def load_aws_data(customer):
     """Load AWS data into the database."""
     dh = DateHelper()
     schema = "acct10001"
     provider_type = "AWS-local"
+    account_id = "9999999999999"
     nise_provider_type = provider_type.replace("-local", "")
     report_name = "Test"
     provider_resource_name = "arn:aws:iam::111111111117:role/CostManagement"
     provider = baker.make(
-        "Provider", type=provider_type, authentication__provider_resource_name=provider_resource_name
+        "Provider",
+        type=provider_type,
+        authentication__provider_resource_name=provider_resource_name,
+        customer=customer,
+        billing_source__bucket="test-bucket",
     )
     static_data = pkgutil.get_data("api.report.test", "aws_static_data.yml")
     template = Template(static_data.decode("utf8"))
@@ -100,11 +117,15 @@ def load_aws_data():
         os.makedirs(nise_data_path)
 
     dates = get_test_data_dates()
+    with schema_context(schema):
+        baker.make("AWSAccountAlias", account_id=account_id, account_alias="Test Account")
 
     for start_date, end_date, bill_date in dates:
-        manifest = baker.make("CostUsageReportManifest", _fill_optional=True, provider=provider)
+        manifest = baker.make(
+            "CostUsageReportManifest", _fill_optional=True, provider=provider, billing_period_start_datetime=bill_date
+        )
         with open(static_data_path, "w") as f:
-            f.write(template.render(start_date=start_date, end_date=end_date))
+            f.write(template.render(start_date=start_date, end_date=end_date, account_id=account_id))
         options = {
             "static_report_file": static_data_path,
             "aws_report_name": report_name,
@@ -124,16 +145,19 @@ def load_aws_data():
                     elif "manifest" in report.lower():
                         continue
                     print(report)
-                    baker.make("CostUsageReportStatus", manifest=manifest, report_name=report)
+                    status = baker.make("CostUsageReportStatus", manifest=manifest, report_name=report)
+                    status.last_started_datetime = dh.now
                     ReportProcessor(schema, report, "GZIP", provider_type, provider.uuid, manifest.id).process()
-    with patch("masu.processor.tasks.chain"):
-        update_summary_tables(schema, provider_type, provider.uuid, dh.last_month_start, dh.today)
+                    status.last_completed_datetime = dh.now
+                    status.save()
+        with patch("masu.processor.tasks.chain"):
+            update_summary_tables(schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id)
     update_cost_model_costs(schema, provider.uuid, dh.last_month_start, dh.today)
     refresh_materialized_views(schema, provider_type)
     shutil.rmtree(base_path, ignore_errors=True)
 
 
-def load_azure_data():
+def load_azure_data(customer):
     """Load Azure data into the database."""
     dh = DateHelper()
     schema = "acct10001"
@@ -147,8 +171,15 @@ def load_azure_data():
         "client_id": "33333333-3333-3333-3333-33333333",
         "client_secret": "MyPassW0rd!",
     }
+    data_source = {"resource_group": "resourcegroup1", "storage_account": "storageaccount1"}
 
-    provider = baker.make("Provider", type=provider_type, authentication__credentials=credentials)
+    provider = baker.make(
+        "Provider",
+        type=provider_type,
+        authentication__credentials=credentials,
+        customer=customer,
+        billing_source__data_source=data_source,
+    )
     static_data = pkgutil.get_data("api.report.test", "azure_static_data.yml")
     template = Template(static_data.decode("utf8"))
     static_data_path = f"/tmp/{provider_type}_static_data.yml"
@@ -160,7 +191,9 @@ def load_azure_data():
     dates = get_test_data_dates()
 
     for start_date, end_date, bill_date in dates:
-        manifest = baker.make("CostUsageReportManifest", _fill_optional=True, provider=provider)
+        manifest = baker.make(
+            "CostUsageReportManifest", _fill_optional=True, provider=provider, billing_period_start_datetime=bill_date
+        )
         with open(static_data_path, "w") as f:
             f.write(template.render(start_date=start_date, end_date=end_date))
         options = {
@@ -180,10 +213,13 @@ def load_azure_data():
             elif "manifest" in report.name.lower():
                 continue
             print(report)
-            baker.make("CostUsageReportStatus", manifest=manifest, report_name=report.name)
+            status = baker.make("CostUsageReportStatus", manifest=manifest, report_name=report.name)
+            status.last_started_datetime = dh.now
             ReportProcessor(schema, report.path, "PLAIN", provider_type, provider.uuid, manifest.id).process()
-    with patch("masu.processor.tasks.chain"):
-        update_summary_tables(schema, provider_type, provider.uuid, dh.last_month_start, dh.today)
+            status.last_completed_datetime = dh.now
+            status.save()
+        with patch("masu.processor.tasks.chain"):
+            update_summary_tables(schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id)
     update_cost_model_costs(schema, provider.uuid, dh.last_month_start, dh.today)
     refresh_materialized_views(schema, provider_type)
     shutil.rmtree(base_path, ignore_errors=True)
