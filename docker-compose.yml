@@ -1,11 +1,14 @@
 version: '3'
 
 services:
+  koku-base:
+      build:
+        context: .
+        dockerfile: Dockerfile-env
+
   koku-server:
       container_name: koku_server
-      build:
-          context: .
-          dockerfile: Dockerfile-env
+      image: koku_koku-base
       working_dir: /koku
       entrypoint:
         - /koku/run_server.sh
@@ -47,13 +50,12 @@ services:
         - koku-rabbit
         - masu-server
       depends_on:
+        - koku-base
         - db
 
   masu-server:
       container_name: masu_server
-      build:
-          context: .
-          dockerfile: Dockerfile-env
+      image: koku_koku-base
       working_dir: /koku
       entrypoint:
         - /koku/run_internal.sh
@@ -93,6 +95,7 @@ services:
         - db
         - koku-rabbit
       depends_on:
+        - koku-base
         - db
 
   redis:
@@ -135,6 +138,7 @@ services:
     links:
         - db
     depends_on:
+        - koku-base
         - db
 
   koku-rabbit:
@@ -150,9 +154,7 @@ services:
   koku-worker:
       container_name: koku_worker
       hostname: koku_worker
-      build:
-          context: .
-          dockerfile: Dockerfile-env
+      image: koku_koku-base
       working_dir: /koku/koku
       entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
       environment:
@@ -196,13 +198,12 @@ services:
       links:
           - koku-rabbit
       depends_on:
+          - koku-base
           - koku-rabbit
 
   koku-listener:
       container_name: koku_listener
-      build:
-          context: .
-          dockerfile: Dockerfile-env
+      image: koku_koku-base
       working_dir: /koku/
       entrypoint: ['python', 'koku/manage.py', 'listener']
       environment:
@@ -236,14 +237,13 @@ services:
         - db
         - koku-rabbit
       depends_on:
+        - koku-base
         - db
         - koku-rabbit
 
   sources-client:
       container_name: sources_client
-      build:
-          context: .
-          dockerfile: Dockerfile-env
+      image: koku_koku-base
       working_dir: /koku/
       entrypoint:
         - /koku/run_sources.sh
@@ -270,15 +270,14 @@ services:
         - db
         - koku-server
       depends_on:
+        - koku-base
         - db
         - koku-server
 
   koku-beat:
       container_name: koku_beat
       hostname: koku_beat
-      build:
-          context: .
-          dockerfile: Dockerfile-env
+      image: koku_koku-base
       working_dir: /koku/koku
       entrypoint: ['celery', '--pidfile=/opt/celeryd.pid', '-A', 'koku', 'beat', '-l', 'info']
 
@@ -307,4 +306,5 @@ services:
       links:
           - koku-rabbit
       depends_on:
+          - koku-base
           - koku-rabbit
