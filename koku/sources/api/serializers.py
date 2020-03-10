@@ -129,7 +129,6 @@ class SourcesSerializer(serializers.ModelSerializer):
         uuid = instance.source_uuid
         billing_source = validated_data.get("billing_source")
         authentication = validated_data.get("authentication")
-        instance.source_type = Provider.PROVIDER_CASE_MAPPING.get(instance.source_type.lower())
 
         billing_fields = []
         if billing_source:
