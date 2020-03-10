@@ -25,6 +25,7 @@ from rest_framework.request import Request
 from tenant_schemas.utils import tenant_context
 
 from api.iam.models import Customer
+from api.iam.models import User
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.models import CostModelMetricsMap
@@ -61,9 +62,7 @@ class ProviderManagerTest(IamTestCase):
         """Set up the provider manager tests."""
         super().setUp()
         self.customer = Customer.objects.get(account_id=self.customer_data["account_id"])
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            self.user = serializer.save()
+        self.user = User.objects.get(username=self.user_data["username"])
 
     @staticmethod
     def _create_delete_request(user, headers={}):
@@ -130,7 +129,7 @@ class ProviderManagerTest(IamTestCase):
         provider = Provider.objects.create(name="providername", created_by=self.user, customer=self.customer)
         provider_uuid = provider.uuid
         user_data = self._create_user_data()
-        request_context = self._create_request_context(self.create_mock_customer_data(), user_data)
+        request_context = self._create_request_context(self.create_mock_customer_data(), user_data, create_user=False)
         new_user = None
         serializer = UserSerializer(data=user_data, context=request_context)
         if serializer.is_valid(raise_exception=True):
@@ -165,7 +164,7 @@ class ProviderManagerTest(IamTestCase):
         provider_uuid = provider.uuid
 
         new_user_dict = self._create_user_data()
-        request_context = self._create_request_context(self.customer_data, new_user_dict, False)
+        request_context = self._create_request_context(self.customer_data, new_user_dict, False, create_user=False)
         user_serializer = UserSerializer(data=new_user_dict, context=request_context)
         other_user = None
         if user_serializer.is_valid(raise_exception=True):
@@ -210,7 +209,7 @@ class ProviderManagerTest(IamTestCase):
 
         self.assertNotEqual(provider.uuid, provider2.uuid)
         new_user_dict = self._create_user_data()
-        request_context = self._create_request_context(self.customer_data, new_user_dict, False)
+        request_context = self._create_request_context(self.customer_data, new_user_dict, False, create_user=False)
         user_serializer = UserSerializer(data=new_user_dict, context=request_context)
         other_user = None
         if user_serializer.is_valid(raise_exception=True):
@@ -240,7 +239,7 @@ class ProviderManagerTest(IamTestCase):
         provider_uuid = provider.uuid
 
         new_user_dict = self._create_user_data()
-        request_context = self._create_request_context(self.customer_data, new_user_dict, False)
+        request_context = self._create_request_context(self.customer_data, new_user_dict, False, create_user=False)
         user_serializer = UserSerializer(data=new_user_dict, context=request_context)
         other_user = None
         if user_serializer.is_valid(raise_exception=True):
@@ -551,7 +550,7 @@ class ProviderManagerTest(IamTestCase):
         provider_uuid = provider.uuid
 
         new_user_dict = self._create_user_data()
-        request_context = self._create_request_context(self.customer_data, new_user_dict, False)
+        request_context = self._create_request_context(self.customer_data, new_user_dict, False, create_user=False)
         user_serializer = UserSerializer(data=new_user_dict, context=request_context)
         other_user = None
         if user_serializer.is_valid(raise_exception=True):
