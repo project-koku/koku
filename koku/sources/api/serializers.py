@@ -19,6 +19,8 @@ import logging
 from uuid import uuid4
 
 from django.db import transaction
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
@@ -28,6 +30,7 @@ from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
 from sources.api import get_account_from_header
 from sources.api import get_auth_header
 from sources.kafka_source_manager import KafkaSourceManager
+from sources.storage import screen_and_build_provider_sync_create_event
 from sources.storage import SourcesStorageError
 
 LOG = logging.getLogger(__name__)
@@ -126,7 +129,6 @@ class SourcesSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
-        uuid = instance.source_uuid
         billing_source = validated_data.get("billing_source")
         authentication = validated_data.get("authentication")
 
@@ -141,7 +143,17 @@ class SourcesSerializer(serializers.ModelSerializer):
         update_fields = list(set(billing_fields + auth_fields))
         instance.save(update_fields=update_fields)
 
-        source_mgr = KafkaSourceManager(get_auth_header(self.context.get("request")))
+        return instance
+
+
+@receiver(post_save, sender=Sources)
+def sources_post_save_callback(sender, instance, **kwargs):
+    """Create the provider when the source table contains all the necessary information."""
+    process_event = screen_and_build_provider_sync_create_event(instance)
+    if process_event and "pending_update" in (kwargs.get("update_fields") or {}):
+
+        uuid = instance.source_uuid
+        source_mgr = KafkaSourceManager(instance.auth_header)
 
         try:
             obj = Provider.objects.get(uuid=uuid)
@@ -168,8 +180,6 @@ class SourcesSerializer(serializers.ModelSerializer):
             instance.koku_uuid = obj.uuid
             instance.save()
             LOG.info(f"Provider updated: {obj.uuid}")
-
-        return instance
 
 
 class AdminSourcesSerializer(SourcesSerializer):
@@ -217,10 +227,12 @@ class AdminSourcesSerializer(SourcesSerializer):
         """Create a source from validated data."""
         auth_header = get_auth_header(self.context.get("request"))
         manager = KafkaSourceManager(auth_header)
+        validated_data["auth_header"] = auth_header
         source = Sources.objects.create(**validated_data)
         provider = manager.create_provider(
             source.name, source.source_type, source.authentication, source.billing_source, source.source_uuid
         )
         source.koku_uuid = provider.uuid
         source.save()
+        LOG.info("Admin created Source and Provider.")
         return source
