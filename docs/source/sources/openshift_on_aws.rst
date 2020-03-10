@@ -1,7 +1,7 @@
 Running Openshift on AWS
 ########################
 
-If providers have been successfully configured for AWS and OpenShift and the OpenShift cluster is running on AWS, then the AWS cost and usage related to running the OpenShift cluster can be automatically tracked. By default, AWS compute usage and costs are tracked by associating the Amazon EC2 instance id with the OpenShift node running on that instance. Further association can be made by associating AWS tags with OpenShift labels.
+If sources have been successfully configured for AWS and OpenShift and the OpenShift cluster is running on AWS, then the AWS cost and usage related to running the OpenShift cluster can be automatically tracked. By default, AWS compute usage and costs are tracked by associating the Amazon EC2 instance id with the OpenShift node running on that instance. Further association can be made by associating AWS tags with OpenShift labels.
 
 Matching AWS Tags with OpenShift Labels
 #######################################

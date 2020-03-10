@@ -24,7 +24,6 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
-from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Provider
 from api.provider.test import create_generic_provider
@@ -48,9 +47,6 @@ class OCPAzureReportViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
         self.client = APIClient()
         self.factory = RequestFactory()
         self.dh = DateHelper()
@@ -75,7 +71,7 @@ class OCPAzureReportViewTest(IamTestCase):
 
     def test_group_bys_with_second_group_by_tag(self):
         """Test that a group by project followed by a group by tag does not error."""
-        _, provider = create_generic_provider(Provider.PROVIDER_OCP, self.headers)
+        _, provider = create_generic_provider(Provider.PROVIDER_OCP, self.request_context)
         data_generator = OCPAzureReportDataGenerator(self.tenant, provider)
         data_generator.add_data_to_tenant()
         with tenant_context(self.tenant):

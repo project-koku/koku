@@ -60,7 +60,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             "usage_start__gte": self.dh.last_month_start,
             "usage_start__lte": self.dh.last_month_end,
         }
-        _, self.provider = create_generic_provider(Provider.PROVIDER_AZURE, self.headers)
+        _, self.provider = create_generic_provider(Provider.PROVIDER_AZURE, self.request_context)
         self.generator = AzureReportDataGenerator(self.tenant, self.provider)
         self.generator.add_data_to_tenant()
 

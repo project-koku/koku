@@ -36,7 +36,7 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
         """Set up the tests."""
         super().setUp()
         self.dh = DateHelper()
-        _, self.provider = create_generic_provider(Provider.PROVIDER_AZURE, self.headers)
+        _, self.provider = create_generic_provider(Provider.PROVIDER_AZURE, self.request_context)
         generator = OCPAWSReportDataGenerator(self.tenant, self.provider)
         generator.add_data_to_tenant()
         generator.add_aws_data_to_tenant()
