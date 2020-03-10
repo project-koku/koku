@@ -19,6 +19,7 @@ import asyncio
 import concurrent.futures
 import json
 import logging
+import random
 import sys
 import threading
 import time
@@ -540,14 +541,20 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
             if msg.get("operation") != "destroy":
                 storage.clear_update_flag(msg.get("provider").source_id)
         except SourcesIntegrationError as error:
-            LOG.error(f"[synchronize_sources] Re-queueing failed operation. Error: {error}")
-            await asyncio.sleep(Config.RETRY_SECONDS)
-            _log_process_queue_event(process_queue, msg)
-            await process_queue.put(msg)
-            LOG.info(
-                f'Requeue of failed operation: {msg.get("operation")} '
-                f'for Source ID: {str(msg.get("provider").source_id)} complete.'
-            )
+            # requeue/retry the message once
+            if not msg.get("retried"):
+                LOG.info(f"[synchronize_sources] Re-queueing failed operation. Error: {error}")
+                await asyncio.sleep(Config.RETRY_SECONDS)
+                _log_process_queue_event(process_queue, msg)
+                await process_queue.put(msg)
+                LOG.info(
+                    f'Requeue of failed operation: {msg.get("operation")} '
+                    f'for Source ID: {str(msg.get("provider").source_id)} complete.'
+                )
+                msg["retried"] = True
+            else:
+                LOG.error(f"[synchronize_sources] Failed operation. Error: {error}")
+
         except (InterfaceError, OperationalError) as error:
             connection.close()
             LOG.error(
@@ -571,8 +578,8 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
 
 def backoff(interval, maximum=120):
     """Exponential back-off."""
-    wait = min(maximum, (2 ** interval))
-    LOG.info("Sleeping for %s seconds.", wait)
+    wait = min(maximum, (2 ** interval)) + random.random()
+    LOG.info("Sleeping for %.2f seconds.", wait)
     time.sleep(wait)
 
 
