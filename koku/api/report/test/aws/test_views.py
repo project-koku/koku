@@ -19,7 +19,6 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.view import _convert_units
 from api.utils import UnitConverter
@@ -31,9 +30,6 @@ class AWSReportViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
         self.client = APIClient()
 
         self.report = {
