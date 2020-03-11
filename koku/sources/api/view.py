@@ -43,8 +43,6 @@ from api.iam.serializers import create_schema_name
 from api.provider.models import Sources
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
-from sources.api import get_account_from_header
-from sources.api import get_auth_header
 from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesSerializer
 from sources.kafka_source_manager import KafkaSourceManager
@@ -58,7 +56,7 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
     def destroy(self, request, *args, **kwargs):
         """Delete a source."""
         source = self.get_object()
-        manager = KafkaSourceManager(get_auth_header(request))
+        manager = KafkaSourceManager(request.user.identity_header.encoded)
         manager.destroy_provider(source.koku_uuid)
         response = super().destroy(request, *args, **kwargs)
         return response
@@ -124,7 +122,7 @@ class SourcesViewSet(*MIXIN_LIST):
         by filtering against a `account_id` in the request.
         """
         queryset = Sources.objects.none()
-        account_id = get_account_from_header(self.request)
+        account_id = self.request.user.customer.account_id
         try:
             queryset = Sources.objects.filter(account_id=account_id)
         except Sources.DoesNotExist:
@@ -155,7 +153,7 @@ class SourcesViewSet(*MIXIN_LIST):
 
     def _get_account_and_tenant(self, request):
         """Get account_id and tenant from request."""
-        account_id = get_account_from_header(request)
+        account_id = request.user.customer.account_id
         schema_name = create_schema_name(account_id)
         tenant = tenant = Tenant.objects.get(schema_name=schema_name)
         return (account_id, tenant)
@@ -212,7 +210,7 @@ class SourcesViewSet(*MIXIN_LIST):
     @action(methods=["get"], detail=True, permission_classes=[AllowAny])
     def stats(self, request, pk=None):
         """Get source stats."""
-        account_id = get_account_from_header(request)
+        account_id = request.user.customer.account_id
         schema_name = create_schema_name(account_id)
         source = self.get_object()
         stats = {}

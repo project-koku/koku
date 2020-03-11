@@ -151,6 +151,8 @@ SOURCES = ENVIRONMENT.bool("SOURCES", default=False)
 ROOT_URLCONF = "koku.urls"
 if MASU:
     ROOT_URLCONF = "masu.urls"
+    MIDDLEWARE.remove("koku.middleware.KokuTenantMiddleware")
+    MIDDLEWARE.remove("koku.middleware.IdentityHeaderMiddleware")
 elif SOURCES:
     ROOT_URLCONF = "sources.urls"
 

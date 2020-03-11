@@ -18,13 +18,13 @@
 from unittest.mock import create_autospec
 from unittest.mock import patch
 
-from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 from faker import Faker
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
@@ -35,7 +35,7 @@ faker = Faker()
 
 
 @override_settings(ROOT_URLCONF="sources.urls")
-class SourcesStatusTest(TestCase):
+class SourcesStatusTest(IamTestCase):
     """Source Status Test Class."""
 
     def test_http_endpoint_source_not_found(self):
@@ -46,7 +46,7 @@ class SourcesStatusTest(TestCase):
         """
         url = reverse("source-status")
         client = APIClient()
-        response = client.get(url + "?source_id=1")
+        response = client.get(url + "?source_id=1", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_mock_response_returns_false(self):
@@ -57,7 +57,7 @@ class SourcesStatusTest(TestCase):
         """
         url = reverse("source-status")
         client = APIClient()
-        response = client.get(url + "?source_id=1")
+        response = client.get(url + "?source_id=1", **self.headers)
         mock_response = create_autospec(response, data=False, status=status.HTTP_200_OK)
         mock_response_source_status = mock_response.data
         expected_source_status = False
@@ -73,7 +73,7 @@ class SourcesStatusTest(TestCase):
         """
         url = reverse("source-status")
         client = APIClient()
-        response = client.get(url + "?source_id=1")
+        response = client.get(url + "?source_id=1", **self.headers)
         mock_response = create_autospec(response, data=True, status=status.HTTP_200_OK)
         mock_response_source_status = mock_response.data
         expected_source_status = True
@@ -97,7 +97,7 @@ class SourcesStatusTest(TestCase):
                 koku_uuid="",
                 offset=1,
             )
-            response = client.get(url + "?source_id=1")
+            response = client.get(url + "?source_id=1", **self.headers)
             actual_source_status = response.data
             self.assertEquals(mock_status, actual_source_status)
 
@@ -110,7 +110,7 @@ class SourcesStatusTest(TestCase):
         """
         url = reverse("source-status")
         client = APIClient()
-        response = client.get(url)
+        response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data, "Missing query parameter source_id")
 
@@ -123,7 +123,7 @@ class SourcesStatusTest(TestCase):
         """
         url = reverse("source-status")
         client = APIClient()
-        response = client.get(url + "?source_id=string")
+        response = client.get(url + "?source_id=string", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data, "source_id must be an integer")
 
@@ -147,7 +147,7 @@ class SourcesStatusTest(TestCase):
                 koku_uuid="",
                 offset=1,
             )
-            response = client.get(url + "?source_id=1")
+            response = client.get(url + "?source_id=1", **self.headers)
             actual_source_status = response.data
             self.assertEquals(mock_status, actual_source_status)
 
@@ -172,7 +172,7 @@ class SourcesStatusTest(TestCase):
                 koku_uuid="",
                 offset=1,
             )
-            response = client.get(url + "?source_id=1")
+            response = client.get(url + "?source_id=1", **self.headers)
             actual_source_status = response.data
             self.assertEquals(mock_status, actual_source_status)
 
@@ -192,7 +192,7 @@ class SourcesStatusTest(TestCase):
                 koku_uuid="",
                 offset=1,
             )
-            response = client.get(url + "?source_id=1")
+            response = client.get(url + "?source_id=1", **self.headers)
             actual_source_status = response.data
             self.assertEquals(mock_status, actual_source_status)
 
@@ -214,7 +214,7 @@ class SourcesStatusTest(TestCase):
             )
             json_data = {"source_id": 1}
             with patch.object(SourcesHTTPClient, "set_source_status", return_value=True):
-                response = client.post(url, data=json_data)
+                response = client.post(url, data=json_data, **self.headers)
             self.assertEquals(response.status_code, 204)
 
     def test_post_status_error(self):
@@ -235,5 +235,5 @@ class SourcesStatusTest(TestCase):
             )
             json_data = {"source_id": 1}
             with patch.object(SourcesHTTPClient, "set_source_status", side_effect=SourcesHTTPClientError):
-                response = client.post(url, data=json_data)
+                response = client.post(url, data=json_data, **self.headers)
             self.assertEquals(response.status_code, 204)
