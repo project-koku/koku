@@ -17,28 +17,26 @@
 """Utility for provider testing."""
 from unittest.mock import patch
 
-from django.urls import reverse
-from rest_framework.test import APIClient
-
 from api.provider.models import Provider
+from api.provider.serializers import ProviderSerializer
 from providers.provider_access import ProviderAccessor
 
 
 PROVIDERS = {
     Provider.PROVIDER_OCP: {
         "name": "test_provider",
-        "type": Provider.PROVIDER_OCP,
+        "type": Provider.PROVIDER_OCP.lower(),
         "authentication": {"credentials": {"provider_resource_name": "my-ocp-cluster-1"}},
     },
     Provider.PROVIDER_AWS: {
         "name": "test_provider",
-        "type": Provider.PROVIDER_AWS,
+        "type": Provider.PROVIDER_AWS.lower(),
         "authentication": {"credentials": {"provider_resource_name": "arn:aws:s3:::my_s3_bucket"}},
         "billing_source": {"data_source": {"bucket": "my_s3_bucket"}},
     },
     Provider.PROVIDER_AZURE: {
         "name": "test_provider",
-        "type": Provider.PROVIDER_AZURE,
+        "type": Provider.PROVIDER_AZURE.lower(),
         "authentication": {
             "credentials": {
                 "subscription_id": "12345678-1234-5678-1234-567812345678",
@@ -51,7 +49,7 @@ PROVIDERS = {
     },
     "AzUrE": {
         "name": "test_provider",
-        "type": "AzUrE",
+        "type": "AzUrE".lower(),
         "authentication": {
             "credentials": {
                 "subscription_id": "12345678-1234-5678-1234-567812345678",
@@ -64,19 +62,19 @@ PROVIDERS = {
     },
     "oCp": {
         "name": "test_provider",
-        "type": "oCp",
+        "type": "oCp".lower(),
         "authentication": {"credentials": {"provider_resource_name": "my-ocp-cluster-1"}},
     },
 }
 
 
-def create_generic_provider(provider_type, headers):
+def create_generic_provider(provider_type, request_context):
     """Create generic provider and return response."""
     provider_data = PROVIDERS[provider_type]
-    url = reverse("provider-list")
+    provider = None
     with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-        client = APIClient()
-        result = client.post(url, data=provider_data, format="json", **headers)
-        uuid = result.json().get("uuid")
-        provider = Provider.objects.get(uuid=uuid)
-        return result, provider
+        serializer = ProviderSerializer(data=provider_data, context=request_context)
+        if serializer.is_valid(raise_exception=True):
+            provider = serializer.save()
+
+    return {}, provider

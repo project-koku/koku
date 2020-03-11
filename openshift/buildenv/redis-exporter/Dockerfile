@@ -1,4 +1,4 @@
-FROM ubi7/go-toolset
+FROM ubi7-go-toolset
 
 USER root
 

@@ -19,6 +19,7 @@ import logging
 
 from django.conf import settings
 from django.db import connection
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
@@ -65,11 +66,13 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
 
 LOG = logging.getLogger(__name__)
 MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet]
-
+HTTP_METHOD_LIST = ["get", "head", "patch"]
 
 if settings.DEVELOPMENT:
     MIXIN_LIST.append(mixins.CreateModelMixin)
     MIXIN_LIST.append(DestroySourceMixin)
+    HTTP_METHOD_LIST.append("post")
+    HTTP_METHOD_LIST.append("delete")
 
 
 class SourceFilter(FilterSet):
@@ -105,13 +108,7 @@ class SourcesViewSet(*MIXIN_LIST):
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = SourceFilter
-
-    @property
-    def allowed_methods(self):
-        """Return the list of allowed HTTP methods, uppercased."""
-        if "put" in self.http_method_names:
-            self.http_method_names.remove("put")
-        return [method.upper() for method in self.http_method_names if hasattr(self, method)]
+    http_method_names = HTTP_METHOD_LIST
 
     def get_serializer_class(self):
         """Return the appropriate serializer depending on the method."""
@@ -144,10 +141,16 @@ class SourcesViewSet(*MIXIN_LIST):
             obj = Sources.objects.get(source_uuid=uuid)
             if obj:
                 return obj
-        except ValidationError:
+        except (ValidationError, Sources.DoesNotExist):
             pass
-        obj = get_object_or_404(queryset, **{"pk": pk})
-        self.check_object_permissions(self.request, obj)
+
+        try:
+            int(pk)
+            obj = get_object_or_404(queryset, **{"pk": pk})
+            self.check_object_permissions(self.request, obj)
+        except ValueError:
+            raise Http404
+
         return obj
 
     def _get_account_and_tenant(self, request):

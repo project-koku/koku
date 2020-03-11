@@ -19,8 +19,6 @@ from tenant_schemas.utils import tenant_context
 
 from api.functions import JSONBObjectKeys
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Provider
-from api.provider.test import create_generic_provider
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.azure.view import AzureTagView
 from reporting.models import AzureCostEntryLineItemDailySummary
@@ -32,7 +30,6 @@ class AzureTagQueryHandlerTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        _, self.provider = create_generic_provider(Provider.PROVIDER_AZURE, self.headers)
 
     def test_execute_query_no_query_parameters(self):
         """Test that the execute query runs properly with no query."""

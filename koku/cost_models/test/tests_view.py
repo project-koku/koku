@@ -27,7 +27,6 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
-from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider
@@ -46,15 +45,8 @@ class CostModelViewTests(IamTestCase):
         """Initialize model data."""
         if context:
             request_context = context.get("request_context")
-            request = request_context["request"]
-            serializer = UserSerializer(data=context.get("user_data"), context=request_context)
         else:
             request_context = self.request_context
-            request = request_context["request"]
-            serializer = UserSerializer(data=self.user_data, context=request_context)
-        if serializer.is_valid(raise_exception=True):
-            user = serializer.save()
-            request.user = user
 
         provider_data = {
             "name": "test_provider",

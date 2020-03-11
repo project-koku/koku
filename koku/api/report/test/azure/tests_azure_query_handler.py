@@ -29,8 +29,6 @@ from django.urls import reverse
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Provider
-from api.provider.test import create_generic_provider
 from api.query_filter import QueryFilter
 from api.report.azure.query_handler import AzureReportQueryHandler
 from api.report.azure.view import AzureCostView
@@ -57,7 +55,6 @@ class AzureReportQueryHandlerTest(IamTestCase):
             "usage_start__gte": self.dh.last_month_start,
             "usage_start__lte": self.dh.last_month_end,
         }
-        _, self.provider = create_generic_provider(Provider.PROVIDER_AZURE, self.headers)
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
         """Return the total aggregates for a time period."""
@@ -683,11 +680,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_w_delta_no_previous_data(self):
         """Test deltas with no previous data."""
-        # self.generator.remove_data_from_tenant()
-        # generator = AzureReportDataGenerator(self.tenant, self.provider, current_month_only=True)
-        # generator.add_data_to_tenant()
-
-        url = "?filter[time_scope_value]=-1&delta=cost"
+        url = "?filter[time_scope_value]=-2&delta=cost"
         path = reverse("reports-azure-costs")
         query_params = self.mocked_query_params(url, AzureCostView, path)
         handler = AzureReportQueryHandler(query_params)
