@@ -33,11 +33,11 @@ from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import AWS_REGIONS
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
-from masu.test.database.helpers import ReportObjectCreator
 from masu.test.external.downloader.aws import fake_arn
 from masu.test.external.downloader.aws import fake_aws_account_id
 from masu.test.external.downloader.aws.test_aws_report_downloader import FakeSession
 from masu.util.aws import common as utils
+from reporting.models import AWSCostEntryBill
 
 # the cn endpoints aren't supported by moto, so filter them out
 AWS_REGIONS = list(filter(lambda reg: not reg.startswith("cn-"), AWS_REGIONS))
@@ -236,26 +236,15 @@ class TestAWSUtils(MasuTestCase):
 
     def test_get_bill_ids_from_provider(self):
         """Test that bill IDs are returned for an AWS provider."""
-        date_accessor = DateAccessor()
-
-        creator = ReportObjectCreator(self.schema, self.column_map)
-
-        expected_bill_ids = []
-
-        end_date = date_accessor.today_with_timezone("utc").replace(day=1)
-        start_date = end_date
-        for i in range(2):
-            start_date = start_date - relativedelta(months=i)
-            bill = creator.create_cost_entry_bill(provider_uuid=self.aws_provider_uuid, bill_date=start_date)
-            with schema_context(self.schema):
-                expected_bill_ids.append(str(bill.id))
-
+        with schema_context(self.schema):
+            expected_bill_ids = AWSCostEntryBill.objects.values_list("id")
+            expected_bill_ids = sorted([bill_id[0] for bill_id in expected_bill_ids])
         bills = utils.get_bills_from_provider(self.aws_provider_uuid, self.schema)
 
         with schema_context(self.schema):
-            bill_ids = [str(bill.id) for bill in bills]
+            bill_ids = sorted([bill.id for bill in bills])
 
-        self.assertEqual(sorted(bill_ids), sorted(expected_bill_ids))
+        self.assertEqual(bill_ids, expected_bill_ids)
 
     def test_get_bill_ids_from_provider_with_start_date(self):
         """Test that bill IDs are returned for an AWS provider with start date."""

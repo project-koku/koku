@@ -112,9 +112,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
             if provider_uuid:
-                usage_period_query = base_query.filter(report_period_start__lte=date, provider_id=provider_uuid)
+                usage_period_query = base_query.filter(report_period_start__lt=date, provider_id=provider_uuid)
             else:
-                usage_period_query = base_query.filter(report_period_start__lte=date)
+                usage_period_query = base_query.filter(report_period_start__lt=date)
             return usage_period_query
 
     # pylint: disable=invalid-name
