@@ -124,6 +124,7 @@ def load_process_queue():
 @receiver(post_save, sender=Sources)
 def storage_callback(sender, instance, **kwargs):
     """Load Sources ready for Koku Synchronization when Sources table is updated."""
+    LOG.info("STORAGE CALLBACK IS CALLED")
     update_fields = kwargs.get("update_fields", ())
     if update_fields and "pending_update" in update_fields:
         if instance.koku_uuid and instance.pending_update and not instance.pending_delete:

@@ -22,8 +22,70 @@ from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.models.constraints import CheckConstraint
 
-
 LOG = logging.getLogger(__name__)
+REQUIRED_AZURE_AUTH_KEYS = {"client_id", "tenant_id", "client_secret", "subscription_id"}
+REQUIRED_AZURE_BILLING_KEYS = {"resource_group", "storage_account"}
+
+
+def _aws_provider_ready_for_create(provider):
+    """Determine if AWS provider is ready for provider creation."""
+    if (
+        provider.source_id
+        and provider.name
+        and provider.auth_header
+        and provider.billing_source
+        and provider.authentication
+        and not provider.koku_uuid
+    ):
+        return True
+    return False
+
+
+def _ocp_provider_ready_for_create(provider):
+    """Determine if OCP provider is ready for provider creation."""
+    if (
+        provider.source_id
+        and provider.name
+        and provider.authentication
+        and provider.auth_header
+        and not provider.koku_uuid
+    ):
+        return True
+    return False
+
+
+def _azure_provider_ready_for_create(provider):
+    """Determine if AZURE provider is ready for provider creation."""
+    if (
+        provider.source_id
+        and provider.name
+        and provider.auth_header
+        and provider.billing_source
+        and not provider.koku_uuid
+    ):
+        billing_source = provider.billing_source.get("data_source", {})
+        authentication = provider.authentication.get("credentials", {})
+        if billing_source and authentication:
+            if (
+                set(authentication.keys()) == REQUIRED_AZURE_AUTH_KEYS
+                and set(billing_source.keys()) == REQUIRED_AZURE_BILLING_KEYS
+            ):
+                return True
+    return False
+
+
+def screen_and_build_provider_sync_create_event(provider):
+    """Determine if the source should be queued for synchronization."""
+    provider_event = {}
+    screen_map = {
+        Provider.PROVIDER_AWS: _aws_provider_ready_for_create,
+        Provider.PROVIDER_OCP: _ocp_provider_ready_for_create,
+        Provider.PROVIDER_AZURE: _azure_provider_ready_for_create,
+    }
+    screen_fn = screen_map.get(provider.source_type)
+    if screen_fn and screen_fn(provider) and not provider.pending_delete:
+        provider_event = {"operation": "create", "provider": provider, "offset": provider.offset}
+    return provider_event
 
 
 class ProviderAuthentication(models.Model):

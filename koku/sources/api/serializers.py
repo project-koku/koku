@@ -149,6 +149,7 @@ class SourcesSerializer(serializers.ModelSerializer):
 @receiver(post_save, sender=Sources)
 def sources_post_save_callback(sender, instance, **kwargs):
     """Create the provider when the source table contains all the necessary information."""
+    LOG.info("CALLBACK IS CALLED")
     process_event = screen_and_build_provider_sync_create_event(instance)
     if process_event and "pending_update" in (kwargs.get("update_fields") or {}):
 
