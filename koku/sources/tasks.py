@@ -26,8 +26,8 @@ from sources.storage import SCREEN_MAP
 LOG = get_task_logger(__name__)
 
 
-@app.task(name="sources.tasks.create_provider", bind=True)
-def create_provider(self, source_id):
+@app.task(name="sources.tasks.create_provider")
+def create_provider(source_id):
     try:
         instance = Sources.objects.get(source_id=source_id)
     except Exception as e:
