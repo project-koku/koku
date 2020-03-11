@@ -20,6 +20,7 @@ import logging
 from http import HTTPStatus
 from json.decoder import JSONDecodeError
 
+from django.conf import settings
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 from django.db import connection
@@ -47,6 +48,7 @@ from koku.rbac import RbacService
 
 
 LOG = logging.getLogger(__name__)
+MASU = settings.MASU
 UNIQUE_ACCOUNT_COUNTER = Counter("hccm_unique_account", "Unique Account Counter")
 UNIQUE_USER_COUNTER = Counter("hccm_unique_user", "Unique User Counter", ["account", "user"])
 
@@ -55,7 +57,7 @@ def is_no_auth(request):
     """Check condition for needing to authenticate the user."""
     no_auth_list = ["/status", "openapi.json"]
     no_auth = any(no_auth_path in request.path for no_auth_path in no_auth_list)
-    return no_auth
+    return no_auth or MASU
 
 
 def is_no_entitled(request):
