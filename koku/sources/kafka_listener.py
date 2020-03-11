@@ -345,15 +345,16 @@ async def process_messages(app_type_id, msg_pending_queue):  # noqa: C901; pragm
                         pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
                     )
 
-            elif msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE,):
+            elif msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
                 sources_network = SourcesHTTPClient(msg_data.get("auth_header"))
                 msg_data["source_id"] = sources_network.get_source_id_from_endpoint_id(msg_data.get("resource_id"))
                 is_cost_mgmt = sources_network.get_application_type_is_cost_management(msg_data.get("source_id"))
                 if is_cost_mgmt:
 
-                    storage.create_source_event(  # this will create source if it does not exist.
-                        msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset")
-                    )
+                    if msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE,):
+                        storage.create_source_event(  # this will create source _only_ if it does not exist.
+                            msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset")
+                        )
 
                     with concurrent.futures.ThreadPoolExecutor() as pool:
                         await EVENT_LOOP.run_in_executor(
@@ -369,13 +370,6 @@ async def process_messages(app_type_id, msg_pending_queue):  # noqa: C901; pragm
                         continue
                     await EVENT_LOOP.run_in_executor(
                         pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
-                    )
-
-            elif msg_data.get("event_type") in (KAFKA_AUTHENTICATION_UPDATE,):
-                msg_data["source_id"] = storage.get_source_from_endpoint(msg_data.get("resource_id"))
-                with concurrent.futures.ThreadPoolExecutor() as pool:
-                    await EVENT_LOOP.run_in_executor(
-                        pool, save_auth_info, msg_data.get("auth_header"), msg_data.get("source_id")
                     )
 
             elif msg_data.get("event_type") in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
