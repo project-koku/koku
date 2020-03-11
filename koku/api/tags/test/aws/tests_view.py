@@ -83,7 +83,7 @@ class AWSTagsViewTest(IamTestCase):
             data = response.json()
             start_range, end_range = self._calculate_expected_range(case.get("value"), case.get("unit"))
 
-            self.assertEqual(data.get("data"), [])
+            self.assertNotEqual(data.get("data"), [])
             self.assertTrue(isinstance(data.get("data"), list))
 
     def test_execute_aws_tags_queries(self):
@@ -110,7 +110,7 @@ class AWSTagsViewTest(IamTestCase):
             data = response.json()
             start_range, end_range = self._calculate_expected_range(case.get("value"), case.get("unit"))
 
-            self.assertEqual(data.get("data"), [])
+            self.assertNotEqual(data.get("data"), [])
             self.assertTrue(isinstance(data.get("data"), list))
 
     def test_execute_query_with_and_filter(self):
