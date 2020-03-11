@@ -33,7 +33,7 @@ class AzureTagQueryHandlerTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        _, self.provider = create_generic_provider(Provider.PROVIDER_AZURE, self.headers)
+        _, self.provider = create_generic_provider(Provider.PROVIDER_AZURE, self.request_context)
         AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
     # def tearDown(self):

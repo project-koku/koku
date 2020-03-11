@@ -29,6 +29,7 @@ from api.common import RH_IDENTITY_HEADER
 from api.iam.serializers import create_schema_name
 from api.models import Customer
 from api.models import Tenant
+from api.models import User
 from api.query_params import QueryParameters
 from koku.koku_test_runner import KokuTestRunner
 
@@ -98,6 +99,7 @@ class IamTestCase(TestCase):
         customer_data,
         user_data,
         create_customer=True,
+        create_user=True,
         create_tenant=False,
         is_admin=True,
         is_cost_management=True,
@@ -119,7 +121,12 @@ class IamTestCase(TestCase):
         mock_header = b64encode(json_identity.encode("utf-8"))
         request = Mock()
         request.META = {RH_IDENTITY_HEADER: mock_header}
-        request.user = user_data["username"]
+        if create_user:
+            tempUser = User(username=user_data["username"], email=user_data["email"], customer=cls.customer)
+            tempUser.save()
+            request.user = tempUser
+        else:
+            request.user = user_data["username"]
         request_context = {"request": request}
         return request_context
 

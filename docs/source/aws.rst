@@ -10,19 +10,19 @@ How to ingest data from AWS
 You'll need to set those environment variables with your AWS access and secret key. And then you can call docker-compose up
 
 =========================
-How to Create a Provider
+How to Create a Source
 =========================
-Send a POST request to ``http://<your_host>:8000/api/cost-management/v1/providers/``
+Send a POST request to ``http://<your_host>:8000/api/cost-management/v1/sources/``
 With the content:
-Provider Resource Name: <whatever your arn is>
+Resource Name: <whatever your arn is>
 
-    curl -d '{"name": "AWSProvider", "type": "AWS", "authentication": {"provider_resource_name": "$ARN"}, "billing_source": {"bucket": "$BUCKET"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/providers/
+    curl -d '{"name": "AWS_Source", "type": "AWS", "authentication": {"resource_name": "$ARN"}, "billing_source": {"bucket": "$BUCKET"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
 
 Note:
-   - The `$ARN` variable will need to be replace with your provider resource name. Example, `arn:aws:iam::01234567890:my_aws_role`.
+   - The `$ARN` variable will need to be replace with your resource name. Example, `arn:aws:iam::01234567890:my_aws_role`.
    - The `$BUCKET` variable will need to be replaced with your bucket name. Example, `koku_bucket`.
 
-You should receive a 200 range response confirming that the Provider was created.
+You should receive a 200 range response confirming that the Source was created.
 
 =============
 Trigger Masu
@@ -36,6 +36,6 @@ You may want to check the logs to see if the loading is occuring:
 
 If you see this error:
 
-    Provider skipped: da56f23c-100e-4158-8544-0a146a9dc64d Valid: True Backing off: True
+    Source skipped: da56f23c-100e-4158-8544-0a146a9dc64d Valid: True Backing off: True
 
 Then check the api_providerstatus table to see what the error message is.

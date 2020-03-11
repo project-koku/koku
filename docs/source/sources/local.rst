@@ -1,14 +1,14 @@
-Adding a Local Provider
+Adding a Local Source
 #######################
 
-This section describes the local providers that are used for development and
-testing purposes. Local providers give Koku the ability to access test data
+This section describes the local sources that are used for development and
+testing purposes. Local sources give Koku the ability to access test data
 without requiring a dependency on an external service, such as AWS S3 or a
 pre-existing OpenShift cluster (OKD).
 
-AWS Local Provider
+AWS Local Source
 ******************
-These steps will allow you to configure a local provider for a Koku instance
+These steps will allow you to configure a local source for a Koku instance
 deployed into an OpenShift environment.
 
 #. Deploy an OKD cluster: ``make oc-up``
@@ -19,10 +19,10 @@ deployed into an OpenShift environment.
 4. Wait for Koku to redeploy to verify the persistent volume is available.
 #. Use Nise to generate test data.
 #. Upload the test data to the Koku pod: ``oc rsync <data_on_host> <koku_pod>:/tmp/masu``
-#. Create the local provider in the Koku app.
-    Provider Resource Name: ``arn:aws:iam::111111111111:role/LocalAWSProvider``
-    Provider Type: ``AWS``
+#. Create the local source in the Koku app.
+    Source Resource Name: ``arn:aws:iam::111111111111:role/LocalAWSSource``
+    Source Type: ``AWS``
     Bucket: ``/tmp/koku/local/<report_name>``
 
 Once configured, you should be able to use Masu's download endpoint to queue
-tasks to download and process the local provider's data.
+tasks to download and process the local source's data.
