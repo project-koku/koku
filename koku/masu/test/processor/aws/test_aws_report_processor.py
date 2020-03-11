@@ -32,6 +32,7 @@ from dateutil.relativedelta import relativedelta
 from django.db.models import Max
 from tenant_schemas.utils import schema_context
 
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -44,6 +45,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_processor import AWSReportProcessor
 from masu.processor.aws.aws_report_processor import ProcessedReport
 from masu.test import MasuTestCase
+from reporting_common.models import CostUsageReportManifest
 
 
 class ProcessedReportTest(MasuTestCase):
@@ -267,6 +269,7 @@ class AWSReportProcessorTest(MasuTestCase):
                 "reporting_awscostentryreservation",
                 "reporting_ocpawscostlineitem_daily_summary",
                 "reporting_ocpawscostlineitem_project_daily_summary",
+                "reporting_awscostentrypricing",
             ):
                 self.assertTrue(count >= counts[table_name])
             else:
@@ -747,10 +750,10 @@ class AWSReportProcessorTest(MasuTestCase):
 
         self.assertIsNotNone(pricing_id)
 
-        query = self.accessor._get_db_obj_query(table_name)
-        id_in_db = query.order_by("-id").first().id
-
-        self.assertEqual(pricing_id, id_in_db)
+        with schema_context(self.schema):
+            query = self.accessor._get_db_obj_query(table_name)
+            id_in_db = query.order_by("-id").first().id
+            self.assertEqual(pricing_id, id_in_db)
 
     def test_create_cost_entry_pricing_already_processed(self):
         """Test that an already processed pricing id is returned."""
@@ -904,22 +907,33 @@ class AWSReportProcessorTest(MasuTestCase):
 
     def test_delete_line_items_success(self):
         """Test that data is deleted before processing a manifest."""
+        manifest = CostUsageReportManifest.objects.filter(
+            provider__uuid=self.aws_provider_uuid, billing_period_start_datetime=DateHelper().this_month_start
+        ).first()
+        manifest.num_processed_files = 0
+        manifest.save()
+        bill_date = manifest.billing_period_start_datetime
         processor = AWSReportProcessor(
             schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.aws_provider_uuid,
-            manifest_id=self.manifest.id,
+            manifest_id=manifest.id,
         )
-        processor.process()
-        result = processor._delete_line_items(AWSReportDBAccessor, self.column_map)
 
         with schema_context(self.schema):
-            bills = self.accessor.get_cost_entry_bills()
-            for bill_id in bills.values():
+            bills = self.accessor.get_cost_entry_bills_by_date(bill_date)
+            bill_ids = [bill.id for bill in bills]
+
+        for bill_id in bill_ids:
+            with schema_context(self.schema):
+                before_count = self.accessor.get_lineitem_query_for_billid(bill_id).count()
+            result = processor._delete_line_items(AWSReportDBAccessor, self.column_map)
+
+            with schema_context(self.schema):
                 line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
                 self.assertTrue(result)
-                self.assertEqual(line_item_query.count(), 0)
+                self.assertLess(line_item_query.count(), before_count)
 
     def test_delete_line_items_not_first_file_in_manifest(self):
         """Test that data is not deleted once a file has been processed."""
@@ -965,54 +979,37 @@ class AWSReportProcessorTest(MasuTestCase):
 
         today = self.date_accessor.today_with_timezone("UTC").replace(hour=0, minute=0, second=0, microsecond=0)
         first_of_month = today.replace(day=1)
-        first_of_next_month = first_of_month + relativedelta(months=1)
-        days_in_month = [today - relativedelta(days=i) for i in range(today.day)]
 
         self.manifest.billing_period_start_datetime = first_of_month
         self.manifest.save()
 
-        data = []
-
-        with open(self.test_report, "r") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                data.append(row)
-
-        for row in data:
-            row["lineItem/UsageStartDate"] = random.choice(days_in_month)
-            row["bill/BillingPeriodStartDate"] = first_of_month
-            row["bill/BillingPeriodEndDate"] = first_of_next_month
-
-        tmp_file = "/tmp/test_delete_data_cutoff.csv"
-        field_names = data[0].keys()
-
-        with open(tmp_file, "w") as f:
-            writer = csv.DictWriter(f, fieldnames=field_names)
-            writer.writeheader()
-            writer.writerows(data)
-
         processor = AWSReportProcessor(
             schema_name=self.schema,
-            report_path=tmp_file,
+            report_path="",
             compression=UNCOMPRESSED,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=self.manifest.id,
         )
-        processor.process()
 
         # Get latest data date.
+        bill_ids = []
         with schema_context(self.schema):
             bills = self.accessor.get_cost_entry_bills()
-            for bill_id in bills.values():
+            for key, value in bills.items():
+                if key[1] == DateHelper().this_month_start:
+                    bill_ids.append(value)
+
+        for bill_id in bill_ids:
+            with schema_context(self.schema):
                 line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
                 undeleted_max_date = line_item_query.aggregate(max_date=Max("usage_start"))
 
-        mock_should_process.return_value = False
-        processor._delete_line_items(AWSReportDBAccessor, self.column_map, is_finalized=False)
+            mock_should_process.return_value = False
+            processor._delete_line_items(AWSReportDBAccessor, self.column_map, is_finalized=False)
 
-        with schema_context(self.schema):
-            bills = self.accessor.get_cost_entry_bills()
-            for bill_id in bills.values():
+            with schema_context(self.schema):
+                # bills = self.accessor.get_cost_entry_bills()
+                # for bill_id in bills.values():
                 line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
                 if today.day <= 3:
                     self.assertEqual(line_item_query.count(), 0)
