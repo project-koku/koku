@@ -281,6 +281,9 @@ class Sources(models.Model):
     # handler.
     pending_update = models.BooleanField(default=False)
 
+    # Availability status
+    status = JSONField(null=True, default=dict)
+
     def __str__(self):
         """Get the string representation."""
         return (

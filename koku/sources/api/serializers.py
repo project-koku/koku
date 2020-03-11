@@ -141,7 +141,7 @@ class SourcesSerializer(serializers.ModelSerializer):
         update_fields = list(set(billing_fields + auth_fields))
         instance.save(update_fields=update_fields)
 
-        # create provider in celery task
+        # create provider with celery task
         create_provider.delay(instance.source_id)
 
         return instance

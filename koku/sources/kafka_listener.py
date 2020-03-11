@@ -125,7 +125,6 @@ def load_process_queue():
 @receiver(post_save, sender=Sources)
 def storage_callback(sender, instance, **kwargs):
     """Load Sources ready for Koku Synchronization when Sources table is updated."""
-    LOG.info("STORAGE CALLBACK IS CALLED")
     update_fields = kwargs.get("update_fields", ())
     if update_fields and "pending_update" in update_fields:
         if instance.koku_uuid and instance.pending_update and not instance.pending_delete:
@@ -142,7 +141,11 @@ def storage_callback(sender, instance, **kwargs):
 
     process_event = storage.screen_and_build_provider_sync_create_event(instance)
     if process_event:
-        create_provider.delay(instance.source_id)
+        creation_task = create_provider.delay(instance.source_id)
+        process_event["creation_task"] = creation_task.id
+        _log_process_queue_event(PROCESS_QUEUE, process_event)
+        LOG.debug(f"Create Event Queued for:\n{str(instance)}")
+        PROCESS_QUEUE.put_nowait(process_event)
 
 
 def get_sources_msg_data(msg, app_type_id):
@@ -458,7 +461,7 @@ def execute_koku_provider_op(msg, cost_management_type_id):
     source_mgr = KafkaSourceManager(provider.auth_header)
     sources_client = SourcesHTTPClient(provider.auth_header, provider.source_id)
     try:
-        if operation == "create":
+        if operation == "create" and not msg.get("creation_task"):
             LOG.info(f"Creating Koku Provider for Source ID: {str(provider.source_id)}")
             koku_details = source_mgr.create_provider(
                 provider.name,
