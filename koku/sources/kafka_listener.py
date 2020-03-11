@@ -43,6 +43,7 @@ from sources.kafka_source_manager import KafkaSourceManagerError
 from sources.kafka_source_manager import KafkaSourceManagerNonRecoverableError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
+from sources.tasks import create_provider
 
 LOG = logging.getLogger(__name__)
 
@@ -141,9 +142,7 @@ def storage_callback(sender, instance, **kwargs):
 
     process_event = storage.screen_and_build_provider_sync_create_event(instance)
     if process_event:
-        _log_process_queue_event(PROCESS_QUEUE, process_event)
-        LOG.debug(f"Create Event Queued for:\n{str(instance)}")
-        PROCESS_QUEUE.put_nowait(process_event)
+        create_provider.delay(instance.source_id)
 
 
 def get_sources_msg_data(msg, app_type_id):

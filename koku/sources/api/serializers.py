@@ -19,8 +19,6 @@ import logging
 from uuid import uuid4
 
 from django.db import transaction
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
@@ -30,8 +28,8 @@ from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
 from sources.api import get_account_from_header
 from sources.api import get_auth_header
 from sources.kafka_source_manager import KafkaSourceManager
-from sources.storage import screen_and_build_provider_sync_create_event
 from sources.storage import SourcesStorageError
+from sources.tasks import create_provider
 
 LOG = logging.getLogger(__name__)
 
@@ -143,44 +141,10 @@ class SourcesSerializer(serializers.ModelSerializer):
         update_fields = list(set(billing_fields + auth_fields))
         instance.save(update_fields=update_fields)
 
+        # create provider in celery task
+        create_provider.delay(instance.source_id)
+
         return instance
-
-
-@receiver(post_save, sender=Sources)
-def sources_post_save_callback(sender, instance, **kwargs):
-    """Create the provider when the source table contains all the necessary information."""
-    LOG.info("CALLBACK IS CALLED")
-    process_event = screen_and_build_provider_sync_create_event(instance)
-    if process_event and "pending_update" in (kwargs.get("update_fields") or {}):
-
-        uuid = instance.source_uuid
-        source_mgr = KafkaSourceManager(instance.auth_header)
-
-        try:
-            obj = Provider.objects.get(uuid=uuid)
-        except Provider.DoesNotExist:
-            obj = source_mgr.create_provider(
-                instance.name,
-                instance.source_type,
-                instance.authentication,
-                instance.billing_source,
-                instance.source_uuid,
-            )
-            instance.koku_uuid = obj.uuid
-            instance.pending_update = False
-            instance.save()
-            LOG.info(f"Provider created: {obj.uuid}")
-        else:
-            obj = source_mgr.update_provider(
-                instance.source_uuid,
-                instance.name,
-                instance.source_type,
-                instance.authentication,
-                instance.billing_source,
-            )
-            instance.koku_uuid = obj.uuid
-            instance.save()
-            LOG.info(f"Provider updated: {obj.uuid}")
 
 
 class AdminSourcesSerializer(SourcesSerializer):
