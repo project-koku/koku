@@ -35,6 +35,7 @@ from sources.config import Config
 from sources.kafka_source_manager import KafkaSourceManager
 from sources.kafka_source_manager import KafkaSourceManagerError
 from sources.sources_http_client import SourcesHTTPClientError
+from sources.tasks import create_or_update_provider
 
 faker = Faker()
 SOURCES_APPS = "http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}"
@@ -90,7 +91,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         IdentityHeaderMiddleware.create_customer(account)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_execute_koku_provider_op_create(self):
+    @patch("sources.tasks.create_or_update_provider.delay", side_effect=create_or_update_provider)
+    def test_execute_koku_provider_op_create(self, mock_delay):
         """Test to execute Koku Operations to sync with Sources for creation."""
         source_id = 1
         app_id = 1
@@ -365,7 +367,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with self.assertRaises(source_integration.SourcesIntegrationError):
             source_integration.get_sources_msg_data(msg, cost_management_app_type)
 
-    def test_collect_pending_items(self):
+    @patch("sources.tasks.create_or_update_provider.delay")
+    def test_collect_pending_items(self, mock_delay):
         """Test to load the in-progress queue."""
         aws_source = Sources(
             source_id=1,
