@@ -16,7 +16,6 @@
 #
 """Test the OCPReportDBAccessor utility object."""
 import random
-import string
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -24,6 +23,7 @@ from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
+from api.utils import DateHelper
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -32,7 +32,7 @@ from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdat
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdaterError
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
+from reporting.models import OCPUsageLineItemDailySummary
 
 
 class OCPCostModelCostUpdaterTest(MasuTestCase):
@@ -49,28 +49,14 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         cls.report_schema = cls.accessor.report_schema
         cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
+        cls.dh = DateHelper()
 
     def setUp(self):
         """Set up a test with database objects."""
         super().setUp()
-        with ProviderDBAccessor(self.ocp_provider_uuid) as provider_accessor:
-            self.provider = provider_accessor.get_provider()
-
+        self.provider = self.ocp_provider
         self.cluster_id = self.ocp_provider_resource_name
-
-        reporting_period = self.creator.create_ocp_report_period(
-            provider_uuid=self.provider.uuid, cluster_id=self.cluster_id
-        )
-
-        report = self.creator.create_ocp_report(reporting_period, reporting_period.report_period_start)
         self.updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
-        pod = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
-        namespace = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
-        node = "".join(random.choice(string.ascii_lowercase) for _ in range(10))
-        self.creator.create_ocp_usage_line_item(reporting_period, report, pod=pod, namespace=namespace)
-        self.creator.create_ocp_storage_line_item(reporting_period, report, pod=pod, namespace=namespace)
-        self.creator.create_ocp_usage_line_item(reporting_period, report, null_cpu_usage=True)
-        self.creator.create_ocp_node_label_line_item(reporting_period, report, node=node)
 
     def test_normalize_tier(self):
         """Test the tier helper function to normalize rate tier."""
@@ -346,12 +332,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         mem_request_rate_value = Decimal(mem_rate_request.get("tiered_rates")[0].get("value"))
 
         usage_period = self.accessor.get_current_usage_period()
-        start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
-        end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
 
-        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_cost_model_costs(
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
@@ -359,7 +340,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
         with schema_context(self.schema):
-            items = self.accessor._get_db_obj_query(table_name).all()
+            items = (
+                self.accessor._get_db_obj_query(table_name).filter(report_period=usage_period, data_source="Pod").all()
+            )
             for item in items:
                 mem_usage_value = item.pod_usage_memory_gigabyte_hours
                 mem_request_value = item.pod_request_memory_gigabyte_hours
@@ -387,12 +370,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         cpu_rate_value = Decimal(cpu_rate.get("tiered_rates")[0].get("value"))
 
         usage_period = self.accessor.get_current_usage_period()
-        start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
-        end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
 
-        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_cost_model_costs(
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
@@ -400,7 +378,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
         with schema_context(self.schema):
-            items = self.accessor._get_db_obj_query(table_name).all()
+            items = (
+                self.accessor._get_db_obj_query(table_name).filter(report_period=usage_period, data_source="Pod").all()
+            )
             for item in items:
                 cpu_usage_value = item.pod_usage_cpu_core_hours if item.pod_usage_cpu_core_hours else Decimal(0.0)
                 self.assertAlmostEqual(0.0, item.pod_charge_memory_gigabyte_hours)
@@ -421,12 +401,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         mem_rate_value = Decimal(mem_rate.get("tiered_rates")[0].get("value"))
 
         usage_period = self.accessor.get_current_usage_period()
-        start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
-        end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
 
-        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_cost_model_costs(
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
@@ -434,7 +409,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
         with schema_context(self.schema):
-            items = self.accessor._get_db_obj_query(table_name).all()
+            items = (
+                self.accessor._get_db_obj_query(table_name).filter(report_period=usage_period, data_source="Pod").all()
+            )
             for item in items:
                 mem_usage_value = Decimal(item.pod_usage_memory_gigabyte_hours)
                 self.assertAlmostEqual(
@@ -458,14 +435,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         request_rate_value = Decimal(request_rate.get("tiered_rates")[0].get("value"))
 
         usage_period = self.accessor.get_current_usage_period()
-        start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
-        end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
 
-        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_storage_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_storage_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_cost_model_costs(
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
@@ -473,7 +443,11 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
         with schema_context(self.schema):
-            items = self.accessor._get_db_obj_query(table_name).filter(data_source="Storage").all()
+            items = (
+                self.accessor._get_db_obj_query(table_name)
+                .filter(report_period=usage_period, data_source="Storage")
+                .all()
+            )
             for item in items:
                 storage_charge = Decimal(item.persistentvolumeclaim_charge_gb_month)
                 expected_usage_charge = usage_rate_value * Decimal(item.persistentvolumeclaim_usage_gigabyte_months)
@@ -488,19 +462,14 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         self.creator.create_cost_model(self.ocp_provider_uuid, Provider.PROVIDER_OCP, rates=rate, markup=markup)
 
         usage_period = self.accessor.get_current_usage_period()
-        start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
-        end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
 
-        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_cost_model_costs(
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
         with OCPReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
             with schema_context(self.schema):
-                items = accessor._get_db_obj_query(table_name).all()
+                items = accessor._get_db_obj_query(table_name).filter(data_source="Pod").all()
                 for item in items:
                     markup_value = item.markup_cost
                     self.assertEqual(markup_value, item.pod_charge_memory_gigabyte_hours * markup_percentage)
@@ -522,12 +491,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             accessor.set_infrastructure(self.aws_provider_uuid, Provider.PROVIDER_AWS)
 
         usage_period = self.accessor.get_current_usage_period()
-        start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
-        end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
 
-        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
         with OCPReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
             # Add some infrastructure cost
@@ -540,9 +504,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
         with OCPReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
-            self.assertIsNotNone(accessor.get_current_usage_period().derived_cost_datetime)
-
-            items = accessor._get_db_obj_query(table_name).all()
+            items = accessor._get_db_obj_query(table_name).filter(report_period=usage_period, data_source="Pod").all()
             with schema_context(self.schema):
                 for item in items:
                     derived_cost = Decimal(0)
@@ -577,9 +539,6 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
         end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
 
-        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater._update_pod_charge(start_date, end_date)
         self.updater._update_storage_charge(start_date, end_date)
 
@@ -589,7 +548,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
         with OCPReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
             with schema_context(self.schema):
-                items = accessor._get_db_obj_query(table_name).all()
+                items = (
+                    accessor._get_db_obj_query(table_name).filter(report_period=usage_period, data_source="Pod").all()
+                )
                 for item in items:
                     markup_value = Decimal(item.markup_cost)
                     self.assertEqual(markup_value, item.pod_charge_memory_gigabyte_hours * markup_percentage)
@@ -614,12 +575,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         mock_rate_map.return_value = rate_metric_map
 
         usage_period = self.accessor.get_current_usage_period()
-        start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
-        end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
 
-        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_cost_model_costs(
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
@@ -627,10 +583,12 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
         with schema_context(self.schema):
-            items = self.accessor._get_db_obj_query(table_name).all()
+            items = (
+                self.accessor._get_db_obj_query(table_name).filter(report_period=usage_period, data_source="Pod").all()
+            )
             for item in items:
-                self.assertIsNone(item.pod_charge_memory_gigabyte_hours)
-                self.assertIsNone(item.pod_charge_cpu_core_hours)
+                self.assertEqual(item.pod_charge_memory_gigabyte_hours, 0)
+                self.assertEqual(item.pod_charge_cpu_core_hours, 0)
 
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map")
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
@@ -652,22 +610,19 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         mock_rate_map.return_value = rate_metric_map
 
         usage_period = self.accessor.get_current_usage_period()
-        start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
-        end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
 
-        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_cost_model_costs(
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
 
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
         with schema_context(self.schema):
-            items = self.accessor._get_db_obj_query(table_name).all()
+            items = (
+                self.accessor._get_db_obj_query(table_name).filter(report_period=usage_period, data_source="Pod").all()
+            )
             for item in items:
-                self.assertIsNone(item.pod_charge_cpu_core_hours)
-                self.assertIsNone(item.pod_charge_memory_gigabyte_hours)
+                self.assertEqual(item.pod_charge_cpu_core_hours, 0)
+                self.assertEqual(item.pod_charge_memory_gigabyte_hours, 0)
 
     def test_update_summary_cost_model_costs_cpu_real_rates(self):
         """Test that OCP charge information is updated for cpu from the right provider uuid."""
@@ -685,20 +640,12 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         cpu_rate_value = Decimal(cpu_usage_rate[0].get("tiered_rates")[0].get("value"))
 
         usage_period = self.accessor.get_current_usage_period()
-        start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
-        end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
-
-        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_cost_model_costs(
             str(usage_period.report_period_start), str(usage_period.report_period_end)
         )
 
-        with OCPReportDBAccessor(schema="acct10001", column_map=self.column_map) as accessor:
-            self.assertIsNotNone(accessor.get_current_usage_period().derived_cost_datetime)
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-        items = self.accessor._get_db_obj_query(table_name).all()
+        items = self.accessor._get_db_obj_query(table_name).filter(report_period=usage_period, data_source="Pod").all()
         with schema_context(self.schema):
             for item in items:
                 cpu_usage_value = (
