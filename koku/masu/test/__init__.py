@@ -34,10 +34,10 @@ class MasuTestCase(IamTestCase):
 
         self.ocp_provider_resource_name = self.ocp_provider.authentication.provider_resource_name
 
-        self.ocp_db_auth_id = self.ocp_provider.authentication.id
-        self.aws_db_auth_id = self.aws_provider.authentication.id
-        self.azure_db_auth_id = self.azure_provider.authentication.id
+        self.ocp_db_auth = self.ocp_provider.authentication
+        self.aws_db_auth = self.aws_provider.authentication
+        self.azure_db_auth = self.azure_provider.authentication
 
-        self.ocp_billing_source = self.ocp_provider.billing_source.id
-        self.aws_billing_source = self.aws_provider.billing_source.id
-        self.azure_billing_source = self.azure_provider.billing_source.id
+        self.ocp_billing_source = self.ocp_provider.billing_source
+        self.aws_billing_source = self.aws_provider.billing_source
+        self.azure_billing_source = self.azure_provider.billing_source

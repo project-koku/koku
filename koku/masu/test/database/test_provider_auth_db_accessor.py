@@ -15,8 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the ProviderDBAuthAccessor utility object."""
-import uuid
-
 from masu.database.provider_auth_db_accessor import ProviderAuthDBAccessor
 from masu.test import MasuTestCase
 
@@ -26,7 +24,7 @@ class ProviderDBAuthAccessorTest(MasuTestCase):
 
     def test_initializer(self):
         """Test Initializer."""
-        auth_id = self.aws_db_auth_id
+        auth_id = self.aws_db_auth.id
         accessor = ProviderAuthDBAccessor(auth_id)
         self.assertTrue(accessor.does_db_entry_exist())
         self.assertEqual(int(auth_id), accessor.get_auth_id())
@@ -39,7 +37,7 @@ class ProviderDBAuthAccessorTest(MasuTestCase):
 
     def test_initializer_auth_id_and_provider_resource_name(self):
         """Test Initializer with auth_id and provider resource name."""
-        auth_id = self.ocp_db_auth_id
+        auth_id = self.ocp_db_auth.id
         provider_resource_name = self.ocp_provider_resource_name
         accessor = ProviderAuthDBAccessor(auth_id=auth_id, provider_resource_name=provider_resource_name)
         self.assertTrue(accessor.does_db_entry_exist())
@@ -52,12 +50,14 @@ class ProviderDBAuthAccessorTest(MasuTestCase):
 
     def test_get_uuid(self):
         """Test uuid getter."""
-        auth_id = self.aws_db_auth_id
+        auth_id = self.aws_db_auth.id
         accessor = ProviderAuthDBAccessor(auth_id)
-        self.assertEqual(uuid.UUID(self.aws_auth_provider_uuid), accessor.get_uuid())
+        self.assertEqual(self.aws_provider.authentication.uuid, accessor.get_uuid())
 
     def test_get_get_provider_resource_name(self):
         """Test provider name getter."""
-        auth_id = self.aws_db_auth_id
+        auth_id = self.aws_db_auth.id
         accessor = ProviderAuthDBAccessor(auth_id)
-        self.assertEqual(self.aws_provider_resource_name, accessor.get_provider_resource_name())
+        self.assertEqual(
+            self.aws_provider.authentication.provider_resource_name, accessor.get_provider_resource_name()
+        )

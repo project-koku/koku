@@ -1120,9 +1120,11 @@ class OCPReportViewTest(IamTestCase):
 
         data = response.json()
         data = data.get("data", [])
+        self.assertNotEqual(data, [])
         for entry in data:
             other = entry.get("nodes", [])[-1:]
-            self.assertIn("Other", other[0].get("node"))
+            if other:
+                self.assertIn("Other", other[0].get("node"))
 
     def test_execute_query_with_group_by_order_by_and_limit(self):
         """Test that data is grouped by and limited on order by."""

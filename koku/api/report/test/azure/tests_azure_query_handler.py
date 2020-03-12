@@ -150,7 +150,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
         with tenant_context(self.tenant):
-            valid_services = AzureCostEntryLineItemDailySummary.objects.values_list("service_name")
+            valid_services = AzureCostEntryLineItemDailySummary.objects.values_list("service_name").distinct()
+            valid_services = [service[0] for service in valid_services]
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
         handler = AzureReportQueryHandler(query_params)

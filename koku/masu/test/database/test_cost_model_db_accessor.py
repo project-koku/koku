@@ -174,8 +174,7 @@ class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
     def setUp(self):
         """Set up a test with database objects."""
         super().setUp()
-        self.provider_uuid = "3c6e687e-1a09-4a05-970c-2ccf44b0952e"
-        self.schema = "acct10001"
+        self.provider_uuid = self.ocp_provider_uuid
         self.column_map = ReportingCommonDBAccessor().column_map
         self.creator = ReportObjectCreator(self.schema, self.column_map)
 
