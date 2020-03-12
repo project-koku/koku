@@ -348,7 +348,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
     def test_execute_query_by_filtered_cluster(self):
         """Test execute_query monthly breakdown by filtered cluster."""
         with tenant_context(self.tenant):
-            cluster = AzureCostEntryLineItemDailySummary.objects.values("cluster_id")[0]
+            cluster = OCPAzureCostLineItemDailySummary.objects.values("cluster_id")[0].get("cluster_id")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]={cluster}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)

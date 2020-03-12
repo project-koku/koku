@@ -24,6 +24,13 @@ class MasuTestCase(IamTestCase):
         self.azure_provider = Provider.objects.get(type=Provider.PROVIDER_AZURE_LOCAL)
         self.unkown_test_provider_uuid = "cabfdddb-4ed5-421e-a041-311b75daf235"
 
+        self.ocp_on_aws_ocp_provider = Provider.objects.filter(
+            infrastructure__infrastructure_type=Provider.PROVIDER_AWS_LOCAL
+        ).first()
+        self.ocp_on_azure_ocp_provider = Provider.objects.filter(
+            infrastructure__infrastructure_type=Provider.PROVIDER_AZURE_LOCAL
+        ).first()
+
         self.aws_provider_uuid = str(self.aws_provider.uuid)
         self.ocp_provider_uuid = str(self.ocp_provider.uuid)
         self.azure_provider_uuid = str(self.azure_provider.uuid)
