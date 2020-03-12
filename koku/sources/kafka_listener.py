@@ -40,7 +40,7 @@ from sources.config import Config
 from sources.kafka_source_manager import KafkaSourceManager
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
-from sources.tasks import create_provider
+from sources.tasks import create_or_update_provider
 
 LOG = logging.getLogger(__name__)
 
@@ -138,7 +138,7 @@ def storage_callback(sender, instance, **kwargs):
 
     process_event = storage.screen_and_build_provider_sync_create_event(instance)
     if process_event:
-        creation_task = create_provider.delay(instance.source_id)
+        creation_task = create_or_update_provider.delay(instance.source_id)
         process_event["creation_task"] = creation_task.id
         _log_process_queue_event(PROCESS_QUEUE, process_event)
         LOG.debug(f"Create Event Queued for:\n{str(instance)}")
@@ -458,10 +458,10 @@ def execute_koku_provider_op(msg, cost_management_type_id):
     source_mgr = KafkaSourceManager(provider.auth_header)
 
     if operation == "create" and not msg.get("creation_task"):
-        task = create_provider.delay(provider.source_id)
+        task = create_or_update_provider.delay(provider.source_id)
         LOG.info(f"Creating Koku Provider for Source ID: {str(provider.source_id)} in task: {task.id}")
     elif operation == "update":
-        task = create_provider.delay(provider.source_id)
+        task = create_or_update_provider.delay(provider.source_id)
         LOG.info(f"Updating Koku Provider for Source ID: {str(provider.source_id)} in task: {task.id}")
     elif operation == "destroy":
         if provider.koku_uuid:

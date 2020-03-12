@@ -29,11 +29,11 @@ LOG = get_task_logger(__name__)
 
 
 @app.task(name="sources.tasks.create_provider")
-def create_provider(source_id):
+def create_or_update_provider(source_id):
     try:
         instance = Sources.objects.get(source_id=source_id)
     except Exception as e:
-        LOG.error(f"This source should exist. error: {e}")
+        LOG.error(f"[create_or_update_provider] This Source ID {source_id} should exist. error: {e}")
         return
 
     uuid = instance.source_uuid
@@ -85,8 +85,9 @@ def set_status_for_source(source_id):
     try:
         instance = Sources.objects.get(source_id=source_id)
     except Exception as e:
-        LOG.error(f"This source should exist. error: {e}")
+        LOG.error(f"[set_status_for_source] This Source ID {source_id} should exist. error: {e}")
         return
 
+    LOG.info(f"Setting availability status for Source ID: {source_id}")
     client = SourcesHTTPClient(instance.auth_header, source_id)
     client.set_source_status(None)
