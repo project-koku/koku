@@ -57,10 +57,11 @@ class AzureReportSummaryUpdater:
                 bill_date = self._manifest.billing_period_start_datetime.date()
                 bills = accessor.get_cost_entry_bills_query_by_provider(self._provider.uuid)
                 bills = bills.filter(billing_period_start=bill_date).all()
-
+                first_bill = bills.filter(billing_period_start=bill_date).first()
                 do_month_update = False
                 with schema_context(self._schema):
-                    do_month_update = self._determine_if_full_summary_update_needed(bills[0])
+                    if first_bill:
+                        do_month_update = self._determine_if_full_summary_update_needed(first_bill)
                 if do_month_update:
                     last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
                     start_date = bill_date.strftime("%Y-%m-%d")
