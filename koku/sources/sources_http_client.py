@@ -18,6 +18,7 @@
 import requests
 from requests.exceptions import RequestException
 
+from api.provider.models import Sources
 from sources.config import Config
 
 
@@ -141,7 +142,7 @@ class SourcesHTTPClient:
         authentications_response = r.json()
         if not authentications_response.get("data"):
             raise SourcesHTTPClientError(f"No authentication details for Source: {self._source_id}")
-        authentications_id = authentications_response.get("data")[0].get("id")
+        authentications_id = authentications_response.get("data")[-1].get("id")
 
         authentications_internal_url = "{}/authentications/{}?expose_encrypted_attribute[]=password".format(
             self._internal_url, str(authentications_id)
@@ -189,6 +190,7 @@ class SourcesHTTPClient:
 
     def set_source_status(self, error_msg, cost_management_type_id=None):
         """Set the source status with error message."""
+        source = Sources.objects.get(source_id=self._source_id)
         if not cost_management_type_id:
             cost_management_type_id = self.get_cost_management_application_type_id()
 
@@ -199,14 +201,13 @@ class SourcesHTTPClient:
         response_data = application_query_response.json().get("data")
         if response_data:
             application_id = response_data[0].get("id")
-
             application_url = f"{self._base_url}/applications/{str(application_id)}"
+
             if error_msg:
-                status = "unavailable"
+                json_data = {"availability_status": "unavailable", "availability_status_error": str(error_msg)}
             else:
-                status = "available"
-                error_msg = ""
-            json_data = {"availability_status": status, "availability_status_error": str(error_msg)}
+                json_data = source.status
+
             application_response = requests.patch(application_url, json=json_data, headers=self._identity_header)
             if application_response.status_code != 204:
                 raise SourcesHTTPClientError(f"Unable to set status for Source: {self._source_id}")

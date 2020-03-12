@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Red Hat, Inc.
+# Copyright 2020 Red Hat, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -15,12 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 from celery.utils.log import get_task_logger
+from django.conf import settings
 from rest_framework.exceptions import ValidationError
 
 from api.provider.models import Provider
 from api.provider.models import Sources
 from koku.celery import app
 from sources.kafka_source_manager import KafkaSourceManager
+from sources.sources_http_client import SourcesHTTPClient
 from sources.storage import SCREEN_MAP
 
 LOG = get_task_logger(__name__)
@@ -32,14 +34,10 @@ def create_provider(source_id):
         instance = Sources.objects.get(source_id=source_id)
     except Exception as e:
         LOG.error(f"This source should exist. error: {e}")
+        return
 
     uuid = instance.source_uuid
     source_mgr = KafkaSourceManager(instance.auth_header)
-
-    screen_fn = SCREEN_MAP.get(instance.source_type)
-    if not (screen_fn and screen_fn(instance)):
-        LOG.info("WHAT")
-        return
 
     provider = [instance.name, instance.source_type, instance.authentication, instance.billing_source]
 
@@ -48,16 +46,20 @@ def create_provider(source_id):
     try:
         obj = Provider.objects.get(uuid=uuid)
     except Provider.DoesNotExist:
-        func = source_mgr.create_provider
+        screen_fn = SCREEN_MAP.get(instance.source_type)
+        if not (screen_fn and screen_fn(instance)):
+            LOG.info(f"Source ID {source_id} incomplete, skipping Provider creation.")
+            return
+        provider_func = source_mgr.create_provider
         provider.append(instance.source_uuid)
         operation = "create"
     else:
-        func = source_mgr.update_provider
-        provider.insert(0, instance.source_uuid)
+        provider_func = source_mgr.update_provider
+        provider.insert(0, instance.koku_uuid)
         operation = "update"
 
     try:
-        obj = func(*provider)
+        obj = provider_func(*provider)
     except ValidationError as err:
         LOG.info(f"Provider {operation} ValidationError: {err}")
         status = "unavailable"
@@ -67,6 +69,24 @@ def create_provider(source_id):
         instance.pending_update = False
         LOG.info(f"Provider {operation}d: {obj.uuid}")
 
-    json_data = {"availability_status": status, "availability_status_error": str(err_msg)}
-    instance.status = json_data
+    status_info = {"availability_status": status, "availability_status_error": str(err_msg)}
+    instance.status = status_info
     instance.save()
+
+    set_status_for_source.delay(source_id)
+
+
+@app.task(name="sources.tasks.set_status_for_source")
+def set_status_for_source(source_id):
+    if settings.DEVELOPMENT:
+        LOG.info(f"Development enabled. Source ID {source_id} status not set.")
+        return
+
+    try:
+        instance = Sources.objects.get(source_id=source_id)
+    except Exception as e:
+        LOG.error(f"This source should exist. error: {e}")
+        return
+
+    client = SourcesHTTPClient(instance.auth_header, source_id)
+    client.set_source_status(None)
