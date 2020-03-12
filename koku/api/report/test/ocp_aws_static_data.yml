@@ -5,7 +5,7 @@ generators:
       end_date: {{ end_date }}
       nodes:
         - node:
-          node_name: compute_1
+          node_name: aws_compute_1
           cpu_cores: 2
           memory_gig: 8
           resource_id: 55555555
@@ -55,7 +55,7 @@ generators:
                     labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:delta
                     capacity_gig: 20
         - node:
-          node_name: compute_2
+          node_name: aws_compute_2
           cpu_cores: 2
           memory_gig: 8
           resource_id: 55555556
@@ -83,7 +83,7 @@ generators:
                     labels: label_environment:qe|label_app:cost|label_version:beta|label_storageclass:epsilon
                     capacity_gig: 20
         - node:
-          node_name: compute_3
+          node_name: aws_compute_3
           cpu_cores: 2
           memory_gig: 8
           resource_id: 55555557
@@ -111,7 +111,7 @@ generators:
                     labels: label_environment:prod|label_app:analytics|label_version:gamma|label_storageclass:charlie
                     capacity_gig: 20
         - node:
-          node_name: master
+          node_name: aws_master
           cpu_cores: 2
           memory_gig: 8
           resource_id: 55555558

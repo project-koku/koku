@@ -6,7 +6,7 @@ generators:
       service_name: Virtual Machines
       meter_id: 55555555-4444-3333-2222-111111111128
       resource_location: "US East"
-      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/compute_1'
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/azure_compute_1'
       tags:
         version: Mars
   - VMGenerator:
@@ -15,7 +15,7 @@ generators:
       service_name: Virtual Machines
       meter_id: 55555555-4444-3333-2222-111111111127
       resource_location: "US East"
-      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/compute_2'
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/azure_compute_2'
       tags:
         environment: Jupiter
         version: MilkyWay
@@ -25,7 +25,7 @@ generators:
       service_name: Virtual Machines
       meter_id: 55555555-4444-3333-2222-111111111126
       resource_location: "US East"
-      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/compute_3'
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/azure_compute_3'
       tags:
         environment: Jupiter
         version: Andromeda
@@ -35,7 +35,7 @@ generators:
       service_name: Virtual Machines
       meter_id: 55555555-4444-3333-2222-111111111125
       resource_location: "US East"
-      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/master'
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/azure_master'
       tags:
         version: Sombrero
   - StorageGenerator:
