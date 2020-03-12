@@ -16,6 +16,9 @@ CREATE INDEX ocpallcstprjdlysumm_usage_start ON reporting_ocpallcostlineitem_pro
 
 DROP INDEX IF EXISTS ocpallcstdlysumm_usage_start;
 CREATE INDEX ocpallcstdlysumm_usage_start on reporting_ocpallcostlineitem_daily_summary (usage_start);
+
+DROP INDEX IF EXISTS ocpallcstdlysumm_prod_code;
+CREATE INDEX ocpallcstdlysumm_prod_code ON reporting_ocpallcostlineitem_daily_summary USING GIN (upper(product_code::text) gin_trgm_ops);
             """
         ),
         migrations.RemoveIndex(model_name="ocpawscostlineitemdailysummary", name="cost_summary_namespace_idx"),
