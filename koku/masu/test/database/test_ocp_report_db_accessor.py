@@ -439,13 +439,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         self.assertEqual(sorted(tag_keys), sorted(expected_tag_keys))
 
-    def test_get_usage_period_before_date(self):
+    def test_get_usage_period_on_or_before_date(self):
         """Test that gets a query for usage report periods before a date."""
         with schema_context(self.schema):
             # Verify that the result is returned for cutoff_date == report_period_start
             cutoff_date = DateHelper().this_month_start
             report_period_count = OCPUsageReportPeriod.objects.filter(report_period_start__lt=cutoff_date).count()
-            usage_period = self.accessor.get_usage_period_before_date(cutoff_date)
+            usage_period = self.accessor.get_usage_period_on_or_before_date(cutoff_date)
             self.assertEqual(usage_period.count(), report_period_count)
             self.assertLess(usage_period.first().report_period_start, cutoff_date)
 
@@ -453,14 +453,14 @@ class OCPReportDBAccessorTest(MasuTestCase):
             later_cutoff = cutoff_date + relativedelta.relativedelta(months=+1)
             # later_cutoff = later_date.replace(month=later_date.month, day=15)
             report_period_count = OCPUsageReportPeriod.objects.filter(report_period_start__lt=later_cutoff).count()
-            usage_period = self.accessor.get_usage_period_before_date(later_cutoff)
+            usage_period = self.accessor.get_usage_period_on_or_before_date(later_cutoff)
             self.assertEqual(usage_period.count(), report_period_count)
             self.assertLessEqual(usage_period.first().report_period_start, cutoff_date)
 
             # Verify that no results are returned for a date earlier than cutoff_date
             earlier_date = cutoff_date + relativedelta.relativedelta(months=-5)
             earlier_cutoff = earlier_date.replace(month=earlier_date.month, day=15)
-            usage_period = self.accessor.get_usage_period_before_date(earlier_cutoff)
+            usage_period = self.accessor.get_usage_period_on_or_before_date(earlier_cutoff)
             self.assertEqual(usage_period.count(), 0)
 
     def test_get_item_query_report_period_id(self):
