@@ -29,7 +29,7 @@ from sources.api import get_account_from_header
 from sources.api import get_auth_header
 from sources.kafka_source_manager import KafkaSourceManager
 from sources.storage import SourcesStorageError
-from sources.tasks import create_provider
+from sources.tasks import create_or_update_provider
 
 LOG = logging.getLogger(__name__)
 
@@ -142,7 +142,7 @@ class SourcesSerializer(serializers.ModelSerializer):
         instance.save(update_fields=update_fields)
 
         # create provider with celery task
-        create_provider.delay(instance.source_id)
+        create_or_update_provider.delay(instance.source_id)
 
         return instance
 

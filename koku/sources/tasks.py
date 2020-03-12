@@ -28,7 +28,7 @@ from sources.storage import SCREEN_MAP
 LOG = get_task_logger(__name__)
 
 
-@app.task(name="sources.tasks.create_provider")
+@app.task(name="sources.celery.tasks.create_or_update_provider")
 def create_or_update_provider(source_id):
     try:
         instance = Sources.objects.get(source_id=source_id)
@@ -76,7 +76,7 @@ def create_or_update_provider(source_id):
     set_status_for_source.delay(source_id)
 
 
-@app.task(name="sources.tasks.set_status_for_source")
+@app.task(name="sources.celery.tasks.set_status_for_source")
 def set_status_for_source(source_id):
     if settings.DEVELOPMENT:
         LOG.info(f"Development enabled. Source ID {source_id} status not set.")
