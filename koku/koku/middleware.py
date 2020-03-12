@@ -121,6 +121,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
                 except User.DoesNotExist:
                     return HttpResponseUnauthorizedRequest()
                 if not request.user.admin and request.user.access is None:
+                    LOG.warning("User %s is does not have permissions for Cost Management.", username)
                     raise PermissionDenied()
             else:
                 return HttpResponseUnauthorizedRequest()
@@ -242,6 +243,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         is_cost_management = json_rh_auth.get("entitlements", {}).get("cost_management", {}).get("is_entitled", False)
         skip_entitlement = is_no_entitled(request)
         if not skip_entitlement and not is_cost_management:
+            LOG.warning("User is not entitled for Cost Management.")
             raise PermissionDenied()
 
         account = json_rh_auth.get("identity", {}).get("account_number")

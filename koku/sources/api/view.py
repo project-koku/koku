@@ -56,7 +56,7 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
     def destroy(self, request, *args, **kwargs):
         """Delete a source."""
         source = self.get_object()
-        manager = KafkaSourceManager(request.user.identity_header.encoded)
+        manager = KafkaSourceManager(request.user.identity_header.get("encoded"))
         manager.destroy_provider(source.koku_uuid)
         response = super().destroy(request, *args, **kwargs)
         return response
