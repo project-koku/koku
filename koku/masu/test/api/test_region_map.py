@@ -45,9 +45,10 @@ class RegionMapAPIViewTest(TestCase):
         with open(TEST_HTML) as page:
             cls.test_data = page.read()
 
+    @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.database.reporting_common_db_accessor.ReportingCommonDBAccessor", autospec=True)
     @patch("masu.util.aws.region_map.requests.get")
-    def skip_test_update_region_map(self, mock_response, mock_accessor):
+    def skip_test_update_region_map(self, mock_response, mock_accessor, _):
         """Test the region map endpoint."""
         mock_response.return_value = MockResponse(self.test_data, 200)
 
