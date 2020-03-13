@@ -9,7 +9,8 @@
             "url": "https://opensource.org/licenses/AGPL-3.0"
         }
     },
-    "tags": [{
+    "tags": [
+        {
             "name": "AWS Reports",
             "description": "Operations about AWS report interactions"
         },
@@ -81,7 +82,8 @@
                 ],
                 "summary": "List the cost models",
                 "operationId": "listCostModels",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryOffset"
                     },
                     {
@@ -184,9 +186,11 @@
                     },
                     "required": true
                 },
-                "security": [{
-                    "basic_auth": []
-                }],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
                 "responses": {
                     "201": {
                         "description": "An object describing the cost model",
@@ -221,19 +225,23 @@
                 ],
                 "summary": "Get a Cost Model.",
                 "operationId": "getCostModel",
-                "parameters": [{
-                    "name": "cost_model_uuid",
-                    "in": "path",
-                    "description": "UUID of Cost Model to get",
-                    "required": true,
-                    "schema": {
-                        "type": "string",
-                        "format": "uuid"
+                "parameters": [
+                    {
+                        "name": "cost_model_uuid",
+                        "in": "path",
+                        "description": "UUID of Cost Model to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
                     }
-                }],
-                "security": [{
-                    "basic_auth": []
-                }],
+                ],
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "A Cost Model object",
@@ -276,16 +284,18 @@
                 ],
                 "summary": "Update a Cost Model",
                 "operationId": "updateCostModel",
-                "parameters": [{
-                    "name": "cost_model_uuid",
-                    "in": "path",
-                    "description": "UUID of Cost Model to get",
-                    "required": true,
-                    "schema": {
-                        "type": "string",
-                        "format": "uuid"
+                "parameters": [
+                    {
+                        "name": "cost_model_uuid",
+                        "in": "path",
+                        "description": "UUID of Cost Model to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
                     }
-                }],
+                ],
                 "requestBody": {
                     "content": {
                         "application/json": {
@@ -332,9 +342,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             },
             "delete": {
                 "tags": [
@@ -342,16 +354,18 @@
                 ],
                 "summary": "Delete a Cost Model",
                 "operationId": "deleteCostModel",
-                "parameters": [{
-                    "name": "cost_model_uuid",
-                    "in": "path",
-                    "description": "UUID of Cost Model to get",
-                    "required": true,
-                    "schema": {
-                        "type": "string",
-                        "format": "uuid"
+                "parameters": [
+                    {
+                        "name": "cost_model_uuid",
+                        "in": "path",
+                        "description": "UUID of Cost Model to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
                     }
-                }],
+                ],
                 "responses": {
                     "204": {
                         "description": "Cost Model deleted"
@@ -380,9 +394,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/metrics/": {
@@ -423,7 +439,8 @@
                 ],
                 "summary": "Query to obtain cost reports",
                 "operationId": "getAWSCostReports",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryDelta"
                     },
                     {
@@ -477,9 +494,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/reports/azure/costs/": {
@@ -489,7 +508,8 @@
                 ],
                 "summary": "Query to obtain cost reports",
                 "operationId": "getAzureCostReports",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryDelta"
                     },
                     {
@@ -543,9 +563,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/reports/openshift/costs/": {
@@ -555,7 +577,8 @@
                 ],
                 "summary": "Query to obtain cost reports",
                 "operationId": "getOpenShiftCostReports",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryDelta"
                     },
                     {
@@ -609,9 +632,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/reports/aws/instance-types/": {
@@ -621,7 +646,8 @@
                 ],
                 "summary": "Query to obtain AWS instance type data",
                 "operationId": "getAWSInstanceReports",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
@@ -678,9 +704,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/reports/azure/instance-types/": {
@@ -690,7 +718,8 @@
                 ],
                 "summary": "Query to obtain Azure instance type data",
                 "operationId": "getAzureInstanceReports",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
@@ -744,9 +773,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/reports/aws/storage/": {
@@ -756,7 +787,8 @@
                 ],
                 "summary": "Query to obtain AWS storage data",
                 "operationId": "getAWSStorageReports",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
@@ -810,9 +842,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/reports/azure/storage/": {
@@ -822,7 +856,8 @@
                 ],
                 "summary": "Query to obtain AWS storage data",
                 "operationId": "getAzureStorageReports",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
@@ -876,9 +911,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/reports/openshift/compute/": {
@@ -888,7 +925,8 @@
                 ],
                 "summary": "Query to obtain OpenShift compute usage information",
                 "operationId": "getOpenShiftComputeReports",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
@@ -939,9 +977,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/reports/openshift/memory/": {
@@ -951,7 +991,8 @@
                 ],
                 "summary": "Query to obtain OpenShift memory usage information",
                 "operationId": "getOpenShiftMemoryReports",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
@@ -1002,9 +1043,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/reports/openshift/volumes/": {
@@ -1014,7 +1057,8 @@
                 ],
                 "summary": "Query to obtain OpenShift volume usage information",
                 "operationId": "getOpenShiftVolumeReports",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
@@ -1065,9 +1109,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/reports/openshift/infrastructures/aws/costs/": {
@@ -1077,7 +1123,8 @@
                 ],
                 "summary": "Query to obtain OpenShift on AWS cost reports",
                 "operationId": "getOpenShiftAWSCostReports",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryDelta"
                     },
                     {
@@ -1131,9 +1178,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/reports/openshift/infrastructures/aws/storage/": {
@@ -1143,7 +1192,8 @@
                 ],
                 "summary": "Query to obtain OpenShift on AWS storage data",
                 "operationId": "getOpenShiftAWSInventoryStorageReport",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
@@ -1197,9 +1247,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/reports/openshift/infrastructures/aws/instance-types/": {
@@ -1209,7 +1261,8 @@
                 ],
                 "summary": "Query to obtain OpenShift on AWS instance data",
                 "operationId": "getOpenShiftAWSInventoryInstanceReport",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
@@ -1263,9 +1316,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/reports/openshift/infrastructures/azure/costs/": {
@@ -1275,7 +1330,8 @@
                 ],
                 "summary": "Query to obtain OpenShift on Azure cost reports",
                 "operationId": "getOpenShiftAzureCostReports",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryDelta"
                     },
                     {
@@ -1329,9 +1385,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/reports/openshift/infrastructures/azure/storage/": {
@@ -1341,7 +1399,8 @@
                 ],
                 "summary": "Query to obtain OpenShift on Azure storage data",
                 "operationId": "getOpenShiftAzureInventoryStorageReport",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
@@ -1395,9 +1454,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/reports/openshift/infrastructures/azure/instance-types/": {
@@ -1407,7 +1468,8 @@
                 ],
                 "summary": "Query to obtain OpenShift on Azure instance data",
                 "operationId": "getOpenShiftAzureInventoryInstanceReport",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
@@ -1461,9 +1523,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/sources/": {
@@ -1473,7 +1537,8 @@
                 ],
                 "summary": "List the sources",
                 "operationId": "listSources",
-                "parameters": [{
+                "parameters": [
+                    {
                         "name": "type",
                         "in": "query",
                         "description": "The type of source to filter for.",
@@ -1529,17 +1594,19 @@
                 ],
                 "summary": "Get a source",
                 "operationId": "getSource",
-                "parameters": [{
-                    "name": "source_id",
-                    "in": "path",
-                    "description": "ID of source to get",
-                    "required": true,
-                    "schema": {
-                        "type": "integer",
-                        "format": "int64",
-                        "example": 1
+                "parameters": [
+                    {
+                        "name": "source_id",
+                        "in": "path",
+                        "description": "ID of source to get",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64",
+                            "example": 1
+                        }
                     }
-                }],
+                ],
                 "responses": {
                     "200": {
                         "description": "A Source object",
@@ -1582,17 +1649,19 @@
                 ],
                 "summary": "Update a source",
                 "operationId": "updateSource",
-                "parameters": [{
-                    "name": "source_id",
-                    "in": "path",
-                    "description": "ID of source to update",
-                    "required": true,
-                    "schema": {
-                        "type": "integer",
-                        "format": "int64",
-                        "example": 1
+                "parameters": [
+                    {
+                        "name": "source_id",
+                        "in": "path",
+                        "description": "ID of source to update",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64",
+                            "example": 1
+                        }
                     }
-                }],
+                ],
                 "requestBody": {
                     "content": {
                         "application/json": {
@@ -1644,17 +1713,19 @@
                 ],
                 "summary": "Get a source statistics",
                 "operationId": "getSourceStats",
-                "parameters": [{
-                    "name": "source_id",
-                    "in": "path",
-                    "description": "ID of source to get",
-                    "required": true,
-                    "schema": {
-                        "type": "integer",
-                        "format": "int64",
-                        "example": 1
+                "parameters": [
+                    {
+                        "name": "source_id",
+                        "in": "path",
+                        "description": "ID of source to get",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64",
+                            "example": 1
+                        }
                     }
-                }],
+                ],
                 "responses": {
                     "200": {
                         "description": "A Source Statistics object",
@@ -1664,15 +1735,17 @@
                                     "type": "object",
                                     "description": "Dictionary key is the start of a billing month.  Value is report processing statistics.",
                                     "example": {
-                                        "2019-01-01": [{
-                                            "assembly_id": "f0d262ff-cc93-449c-a834-74c4d958d45f",
-                                            "billing_period_start": "2019-01-01T00:00:00.000Z",
-                                            "files_processed": "1/1",
-                                            "last_process_start_date": "2019-01-07T21:50:58.000Z",
-                                            "last_process_complete_date": "2019-01-07T21:51:01.000Z",
-                                            "summary_data_creation_datetime": "2019-01-07T21:51:32.000Z",
-                                            "summary_data_updated_datetime": "2019-01-07T21:51:32.000Z"
-                                        }]
+                                        "2019-01-01": [
+                                            {
+                                                "assembly_id": "f0d262ff-cc93-449c-a834-74c4d958d45f",
+                                                "billing_period_start": "2019-01-01T00:00:00.000Z",
+                                                "files_processed": "1/1",
+                                                "last_process_start_date": "2019-01-07T21:50:58.000Z",
+                                                "last_process_complete_date": "2019-01-07T21:51:01.000Z",
+                                                "summary_data_creation_datetime": "2019-01-07T21:51:32.000Z",
+                                                "summary_data_updated_datetime": "2019-01-07T21:51:32.000Z"
+                                            }
+                                        ]
                                     }
                                 }
                             }
@@ -1711,7 +1784,8 @@
                 ],
                 "summary": "Query to obtain AWS tags",
                 "operationId": "getAWSTagData",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
@@ -1749,9 +1823,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/tags/azure/": {
@@ -1761,7 +1837,8 @@
                 ],
                 "summary": "Query to obtain AWS tags",
                 "operationId": "getAzureTagData",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
@@ -1799,9 +1876,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/tags/openshift/": {
@@ -1811,7 +1890,8 @@
                 ],
                 "summary": "Query to obtain OpenShift tags",
                 "operationId": "getOpenShiftTagData",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
@@ -1849,9 +1929,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/tags/openshift/infrastructures/aws/": {
@@ -1861,7 +1943,8 @@
                 ],
                 "summary": "Query to obtain OpenShift-on-AWS tags",
                 "operationId": "getOpenShiftAWSTagData",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
@@ -1899,9 +1982,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         },
         "/tags/openshift/infrastructures/azure/": {
@@ -1911,7 +1996,8 @@
                 ],
                 "summary": "Query to obtain OpenShift-on-Azure tags",
                 "operationId": "getOpenShiftAzureTagData",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
@@ -1949,9 +2035,11 @@
                         }
                     }
                 },
-                "security": [{
-                    "basic_auth": []
-                }]
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
             }
         }
     },
@@ -1959,7 +2047,8 @@
         "description": "Find out more about Cost Management",
         "url": "https://github.com/project-koku/"
     },
-    "servers": [{
+    "servers": [
+        {
             "url": "https://{environment}.redhat.com/api/cost-management/v1",
             "description": "Target Environment",
             "variables": {
@@ -2175,7 +2264,8 @@
                 ]
             },
             "CostModelOut": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/CostModelResp"
                     },
                     {
@@ -2204,7 +2294,8 @@
                 ]
             },
             "CostModelPagination": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/ListPagination"
                     },
                     {
@@ -2235,7 +2326,8 @@
                 }
             },
             "CustomerOut": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/Customer"
                     },
                     {
@@ -2332,7 +2424,8 @@
                 }
             },
             "Metrics": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/ListPagination"
                     },
                     {
@@ -2394,7 +2487,8 @@
                 }
             },
             "SourceIn": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/Source"
                     },
                     {
@@ -2423,7 +2517,8 @@
                 ]
             },
             "SourceOut": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/Source"
                     },
                     {
@@ -2497,7 +2592,8 @@
                 ]
             },
             "SourcePagination": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/ListPagination"
                     },
                     {
@@ -2560,14 +2656,16 @@
                                 }
                             }
                         },
-                        "example": [{
-                            "value": 0.22,
-                            "unit": "USD",
-                            "usage": {
-                                "usage_start": 0,
-                                "usage_end": 10
+                        "example": [
+                            {
+                                "value": 0.22,
+                                "unit": "USD",
+                                "usage": {
+                                    "usage_start": 0,
+                                    "usage_end": 10
+                                }
                             }
-                        }]
+                        ]
                     }
                 }
             },
@@ -3592,7 +3690,8 @@
                         "$ref": "#/components/schemas/ReportDelta"
                     },
                     "group_by": {
-                        "oneOf": [{
+                        "oneOf": [
+                            {
                                 "$ref": "#/components/schemas/ReportGrouping"
                             },
                             {
@@ -3610,7 +3709,8 @@
                         ]
                     },
                     "order_by": {
-                        "oneOf": [{
+                        "oneOf": [
+                            {
                                 "$ref": "#/components/schemas/ReportOrdering"
                             },
                             {
@@ -3631,7 +3731,8 @@
                         ]
                     },
                     "filter": {
-                        "oneOf": [{
+                        "oneOf": [
+                            {
                                 "$ref": "#/components/schemas/ReportFilter"
                             },
                             {
@@ -3666,7 +3767,8 @@
                 }
             },
             "ReportCost": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/Report"
                     },
                     {
@@ -3680,72 +3782,79 @@
                                 "items": {
                                     "type": "object",
                                     "example": [
-                                        [{
-                                            "date": "2018-05-28",
-                                            "total": {
-                                                "infrastructure_cost": {
-                                                    "value": 2564.775150581,
-                                                    "units": "USD"
+                                        [
+                                            {
+                                                "date": "2018-05-28",
+                                                "total": {
+                                                    "infrastructure_cost": {
+                                                        "value": 2564.775150581,
+                                                        "units": "USD"
+                                                    },
+                                                    "derived_cost": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    },
+                                                    "cost": {
+                                                        "value": 2564.775150581,
+                                                        "units": "USD"
+                                                    }
                                                 },
-                                                "derived_cost": {
-                                                    "value": 0,
-                                                    "units": "USD"
+                                                "delta": {
+                                                    "value": 379.4398,
+                                                    "percent": -27.285392
                                                 },
-                                                "cost": {
-                                                    "value": 2564.775150581,
-                                                    "units": "USD"
-                                                }
-                                            },
-                                            "delta": {
-                                                "value": 379.4398,
-                                                "percent": -27.285392
-                                            },
-                                            "accounts": [{
-                                                    "account": "8577742690384",
-                                                    "values": [{
-                                                        "date": "2018-05-28",
+                                                "accounts": [
+                                                    {
                                                         "account": "8577742690384",
-                                                        "account_alias": "sample-account",
-                                                        "infrastructure_cost": {
-                                                            "value": 1498.92962634,
-                                                            "units": "USD"
-                                                        },
-                                                        "derived_cost": {
-                                                            "value": 1,
-                                                            "units": "USD"
-                                                        },
-                                                        "cost": {
-                                                            "value": 1499.92962634,
-                                                            "units": "USD"
-                                                        },
-                                                        "monthly_cost": {
-                                                            "value": 0,
-                                                            "units": "USD"
-                                                        }
-                                                    }]
-                                                },
-                                                {
-                                                    "account": "9420673783214",
-                                                    "values": [{
-                                                        "date": "2018-05-28",
+                                                        "values": [
+                                                            {
+                                                                "date": "2018-05-28",
+                                                                "account": "8577742690384",
+                                                                "account_alias": "sample-account",
+                                                                "infrastructure_cost": {
+                                                                    "value": 1498.92962634,
+                                                                    "units": "USD"
+                                                                },
+                                                                "derived_cost": {
+                                                                    "value": 1,
+                                                                    "units": "USD"
+                                                                },
+                                                                "cost": {
+                                                                    "value": 1499.92962634,
+                                                                    "units": "USD"
+                                                                },
+                                                                "monthly_cost": {
+                                                                    "value": 0,
+                                                                    "units": "USD"
+                                                                }
+                                                            }
+                                                        ]
+                                                    },
+                                                    {
                                                         "account": "9420673783214",
-                                                        "account_alias": "9420673783214",
-                                                        "infrastructure_cost": {
-                                                            "value": 33,
-                                                            "units": "USD"
-                                                        },
-                                                        "derived_cost": {
-                                                            "value": 22,
-                                                            "units": "USD"
-                                                        },
-                                                        "cost": {
-                                                            "value": 55,
-                                                            "units": "USD"
-                                                        }
-                                                    }]
-                                                }
-                                            ]
-                                        }]
+                                                        "values": [
+                                                            {
+                                                                "date": "2018-05-28",
+                                                                "account": "9420673783214",
+                                                                "account_alias": "9420673783214",
+                                                                "infrastructure_cost": {
+                                                                    "value": 33,
+                                                                    "units": "USD"
+                                                                },
+                                                                "derived_cost": {
+                                                                    "value": 22,
+                                                                    "units": "USD"
+                                                                },
+                                                                "cost": {
+                                                                    "value": 55,
+                                                                    "units": "USD"
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
                                     ]
                                 }
                             }
@@ -3754,7 +3863,8 @@
                 ]
             },
             "ReportCosts": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/Report"
                     },
                     {
@@ -3767,48 +3877,55 @@
                                 "type": "array",
                                 "items": {
                                     "type": "object",
-                                    "example": [{
-                                        "date": "2018-11",
-                                        "projects": [{
-                                                "project": "monitoring",
-                                                "values": [{
-                                                    "date": "2018-11",
+                                    "example": [
+                                        {
+                                            "date": "2018-11",
+                                            "projects": [
+                                                {
                                                     "project": "monitoring",
-                                                    "infrastructure_cost": {
-                                                        "value": 0.2,
-                                                        "units": "USD"
-                                                    },
-                                                    "derived_cost": {
-                                                        "value": 3,
-                                                        "units": "USD"
-                                                    },
-                                                    "cost": {
-                                                        "value": 3.2,
-                                                        "units": "USD"
-                                                    }
-                                                }]
-                                            },
-                                            {
-                                                "project": "metering",
-                                                "values": [{
-                                                    "date": "2018-11",
+                                                    "values": [
+                                                        {
+                                                            "date": "2018-11",
+                                                            "project": "monitoring",
+                                                            "infrastructure_cost": {
+                                                                "value": 0.2,
+                                                                "units": "USD"
+                                                            },
+                                                            "derived_cost": {
+                                                                "value": 3,
+                                                                "units": "USD"
+                                                            },
+                                                            "cost": {
+                                                                "value": 3.2,
+                                                                "units": "USD"
+                                                            }
+                                                        }
+                                                    ]
+                                                },
+                                                {
                                                     "project": "metering",
-                                                    "infrastructure_cost": {
-                                                        "value": 10.2,
-                                                        "units": "USD"
-                                                    },
-                                                    "derived_cost": {
-                                                        "value": 30.3,
-                                                        "units": "USD"
-                                                    },
-                                                    "cost": {
-                                                        "value": 40.5,
-                                                        "units": "USD"
-                                                    }
-                                                }]
-                                            }
-                                        ]
-                                    }]
+                                                    "values": [
+                                                        {
+                                                            "date": "2018-11",
+                                                            "project": "metering",
+                                                            "infrastructure_cost": {
+                                                                "value": 10.2,
+                                                                "units": "USD"
+                                                            },
+                                                            "derived_cost": {
+                                                                "value": 30.3,
+                                                                "units": "USD"
+                                                            },
+                                                            "cost": {
+                                                                "value": 40.5,
+                                                                "units": "USD"
+                                                            }
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
                                 }
                             }
                         }
@@ -3816,7 +3933,8 @@
                 ]
             },
             "ReportInstanceInventory": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/Report"
                     },
                     {
@@ -3829,56 +3947,63 @@
                                 "items": {
                                     "type": "object",
                                     "example": [
-                                        [{
-                                            "date": "2018-05-28",
-                                            "instance_types": [{
-                                                    "instance_type": "t2.medium",
-                                                    "values": [{
-                                                        "date": "2018-05-28",
+                                        [
+                                            {
+                                                "date": "2018-05-28",
+                                                "instance_types": [
+                                                    {
                                                         "instance_type": "t2.medium",
-                                                        "usage": {
-                                                            "value": 5,
-                                                            "units": "Hrs"
-                                                        },
-                                                        "infrastructure_cost": {
-                                                            "value": 14.34,
-                                                            "units": "USD"
-                                                        },
-                                                        "derived_cost": {
-                                                            "value": 4,
-                                                            "units": "USD"
-                                                        },
-                                                        "cost": {
-                                                            "value": 18.34,
-                                                            "units": "USD"
-                                                        }
-                                                    }]
-                                                },
-                                                {
-                                                    "instance_type": "m5.2xlarge",
-                                                    "values": [{
-                                                        "date": "2018-05-28",
+                                                        "values": [
+                                                            {
+                                                                "date": "2018-05-28",
+                                                                "instance_type": "t2.medium",
+                                                                "usage": {
+                                                                    "value": 5,
+                                                                    "units": "Hrs"
+                                                                },
+                                                                "infrastructure_cost": {
+                                                                    "value": 14.34,
+                                                                    "units": "USD"
+                                                                },
+                                                                "derived_cost": {
+                                                                    "value": 4,
+                                                                    "units": "USD"
+                                                                },
+                                                                "cost": {
+                                                                    "value": 18.34,
+                                                                    "units": "USD"
+                                                                }
+                                                            }
+                                                        ]
+                                                    },
+                                                    {
                                                         "instance_type": "m5.2xlarge",
-                                                        "usage": {
-                                                            "value": 29,
-                                                            "units": "Hrs"
-                                                        },
-                                                        "infrastructure_cost": {
-                                                            "value": 27.73,
-                                                            "units": "USD"
-                                                        },
-                                                        "derived_cost": {
-                                                            "value": 8,
-                                                            "units": "USD"
-                                                        },
-                                                        "cost": {
-                                                            "value": 35.73,
-                                                            "units": "USD"
-                                                        }
-                                                    }]
-                                                }
-                                            ]
-                                        }]
+                                                        "values": [
+                                                            {
+                                                                "date": "2018-05-28",
+                                                                "instance_type": "m5.2xlarge",
+                                                                "usage": {
+                                                                    "value": 29,
+                                                                    "units": "Hrs"
+                                                                },
+                                                                "infrastructure_cost": {
+                                                                    "value": 27.73,
+                                                                    "units": "USD"
+                                                                },
+                                                                "derived_cost": {
+                                                                    "value": 8,
+                                                                    "units": "USD"
+                                                                },
+                                                                "cost": {
+                                                                    "value": 35.73,
+                                                                    "units": "USD"
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
                                     ]
                                 }
                             }
@@ -3887,7 +4012,8 @@
                 ]
             },
             "ReportStorageInventory": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/Report"
                     },
                     {
@@ -3901,125 +4027,138 @@
                                 "items": {
                                     "type": "object",
                                     "example": [
-                                        [{
-                                            "date": "2018-07",
-                                            "accounts": [{
-                                                    "account": "4418636104713",
-                                                    "values": [{
-                                                        "date": "2018-07",
+                                        [
+                                            {
+                                                "date": "2018-07",
+                                                "accounts": [
+                                                    {
                                                         "account": "4418636104713",
-                                                        "usage": {
-                                                            "value": 1826.74238146924,
-                                                            "units": "GB-Mo"
-                                                        },
-                                                        "infrastructure_cost": {
-                                                            "value": 33,
-                                                            "units": "USD"
-                                                        },
-                                                        "derived_cost": {
-                                                            "value": 22,
-                                                            "units": "USD"
-                                                        },
-                                                        "cost": {
-                                                            "value": 55,
-                                                            "units": "USD"
-                                                        }
-                                                    }]
-                                                },
-                                                {
-                                                    "account": "8577742690384",
-                                                    "values": [{
-                                                        "date": "2018-07",
+                                                        "values": [
+                                                            {
+                                                                "date": "2018-07",
+                                                                "account": "4418636104713",
+                                                                "usage": {
+                                                                    "value": 1826.74238146924,
+                                                                    "units": "GB-Mo"
+                                                                },
+                                                                "infrastructure_cost": {
+                                                                    "value": 33,
+                                                                    "units": "USD"
+                                                                },
+                                                                "derived_cost": {
+                                                                    "value": 22,
+                                                                    "units": "USD"
+                                                                },
+                                                                "cost": {
+                                                                    "value": 55,
+                                                                    "units": "USD"
+                                                                }
+                                                            }
+                                                        ]
+                                                    },
+                                                    {
                                                         "account": "8577742690384",
-                                                        "usage": {
-                                                            "value": 1137.74036198065,
-                                                            "units": "GB-Mo"
-                                                        },
-                                                        "infrastructure_cost": {
-                                                            "value": 13,
-                                                            "units": "USD"
-                                                        },
-                                                        "derived_cost": {
-                                                            "value": 12,
-                                                            "units": "USD"
-                                                        },
-                                                        "cost": {
-                                                            "value": 25,
-                                                            "units": "USD"
-                                                        }
-                                                    }]
-                                                },
-                                                {
-                                                    "account": "3474227945050",
-                                                    "values": [{
-                                                        "date": "2018-07",
+                                                        "values": [
+                                                            {
+                                                                "date": "2018-07",
+                                                                "account": "8577742690384",
+                                                                "usage": {
+                                                                    "value": 1137.74036198065,
+                                                                    "units": "GB-Mo"
+                                                                },
+                                                                "infrastructure_cost": {
+                                                                    "value": 13,
+                                                                    "units": "USD"
+                                                                },
+                                                                "derived_cost": {
+                                                                    "value": 12,
+                                                                    "units": "USD"
+                                                                },
+                                                                "cost": {
+                                                                    "value": 25,
+                                                                    "units": "USD"
+                                                                }
+                                                            }
+                                                        ]
+                                                    },
+                                                    {
                                                         "account": "3474227945050",
-                                                        "usage": {
-                                                            "value": 1045.80659412797,
-                                                            "units": "GB-Mo"
-                                                        },
-                                                        "infrastructure_cost": {
-                                                            "value": 30,
-                                                            "units": "USD"
-                                                        },
-                                                        "derived_cost": {
-                                                            "value": 22,
-                                                            "units": "USD"
-                                                        },
-                                                        "cost": {
-                                                            "value": 52,
-                                                            "units": "USD"
-                                                        }
-                                                    }]
-                                                },
-                                                {
-                                                    "account": "7249815104968",
-                                                    "values": [{
-                                                        "date": "2018-07",
+                                                        "values": [
+                                                            {
+                                                                "date": "2018-07",
+                                                                "account": "3474227945050",
+                                                                "usage": {
+                                                                    "value": 1045.80659412797,
+                                                                    "units": "GB-Mo"
+                                                                },
+                                                                "infrastructure_cost": {
+                                                                    "value": 30,
+                                                                    "units": "USD"
+                                                                },
+                                                                "derived_cost": {
+                                                                    "value": 22,
+                                                                    "units": "USD"
+                                                                },
+                                                                "cost": {
+                                                                    "value": 52,
+                                                                    "units": "USD"
+                                                                }
+                                                            }
+                                                        ]
+                                                    },
+                                                    {
                                                         "account": "7249815104968",
-                                                        "usage": {
-                                                            "value": 807.326470618818,
-                                                            "units": "GB-Mo"
-                                                        },
-                                                        "infrastructure_cost": {
-                                                            "value": 3,
-                                                            "units": "USD"
-                                                        },
-                                                        "derived_cost": {
-                                                            "value": 22,
-                                                            "units": "USD"
-                                                        },
-                                                        "cost": {
-                                                            "value": 25,
-                                                            "units": "USD"
-                                                        }
-                                                    }]
-                                                },
-                                                {
-                                                    "account": "9420673783214",
-                                                    "values": [{
-                                                        "date": "2018-07",
+                                                        "values": [
+                                                            {
+                                                                "date": "2018-07",
+                                                                "account": "7249815104968",
+                                                                "usage": {
+                                                                    "value": 807.326470618818,
+                                                                    "units": "GB-Mo"
+                                                                },
+                                                                "infrastructure_cost": {
+                                                                    "value": 3,
+                                                                    "units": "USD"
+                                                                },
+                                                                "derived_cost": {
+                                                                    "value": 22,
+                                                                    "units": "USD"
+                                                                },
+                                                                "cost": {
+                                                                    "value": 25,
+                                                                    "units": "USD"
+                                                                }
+                                                            }
+                                                        ]
+                                                    },
+                                                    {
                                                         "account": "9420673783214",
-                                                        "usage": {
-                                                            "value": 658.306642830709,
-                                                            "units": "GB-Mo"
-                                                        },
-                                                        "infrastructure_cost": {
-                                                            "value": 133,
-                                                            "units": "USD"
-                                                        },
-                                                        "derived_cost": {
-                                                            "value": 22,
-                                                            "units": "USD"
-                                                        },
-                                                        "cost": {
-                                                            "value": 155,
-                                                            "units": "USD"
-                                                        }
-                                                    }]
-                                                }
-                                            ]
-                                        }]
+                                                        "values": [
+                                                            {
+                                                                "date": "2018-07",
+                                                                "account": "9420673783214",
+                                                                "usage": {
+                                                                    "value": 658.306642830709,
+                                                                    "units": "GB-Mo"
+                                                                },
+                                                                "infrastructure_cost": {
+                                                                    "value": 133,
+                                                                    "units": "USD"
+                                                                },
+                                                                "derived_cost": {
+                                                                    "value": 22,
+                                                                    "units": "USD"
+                                                                },
+                                                                "cost": {
+                                                                    "value": 155,
+                                                                    "units": "USD"
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
                                     ]
                                 }
                             }
@@ -4028,7 +4167,8 @@
                 ]
             },
             "ReportOpenShiftAWSStorageInventory": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/Report"
                     },
                     {
@@ -4050,33 +4190,39 @@
                                 "type": "array",
                                 "items": {
                                     "type": "object",
-                                    "example": [{
-                                        "date": "2019-01",
-                                        "accounts": [{
-                                            "account": "9999999999999",
-                                            "values": [{
-                                                "date": "2019-01",
-                                                "account": "9999999999999",
-                                                "account_alias": "9999999999999",
-                                                "infrastructure_cost": {
-                                                    "value": 0,
-                                                    "units": "USD"
-                                                },
-                                                "derived_cost": {
-                                                    "value": 24,
-                                                    "units": "USD"
-                                                },
-                                                "cost": {
-                                                    "value": 24,
-                                                    "units": "USD"
-                                                },
-                                                "usage": {
-                                                    "value": 24,
-                                                    "units": "GB-Mo"
+                                    "example": [
+                                        {
+                                            "date": "2019-01",
+                                            "accounts": [
+                                                {
+                                                    "account": "9999999999999",
+                                                    "values": [
+                                                        {
+                                                            "date": "2019-01",
+                                                            "account": "9999999999999",
+                                                            "account_alias": "9999999999999",
+                                                            "infrastructure_cost": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "derived_cost": {
+                                                                "value": 24,
+                                                                "units": "USD"
+                                                            },
+                                                            "cost": {
+                                                                "value": 24,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 24,
+                                                                "units": "GB-Mo"
+                                                            }
+                                                        }
+                                                    ]
                                                 }
-                                            }]
-                                        }]
-                                    }]
+                                            ]
+                                        }
+                                    ]
                                 }
                             }
                         }
@@ -4084,7 +4230,8 @@
                 ]
             },
             "ReportOpenShiftAWSInstanceInventory": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/Report"
                     },
                     {
@@ -4106,37 +4253,43 @@
                                 "type": "array",
                                 "items": {
                                     "type": "object",
-                                    "example": [{
-                                        "date": "2019-01",
-                                        "accounts": [{
-                                            "account": "9999999999999",
-                                            "values": [{
-                                                "date": "2019-01",
-                                                "account": "9999999999999",
-                                                "account_alias": "9999999999999",
-                                                "infrastructure_cost": {
-                                                    "value": 24,
-                                                    "units": "USD"
-                                                },
-                                                "derived_cost": {
-                                                    "value": 0,
-                                                    "units": "USD"
-                                                },
-                                                "cost": {
-                                                    "value": 24,
-                                                    "units": "USD"
-                                                },
-                                                "usage": {
-                                                    "value": 24,
-                                                    "units": "Hrs"
-                                                },
-                                                "count": {
-                                                    "value": 1,
-                                                    "units": "instances"
+                                    "example": [
+                                        {
+                                            "date": "2019-01",
+                                            "accounts": [
+                                                {
+                                                    "account": "9999999999999",
+                                                    "values": [
+                                                        {
+                                                            "date": "2019-01",
+                                                            "account": "9999999999999",
+                                                            "account_alias": "9999999999999",
+                                                            "infrastructure_cost": {
+                                                                "value": 24,
+                                                                "units": "USD"
+                                                            },
+                                                            "derived_cost": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "cost": {
+                                                                "value": 24,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 24,
+                                                                "units": "Hrs"
+                                                            },
+                                                            "count": {
+                                                                "value": 1,
+                                                                "units": "instances"
+                                                            }
+                                                        }
+                                                    ]
                                                 }
-                                            }]
-                                        }]
-                                    }]
+                                            ]
+                                        }
+                                    ]
                                 }
                             }
                         }
@@ -4144,7 +4297,8 @@
                 ]
             },
             "ReportOpenShiftAzureStorageInventory": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/Report"
                     },
                     {
@@ -4173,7 +4327,8 @@
                 ]
             },
             "ReportOpenShiftAzureInstanceInventory": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/Report"
                     },
                     {
@@ -4202,7 +4357,8 @@
                 ]
             },
             "ReportOpenShiftCpu": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/Report"
                     },
                     {
@@ -4216,40 +4372,44 @@
                                 "items": {
                                     "type": "object",
                                     "example": [
-                                        [{
-                                            "date": "2018-10",
-                                            "values": [{
+                                        [
+                                            {
                                                 "date": "2018-10",
-                                                "usage": {
-                                                    "value": "0.611978,",
-                                                    "units": "Core-Hours"
-                                                },
-                                                "request": {
-                                                    "value": "47.66,",
-                                                    "units": "Core-Hours"
-                                                },
-                                                "limit": {
-                                                    "value": 47.668334,
-                                                    "units": "Core-Hours"
-                                                },
-                                                "capacity": {
-                                                    "value": 4838.266667,
-                                                    "units": "Core-Hours"
-                                                },
-                                                "infrastructure_cost": {
-                                                    "value": 4,
-                                                    "units": "USD"
-                                                },
-                                                "derived_cost": {
-                                                    "value": 20.75,
-                                                    "units": "USD"
-                                                },
-                                                "cost": {
-                                                    "value": 24.75,
-                                                    "units": "USD"
-                                                }
-                                            }]
-                                        }]
+                                                "values": [
+                                                    {
+                                                        "date": "2018-10",
+                                                        "usage": {
+                                                            "value": "0.611978,",
+                                                            "units": "Core-Hours"
+                                                        },
+                                                        "request": {
+                                                            "value": "47.66,",
+                                                            "units": "Core-Hours"
+                                                        },
+                                                        "limit": {
+                                                            "value": 47.668334,
+                                                            "units": "Core-Hours"
+                                                        },
+                                                        "capacity": {
+                                                            "value": 4838.266667,
+                                                            "units": "Core-Hours"
+                                                        },
+                                                        "infrastructure_cost": {
+                                                            "value": 4,
+                                                            "units": "USD"
+                                                        },
+                                                        "derived_cost": {
+                                                            "value": 20.75,
+                                                            "units": "USD"
+                                                        },
+                                                        "cost": {
+                                                            "value": 24.75,
+                                                            "units": "USD"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        ]
                                     ]
                                 }
                             }
@@ -4258,7 +4418,8 @@
                 ]
             },
             "ReportOpenShiftMemory": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/Report"
                     },
                     {
@@ -4272,40 +4433,44 @@
                                 "items": {
                                     "type": "object",
                                     "example": [
-                                        [{
-                                            "date": "2018-10",
-                                            "values": [{
+                                        [
+                                            {
                                                 "date": "2018-10",
-                                                "usage": {
-                                                    "value": 4.62038,
-                                                    "units": "GB-Hours"
-                                                },
-                                                "request": {
-                                                    "value": 6.158921,
-                                                    "units": "GB-Hours"
-                                                },
-                                                "limit": {
-                                                    "value": 405.835939,
-                                                    "units": "GB-Hours"
-                                                },
-                                                "capacity": {
-                                                    "value": 17893.948761,
-                                                    "units": "GB-Hours"
-                                                },
-                                                "infrastructure_cost": {
-                                                    "value": 4,
-                                                    "units": "USD"
-                                                },
-                                                "derived_cost": {
-                                                    "value": 20.75,
-                                                    "units": "USD"
-                                                },
-                                                "cost": {
-                                                    "value": 24.75,
-                                                    "units": "USD"
-                                                }
-                                            }]
-                                        }]
+                                                "values": [
+                                                    {
+                                                        "date": "2018-10",
+                                                        "usage": {
+                                                            "value": 4.62038,
+                                                            "units": "GB-Hours"
+                                                        },
+                                                        "request": {
+                                                            "value": 6.158921,
+                                                            "units": "GB-Hours"
+                                                        },
+                                                        "limit": {
+                                                            "value": 405.835939,
+                                                            "units": "GB-Hours"
+                                                        },
+                                                        "capacity": {
+                                                            "value": 17893.948761,
+                                                            "units": "GB-Hours"
+                                                        },
+                                                        "infrastructure_cost": {
+                                                            "value": 4,
+                                                            "units": "USD"
+                                                        },
+                                                        "derived_cost": {
+                                                            "value": 20.75,
+                                                            "units": "USD"
+                                                        },
+                                                        "cost": {
+                                                            "value": 24.75,
+                                                            "units": "USD"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        ]
                                     ]
                                 }
                             }
@@ -4314,7 +4479,8 @@
                 ]
             },
             "ReportOpenShiftVolume": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/Report"
                     },
                     {
@@ -4327,36 +4493,40 @@
                                 "type": "array",
                                 "items": {
                                     "type": "object",
-                                    "example": [{
-                                        "date": "2019-02",
-                                        "values": [{
+                                    "example": [
+                                        {
                                             "date": "2019-02",
-                                            "usage": {
-                                                "value": 283.455815,
-                                                "units": "GB-Mo"
-                                            },
-                                            "request": {
-                                                "value": 14058.333334,
-                                                "units": "GB-Mo"
-                                            },
-                                            "capacity": {
-                                                "value": 13732.252982,
-                                                "units": "GB-Mo"
-                                            },
-                                            "infrastructure_cost": {
-                                                "value": 4,
-                                                "units": "USD"
-                                            },
-                                            "derived_cost": {
-                                                "value": 20.75,
-                                                "units": "USD"
-                                            },
-                                            "cost": {
-                                                "value": 24.75,
-                                                "units": "USD"
-                                            }
-                                        }]
-                                    }]
+                                            "values": [
+                                                {
+                                                    "date": "2019-02",
+                                                    "usage": {
+                                                        "value": 283.455815,
+                                                        "units": "GB-Mo"
+                                                    },
+                                                    "request": {
+                                                        "value": 14058.333334,
+                                                        "units": "GB-Mo"
+                                                    },
+                                                    "capacity": {
+                                                        "value": 13732.252982,
+                                                        "units": "GB-Mo"
+                                                    },
+                                                    "infrastructure_cost": {
+                                                        "value": 4,
+                                                        "units": "USD"
+                                                    },
+                                                    "derived_cost": {
+                                                        "value": 20.75,
+                                                        "units": "USD"
+                                                    },
+                                                    "cost": {
+                                                        "value": 24.75,
+                                                        "units": "USD"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    ]
                                 }
                             }
                         }
@@ -4466,7 +4636,8 @@
                 }
             },
             "UserOut": {
-                "allOf": [{
+                "allOf": [
+                    {
                         "$ref": "#/components/schemas/User"
                     },
                     {
