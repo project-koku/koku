@@ -202,6 +202,7 @@ class AWSReportProcessorTest(MasuTestCase):
 
             if table_name in (
                 "reporting_awscostentryreservation",
+                "reporting_awscostentrypricing",
                 "reporting_ocpawscostlineitem_daily_summary",
                 "reporting_ocpawscostlineitem_project_daily_summary",
             ):
@@ -285,16 +286,23 @@ class AWSReportProcessorTest(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
         )
 
-        # Process for the first time
-        processor.process()
         report_db = self.accessor
         report_schema = report_db.report_schema
+        with schema_context(self.schema):
+            table_name = AWS_CUR_TABLE_MAP["line_item"]
+            table = getattr(report_schema, table_name)
+            initial_line_item_count = table.objects.count()
+
+        # Process for the first time
+        processor.process()
 
         for table_name in self.report_tables:
             table = getattr(report_schema, table_name)
             with schema_context(self.schema):
                 count = table.objects.count()
             counts[table_name] = count
+            if table_name == AWS_CUR_TABLE_MAP["line_item"]:
+                counts[table_name] = counts[table_name] - initial_line_item_count
 
         # Wipe stale data
         with schema_context(self.schema):
@@ -345,10 +353,14 @@ class AWSReportProcessorTest(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
         )
 
-        # Process for the first time
-        processor.process()
         report_db = self.accessor
         report_schema = report_db.report_schema
+        with schema_context(self.schema):
+            table = getattr(report_schema, table_name)
+            initial_line_item_count = table.objects.count()
+
+        # Process for the first time
+        processor.process()
 
         bill_table_name = AWS_CUR_TABLE_MAP["bill"]
         bill_table = getattr(report_schema, bill_table_name)
@@ -375,13 +387,13 @@ class AWSReportProcessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             count = table.objects.count()
-            self.assertTrue(count == orig_count)
+            self.assertTrue(count == orig_count - initial_line_item_count)
             count = table.objects.filter(invoice_id__isnull=False).count()
-            self.assertTrue(count == orig_count)
+            self.assertTrue(count == orig_count - initial_line_item_count)
 
         with schema_context(self.schema):
-            bill = bill_table.objects.first()
-            self.assertIsNotNone(bill.finalized_datetime)
+            final_count = bill_table.objects.filter(finalized_datetime__isnull=False).count()
+            self.assertEqual(final_count, 1)
 
     def test_process_finalized_rows_small_batch_size(self):
         """Test that a finalized bill is processed properly on batch size."""
@@ -411,10 +423,14 @@ class AWSReportProcessorTest(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
         )
 
-        # Process for the first time
-        processor.process()
         report_db = self.accessor
         report_schema = report_db.report_schema
+        table = getattr(report_schema, table_name)
+        with schema_context(self.schema):
+            initial_line_item_count = table.objects.count()
+
+        # Process for the first time
+        processor.process()
 
         bill_table_name = AWS_CUR_TABLE_MAP["bill"]
         bill_table = getattr(report_schema, bill_table_name)
@@ -442,13 +458,13 @@ class AWSReportProcessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             count = table.objects.count()
-            self.assertTrue(count == orig_count)
+            self.assertTrue(count == orig_count - initial_line_item_count)
             count = table.objects.filter(invoice_id__isnull=False).count()
-            self.assertTrue(count == orig_count)
+            self.assertTrue(count == orig_count - initial_line_item_count)
 
         with schema_context(self.schema):
-            bill = bill_table.objects.first()
-            self.assertIsNotNone(bill.finalized_datetime)
+            final_count = bill_table.objects.filter(finalized_datetime__isnull=False).count()
+            self.assertEqual(final_count, 1)
 
     def test_do_not_overwrite_finalized_bill_timestamp(self):
         """Test that a finalized bill timestamp does not get overwritten."""
