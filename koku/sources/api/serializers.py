@@ -50,7 +50,7 @@ def error_obj(key, message):
 
 def validate_field(data, valid_fields, key):
     """Validate a field."""
-    message = "One or more required fields is invalid/missing. " + f"Required fields are {valid_fields}"
+    message = f"One or more required fields is invalid/missing. Required fields are {valid_fields}"
     diff = set(valid_fields) - set(data)
     if not diff:
         return data
@@ -181,7 +181,7 @@ class AdminSourcesSerializer(SourcesSerializer):
     def validate_source_type(self, source_type):
         """Validate credentials field."""
         if source_type.lower() in LCASE_PROVIDER_CHOICE_LIST:
-            return source_type
+            return Provider.PROVIDER_CASE_MAPPING.get(source_type.lower())
         key = "source_type"
         message = f"Invalid source_type, {source_type}, provided."
         raise serializers.ValidationError(error_obj(key, message))
