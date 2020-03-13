@@ -271,9 +271,8 @@ class SourcesSerializerTests(IamTestCase):
 
     @patch("sources.tasks.create_or_update_provider.delay")
     @patch("api.provider.serializers.ProviderSerializer.get_request_info")
-    @patch("sources.kafka_source_manager.KafkaSourceManager._create_context")
-    def test_provider_create(self, mock_context, mock_request_info, mock_delay):
-        mock_context.return_value = self.request_context, self.Customer, self.User
+    @patch("sources.api.serializers.get_auth_header", return_value=Config.SOURCES_FAKE_HEADER)
+    def test_provider_create(self, mock_header, mock_request_info, mock_delay):
         mock_request_info.return_value = self.User, self.Customer
 
         serializer = AdminSourcesSerializer(context=self.request_context)
@@ -283,7 +282,7 @@ class SourcesSerializerTests(IamTestCase):
             "source_type": "AWS",
             "authentication": {"resource_name": "arn:aws:iam::111111111111:role/CostManagement"},
             "billing_source": {"bucket": "first-bucket"},
-            "auth_header": self.request_context["request"].META,
+            "auth_header": Config.SOURCES_FAKE_HEADER,
             "account_id": "acct10001",
             "offset": 10,
         }

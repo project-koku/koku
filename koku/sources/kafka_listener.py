@@ -240,7 +240,7 @@ def save_auth_info(auth_header, source_id):
         LOG.info(f"Authentication attached to Source ID: {source_id}")
     except SourcesHTTPClientError as error:
         LOG.info(f"Authentication info not available for Source ID: {source_id}")
-        sources_network.set_source_status(source_id, str(error))
+        sources_network.set_source_status(str(error))
 
 
 def sources_network_auth_info(resource_id, auth_header):
