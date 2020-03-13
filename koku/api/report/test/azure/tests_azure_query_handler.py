@@ -68,7 +68,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         if filters is None:
             filters = self.this_month_filter
         with tenant_context(self.tenant):
-            return AzureCostEntryLineItemDailySummary.objects.filter(**filters).aggregate(**aggregates)
+            result = AzureCostEntryLineItemDailySummary.objects.filter(**filters).aggregate(**aggregates)
+            for key in result:
+                if result[key] is None:
+                    result[key] = Decimal(0)
+            return result
 
     def test_execute_sum_query(self):
         """Test that the sum query runs properly."""
@@ -150,8 +154,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
         with tenant_context(self.tenant):
-            valid_services = AzureCostEntryLineItemDailySummary.objects.values_list("service_name").distinct()
-            valid_services = [service[0] for service in valid_services]
+            valid_services = [
+                service[0]
+                for service in AzureCostEntryLineItemDailySummary.objects.values_list("service_name").distinct()
+            ]
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
         handler = AzureReportQueryHandler(query_params)
@@ -179,8 +185,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_execute_query_by_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
         with tenant_context(self.tenant):
-            valid_services = AzureCostEntryLineItemDailySummary.objects.values_list("service_name")
-            service = AzureCostEntryLineItemDailySummary.objects.values("service_name")[0]
+            valid_services = [
+                service[0]
+                for service in AzureCostEntryLineItemDailySummary.objects.values_list("service_name").distinct()
+            ]
+            service = valid_services[0]
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]={service}"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
         handler = AzureReportQueryHandler(query_params)
@@ -213,8 +222,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_query_by_partial_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
         with tenant_context(self.tenant):
-            valid_services = AzureCostEntryLineItemDailySummary.objects.values_list("service_name")
-            service = AzureCostEntryLineItemDailySummary.objects.values("service_name")[0]
+            valid_services = [
+                service[0]
+                for service in AzureCostEntryLineItemDailySummary.objects.values_list("service_name").distinct()
+            ]
+            service = valid_services[0]
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]={service}"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
         handler = AzureReportQueryHandler(query_params)
@@ -314,7 +326,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        filters = {**self.this_month_filter, "instance_type__isnull": False}
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
 
@@ -346,7 +359,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             month_data = data_item.get("subscription_guids")
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            self.assertEqual(2, len(month_data))
+            self.assertEqual(len(month_data), 1)
             for month_item in month_data:
                 self.assertIsInstance(month_item.get("subscription_guid"), str)
                 self.assertIsInstance(month_item.get("values"), list)
@@ -372,7 +385,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             month_data = data_item.get("subscription_guids")
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            self.assertEqual(len(month_data), 2)
+            self.assertEqual(len(month_data), 1)
             current_total = 0
             for month_item in month_data:
                 self.assertIsInstance(month_item.get("subscription_guid"), str)
@@ -403,7 +416,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             month_data = data_item.get("subscription_guids")
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            self.assertEqual(len(month_data), 2)
+            self.assertEqual(len(month_data), 1)
             current = "0"
             for month_item in month_data:
                 self.assertIsInstance(month_item.get("subscription_guid"), str)
@@ -418,6 +431,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_execute_query_curr_month_by_resource_location(self):
         """Test execute_query for current month on monthly breakdown by resource_location."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[resource_location]=*"  # noqa: E501
+        with tenant_context(self.tenant):
+            location_count = (
+                AzureCostEntryLineItemDailySummary.objects.values_list("resource_location").distinct().count()
+            )
         query_params = self.mocked_query_params(url, AzureCostView)
         handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -436,7 +453,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             month_data = data_item.get("resource_locations")
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            self.assertEqual(1, len(month_data))
+            self.assertEqual(len(month_data), location_count)
             for month_item in month_data:
                 self.assertIsInstance(month_item.get("resource_location"), str)
                 self.assertIsInstance(month_item.get("values"), list)
@@ -455,7 +472,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        filters = {**self.this_month_filter, "resource_location": location}
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
 
@@ -473,7 +491,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_filter_subscription_guid(self):
         """Test execute_query for current month on monthly filtered by subscription_guid."""
         with tenant_context(self.tenant):
-            subscription_guid = AzureCostEntryLineItemDailySummary.objects.values("subscription_guid")[0]
+            subscription_guid = AzureCostEntryLineItemDailySummary.objects.filter(
+                usage_start__gte=self.dh.this_month_start
+            ).values("subscription_guid")[0]
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[subscription_guid]={subscription_guid}"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
         handler = AzureReportQueryHandler(query_params)
@@ -483,7 +503,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        filters = {**self.this_month_filter, "subscription_guid": subscription_guid}
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
 
@@ -538,7 +559,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        filters = {**self.this_month_filter, "resource_location": location}
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
 
@@ -553,7 +575,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_filter_resource_location_csv(self, mock_accept):
         """Test execute_query on monthly filtered by resource_location for csv."""
         with tenant_context(self.tenant):
-            location = AzureCostEntryLineItemDailySummary.objects.values("resource_location")[0]
+            location = (
+                AzureCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
+                .values("resource_location")[0]
+                .get("resource_location")
+            )
         mock_accept.return_value = "text/csv"
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[resource_location]={location}"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -564,7 +590,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        filters = {**self.this_month_filter, "resource_location": location}
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
 
@@ -594,7 +621,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
-        self.assertEqual(len(data), 2)
+        self.assertEqual(len(data), 1)
         for data_item in data:
             month = data_item.get("date")
             self.assertEqual(month, cmonth_str)

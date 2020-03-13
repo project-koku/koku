@@ -160,11 +160,11 @@ class ProviderDBAccessorTest(MasuTestCase):
     def test_get_associated_openshift_providers(self):
         """Test that infrastructure provider UUID is returned."""
         infrastructure_type = Provider.PROVIDER_AWS_LOCAL
-        with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
+        with ProviderDBAccessor(self.ocp_on_aws_ocp_provider.uuid) as accessor:
             accessor.set_infrastructure(self.aws_provider_uuid, infrastructure_type)
 
         with ProviderDBAccessor(self.aws_provider_uuid) as accessor:
             providers = accessor.get_associated_openshift_providers()
 
         self.assertEqual(len(providers), 1)
-        self.assertEqual(str(providers[0].uuid), self.ocp_provider_uuid)
+        self.assertEqual(providers[0].uuid, self.ocp_on_aws_ocp_provider.uuid)

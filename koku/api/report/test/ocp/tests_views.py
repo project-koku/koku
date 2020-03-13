@@ -803,9 +803,11 @@ class OCPReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
+        self.assertNotEqual(data.get("data", []), [])
         for entry in data.get("data", []):
             values = entry.get("values", [])
-            self.assertEqual(len(values), 1)
+            if values:
+                self.assertEqual(len(values), 1)
 
     def test_execute_query_group_by_cluster(self):
         """Test that grouping by cluster filters data."""

@@ -177,9 +177,11 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         start_date = self.date_accessor.today_with_timezone("UTC")
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = billing_start.date()
-        self.creator.create_cost_entry_bill(provider_uuid=self.provider.uuid, bill_date=billing_start)
         with schema_context(self.schema):
             bills = self.accessor.get_cost_entry_bills_by_date(bill_date)
+            for bill in bills:
+                bill.summary_data_creation_datetime = None
+                bill.save()
             bill_ids = sorted([str(bill.id) for bill in bills], reverse=True)
 
         last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
