@@ -172,6 +172,8 @@ class SourcesViewSet(*MIXIN_LIST):
         response = super().list(request=request, args=args, kwargs=kwargs)
         _, tenant = self._get_account_and_tenant(request)
         for source in response.data["data"]:
+            if source.get("authentication", {}).get("credentials", {}).get("client_secret"):
+                del source["authentication"]["credentials"]["client_secret"]
             try:
                 manager = ProviderManager(source["uuid"])
             except ProviderManagerError:
@@ -192,6 +194,8 @@ class SourcesViewSet(*MIXIN_LIST):
         """Get a source."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
         _, tenant = self._get_account_and_tenant(request)
+        if response.data.get("authentication", {}).get("credentials", {}).get("client_secret"):
+            del response.data["authentication"]["credentials"]["client_secret"]
         try:
             manager = ProviderManager(response.data["uuid"])
         except ProviderManagerError:
