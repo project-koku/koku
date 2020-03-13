@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+import logging
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -117,6 +118,24 @@ class SourcesTasksTest(TestCase):
 
         create_or_update_provider(self.azure_source.source_id)
         self.assertFalse(Provider.objects.filter(uuid=self.azure_source.source_uuid).exists())
+
+    def test_create_with_nonexistent_source(self):
+        """Test that provider is not created when source is not real."""
+        logging.disable(logging.NOTSET)
+        with self.assertLogs(logger="sources.tasks", level="ERROR"):
+            create_or_update_provider(3)
+
+    @patch("sources.tasks.set_status_for_source")
+    def test_create_with_complete_source_validation_error(self, mock_status):
+        """Test that provider is created when source is complete and source status is saved."""
+        self.aws_source.billing_source = BILLING_SOURCES.get(Provider.PROVIDER_AWS)
+        self.aws_source.authentication = AUTHENTICATIONS.get(Provider.PROVIDER_AWS)
+        self.aws_source.save()
+        logging.disable(logging.ERROR)
+        create_or_update_provider(self.aws_source.source_id)
+        self.assertFalse(Provider.objects.filter(uuid=self.aws_source.source_uuid).exists())
+        source = Sources.objects.get(source_id=self.aws_source_info.get("source_id"))
+        self.assertEqual(source.status.get("availability_status"), "unavailable")
 
     @patch.object(settings, "DEVELOPMENT", False)
     @patch("sources.tasks.set_status_for_source.delay", side_effect=MockStatus)
