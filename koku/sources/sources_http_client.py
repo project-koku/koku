@@ -142,7 +142,7 @@ class SourcesHTTPClient:
         authentications_response = r.json()
         if not authentications_response.get("data"):
             raise SourcesHTTPClientError(f"No authentication details for Source: {self._source_id}")
-        authentications_id = authentications_response.get("data")[-1].get("id")
+        authentications_id = authentications_response.get("data")[0].get("id")
 
         authentications_internal_url = "{}/authentications/{}?expose_encrypted_attribute[]=password".format(
             self._internal_url, str(authentications_id)
