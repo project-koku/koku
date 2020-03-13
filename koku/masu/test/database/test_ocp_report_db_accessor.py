@@ -444,7 +444,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             # Verify that the result is returned for cutoff_date == report_period_start
             cutoff_date = DateHelper().this_month_start
-            report_period_count = OCPUsageReportPeriod.objects.filter(report_period_start__lt=cutoff_date).count()
+            report_period_count = OCPUsageReportPeriod.objects.filter(report_period_start__lte=cutoff_date).count()
             usage_period = self.accessor.get_usage_period_on_or_before_date(cutoff_date)
             self.assertEqual(usage_period.count(), report_period_count)
             self.assertLess(usage_period.first().report_period_start, cutoff_date)
@@ -452,7 +452,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             # Verify that the result is returned for a date later than cutoff_date
             later_cutoff = cutoff_date + relativedelta.relativedelta(months=+1)
             # later_cutoff = later_date.replace(month=later_date.month, day=15)
-            report_period_count = OCPUsageReportPeriod.objects.filter(report_period_start__lt=later_cutoff).count()
+            report_period_count = OCPUsageReportPeriod.objects.filter(report_period_start__lte=later_cutoff).count()
             usage_period = self.accessor.get_usage_period_on_or_before_date(later_cutoff)
             self.assertEqual(usage_period.count(), report_period_count)
             self.assertLessEqual(usage_period.first().report_period_start, cutoff_date)
@@ -504,7 +504,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         # Verify that the line items for the test cluster_id are returned
         cluster_id = self.accessor._get_db_obj_query(table_name).first().cluster_id
-        reports = self.accessor._get_db_obj_query(table_name).filter(cluster_id=cluster_id)
+        reports = self.accessor._get_db_obj_query(table_name).filter(
+            cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date, data_source="Pod"
+        )
 
         expected_usage_reports = {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
         expected_request_reports = {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
@@ -543,7 +545,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         # Verify that the line items for the test cluster_id are returned
         cluster_id = self.accessor._get_db_obj_query(table_name).first().cluster_id
-        reports = self.accessor._get_db_obj_query(table_name).filter(cluster_id=cluster_id)
+        reports = self.accessor._get_db_obj_query(table_name).filter(
+            cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date, data_source="Pod"
+        )
 
         expected_usage_reports = {entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports}
         expected_request_reports = {entry.id: entry.pod_request_memory_gigabyte_hours for entry in reports}

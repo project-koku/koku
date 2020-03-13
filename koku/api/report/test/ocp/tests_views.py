@@ -449,6 +449,11 @@ class OCPReportViewTest(IamTestCase):
                 .values(*["usage_start"])
                 .annotate(usage=Sum("pod_usage_memory_gigabyte_hours"))
             )
+            num_nodes = (
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
+                .aggregate(Count("node", distinct=True))
+                .get("node__count")
+            )
 
         totals = {total.get("usage_start").strftime("%Y-%m-%d"): total.get("usage") for total in totals}
 
@@ -459,12 +464,12 @@ class OCPReportViewTest(IamTestCase):
         for item in data.get("data"):
             if item.get("nodes"):
                 date = item.get("date")
-                projects = item.get("nodes")
-                self.assertEqual(len(projects), 2)
-                self.assertEqual(projects[1].get("node"), "1 Other")
-                usage_total = projects[0].get("values")[0].get("usage", {}).get("value") + projects[1].get("values")[
-                    0
-                ].get("usage", {}).get("value")
+                nodes = item.get("nodes")
+                self.assertEqual(len(nodes), 2)
+                self.assertEqual(nodes[1].get("node"), f"{num_nodes-1} Others")
+                usage_total = nodes[0].get("values")[0].get("usage", {}).get("value") + nodes[1].get("values")[0].get(
+                    "usage", {}
+                ).get("value")
                 self.assertEqual(usage_total, totals.get(date))
 
     def test_execute_query_ocp_costs_group_by_cluster(self):
@@ -511,8 +516,8 @@ class OCPReportViewTest(IamTestCase):
                         Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
                         + Coalesce(F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
                         + Coalesce(F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("infra_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(F("project_infra_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                     )
                 )
                 .get("total")
@@ -885,8 +890,11 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_filter_by_node_duplicate_projects(self):
         """Test that same-named nodes across clusters are accounted for."""
-        data_config = {"nodes": ["node_one", "node_two"]}
-        node_of_interest = data_config["nodes"][0]
+        with tenant_context(self.tenant):
+            nodes = OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date()).values_list(
+                "node"
+            )
+            node_of_interest = nodes[0][0]
 
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -897,9 +905,11 @@ class OCPReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
+        self.assertNotEqual(data.get("data"), [])
         for entry in data.get("data", []):
             values = entry.get("values", [])
-            self.assertEqual(len(values), 1)
+            if values:
+                self.assertEqual(len(values), 1)
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""

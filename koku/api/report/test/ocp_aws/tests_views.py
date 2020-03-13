@@ -226,7 +226,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 projects = item.get("nodes")
                 self.assertTrue(len(projects) <= 2)
                 if len(projects) == 2:
-                    self.assertEqual(projects[1].get("node"), "2 Other")
+                    self.assertEqual(projects[1].get("node"), "2 Others")
                     usage_total = projects[0].get("values")[0].get("usage", {}).get("value") + projects[1].get(
                         "values"
                     )[0].get("usage", {}).get("value")

@@ -535,16 +535,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         daily_table_name = AWS_CUR_TABLE_MAP["line_item_daily"]
         ce_table = getattr(self.accessor.report_schema, ce_table_name)
         daily_table = getattr(self.accessor.report_schema, daily_table_name)
-        with schema_context(self.schema):
-            for _ in range(10):
-                bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid)
-                cost_entry = self.creator.create_cost_entry(bill)
-                product = self.creator.create_cost_entry_product()
-                pricing = self.creator.create_cost_entry_pricing()
-                reservation = self.creator.create_cost_entry_reservation()
-                self.creator.create_cost_entry_line_item(
-                    bill, cost_entry, product, pricing, reservation, resource_id="1234"
-                )
 
         with schema_context(self.schema):
             bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
@@ -558,6 +548,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
             query = self.accessor._get_db_obj_query(daily_table_name)
+            query.delete()
             initial_count = query.count()
 
         self.accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
@@ -576,7 +567,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             summary_columns = [
                 "cost_entry_product_id",
                 "cost_entry_pricing_id",
-                "cost_entry_reservation_id",
                 "line_item_type",
                 "usage_account_id",
                 "usage_start",
@@ -584,11 +574,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 "product_code",
                 "usage_type",
                 "operation",
-                "availability_zone",
                 "resource_id",
                 "usage_amount",
-                "normalization_factor",
-                "normalized_usage_amount",
                 "currency_code",
                 "unblended_rate",
                 "unblended_cost",

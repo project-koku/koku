@@ -300,34 +300,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
             self.assertEqual(handler.query_delta.get("percent"), expected_total)
 
-    def test_add_current_month_deltas_no_previous_data_wo_query_data(self):
-        """Test that current month deltas are calculated with no previous month data."""
-        url = "?filter[time_scope_value]=-2&filter[resolution]=monthly&filter[time_scope_units]=month&filter[limit]=1&delta=usage__request"  # noqa: E501
-        query_params = self.mocked_query_params(url, OCPCpuView)
-        handler = OCPReportQueryHandler(query_params)
-
-        q_table = handler._mapper.provider_map.get("tables").get("query")
-        with tenant_context(self.tenant):
-            query = q_table.objects.filter(handler.query_filter)
-            query_data = query.annotate(**handler.annotations)
-            group_by_value = handler._get_group_by()
-            query_group_by = ["date"] + group_by_value
-            query_order_by = ("-date",)
-            query_order_by += (handler.order,)
-
-            annotations = annotations = handler.report_annotations
-            query_data = query_data.values(*query_group_by).annotate(**annotations)
-
-            aggregates = handler._mapper.report_type_map.get("aggregates")
-            metric_sum = query.aggregate(**aggregates)
-            query_sum = {key: metric_sum.get(key) if metric_sum.get(key) else Decimal(0) for key in aggregates}
-
-            result = handler.add_current_month_deltas(query_data, query_sum)
-
-            self.assertEqual(result, query_data)
-            self.assertEqual(handler.query_delta["value"], Decimal(0))
-            self.assertIsNone(handler.query_delta["percent"])
-
     def test_add_current_month_deltas_no_previous_data_w_query_data(self):
         """Test that current month deltas are calculated with no previous data for field two."""
         url = "?filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1"
@@ -472,7 +444,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_filter_by_infrastructure_ocp(self):
         """Test that filter by infrastructure for ocp not on aws."""
-        url = "?filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month&filter[infrastructures]=aws"  # noqa: E501
+
+        url = "?filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month&filter[cluster]=OCP-On-Azure&filter[infrastructures]=aws"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
