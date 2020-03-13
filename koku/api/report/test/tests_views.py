@@ -23,7 +23,6 @@ from rest_framework_csv.renderers import CSVRenderer
 
 from api.common.pagination import ReportPagination
 from api.common.pagination import ReportRankedPagination
-from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.view import _fill_in_missing_units
 from api.report.view import _find_unit
@@ -73,9 +72,6 @@ class ReportViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
         self.client = APIClient()
         self.factory = RequestFactory()
 
