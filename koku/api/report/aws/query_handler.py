@@ -171,7 +171,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-        output = copy.deepcopy(self.parameters.parameters)
+        output = self._initialize_response_output(self.parameters)
+
         output["data"] = self.query_data
         output["total"] = self.query_sum
 

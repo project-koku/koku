@@ -864,7 +864,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_execute_query_with_order_by(self):
         """Test that the possible order by options work."""
-        order_by_numeric = ["cost", "derived_cost", "infrastructure_cost", "usage", "delta"]
+        order_by_numeric = ["cost", "supplementary", "infrastructure", "usage", "delta"]
         order_by_non_numeric = ["project", "cluster", "node", "account_alias", "region", "service", "product_family"]
         baseurl = reverse("reports-openshift-aws-instance-type")
         client = APIClient()

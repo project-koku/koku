@@ -426,6 +426,14 @@ class ReportQueryHandler(QueryHandler):
             bucket_by_date[date] = grouped
         return bucket_by_date
 
+    def _initialize_response_output(self, parameters):
+        """Initialize output response object."""
+        output = copy.deepcopy(parameters.parameters)
+        for key, value in parameters.display_parameters.items():
+            if output[key]:
+                output[key] = value
+        return output
+
     def _pack_data_object(self, data, **kwargs):  # noqa: C901
         """Pack data into object format."""
         tag_prefix = self._mapper.tag_column + "__"

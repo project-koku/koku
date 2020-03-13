@@ -262,13 +262,9 @@ class OrderSerializer(BaseSerializer):
     ORDER_CHOICES = (("asc", "asc"), ("desc", "desc"))
 
     cost = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
-    infrastructure_cost = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
-    derived_cost = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
+    infrastructure = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
+    supplementary = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
     delta = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
-
-    cost_total = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
-    infra_total = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
-    sup_total = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the OrderSerializer."""
@@ -289,7 +285,7 @@ class ParamSerializer(BaseSerializer):
     limit = serializers.IntegerField(required=False)
     offset = serializers.IntegerField(required=False)
 
-    order_by_whitelist = ("cost_total", "sup_total", "infra_total", "delta", "usage", "request", "limit", "capacity")
+    order_by_whitelist = ("cost", "supplementary", "infrastructure", "delta", "usage", "request", "limit", "capacity")
 
     def _init_tagged_fields(self, **kwargs):
         """Initialize serializer fields that support tagging.
@@ -327,13 +323,6 @@ class ParamSerializer(BaseSerializer):
 
         """
         error = {}
-        old_to_new_mapping = {"cost": "cost_total", "infrastructure_cost": "infra_total", "derived_cost": "sup_total"}
-        # TODO: ASK ANDREW Figure out if we want to make map derived_cost to sup_total here.
-        for old_key, new_key in old_to_new_mapping.items():
-            if old_key in value.keys():
-                val = value[old_key]
-                del value[old_key]
-                value[new_key] = val
 
         for key, val in value.items():
             if key in self.order_by_whitelist:

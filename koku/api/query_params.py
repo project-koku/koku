@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Query parameter parsing for query handler."""
+import copy
 import logging
 from collections import OrderedDict
 from pprint import pformat
@@ -65,6 +66,7 @@ class QueryParameters:
         """
         self._tenant = None
         self._parameters = OrderedDict()
+        self._display_parameters = OrderedDict()
 
         self.request = request
         self.report_type = caller.report
@@ -307,7 +309,29 @@ class QueryParameters:
     @parameters.setter
     def parameters(self, dikt):
         """Parameters setter."""
-        self._parameters = dikt
+        self._display_parameters = dikt
+        modified_param_dict = copy.deepcopy(dikt)
+        for key, value in dikt.items():
+            if isinstance(value, dict):
+                for first, second in value.items():
+                    if "supplementary" == first:
+                        new_value_dict = OrderedDict()
+                        new_value_dict["sup_total"] = second
+                        modified_param_dict[key] = new_value_dict
+                    elif "infrastructure" == first:
+                        new_value_dict = OrderedDict()
+                        new_value_dict["infra_total"] = second
+                        modified_param_dict[key] = new_value_dict
+                    elif "cost" == first:
+                        new_value_dict = OrderedDict()
+                        new_value_dict["cost_total"] = second
+                        modified_param_dict[key] = new_value_dict
+        self._parameters = modified_param_dict
+
+    @property
+    def display_parameters(self):
+        """Return display_parameters property."""
+        return self._display_parameters
 
     @property
     def tenant(self):

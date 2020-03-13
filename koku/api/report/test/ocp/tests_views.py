@@ -1141,8 +1141,8 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_group_by_order_by_and_limit(self):
         """Test that data is grouped by and limited on order by."""
-        order_by_options = ["cost_total", "infra_total", "sup_total", "usage", "request", "limit"]
-        order_mapping = {"cost_total": "cost", "infra_total": "infrastructure", "sup_total": "supplementary"}
+        order_by_options = ["cost", "infrastructure", "supplementary", "usage", "request", "limit"]
+        order_mapping = ["cost", "infrastructure", "supplementary"]
 
         for option in order_by_options:
             url = reverse("reports-openshift-cpu")
@@ -1164,8 +1164,8 @@ class OCPReportViewTest(IamTestCase):
             data = response.json()
             data = data.get("data", [])
             data_key = None
-            if option in order_mapping.keys():
-                data_key = order_mapping[option]
+            if option in order_mapping:
+                data_key = option
                 previous_value = (
                     data[0].get("nodes", [])[0].get("values", [])[0].get(data_key, {}).get("total", {}).get("value")
                 )
@@ -1181,7 +1181,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_order_by(self):
         """Test that the possible order by options work."""
-        order_by_options = ["cost_total", "infra_total", "sup_total", "usage", "request", "limit"]
+        order_by_options = ["cost", "infrastructure", "supplementary", "usage", "request", "limit"]
         for option in order_by_options:
             url = reverse("reports-openshift-cpu")
             client = APIClient()

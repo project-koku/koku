@@ -1097,7 +1097,7 @@ class AWSReportQueryTest(IamTestCase):
         with tenant_context(self.tenant):
             totals = AWSCostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=self.dh.this_month_start
-            ).aggregate(**{"cost_total": Sum(F("unblended_cost") + F("markup_cost"))})
+            ).aggregate(**{"cost": Sum(F("unblended_cost") + F("markup_cost"))})
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[tag:{filter_key}]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -1105,7 +1105,7 @@ class AWSReportQueryTest(IamTestCase):
         data = handler.execute_query()
         data_totals = data.get("total", {})
         result = data_totals.get("cost", {}).get("total", {}).get("value")
-        self.assertEqual(result, totals["cost_total"])
+        self.assertEqual(result, totals["cost"])
 
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
@@ -1119,7 +1119,7 @@ class AWSReportQueryTest(IamTestCase):
         with tenant_context(self.tenant):
             totals = AWSCostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=self.dh.this_month_start
-            ).aggregate(**{"cost_total": Sum(F("unblended_cost") + F("markup_cost"))})
+            ).aggregate(**{"cost": Sum(F("unblended_cost") + F("markup_cost"))})
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[tag:{group_by_key}]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -1132,7 +1132,7 @@ class AWSReportQueryTest(IamTestCase):
         for entry in data:
             self.assertEqual(list(entry.keys()), expected_keys)
         result = data_totals.get("cost", {}).get("total", {}).get("value")
-        self.assertEqual(totals["cost_total"], result)
+        self.assertEqual(totals["cost"], result)
 
     def test_execute_query_return_others_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
@@ -1191,7 +1191,7 @@ class AWSReportQueryTest(IamTestCase):
             totals = (
                 AWSCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
                 .filter(**{f"tags__{filter_key}": filter_value})
-                .aggregate(**{"cost_total": Sum(F("unblended_cost") + F("markup_cost"))})
+                .aggregate(**{"cost": Sum(F("unblended_cost") + F("markup_cost"))})
             )
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[tag:{filter_key}]={filter_value}"  # noqa: E501
@@ -1200,7 +1200,7 @@ class AWSReportQueryTest(IamTestCase):
         data = handler.execute_query()
         data_totals = data.get("total", {})
         result = data_totals.get("cost", {}).get("total", {}).get("value")
-        self.assertEqual(result, totals["cost_total"])
+        self.assertEqual(result, totals["cost"])
 
 
 class AWSReportQueryLogicalAndTest(IamTestCase):

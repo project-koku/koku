@@ -4206,17 +4206,59 @@
                                         [{
                                             "date": "2018-05-28",
                                             "total": {
-                                                "infrastructure_cost": {
-                                                    "value": 2564.775150581,
-                                                    "units": "USD"
+                                                "infrastructure": {
+                                                    "raw": {
+                                                        "value": 2564.775150581,
+                                                        "units": "USD"
+                                                    },
+                                                    "markup": {
+                                                        "value": 0.0,
+                                                        "units": "USD"
+                                                    },
+                                                    "usage": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    },
+                                                    "total": {
+                                                        "value": 2564.775150581,
+                                                        "units": "USD"
+                                                    }
                                                 },
                                                 "derived_cost": {
-                                                    "value": 0,
-                                                    "units": "USD"
+                                                    "raw": {
+                                                        "value": 0.0,
+                                                        "units": "USD"
+                                                    },
+                                                    "markup": {
+                                                        "value": 0.0,
+                                                        "units": "USD"
+                                                    },
+                                                    "usage": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    },
+                                                    "total": {
+                                                        "value": 0.0,
+                                                        "units": "USD"
+                                                    }
                                                 },
                                                 "cost": {
-                                                    "value": 2564.775150581,
-                                                    "units": "USD"
+                                                    "raw": {
+                                                        "value": 2564.775150581,
+                                                        "units": "USD"
+                                                    },
+                                                    "markup": {
+                                                        "value": 0.0,
+                                                        "units": "USD"
+                                                    },
+                                                    "usage": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    },
+                                                    "total": {
+                                                        "value": 2564.775150581,
+                                                        "units": "USD"
+                                                    }
                                                 }
                                             },
                                             "delta": {
@@ -4229,17 +4271,59 @@
                                                         "date": "2018-05-28",
                                                         "account": "8577742690384",
                                                         "account_alias": "sample-account",
-                                                        "infrastructure_cost": {
-                                                            "value": 1498.92962634,
-                                                            "units": "USD"
+                                                        "infrastructure": {
+                                                            "raw": {
+                                                                "value": 1498.92962634,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 1498.92962634,
+                                                                "units": "USD"
+                                                            }
                                                         },
-                                                        "derived_cost": {
-                                                            "value": 1,
-                                                            "units": "USD"
+                                                        "supplementary": {
+                                                            "raw": {
+                                                                "value": 1,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 1,
+                                                                "units": "USD"
+                                                            }
                                                         },
                                                         "cost": {
-                                                            "value": 1499.92962634,
-                                                            "units": "USD"
+                                                            "raw": {
+                                                                "value": 1499.92962634,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 1499.92962634,
+                                                                "units": "USD"
+                                                            }
                                                         },
                                                         "monthly_cost": {
                                                             "value": 0,
@@ -4253,17 +4337,59 @@
                                                         "date": "2018-05-28",
                                                         "account": "9420673783214",
                                                         "account_alias": "9420673783214",
-                                                        "infrastructure_cost": {
-                                                            "value": 33,
-                                                            "units": "USD"
+                                                        "infrastructure": {
+                                                            "raw": {
+                                                                "value": 33,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 33,
+                                                                "units": "USD"
+                                                            }
                                                         },
-                                                        "derived_cost": {
-                                                            "value": 22,
-                                                            "units": "USD"
+                                                        "supplementary": {
+                                                            "raw": {
+                                                                "value": 22,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 22,
+                                                                "units": "USD"
+                                                            }
                                                         },
                                                         "cost": {
-                                                            "value": 55,
-                                                            "units": "USD"
+                                                            "raw": {
+                                                                "value": 55,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 22,
+                                                                "units": "USD"
+                                                            }
                                                         }
                                                     }]
                                                 }
@@ -4297,17 +4423,59 @@
                                                 "values": [{
                                                     "date": "2018-11",
                                                     "project": "monitoring",
-                                                    "infrastructure_cost": {
-                                                        "value": 0.2,
-                                                        "units": "USD"
+                                                    "infrastructure": {
+                                                        "raw": {
+                                                            "value": 0.2,
+                                                            "units": "USD"
+                                                        },
+                                                        "markup": {
+                                                            "value": 0.0,
+                                                            "units": "USD"
+                                                        },
+                                                        "usage": {
+                                                            "value": 0,
+                                                            "units": "USD"
+                                                        },
+                                                        "total": {
+                                                            "value": 0.2,
+                                                            "units": "USD"
+                                                        }
                                                     },
-                                                    "derived_cost": {
-                                                        "value": 3,
-                                                        "units": "USD"
+                                                    "supplementary": {
+                                                        "raw": {
+                                                            "value": 3,
+                                                            "units": "USD"
+                                                        },
+                                                        "markup": {
+                                                            "value": 0.0,
+                                                            "units": "USD"
+                                                        },
+                                                        "usage": {
+                                                            "value": 0,
+                                                            "units": "USD"
+                                                        },
+                                                        "total": {
+                                                            "value": 3,
+                                                            "units": "USD"
+                                                        }
                                                     },
                                                     "cost": {
-                                                        "value": 3.2,
-                                                        "units": "USD"
+                                                        "raw": {
+                                                            "value": 3.2,
+                                                            "units": "USD"
+                                                        },
+                                                        "markup": {
+                                                            "value": 0.0,
+                                                            "units": "USD"
+                                                        },
+                                                        "usage": {
+                                                            "value": 0,
+                                                            "units": "USD"
+                                                        },
+                                                        "total": {
+                                                            "value": 3.2,
+                                                            "units": "USD"
+                                                        }
                                                     }
                                                 }]
                                             },
@@ -4316,17 +4484,59 @@
                                                 "values": [{
                                                     "date": "2018-11",
                                                     "project": "metering",
-                                                    "infrastructure_cost": {
-                                                        "value": 10.2,
-                                                        "units": "USD"
+                                                    "infrastructure": {
+                                                        "raw": {
+                                                            "value": 10.2,
+                                                            "units": "USD"
+                                                        },
+                                                        "markup": {
+                                                            "value": 0.0,
+                                                            "units": "USD"
+                                                        },
+                                                        "usage": {
+                                                            "value": 0,
+                                                            "units": "USD"
+                                                        },
+                                                        "total": {
+                                                            "value": 10.2,
+                                                            "units": "USD"
+                                                        }
                                                     },
-                                                    "derived_cost": {
-                                                        "value": 30.3,
-                                                        "units": "USD"
+                                                    "supplementary": {
+                                                        "raw": {
+                                                            "value": 30.3,
+                                                            "units": "USD"
+                                                        },
+                                                        "markup": {
+                                                            "value": 0.0,
+                                                            "units": "USD"
+                                                        },
+                                                        "usage": {
+                                                            "value": 0,
+                                                            "units": "USD"
+                                                        },
+                                                        "total": {
+                                                            "value": 30.3,
+                                                            "units": "USD"
+                                                        }
                                                     },
                                                     "cost": {
-                                                        "value": 40.5,
-                                                        "units": "USD"
+                                                        "raw": {
+                                                            "value": 40.5,
+                                                            "units": "USD"
+                                                        },
+                                                        "markup": {
+                                                            "value": 0.0,
+                                                            "units": "USD"
+                                                        },
+                                                        "usage": {
+                                                            "value": 0,
+                                                            "units": "USD"
+                                                        },
+                                                        "total": {
+                                                            "value": 40.5,
+                                                            "units": "USD"
+                                                        }
                                                     }
                                                 }]
                                             }
@@ -4363,17 +4573,59 @@
                                                             "value": 5,
                                                             "units": "Hrs"
                                                         },
-                                                        "infrastructure_cost": {
-                                                            "value": 14.34,
-                                                            "units": "USD"
+                                                        "infrastructure": {
+                                                            "raw": {
+                                                                "value": 14.34,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 14.34,
+                                                                "units": "USD"
+                                                            }
                                                         },
-                                                        "derived_cost": {
-                                                            "value": 4,
-                                                            "units": "USD"
+                                                        "supplementary": {
+                                                            "raw": {
+                                                                "value": 4,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 4,
+                                                                "units": "USD"
+                                                            }
                                                         },
                                                         "cost": {
-                                                            "value": 18.34,
-                                                            "units": "USD"
+                                                            "raw": {
+                                                                "value": 18.34,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 18.34,
+                                                                "units": "USD"
+                                                            }
                                                         }
                                                     }]
                                                 },
@@ -4386,17 +4638,59 @@
                                                             "value": 29,
                                                             "units": "Hrs"
                                                         },
-                                                        "infrastructure_cost": {
-                                                            "value": 27.73,
-                                                            "units": "USD"
+                                                        "infrastructure": {
+                                                            "raw": {
+                                                                "value": 27.73,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 27.73,
+                                                                "units": "USD"
+                                                            }
                                                         },
-                                                        "derived_cost": {
-                                                            "value": 8,
-                                                            "units": "USD"
+                                                        "supplementary": {
+                                                            "raw": {
+                                                                "value": 8,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 8,
+                                                                "units": "USD"
+                                                            }
                                                         },
                                                         "cost": {
-                                                            "value": 35.73,
-                                                            "units": "USD"
+                                                            "raw": {
+                                                                "value": 35.73,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 35.73,
+                                                                "units": "USD"
+                                                            }
                                                         }
                                                     }]
                                                 }
@@ -4435,17 +4729,55 @@
                                                             "value": 1826.74238146924,
                                                             "units": "GB-Mo"
                                                         },
-                                                        "infrastructure_cost": {
-                                                            "value": 33,
-                                                            "units": "USD"
+                                                        "infrastructure": {
+                                                            "raw": {
+                                                                "value": 33,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 33,
+                                                                "units": "USD"
+                                                            }
                                                         },
-                                                        "derived_cost": {
-                                                            "value": 22,
-                                                            "units": "USD"
+                                                        "supplementary": {
+                                                            "raw": {
+                                                                "value": 22,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 22,
+                                                                "units": "USD"
+                                                            }
                                                         },
                                                         "cost": {
-                                                            "value": 55,
-                                                            "units": "USD"
+                                                            "raw": {
+                                                                "value": 55,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 55,
+                                                                "units": "USD"
+                                                            }
                                                         }
                                                     }]
                                                 },
@@ -4458,17 +4790,59 @@
                                                             "value": 1137.74036198065,
                                                             "units": "GB-Mo"
                                                         },
-                                                        "infrastructure_cost": {
-                                                            "value": 13,
-                                                            "units": "USD"
+                                                        "infrastructure": {
+                                                            "raw": {
+                                                                "value": 13,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 13,
+                                                                "units": "USD"
+                                                            }
                                                         },
-                                                        "derived_cost": {
-                                                            "value": 12,
-                                                            "units": "USD"
+                                                        "supplementrary": {
+                                                            "raw": {
+                                                                "value": 12,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 12,
+                                                                "units": "USD"
+                                                            }
                                                         },
                                                         "cost": {
-                                                            "value": 25,
-                                                            "units": "USD"
+                                                            "raw": {
+                                                                "value": 25,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 25,
+                                                                "units": "USD"
+                                                            }
                                                         }
                                                     }]
                                                 },
@@ -4481,17 +4855,59 @@
                                                             "value": 1045.80659412797,
                                                             "units": "GB-Mo"
                                                         },
-                                                        "infrastructure_cost": {
-                                                            "value": 30,
-                                                            "units": "USD"
+                                                        "infrastructure": {
+                                                            "raw": {
+                                                                "value": 30,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 30,
+                                                                "units": "USD"
+                                                            }
                                                         },
-                                                        "derived_cost": {
-                                                            "value": 22,
-                                                            "units": "USD"
+                                                        "supplementary": {
+                                                            "raw": {
+                                                                "value": 22,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 22,
+                                                                "units": "USD"
+                                                            }
                                                         },
                                                         "cost": {
-                                                            "value": 52,
-                                                            "units": "USD"
+                                                            "raw": {
+                                                                "value": 52,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 52,
+                                                                "units": "USD"
+                                                            }
                                                         }
                                                     }]
                                                 },
@@ -4504,17 +4920,61 @@
                                                             "value": 807.326470618818,
                                                             "units": "GB-Mo"
                                                         },
-                                                        "infrastructure_cost": {
-                                                            "value": 3,
-                                                            "units": "USD"
+                                                        "infrastructure": {
+                                                            "raw": {
+                                                                "value": 3,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 3,
+                                                                "units": "USD"
+                                                            }
+
                                                         },
-                                                        "derived_cost": {
-                                                            "value": 22,
-                                                            "units": "USD"
+                                                        "supplementary": {
+                                                            "raw": {
+                                                                "value": 22,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 22,
+                                                                "units": "USD"
+                                                            }
+
                                                         },
                                                         "cost": {
-                                                            "value": 25,
-                                                            "units": "USD"
+                                                            "raw": {
+                                                                "value": 25,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 25,
+                                                                "units": "USD"
+                                                            }
                                                         }
                                                     }]
                                                 },
@@ -4527,17 +4987,59 @@
                                                             "value": 658.306642830709,
                                                             "units": "GB-Mo"
                                                         },
-                                                        "infrastructure_cost": {
-                                                            "value": 133,
-                                                            "units": "USD"
+                                                        "infrastructure": {
+                                                            "raw": {
+                                                                "value": 133,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 133,
+                                                                "units": "USD"
+                                                            }
                                                         },
-                                                        "derived_cost": {
-                                                            "value": 22,
-                                                            "units": "USD"
+                                                        "supplementary": {
+                                                            "raw": {
+                                                                "value": 22,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 22,
+                                                                "units": "USD"
+                                                            }
                                                         },
                                                         "cost": {
-                                                            "value": 155,
-                                                            "units": "USD"
+                                                            "raw": {
+                                                                "value": 155,
+                                                                "units": "USD"
+                                                            },
+                                                            "markup": {
+                                                                "value": 0.0,
+                                                                "units": "USD"
+                                                            },
+                                                            "usage": {
+                                                                "value": 0,
+                                                                "units": "USD"
+                                                            },
+                                                            "total": {
+                                                                "value": 155,
+                                                                "units": "USD"
+                                                            }
                                                         }
                                                     }]
                                                 }
@@ -4581,17 +5083,59 @@
                                                 "date": "2019-01",
                                                 "account": "9999999999999",
                                                 "account_alias": "9999999999999",
-                                                "infrastructure_cost": {
-                                                    "value": 0,
-                                                    "units": "USD"
+                                                "infrastructure": {
+                                                    "raw": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    },
+                                                    "markup": {
+                                                        "value": 0.0,
+                                                        "units": "USD"
+                                                    },
+                                                    "usage": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    },
+                                                    "total": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    }
                                                 },
-                                                "derived_cost": {
-                                                    "value": 24,
-                                                    "units": "USD"
+                                                "supplementary": {
+                                                    "raw": {
+                                                        "value": 24,
+                                                        "units": "USD"
+                                                    },
+                                                    "markup": {
+                                                        "value": 0.0,
+                                                        "units": "USD"
+                                                    },
+                                                    "usage": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    },
+                                                    "total": {
+                                                        "value": 24,
+                                                        "units": "USD"
+                                                    }
                                                 },
                                                 "cost": {
-                                                    "value": 24,
-                                                    "units": "USD"
+                                                    "raw": {
+                                                        "value": 24,
+                                                        "units": "USD"
+                                                    },
+                                                    "markup": {
+                                                        "value": 0.0,
+                                                        "units": "USD"
+                                                    },
+                                                    "usage": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    },
+                                                    "total": {
+                                                        "value": 24,
+                                                        "units": "USD"
+                                                    }
                                                 },
                                                 "usage": {
                                                     "value": 24,
@@ -4637,17 +5181,59 @@
                                                 "date": "2019-01",
                                                 "account": "9999999999999",
                                                 "account_alias": "9999999999999",
-                                                "infrastructure_cost": {
-                                                    "value": 24,
-                                                    "units": "USD"
+                                                "infrastructure": {
+                                                    "raw": {
+                                                        "value": 24,
+                                                        "units": "USD"
+                                                    },
+                                                    "markup": {
+                                                        "value": 0.0,
+                                                        "units": "USD"
+                                                    },
+                                                    "usage": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    },
+                                                    "total": {
+                                                        "value": 24,
+                                                        "units": "USD"
+                                                    }
                                                 },
-                                                "derived_cost": {
-                                                    "value": 0,
-                                                    "units": "USD"
+                                                "supplementary": {
+                                                    "raw": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    },
+                                                    "markup": {
+                                                        "value": 0.0,
+                                                        "units": "USD"
+                                                    },
+                                                    "usage": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    },
+                                                    "total": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    }
                                                 },
                                                 "cost": {
-                                                    "value": 24,
-                                                    "units": "USD"
+                                                    "raw": {
+                                                        "value": 24,
+                                                        "units": "USD"
+                                                    },
+                                                    "markup": {
+                                                        "value": 0.0,
+                                                        "units": "USD"
+                                                    },
+                                                    "usage": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    },
+                                                    "total": {
+                                                        "value": 24,
+                                                        "units": "USD"
+                                                    }
                                                 },
                                                 "usage": {
                                                     "value": 24,
@@ -4759,17 +5345,59 @@
                                                     "value": 4838.266667,
                                                     "units": "Core-Hours"
                                                 },
-                                                "infrastructure_cost": {
-                                                    "value": 4,
-                                                    "units": "USD"
+                                                "infrastructure": {
+                                                    "raw": {
+                                                        "value": 4,
+                                                        "units": "USD"
+                                                    },
+                                                    "markup": {
+                                                        "value": 0.0,
+                                                        "units": "USD"
+                                                    },
+                                                    "usage": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    },
+                                                    "total": {
+                                                        "value": 4,
+                                                        "units": "USD"
+                                                    }
                                                 },
-                                                "derived_cost": {
-                                                    "value": 20.75,
-                                                    "units": "USD"
+                                                "supplementary": {
+                                                    "raw": {
+                                                        "value": 20.75,
+                                                        "units": "USD"
+                                                    },
+                                                    "markup": {
+                                                        "value": 0.0,
+                                                        "units": "USD"
+                                                    },
+                                                    "usage": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    },
+                                                    "total": {
+                                                        "value": 20.75,
+                                                        "units": "USD"
+                                                    }
                                                 },
                                                 "cost": {
-                                                    "value": 24.75,
-                                                    "units": "USD"
+                                                    "raw": {
+                                                        "value": 24.75,
+                                                        "units": "USD"
+                                                    },
+                                                    "markup": {
+                                                        "value": 0.0,
+                                                        "units": "USD"
+                                                    },
+                                                    "usage": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    },
+                                                    "total": {
+                                                        "value": 24.75,
+                                                        "units": "USD"
+                                                    }
                                                 }
                                             }]
                                         }]
@@ -4815,17 +5443,59 @@
                                                     "value": 17893.948761,
                                                     "units": "GB-Hours"
                                                 },
-                                                "infrastructure_cost": {
-                                                    "value": 4,
-                                                    "units": "USD"
+                                                "infrastructure": {
+                                                    "raw": {
+                                                        "value": 4,
+                                                        "units": "USD"
+                                                    },
+                                                    "markup": {
+                                                        "value": 0.0,
+                                                        "units": "USD"
+                                                    },
+                                                    "usage": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    },
+                                                    "total": {
+                                                        "value": 4,
+                                                        "units": "USD"
+                                                    }
                                                 },
-                                                "derived_cost": {
-                                                    "value": 20.75,
-                                                    "units": "USD"
+                                                "supplementary": {
+                                                    "raw": {
+                                                        "value": 20.75,
+                                                        "units": "USD"
+                                                    },
+                                                    "markup": {
+                                                        "value": 0.0,
+                                                        "units": "USD"
+                                                    },
+                                                    "usage": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    },
+                                                    "total": {
+                                                        "value": 20.75,
+                                                        "units": "USD"
+                                                    }
                                                 },
                                                 "cost": {
-                                                    "value": 24.75,
-                                                    "units": "USD"
+                                                    "raw": {
+                                                        "value": 24.75,
+                                                        "units": "USD"
+                                                    },
+                                                    "markup": {
+                                                        "value": 0.0,
+                                                        "units": "USD"
+                                                    },
+                                                    "usage": {
+                                                        "value": 0,
+                                                        "units": "USD"
+                                                    },
+                                                    "total": {
+                                                        "value": 24.75,
+                                                        "units": "USD"
+                                                    }
                                                 }
                                             }]
                                         }]
@@ -4866,17 +5536,59 @@
                                                 "value": 13732.252982,
                                                 "units": "GB-Mo"
                                             },
-                                            "infrastructure_cost": {
-                                                "value": 4,
-                                                "units": "USD"
+                                            "infrastructure": {
+                                                "raw": {
+                                                    "value": 4,
+                                                    "units": "USD"
+                                                },
+                                                "markup": {
+                                                    "value": 0.0,
+                                                    "units": "USD"
+                                                },
+                                                "usage": {
+                                                    "value": 0,
+                                                    "units": "USD"
+                                                },
+                                                "total": {
+                                                    "value": 4,
+                                                    "units": "USD"
+                                                }
                                             },
-                                            "derived_cost": {
-                                                "value": 20.75,
-                                                "units": "USD"
+                                            "supplementary": {
+                                                "raw": {
+                                                    "value": 20.75,
+                                                    "units": "USD"
+                                                },
+                                                "markup": {
+                                                    "value": 0.0,
+                                                    "units": "USD"
+                                                },
+                                                "usage": {
+                                                    "value": 0,
+                                                    "units": "USD"
+                                                },
+                                                "total": {
+                                                    "value": 20.75,
+                                                    "units": "USD"
+                                                }
                                             },
                                             "cost": {
-                                                "value": 24.75,
-                                                "units": "USD"
+                                                "raw": {
+                                                    "value": 24.75,
+                                                    "units": "USD"
+                                                },
+                                                "markup": {
+                                                    "value": 0.0,
+                                                    "units": "USD"
+                                                },
+                                                "usage": {
+                                                    "value": 0,
+                                                    "units": "USD"
+                                                },
+                                                "total": {
+                                                    "value": 24.75,
+                                                    "units": "USD"
+                                                }
                                             }
                                         }]
                                     }]
