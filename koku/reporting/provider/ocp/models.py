@@ -495,3 +495,15 @@ class OCPNodeLabelLineItemDaily(models.Model):
     node_labels = JSONField(null=True)
 
     total_seconds = models.IntegerField()
+
+
+class OCPEnabledTagKeys(models.Model):
+    """A collection of the current enabled tag keys."""
+
+    class Meta:
+        """Meta for OCPEnabledTagKeys."""
+
+        db_table = "reporting_ocpenabledtagkeys"
+
+    id = models.BigAutoField(primary_key=True)
+    key = models.CharField(max_length=253, unique=True)
