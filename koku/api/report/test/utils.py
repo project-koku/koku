@@ -21,9 +21,9 @@ def get_test_data_dates():
     """Return a list of tuples with dates for nise data."""
     dh = DateHelper()
     end_date = dh.today
-    ten_days_ago = dh.n_days_ago(end_date, 10)
-    start_date = ten_days_ago
-    if dh.this_month_start > ten_days_ago:
+    two_days_ago = dh.n_days_ago(end_date, 2)
+    start_date = two_days_ago
+    if dh.this_month_start > two_days_ago:
         start_date = dh.this_month_start
 
     prev_month_start = start_date - relativedelta(months=1)
