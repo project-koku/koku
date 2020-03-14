@@ -176,10 +176,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
             for entry in cap_data:
                 date = handler.date_to_string(entry.get("usage_start"))
                 daily_capacity[date] += entry.get(cap_key, 0)
-            # This is a hack because the total capacity in the test data
-            # is artificial but the total should still be a sum of
-            # cluster capacities
-            annotations = {"capacity": Max("cluster_capacity_cpu_core_hours")}
             cap_data = query.values(*query_group_by).annotate(**annotations)
             for entry in cap_data:
                 total_capacity += entry.get(cap_key, 0)

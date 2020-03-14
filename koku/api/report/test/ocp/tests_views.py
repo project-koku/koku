@@ -1142,6 +1142,7 @@ class OCPReportViewTest(IamTestCase):
         """Test that data is grouped by and limited on order by."""
         order_by_options = ["cost", "derived_cost", "infrastructure_cost", "usage", "request", "limit"]
         for option in order_by_options:
+            print(option)
             url = reverse("reports-openshift-cpu")
             client = APIClient()
             order_by_dict_key = f"order_by[{option}]"
@@ -1151,7 +1152,7 @@ class OCPReportViewTest(IamTestCase):
                 "filter[time_scope_units]": "month",
                 "group_by[node]": "*",
                 order_by_dict_key: "desc",
-                "filter[limit]": 1,
+                "filter[limit]": 5,
             }
 
             url = url + "?" + urlencode(params, quote_via=quote_plus)
@@ -1162,6 +1163,8 @@ class OCPReportViewTest(IamTestCase):
             data = data.get("data", [])
             previous_value = data[0].get("nodes", [])[0].get("values", [])[0].get(option, {}).get("value")
             for entry in data[0].get("nodes", []):
+                if "Other" in entry.get("node", ""):
+                    continue
                 current_value = entry.get("values", [])[0].get(option, {}).get("value")
                 self.assertTrue(current_value <= previous_value)
                 previous_value = current_value
