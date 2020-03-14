@@ -147,6 +147,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
         query = self.accessor._get_db_obj_query(summary_table_name)
         with schema_context(self.schema):
+            query.delete()
             initial_count = query.count()
 
         self.accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
@@ -166,7 +167,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
                 "usage_start",
                 "usage_quantity",
                 "pretax_cost",
-                "offer_id",
                 "cost_entry_bill_id",
                 "meter_id",
                 "tags",
