@@ -32,6 +32,7 @@ from django.db.models import Min
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -42,7 +43,6 @@ from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
@@ -88,7 +88,7 @@ class GetReportFileTests(MasuTestCase):
             customer_name=self.fake.word(),
             authentication=account,
             provider_type=Provider.PROVIDER_AWS,
-            report_month=DateAccessor().today(),
+            report_month=DateHelper().today,
             provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
             cache_key=self.fake.word(),
@@ -111,7 +111,7 @@ class GetReportFileTests(MasuTestCase):
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type=Provider.PROVIDER_AWS,
-                report_month=DateAccessor().today(),
+                report_month=DateHelper().today,
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
                 cache_key=self.fake.word(),
@@ -142,7 +142,7 @@ class GetReportFileTests(MasuTestCase):
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type=Provider.PROVIDER_AWS,
-                report_month=DateAccessor().today(),
+                report_month=DateHelper().today,
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
                 cache_key=self.fake.word(),
@@ -160,7 +160,7 @@ class GetReportFileTests(MasuTestCase):
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type=Provider.PROVIDER_AWS,
-                report_month=DateAccessor().today(),
+                report_month=DateHelper().today,
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
                 cache_key=self.fake.word(),
@@ -181,7 +181,7 @@ class GetReportFileTests(MasuTestCase):
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type=Provider.PROVIDER_AWS,
-                report_month=DateAccessor().today(),
+                report_month=DateHelper().today,
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
                 cache_key=self.fake.word(),
@@ -201,7 +201,7 @@ class GetReportFileTests(MasuTestCase):
             customer_name=self.fake.word(),
             authentication=account,
             provider_type=Provider.PROVIDER_AWS,
-            report_month=DateAccessor().today(),
+            report_month=DateHelper().today,
             provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
             cache_key=self.fake.word(),
@@ -225,7 +225,7 @@ class ProcessReportFileTests(MasuTestCase):
         schema_name = self.schema
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateAccessor().today())}
+        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateHelper().today)}
 
         mock_proc = mock_processor()
         mock_stats_acc = mock_stats_accessor().__enter__()
@@ -256,7 +256,7 @@ class ProcessReportFileTests(MasuTestCase):
         schema_name = self.schema
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateAccessor().today())}
+        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateHelper().today)}
 
         mock_proc = mock_processor()
         mock_stats_acc = mock_stats_accessor().__enter__()
@@ -283,7 +283,7 @@ class ProcessReportFileTests(MasuTestCase):
         schema_name = self.schema
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateAccessor().today())}
+        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateHelper().today)}
 
         mock_processor.side_effect = ReportProcessorError("mock error")
         mock_stats_acc = mock_stats_accessor().__enter__()
@@ -306,7 +306,7 @@ class ProcessReportFileTests(MasuTestCase):
         schema_name = self.schema
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateAccessor().today())}
+        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateHelper().today)}
 
         mock_proc = mock_processor()
         mock_stats_acc = mock_stats_accessor().__enter__()
@@ -334,7 +334,7 @@ class ProcessReportFileTests(MasuTestCase):
         mock_update_summary.delay = Mock()
 
         report_meta = {}
-        report_meta["start_date"] = str(DateAccessor().today())
+        report_meta["start_date"] = str(DateHelper().today)
         report_meta["schema_name"] = self.schema
         report_meta["provider_type"] = Provider.PROVIDER_OCP
         report_meta["provider_uuid"] = self.ocp_test_provider_uuid
@@ -354,7 +354,7 @@ class ProcessReportFileTests(MasuTestCase):
         provider_uuid = self.aws_provider_uuid
         manifest_dict = {
             "assembly_id": "12345",
-            "billing_period_start_datetime": DateAccessor().today_with_timezone("UTC"),
+            "billing_period_start_datetime": DateHelper().today,
             "num_total_files": 2,
             "provider_uuid": self.aws_provider_uuid,
             "task": "170653c0-3e66-4b7e-a764-336496d7ca5a",
@@ -371,7 +371,7 @@ class ProcessReportFileTests(MasuTestCase):
         report_dict = {
             "file": path,
             "compression": "gzip",
-            "start_date": str(DateAccessor().today()),
+            "start_date": str(DateHelper().today),
             "manifest_id": manifest_id,
         }
 
@@ -406,7 +406,7 @@ class TestProcessorTasks(MasuTestCase):
         ]
 
         cls.fake_account = fake_arn(service="iam", generate_account_id=True)
-        cls.today = DateAccessor().today_with_timezone("UTC")
+        cls.today = DateHelper().today
         cls.yesterday = cls.today - timedelta(days=1)
 
     def setUp(self):
@@ -420,7 +420,7 @@ class TestProcessorTasks(MasuTestCase):
             "schema_name": self.fake.word(),
             "billing_source": self.fake.word(),
             "provider_uuid": self.aws_provider_uuid,
-            "report_month": str(DateAccessor().today()),
+            "report_month": str(DateHelper().today),
         }
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
@@ -613,7 +613,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         # Populate some line item data so that the summary tables
         # have something to pull from
-        self.start_date = DateAccessor().today_with_timezone("UTC").replace(day=1)
+        self.start_date = DateHelper().today.replace(day=1)
 
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.refresh_materialized_views")
@@ -656,12 +656,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         daily_table_name = AWS_CUR_TABLE_MAP["line_item_daily"]
         summary_table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
 
-        start_date = self.start_date.replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        ) + relativedelta.relativedelta(months=-1)
+        start_date = DateHelper().last_month_start
 
-        end_date = start_date + timedelta(days=10)
-        end_date = end_date.replace(hour=23, minute=59, second=59)
+        end_date = DateHelper().last_month_end
 
         daily_table = getattr(self.aws_accessor.report_schema, daily_table_name)
         summary_table = getattr(self.aws_accessor.report_schema, summary_table_name)
@@ -669,12 +666,12 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with schema_context(self.schema):
             daily_table.objects.all().delete()
             summary_table.objects.all().delete()
-            ce_start_date = ce_table.objects.filter(interval_start__gte=start_date).aggregate(Min("interval_start"))[
-                "interval_start__min"
-            ]
-            ce_end_date = ce_table.objects.filter(interval_start__lte=end_date).aggregate(Max("interval_start"))[
-                "interval_start__max"
-            ]
+            ce_start_date = ce_table.objects.filter(interval_start__gte=start_date.date()).aggregate(
+                Min("interval_start")
+            )["interval_start__min"]
+            ce_end_date = ce_table.objects.filter(interval_start__lte=end_date.date()).aggregate(
+                Max("interval_start")
+            )["interval_start__max"]
 
         # The summary tables will only include dates where there is data
         expected_start_date = max(start_date, ce_start_date)
@@ -719,10 +716,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         provider_ocp_uuid = self.ocp_test_provider_uuid
 
         daily_table_name = OCP_REPORT_TABLE_MAP["line_item_daily"]
-        start_date = self.start_date.replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        ) + relativedelta.relativedelta(months=-1)
-        end_date = start_date + timedelta(days=10)
+        start_date = DateHelper().last_month_start
+        end_date = DateHelper().last_month_end
 
         with schema_context(self.schema):
             daily_query = self.ocp_accessor._get_db_obj_query(daily_table_name)
@@ -782,25 +777,20 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         ce_table_name = OCP_REPORT_TABLE_MAP["report"]
         daily_table_name = OCP_REPORT_TABLE_MAP["line_item_daily"]
 
-        start_date = self.start_date.replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        ) + relativedelta.relativedelta(months=-1)
-
-        end_date = start_date + timedelta(days=10)
-        end_date = end_date.replace(hour=23, minute=59, second=59)
-
+        start_date = DateHelper().last_month_start
+        end_date = DateHelper().last_month_end
         daily_table = getattr(self.ocp_accessor.report_schema, daily_table_name)
         ce_table = getattr(self.ocp_accessor.report_schema, ce_table_name)
 
         with schema_context(self.schema):
             daily_table.objects.all().delete()
-            ce_start_date = ce_table.objects.filter(interval_start__gte=start_date).aggregate(Min("interval_start"))[
-                "interval_start__min"
-            ]
+            ce_start_date = ce_table.objects.filter(interval_start__gte=start_date.date()).aggregate(
+                Min("interval_start")
+            )["interval_start__min"]
 
-            ce_end_date = ce_table.objects.filter(interval_start__lte=end_date).aggregate(Max("interval_start"))[
-                "interval_start__max"
-            ]
+            ce_end_date = ce_table.objects.filter(interval_start__lte=end_date.date()).aggregate(
+                Max("interval_start")
+            )["interval_start__max"]
 
         # The summary tables will only include dates where there is data
         expected_start_date = max(start_date, ce_start_date)
@@ -827,7 +817,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test that materialized views are refreshed."""
         manifest_dict = {
             "assembly_id": "12345",
-            "billing_period_start_datetime": DateAccessor().today_with_timezone("UTC"),
+            "billing_period_start_datetime": DateHelper().today,
             "num_total_files": 2,
             "provider_uuid": self.aws_provider_uuid,
             "task": "170653c0-3e66-4b7e-a764-336496d7ca5a",
