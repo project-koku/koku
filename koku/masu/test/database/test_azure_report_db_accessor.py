@@ -124,12 +124,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
         summary_table_name = AZURE_REPORT_TABLE_MAP["line_item_daily_summary"]
         summary_table = getattr(self.accessor.report_schema, summary_table_name)
 
-        for _ in range(10):
-            bill = self.creator.create_azure_cost_entry_bill(provider_uuid=self.azure_provider_uuid)
-            product = self.creator.create_azure_cost_entry_product(provider_uuid=self.azure_provider_uuid)
-            meter = self.creator.create_azure_meter(provider_uuid=self.azure_provider_uuid)
-            self.creator.create_azure_cost_entry_line_item(bill, product, meter)
-
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.azure_provider_uuid)
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]
