@@ -148,7 +148,9 @@ class TagQueryHandler(QueryHandler):
             filter_value = self.parameters.get_filter(filter_key)
             if filter_value and not TagQueryHandler.has_wildcard(filter_value):
                 filter_obj = self.FILTER_MAP.get(filter_key)
-                if isinstance(filter_obj, list):
+                if isinstance(filter_value, bool):
+                    filters.add(QueryFilter(**filter_obj))
+                elif isinstance(filter_obj, list):
                     for _filt in filter_obj:
                         for item in filter_value:
                             q_filter = QueryFilter(parameter=item, **_filt)
@@ -226,7 +228,9 @@ class TagQueryHandler(QueryHandler):
         with tenant_context(self.tenant):
             for source in self.data_sources:
                 tag_keys_query = source.get("db_table").objects
-
+                annotations = source.get("annotations")
+                if annotations:
+                    tag_keys_query = tag_keys_query.annotate(**annotations)
                 if filters is True:
                     tag_keys_query = tag_keys_query.filter(self.query_filter)
 
@@ -273,21 +277,20 @@ class TagQueryHandler(QueryHandler):
         final_data = []
         with tenant_context(self.tenant):
             tag_keys = {}
+            vals = ["key", "values"]
             for source in sources:
                 if type_filter and source.get("type") not in type_filter_array:
                     continue
+                tag_keys_query = source.get("db_table").objects
+                annotations = source.get("annotations")
+                if annotations:
+                    tag_keys_query = tag_keys_query.annotate(**annotations)
+                    for annotation_key in annotations.keys():
+                        vals.append(annotation_key)
+
                 exclusion = self._get_exclusions("key")
-
-                tag_keys = list(
-                    source.get("db_table")
-                    .objects.filter(self.query_filter)
-                    .exclude(exclusion)
-                    .values_list("key", "values")
-                    .all()
-                )
-
-                converted = self._convert_to_dict(tag_keys)
-
+                tag_keys = list(tag_keys_query.filter(self.query_filter).exclude(exclusion).values_list(*vals).all())
+                converted = self._convert_to_dict(tag_keys, vals)
                 if type_filter and source.get("type"):
                     self.append_to_final_data_with_type(final_data, converted, source)
                 else:
@@ -303,15 +306,17 @@ class TagQueryHandler(QueryHandler):
         return data
 
     @staticmethod
-    def _convert_to_dict(tup, dikt=None):
-        if dikt is None:
-            dikt = {}
-        for k, v in tup:
-            if dikt.get(k):
-                dikt[k].extend(v)
+    def _convert_to_dict(tup, vals=["key", "values"]):
+        tag_map = {}
+        for result in tup:
+            tag = {}
+            for idx in range(len(vals)):
+                tag[vals[idx]] = result[idx]
+            if tag_map.get(tag.get("key")):
+                tag_map[tag.get("key")].get("values").extend(tag.get("values"))
             else:
-                dikt[k] = v
-        return dikt
+                tag_map[tag.get("key")] = tag
+        return tag_map
 
     @staticmethod
     def _get_dictionary_for_key(dictionary_list, key):
@@ -326,20 +331,20 @@ class TagQueryHandler(QueryHandler):
         for k, v in converted_data.items():
             dikt = self._get_dictionary_for_key(final_data, k)
             if dikt and dikt.get("type") == source.get("type"):
-                dikt["values"].extend(v)
+                dikt["values"].extend(v.get("values"))
             else:
-                temp = {"key": k, "values": list(v), "type": source.get("type")}
-                final_data.append(temp)
+                v["type"] = source.get("type")
+                final_data.append(v)
 
     def append_to_final_data_without_type(self, final_data, converted_data):
         """Convert data to final list without a source type."""
         for k, v in converted_data.items():
+            print(f"v={v}")
             dikt = self._get_dictionary_for_key(final_data, k)
             if dikt and dikt.get("type") is None:
-                dikt["values"].extend(v)
+                dikt["values"].extend(v.get("values"))
             elif not dikt:
-                temp = {"key": k, "values": list(v)}
-                final_data.append(temp)
+                final_data.append(v)
 
     def execute_query(self):
         """Execute query and return provided data.
