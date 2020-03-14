@@ -2021,7 +2021,7 @@
                                 "schema": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/components/schemas/Setting"
+                                        "$ref": "#/components/schemas/SettingOut"
                                     },
                                     "example": [{
                                         "fields": [{
