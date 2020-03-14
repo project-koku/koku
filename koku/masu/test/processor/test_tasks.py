@@ -614,30 +614,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         # Populate some line item data so that the summary tables
         # have something to pull from
         self.start_date = DateAccessor().today_with_timezone("UTC").replace(day=1)
-        last_month = self.start_date - relativedelta.relativedelta(months=1)
-
-        for cost_entry_date in (self.start_date, last_month):
-            bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider_uuid, bill_date=cost_entry_date)
-            cost_entry = self.creator.create_cost_entry(bill, cost_entry_date)
-            for family in ["Storage", "Compute Instance", "Database Storage", "Database Instance"]:
-                product = self.creator.create_cost_entry_product(family)
-                pricing = self.creator.create_cost_entry_pricing()
-                reservation = self.creator.create_cost_entry_reservation()
-                self.creator.create_cost_entry_line_item(bill, cost_entry, product, pricing, reservation)
-        provider_ocp_uuid = self.ocp_test_provider_uuid
-
-        with ProviderDBAccessor(provider_uuid=provider_ocp_uuid) as provider_accessor:
-            provider_uuid = provider_accessor.get_provider().uuid
-
-        cluster_id = self.ocp_provider_resource_name
-        for period_date in (self.start_date, last_month):
-            period = self.creator.create_ocp_report_period(
-                provider_uuid=provider_uuid, period_date=period_date, cluster_id=cluster_id
-            )
-            report = self.creator.create_ocp_report(period, period_date)
-            for _ in range(25):
-                self.creator.create_ocp_usage_line_item(period, report)
-            self.creator.create_ocp_node_label_line_item(period, report)
 
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.refresh_materialized_views")
@@ -654,6 +630,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with schema_context(self.schema):
             daily_query = self.aws_accessor._get_db_obj_query(daily_table_name)
             summary_query = self.aws_accessor._get_db_obj_query(summary_table_name)
+            daily_query.delete()
+            summary_query.delete()
 
             initial_daily_count = daily_query.count()
             initial_summary_count = summary_query.count()
@@ -672,7 +650,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch("masu.processor.tasks.update_cost_model_costs")
     def test_update_summary_tables_aws_end_date(self, mock_charge_info):
         """Test that the summary table task respects a date range."""
-        provider = Provider.PROVIDER_AWS
+        provider = Provider.PROVIDER_AWS_LOCAL
         provider_aws_uuid = self.aws_provider_uuid
         ce_table_name = AWS_CUR_TABLE_MAP["cost_entry"]
         daily_table_name = AWS_CUR_TABLE_MAP["line_item_daily"]
@@ -688,8 +666,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         daily_table = getattr(self.aws_accessor.report_schema, daily_table_name)
         summary_table = getattr(self.aws_accessor.report_schema, summary_table_name)
         ce_table = getattr(self.aws_accessor.report_schema, ce_table_name)
-
         with schema_context(self.schema):
+            daily_table.objects.all().delete()
+            summary_table.objects.all().delete()
             ce_start_date = ce_table.objects.filter(interval_start__gte=start_date).aggregate(Min("interval_start"))[
                 "interval_start__min"
             ]
@@ -747,6 +726,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         with schema_context(self.schema):
             daily_query = self.ocp_accessor._get_db_obj_query(daily_table_name)
+            daily_query.delete()
 
             initial_daily_count = daily_query.count()
 
@@ -768,7 +748,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with schema_context(self.schema):
             cluster_id = usage_period_qry.first().cluster_id
 
-            items = self.ocp_accessor._get_db_obj_query(table_name).filter(cluster_id=cluster_id)
+            items = self.ocp_accessor._get_db_obj_query(table_name).filter(cluster_id=cluster_id, data_source="Pod")
             for item in items:
                 self.assertIsNotNone(item.pod_charge_memory_gigabyte_hours)
                 self.assertIsNotNone(item.pod_charge_cpu_core_hours)
@@ -813,6 +793,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         ce_table = getattr(self.ocp_accessor.report_schema, ce_table_name)
 
         with schema_context(self.schema):
+            daily_table.objects.all().delete()
             ce_start_date = ce_table.objects.filter(interval_start__gte=start_date).aggregate(Min("interval_start"))[
                 "interval_start__min"
             ]
@@ -868,10 +849,12 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.get_manifest_by_id(manifest.id)
             self.assertIsNotNone(manifest.manifest_completed_datetime)
 
-    def test_vacuum_schema(self):
+    @patch("masu.processor.tasks.connection")
+    def test_vacuum_schema(self, mock_conn):
         """Test that the vacuum schema task runs."""
         logging.disable(logging.NOTSET)
-        expected = "INFO:masu.processor.tasks:VACUUM"
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("table",)]
+        expected = "INFO:masu.processor.tasks:VACUUM ANALYZE acct10001.table"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             vacuum_schema(self.schema)
             self.assertIn(expected, logger.output)
