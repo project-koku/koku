@@ -684,17 +684,12 @@ class OCPReportDBAccessorTest(MasuTestCase):
     def test_populate_monthly_cost(self):
         """Test that the monthly cost row in the summary table is populated."""
         self.cluster_id = self.ocp_provider.authentication.provider_resource_name
-        report_table_name = OCP_REPORT_TABLE_MAP["report"]
-        report_table = getattr(self.accessor.report_schema, report_table_name)
 
         node_cost = random.randrange(1, 100)
-        with schema_context(self.schema):
-            report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"]
-            end_date = report_entry["interval_start__max"]
 
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
 
         first_month, _ = month_date_range_tuple(start_date)
 
@@ -708,7 +703,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
         )
         with schema_context(self.schema):
             expected_count = (
-                OCPUsageLineItemDailySummary.objects.filter(report_period__provider_id=self.ocp_provider.uuid)
+                OCPUsageLineItemDailySummary.objects.filter(
+                    report_period__provider_id=self.ocp_provider.uuid, usage_start__gte=start_date
+                )
                 .values("node")
                 .distinct()
                 .count()
@@ -720,17 +717,12 @@ class OCPReportDBAccessorTest(MasuTestCase):
     def test_remove_monthly_cost(self):
         """Test that the monthly cost row in the summary table is removed."""
         self.cluster_id = self.ocp_provider.authentication.provider_resource_name
-        report_table_name = OCP_REPORT_TABLE_MAP["report"]
-        report_table = getattr(self.accessor.report_schema, report_table_name)
 
         node_cost = random.randrange(1, 100)
-        with schema_context(self.schema):
-            report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"]
-            end_date = report_entry["interval_start__max"]
 
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
 
         first_month, _ = month_date_range_tuple(start_date)
 
