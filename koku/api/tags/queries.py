@@ -333,8 +333,9 @@ class TagQueryHandler(QueryHandler):
             if dikt and dikt.get("type") == source.get("type"):
                 dikt["values"].extend(v.get("values"))
             else:
-                v["type"] = source.get("type")
-                final_data.append(v)
+                copy_value = copy.deepcopy(v)
+                copy_value["type"] = source.get("type")
+                final_data.append(copy_value)
 
     def append_to_final_data_without_type(self, final_data, converted_data):
         """Convert data to final list without a source type."""
@@ -343,7 +344,7 @@ class TagQueryHandler(QueryHandler):
             if dikt and dikt.get("type") is None:
                 dikt["values"].extend(v.get("values"))
             elif not dikt:
-                final_data.append(v)
+                final_data.append(copy.deepcopy(v))
 
     def execute_query(self):
         """Execute query and return provided data.
