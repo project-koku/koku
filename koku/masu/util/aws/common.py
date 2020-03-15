@@ -109,7 +109,9 @@ def month_date_range(for_date_time):
         (String): "YYYYMMDD-YYYYMMDD", example: "19701101-19701201"
 
     """
-    start_month = for_date_time.replace(day=1, second=1, microsecond=1)
+    start_month = for_date_time
+    if isinstance(start_month, datetime.datetime):
+        start_month = start_month.date()
     end_month = start_month + relativedelta(months=+1)
     timeformat = "%Y%m%d"
     return "{}-{}".format(start_month.strftime(timeformat), end_month.strftime(timeformat))

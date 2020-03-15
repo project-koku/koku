@@ -24,6 +24,7 @@ from datetime import timedelta
 from unittest.mock import ANY
 from unittest.mock import Mock
 from unittest.mock import patch
+from uuid import uuid4
 
 import faker
 from dateutil import relativedelta
@@ -161,7 +162,7 @@ class GetReportFileTests(MasuTestCase):
                 authentication=account,
                 provider_type=Provider.PROVIDER_AWS,
                 report_month=DateHelper().today,
-                provider_uuid=self.aws_provider_uuid,
+                provider_uuid=uuid4(),
                 billing_source=self.fake.word(),
                 cache_key=self.fake.word(),
             )
@@ -400,12 +401,13 @@ class TestProcessorTasks(MasuTestCase):
         """Set up the class."""
         super().setUpClass()
         cls.fake = faker.Faker()
-        cls.fake_reports = [
-            {"file": cls.fake.word(), "compression": "GZIP"},
-            {"file": cls.fake.word(), "compression": "PLAIN"},
-        ]
+        # cls.fake_reports = [
+        #     {"file": cls.fake.word(), "compression": "GZIP"},
+        #     {"file": cls.fake.word(), "compression": "PLAIN"},
+        # ]
 
-        cls.fake_account = fake_arn(service="iam", generate_account_id=True)
+        # cls.fake_account = fake_arn(service="iam", generate_account_id=True)
+        cls.fake_uuid = "d4703b6e-cd1f-4253-bfd4-32bdeaf24f97"
         cls.today = DateHelper().today
         cls.yesterday = cls.today - timedelta(days=1)
 
@@ -413,14 +415,14 @@ class TestProcessorTasks(MasuTestCase):
         """Set up shared test variables."""
         super().setUp()
 
-        self.fake_get_report_args = {
-            "customer_name": self.fake.word(),
-            "authentication": self.fake_account,
-            "provider_type": Provider.PROVIDER_AWS,
-            "schema_name": self.fake.word(),
-            "billing_source": self.fake.word(),
+        self.get_report_args = {
+            "customer_name": self.schema,
+            "authentication": self.aws_provider.authentication.provider_resource_name,
+            "provider_type": Provider.PROVIDER_AWS_LOCAL,
+            "schema_name": self.schema,
+            "billing_source": self.aws_provider.billing_source.bucket,
             "provider_uuid": self.aws_provider_uuid,
-            "report_month": str(DateHelper().today),
+            "report_month": DateHelper().today.date(),
         }
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
@@ -429,130 +431,111 @@ class TestProcessorTasks(MasuTestCase):
     @patch("masu.processor.tasks._process_report_file", side_effect=ReportProcessorError("Mocked Error!"))
     def test_get_report_exception(self, mock_process_files, mock_get_files, mock_started, mock_completed):
         """Test raising processor exception is handled."""
-        mock_get_files.return_value = self.fake_reports
+        mock_get_files.return_value = [
+            {"file": self.fake.word(), "compression": "GZIP"},
+            {"file": self.fake.word(), "compression": "PLAIN"},
+        ]
         mock_started.return_value = None
 
         # Check that exception is raised
         with self.assertRaises(ReportProcessorError):
             # Check that the exception logs an ERROR
             with self.assertLogs("masu.processor.tasks.get_report_files", level="ERROR"):
-                get_report_files(**self.fake_get_report_args)
+                get_report_files(**self.get_report_args)
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.processor.tasks._get_report_files")
-    def test_get_report_files_timestamps_aligned(self, mock_get_files, mock_started, mock_completed):
+    def test_get_report_files_timestamps_aligned(self, mock_started, mock_completed):
         """Test to return reports only when they have not been processed."""
-        mock_get_files.return_value = self.fake_reports
-
         mock_started.return_value = self.yesterday
         mock_completed.return_value = self.today
 
-        reports = get_report_files(**self.fake_get_report_args)
+        reports = get_report_files(**self.get_report_args)
         self.assertEqual(reports, [])
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.processor.tasks._get_report_files")
-    def test_get_report_files_timestamps_misaligned(self, mock_get_files, mock_started, mock_completed):
+    def test_get_report_files_timestamps_misaligned(self, mock_started, mock_completed):
         """Test to return reports with misaligned timestamps."""
-        mock_get_files.return_value = self.fake_reports
-
         mock_started.return_value = self.today
         mock_completed.return_value = self.yesterday
 
-        reports = get_report_files(**self.fake_get_report_args)
+        reports = get_report_files(**self.get_report_args)
         self.assertEqual(reports, [])
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.processor.tasks._get_report_files")
     @patch("masu.processor.tasks._process_report_file")
-    def test_get_report_files_timestamps_empty_start(
-        self, mock_process_files, mock_get_files, mock_started, mock_completed
-    ):
+    def test_get_report_files_timestamps_empty_start(self, mock_process_files, mock_started, mock_completed):
         """Test that the chained task is called when no start time is set."""
         mock_process_files.apply_async = Mock()
-        mock_get_files.return_value = self.fake_reports
 
         mock_started.return_value = None
         mock_completed.return_value = self.today
-        reports = get_report_files(**self.fake_get_report_args)
+        reports = get_report_files(**self.get_report_args)
         self.assertIsNotNone(reports)
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.processor.tasks._get_report_files")
     @patch("masu.external.date_accessor.DateAccessor.today")
-    def test_get_report_files_timestamps_empty_end(self, mock_date, mock_get_files, mock_started, mock_completed):
+    def test_get_report_files_timestamps_empty_end(self, mock_date, mock_started, mock_completed):
         """Chained task is not called when no end time is set since processing is in progress."""
-        mock_get_files.return_value = self.fake_reports
-
         mock_started.return_value = self.today
 
         # Make sure today() is only an hour from get_last_started_datetime (within 2 hr timeout)
         mock_date.return_value = self.today + timedelta(hours=1)
 
         mock_completed.return_value = None
-        reports = get_report_files(**self.fake_get_report_args)
+        reports = get_report_files(**self.get_report_args)
         self.assertEqual(reports, [])
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.processor.tasks._get_report_files")
     @patch("masu.processor.tasks._process_report_file")
     @patch("masu.external.date_accessor.DateAccessor.today_with_timezone")
     def test_get_report_files_timestamps_empty_end_timeout(
-        self, mock_date, mock_process_files, mock_get_files, mock_started, mock_completed
+        self, mock_date, mock_process_files, mock_started, mock_completed
     ):
         """Chained task is called when no end time is set since processing has exceeded the timeout."""
         mock_process_files.apply_async = Mock()
-        mock_get_files.return_value = self.fake_reports
 
         mock_started.return_value = self.today
         mock_completed.return_value = None
 
         mock_date.return_value = self.today + timedelta(hours=3)
-        reports = get_report_files(**self.fake_get_report_args)
+        reports = get_report_files(**self.get_report_args)
         self.assertIsNotNone(reports)
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.processor.tasks._get_report_files")
     @patch("masu.processor.tasks._process_report_file")
     @patch("masu.external.date_accessor.DateAccessor.today_with_timezone")
     def test_get_report_files_timestamps_empty_end_no_timeout(
-        self, mock_date, mock_process_files, mock_get_files, mock_started, mock_completed
+        self, mock_date, mock_process_files, mock_started, mock_completed
     ):
         """
         Chained task is not called when no end time is set.
 
         Since processing is in progress but completion timeout has not been reached.
         """
-        mock_get_files.return_value = self.fake_reports
-
         mock_started.return_value = self.today
         mock_completed.return_value = None
 
         mock_date.return_value = self.today + timedelta(hours=1)
 
-        reports = get_report_files(**self.fake_get_report_args)
+        reports = get_report_files(**self.get_report_args)
         self.assertIsNotNone(reports)
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.processor.tasks._get_report_files")
     @patch("masu.processor.tasks._process_report_file")
-    def test_get_report_files_timestamps_empty_both(
-        self, mock_process_file, mock_get_files, mock_started, mock_completed
-    ):
+    def test_get_report_files_timestamps_empty_both(self, mock_process_file, mock_started, mock_completed):
         """Test that the chained task is called when no timestamps are set."""
-        mock_get_files.return_value = self.fake_reports
         mock_process_file.return_value = None
 
         mock_started.return_value = None
         mock_completed.return_value = None
-        reports = get_report_files(**self.fake_get_report_args)
+        reports = get_report_files(**self.get_report_args)
         self.assertIsNotNone(reports)
 
 
