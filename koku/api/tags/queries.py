@@ -339,7 +339,6 @@ class TagQueryHandler(QueryHandler):
     def append_to_final_data_without_type(self, final_data, converted_data):
         """Convert data to final list without a source type."""
         for k, v in converted_data.items():
-            print(f"v={v}")
             dikt = self._get_dictionary_for_key(final_data, k)
             if dikt and dikt.get("type") is None:
                 dikt["values"].extend(v.get("values"))

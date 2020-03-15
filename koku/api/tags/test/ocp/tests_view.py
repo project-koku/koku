@@ -83,6 +83,7 @@ class OCPTagsViewTest(IamTestCase):
                 "filter[time_scope_value]": case.get("value"),
                 "filter[time_scope_units]": case.get("unit"),
                 "key_only": True,
+                "filter[enabled]": False,
             }
             url = url + "?" + urlencode(params, quote_via=quote_plus)
             response = client.get(url, **self.headers)
@@ -110,6 +111,7 @@ class OCPTagsViewTest(IamTestCase):
                 "filter[time_scope_value]": case.get("value"),
                 "filter[time_scope_units]": case.get("unit"),
                 "key_only": False,
+                "filter[enabled]": False,
             }
             url = url + "?" + urlencode(params, quote_via=quote_plus)
             response = client.get(url, **self.headers)
@@ -141,6 +143,7 @@ class OCPTagsViewTest(IamTestCase):
                 "filter[time_scope_units]": case.get("unit"),
                 "key_only": False,
                 "filter[type]": case.get("type"),
+                "filter[enabled]": False,
             }
             url = url + "?" + urlencode(params, quote_via=quote_plus)
             response = client.get(url, **self.headers)
