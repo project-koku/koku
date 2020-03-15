@@ -433,7 +433,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[resource_location]=*"  # noqa: E501
         with tenant_context(self.tenant):
             location_count = (
-                AzureCostEntryLineItemDailySummary.objects.values_list("resource_location").distinct().count()
+                AzureCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
+                .values_list("resource_location")
+                .distinct()
+                .count()
             )
         query_params = self.mocked_query_params(url, AzureCostView)
         handler = AzureReportQueryHandler(query_params)

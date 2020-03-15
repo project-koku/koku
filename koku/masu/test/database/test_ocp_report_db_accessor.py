@@ -719,33 +719,34 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     def test_remove_monthly_cost(self):
         """Test that the monthly cost row in the summary table is removed."""
+        self.cluster_id = self.ocp_provider.authentication.provider_resource_name
         report_table_name = OCP_REPORT_TABLE_MAP["report"]
-
         report_table = getattr(self.accessor.report_schema, report_table_name)
 
         node_cost = random.randrange(1, 100)
-        for _ in range(5):
-            self.creator.create_ocp_usage_line_item(self.reporting_period, self.report)
-
-        self.creator.create_ocp_node_label_line_item(self.reporting_period, self.report)
         with schema_context(self.schema):
             report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
             start_date = report_entry["interval_start__min"]
             end_date = report_entry["interval_start__max"]
 
-        self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
+        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        first_month, _ = month_date_range_tuple(start_date)
+
         cluster_alias = "test_cluster_alias"
         self.accessor.populate_monthly_cost(node_cost, start_date, end_date, self.cluster_id, cluster_alias)
 
-        first_month, _ = month_date_range_tuple(start_date)
-        monthly_cost = self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary).filter(
-            usage_start=first_month.date(), monthly_cost__isnull=False
+        monthly_cost_rows = (
+            self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
+            .filter(usage_start=first_month, monthly_cost__isnull=False)
+            .all()
         )
-        self.assertTrue(monthly_cost.exists())
+        with schema_context(self.schema):
+            self.assertTrue(monthly_cost_rows.exists())
         self.accessor.remove_monthly_cost()
-        self.assertFalse(monthly_cost.exists())
+        with schema_context(self.schema):
+            self.assertFalse(monthly_cost_rows.exists())
 
     def test_remove_monthly_cost_no_data(self):
         """Test that an error isn't thrown when the monthly cost row has no data."""

@@ -701,9 +701,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
     def remove_monthly_cost(self):
         """Delete all the monthly costs of a customer."""
         # start_date should be the first month this ocp was used
-        start_date = OCPUsageLineItemDailySummary.objects.aggregate(Min("usage_start"))["usage_start__min"]
-        # If end_date is not provided, recalculate till the latest month
-        end_date = OCPUsageLineItemDailySummary.objects.aggregate(Max("usage_end"))["usage_end__max"]
+        with schema_context(self.schema):
+            start_date = OCPUsageLineItemDailySummary.objects.aggregate(Min("usage_start"))["usage_start__min"]
+            # If end_date is not provided, recalculate till the latest month
+            end_date = OCPUsageLineItemDailySummary.objects.aggregate(Max("usage_end"))["usage_end__max"]
 
         if start_date is None or end_date is None:
             LOG.info("No monthly costs to remove from %s.", self.schema)
