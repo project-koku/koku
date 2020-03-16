@@ -205,6 +205,42 @@ services:
           - koku-base
           - koku-rabbit
 
+  sources-worker:
+      container_name: sources_worker
+      hostname: sources_worker
+      image: koku_base
+      working_dir: /koku/koku
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'sources']
+      environment:
+        - AWS_ACCESS_KEY_ID
+        - AWS_SECRET_ACCESS_KEY
+        - DATABASE_SERVICE_NAME=POSTGRES_SQL
+        - DATABASE_ENGINE=postgresql
+        - DATABASE_NAME=${DATABASE_NAME-postgres}
+        - POSTGRES_SQL_SERVICE_HOST=db
+        - POSTGRES_SQL_SERVICE_PORT=5432
+        - DATABASE_USER=${DATABASE_USER-postgres}
+        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+        - RABBITMQ_PORT=5672
+        - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
+        - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
+        - DEVELOPMENT=${DEVELOPMENT-True}
+        - LOG_LEVEL=INFO
+        - DJANGO_SETTINGS_MODULE=koku.settings
+        - prometheus_multiproc_dir=/tmp
+        - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+        - KOKU_CELERY_ENABLE_SENTRY
+        - KOKU_CELERY_SENTRY_DSN
+        - KOKU_SENTRY_ENVIRONMENT
+        - DEMO_ACCOUNTS=${DEMO_ACCOUNTS-{}}
+      privileged: true
+      links:
+          - koku-rabbit
+      depends_on:
+          - koku-base
+          - koku-rabbit
+
   koku-listener:
       container_name: koku_listener
       image: koku_base
