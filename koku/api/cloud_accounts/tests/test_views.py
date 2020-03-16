@@ -31,7 +31,7 @@ class CloudAccountViewTest(IamTestCase):
         url = reverse("cloud_accounts-list")
         client = APIClient()
 
-        response = client.get(url)
+        response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def testCloudAccounViewSetWithSecondCloudAccount(self):
@@ -45,7 +45,7 @@ class CloudAccountViewTest(IamTestCase):
         url = reverse("cloud_accounts-list")
         client = APIClient()
 
-        response = client.get(url)
+        response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def testCloudAccountName(self):
@@ -58,7 +58,7 @@ class CloudAccountViewTest(IamTestCase):
 
         url = reverse("cloud_accounts-list")
         client = APIClient()
-        response = client.get(url + "?name=TEST_AWS_ACCOUNT_ID")
+        response = client.get(url + "?name=TEST_AWS_ACCOUNT_ID", **self.headers)
         actualName = response.data["data"][0]["name"]
 
         expectedName = "TEST_AWS_ACCOUNT_ID"
