@@ -1,8 +1,8 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "description": "The API for Cost Management.  You can find out more about     Cost Management at [https://github.com/project-koku/](https://github.com/project-koku/).",
-        "version": "1.0.0",
+        "description": "The API for Project Koku and OpenShift cost management. You can find out more about Project Koku at [https://github.com/project-koku/](https://github.com/project-koku/).",
+        "version": "0.9.0",
         "title": "Cost Management",
         "license": {
             "name": "AGPL-3.0",
@@ -54,6 +54,9 @@
                 ],
                 "summary": "Obtain server status",
                 "operationId": "getStatus",
+                "security": [{
+                    "basic_auth": []
+                }],
                 "responses": {
                     "200": {
                         "description": "An object describing the server status",
@@ -146,6 +149,9 @@
                         }
                     }
                 ],
+                "security": [{
+                    "basic_auth": []
+                }],
                 "responses": {
                     "200": {
                         "description": "A paginated list of cost model objects",
@@ -396,6 +402,9 @@
                 ],
                 "summary": "Obtain Metrics",
                 "operationId": "getMetrics",
+                "security": [{
+                    "basic_auth": []
+                }],
                 "responses": {
                     "200": {
                         "description": "An object describing the cost model metrics.",
@@ -1502,6 +1511,9 @@
                         "$ref": "#/components/parameters/QueryLimit"
                     }
                 ],
+                "security": [{
+                    "basic_auth": []
+                }],
                 "responses": {
                     "200": {
                         "description": "A paginated list of source objects",
@@ -1543,6 +1555,9 @@
                         "format": "int64",
                         "example": 1
                     }
+                }],
+                "security": [{
+                    "basic_auth": []
                 }],
                 "responses": {
                     "200": {
@@ -1607,6 +1622,9 @@
                     },
                     "required": true
                 },
+                "security": [{
+                    "basic_auth": []
+                }],
                 "responses": {
                     "200": {
                         "description": "A Source object",
@@ -1658,6 +1676,9 @@
                         "format": "int64",
                         "example": 1
                     }
+                }],
+                "security": [{
+                    "basic_auth": []
                 }],
                 "responses": {
                     "200": {
