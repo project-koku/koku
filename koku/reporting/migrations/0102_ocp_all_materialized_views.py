@@ -5,7 +5,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0100_aws_azure_query_perforance")]
+    dependencies = [("reporting", "0101_ocpenabledtagkeys")]
 
     operations = [
         # Add index to usage_start on 2 materialized views for ocp_all
@@ -18,16 +18,16 @@ DROP INDEX IF EXISTS ocpallcstdlysumm_usage_start;
 CREATE INDEX ocpallcstdlysumm_usage_start on reporting_ocpallcostlineitem_daily_summary (usage_start);
 
 DROP INDEX IF EXISTS ocpallcstdlysumm_prod_code_ilike;
-CREATE INDEX ocpallcstdlysumm_prod_code ON reporting_ocpallcostlineitem_daily_summary USING GIN (upper(product_code) gin_trgm_ops);
+CREATE INDEX ocpallcstdlysumm_prod_code_ilike ON reporting_ocpallcostlineitem_daily_summary USING GIN (upper(product_code) gin_trgm_ops);
 
 DROP INDEX IF EXISTS ocpallcstdlysumm_prod_code_like;
-CREATE INDEX ocpallcstdlysumm_prod_code ON reporting_ocpallcostlineitem_daily_summary USING GIN (product_code gin_trgm_ops);
+CREATE INDEX ocpallcstdlysumm_prod_code_like ON reporting_ocpallcostlineitem_daily_summary USING GIN (product_code gin_trgm_ops);
 
 DROP INDEX IF EXISTS ocpallcstdlysumm_prod_family_ilike;
-CREATE INDEX ocpallcstdlysumm_prod_code ON reporting_ocpallcostlineitem_daily_summary USING GIN (upper(product_family) gin_trgm_ops);
+CREATE INDEX ocpallcstdlysumm_prod_family_ilike ON reporting_ocpallcostlineitem_daily_summary USING GIN (upper(product_family) gin_trgm_ops);
 
 DROP INDEX IF EXISTS ocpallcstdlysumm_prod_family_like;
-CREATE INDEX ocpallcstdlysumm_prod_code ON reporting_ocpallcostlineitem_daily_summary USING GIN (product_family gin_trgm_ops);
+CREATE INDEX ocpallcstdlysumm_prod_family_like ON reporting_ocpallcostlineitem_daily_summary USING GIN (product_family gin_trgm_ops);
             """
         ),
         migrations.RemoveIndex(model_name="ocpawscostlineitemdailysummary", name="cost_summary_namespace_idx"),
