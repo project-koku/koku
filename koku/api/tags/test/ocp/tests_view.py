@@ -46,7 +46,7 @@ class OCPTagsViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        _, self.provider = create_generic_provider(Provider.PROVIDER_OCP, self.headers)
+        _, self.provider = create_generic_provider(Provider.PROVIDER_OCP, self.request_context)
         self.data_generator = OCPReportDataGenerator(self.tenant, self.provider)
         self.data_generator.add_data_to_tenant()
 

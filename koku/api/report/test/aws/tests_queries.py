@@ -56,7 +56,7 @@ class AWSReportQueryTest(IamTestCase):
         """Set up the customer view tests."""
         self.dh = DateHelper()
         super().setUp()
-        _, self.provider = create_generic_provider(Provider.PROVIDER_AWS, self.headers)
+        _, self.provider = create_generic_provider(Provider.PROVIDER_AWS, self.request_context)
         self.fake_aws = FakeAWSCostData(self.provider)
         self.generator = AWSReportDataGenerator(self.tenant)
         self.generator.add_data_to_tenant(self.fake_aws)
@@ -394,18 +394,19 @@ class AWSReportQueryTest(IamTestCase):
 
         annotations = {"date": F("usage_start"), "count": Count("resource_id", distinct=True)}
 
-        expected_counts = AWSCostEntryLineItemDaily.objects.values(**annotations)
-        count_dict = defaultdict(int)
-        for item in expected_counts:
-            count_dict[str(item["date"])] += item["count"]
+        with tenant_context(self.tenant):
+            expected_counts = AWSCostEntryLineItemDaily.objects.values(**annotations)
+            count_dict = defaultdict(int)
+            for item in expected_counts:
+                count_dict[str(item["date"])] += item["count"]
 
-        for data_item in data:
-            instance_types = data_item.get("instance_types")
-            expected_count = count_dict.get(data_item.get("date"))
-            for it in instance_types:
-                if it["instance_type"] == instance_type:
-                    actual_count = it["values"][0].get("count", {}).get("value")
-                    self.assertEqual(actual_count, expected_count)
+            for data_item in data:
+                instance_types = data_item.get("instance_types")
+                expected_count = count_dict.get(data_item.get("date"))
+                for it in instance_types:
+                    if it["instance_type"] == instance_type:
+                        actual_count = it["values"][0].get("count", {}).get("value")
+                        self.assertEqual(actual_count, expected_count)
 
     def test_execute_query_without_counts(self):
         """Test execute_query without counts of unique resources."""
@@ -1237,7 +1238,7 @@ class AWSReportQueryLogicalAndTest(IamTestCase):
         """Set up the customer view tests."""
         self.dh = DateHelper()
         super().setUp()
-        _, self.provider = create_generic_provider(Provider.PROVIDER_AWS, self.headers)
+        _, self.provider = create_generic_provider(Provider.PROVIDER_AWS, self.request_context)
         self.fake_aws = FakeAWSCostData(self.provider)
         self.generator = AWSReportDataGenerator(self.tenant)
 
@@ -1294,7 +1295,7 @@ class AWSQueryHandlerTest(IamTestCase):
         """Set up the customer view tests."""
         self.dh = DateHelper()
         super().setUp()
-        _, self.provider = create_generic_provider("AWS", self.headers)
+        _, self.provider = create_generic_provider(Provider.PROVIDER_AWS, self.request_context)
         self.fake_aws = FakeAWSCostData(self.provider)
         self.generator = AWSReportDataGenerator(self.tenant)
         self.generator.add_data_to_tenant(self.fake_aws)

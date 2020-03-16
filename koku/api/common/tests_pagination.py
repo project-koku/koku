@@ -34,17 +34,17 @@ class StandardResultsSetPaginationTest(TestCase):
     def test_link_rewrite(self):
         """Test the link rewrite."""
         request = Mock()
-        request.META = {PATH_INFO: "/v1/providers/"}
-        link = "http://localhost:8000/v1/providers/?offset=20"
-        expected = "/v1/providers/?offset=20"
+        request.META = {PATH_INFO: "/v1/sources/"}
+        link = "http://localhost:8000/v1/sources/?offset=20"
+        expected = "/v1/sources/?offset=20"
         result = StandardResultsSetPagination.link_rewrite(request, link)
         self.assertEqual(expected, result)
 
     def test_link_rewrite_err(self):
         """Test the link rewrite."""
         request = Mock()
-        request.META = {PATH_INFO: "https://localhost:8000/providers/"}
-        link = "http://localhost:8000/providers/?offset=20"
+        request.META = {PATH_INFO: "https://localhost:8000/sources/"}
+        link = "http://localhost:8000/sources/?offset=20"
         result = StandardResultsSetPagination.link_rewrite(request, link)
         self.assertEqual(link, result)
 
@@ -52,7 +52,7 @@ class StandardResultsSetPaginationTest(TestCase):
         """Test the no link rewrite."""
         request = Mock()
         request.META = {}
-        link = "http://localhost:8000/api/v1/providers/?offset=20"
+        link = "http://localhost:8000/api/v1/sources/?offset=20"
         result = StandardResultsSetPagination.link_rewrite(request, link)
         self.assertEqual(link, result)
 
@@ -73,7 +73,7 @@ class StandardResultsSetPaginationTest(TestCase):
     @patch("api.common.pagination.LimitOffsetPagination.get_next_link")
     def test_get_next_link_value(self, mock_super):
         """Test the get next link method when super returns a value."""
-        expected = "http://localhost:8000/api/v1/providers/?offset=20"
+        expected = "http://localhost:8000/api/v1/sources/?offset=20"
         mock_super.return_value = expected
         paginator = StandardResultsSetPagination()
         paginator.request = Mock
@@ -84,7 +84,7 @@ class StandardResultsSetPaginationTest(TestCase):
     @patch("api.common.pagination.LimitOffsetPagination.get_previous_link")
     def test_get_previous_link_value(self, mock_super):
         """Test the get previous link method when super returns a value."""
-        expected = "http://localhost:8000/api/v1/providers/?offset=20"
+        expected = "http://localhost:8000/api/v1/sources/?offset=20"
         mock_super.return_value = expected
         paginator = StandardResultsSetPagination()
         paginator.request = Mock

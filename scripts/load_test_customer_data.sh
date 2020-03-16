@@ -100,12 +100,12 @@ for X in "ocp_on_aws/aws" "ocp_on_aws/ocp" "ocp_on_azure/azure" "ocp_on_azure/oc
 done
 
 # OpenShift on AWS
-nise --aws --static-report-file "$NISE_REPO_PATH/examples/ocp_on_aws/aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$KOKU_PATH/testing/local_providers/aws_local"
-nise --ocp --static-report-file "$NISE_REPO_PATH/examples/ocp_on_aws/ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local"
+nise --aws --static-report-file "$NISE_REPO_PATH/examples/ocp_on_aws/aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$KOKU_PATH/testing/local_providers/aws_local" --start-date "$START_DATE"
+nise --ocp --static-report-file "$NISE_REPO_PATH/examples/ocp_on_aws/ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE"
 
 # OpenShift on Azure
-nise --azure --static-report-file "$NISE_REPO_PATH/examples/ocp_on_azure/azure_static_data.yml" --azure-container-name "$KOKU_PATH/testing/local_providers/azure_local" --azure-report-name azure-report
-nise --ocp --static-report-file "$NISE_REPO_PATH/examples/ocp_on_azure/ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local"
+nise --azure --static-report-file "$NISE_REPO_PATH/examples/ocp_on_azure/azure_static_data.yml" --azure-container-name "$KOKU_PATH/testing/local_providers/azure_local" --azure-report-name azure-report --start-date "$START_DATE"
+nise --ocp --static-report-file "$NISE_REPO_PATH/examples/ocp_on_azure/ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE"
 
 # OpenShift on Prem
 nise --ocp --ocp-cluster-id my-ocp-cluster-3 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE" --end-date "$END_DATE"
