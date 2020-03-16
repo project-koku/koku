@@ -82,7 +82,7 @@ class OpenShiftSettings:
         """
         tag_key_text_name = f"{OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX}.form-text"
         tag_key_text_context = (
-            "Enable your OpenShift label names to be used as tag keys report grouping and filtering."
+            "Enable your OpenShift label names to be used as tag keys for report grouping and filtering."
         )
         tag_key_text = create_plain_text(tag_key_text_name, tag_key_text_context)
         available, enabled = self._obtain_tag_keys()
