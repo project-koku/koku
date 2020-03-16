@@ -40,6 +40,7 @@ from api.report.ocp.view import OCPVolumeView
 from api.report.ocp_aws.view import OCPAWSCostView
 from api.report.ocp_aws.view import OCPAWSInstanceTypeView
 from api.report.ocp_aws.view import OCPAWSStorageView
+from api.settings.view import SettingsView
 from api.status.views import StatusView
 from api.tags.all.openshift.view import OCPAllTagView
 from api.tags.aws.view import AWSTagView
