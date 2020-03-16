@@ -54,9 +54,6 @@
                 ],
                 "summary": "Obtain server status",
                 "operationId": "getStatus",
-                "security": [{
-                    "basic_auth": []
-                }],
                 "responses": {
                     "200": {
                         "description": "An object describing the server status",
