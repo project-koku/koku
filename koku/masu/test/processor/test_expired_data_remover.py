@@ -155,7 +155,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
         # aws_provider_uuid = str(aws_provider.uuid)
         provider_type_dict = {
             Provider.PROVIDER_AWS_LOCAL: self.aws_provider_uuid,
-            Provider.PROVIDER_AZURE: self.azure_provider_uuid,
+            Provider.PROVIDER_AZURE_LOCAL: self.azure_provider_uuid,
             Provider.PROVIDER_OCP: self.ocp_provider_uuid,
         }
         for provider_type in provider_type_dict:
@@ -192,9 +192,6 @@ class ExpiredDataRemoverTest(MasuTestCase):
                     self.assertEqual(0, record_count)
                 else:
                     self.assertEqual(1, record_count)
-
-        # There should be 6 records in the database; 9 inserted - 3 deleted.
-        self.assertEqual(6, CostUsageReportManifest.objects.count())
 
     def test_simulate_delete_expired_cost_usage_report_manifest(self):
         """
