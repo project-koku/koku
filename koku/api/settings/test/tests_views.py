@@ -85,7 +85,10 @@ class SettingsViewTest(IamTestCase):
         all_keys = duallist.get("options")
         self.assertIsNotNone(all_keys)
         all_key_values = [key_obj.get("value") for key_obj in all_keys]
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&key_only=True"
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
+            "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
+        )
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -94,7 +97,10 @@ class SettingsViewTest(IamTestCase):
 
     def test_post_settings_ocp_tag_enabled(self):
         """Test setting OCP tags as enabled."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&key_only=True"
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
+            "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
+        )
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         query_output = handler.execute_query()
