@@ -262,6 +262,8 @@ services:
         - KOKU_API_HOST=${KOKU_API_HOST-koku-server}
         - KOKU_API_PORT=${KOKU_API_PORT-8000}
         - KOKU_API_PATH_PREFIX=${KOKU_API_PATH_PREFIX-/api/cost-management/v1}
+        - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
+        - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
         - SOURCES_KAFKA_HOST=${SOURCES_KAFKA_HOST-kafka}
