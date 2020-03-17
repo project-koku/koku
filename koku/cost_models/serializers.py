@@ -374,6 +374,9 @@ class CostModelSerializer(serializers.Serializer):
         rep = super().to_representation(cost_model_obj)
         rates = rep["rates"]
         for rate in rates:
+            # Add a default for older cost models
+            if not rate.get("cost_type"):
+                rate["cost_type"] = CostModelMetricsMap.SUPPLEMENTARY_COST_TYPE
             metric = rate.get("metric", {})
             display_data = self._get_metric_display_data(cost_model_obj.source_type, metric.get("name"))
             metric.update(

@@ -578,3 +578,22 @@ class CostModelViewTests(IamTestCase):
         with tenant_context(self.tenant):
             audit = CostModelAudit.objects.last()
             self.assertEqual(audit.operation, "DELETE")
+
+    def test_cost_type_returned_without_being_set(self):
+        """Test that a default cost type is returned."""
+        rates = self.fake_data.get("rates", [])
+        for rate in rates:
+            tiered_rate = rate.get("tiered_rates")
+            for tier in tiered_rate:
+                tier.pop("cost_type")
+            rate["tiered_rates"] = tiered_rate
+
+        # self.fake_date["rates"] = rates
+        url = reverse("costmodels-list")
+        client = APIClient()
+        response = client.post(url, data=self.fake_data, format="json", **self.headers)
+        data = response.data
+
+        for rate in data.get("rates", [])[0].get("tiered_rates", []):
+            self.assertIn("cost_type", rate)
+            self.assertEqual(rate["cost_type"], CostModelMetricsMap.SUPPLEMENTARY_COST_TYPE)
