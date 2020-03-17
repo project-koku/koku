@@ -296,6 +296,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
             "provider_id": self.aws_provider_uuid,
         }
         CostUsageReportManifest(**day_before_cutoff_data).save()
+        count_records = CostUsageReportManifest.objects.count()
         with self.assertLogs(logger="masu.processor.expired_data_remover", level="INFO") as cm:
             logging.disable(logging.NOTSET)
             remover.remove(simulate=True, provider_uuid=self.aws_provider_uuid)
@@ -312,7 +313,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
         # Re-enable log suppression
         logging.disable(logging.CRITICAL)
 
-        self.assertEqual(1, CostUsageReportManifest.objects.count())
+        self.assertEqual(count_records, CostUsageReportManifest.objects.count())
 
     def test_remove_items_only_azure(self):
         """Test that remove is called with provider_uuid items only."""
