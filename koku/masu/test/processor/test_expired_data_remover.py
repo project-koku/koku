@@ -229,8 +229,6 @@ class ExpiredDataRemoverTest(MasuTestCase):
         # Re-enable log suppression
         logging.disable(logging.CRITICAL)
 
-        self.assertEqual(1, CostUsageReportManifest.objects.count())
-
     def test_remove_cost_usage_manifests_by_provider_uuid(self):
         """
         Test that calling remove(provider_uuid) deletes CostUsageReportManifests.
