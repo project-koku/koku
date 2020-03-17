@@ -24,9 +24,7 @@ from django.test.utils import get_unique_databases_and_mirrors
 
 from api.models import Customer
 from api.models import Tenant
-from api.report.test.utils import load_aws_data
-from api.report.test.utils import load_azure_data
-from api.report.test.utils import load_openshift_data
+from api.report.test.utils import NiseDataLoader
 
 LOG = logging.getLogger(__name__)
 
@@ -81,10 +79,11 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                     customer, __ = Customer.objects.get_or_create(
                         account_id=KokuTestRunner.account, schema_name=KokuTestRunner.schema
                     )
-                    load_openshift_data(customer, "ocp_aws_static_data.yml", "OCP-on-AWS")
-                    load_openshift_data(customer, "ocp_azure_static_data.yml", "OCP-on-Azure")
-                    load_aws_data(customer)
-                    load_azure_data(customer)
+                    data_loader = NiseDataLoader(KokuTestRunner.schema)
+                    data_loader.load_openshift_data(customer, "ocp_aws_static_data.yml", "OCP-on-AWS")
+                    data_loader.load_openshift_data(customer, "ocp_azure_static_data.yml", "OCP-on-Azure")
+                    data_loader.load_aws_data(customer, "aws_static_data.yml")
+                    data_loader.load_azure_data(customer, "azure_static_data.yml")
                 except Exception:
                     pass
 
