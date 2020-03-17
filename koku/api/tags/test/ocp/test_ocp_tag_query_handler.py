@@ -112,7 +112,10 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
     def test_get_tag_keys_filter_true(self):
         """Test that not all tag keys are returned with a filter."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly"
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-2"
+            "&filter[resolution]=monthly&filter[enabled]=false"
+        )
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
 
