@@ -40,4 +40,468 @@ CREATE INDEX ocpallcstdlysumm_prod_family_like ON reporting_ocpallcostlineitem_d
             model_name="ocpazurecostlineitemdailysummary",
             index=GinIndex(fields=["namespace"], name="ocpazure_namespace_idx"),
         ),
+        migrations.RunSQL(
+            sql="""
+DROP TABLE IF EXISTS public.reporting_common_source_service_product;
+CREATE TABLE public.reporting_common_source_service_product
+(
+    source text not null,
+    service_category text not null,
+    product_codes text[] not null,
+    primary key (source, service_category)
+);
+
+INSERT INTO public.reporting_common_source_service_product (source, service_category, product_codes)
+VALUES
+('AWS',
+ 'database',
+ '{AmazonRDS,AmazonDynamoDB,AmazonElastiCache,AmazonNeptune,AmazonRedshift,AmazonDocumentDB}'::text[]),
+('AWS',
+ 'network',
+ '{AmazonVPC,AmazonCloudFront,AmazonRoute53,AmazonAPIGateway}'::text[]),
+('AWS',
+ 'storage',
+ '{AmazonS3,AmazonEBS,AmazonEFS}'::text[]),
+('AWS',
+ 'compute',
+ '{AmazonEC2,AmazonLambda}'::text[]),
+('Azure',
+ 'conpute',
+ '{Virtual Machines}'::text[]),
+('Azure',
+ 'database',
+ '{SQL Database}'::text[]),
+('Azure',
+ 'storage',
+ '{Storage}'::text[]),
+('Azure',
+ 'network',
+ '{Virtual Network}'::text[]);
+
+ CREATE INDEX ix_rpt_comm_srcsrvprodcd_service ON public.reporting_common_source_service_product (service_category);
+ CREATE INDEX ix_rpt_comm_srcsrvprdcd_product_codes ON public.reporting_common_source_service_product USING GIN (product_codes);
+            """
+        ),
+        migrations.RunSQL(
+            sql="""
+DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_daily_summary_database;
+CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary_database AS
+SELECT lids.id,
+       lids.source_type,
+       lids.cluster_id,
+       lids.cluster_alias,
+       lids.namespace::text[],
+       lids.node,
+       lids.resource_id,
+       lids.usage_start,
+       lids.usage_end,
+       lids.usage_account_id,
+       lids.account_alias_id,
+       lids.product_code,
+       lids.product_family,
+       lids.instance_type,
+       lids.region,
+       lids.availability_zone,
+       lids.tags,
+       lids.usage_amount,
+       lids.unit,
+       lids.unblended_cost,
+       lids.markup_cost,
+       lids.currency_code,
+       lids.shared_projects,
+       lids.project_costs
+  FROM reporting_ocpallcostlineitem_daily_summary lids
+  JOIN reporting_common_source_service_product rcssp
+    ON rcssp.source = lids.source_type
+   AND rcssp.service_category = 'database'
+ WHERE lids.product_code = any(rcssp.product_codes)
+  WITH DATA;
+
+CREATE INDEX ix_reporting_ocpallcost_lids_db_usage_start
+    ON reporting_ocpallcostlineitem_daily_summary_database (usage_start);
+CREATE INDEX ix_reporting_ocpallcost_lids_db_node
+    ON reporting_ocpallcostlineitem_daily_summary_database (node text_pattern_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_db_node_like
+    ON reporting_ocpallcostlineitem_daily_summary_database USING GIN (node gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_db_nsp
+    ON reporting_ocpallcostlineitem_daily_summary_database USING GIN (namespace);
+CREATE INDEX ix_reporting_ocpallcost_lids_db_prod_code_ilike
+    ON reporting_ocpallcostlineitem_daily_summary_database USING GIN (upper(product_code) gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_db_prod_code_like
+    ON reporting_ocpallcostlineitem_daily_summary_database USING GIN (product_code gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_db_prod_family_ilike
+    ON reporting_ocpallcostlineitem_daily_summary_database USING GIN (upper(product_family) gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_db_prod_family_like
+    ON reporting_ocpallcostlineitem_daily_summary_database USING GIN (product_family gin_trgm_ops);
+
+
+DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_daily_summary_compute;
+CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary_compute AS
+SELECT lids.id,
+       lids.source_type,
+       lids.cluster_id,
+       lids.cluster_alias,
+       lids.namespace::text[],
+       lids.node,
+       lids.resource_id,
+       lids.usage_start,
+       lids.usage_end,
+       lids.usage_account_id,
+       lids.account_alias_id,
+       lids.product_code,
+       lids.product_family,
+       lids.instance_type,
+       lids.region,
+       lids.availability_zone,
+       lids.tags,
+       lids.usage_amount,
+       lids.unit,
+       lids.unblended_cost,
+       lids.markup_cost,
+       lids.currency_code,
+       lids.shared_projects,
+       lids.project_costs
+  FROM reporting_ocpallcostlineitem_daily_summary lids
+  JOIN reporting_common_source_service_product rcssp
+    ON rcssp.source = lids.source_type
+   AND rcssp.service_category = 'compute'
+ WHERE lids.product_code = any(rcssp.product_codes)
+  WITH DATA;
+
+CREATE INDEX ix_reporting_ocpallcost_lids_cp_usage_start
+    ON reporting_ocpallcostlineitem_daily_summary_compute (usage_start);
+CREATE INDEX ix_reporting_ocpallcost_lids_cp_node
+    ON reporting_ocpallcostlineitem_daily_summary_compute (node text_pattern_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_cp_node_like
+    ON reporting_ocpallcostlineitem_daily_summary_compute USING GIN (node gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_cp_nsp
+    ON reporting_ocpallcostlineitem_daily_summary_compute USING GIN (namespace);
+CREATE INDEX ix_reporting_ocpallcost_lids_cp_prod_code_ilike
+    ON reporting_ocpallcostlineitem_daily_summary_compute USING GIN (upper(product_code) gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_cp_prod_code_like
+    ON reporting_ocpallcostlineitem_daily_summary_compute USING GIN (product_code gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_cp_prod_family_ilike
+    ON reporting_ocpallcostlineitem_daily_summary_compute USING GIN (upper(product_family) gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_cp_prod_family_like
+    ON reporting_ocpallcostlineitem_daily_summary_compute USING GIN (product_family gin_trgm_ops);
+
+
+DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_daily_summary_network;
+CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary_network AS
+SELECT lids.id,
+       lids.source_type,
+       lids.cluster_id,
+       lids.cluster_alias,
+       lids.namespace::text[],
+       lids.node,
+       lids.resource_id,
+       lids.usage_start,
+       lids.usage_end,
+       lids.usage_account_id,
+       lids.account_alias_id,
+       lids.product_code,
+       lids.product_family,
+       lids.instance_type,
+       lids.region,
+       lids.availability_zone,
+       lids.tags,
+       lids.usage_amount,
+       lids.unit,
+       lids.unblended_cost,
+       lids.markup_cost,
+       lids.currency_code,
+       lids.shared_projects,
+       lids.project_costs
+  FROM reporting_ocpallcostlineitem_daily_summary lids
+  JOIN reporting_common_source_service_product rcssp
+    ON rcssp.source = lids.source_type
+   AND rcssp.service_category = 'network'
+ WHERE lids.product_code = any(rcssp.product_codes)
+  WITH DATA;
+
+CREATE INDEX ix_reporting_ocpallcost_lids_nw_usage_start
+    ON reporting_ocpallcostlineitem_daily_summary_network (usage_start);
+CREATE INDEX ix_reporting_ocpallcost_lids_nw_node
+    ON reporting_ocpallcostlineitem_daily_summary_network (node text_pattern_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_nw_node_like
+    ON reporting_ocpallcostlineitem_daily_summary_network USING GIN (node gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_nw_nsp
+    ON reporting_ocpallcostlineitem_daily_summary_network USING GIN (namespace);
+CREATE INDEX ix_reporting_ocpallcost_lids_nw_prod_code_ilike
+    ON reporting_ocpallcostlineitem_daily_summary_network USING GIN (upper(product_code) gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_nw_prod_code_like
+    ON reporting_ocpallcostlineitem_daily_summary_network USING GIN (product_code gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_nw_prod_family_ilike
+    ON reporting_ocpallcostlineitem_daily_summary_network USING GIN (upper(product_family) gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_nw_prod_family_like
+    ON reporting_ocpallcostlineitem_daily_summary_network USING GIN (product_family gin_trgm_ops);
+
+
+DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_daily_summary_storage;
+CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary_storage AS
+SELECT lids.id,
+       lids.source_type,
+       lids.cluster_id,
+       lids.cluster_alias,
+       lids.namespace::text[],
+       lids.node,
+       lids.resource_id,
+       lids.usage_start,
+       lids.usage_end,
+       lids.usage_account_id,
+       lids.account_alias_id,
+       lids.product_code,
+       lids.product_family,
+       lids.instance_type,
+       lids.region,
+       lids.availability_zone,
+       lids.tags,
+       lids.usage_amount,
+       lids.unit,
+       lids.unblended_cost,
+       lids.markup_cost,
+       lids.currency_code,
+       lids.shared_projects,
+       lids.project_costs
+  FROM reporting_ocpallcostlineitem_daily_summary lids
+  JOIN reporting_common_source_service_product rcssp
+    ON rcssp.source = lids.source_type
+   AND rcssp.service_category = 'storage'
+ WHERE lids.product_code = any(rcssp.product_codes)
+  WITH DATA;
+
+CREATE INDEX ix_reporting_ocpallcost_lids_st_usage_start
+    ON reporting_ocpallcostlineitem_daily_summary_storage (usage_start);
+CREATE INDEX ix_reporting_ocpallcost_lids_st_node
+    ON reporting_ocpallcostlineitem_daily_summary_storage (node text_pattern_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_st_node_like
+    ON reporting_ocpallcostlineitem_daily_summary_storage USING GIN (node gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_st_nsp
+    ON reporting_ocpallcostlineitem_daily_summary_storage USING GIN (namespace);
+CREATE INDEX ix_reporting_ocpallcost_lids_st_prod_code_ilike
+    ON reporting_ocpallcostlineitem_daily_summary_storage USING GIN (upper(product_code) gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_st_prod_code_like
+    ON reporting_ocpallcostlineitem_daily_summary_storage USING GIN (product_code gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_st_prod_family_ilike
+    ON reporting_ocpallcostlineitem_daily_summary_storage USING GIN (upper(product_family) gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcost_lids_st_prod_family_like
+    ON reporting_ocpallcostlineitem_daily_summary_storage USING GIN (product_family gin_trgm_ops);
+
+
+-- ================
+
+
+DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_project_daily_summary_compute;
+CREATE OR RELPACE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary_compute AS
+ SELECT row_number() OVER () AS id,
+    lids.source_type,
+    lids.cluster_id,
+    lids.cluster_alias,
+    lids.data_source,
+    lids.namespace,
+    lids.node,
+    lids.pod_labels,
+    lids.resource_id,
+    lids.usage_start,
+    lids.usage_end,
+    lids.usage_account_id,
+    lids.account_alias_id,
+    lids.product_code,
+    lids.product_family,
+    lids.instance_type,
+    lids.region,
+    lids.availability_zone,
+    lids.usage_amount,
+    lids.unit,
+    lids.unblended_cost,
+    lids.project_markup_cost,
+    lids.pod_cost,
+    lids.currency_code
+  FROM reporting_ocpallcostlineitem_project_daily_summary lids
+  JOIN reporting_common_source_service_product rcssp
+    ON rcssp.source = lids.source_type
+   AND rcssp.service_category = 'compute'
+ WHERE lids.product_code = any(rcssp.product_codes)
+  WITH DATA;
+
+CREATE INDEX ocpallcstprjdlysumm_cp_node
+    ON reporting_ocpallcostlineitem_project_daily_summary_compute (node text_pattern_ops);
+CREATE INDEX ocpallcstprjdlysumm_cp_node_like
+    ON reporting_ocpallcostlineitem_project_daily_summary_compute USING GIN (node gin_trgm_ops);
+CREATE INDEX ocpallcstprjdlysumm_cp_nsp
+    ON reporting_ocpallcostlineitem_project_daily_summary_compute (namespace text_pattern_ops);
+CREATE INDEX ocpallcstprjdlysumm_cp_nsp_like
+    ON reporting_ocpallcostlineitem_project_daily_summary_compute USING GIN (namespace gin_trgm_ops);
+CREATE INDEX ocpallcstprjdlysumm_cp_usage_start
+    ON reporting_ocpallcostlineitem_project_daily_summary_compute (usage_start);
+CREATE INDEX ix_reporting_ocpallcostprj_lids_cp_prod_code_ilike
+    ON reporting_ocpallcostlineitem_project_daily_summary_compute USING GIN (upper(product_code) gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcostprj_lids_cp_prod_code_like
+    ON reporting_ocpallcostlineitem_project_daily_summary_compute USING GIN (product_code gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcostprj_lids_cp_prod_family_ilike
+    ON reporting_ocpallcostlineitem_project_daily_summary_compute USING GIN (upper(product_family) gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcostprj_lids_cp_prod_family_like
+    ON reporting_ocpallcostlineitem_project_daily_summary_compute USING GIN (product_family gin_trgm_ops);
+
+
+DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_project_daily_summary_storage;
+CREATE OR RELPACE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary_storage AS
+ SELECT row_number() OVER () AS id,
+    lids.source_type,
+    lids.cluster_id,
+    lids.cluster_alias,
+    lids.data_source,
+    lids.namespace,
+    lids.node,
+    lids.pod_labels,
+    lids.resource_id,
+    lids.usage_start,
+    lids.usage_end,
+    lids.usage_account_id,
+    lids.account_alias_id,
+    lids.product_code,
+    lids.product_family,
+    lids.instance_type,
+    lids.region,
+    lids.availability_zone,
+    lids.usage_amount,
+    lids.unit,
+    lids.unblended_cost,
+    lids.project_markup_cost,
+    lids.pod_cost,
+    lids.currency_code
+  FROM reporting_ocpallcostlineitem_project_daily_summary lids
+  JOIN reporting_common_source_service_product rcssp
+    ON rcssp.source = lids.source_type
+   AND rcssp.service_category = 'storage'
+ WHERE lids.product_code = any(rcssp.product_codes)
+  WITH DATA;
+
+CREATE INDEX ocpallcstprjdlysumm_st_node
+    ON reporting_ocpallcostlineitem_project_daily_summary_storage (node text_pattern_ops);
+CREATE INDEX ocpallcstprjdlysumm_st_node_like
+    ON reporting_ocpallcostlineitem_project_daily_summary_storage USING GIN (node gin_trgm_ops);
+CREATE INDEX ocpallcstprjdlysumm_st_nsp
+    ON reporting_ocpallcostlineitem_project_daily_summary_storage (namespace text_pattern_ops);
+CREATE INDEX ocpallcstprjdlysumm_st_nsp_like
+    ON reporting_ocpallcostlineitem_project_daily_summary_storage USING GIN (namespace gin_trgm_ops);
+CREATE INDEX ocpallcstprjdlysumm_st_usage_start
+    ON reporting_ocpallcostlineitem_project_daily_summary_storage (usage_start);
+CREATE INDEX ix_reporting_ocpallcostprj_lids_st_prod_code_ilike
+    ON reporting_ocpallcostlineitem_project_daily_summary_storage USING GIN (upper(product_code) gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcostprj_lids_st_prod_code_like
+    ON reporting_ocpallcostlineitem_project_daily_summary_storage USING GIN (product_code gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcostprj_lids_st_prod_family_ilike
+    ON reporting_ocpallcostlineitem_project_daily_summary_storage USING GIN (upper(product_family) gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcostprj_lids_st_prod_family_like
+    ON reporting_ocpallcostlineitem_project_daily_summary_storage USING GIN (product_family gin_trgm_ops);
+
+
+DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_project_daily_summary_network;
+CREATE OR RELPACE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary_network AS
+ SELECT row_number() OVER () AS id,
+    lids.source_type,
+    lids.cluster_id,
+    lids.cluster_alias,
+    lids.data_source,
+    lids.namespace,
+    lids.node,
+    lids.pod_labels,
+    lids.resource_id,
+    lids.usage_start,
+    lids.usage_end,
+    lids.usage_account_id,
+    lids.account_alias_id,
+    lids.product_code,
+    lids.product_family,
+    lids.instance_type,
+    lids.region,
+    lids.availability_zone,
+    lids.usage_amount,
+    lids.unit,
+    lids.unblended_cost,
+    lids.project_markup_cost,
+    lids.pod_cost,
+    lids.currency_code
+  FROM reporting_ocpallcostlineitem_project_daily_summary lids
+  JOIN reporting_common_source_service_product rcssp
+    ON rcssp.source = lids.source_type
+   AND rcssp.service_category = 'network'
+ WHERE lids.product_code = any(rcssp.product_codes)
+  WITH DATA;
+
+CREATE INDEX ocpallcstprjdlysumm_nw_node
+    ON reporting_ocpallcostlineitem_project_daily_summary_network (node text_pattern_ops);
+CREATE INDEX ocpallcstprjdlysumm_nw_node_like
+    ON reporting_ocpallcostlineitem_project_daily_summary_network USING GIN (node gin_trgm_ops);
+CREATE INDEX ocpallcstprjdlysumm_nw_nsp
+    ON reporting_ocpallcostlineitem_project_daily_summary_network (namespace text_pattern_ops);
+CREATE INDEX ocpallcstprjdlysumm_nw_nsp_like
+    ON reporting_ocpallcostlineitem_project_daily_summary_network USING GIN (namespace gin_trgm_ops);
+CREATE INDEX ocpallcstprjdlysumm_nw_usage_start
+    ON reporting_ocpallcostlineitem_project_daily_summary_network (usage_start);
+CREATE INDEX ix_reporting_ocpallcostprj_lids_nw_prod_code_ilike
+    ON reporting_ocpallcostlineitem_project_daily_summary_network USING GIN (upper(product_code) gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcostprj_lids_nw_prod_code_like
+    ON reporting_ocpallcostlineitem_project_daily_summary_network USING GIN (product_code gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcostprj_lids_nw_prod_family_ilike
+    ON reporting_ocpallcostlineitem_project_daily_summary_network USING GIN (upper(product_family) gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcostprj_lids_nw_prod_family_like
+    ON reporting_ocpallcostlineitem_project_daily_summary_network USING GIN (product_family gin_trgm_ops);
+
+
+DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_project_daily_summary_database;
+CREATE OR RELPACE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary_database AS
+ SELECT row_number() OVER () AS id,
+    lids.source_type,
+    lids.cluster_id,
+    lids.cluster_alias,
+    lids.data_source,
+    lids.namespace,
+    lids.node,
+    lids.pod_labels,
+    lids.resource_id,
+    lids.usage_start,
+    lids.usage_end,
+    lids.usage_account_id,
+    lids.account_alias_id,
+    lids.product_code,
+    lids.product_family,
+    lids.instance_type,
+    lids.region,
+    lids.availability_zone,
+    lids.usage_amount,
+    lids.unit,
+    lids.unblended_cost,
+    lids.project_markup_cost,
+    lids.pod_cost,
+    lids.currency_code
+  FROM reporting_ocpallcostlineitem_project_daily_summary lids
+  JOIN reporting_common_source_service_product rcssp
+    ON rcssp.source = lids.source_type
+   AND rcssp.service_category = 'database'
+ WHERE lids.product_code = any(rcssp.product_codes)
+  WITH DATA;
+
+CREATE INDEX ocpallcstprjdlysumm_db_node
+    ON reporting_ocpallcostlineitem_project_daily_summary_database (node text_pattern_ops);
+CREATE INDEX ocpallcstprjdlysumm_db_node_like
+    ON reporting_ocpallcostlineitem_project_daily_summary_database USING GIN (node gin_trgm_ops);
+CREATE INDEX ocpallcstprjdlysumm_db_nsp
+    ON reporting_ocpallcostlineitem_project_daily_summary_database (namespace text_pattern_ops);
+CREATE INDEX ocpallcstprjdlysumm_db_nsp_like
+    ON reporting_ocpallcostlineitem_project_daily_summary_database USING GIN (namespace gin_trgm_ops);
+CREATE INDEX ocpallcstprjdlysumm_db_usage_start
+    ON reporting_ocpallcostlineitem_project_daily_summary_database (usage_start);
+CREATE INDEX ix_reporting_ocpallcostprj_lids_db_prod_code_ilike
+    ON reporting_ocpallcostlineitem_project_daily_summary_database USING GIN (upper(product_code) gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcostprj_lids_db_prod_code_like
+    ON reporting_ocpallcostlineitem_project_daily_summary_database USING GIN (product_code gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcostprj_lids_db_prod_family_ilike
+    ON reporting_ocpallcostlineitem_project_daily_summary_database USING GIN (upper(product_family) gin_trgm_ops);
+CREATE INDEX ix_reporting_ocpallcostprj_lids_db_prod_family_like
+    ON reporting_ocpallcostlineitem_project_daily_summary_database USING GIN (product_family gin_trgm_ops);
+
+            """
+        ),
     ]

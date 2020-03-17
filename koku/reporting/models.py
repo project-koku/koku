@@ -18,7 +18,15 @@
 # flake8: noqa
 # pylint: disable=unused-import
 from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummary
+from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummaryCompute
+from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummaryDatabase
+from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummaryNetwork
+from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummaryStorage
 from reporting.provider.all.openshift.models import OCPAllCostLineItemProjectDailySummary
+from reporting.provider.all.openshift.models import OCPAllCostLineItemProjectDailySummaryCompute
+from reporting.provider.all.openshift.models import OCPAllCostLineItemProjectDailySummaryDatabase
+from reporting.provider.all.openshift.models import OCPAllCostLineItemProjectDailySummaryNetwork
+from reporting.provider.all.openshift.models import OCPAllCostLineItemProjectDailySummaryStorage
 from reporting.provider.aws.models import AWSAccountAlias
 from reporting.provider.aws.models import AWSComputeSummary
 from reporting.provider.aws.models import AWSComputeSummaryByAccount
@@ -87,4 +95,15 @@ AWS_MATERIALIZED_VIEWS = (
     AWSStorageSummaryByService,
 )
 
-OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (OCPAllCostLineItemDailySummary, OCPAllCostLineItemProjectDailySummary)
+OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (
+    OCPAllCostLineItemDailySummary,
+    OCPAllCostLineItemDailySummaryCompute,
+    OCPAllCostLineItemDailySummaryDatabase,
+    OCPAllCostLineItemDailySummaryNetwork,
+    OCPAllCostLineItemDailySummaryStorage,
+    OCPAllCostLineItemProjectDailySummary,
+    OCPAllCostLineItemProjectDailySummaryCompute,
+    OCPAllCostLineItemProjectDailySummaryDatabase,
+    OCPAllCostLineItemProjectDailySummaryNetwork,
+    OCPAllCostLineItemProjectDailySummaryStorage,
+)
