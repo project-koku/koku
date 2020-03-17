@@ -24,7 +24,7 @@ from uuid import uuid4
 import pytz
 from dateutil import relativedelta
 
-from api.models import Provider
+from api.provider.models import Provider
 from masu.external.date_accessor import DateAccessor
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.expired_data_remover import ExpiredDataRemoverError
@@ -150,8 +150,11 @@ class ExpiredDataRemoverTest(MasuTestCase):
         And then deletes CostUsageReportManifest objects older than
         the calculated expiration_date.
         """
+
+        # aws_provider = Provider.objects.get(type=Provider.PROVIDER_AWS)
+        # aws_provider_uuid = str(aws_provider.uuid)
         provider_type_dict = {
-            Provider.PROVIDER_AWS: self.aws_provider_uuid,
+            Provider.PROVIDER_AWS_LOCAL: self.aws_provider_uuid,
             Provider.PROVIDER_AZURE: self.azure_provider_uuid,
             Provider.PROVIDER_OCP: self.ocp_provider_uuid,
         }
