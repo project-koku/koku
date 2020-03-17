@@ -18,6 +18,7 @@
 """Koku Test Runner."""
 import logging
 
+from django.conf import settings
 from django.db import connections
 from django.test.runner import DiscoverRunner
 from django.test.utils import get_unique_databases_and_mirrors
@@ -37,7 +38,7 @@ class KokuTestRunner(DiscoverRunner):
 
     def setup_databases(self, **kwargs):
         """Set up database tenant schema."""
-        self.keepdb = True
+        self.keepdb = settings.KEEPDB
         main_db = setup_databases(
             self.verbosity, self.interactive, self.keepdb, self.debug_sql, self.parallel, **kwargs
         )
