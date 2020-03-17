@@ -147,7 +147,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
                 assembly_ids.append(manifest.assembly_id)
         return assembly_ids
 
-    def delete_cost_usage_reports_older_than(self, provider_type, billing_period_start_datetime):
+    def delete_cost_usage_report_manifests_older_than(self, provider_type, billing_period_start_datetime):
         """
         Deletes Cost usage Report Manifests older than billing_period_start_datetime.
 
@@ -165,7 +165,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
             billing_period_start_datetime,
         )
 
-    def delete_provider_cost_usage_reports_older_than(self, provider_uuid, billing_period_start_datetime):
+    def delete_provider_cost_usage_report_manifests_older_than(self, provider_uuid, billing_period_start_datetime):
         """
         Delete cost usage reports older than billing_period_start_datetime and provider_uuid.
 

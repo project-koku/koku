@@ -151,8 +151,6 @@ class ExpiredDataRemoverTest(MasuTestCase):
         the calculated expiration_date.
         """
 
-        # aws_provider = Provider.objects.get(type=Provider.PROVIDER_AWS)
-        # aws_provider_uuid = str(aws_provider.uuid)
         provider_type_dict = {
             Provider.PROVIDER_AWS_LOCAL: self.aws_provider_uuid,
             Provider.PROVIDER_AZURE_LOCAL: self.azure_provider_uuid,
@@ -264,9 +262,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
             manifest_uuids.append(manifest_uuid)
             if fixture_record[1] == day_before_cutoff and fixture_record[0] == self.aws_provider_uuid:
                 manifest_uuids_to_be_deleted.append(manifest_uuid)
-        # self.assertEqual(CostUsageReportManifest.objects.filter(provider_id=self.aws_provider_uuid).count(), 2)
         remover.remove(provider_uuid=self.aws_provider_uuid)
-        # self.assertEqual(CostUsageReportManifest.objects.filter(provider_id=self.aws_provider_uuid).count(), 1)
 
         for manifest_uuid in manifest_uuids:
             record_count = CostUsageReportManifest.objects.filter(assembly_id=manifest_uuid).count()
