@@ -73,7 +73,10 @@ def get_report_files(
 
     """
     worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
-    month = parser.parse(report_month)
+    month = report_month
+    if isinstance(report_month, str):
+        month = parser.parse(report_month)
+
     cache_key = f"{provider_uuid}:{month}"
     reports = _get_report_files(
         self, customer_name, authentication, billing_source, provider_type, provider_uuid, month, cache_key

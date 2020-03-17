@@ -2,12 +2,10 @@
 import logging
 import random
 from unittest.mock import patch
-from uuid import UUID
 
 from faker import Faker
 from tenant_schemas.utils import tenant_context
 
-from api.iam.models import Tenant
 from api.provider.models import Provider
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
@@ -23,9 +21,6 @@ class CostModelTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class."""
         super().setUpClass()
-        if not getattr(cls, "tenant", None):
-            cls.tenant = Tenant.objects.get_or_create(schema_name=cls.schema)[0]
-
         # Must set this to capture the logger messages in the tests.
         logging.disable(0)
 
@@ -40,12 +35,13 @@ class CostModelTest(MasuTestCase):
                 cost_model=self.cost_model, provider_uuid=self.aws_provider_uuid
             )
 
-    @patch("masu.processor.tasks.update_cost_model_costs")
+    @patch("cost_models.models.cost_model_pre_delete_callback")
     def test_delete_cost_model_instance(self, mock_update_cost_model_costs):
         """Assert the update_cost_model_costs task is called on instance delete."""
         with tenant_context(self.tenant):
             self.cost_model.delete()
-        mock_update_cost_model_costs.delay.assert_called_with(self.schema, UUID(self.aws_provider_uuid))
+            # We aren't running transactional test cases, so we can't test commit hooks
+            self.assertEqual(CostModelMap.objects.count(), 0)
 
     @patch("masu.processor.tasks.update_cost_model_costs")
     def test_delete_cost_model_instance_skips_task_if_provider_has_no_customers(self, mock_update_cost_model_costs):

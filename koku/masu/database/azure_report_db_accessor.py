@@ -103,7 +103,9 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         """Return all cost entry bills for provider_uuid on date."""
         bills = self.get_cost_entry_bills_query_by_provider(provider_uuid)
         if start_date:
-            bill_date = parse(start_date).replace(day=1)
+            if isinstance(start_date, str):
+                start_date = parse(start_date)
+            bill_date = start_date.replace(day=1)
             bills = bills.filter(billing_period_start=bill_date)
         return bills
 

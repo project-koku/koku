@@ -47,7 +47,7 @@ def error_obj(key, message):
 
 def validate_field(data, valid_fields, key):
     """Validate a field."""
-    message = "One or more required fields is invalid/missing. " + f"Required fields are {valid_fields}"
+    message = f"One or more required fields is invalid/missing. Required fields are {valid_fields}"
     diff = set(valid_fields) - set(data)
     if not diff:
         return data

@@ -24,6 +24,7 @@ from datetime import timedelta
 from unittest.mock import ANY
 from unittest.mock import Mock
 from unittest.mock import patch
+from uuid import uuid4
 
 import faker
 from dateutil import relativedelta
@@ -32,8 +33,7 @@ from django.db.models import Min
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
-from api.report.test import FakeAWSCostData
-from api.report.test.aws.helpers import AWSReportDataGenerator
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -44,7 +44,6 @@ from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
@@ -90,7 +89,7 @@ class GetReportFileTests(MasuTestCase):
             customer_name=self.fake.word(),
             authentication=account,
             provider_type=Provider.PROVIDER_AWS,
-            report_month=DateAccessor().today(),
+            report_month=DateHelper().today,
             provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
             cache_key=self.fake.word(),
@@ -113,7 +112,7 @@ class GetReportFileTests(MasuTestCase):
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type=Provider.PROVIDER_AWS,
-                report_month=DateAccessor().today(),
+                report_month=DateHelper().today,
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
                 cache_key=self.fake.word(),
@@ -144,7 +143,7 @@ class GetReportFileTests(MasuTestCase):
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type=Provider.PROVIDER_AWS,
-                report_month=DateAccessor().today(),
+                report_month=DateHelper().today,
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
                 cache_key=self.fake.word(),
@@ -162,8 +161,8 @@ class GetReportFileTests(MasuTestCase):
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type=Provider.PROVIDER_AWS,
-                report_month=DateAccessor().today(),
-                provider_uuid=self.aws_provider_uuid,
+                report_month=DateHelper().today,
+                provider_uuid=uuid4(),
                 billing_source=self.fake.word(),
                 cache_key=self.fake.word(),
             )
@@ -183,7 +182,7 @@ class GetReportFileTests(MasuTestCase):
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type=Provider.PROVIDER_AWS,
-                report_month=DateAccessor().today(),
+                report_month=DateHelper().today,
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
                 cache_key=self.fake.word(),
@@ -203,7 +202,7 @@ class GetReportFileTests(MasuTestCase):
             customer_name=self.fake.word(),
             authentication=account,
             provider_type=Provider.PROVIDER_AWS,
-            report_month=DateAccessor().today(),
+            report_month=DateHelper().today,
             provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
             cache_key=self.fake.word(),
@@ -227,7 +226,7 @@ class ProcessReportFileTests(MasuTestCase):
         schema_name = self.schema
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateAccessor().today())}
+        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateHelper().today)}
 
         mock_proc = mock_processor()
         mock_stats_acc = mock_stats_accessor().__enter__()
@@ -258,7 +257,7 @@ class ProcessReportFileTests(MasuTestCase):
         schema_name = self.schema
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateAccessor().today())}
+        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateHelper().today)}
 
         mock_proc = mock_processor()
         mock_stats_acc = mock_stats_accessor().__enter__()
@@ -285,7 +284,7 @@ class ProcessReportFileTests(MasuTestCase):
         schema_name = self.schema
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateAccessor().today())}
+        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateHelper().today)}
 
         mock_processor.side_effect = ReportProcessorError("mock error")
         mock_stats_acc = mock_stats_accessor().__enter__()
@@ -308,7 +307,7 @@ class ProcessReportFileTests(MasuTestCase):
         schema_name = self.schema
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
-        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateAccessor().today())}
+        report_dict = {"file": path, "compression": "gzip", "start_date": str(DateHelper().today)}
 
         mock_proc = mock_processor()
         mock_stats_acc = mock_stats_accessor().__enter__()
@@ -336,7 +335,7 @@ class ProcessReportFileTests(MasuTestCase):
         mock_update_summary.delay = Mock()
 
         report_meta = {}
-        report_meta["start_date"] = str(DateAccessor().today())
+        report_meta["start_date"] = str(DateHelper().today)
         report_meta["schema_name"] = self.schema
         report_meta["provider_type"] = Provider.PROVIDER_OCP
         report_meta["provider_uuid"] = self.ocp_test_provider_uuid
@@ -356,7 +355,7 @@ class ProcessReportFileTests(MasuTestCase):
         provider_uuid = self.aws_provider_uuid
         manifest_dict = {
             "assembly_id": "12345",
-            "billing_period_start_datetime": DateAccessor().today_with_timezone("UTC"),
+            "billing_period_start_datetime": DateHelper().today,
             "num_total_files": 2,
             "provider_uuid": self.aws_provider_uuid,
             "task": "170653c0-3e66-4b7e-a764-336496d7ca5a",
@@ -373,7 +372,7 @@ class ProcessReportFileTests(MasuTestCase):
         report_dict = {
             "file": path,
             "compression": "gzip",
-            "start_date": str(DateAccessor().today()),
+            "start_date": str(DateHelper().today),
             "manifest_id": manifest_id,
         }
 
@@ -402,27 +401,28 @@ class TestProcessorTasks(MasuTestCase):
         """Set up the class."""
         super().setUpClass()
         cls.fake = faker.Faker()
-        cls.fake_reports = [
-            {"file": cls.fake.word(), "compression": "GZIP"},
-            {"file": cls.fake.word(), "compression": "PLAIN"},
-        ]
+        # cls.fake_reports = [
+        #     {"file": cls.fake.word(), "compression": "GZIP"},
+        #     {"file": cls.fake.word(), "compression": "PLAIN"},
+        # ]
 
-        cls.fake_account = fake_arn(service="iam", generate_account_id=True)
-        cls.today = DateAccessor().today_with_timezone("UTC")
+        # cls.fake_account = fake_arn(service="iam", generate_account_id=True)
+        cls.fake_uuid = "d4703b6e-cd1f-4253-bfd4-32bdeaf24f97"
+        cls.today = DateHelper().today
         cls.yesterday = cls.today - timedelta(days=1)
 
     def setUp(self):
         """Set up shared test variables."""
         super().setUp()
 
-        self.fake_get_report_args = {
-            "customer_name": self.fake.word(),
-            "authentication": self.fake_account,
-            "provider_type": Provider.PROVIDER_AWS,
-            "schema_name": self.fake.word(),
-            "billing_source": self.fake.word(),
+        self.get_report_args = {
+            "customer_name": self.schema,
+            "authentication": self.aws_provider.authentication.provider_resource_name,
+            "provider_type": Provider.PROVIDER_AWS_LOCAL,
+            "schema_name": self.schema,
+            "billing_source": self.aws_provider.billing_source.bucket,
             "provider_uuid": self.aws_provider_uuid,
-            "report_month": str(DateAccessor().today()),
+            "report_month": DateHelper().today.date(),
         }
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
@@ -431,130 +431,111 @@ class TestProcessorTasks(MasuTestCase):
     @patch("masu.processor.tasks._process_report_file", side_effect=ReportProcessorError("Mocked Error!"))
     def test_get_report_exception(self, mock_process_files, mock_get_files, mock_started, mock_completed):
         """Test raising processor exception is handled."""
-        mock_get_files.return_value = self.fake_reports
+        mock_get_files.return_value = [
+            {"file": self.fake.word(), "compression": "GZIP"},
+            {"file": self.fake.word(), "compression": "PLAIN"},
+        ]
         mock_started.return_value = None
 
         # Check that exception is raised
         with self.assertRaises(ReportProcessorError):
             # Check that the exception logs an ERROR
             with self.assertLogs("masu.processor.tasks.get_report_files", level="ERROR"):
-                get_report_files(**self.fake_get_report_args)
+                get_report_files(**self.get_report_args)
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.processor.tasks._get_report_files")
-    def test_get_report_files_timestamps_aligned(self, mock_get_files, mock_started, mock_completed):
+    def test_get_report_files_timestamps_aligned(self, mock_started, mock_completed):
         """Test to return reports only when they have not been processed."""
-        mock_get_files.return_value = self.fake_reports
-
         mock_started.return_value = self.yesterday
         mock_completed.return_value = self.today
 
-        reports = get_report_files(**self.fake_get_report_args)
+        reports = get_report_files(**self.get_report_args)
         self.assertEqual(reports, [])
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.processor.tasks._get_report_files")
-    def test_get_report_files_timestamps_misaligned(self, mock_get_files, mock_started, mock_completed):
+    def test_get_report_files_timestamps_misaligned(self, mock_started, mock_completed):
         """Test to return reports with misaligned timestamps."""
-        mock_get_files.return_value = self.fake_reports
-
         mock_started.return_value = self.today
         mock_completed.return_value = self.yesterday
 
-        reports = get_report_files(**self.fake_get_report_args)
+        reports = get_report_files(**self.get_report_args)
         self.assertEqual(reports, [])
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.processor.tasks._get_report_files")
     @patch("masu.processor.tasks._process_report_file")
-    def test_get_report_files_timestamps_empty_start(
-        self, mock_process_files, mock_get_files, mock_started, mock_completed
-    ):
+    def test_get_report_files_timestamps_empty_start(self, mock_process_files, mock_started, mock_completed):
         """Test that the chained task is called when no start time is set."""
         mock_process_files.apply_async = Mock()
-        mock_get_files.return_value = self.fake_reports
 
         mock_started.return_value = None
         mock_completed.return_value = self.today
-        reports = get_report_files(**self.fake_get_report_args)
+        reports = get_report_files(**self.get_report_args)
         self.assertIsNotNone(reports)
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.processor.tasks._get_report_files")
     @patch("masu.external.date_accessor.DateAccessor.today")
-    def test_get_report_files_timestamps_empty_end(self, mock_date, mock_get_files, mock_started, mock_completed):
+    def test_get_report_files_timestamps_empty_end(self, mock_date, mock_started, mock_completed):
         """Chained task is not called when no end time is set since processing is in progress."""
-        mock_get_files.return_value = self.fake_reports
-
         mock_started.return_value = self.today
 
         # Make sure today() is only an hour from get_last_started_datetime (within 2 hr timeout)
         mock_date.return_value = self.today + timedelta(hours=1)
 
         mock_completed.return_value = None
-        reports = get_report_files(**self.fake_get_report_args)
+        reports = get_report_files(**self.get_report_args)
         self.assertEqual(reports, [])
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.processor.tasks._get_report_files")
     @patch("masu.processor.tasks._process_report_file")
     @patch("masu.external.date_accessor.DateAccessor.today_with_timezone")
     def test_get_report_files_timestamps_empty_end_timeout(
-        self, mock_date, mock_process_files, mock_get_files, mock_started, mock_completed
+        self, mock_date, mock_process_files, mock_started, mock_completed
     ):
         """Chained task is called when no end time is set since processing has exceeded the timeout."""
         mock_process_files.apply_async = Mock()
-        mock_get_files.return_value = self.fake_reports
 
         mock_started.return_value = self.today
         mock_completed.return_value = None
 
         mock_date.return_value = self.today + timedelta(hours=3)
-        reports = get_report_files(**self.fake_get_report_args)
+        reports = get_report_files(**self.get_report_args)
         self.assertIsNotNone(reports)
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.processor.tasks._get_report_files")
     @patch("masu.processor.tasks._process_report_file")
     @patch("masu.external.date_accessor.DateAccessor.today_with_timezone")
     def test_get_report_files_timestamps_empty_end_no_timeout(
-        self, mock_date, mock_process_files, mock_get_files, mock_started, mock_completed
+        self, mock_date, mock_process_files, mock_started, mock_completed
     ):
         """
         Chained task is not called when no end time is set.
 
         Since processing is in progress but completion timeout has not been reached.
         """
-        mock_get_files.return_value = self.fake_reports
-
         mock_started.return_value = self.today
         mock_completed.return_value = None
 
         mock_date.return_value = self.today + timedelta(hours=1)
 
-        reports = get_report_files(**self.fake_get_report_args)
+        reports = get_report_files(**self.get_report_args)
         self.assertIsNotNone(reports)
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.processor.tasks._get_report_files")
     @patch("masu.processor.tasks._process_report_file")
-    def test_get_report_files_timestamps_empty_both(
-        self, mock_process_file, mock_get_files, mock_started, mock_completed
-    ):
+    def test_get_report_files_timestamps_empty_both(self, mock_process_file, mock_started, mock_completed):
         """Test that the chained task is called when no timestamps are set."""
-        mock_get_files.return_value = self.fake_reports
         mock_process_file.return_value = None
 
         mock_started.return_value = None
         mock_completed.return_value = None
-        reports = get_report_files(**self.fake_get_report_args)
+        reports = get_report_files(**self.get_report_args)
         self.assertIsNotNone(reports)
 
 
@@ -615,31 +596,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         # Populate some line item data so that the summary tables
         # have something to pull from
-        self.start_date = DateAccessor().today_with_timezone("UTC").replace(day=1)
-        last_month = self.start_date - relativedelta.relativedelta(months=1)
-
-        for cost_entry_date in (self.start_date, last_month):
-            bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider_uuid, bill_date=cost_entry_date)
-            cost_entry = self.creator.create_cost_entry(bill, cost_entry_date)
-            for family in ["Storage", "Compute Instance", "Database Storage", "Database Instance"]:
-                product = self.creator.create_cost_entry_product(family)
-                pricing = self.creator.create_cost_entry_pricing()
-                reservation = self.creator.create_cost_entry_reservation()
-                self.creator.create_cost_entry_line_item(bill, cost_entry, product, pricing, reservation)
-        provider_ocp_uuid = self.ocp_test_provider_uuid
-
-        with ProviderDBAccessor(provider_uuid=provider_ocp_uuid) as provider_accessor:
-            provider_uuid = provider_accessor.get_provider().uuid
-
-        cluster_id = self.ocp_provider_resource_name
-        for period_date in (self.start_date, last_month):
-            period = self.creator.create_ocp_report_period(
-                provider_uuid=provider_uuid, period_date=period_date, cluster_id=cluster_id
-            )
-            report = self.creator.create_ocp_report(period, period_date)
-            for _ in range(25):
-                self.creator.create_ocp_usage_line_item(period, report)
-            self.creator.create_ocp_node_label_line_item(period, report)
+        self.start_date = DateHelper().today.replace(day=1)
 
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.refresh_materialized_views")
@@ -656,6 +613,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with schema_context(self.schema):
             daily_query = self.aws_accessor._get_db_obj_query(daily_table_name)
             summary_query = self.aws_accessor._get_db_obj_query(summary_table_name)
+            daily_query.delete()
+            summary_query.delete()
 
             initial_daily_count = daily_query.count()
             initial_summary_count = summary_query.count()
@@ -674,30 +633,28 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch("masu.processor.tasks.update_cost_model_costs")
     def test_update_summary_tables_aws_end_date(self, mock_charge_info):
         """Test that the summary table task respects a date range."""
-        provider = Provider.PROVIDER_AWS
+        provider = Provider.PROVIDER_AWS_LOCAL
         provider_aws_uuid = self.aws_provider_uuid
         ce_table_name = AWS_CUR_TABLE_MAP["cost_entry"]
         daily_table_name = AWS_CUR_TABLE_MAP["line_item_daily"]
         summary_table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
 
-        start_date = self.start_date.replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        ) + relativedelta.relativedelta(months=-1)
+        start_date = DateHelper().last_month_start
 
-        end_date = start_date + timedelta(days=10)
-        end_date = end_date.replace(hour=23, minute=59, second=59)
+        end_date = DateHelper().last_month_end
 
         daily_table = getattr(self.aws_accessor.report_schema, daily_table_name)
         summary_table = getattr(self.aws_accessor.report_schema, summary_table_name)
         ce_table = getattr(self.aws_accessor.report_schema, ce_table_name)
-
         with schema_context(self.schema):
-            ce_start_date = ce_table.objects.filter(interval_start__gte=start_date).aggregate(Min("interval_start"))[
-                "interval_start__min"
-            ]
-            ce_end_date = ce_table.objects.filter(interval_start__lte=end_date).aggregate(Max("interval_start"))[
-                "interval_start__max"
-            ]
+            daily_table.objects.all().delete()
+            summary_table.objects.all().delete()
+            ce_start_date = ce_table.objects.filter(interval_start__gte=start_date.date()).aggregate(
+                Min("interval_start")
+            )["interval_start__min"]
+            ce_end_date = ce_table.objects.filter(interval_start__lte=end_date.date()).aggregate(
+                Max("interval_start")
+            )["interval_start__max"]
 
         # The summary tables will only include dates where there is data
         expected_start_date = max(start_date, ce_start_date)
@@ -742,13 +699,12 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         provider_ocp_uuid = self.ocp_test_provider_uuid
 
         daily_table_name = OCP_REPORT_TABLE_MAP["line_item_daily"]
-        start_date = self.start_date.replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        ) + relativedelta.relativedelta(months=-1)
-        end_date = start_date + timedelta(days=10)
+        start_date = DateHelper().last_month_start
+        end_date = DateHelper().last_month_end
 
         with schema_context(self.schema):
             daily_query = self.ocp_accessor._get_db_obj_query(daily_table_name)
+            daily_query.delete()
 
             initial_daily_count = daily_query.count()
 
@@ -770,7 +726,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with schema_context(self.schema):
             cluster_id = usage_period_qry.first().cluster_id
 
-            items = self.ocp_accessor._get_db_obj_query(table_name).filter(cluster_id=cluster_id)
+            items = self.ocp_accessor._get_db_obj_query(table_name).filter(cluster_id=cluster_id, data_source="Pod")
             for item in items:
                 self.assertIsNotNone(item.pod_charge_memory_gigabyte_hours)
                 self.assertIsNotNone(item.pod_charge_cpu_core_hours)
@@ -804,24 +760,20 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         ce_table_name = OCP_REPORT_TABLE_MAP["report"]
         daily_table_name = OCP_REPORT_TABLE_MAP["line_item_daily"]
 
-        start_date = self.start_date.replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        ) + relativedelta.relativedelta(months=-1)
-
-        end_date = start_date + timedelta(days=10)
-        end_date = end_date.replace(hour=23, minute=59, second=59)
-
+        start_date = DateHelper().last_month_start
+        end_date = DateHelper().last_month_end
         daily_table = getattr(self.ocp_accessor.report_schema, daily_table_name)
         ce_table = getattr(self.ocp_accessor.report_schema, ce_table_name)
 
         with schema_context(self.schema):
-            ce_start_date = ce_table.objects.filter(interval_start__gte=start_date).aggregate(Min("interval_start"))[
-                "interval_start__min"
-            ]
+            daily_table.objects.all().delete()
+            ce_start_date = ce_table.objects.filter(interval_start__gte=start_date.date()).aggregate(
+                Min("interval_start")
+            )["interval_start__min"]
 
-            ce_end_date = ce_table.objects.filter(interval_start__lte=end_date).aggregate(Max("interval_start"))[
-                "interval_start__max"
-            ]
+            ce_end_date = ce_table.objects.filter(interval_start__lte=end_date.date()).aggregate(
+                Max("interval_start")
+            )["interval_start__max"]
 
         # The summary tables will only include dates where there is data
         expected_start_date = max(start_date, ce_start_date)
@@ -848,14 +800,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test that materialized views are refreshed."""
         manifest_dict = {
             "assembly_id": "12345",
-            "billing_period_start_datetime": DateAccessor().today_with_timezone("UTC"),
+            "billing_period_start_datetime": DateHelper().today,
             "num_total_files": 2,
             "provider_uuid": self.aws_provider_uuid,
             "task": "170653c0-3e66-4b7e-a764-336496d7ca5a",
         }
-        fake_aws = FakeAWSCostData(self.aws_provider)
-        generator = AWSReportDataGenerator(self.tenant)
-        generator.add_data_to_tenant(fake_aws)
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.add(**manifest_dict)
@@ -873,10 +822,12 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.get_manifest_by_id(manifest.id)
             self.assertIsNotNone(manifest.manifest_completed_datetime)
 
-    def test_vacuum_schema(self):
+    @patch("masu.processor.tasks.connection")
+    def test_vacuum_schema(self, mock_conn):
         """Test that the vacuum schema task runs."""
         logging.disable(logging.NOTSET)
-        expected = "INFO:masu.processor.tasks:VACUUM"
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("table",)]
+        expected = "INFO:masu.processor.tasks:VACUUM ANALYZE acct10001.table"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             vacuum_schema(self.schema)
             self.assertIn(expected, logger.output)
