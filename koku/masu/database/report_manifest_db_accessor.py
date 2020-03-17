@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Red Hat, Inc.
+# Copyright 2018 Red Hat, Inc.
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -149,7 +149,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def delete_cost_usage_reports_older_than(self, provider_type, billing_period_start_datetime):
         """
-        Deletes Cost usage Reports older than billing_period_start_datetime.
+        Deletes Cost usage Report Manifests older than billing_period_start_datetime.
 
         Args:
             provider_type   (String) the provider type to delete associated manifests

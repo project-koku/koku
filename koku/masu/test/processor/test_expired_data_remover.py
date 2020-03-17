@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Red Hat, Inc.
+# Copyright 2018 Red Hat, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -226,7 +226,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
                 + " but the list of log messages was instead : "
                 + str(cm.output),
             )
-        # Re-enable log suppressionjjn
+        # Re-enable log suppression
         logging.disable(logging.CRITICAL)
 
         self.assertEqual(1, CostUsageReportManifest.objects.count())
