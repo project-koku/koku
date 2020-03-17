@@ -43,4 +43,4 @@ track_activity_query_size = 4096   # max statement length in pg_stat_activity
 EOF
 
 psql -d $POSTGRES_DB -U $POSTGRES_USER -c "create extension if not exists pg_stat_statements;" 2>/dev/null
-psql -d $POSTGRES_DB -U $POSTGRES_USER -c "create role dbmonitor with inherit login encrypted password 'dbmonitor' superuser in role postgres;"
+psql -d $POSTGRES_DB -U $POSTGRES_USER -c "create role dbmonitor with inherit login encrypted password 'dbmonitor' superuser in role $POSTGRES_USER;"
