@@ -117,7 +117,7 @@ class OCPAllProviderMap(ProviderMap):
                         },
                         "count": None,
                         "delta_key": {
-                            "cost": Sum(
+                            "cost_total": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             )
@@ -193,7 +193,7 @@ class OCPAllProviderMap(ProviderMap):
                         },
                         "count": None,
                         "delta_key": {
-                            "cost": Sum(
+                            "cost_total": Sum(
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             )
@@ -209,7 +209,7 @@ class OCPAllProviderMap(ProviderMap):
                             "sup_total",
                             "infra_total",
                         ],
-                        "default_ordering": {"cost": "desc"},
+                        "default_ordering": {"cost_total": "desc"},
                     },
                     "storage": {
                         "aggregates": {
@@ -523,7 +523,7 @@ class OCPAllProviderMap(ProviderMap):
                         ],
                         "default_ordering": {"usage": "desc"},
                     },
-                    "tags": {"default_ordering": {"cost": "desc"}},
+                    "tags": {"default_ordering": {"cost_total": "desc"}},
                 },
                 "start_date": "usage_start",
                 "tables": {"query": OCPAllCostLineItemDailySummary, "total": OCPAllCostLineItemDailySummary},
