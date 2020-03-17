@@ -31,10 +31,7 @@ from rest_framework_csv.renderers import CSVRenderer
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Provider
-from api.provider.test import create_generic_provider
 from api.query_handler import TruncDayString
-from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummary
 
@@ -56,13 +53,6 @@ class OCPAWSReportViewTest(IamTestCase):
         super().setUpClass()
         cls.dh = DateHelper()
         cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
-
-    def setUp(self):
-        """Set up the customer view tests."""
-        super().setUp()
-        _, self.provider = create_generic_provider(Provider.PROVIDER_OCP, self.request_context)
-        self.data_generator = OCPAWSReportDataGenerator(self.tenant, self.provider)
-        self.data_generator.add_data_to_tenant()
 
     def test_execute_query_ocp_aws_storage(self):
         """Test that OCP on AWS Storage endpoint works."""
@@ -236,7 +226,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 projects = item.get("nodes")
                 self.assertTrue(len(projects) <= 2)
                 if len(projects) == 2:
-                    self.assertEqual(projects[1].get("node"), "1 Other")
+                    self.assertEqual(projects[1].get("node"), "2 Others")
                     usage_total = projects[0].get("values")[0].get("usage", {}).get("value") + projects[1].get(
                         "values"
                     )[0].get("usage", {}).get("value")
@@ -900,7 +890,12 @@ class OCPAWSReportViewTest(IamTestCase):
         baseurl = reverse("reports-openshift-aws-instance-type")
         client = APIClient()
 
-        for key, val in self.data_generator.tags.items():
+        tag_url = reverse("openshift-aws-tags")
+        tag_url = tag_url + "?filter[time_scope_value]=-1&key_only=True"
+        response = client.get(tag_url, **self.headers)
+        tag_keys = response.data.get("data", [])
+
+        for key in tag_keys:
             order_by_dict_key = f"order_by[tag:{key}]"
             params = {
                 "filter[resolution]": "monthly",
@@ -918,7 +913,12 @@ class OCPAWSReportViewTest(IamTestCase):
         baseurl = reverse("reports-openshift-aws-instance-type")
         client = APIClient()
 
-        for key, val in self.data_generator.tags.items():
+        tag_url = reverse("openshift-aws-tags")
+        tag_url = tag_url + "?filter[time_scope_value]=-1&key_only=True"
+        response = client.get(tag_url, **self.headers)
+        tag_keys = response.data.get("data", [])
+
+        for key in tag_keys:
             order_by_dict_key = f"order_by[tag:{key}]"
             params = {
                 "filter[resolution]": "monthly",
@@ -937,7 +937,12 @@ class OCPAWSReportViewTest(IamTestCase):
         baseurl = reverse("reports-openshift-aws-instance-type")
         client = APIClient()
 
-        for key, val in self.data_generator.tags.items():
+        tag_url = reverse("openshift-aws-tags")
+        tag_url = tag_url + "?filter[time_scope_value]=-1&key_only=True"
+        response = client.get(tag_url, **self.headers)
+        tag_keys = response.data.get("data", [])
+
+        for key in tag_keys:
             order_by_dict_key = f"order_by[tag:{key}]"
             group_by_dict_key = f"group_by[tag:{key}]"
             params = {

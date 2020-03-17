@@ -37,7 +37,11 @@ class AzureTagQueryHandlerTest(IamTestCase):
         source = {}
         qs1 = [("ms-resource-usage", ["azure-cloud-shell"]), ("project", ["p1", "p2"]), ("cost", ["management"])]
         tag_keys = tagHandler._convert_to_dict(qs1)
-        expected_dikt = {"ms-resource-usage": ["azure-cloud-shell"], "project": ["p1", "p2"], "cost": ["management"]}
+        expected_dikt = {
+            "ms-resource-usage": {"key": "ms-resource-usage", "values": ["azure-cloud-shell"]},
+            "project": {"key": "project", "values": ["p1", "p2"]},
+            "cost": {"key": "cost", "values": ["management"]},
+        }
         self.assertEqual(tag_keys, expected_dikt)
 
         expected_1 = [
@@ -71,12 +75,14 @@ class AzureTagQueryHandlerTest(IamTestCase):
             {"key": "project", "values": ["p1", "p2"], "type": "storage"},
             {"key": "cost", "values": ["management"], "type": "storage"},
         ]
-
         self.assertEqual(final, expected_3)
 
         qs2 = [("ms-resource-usage", ["azure-cloud-shell2"]), ("project", ["p1", "p3"])]
         tag_keys2 = tagHandler._convert_to_dict(qs2)
-        expected_tag_keys2 = {"ms-resource-usage": ["azure-cloud-shell2"], "project": ["p1", "p3"]}
+        expected_tag_keys2 = {
+            "ms-resource-usage": {"key": "ms-resource-usage", "values": ["azure-cloud-shell2"]},
+            "project": {"key": "project", "values": ["p1", "p3"]},
+        }
         self.assertEqual(tag_keys2, expected_tag_keys2)
 
         tagHandler.append_to_final_data_without_type(final, tag_keys2)

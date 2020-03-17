@@ -113,15 +113,15 @@ class AzureReportDownloaderTest(MasuTestCase):
 
         super().setUp()
         self.customer_name = "Azure Customer"
-        self.auth_credential = self.azure_credentials
-        self.billing_source = self.azure_data_source
+        self.azure_credentials = self.azure_provider.authentication.credentials
+        self.azure_data_source = self.azure_provider.billing_source.data_source
 
         self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()), return_value={}))
         self.downloader = AzureReportDownloader(
             task=self.mock_task,
             customer_name=self.customer_name,
-            auth_credential=self.auth_credential,
-            billing_source=self.billing_source,
+            auth_credential=self.azure_credentials,
+            billing_source=self.azure_data_source,
             provider_uuid=self.azure_provider_uuid,
         )
         self.mock_data = MockAzureService()
@@ -221,7 +221,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         """Test init with the demo account."""
         account_id = "123456"
         report_name = self.fake.word()
-        client_id = self.auth_credential.get("client_id")
+        client_id = self.azure_credentials.get("client_id")
         demo_accounts = {
             account_id: {
                 client_id: {
@@ -235,8 +235,8 @@ class AzureReportDownloaderTest(MasuTestCase):
             AzureReportDownloader(
                 task=self.mock_task,
                 customer_name=f"acct{account_id}",
-                auth_credential=self.auth_credential,
-                billing_source=self.billing_source,
+                auth_credential=self.azure_credentials,
+                billing_source=self.azure_data_source,
                 provider_uuid=self.azure_provider_uuid,
             )
             mock_download_cost_method._azure_client.download_cost_export.assert_not_called()

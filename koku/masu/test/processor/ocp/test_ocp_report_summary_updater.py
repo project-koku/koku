@@ -26,6 +26,7 @@ from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
 from tenant_schemas.utils import schema_context
 
+from api.utils import DateHelper
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -34,6 +35,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_report_summary_updater import OCPReportSummaryUpdater
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
+from reporting_common.models import CostUsageReportManifest
 
 
 class OCPReportSummaryUpdaterTest(MasuTestCase):
@@ -48,21 +50,19 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
 
         cls.accessor = OCPReportDBAccessor(cls.schema, cls.column_map)
         cls.report_schema = cls.accessor.report_schema
-
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
-
         cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
-
-        cls.date_accessor = DateAccessor()
-
+        cls.date_accessor = DateHelper()
         cls.manifest_accessor = ReportManifestDBAccessor()
+        cls.dh = DateHelper()
 
     def setUp(self):
         """Set up each test."""
         super().setUp()
 
         self.provider = self.ocp_provider
-        self.today = DateAccessor().today_with_timezone("UTC")
+
+        self.today = self.dh.today
         billing_start = datetime.datetime(year=self.today.year, month=self.today.month, day=self.today.day).replace(
             day=1
         )
@@ -74,16 +74,12 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
             "provider_uuid": self.ocp_provider_uuid,
         }
 
-        cluster_id = self.ocp_provider_resource_name
-        self.report_period = self.creator.create_ocp_report_period(
-            provider_uuid=self.ocp_provider_uuid, period_date=self.today, cluster_id=cluster_id
-        )
-        report = self.creator.create_ocp_report(self.report_period, self.today)
-        self.creator.create_ocp_usage_line_item(self.report_period, report)
-        self.creator.create_ocp_storage_line_item(self.report_period, report)
-        self.creator.create_ocp_node_label_line_item(self.report_period, report)
-        self.manifest = self.manifest_accessor.add(**self.manifest_dict)
-
+        self.cluster_id = self.ocp_provider_resource_name
+        self.manifest = CostUsageReportManifest.objects.filter(
+            provider_id=self.ocp_provider_uuid, billing_period_start_datetime=self.dh.this_month_start
+        ).first()
+        self.manifest.num_total_files = 2
+        self.manifest.save()
         self.updater = OCPReportSummaryUpdater(self.schema, self.provider, self.manifest)
 
     @patch(
@@ -107,13 +103,14 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.manifest.num_processed_files = self.manifest.num_total_files
         self.manifest.save()
 
-        start_date = self.date_accessor.today_with_timezone("UTC")
+        start_date = self.dh.today
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
 
         with schema_context(self.schema):
             period = self.accessor.get_usage_periods_by_date(bill_date)[0]
             period.summary_data_creation_datetime = start_date
+            period.summary_data_updated_datetime = None
             period.save()
 
         start_date_str = start_date.strftime("%Y-%m-%d")
@@ -122,18 +119,19 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.assertIsNone(period.summary_data_updated_datetime)
 
         self.updater.update_daily_tables(start_date_str, end_date_str)
-        mock_node_daily.assert_called_with(start_date.date(), end_date.date(), self.report_period.cluster_id)
-        mock_daily.assert_called_with(start_date.date(), end_date.date(), self.report_period.cluster_id)
-        mock_storage_daily.assert_called_with(start_date.date(), end_date.date(), self.report_period.cluster_id)
+        mock_node_daily.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
+        mock_daily.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
+        mock_storage_daily.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
         mock_sum.assert_not_called()
         mock_storage_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_sum.assert_called_with(start_date.date(), end_date.date(), self.report_period.cluster_id)
-        mock_storage_summary.assert_called_with(start_date.date(), end_date.date(), self.report_period.cluster_id)
+        mock_sum.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
+        mock_storage_summary.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
 
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
-            period = accessor.get_usage_periods_by_date(bill_date)[0]
+            period = accessor.get_usage_periods_by_date(bill_date).filter(provider_id=self.ocp_provider_uuid)[0]
+
             self.assertIsNotNone(period.summary_data_creation_datetime)
             self.assertIsNotNone(period.summary_data_updated_datetime)
 
@@ -154,12 +152,15 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.manifest.num_processed_files = self.manifest.num_total_files
         self.manifest.save()
 
-        start_date = self.date_accessor.today_with_timezone("UTC")
+        start_date = self.dh.today
         end_date = start_date
         bill_date = start_date.replace(day=1).date()
 
         with schema_context(self.schema):
-            period = self.accessor.get_usage_periods_by_date(bill_date)[0]
+            period = self.accessor.get_usage_periods_by_date(bill_date).filter(provider_id=self.ocp_provider_uuid)[0]
+            period.summary_data_creation_datetime = None
+            period.summary_data_updated_datetime = None
+            period.save()
 
         last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
 
@@ -178,7 +179,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         for date in dates:
             if expected_start_date > expected_end_date:
                 break
-            expected_calls.append(call(expected_start_date.date(), date.date(), self.report_period.cluster_id))
+            expected_calls.append(call(expected_start_date.date(), date.date(), self.cluster_id))
             expected_start_date = date + datetime.timedelta(days=1)
 
         self.assertIsNone(period.summary_data_creation_datetime)
@@ -198,7 +199,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(mock_storage_summary.call_args_list, expected_calls)
 
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
-            period = accessor.get_usage_periods_by_date(bill_date)[0]
+            period = accessor.get_usage_periods_by_date(bill_date).filter(provider_id=self.ocp_provider_uuid)[0]
             self.assertIsNotNone(period.summary_data_creation_datetime)
             self.assertIsNotNone(period.summary_data_updated_datetime)
 
@@ -216,7 +217,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self, mock_daily, mock_sum, mock_storage_daily, mock_storage_summary, mock_node_daily
     ):
         """Test that summary tables are run for the month of the manifest."""
-        billing_start = self.date_accessor.today_with_timezone("UTC").replace(day=1) + relativedelta(months=-1)
+        billing_start = self.dh.today.replace(day=1) + relativedelta(months=-1)
         manifest_dict = {
             "assembly_id": "1234",
             "billing_period_start_datetime": billing_start,
@@ -232,13 +233,17 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
 
         self.updater = OCPReportSummaryUpdater(self.schema, self.provider, self.manifest)
 
-        start_date = self.date_accessor.today_with_timezone("UTC")
+        start_date = self.dh.today
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = billing_start.date()
 
-        self.creator.create_ocp_report_period(provider_uuid=self.ocp_provider_uuid, period_date=billing_start)
         with schema_context(self.schema):
-            period = self.accessor.get_usage_periods_by_date(bill_date)[0]
+            period = self.accessor.get_usage_periods_by_date(bill_date).filter(
+                provider_id=self.ocp_provider_uuid, report_period_start=billing_start
+            )[0]
+            period.summary_data_creation_datetime = None
+            period.summary_data_updated_datetime = None
+            period.save()
 
         last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
 
@@ -257,7 +262,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         for date in dates:
             if expected_start_date > expected_end_date:
                 break
-            expected_calls.append(call(expected_start_date.date(), date.date(), self.report_period.cluster_id))
+            expected_calls.append(call(expected_start_date.date(), date.date(), self.cluster_id))
             expected_start_date = date + datetime.timedelta(days=1)
 
         self.assertIsNone(period.summary_data_creation_datetime)
@@ -294,13 +299,14 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self, mock_daily, mock_sum, mock_storage_daily, mock_storage_summary, mock_node_daily
     ):
         """Test that summary tables are not run for a full month."""
-        start_date = self.date_accessor.today_with_timezone("UTC")
+        start_date = self.dh.today
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
 
         with schema_context(self.schema):
             period = self.accessor.get_usage_periods_by_date(bill_date)[0]
             period.summary_data_creation_datetime = start_date
+            period.summary_data_updated_datetime = None
             period.save()
 
         start_date_str = start_date.strftime("%Y-%m-%d")
@@ -309,18 +315,18 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.assertIsNone(period.summary_data_updated_datetime)
 
         self.updater.update_daily_tables(start_date_str, end_date_str)
-        mock_node_daily.assert_called_with(start_date.date(), end_date.date(), self.report_period.cluster_id)
-        mock_daily.assert_called_with(start_date.date(), end_date.date(), self.report_period.cluster_id)
-        mock_storage_daily.assert_called_with(start_date.date(), end_date.date(), self.report_period.cluster_id)
+        mock_node_daily.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
+        mock_daily.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
+        mock_storage_daily.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
         mock_sum.assert_not_called()
         mock_storage_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_sum.assert_called_with(start_date.date(), end_date.date(), self.report_period.cluster_id)
-        mock_storage_summary.assert_called_with(start_date.date(), end_date.date(), self.report_period.cluster_id)
+        mock_sum.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
+        mock_storage_summary.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
 
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
-            period = accessor.get_usage_periods_by_date(bill_date)[0]
+            period = accessor.get_usage_periods_by_date(bill_date).filter(provider_id=self.ocp_provider_uuid)[0]
             self.assertIsNotNone(period.summary_data_creation_datetime)
             self.assertIsNotNone(period.summary_data_updated_datetime)
 
@@ -353,15 +359,15 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         end_date_str = end_date.strftime("%Y-%m-%d")
 
         updater.update_daily_tables(start_date_str, end_date_str)
-        mock_node_daily.assert_called_with(start_date.date(), end_date.date(), self.report_period.cluster_id)
-        mock_daily.assert_called_with(start_date.date(), end_date.date(), self.report_period.cluster_id)
-        mock_storage_daily.assert_called_with(start_date.date(), end_date.date(), self.report_period.cluster_id)
+        mock_node_daily.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
+        mock_daily.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
+        mock_storage_daily.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
         mock_sum.assert_not_called()
         mock_storage_summary.assert_not_called()
 
         updater.update_summary_tables(start_date_str, end_date_str)
-        mock_sum.assert_called_with(start_date.date(), end_date.date(), self.report_period.cluster_id)
-        mock_storage_summary.assert_called_with(start_date.date(), end_date.date(), self.report_period.cluster_id)
+        mock_sum.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
+        mock_storage_summary.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
 
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             period = accessor.get_usage_periods_by_date(bill_date)[0]
@@ -386,7 +392,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.manifest.num_processed_files = self.manifest.num_total_files
         self.manifest.save()
 
-        start_date = self.date_accessor.today_with_timezone("UTC")
+        start_date = self.dh.today
         end_date = start_date
 
         mock_period_filter_by = Mock()
