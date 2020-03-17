@@ -125,7 +125,7 @@ class NiseDataLoader:
         if account_id is None:
             account_id = "9999999999999"
         if provider_resource_name is None:
-            provider_resource_name = "arn:aws:iam::111111111111:role/CostManagement"
+            provider_resource_name = "arn:aws:iam::999999999999:role/CostManagement"
         nise_provider_type = provider_type.replace("-local", "")
         report_name = "Test"
         provider = baker.make(
