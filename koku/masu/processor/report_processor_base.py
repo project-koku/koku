@@ -24,6 +24,7 @@ import ciso8601
 from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
 
+from api.models import Provider
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProcessingError
@@ -247,8 +248,8 @@ class ReportProcessorBase:
     def get_date_column_filter(self):
         """Return a filter using the provider-appropriate column."""
         with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
-            type = provider_accessor.get_type().lower()
-        if type == "azure":
+            type = provider_accessor.get_type()
+        if type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             return {"usage_date__gte": self.data_cutoff_date}
         else:
             return {"usage_start__gte": self.data_cutoff_date}
