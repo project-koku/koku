@@ -229,7 +229,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
                 + " but the list of log messages was instead : "
                 + str(cm.output),
             )
-        # Re-enable log suppressionjjn
+        # Re-enable log suppression
         logging.disable(logging.CRITICAL)
 
         self.assertEqual(1, CostUsageReportManifest.objects.count())
