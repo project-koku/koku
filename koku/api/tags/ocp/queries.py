@@ -15,9 +15,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """OCP Tag Query Handling."""
+from django.db.models import Exists
+from django.db.models import OuterRef
+
 from api.models import Provider
 from api.report.ocp.provider_map import OCPProviderMap
 from api.tags.queries import TagQueryHandler
+from reporting.models import OCPEnabledTagKeys
 from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsagePodLabelSummary
 
@@ -26,16 +30,26 @@ class OCPTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for OCP."""
 
     provider = Provider.PROVIDER_OCP
+    enabled = OCPEnabledTagKeys.objects.filter(key=OuterRef("key"))
     data_sources = [
-        {"db_table": OCPUsagePodLabelSummary, "db_column_period": "report_period__report_period", "type": "pod"},
+        {
+            "db_table": OCPUsagePodLabelSummary,
+            "db_column_period": "report_period__report_period",
+            "type": "pod",
+            "annotations": {"enabled": Exists(enabled)},
+        },
         {
             "db_table": OCPStorageVolumeLabelSummary,
             "db_column_period": "report_period__report_period",
             "type": "storage",
+            "annotations": {"enabled": Exists(enabled)},
         },
     ]
-    SUPPORTED_FILTERS = ["project"]
-    FILTER_MAP = {"project": {"field": "namespace", "operation": "icontains"}}
+    SUPPORTED_FILTERS = ["project", "enabled"]
+    FILTER_MAP = {
+        "project": {"field": "namespace", "operation": "icontains"},
+        "enabled": {"field": "enabled", "operation": "exact", "parameter": True},
+    }
 
     def __init__(self, parameters):
         """Establish AWS report query handler.
