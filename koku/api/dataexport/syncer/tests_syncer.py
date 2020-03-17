@@ -78,7 +78,12 @@ class AwsS3SyncerTestWithData(MasuTestCase):
             list of expected mock.call objects.
 
         """
-        expected_providers = [self.aws_provider, self.ocp_provider, self.azure_provider]
+        expected_providers = [
+            self.aws_provider,
+            self.ocp_on_aws_ocp_provider,
+            self.ocp_on_azure_ocp_provider,
+            self.azure_provider,
+        ]
         expected_filter_calls = []
 
         for day, provider in product(days, expected_providers):
@@ -86,7 +91,7 @@ class AwsS3SyncerTestWithData(MasuTestCase):
                 call(
                     Prefix=(
                         f"{settings.S3_BUCKET_PATH}/{schema_name}/"
-                        f"{provider.type.lower()}/{provider.uuid}/"
+                        f"{provider.type.lower().replace('-local', '')}/{provider.uuid}/"
                         f"{day.year:04d}/{day.month:02d}/{day.day:02d}/"
                     )
                 )
@@ -96,7 +101,7 @@ class AwsS3SyncerTestWithData(MasuTestCase):
                 call(
                     Prefix=(
                         f"{settings.S3_BUCKET_PATH}/{schema_name}/"
-                        f"{provider.type.lower()}/{provider.uuid}/"
+                        f"{provider.type.replace('-local', '').lower()}/{provider.uuid}/"
                         f"{month.year:04d}/{month.month:02d}/00/"
                     )
                 )
