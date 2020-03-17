@@ -58,35 +58,43 @@ class OrchestratorTest(MasuTestCase):
     def setUp(self):
         """Set up shared variables."""
         super().setUp()
+        self.aws_provider_resource_name = self.aws_provider.authentication.provider_resource_name
+        self.aws_billing_source = self.aws_provider.billing_source.bucket
+        self.azure_credentials = self.azure_provider.authentication.credentials
+        self.azure_data_source = self.azure_provider.billing_source.data_source
+        self.ocp_provider_resource_names = [
+            name[0] for name in Provider.objects.values_list("authentication__provider_resource_name")
+        ]
+        self.ocp_billing_source = None
         self.mock_accounts = []
-        for _ in range(1, random.randint(5, 20)):
-            self.mock_accounts.append(
-                {
-                    "authentication": fake_arn(service="iam", generate_account_id=True),
-                    "billing_source": self.fake.word(),
-                    "customer_name": self.fake.word(),
-                    "provider_type": Provider.PROVIDER_AWS,
-                    "schema_name": self.fake.word(),
-                }
-            )
+        self.mock_accounts.append(
+            {
+                "authentication": fake_arn(service="iam", generate_account_id=True),
+                "billing_source": self.fake.word(),
+                "customer_name": self.fake.word(),
+                "provider_type": Provider.PROVIDER_AWS,
+                "schema_name": self.fake.word(),
+            }
+        )
 
     def test_initializer(self):
         """Test to init."""
         orchestrator = Orchestrator()
+        provider_count = Provider.objects.count()
 
-        if len(orchestrator._accounts) != 3:
+        if len(orchestrator._accounts) != provider_count:
             self.fail("Unexpected number of test accounts")
 
         for account in orchestrator._accounts:
-            if account.get("provider_type") == Provider.PROVIDER_AWS:
+            if account.get("provider_type") in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
                 self.assertEqual(account.get("authentication"), self.aws_provider_resource_name)
-                self.assertEqual(account.get("billing_source"), self.aws_test_billing_source)
+                self.assertEqual(account.get("billing_source"), self.aws_billing_source)
                 self.assertEqual(account.get("customer_name"), self.schema)
             elif account.get("provider_type") == Provider.PROVIDER_OCP:
-                self.assertEqual(account.get("authentication"), self.ocp_provider_resource_name)
-                self.assertEqual(account.get("billing_source"), self.ocp_test_billing_source)
+                self.assertIn(account.get("authentication"), self.ocp_provider_resource_names)
+                self.assertEqual(account.get("billing_source"), self.ocp_billing_source)
                 self.assertEqual(account.get("customer_name"), self.schema)
-            elif account.get("provider_type") == Provider.PROVIDER_AZURE:
+            elif account.get("provider_type") in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
                 self.assertEqual(account.get("authentication"), self.azure_credentials)
                 self.assertEqual(account.get("billing_source"), self.azure_data_source)
                 self.assertEqual(account.get("customer_name"), self.schema)
@@ -97,11 +105,11 @@ class OrchestratorTest(MasuTestCase):
             self.fail("Unexpected number of listener test accounts")
 
         for account in orchestrator._polling_accounts:
-            if account.get("provider_type") == Provider.PROVIDER_AWS:
+            if account.get("provider_type") in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
                 self.assertEqual(account.get("authentication"), self.aws_provider_resource_name)
-                self.assertEqual(account.get("billing_source"), self.aws_test_billing_source)
+                self.assertEqual(account.get("billing_source"), self.aws_billing_source)
                 self.assertEqual(account.get("customer_name"), self.schema)
-            elif account.get("provider_type") == Provider.PROVIDER_AZURE:
+            elif account.get("provider_type") in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
                 self.assertEqual(account.get("authentication"), self.azure_credentials)
                 self.assertEqual(account.get("billing_source"), self.azure_data_source)
                 self.assertEqual(account.get("customer_name"), self.schema)
@@ -159,7 +167,7 @@ class OrchestratorTest(MasuTestCase):
             orchestrator = Orchestrator()
             results = orchestrator.remove_expired_report_data()
             self.assertTrue(results)
-            self.assertEqual(len(results), 3)
+            self.assertEqual(len(results), 4)
             async_id = results.pop().get("async_id")
             self.assertIn(expected.format(async_id), logger.output)
 

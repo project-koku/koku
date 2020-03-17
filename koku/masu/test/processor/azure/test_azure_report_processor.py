@@ -189,10 +189,15 @@ class AzureReportProcessorTest(MasuTestCase):
             provider_uuid=self.azure_provider_uuid,
         )
 
-        # Process for the first time
-        processor.process()
         report_db = self.accessor
         report_schema = report_db.report_schema
+        with schema_context(self.schema):
+            table_name = AZURE_REPORT_TABLE_MAP["line_item"]
+            table = getattr(report_schema, table_name)
+            initial_line_item_count = table.objects.count()
+
+        # Process for the first time
+        processor.process()
 
         for table_name in self.report_tables:
             table = getattr(report_schema, table_name)
@@ -220,6 +225,9 @@ class AzureReportProcessorTest(MasuTestCase):
                 table = getattr(report_schema, table_name)
                 with schema_context(self.schema):
                     count = table.objects.count()
+                    if table_name == AZURE_REPORT_TABLE_MAP["line_item"]:
+                        counts[table_name] = counts[table_name] - initial_line_item_count
+                    print(count, counts[table_name], table_name)
                 self.assertTrue(count == counts[table_name])
 
     def test_azure_process_can_run_twice(self):

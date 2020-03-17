@@ -36,8 +36,8 @@ from api.report.azure.openshift.view import OCPAzureCostView
 from api.report.azure.openshift.view import OCPAzureInstanceTypeView
 from api.report.azure.openshift.view import OCPAzureStorageView
 from api.report.test.azure.helpers import AZURE_SERVICES
-from api.report.test.azure.openshift.helpers import OCPAzureReportDataGenerator
 from api.utils import DateHelper
+from reporting.models import AzureCostEntryLineItemDailySummary
 from reporting.models import OCPAzureCostLineItemDailySummary
 
 
@@ -59,6 +59,8 @@ class OCPAWSQueryHandlerTestNoData(IamTestCase):
 
     def test_execute_sum_query_instance_types(self):
         """Test that the sum query runs properly for instance-types."""
+        with tenant_context(self.tenant):
+            OCPAzureCostLineItemDailySummary.objects.all().delete()
         url = "?"
         query_params = self.mocked_query_params(url, OCPAzureInstanceTypeView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -101,7 +103,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             "usage_start__gte": self.dh.last_month_start,
             "usage_end__lte": self.dh.last_month_end,
         }
-        self.generator = OCPAzureReportDataGenerator(self.tenant, self.provider)
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
         """Return the total aggregates for a time period."""
@@ -112,7 +113,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_sum_query_storage(self):
         """Test that the sum query runs properly."""
-        self.generator.add_data_to_tenant(service_name="Storage")
         url = "?"
         query_params = self.mocked_query_params(url, OCPAzureStorageView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -129,7 +129,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_sum_query_instance_types(self):
         """Test that the sum query runs properly."""
-        self.generator.add_data_to_tenant()
         url = "?"
         query_params = self.mocked_query_params(url, OCPAzureInstanceTypeView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -138,13 +137,13 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.ten_day_filter)
+        filters = {**self.ten_day_filter, "instance_type__isnull": False}
+        current_totals = self.get_totals_by_time_scope(aggregates, filters)
         total = query_output.get("total")
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
     def test_execute_query_current_month_daily(self):
         """Test execute_query for current month on daily breakdown."""
-        self.generator.add_data_to_tenant()
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -160,7 +159,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_by_account(self):
         """Test execute_query for current month on monthly breakdown by account."""
-        self.generator.add_data_to_tenant()
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[subscription_guid]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -186,8 +184,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
-        self.generator.add_data_to_tenant()
-
         valid_services = list(AZURE_SERVICES.keys())
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
@@ -215,12 +211,12 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_query_by_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
-        self.generator.add_data_to_tenant(
-            fixed_fields=["subscription_guid", "resource_location", "tags", "service_name"]
-        )
-
-        valid_services = list(AZURE_SERVICES.keys())
-        service = self.generator.config.service_name
+        with tenant_context(self.tenant):
+            valid_services = [
+                service[0]
+                for service in AzureCostEntryLineItemDailySummary.objects.values_list("service_name").distinct()
+            ]
+            service = valid_services[0]
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]={service}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -252,9 +248,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_query_curr_month_by_subscription_guid_w_limit(self):
         """Test execute_query for current month on monthly breakdown by subscription_guid with limit."""
-        self.generator.add_data_to_tenant()
-        OCPAzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
-
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[subscription_guid]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -274,16 +267,13 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             month_data = data_item.get("subscription_guids")
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            self.assertEqual(2, len(month_data))
+            self.assertEqual(1, len(month_data))
             for month_item in month_data:
                 self.assertIsInstance(month_item.get("subscription_guid"), str)
                 self.assertIsInstance(month_item.get("values"), list)
 
     def test_execute_query_curr_month_by_subscription_guid_w_order(self):
         """Test execute_query for current month on monthly breakdown by subscription_guid with asc order."""
-        self.generator.add_data_to_tenant()
-        OCPAzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
-
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[cost]=asc&group_by[subscription_guid]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -303,7 +293,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             month_data = data_item.get("subscription_guids")
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            self.assertEqual(len(month_data), 2)
+            self.assertEqual(len(month_data), 1)
             current_total = 0
             for month_item in month_data:
                 self.assertIsInstance(month_item.get("subscription_guid"), str)
@@ -315,9 +305,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_query_curr_month_by_subscription_guid_w_order_by_subscription_guid(self):
         """Test execute_query for current month on monthly breakdown by subscription_guid with asc order."""
-        self.generator.add_data_to_tenant()
-        OCPAzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
-
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[subscription_guid]=asc&group_by[subscription_guid]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -337,7 +324,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             month_data = data_item.get("subscription_guids")
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            self.assertEqual(len(month_data), 2)
+            self.assertEqual(len(month_data), 1)
             current = "0"
             for month_item in month_data:
                 self.assertIsInstance(month_item.get("subscription_guid"), str)
@@ -351,7 +338,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_query_curr_month_by_cluster(self):
         """Test execute_query for current month on monthly breakdown by group_by cluster."""
-        self.generator.add_data_to_tenant()
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -378,9 +364,8 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_query_by_filtered_cluster(self):
         """Test execute_query monthly breakdown by filtered cluster."""
-        self.generator.add_data_to_tenant()
-
-        cluster = self.generator.cluster_id
+        with tenant_context(self.tenant):
+            cluster = OCPAzureCostLineItemDailySummary.objects.values("cluster_id")[0].get("cluster_id")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]={cluster}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -412,8 +397,10 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_query_curr_month_by_filtered_resource_location(self):
         """Test execute_query for current month on monthly breakdown by filtered resource_location."""
-        self.generator.add_data_to_tenant()
-        location = self.generator.config.resource_location
+        with tenant_context(self.tenant):
+            location = AzureCostEntryLineItemDailySummary.objects.values("resource_location")[0].get(
+                "resource_location"
+            )
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[resource_location]={location}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -423,7 +410,8 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        filters = {**self.this_month_filter, "resource_location": location}
+        current_totals = self.get_totals_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
@@ -440,8 +428,8 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_filter_subscription_guid(self):
         """Test execute_query for current month on monthly filtered by subscription_guid."""
-        self.generator.add_data_to_tenant()
-        guid = self.generator.config.subscription_guid
+        with tenant_context(self.tenant):
+            guid = AzureCostEntryLineItemDailySummary.objects.values("subscription_guid")[0].get("subscription_guid")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[subscription_guid]={guid}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -451,7 +439,8 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        filters = {**self.this_month_filter, "subscription_guid": guid}
+        current_totals = self.get_totals_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
@@ -464,12 +453,8 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_filter_service(self):
         """Test execute_query for current month on monthly filtered by service."""
-        self.generator = OCPAzureReportDataGenerator(self.tenant, self.provider, current_month_only=True)
-        self.generator.add_data_to_tenant(
-            fixed_fields=["subscription_guid", "resource_location", "tags", "service_name"]
-        )
-
-        service = self.generator.config.service_name
+        with tenant_context(self.tenant):
+            service = AzureCostEntryLineItemDailySummary.objects.values("service_name")[0].get("service_name")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[service_name]={service}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -499,8 +484,10 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_filter_resource_location(self):
         """Test execute_query for current month on monthly filtered by resource_location."""
-        self.generator.add_data_to_tenant()
-        location = self.generator.config.resource_location
+        with tenant_context(self.tenant):
+            location = AzureCostEntryLineItemDailySummary.objects.values("resource_location")[0].get(
+                "resource_location"
+            )
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[resource_location]={location}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -510,7 +497,8 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        filters = {**self.this_month_filter, "resource_location": location}
+        current_totals = self.get_totals_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
@@ -524,9 +512,12 @@ class OCPAzureQueryHandlerTest(IamTestCase):
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
     def test_execute_query_current_month_filter_resource_location_csv(self, mock_accept):
         """Test execute_query on monthly filtered by resource_location for csv."""
-        self.generator.add_data_to_tenant()
         mock_accept.return_value = "text/csv"
-        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[resource_location]={self.generator.config.resource_location}"  # noqa: E501
+        with tenant_context(self.tenant):
+            location = AzureCostEntryLineItemDailySummary.objects.values("resource_location")[0].get(
+                "resource_location"
+            )
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[resource_location]={location}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -535,7 +526,8 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        filters = {**self.this_month_filter, "resource_location": location}
+        current_totals = self.get_totals_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
@@ -549,8 +541,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
     def test_execute_query_curr_month_by_subscription_guid_w_limit_csv(self, mock_accept):
         """Test execute_query for current month on monthly by subscription_guid with limt as csv."""
         mock_accept.return_value = "text/csv"
-        self.generator.add_data_to_tenant()
-        OCPAzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[subscription_guid]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
@@ -567,15 +557,13 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
-        self.assertEqual(len(data), 2)
+        self.assertEqual(len(data), 1)
         for data_item in data:
             month = data_item.get("date", "not-a-date")
             self.assertEqual(month, cmonth_str)
 
     def test_execute_query_w_delta(self):
         """Test grouped by deltas."""
-        self.generator.add_data_to_tenant()
-        OCPAzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
         path = reverse("reports-openshift-azure-costs")
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[subscription_guid]=*&delta=cost"  # noqa: E501
@@ -657,10 +645,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_query_w_delta_no_previous_data(self):
         """Test deltas with no previous data."""
-        self.generator = OCPAzureReportDataGenerator(self.tenant, self.provider, current_month_only=True)
-        self.generator.add_data_to_tenant()
-
-        url = "?filter[time_scope_value]=-1&delta=cost"
+        url = "?filter[time_scope_value]=-2&delta=cost"
         path = reverse("reports-openshift-azure-costs")
         query_params = self.mocked_query_params(url, OCPAzureCostView, path)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -675,9 +660,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_query_orderby_delta(self):
         """Test execute_query with ordering by delta ascending."""
-        self.generator.add_data_to_tenant()
-        OCPAzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
-
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[delta]=asc&group_by[subscription_guid]=*&delta=cost"  # noqa: E501
         path = reverse("reports-openshift-azure-costs")
         query_params = self.mocked_query_params(url, OCPAzureCostView, path)
@@ -698,7 +680,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_calculate_total(self):
         """Test that calculated totals return correctly."""
-        self.generator.add_data_to_tenant()
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -787,9 +768,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         Query for instance_types, validating that cost totals are present.
 
         """
-        self.generator.add_data_to_tenant()
-        OCPAzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
-
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[subscription_guid]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -812,9 +790,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         Query for instance_types, validating that cost totals are present.
 
         """
-        self.generator.add_data_to_tenant()
-        OCPAzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
-
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[instance_type]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureInstanceTypeView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -847,9 +822,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         Query for storage, validating that cost totals are present.
 
         """
-        self.generator.add_data_to_tenant(service_name="Storage")
-        OCPAzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant(service_name="Storage")
-
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureStorageView)
         handler = OCPAzureReportQueryHandler(query_params)
