@@ -89,6 +89,8 @@ class QueryHandler:
             (Boolean): if wildcard is present in list
 
         """
+        if isinstance(in_list, bool):
+            return False
         if not in_list:
             return False
         return any(WILDCARD == item for item in in_list)
