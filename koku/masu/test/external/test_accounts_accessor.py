@@ -29,22 +29,33 @@ class AccountsAccessorTest(MasuTestCase):
     def test_get_accounts(self):
         """Test to get_access_credential."""
         account_objects = AccountsAccessor().get_accounts()
+        expected_count = Provider.objects.count()
 
-        if len(account_objects) != 3:
-            self.fail("unexpected number of accounts")
+        self.assertEqual(len(account_objects), expected_count)
 
         for account in account_objects:
-            if account.get("provider_type") == Provider.PROVIDER_AWS:
-                self.assertEqual(account.get("authentication"), self.aws_provider_resource_name)
-                self.assertEqual(account.get("billing_source"), self.aws_test_billing_source)
+            if account.get("provider_type") in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+                self.assertEqual(
+                    account.get("authentication"), self.aws_provider.authentication.provider_resource_name
+                )
+                self.assertEqual(account.get("billing_source"), self.aws_provider.billing_source.bucket)
                 self.assertEqual(account.get("customer_name"), self.schema)
             elif account.get("provider_type") == Provider.PROVIDER_OCP:
-                self.assertEqual(account.get("authentication"), self.ocp_provider_resource_name)
-                self.assertEqual(account.get("billing_source"), self.ocp_test_billing_source)
+                self.assertIn(
+                    account.get("authentication"),
+                    [
+                        self.ocp_on_aws_ocp_provider.authentication.provider_resource_name,
+                        self.ocp_on_azure_ocp_provider.authentication.provider_resource_name,
+                    ],
+                )
+                self.assertTrue(
+                    (account.get("billing_source") == self.ocp_provider.billing_source.bucket)
+                    or account.get("billing_source") is None
+                )
                 self.assertEqual(account.get("customer_name"), self.schema)
-            elif account.get("provider_type") == Provider.PROVIDER_AZURE:
-                self.assertEqual(account.get("authentication"), self.azure_credentials)
-                self.assertEqual(account.get("billing_source"), self.azure_data_source)
+            elif account.get("provider_type") in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+                self.assertEqual(account.get("authentication"), self.azure_provider.authentication.credentials)
+                self.assertEqual(account.get("billing_source"), self.azure_provider.billing_source.data_source)
                 self.assertEqual(account.get("customer_name"), self.schema)
             else:
                 self.fail("Unexpected provider")
@@ -55,7 +66,7 @@ class AccountsAccessorTest(MasuTestCase):
         self.assertEqual(len(account_objects), 1)
 
         aws_account = account_objects.pop()
-        self.assertEqual(aws_account.get("provider_type"), Provider.PROVIDER_AWS)
+        self.assertIn(aws_account.get("provider_type"), (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL))
         self.assertTrue(AccountsAccessor().is_polling_account(aws_account))
 
     def test_get_ocp_account_is_not_poll(self):

@@ -56,7 +56,7 @@ class OCPAWSTagsViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             data = response.json()
 
-            self.assertEqual(data.get("data"), [])
+            self.assertNotEqual(data.get("data"), [])
             self.assertTrue(isinstance(data.get("data"), list))
 
     def test_tags_queries(self):
@@ -75,7 +75,7 @@ class OCPAWSTagsViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             data = response.json()
 
-            self.assertEqual(data.get("data"), [])
+            self.assertNotEqual(data.get("data"), [])
             self.assertTrue(isinstance(data.get("data"), list))
 
     def test_with_and_filter(self):

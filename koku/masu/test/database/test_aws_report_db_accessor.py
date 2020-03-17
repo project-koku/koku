@@ -24,6 +24,7 @@ from decimal import Decimal
 import django.apps
 from dateutil import relativedelta
 from django.db import connection
+from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
@@ -143,14 +144,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             "num_total_files": 2,
             "provider_id": self.aws_provider.uuid,
         }
-
-        bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid, bill_date=today)
-        cost_entry = self.creator.create_cost_entry(bill, entry_datetime=today)
-        product = self.creator.create_cost_entry_product()
-        pricing = self.creator.create_cost_entry_pricing()
-        reservation = self.creator.create_cost_entry_reservation()
-        self.creator.create_cost_entry_line_item(bill, cost_entry, product, pricing, reservation)
-        self.manifest = self.manifest_accessor.add(**self.manifest_dict)
+        self.creator.create_cost_entry_reservation()
 
     def test_initializer(self):
         """Test initializer."""
@@ -256,16 +250,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
                     value = self.creator.stringify_datetime(value)
                     data_dict[column] = self.creator.stringify_datetime(data_dict[column])
                 self.assertEqual(value, data_dict[column])
-
-    # def test_create_db_object(self):
-    #     """Test that a mapped database object is returned."""
-    #     table = random.choice(self.all_tables)
-    #     data = self.creator.create_columns_for_table(table)
-
-    #     row = self.accessor.create_db_object(table, data)
-
-    #     for column, value in data.items():
-    #         self.assertEqual(getattr(row, column), value)
 
     def test_insert_on_conflict_do_nothing_with_conflict(self):
         """Test that an INSERT succeeds ignoring the conflicting row."""
@@ -432,7 +416,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             today = datetime.datetime.utcnow()
             bill_start = today.replace(day=1).date()
-            bill_id = self.accessor._get_db_obj_query(table_name).first().id
+            bill_id = self.accessor._get_db_obj_query(table_name).filter(billing_period_start=bill_start).first().id
             bills = self.accessor.get_cost_entry_bills_by_date(bill_start)
             self.assertEqual(bill_id, bills[0].id)
 
@@ -453,7 +437,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             later_date = cutoff_date + relativedelta.relativedelta(months=+1)
             later_cutoff = later_date.replace(month=later_date.month, day=15)
             cost_entries = self.accessor.get_bill_query_before_date(later_cutoff)
-            self.assertEqual(cost_entries.count(), 1)
+            self.assertEqual(cost_entries.count(), 2)
             self.assertEqual(cost_entries.first().billing_period_start, cutoff_date)
 
             # Verify that no results are returned for a date earlier than cutoff_date
@@ -469,11 +453,10 @@ class AWSReportDBAccessorTest(MasuTestCase):
             # Verify that the line items for the test bill_id are returned
             bill_id = self.accessor._get_db_obj_query(table_name).first().id
             line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
-            self.assertEqual(line_item_query.count(), 1)
             self.assertEqual(line_item_query.first().cost_entry_bill_id, bill_id)
 
             # Verify that no line items are returned for a missing bill_id
-            wrong_bill_id = bill_id + 1
+            wrong_bill_id = bill_id + 5
             line_item_query = self.accessor.get_lineitem_query_for_billid(wrong_bill_id)
             self.assertEqual(line_item_query.count(), 0)
 
@@ -485,11 +468,10 @@ class AWSReportDBAccessorTest(MasuTestCase):
             bill_id = self.accessor._get_db_obj_query(table_name).first().id
 
             cost_entry_query = self.accessor.get_cost_entry_query_for_billid(bill_id)
-            self.assertEqual(cost_entry_query.count(), 1)
             self.assertEqual(cost_entry_query.first().bill_id, bill_id)
 
             # Verify that no line items are returned for a missing bill_id
-            wrong_bill_id = bill_id + 1
+            wrong_bill_id = bill_id + 5
             cost_entry_query = self.accessor.get_cost_entry_query_for_billid(wrong_bill_id)
             self.assertEqual(cost_entry_query.count(), 0)
 
@@ -553,16 +535,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         daily_table_name = AWS_CUR_TABLE_MAP["line_item_daily"]
         ce_table = getattr(self.accessor.report_schema, ce_table_name)
         daily_table = getattr(self.accessor.report_schema, daily_table_name)
-        with schema_context(self.schema):
-            for _ in range(10):
-                bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid)
-                cost_entry = self.creator.create_cost_entry(bill)
-                product = self.creator.create_cost_entry_product()
-                pricing = self.creator.create_cost_entry_pricing()
-                reservation = self.creator.create_cost_entry_reservation()
-                self.creator.create_cost_entry_line_item(
-                    bill, cost_entry, product, pricing, reservation, resource_id="1234"
-                )
 
         with schema_context(self.schema):
             bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
@@ -576,6 +548,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
             query = self.accessor._get_db_obj_query(daily_table_name)
+            query.delete()
             initial_count = query.count()
 
         self.accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
@@ -594,7 +567,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             summary_columns = [
                 "cost_entry_product_id",
                 "cost_entry_pricing_id",
-                "cost_entry_reservation_id",
                 "line_item_type",
                 "usage_account_id",
                 "usage_start",
@@ -602,11 +574,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 "product_code",
                 "usage_type",
                 "operation",
-                "availability_zone",
                 "resource_id",
                 "usage_amount",
-                "normalization_factor",
-                "normalized_usage_amount",
                 "currency_code",
                 "unblended_rate",
                 "unblended_cost",
@@ -631,17 +600,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         bill_ids = None
 
         with schema_context(self.schema):
-            for _ in range(10):
-                bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid)
-                cost_entry = self.creator.create_cost_entry(bill)
-                product = self.creator.create_cost_entry_product()
-                pricing = self.creator.create_cost_entry_pricing()
-                reservation = self.creator.create_cost_entry_reservation()
-                self.creator.create_cost_entry_line_item(
-                    bill, cost_entry, product, pricing, reservation, resource_id="1234"
-                )
-
-        with schema_context(self.schema):
             ce_entry = ce_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
             start_date = ce_entry["interval_start__min"]
             end_date = ce_entry["interval_start__max"]
@@ -650,13 +608,10 @@ class AWSReportDBAccessorTest(MasuTestCase):
             end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
             query = self.accessor._get_db_obj_query(daily_table_name)
-            initial_count = query.count()
 
         self.accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
 
         with schema_context(self.schema):
-            self.assertNotEqual(query.count(), initial_count)
-
             daily_entry = daily_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
             result_start_date = daily_entry["usage_start__min"]
             result_end_date = daily_entry["usage_start__max"]
@@ -668,7 +623,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             summary_columns = [
                 "cost_entry_product_id",
                 "cost_entry_pricing_id",
-                "cost_entry_reservation_id",
                 "line_item_type",
                 "usage_account_id",
                 "usage_start",
@@ -676,11 +630,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 "product_code",
                 "usage_type",
                 "operation",
-                "availability_zone",
                 "resource_id",
                 "usage_amount",
-                "normalization_factor",
-                "normalized_usage_amount",
                 "currency_code",
                 "unblended_rate",
                 "unblended_cost",
@@ -874,42 +825,12 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
     def test_populate_awstags_summary_table(self):
         """Test that the AWS tags summary table is populated."""
-        bill_ids = []
-        ce_table_name = AWS_CUR_TABLE_MAP["cost_entry"]
         tags_summary_name = AWS_CUR_TABLE_MAP["tags_summary"]
 
-        ce_table = getattr(self.accessor.report_schema, ce_table_name)
-
-        today = DateAccessor().today_with_timezone("UTC")
-        last_month = today - relativedelta.relativedelta(months=1)
-        with schema_context(self.schema):
-            for cost_entry_date in (today, last_month):
-                bill = self.creator.create_cost_entry_bill(
-                    provider_uuid=self.aws_provider.uuid, bill_date=cost_entry_date
-                )
-                bill_ids.append(str(bill.id))
-                cost_entry = self.creator.create_cost_entry(bill, cost_entry_date)
-                for family in ["Storage", "Compute Instance", "Database Storage", "Database Instance"]:
-                    product = self.creator.create_cost_entry_product(family)
-                    pricing = self.creator.create_cost_entry_pricing()
-                    reservation = self.creator.create_cost_entry_reservation()
-                    self.creator.create_cost_entry_line_item(bill, cost_entry, product, pricing, reservation)
-
-        with schema_context(self.schema):
-            ce_entry = ce_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = ce_entry["interval_start__min"]
-            end_date = ce_entry["interval_start__max"]
         query = self.accessor._get_db_obj_query(tags_summary_name)
         with schema_context(self.schema):
-            initial_count = query.count()
-
-        self.accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
-        self.accessor.populate_tags_summary_table()
-
-        self.assertNotEqual(query.count(), initial_count)
-        tags = query.all()
-        tag_keys = [tag.key for tag in tags]
+            tags = query.all()
+            tag_keys = list({tag.key for tag in tags})
 
         with schema_context(self.schema):
             with connection.cursor() as cursor:
@@ -1023,80 +944,40 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
     def test_populate_markup_cost(self):
         """Test that the daily summary table is populated."""
-        ce_table_name = AWS_CUR_TABLE_MAP["cost_entry"]
         summary_table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
-
-        ce_table = getattr(self.accessor.report_schema, ce_table_name)
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]
 
-        table_name = AWS_CUR_TABLE_MAP["line_item"]
-        tag_query = self.accessor._get_db_obj_query(table_name)
-        with schema_context(self.schema):
-            possible_value = tag_query[0].unblended_cost * decimal.Decimal(0.1)
-
-            ce_entry = ce_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = ce_entry["interval_start__min"]
-            end_date = ce_entry["interval_start__max"]
-
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
         query = self.accessor._get_db_obj_query(summary_table_name)
+        with schema_context(self.schema):
+            expected_markup = query.filter(cost_entry_bill__in=bill_ids).aggregate(
+                markup=Sum(F("unblended_cost") * decimal.Decimal(0.1))
+            )
+            expected_markup = expected_markup.get("markup")
 
-        self.accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
         self.accessor.populate_markup_cost(0.1, bill_ids)
         with schema_context(self.schema):
-
-            found_value = query[0].markup_cost
-
-            self.assertAlmostEqual(found_value, possible_value, 6)
+            query = (
+                self.accessor._get_db_obj_query(summary_table_name)
+                .filter(cost_entry_bill__in=bill_ids)
+                .aggregate(Sum("markup_cost"))
+            )
+            actual_markup = query.get("markup_cost__sum")
+            self.assertAlmostEqual(actual_markup, expected_markup, 6)
 
     def test_populate_markup_cost_no_billsids(self):
         """Test that the daily summary table is populated."""
-        ce_table_name = AWS_CUR_TABLE_MAP["cost_entry"]
         summary_table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
 
-        ce_table = getattr(self.accessor.report_schema, ce_table_name)
-
-        bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid)
-        cost_entry = self.creator.create_cost_entry(bill)
-        product = self.creator.create_cost_entry_product()
-        pricing = self.creator.create_cost_entry_pricing()
-        reservation = self.creator.create_cost_entry_reservation()
-        self.creator.create_cost_entry_line_item(bill, cost_entry, product, pricing, reservation)
-
-        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
-        with schema_context(self.schema):
-            bill_ids = [str(bill.id) for bill in bills.all()]
-
-        table_name = AWS_CUR_TABLE_MAP["line_item"]
-        tag_query = self.accessor._get_db_obj_query(table_name)
-        with schema_context(self.schema):
-            possible_values = {}
-
-            for item in tag_query:
-                possible_values.update({item.cost_entry_bill_id: item.unblended_cost * decimal.Decimal(0.1)})
-
-            ce_entry = ce_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = ce_entry["interval_start__min"]
-            end_date = ce_entry["interval_start__max"]
-
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
         query = self.accessor._get_db_obj_query(summary_table_name)
+        with schema_context(self.schema):
+            expected_markup = query.aggregate(markup=Sum(F("unblended_cost") * decimal.Decimal(0.1)))
+            expected_markup = expected_markup.get("markup")
 
-        self.accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
         self.accessor.populate_markup_cost(0.1, None)
         with schema_context(self.schema):
-            found_values = {}
-            for item in query:
-                found_values.update({item.cost_entry_bill_id: item.markup_cost})
-
-        for k, v in found_values.items():
-            self.assertAlmostEqual(v, possible_values[k], 6)
+            query = self.accessor._get_db_obj_query(summary_table_name).aggregate(Sum("markup_cost"))
+            actual_markup = query.get("markup_cost__sum")
+            self.assertAlmostEqual(actual_markup, expected_markup, 6)
