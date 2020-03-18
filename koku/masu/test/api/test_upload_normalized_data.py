@@ -13,8 +13,9 @@ from rest_framework import status
 class UploadNormalizedDataViewTest(TestCase):
     """Test Cases for the upload_normalized_data API."""
 
+    @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.celery.tasks.upload_normalized_data.delay")
-    def test_upload_normalized_data_post(self, mock_delay):
+    def test_upload_normalized_data_post(self, mock_delay, _):
         """Assert upload_normalized_data POST returns expected data."""
         result_id = str(uuid.uuid4())
         mock_delay.return_value = AsyncResult(result_id)
@@ -26,8 +27,9 @@ class UploadNormalizedDataViewTest(TestCase):
         body = response.json()
         self.assertDictEqual(body, {"AsyncResult ID": result_id})
 
+    @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.celery.tasks.upload_normalized_data.delay")
-    def test_upload_normalized_data_get_not_allowed(self, mock_delay):
+    def test_upload_normalized_data_get_not_allowed(self, mock_delay, _):
         """Assert upload_normalized_data GET is not allowed."""
         url = reverse("upload_normalized_data")
         response = self.client.get(url)

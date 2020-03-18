@@ -24,7 +24,6 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.utils import DateHelper
 
@@ -42,9 +41,6 @@ class AWSTagsViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
 
     def _calculate_expected_range(self, time_scope_value, time_scope_units):
         today = self.dh.today
@@ -87,7 +83,7 @@ class AWSTagsViewTest(IamTestCase):
             data = response.json()
             start_range, end_range = self._calculate_expected_range(case.get("value"), case.get("unit"))
 
-            self.assertEqual(data.get("data"), [])
+            self.assertNotEqual(data.get("data"), [])
             self.assertTrue(isinstance(data.get("data"), list))
 
     def test_execute_aws_tags_queries(self):
@@ -114,7 +110,7 @@ class AWSTagsViewTest(IamTestCase):
             data = response.json()
             start_range, end_range = self._calculate_expected_range(case.get("value"), case.get("unit"))
 
-            self.assertEqual(data.get("data"), [])
+            self.assertNotEqual(data.get("data"), [])
             self.assertTrue(isinstance(data.get("data"), list))
 
     def test_execute_query_with_and_filter(self):

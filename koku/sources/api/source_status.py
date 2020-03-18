@@ -38,10 +38,12 @@ LOG = logging.getLogger(__name__)
 class SourceStatus:
     """Source Status."""
 
-    def __init__(self, source_id):
+    def __init__(self, request, source_id):
         """Initialize source id."""
+        self.request = request
+        self.user = request.user
         self.source = Sources.objects.get(source_id=source_id)
-        self.auth_header = self.source.auth_header
+        self.auth_header = {"x-rh-identity": self.user.identity_header.get("encoded")}
         self.sources_client = SourcesHTTPClient(auth_header=self.auth_header, source_id=source_id)
 
     def status(self):
@@ -131,7 +133,7 @@ def source_status(request):
         return Response(data="source_id must be an integer", status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        source_status_obj = SourceStatus(source_id)
+        source_status_obj = SourceStatus(request, source_id)
     except ObjectDoesNotExist:
         # Source isn't in our database, return 404.
         return Response(status=status.HTTP_404_NOT_FOUND)

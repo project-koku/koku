@@ -281,12 +281,20 @@ class OCPReportProcessorTest(MasuTestCase):
     def test_process_duplicate_rows_same_file(self):
         """Test that row duplicates are not inserted into the DB."""
         data = []
+
+        report_db = self.accessor
+        report_schema = report_db.report_schema
+        table_name = OCP_REPORT_TABLE_MAP["line_item"]
+        table = getattr(report_schema, table_name)
+        with schema_context(self.schema):
+            initial_count = table.objects.count()
+
         with open(self.test_report, "r") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 data.append(row)
 
-        expected_count = len(data)
+        expected_new_count = len(data)
         data.extend(data)
         tmp_file = "/tmp/test_process_duplicate_rows_same_file.csv"
         field_names = data[0].keys()
@@ -306,13 +314,9 @@ class OCPReportProcessorTest(MasuTestCase):
         # Process for the first time
         processor.process()
 
-        report_db = self.accessor
-        report_schema = report_db.report_schema
-        table_name = OCP_REPORT_TABLE_MAP["line_item"]
-        table = getattr(report_schema, table_name)
         with schema_context(self.schema):
             count = table.objects.count()
-        self.assertEqual(count, expected_count)
+        self.assertEqual(count, initial_count + expected_new_count)
 
     def test_get_file_opener_default(self):
         """Test that the default file opener is returned."""

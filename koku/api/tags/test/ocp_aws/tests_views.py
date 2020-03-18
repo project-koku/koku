@@ -22,7 +22,6 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 
 
@@ -32,9 +31,6 @@ class OCPAWSTagsViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
 
         self.test_cases = [
             {"value": "-1", "unit": "month", "resolution": "monthly"},
@@ -60,7 +56,7 @@ class OCPAWSTagsViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             data = response.json()
 
-            self.assertEqual(data.get("data"), [])
+            self.assertNotEqual(data.get("data"), [])
             self.assertTrue(isinstance(data.get("data"), list))
 
     def test_tags_queries(self):
@@ -79,7 +75,7 @@ class OCPAWSTagsViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             data = response.json()
 
-            self.assertEqual(data.get("data"), [])
+            self.assertNotEqual(data.get("data"), [])
             self.assertTrue(isinstance(data.get("data"), list))
 
     def test_with_and_filter(self):

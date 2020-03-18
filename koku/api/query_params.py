@@ -205,11 +205,12 @@ class QueryParameters:
         access_list = self.access.get(access_key, {}).get("read", [])
         access_filter_applied = False
         if ReportQueryHandler.has_wildcard(access_list):
-            access_list = list(
-                OCPAllCostLineItemDailySummary.objects.filter(source_type=provider)
-                .values_list("usage_account_id", flat=True)
-                .distinct()
-            )
+            with tenant_context(self.tenant):
+                access_list = list(
+                    OCPAllCostLineItemDailySummary.objects.filter(source_type=provider)
+                    .values_list("usage_account_id", flat=True)
+                    .distinct()
+                )
 
         # check group by
         group_by = self.parameters.get("group_by", {})
@@ -358,6 +359,11 @@ def get_replacement_result(param_res_list, access_list, raise_exception=True):
         return list(param_res_list)
     intersection = param_res_list & set(access_list)
     if not intersection:
+        LOG.warning(
+            "User does not have permissions for the " "requested params: %s. Current access: %s.",
+            param_res_list,
+            access_list,
+        )
         raise PermissionDenied()
     return list(intersection)
 

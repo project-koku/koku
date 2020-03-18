@@ -16,10 +16,10 @@
 #
 """Updates report summary tables in the database."""
 # pylint: skip-file
-import datetime
 import logging
 from decimal import Decimal
 
+from dateutil import parser
 from django.db import connection
 from tenant_schemas.utils import schema_context
 
@@ -78,13 +78,13 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
 
     def update_aws_summary_tables(self, openshift_provider_uuid, aws_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on AWS."""
+        if isinstance(start_date, str):
+            start_date = parser.parse(start_date)
+        if isinstance(end_date, str):
+            end_date = parser.parse(end_date)
+
         cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
-        aws_bills = aws_get_bills_from_provider(
-            aws_provider_uuid,
-            self._schema,
-            datetime.datetime.strptime(start_date, "%Y-%m-%d"),
-            datetime.datetime.strptime(end_date, "%Y-%m-%d"),
-        )
+        aws_bills = aws_get_bills_from_provider(aws_provider_uuid, self._schema, start_date, end_date)
         aws_bill_ids = []
         with schema_context(self._schema):
             aws_bill_ids = [str(bill.id) for bill in aws_bills]
@@ -118,13 +118,13 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
 
     def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on Azure."""
+        if isinstance(start_date, str):
+            start_date = parser.parse(start_date)
+        if isinstance(end_date, str):
+            end_date = parser.parse(end_date)
+
         cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
-        azure_bills = azure_get_bills_from_provider(
-            azure_provider_uuid,
-            self._schema,
-            datetime.datetime.strptime(start_date, "%Y-%m-%d"),
-            datetime.datetime.strptime(end_date, "%Y-%m-%d"),
-        )
+        azure_bills = azure_get_bills_from_provider(azure_provider_uuid, self._schema, start_date, end_date)
         azure_bill_ids = []
         with schema_context(self._schema):
             azure_bill_ids = [str(bill.id) for bill in azure_bills]

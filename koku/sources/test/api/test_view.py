@@ -31,7 +31,6 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from api.provider.provider_manager import ProviderManagerError
 from koku.middleware import IdentityHeaderMiddleware
-from providers.provider_access import ProviderAccessor
 from sources.api.view import SourcesViewSet
 
 
@@ -45,7 +44,7 @@ class SourcesViewTests(IamTestCase):
         self.test_account = "10001"
         user_data = self._create_user_data()
         customer = self._create_customer_data(account=self.test_account)
-        self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=False)
+        self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
         self.test_source_id = 1
         name = "Test Azure Source"
         customer_obj = Customer.objects.get(account_id=customer.get("account_id"))
@@ -69,7 +68,8 @@ class SourcesViewTests(IamTestCase):
         mock_url = PropertyMock(return_value="http://www.sourcesclient.com/api/v1/sources/")
         SourcesViewSet.url = mock_url
 
-    def test_source_update(self):
+    @patch("sources.tasks.create_or_update_provider.delay")
+    def test_source_update(self, mock_delay):
         """Test the PATCH endpoint."""
         credentials = {
             "subscription_id": "12345678-1234-5678-1234-567812345678",
@@ -90,10 +90,9 @@ class SourcesViewTests(IamTestCase):
             }
             url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
 
-            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-                response = self.client.patch(
-                    url, json.dumps(params), content_type="application/json", **self.request_context["request"].META
-                )
+            response = self.client.patch(
+                url, json.dumps(params), content_type="application/json", **self.request_context["request"].META
+            )
 
             self.assertEqual(response.status_code, 200)
 
@@ -156,7 +155,7 @@ class SourcesViewTests(IamTestCase):
         other_account = "10002"
         customer = self._create_customer_data(account=other_account)
         IdentityHeaderMiddleware.create_customer(other_account)
-        request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=False)
+        request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
         with requests_mock.mock() as m:
             m.get(f"http://www.sourcesclient.com/api/v1/sources/", status_code=200)
 
@@ -190,7 +189,7 @@ class SourcesViewTests(IamTestCase):
         user_data = self._create_user_data()
 
         customer = self._create_customer_data(account="10002")
-        request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=False)
+        request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
         with requests_mock.mock() as m:
             m.get(
                 f"http://www.sourcesclient.com/api/v1/sources/{self.test_source_id}/",
