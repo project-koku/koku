@@ -6,7 +6,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0099_ocp_performance")]
+    dependencies = [("reporting", "0101_ocpenabledtagkeys")]
 
     operations = [
         migrations.RemoveField(model_name="ocpusagelineitemdailysummary", name="infra_cost"),
