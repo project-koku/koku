@@ -1,0 +1,58 @@
+[
+    {
+        "source": "AWS",
+        "service_category": "database",
+        "product_codes": [
+            "AmazonRDS",
+            "AmazonDynamoDB",
+            "AmazonElastiCache",
+            "AmazonNeptune",
+            "AmazonRedshift",
+            "AmazonDocumentDB"
+        ]
+    },
+    {
+        "source": "AWS",
+        "service_category": "network",
+        "product_codes": [
+            "AmazonVPC",
+            "AmazonCloudFront",
+            "AmazonRoute53",
+            "AmazonAPIGateway"
+        ]
+    },
+    {
+        "source": "AWS",
+        "service_category": "storage",
+        "product_codes": [
+            "AmazonS3",
+            "AmazonEBS",
+            "AmazonEFS"
+        ]
+    },
+    {
+        "source": "AWS",
+        "service_category": "compute",
+        "product_codes": ["AmazonEC2", "AmazonLambda"]
+    },
+    {
+        "source": "Azure",
+        "service_category": "conpute",
+        "product_codes": ["Virtual Machines"]
+    },
+    {
+        "source": "Azure",
+        "service_category": "database",
+        "product_codes": ["SQL Database"]
+    },
+    {
+        "source": "Azure",
+        "service_category": "storage",
+        "product_codes": ["Storage"]
+    },
+    {
+        "source": "Azure",
+        "service_category": "network",
+        "product_codes": ["Virtual Network"]
+    }
+]

@@ -5,7 +5,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0101_ocpenabledtagkeys")]
+    dependencies = [("reporting", "0101_ocpenabledtagkeys"), ("reporting_common", "0021_source_service_product")]
 
     operations = [
         # Add index to usage_start on 2 materialized views for ocp_all
@@ -42,48 +42,6 @@ CREATE INDEX ocpallcstdlysumm_prod_family_like ON reporting_ocpallcostlineitem_d
         ),
         migrations.RunSQL(
             sql="""
-DROP TABLE IF EXISTS public.reporting_common_source_service_product;
-CREATE TABLE public.reporting_common_source_service_product
-(
-    source text not null,
-    service_category text not null,
-    product_codes text[] not null,
-    primary key (source, service_category)
-);
-
-INSERT INTO public.reporting_common_source_service_product (source, service_category, product_codes)
-VALUES
-('AWS',
- 'database',
- '{AmazonRDS,AmazonDynamoDB,AmazonElastiCache,AmazonNeptune,AmazonRedshift,AmazonDocumentDB}'::text[]),
-('AWS',
- 'network',
- '{AmazonVPC,AmazonCloudFront,AmazonRoute53,AmazonAPIGateway}'::text[]),
-('AWS',
- 'storage',
- '{AmazonS3,AmazonEBS,AmazonEFS}'::text[]),
-('AWS',
- 'compute',
- '{AmazonEC2,AmazonLambda}'::text[]),
-('Azure',
- 'conpute',
- '{Virtual Machines}'::text[]),
-('Azure',
- 'database',
- '{SQL Database}'::text[]),
-('Azure',
- 'storage',
- '{Storage}'::text[]),
-('Azure',
- 'network',
- '{Virtual Network}'::text[]);
-
- CREATE INDEX ix_rpt_comm_srcsrvprodcd_service ON public.reporting_common_source_service_product (service_category);
- CREATE INDEX ix_rpt_comm_srcsrvprdcd_product_codes ON public.reporting_common_source_service_product USING GIN (product_codes);
-            """
-        ),
-        migrations.RunSQL(
-            sql="""
 DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_daily_summary_database;
 CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_daily_summary_database AS
 SELECT lids.id,
@@ -111,7 +69,7 @@ SELECT lids.id,
        lids.shared_projects,
        lids.project_costs
   FROM reporting_ocpallcostlineitem_daily_summary lids
-  JOIN reporting_common_source_service_product rcssp
+  JOIN reporting_common_sourceserviceproduct rcssp
     ON rcssp.source = lids.source_type
    AND rcssp.service_category = 'database'
  WHERE lids.product_code = any(rcssp.product_codes)
@@ -162,7 +120,7 @@ SELECT lids.id,
        lids.shared_projects,
        lids.project_costs
   FROM reporting_ocpallcostlineitem_daily_summary lids
-  JOIN reporting_common_source_service_product rcssp
+  JOIN reporting_common_sourceserviceproduct rcssp
     ON rcssp.source = lids.source_type
    AND rcssp.service_category = 'compute'
  WHERE lids.product_code = any(rcssp.product_codes)
@@ -213,7 +171,7 @@ SELECT lids.id,
        lids.shared_projects,
        lids.project_costs
   FROM reporting_ocpallcostlineitem_daily_summary lids
-  JOIN reporting_common_source_service_product rcssp
+  JOIN reporting_common_sourceserviceproduct rcssp
     ON rcssp.source = lids.source_type
    AND rcssp.service_category = 'network'
  WHERE lids.product_code = any(rcssp.product_codes)
@@ -264,7 +222,7 @@ SELECT lids.id,
        lids.shared_projects,
        lids.project_costs
   FROM reporting_ocpallcostlineitem_daily_summary lids
-  JOIN reporting_common_source_service_product rcssp
+  JOIN reporting_common_sourceserviceproduct rcssp
     ON rcssp.source = lids.source_type
    AND rcssp.service_category = 'storage'
  WHERE lids.product_code = any(rcssp.product_codes)
@@ -292,7 +250,7 @@ CREATE INDEX ix_reporting_ocpallcost_lids_st_prod_family_like
 
 
 DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_project_daily_summary_compute;
-CREATE OR RELPACE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary_compute AS
+CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary_compute AS
  SELECT row_number() OVER () AS id,
     lids.source_type,
     lids.cluster_id,
@@ -318,7 +276,7 @@ CREATE OR RELPACE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_s
     lids.pod_cost,
     lids.currency_code
   FROM reporting_ocpallcostlineitem_project_daily_summary lids
-  JOIN reporting_common_source_service_product rcssp
+  JOIN reporting_common_sourceserviceproduct rcssp
     ON rcssp.source = lids.source_type
    AND rcssp.service_category = 'compute'
  WHERE lids.product_code = any(rcssp.product_codes)
@@ -345,7 +303,7 @@ CREATE INDEX ix_reporting_ocpallcostprj_lids_cp_prod_family_like
 
 
 DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_project_daily_summary_storage;
-CREATE OR RELPACE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary_storage AS
+CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary_storage AS
  SELECT row_number() OVER () AS id,
     lids.source_type,
     lids.cluster_id,
@@ -371,7 +329,7 @@ CREATE OR RELPACE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_s
     lids.pod_cost,
     lids.currency_code
   FROM reporting_ocpallcostlineitem_project_daily_summary lids
-  JOIN reporting_common_source_service_product rcssp
+  JOIN reporting_common_sourceserviceproduct rcssp
     ON rcssp.source = lids.source_type
    AND rcssp.service_category = 'storage'
  WHERE lids.product_code = any(rcssp.product_codes)
@@ -398,7 +356,7 @@ CREATE INDEX ix_reporting_ocpallcostprj_lids_st_prod_family_like
 
 
 DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_project_daily_summary_network;
-CREATE OR RELPACE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary_network AS
+CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary_network AS
  SELECT row_number() OVER () AS id,
     lids.source_type,
     lids.cluster_id,
@@ -424,7 +382,7 @@ CREATE OR RELPACE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_s
     lids.pod_cost,
     lids.currency_code
   FROM reporting_ocpallcostlineitem_project_daily_summary lids
-  JOIN reporting_common_source_service_product rcssp
+  JOIN reporting_common_sourceserviceproduct rcssp
     ON rcssp.source = lids.source_type
    AND rcssp.service_category = 'network'
  WHERE lids.product_code = any(rcssp.product_codes)
@@ -451,7 +409,7 @@ CREATE INDEX ix_reporting_ocpallcostprj_lids_nw_prod_family_like
 
 
 DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_project_daily_summary_database;
-CREATE OR RELPACE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary_database AS
+CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary_database AS
  SELECT row_number() OVER () AS id,
     lids.source_type,
     lids.cluster_id,
@@ -477,7 +435,7 @@ CREATE OR RELPACE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_s
     lids.pod_cost,
     lids.currency_code
   FROM reporting_ocpallcostlineitem_project_daily_summary lids
-  JOIN reporting_common_source_service_product rcssp
+  JOIN reporting_common_sourceserviceproduct rcssp
     ON rcssp.source = lids.source_type
    AND rcssp.service_category = 'database'
  WHERE lids.product_code = any(rcssp.product_codes)

@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Models for shared reporting tables."""
+from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.utils import timezone
 
@@ -111,3 +113,20 @@ class RegionMapping(models.Model):
 
     region = models.CharField(max_length=32, null=False, unique=True)
     region_name = models.CharField(max_length=64, null=False, unique=True)
+
+
+class SourceServiceProduct(models.Model):
+    """Map product_codes to a service category code for a given source"""
+
+    class Meta:
+        """Ye olde table metadata."""
+
+        unique_together = ("source", "service_category")
+        indexes = [
+            GinIndex(fields=["product_codes"], name="ix_rptcommsrcsrvprdcd_pocd"),
+            models.Index(fields=["service_category"], name="ix_rptcommsrcsrvprdcd_svc"),
+        ]
+
+    source = models.TextField()
+    service_category = models.TextField()
+    product_codes = ArrayField(models.TextField())
