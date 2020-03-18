@@ -273,7 +273,7 @@
 #             self.assertEqual(usage, usage_dictionary[key])
 #             self.assertEqual(round(float(calculated_charge), 1), entry.get("expected_charge"))
 #     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map")
-#     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
+#     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.markup")
 #     def test_update_summary_cost_model_costs_mem_cpu(self, mock_markup, mock_rate_map):
 #         """Test that OCP charge information is updated for cpu and memory."""
 #         markup = {}
@@ -313,7 +313,7 @@
 #                 cpu_charge = (cpu_usage_value * cpu_usage_rate_value) + (cpu_request_value * cpu_request_rate_value)
 #                 self.assertAlmostEqual(cpu_charge, item.pod_charge_cpu_core_hours, places=6)
 #     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map")
-#     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
+#     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.markup")
 #     def test_update_summary_cost_model_costs_cpu(self, mock_markup, mock_rate_map):
 #         """Test that OCP charge information is updated for cpu."""
 #         markup = {}
@@ -338,7 +338,7 @@
 #                 self.assertAlmostEqual(0.0, item.pod_charge_memory_gigabyte_hours)
 #                 self.assertAlmostEqual(cpu_usage_value * cpu_rate_value, item.pod_charge_cpu_core_hours, places=6)
 #     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map")
-#     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
+#     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.markup")
 #     def test_update_summary_cost_model_costs_mem(self, mock_markup, mock_rate_map):
 #         """Test that OCP charge information is updated for cpu and memory."""
 #         markup = {}
@@ -365,7 +365,7 @@
 #                 )
 #                 self.assertAlmostEqual(0.0, Decimal(item.pod_charge_cpu_core_hours), places=6)
 #     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map")
-#     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
+#     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.markup")
 #     def test_update_summary_storage_charge(self, mock_markup, mock_rate_map):
 #         """Test that OCP charge information is updated for storage."""
 #         markup = {}
@@ -482,7 +482,7 @@
 #                     markup_value = Decimal(item.markup_cost)
 #                     self.assertEqual(markup_value, item.pod_charge_memory_gigabyte_hours * markup_percentage)
 #     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map")
-#     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
+#     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.markup")
 #     def test_update_summary_cost_model_costs_mem_cpu_malformed_mem(self, mock_markup, mock_rate_map):
 #         """Test that OCP charge information is updated for cpu and memory with malformed memory rates."""
 #         markup = {}
@@ -512,7 +512,7 @@
 #                 self.assertEqual(item.pod_charge_memory_gigabyte_hours, 0)
 #                 self.assertEqual(item.pod_charge_cpu_core_hours, 0)
 #     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map")
-#     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
+#     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.markup")
 #     def test_update_summary_cost_model_costs_mem_cpu_malformed_cpu(self, mock_markup, mock_rate_map):
 #         """Test that OCP charge information is updated for cpu and memory with malformed cpu rates."""
 #         markup = {}

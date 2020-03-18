@@ -684,7 +684,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch("masu.processor.tasks.refresh_materialized_views")
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map")
-    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
+    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.markup")
     def test_update_summary_tables_ocp(self, mock_markup, mock_rate_map, mock_charge_info, mock_view, mock_chain):
         """Test that the summary table task runs."""
         markup = {}

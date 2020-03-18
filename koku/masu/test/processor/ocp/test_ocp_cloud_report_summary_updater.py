@@ -170,7 +170,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
 
         mock_refresh.assert_called()
 
-    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
+    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.markup")
     def test_update_markup_cost(self, mock_markup):
         """Test that summary tables are updated correctly."""
         markup = {"value": 10, "unit": "percent"}
@@ -198,7 +198,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             for item in query:
                 self.assertAlmostEqual(item.markup_cost, item.unblended_cost * markup_dec)
 
-    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
+    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.markup")
     def test_update_project_markup_cost(self, mock_markup):
         """Test that summary tables are updated correctly."""
         markup = {"value": 10, "unit": "percent"}
@@ -246,7 +246,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views"  # noqa: E501
     )
-    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
+    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.markup")
     def test_update_summary_tables_azure(self, mock_markup, mock_refresh):
         """Test that summary tables are updated correctly."""
         markup = {"value": 10, "unit": "percent"}

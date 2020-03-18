@@ -59,7 +59,7 @@ class CostModelDBAccessorTest(MasuTestCase):
     def test_initializer(self):
         """Test initializer."""
         with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
-            self.assertIsNotNone(cost_model_accessor.report_schema)
+            self.assertEqual(cost_model_accessor.provider_uuid, self.provider_uuid)
 
     def test_get_rates(self):
         """Test get rates."""
@@ -130,20 +130,7 @@ class CostModelDBAccessorTest(MasuTestCase):
             self.assertEqual(type(storage_rates), dict)
             self.assertEqual(storage_rates.get("tiered_rates")[0].get("value"), 6.5)
 
-    def test_make_rate_by_metric_map(self):
-        """Test to make sure a dictionary of metric to rates is returned."""
-        expected_map = {}
-        for rate in self.rates:
-            expected_map[rate.get("metric", {}).get("name")] = rate
-
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
-            result_rate_map = cost_model_accessor._make_rate_by_metric_map()
-            for metric, rate in result_rate_map.items():
-                self.assertIn(rate, self.rates)
-                self.assertIn(rate, expected_map.values())
-                self.assertIn(metric, expected_map)
-
-    def test_get_markup(self):
+    def test_markup(self):
         """Test to make sure markup dictionary is returned."""
         with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
@@ -155,10 +142,10 @@ class CostModelDBAccessorTest(MasuTestCase):
         """Test to make sure cost_model is gotten."""
         with schema_context(self.schema):
             model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            uuid = model.uuid
         with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
-            self.assertEqual(cost_model_accessor._get_cost_model(), model)
-            uuid = cost_model_accessor._get_cost_model().uuid
-            self.assertEqual(cost_model_accessor._get_cost_model().uuid, uuid)
+            self.assertEqual(cost_model_accessor.cost_model, model)
+            self.assertEqual(cost_model_accessor.cost_model.uuid, uuid)
 
     def test_get_node_cost_per_month(self):
         """Test get memory request rates."""
@@ -188,7 +175,7 @@ class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
     def test_initializer_no_rate_no_markup(self):
         """Test initializer."""
         with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
-            self.assertIsNotNone(cost_model_accessor.report_schema)
+            self.assertEqual(cost_model_accessor.provider_uuid, self.provider_uuid)
 
     def test_get_rates(self):
         """Test get rates."""
@@ -213,8 +200,8 @@ class CostModelDBAccessorNoCostModel(MasuTestCase):
             cpu_usage_rate = cost_model_accessor.get_rates("cpu_core_usage_per_hour")
             self.assertFalse(cpu_usage_rate)
 
-    def test_get_markup_no_cost_model(self):
-        """Test that get_markup returns empty dict when cost model does not exist."""
+    def test_markup_no_cost_model(self):
+        """Test that markup returns empty dict when cost model does not exist."""
         with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             self.assertFalse(markup)
