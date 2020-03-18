@@ -96,10 +96,6 @@ class AzureReportDBCleanerTest(MasuTestCase):
         self.assertEqual(removed_data[0].get("provider_uuid"), first_bill.provider_id)
         self.assertEqual(removed_data[0].get("billing_period_start"), str(first_bill.billing_period_start))
 
-        with schema_context(self.schema):
-            self.assertIsNone(self.accessor._get_db_obj_query(bill_table_name).first())
-            self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
-
     def test_purge_expired_report_data_before_date(self):
         """Test to remove report data before a provided date."""
         bill_table_name = AZURE_REPORT_TABLE_MAP["bill"]
@@ -133,19 +129,24 @@ class AzureReportDBCleanerTest(MasuTestCase):
 
         with schema_context(self.schema):
             # Verify that data is cleared for a cutoff date > billing_period_start
-            first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
+            first_bill = self.accessor._get_db_obj_query(bill_table_name).order_by("-billing_period_start").first()
             cutoff_date = first_bill.billing_period_start
             later_date = cutoff_date + relativedelta.relativedelta(months=+1)
             later_cutoff = later_date.replace(month=later_date.month, day=15)
+            expected_count = (
+                self.accessor._get_db_obj_query(bill_table_name).filter(billing_period_start__lte=later_cutoff).count()
+            )
 
             self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
             self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
 
         removed_data = cleaner.purge_expired_report_data(later_cutoff)
 
-        self.assertEqual(len(removed_data), 1)
+        self.assertEqual(len(removed_data), expected_count)
         self.assertEqual(removed_data[0].get("provider_uuid"), first_bill.provider_id)
-        self.assertEqual(removed_data[0].get("billing_period_start"), str(first_bill.billing_period_start))
+        self.assertIn(
+            str(first_bill.billing_period_start), [entry.get("billing_period_start") for entry in removed_data]
+        )
         with schema_context(self.schema):
             self.assertIsNone(self.accessor._get_db_obj_query(bill_table_name).first())
             self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
@@ -183,16 +184,26 @@ class AzureReportDBCleanerTest(MasuTestCase):
         cleaner = AzureReportDBCleaner(self.schema)
 
         with schema_context(self.schema):
-            first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
+            first_bill = (
+                self.accessor._get_db_obj_query(bill_table_name)
+                .filter(provider_id=self.azure_provider_uuid)
+                .order_by("-billing_period_start")
+                .first()
+            )
+            expected_count = (
+                self.accessor._get_db_obj_query(bill_table_name).filter(provider_id=self.azure_provider_uuid).count()
+            )
 
             self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
             self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
 
         removed_data = cleaner.purge_expired_report_data(provider_uuid=self.azure_provider_uuid)
 
-        self.assertEqual(len(removed_data), 1)
+        self.assertEqual(len(removed_data), expected_count)
         self.assertEqual(removed_data[0].get("provider_uuid"), first_bill.provider_id)
-        self.assertEqual(removed_data[0].get("billing_period_start"), str(first_bill.billing_period_start))
+        self.assertIn(
+            str(first_bill.billing_period_start), [entry.get("billing_period_start") for entry in removed_data]
+        )
 
         with schema_context(self.schema):
             self.assertIsNone(self.accessor._get_db_obj_query(bill_table_name).first())
@@ -235,16 +246,33 @@ class AzureReportDBCleanerTest(MasuTestCase):
 
         with schema_context(self.schema):
             # Verify that data is cleared for a cutoff date == billing_period_start
-            first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
+            first_bill = (
+                self.accessor._get_db_obj_query(bill_table_name)
+                .filter(provider_id=self.azure_provider_uuid)
+                .order_by("-billing_period_start")
+                .first()
+            )
+            expected_count = (
+                self.accessor._get_db_obj_query(bill_table_name).filter(provider_id=self.azure_provider_uuid).count()
+            )
+            expected_line_item_count = (
+                self.accessor._get_db_obj_query(line_item_table_name)
+                .filter(cost_entry_bill__provider_id=self.azure_provider_uuid)
+                .count()
+            )
 
-            self.assertEqual(self.accessor._get_db_obj_query(bill_table_name).all().count(), 2)
-            self.assertEqual(self.accessor._get_db_obj_query(line_item_table_name).all().count(), 2)
+            self.assertEqual(self.accessor._get_db_obj_query(bill_table_name).count(), expected_count + 1)
+            self.assertEqual(
+                self.accessor._get_db_obj_query(line_item_table_name).count(), expected_line_item_count + 1
+            )
 
         removed_data = cleaner.purge_expired_report_data(provider_uuid=self.azure_provider_uuid)
 
-        self.assertEqual(len(removed_data), 1)
+        self.assertEqual(len(removed_data), expected_count)
         self.assertEqual(removed_data[0].get("provider_uuid"), first_bill.provider_id)
-        self.assertEqual(removed_data[0].get("billing_period_start"), str(first_bill.billing_period_start))
+        self.assertIn(
+            str(first_bill.billing_period_start), [entry.get("billing_period_start") for entry in removed_data]
+        )
 
         with schema_context(self.schema):
             self.assertEqual(self.accessor._get_db_obj_query(bill_table_name).all().count(), 1)

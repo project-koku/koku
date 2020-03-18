@@ -25,9 +25,6 @@ from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Provider
-from api.provider.test import create_generic_provider
-from api.report.test.azure.openshift.helpers import OCPAzureReportDataGenerator
 from api.utils import DateHelper
 from reporting.models import OCPAzureCostLineItemDailySummary
 
@@ -71,9 +68,6 @@ class OCPAzureReportViewTest(IamTestCase):
 
     def test_group_bys_with_second_group_by_tag(self):
         """Test that a group by project followed by a group by tag does not error."""
-        _, provider = create_generic_provider(Provider.PROVIDER_OCP, self.request_context)
-        data_generator = OCPAzureReportDataGenerator(self.tenant, provider)
-        data_generator.add_data_to_tenant()
         with tenant_context(self.tenant):
             labels = (
                 OCPAzureCostLineItemDailySummary.objects.filter(usage_start__gte=self.dh.last_month_start)

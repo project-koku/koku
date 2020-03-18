@@ -54,7 +54,10 @@ class OpenShiftSettings:
             (List) - List of available tag keys objects
             (List) - List of enabled tag keys strings
         """
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&key_only=True"
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
+            "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
+        )
         tag_request = self.factory.get(url)
         tag_request.user = self.request.user
         query_params = QueryParameters(tag_request, OCPTagView)

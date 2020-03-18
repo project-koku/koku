@@ -26,9 +26,6 @@ from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Provider
-from api.provider.test import create_generic_provider
-from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.utils import DateHelper
 from reporting.models import OCPUsageLineItemDailySummary
 
@@ -42,13 +39,6 @@ class OCPTagsViewTest(IamTestCase):
         super().setUpClass()
         cls.dh = DateHelper()
         cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
-
-    def setUp(self):
-        """Set up the customer view tests."""
-        super().setUp()
-        _, self.provider = create_generic_provider(Provider.PROVIDER_OCP, self.request_context)
-        self.data_generator = OCPReportDataGenerator(self.tenant, self.provider)
-        self.data_generator.add_data_to_tenant()
 
     def _calculate_expected_range(self, time_scope_value, time_scope_units):
         today = self.dh.today
@@ -69,10 +59,14 @@ class OCPTagsViewTest(IamTestCase):
     def test_execute_ocp_tags_queries_keys_only(self):
         """Test that tag key data is for the correct time queries."""
         test_cases = [
-            {"value": "-1", "unit": "month", "resolution": "monthly"},
-            {"value": "-2", "unit": "month", "resolution": "monthly"},
-            {"value": "-10", "unit": "day", "resolution": "daily"},
-            {"value": "-30", "unit": "day", "resolution": "daily"},
+            {"value": "-1", "unit": "month", "resolution": "monthly", "enabled": False},
+            {"value": "-2", "unit": "month", "resolution": "monthly", "enabled": False},
+            {"value": "-10", "unit": "day", "resolution": "daily", "enabled": False},
+            {"value": "-30", "unit": "day", "resolution": "daily", "enabled": False},
+            {"value": "-1", "unit": "month", "resolution": "monthly", "enabled": True},
+            {"value": "-2", "unit": "month", "resolution": "monthly", "enabled": True},
+            {"value": "-10", "unit": "day", "resolution": "daily", "enabled": True},
+            {"value": "-30", "unit": "day", "resolution": "daily", "enabled": True},
         ]
 
         for case in test_cases:
@@ -83,6 +77,7 @@ class OCPTagsViewTest(IamTestCase):
                 "filter[time_scope_value]": case.get("value"),
                 "filter[time_scope_units]": case.get("unit"),
                 "key_only": True,
+                "filter[enabled]": case.get("enabled"),
             }
             url = url + "?" + urlencode(params, quote_via=quote_plus)
             response = client.get(url, **self.headers)
@@ -90,7 +85,8 @@ class OCPTagsViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             data = response.json()
 
-            self.assertTrue(data.get("data"))
+            if not case.get("enabled"):
+                self.assertTrue(data.get("data"))
             self.assertTrue(isinstance(data.get("data"), list))
 
     def test_execute_ocp_tags_queries(self):
@@ -110,6 +106,7 @@ class OCPTagsViewTest(IamTestCase):
                 "filter[time_scope_value]": case.get("value"),
                 "filter[time_scope_units]": case.get("unit"),
                 "key_only": False,
+                "filter[enabled]": False,
             }
             url = url + "?" + urlencode(params, quote_via=quote_plus)
             response = client.get(url, **self.headers)
@@ -141,6 +138,7 @@ class OCPTagsViewTest(IamTestCase):
                 "filter[time_scope_units]": case.get("unit"),
                 "key_only": False,
                 "filter[type]": case.get("type"),
+                "filter[enabled]": False,
             }
             url = url + "?" + urlencode(params, quote_via=quote_plus)
             response = client.get(url, **self.headers)
