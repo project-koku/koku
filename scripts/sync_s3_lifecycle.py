@@ -27,5 +27,5 @@ def sync_s3_lifecycle():
 
 
 if "__main__" in __name__:
-    if strtobool(os.environ.get("ENABLE_S3_ARCHIVING", "False")):
+    if strtobool(os.environ.get("ENABLE_S3_ARCHIVING") or "False"):
         sync_s3_lifecycle()
