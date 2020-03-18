@@ -31,11 +31,20 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
         Args:
             parameters    (QueryParameters): parameter object for query
         """
-        self._mapper = OCPAllProviderMap(provider=self.provider, report_type=parameters.report_type)
+        try:
+            report_subtype = parameters.parameters.pop("_report_subtype")
+        except Exception:
+            report_subtype = None
+
+        self._mapper = OCPAllProviderMap(
+            provider=self.provider, report_type=parameters.report_type, report_subtype=report_subtype
+        )
         # Update which field is used to calculate cost by group by param.
         if is_grouped_or_filtered_by_project(parameters):
             self._report_type = parameters.report_type + "_by_project"
-            self._mapper = OCPAllProviderMap(provider=self.provider, report_type=self._report_type)
+            self._mapper = OCPAllProviderMap(
+                provider=self.provider, report_type=self._report_type, report_subtype=report_subtype
+            )
 
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")

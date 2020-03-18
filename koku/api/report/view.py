@@ -31,6 +31,7 @@ from api.common.pagination import ReportPagination
 from api.common.pagination import ReportRankedPagination
 from api.query_params import QueryParameters
 from api.utils import UnitConverter
+from reporting_common.models import SourceServiceProduct
 
 LOG = logging.getLogger(__name__)
 
@@ -155,6 +156,13 @@ class ReportView(APIView):
         except ValidationError as exc:
             return Response(data=exc.detail, status=status.HTTP_400_BAD_REQUEST)
 
+        if "reports/openshift/infrastructures/all/costs/" in request.build_absolute_uri():
+            report_subtype = self.resolve_report_subtype(params.get_filter("service"))
+        else:
+            report_subtype = None
+
+        params.parameters["_report_subtype"] = report_subtype
+
         handler = self.query_handler(params)
         output = handler.execute_query()
         max_rank = handler.max_rank
@@ -175,3 +183,15 @@ class ReportView(APIView):
         paginated_result = paginator.paginate_queryset(output, request)
         LOG.debug(f"DATA: {output}")
         return paginator.get_paginated_response(paginated_result)
+
+    def resolve_report_subtype(self, request, service_filter):
+        if service_filter:
+            res = (
+                SourceServiceProduct.objects.filter(product_code__overlap=service_filter)
+                .values("service_category")
+                .distinct()
+                .first()
+            )
+            return res["service_category"]
+        else:
+            return None
