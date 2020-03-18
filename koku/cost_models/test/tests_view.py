@@ -64,7 +64,6 @@ class CostModelViewTests(IamTestCase):
                 "value": round(Decimal(random.random()), 6),
                 "unit": "USD",
                 "usage": {"usage_start": None, "usage_end": None},
-                "cost_type": "Infrastructure",
             }
         ]
         self.fake_data = {
@@ -72,7 +71,9 @@ class CostModelViewTests(IamTestCase):
             "description": "Test",
             "source_type": self.ocp_source_type,
             "provider_uuids": [self.provider.uuid],
-            "rates": [{"metric": {"name": self.ocp_metric}, "tiered_rates": tiered_rates}],
+            "rates": [
+                {"metric": {"name": self.ocp_metric}, "cost_type": "Infrastructure", "tiered_rates": tiered_rates}
+            ],
         }
 
         with tenant_context(self.tenant):
@@ -149,14 +150,7 @@ class CostModelViewTests(IamTestCase):
         client = APIClient()
 
         test_data = copy.deepcopy(self.fake_data)
-        test_data["rates"][0]["tiered_rates"] = [
-            {
-                "unit": "USD",
-                "value": 0.22,
-                "usage": {"usage_start": None, "usage_end": None},
-                "cost_type": "Infrastructurez",
-            }
-        ]
+        test_data["rates"][0]["cost_type"] = "Infrastructurez"
         response = client.post(url, test_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -578,3 +572,19 @@ class CostModelViewTests(IamTestCase):
         with tenant_context(self.tenant):
             audit = CostModelAudit.objects.last()
             self.assertEqual(audit.operation, "DELETE")
+
+    def test_cost_type_returned_without_being_set(self):
+        """Test that a default cost type is returned."""
+        rates = self.fake_data.get("rates", [])
+        for rate in rates:
+            rate.pop("cost_type")
+
+        # self.fake_date["rates"] = rates
+        url = reverse("costmodels-list")
+        client = APIClient()
+        response = client.post(url, data=self.fake_data, format="json", **self.headers)
+        data = response.data
+
+        for rate in data.get("rates", []):
+            self.assertIn("cost_type", rate)
+            self.assertEqual(rate["cost_type"], CostModelMetricsMap.SUPPLEMENTARY_COST_TYPE)
