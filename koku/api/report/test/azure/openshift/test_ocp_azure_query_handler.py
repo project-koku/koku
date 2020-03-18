@@ -37,7 +37,6 @@ from api.report.azure.openshift.view import OCPAzureInstanceTypeView
 from api.report.azure.openshift.view import OCPAzureStorageView
 from api.report.test.azure.helpers import AZURE_SERVICES
 from api.utils import DateHelper
-from reporting.models import AzureCostEntryLineItemDailySummary
 from reporting.models import OCPAzureCostLineItemDailySummary
 
 
@@ -203,7 +202,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             valid_services = [
                 service[0]
-                for service in AzureCostEntryLineItemDailySummary.objects.values_list("service_name").distinct()
+                for service in OCPAzureCostLineItemDailySummary.objects.values_list("service_name").distinct()
             ]
             service = valid_services[0]
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]={service}"  # noqa: E501
@@ -387,8 +386,10 @@ class OCPAzureQueryHandlerTest(IamTestCase):
     def test_execute_query_curr_month_by_filtered_resource_location(self):
         """Test execute_query for current month on monthly breakdown by filtered resource_location."""
         with tenant_context(self.tenant):
-            location = AzureCostEntryLineItemDailySummary.objects.values("resource_location")[0].get(
-                "resource_location"
+            location = (
+                OCPAzureCostLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start.date())
+                .values("resource_location")[0]
+                .get("resource_location")
             )
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[resource_location]={location}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
@@ -418,7 +419,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_filter_subscription_guid(self):
         """Test execute_query for current month on monthly filtered by subscription_guid."""
         with tenant_context(self.tenant):
-            guid = AzureCostEntryLineItemDailySummary.objects.values("subscription_guid")[0].get("subscription_guid")
+            guid = OCPAzureCostLineItemDailySummary.objects.values("subscription_guid")[0].get("subscription_guid")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[subscription_guid]={guid}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -443,7 +444,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_filter_service(self):
         """Test execute_query for current month on monthly filtered by service."""
         with tenant_context(self.tenant):
-            service = AzureCostEntryLineItemDailySummary.objects.values("service_name")[0].get("service_name")
+            service = OCPAzureCostLineItemDailySummary.objects.values("service_name")[0].get("service_name")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[service_name]={service}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -474,8 +475,10 @@ class OCPAzureQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_filter_resource_location(self):
         """Test execute_query for current month on monthly filtered by resource_location."""
         with tenant_context(self.tenant):
-            location = AzureCostEntryLineItemDailySummary.objects.values("resource_location")[0].get(
-                "resource_location"
+            location = (
+                OCPAzureCostLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start.date())
+                .values("resource_location")[0]
+                .get("resource_location")
             )
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[resource_location]={location}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
@@ -503,8 +506,10 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         """Test execute_query on monthly filtered by resource_location for csv."""
         mock_accept.return_value = "text/csv"
         with tenant_context(self.tenant):
-            location = AzureCostEntryLineItemDailySummary.objects.values("resource_location")[0].get(
-                "resource_location"
+            location = (
+                OCPAzureCostLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start.date())
+                .values("resource_location")[0]
+                .get("resource_location")
             )
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[resource_location]={location}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
