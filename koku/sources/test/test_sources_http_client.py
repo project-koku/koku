@@ -20,10 +20,13 @@ from unittest.mock import patch
 import requests
 import requests_mock
 import responses
+from django.db.models.signals import post_save
 from django.test import TestCase
 from faker import Faker
 
+from api.provider.models import Sources
 from sources.config import Config
+from sources.kafka_listener import storage_callback
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 
@@ -36,6 +39,7 @@ class SourcesHTTPClientTest(TestCase):
     def setUp(self):
         """Test case setup."""
         super().setUp()
+        post_save.disconnect(storage_callback, sender=Sources)
         self.name = "Test Source"
         self.application_type = 2
         self.source_id = 1
@@ -381,8 +385,10 @@ class SourcesHTTPClientTest(TestCase):
         test_source_id = 1
         application_type_id = 2
         application_id = 3
-        status = "available"
+        status = "unavailable"
         error_msg = "my error"
+        source = Sources.objects.create(source_id=test_source_id, offset=42, source_type="AWS")
+        source.save()
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=test_source_id)
         with requests_mock.mock() as m:
             m.get(
@@ -407,6 +413,8 @@ class SourcesHTTPClientTest(TestCase):
         test_source_id = 1
         application_type_id = 2
         error_msg = "my error"
+        source = Sources.objects.create(source_id=test_source_id, offset=42, source_type="AWS")
+        source.save()
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=test_source_id)
         with requests_mock.mock() as m:
             m.get(
@@ -426,8 +434,10 @@ class SourcesHTTPClientTest(TestCase):
         test_source_id = 1
         application_type_id = 2
         application_id = 3
-        status = "available"
+        status = "unavailable"
         error_msg = "my error"
+        source = Sources.objects.create(source_id=test_source_id, offset=42, source_type="AWS")
+        source.save()
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=test_source_id)
         with requests_mock.mock() as m:
             m.get(
