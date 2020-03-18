@@ -42,7 +42,7 @@ def create_or_update_provider(source_id):
     provider = [instance.name, instance.source_type, instance.authentication, instance.billing_source]
 
     status = "available"
-    err_msg = ""
+    err_msg = None
     try:
         obj = Provider.objects.get(uuid=uuid)
     except Provider.DoesNotExist:
@@ -73,11 +73,11 @@ def create_or_update_provider(source_id):
     instance.status = status_info
     instance.save()
 
-    set_status_for_source.delay(source_id)
+    set_status_for_source.delay(source_id, err_msg)
 
 
 @app.task(name="sources.tasks.set_status_for_source", queue_name="sources")
-def set_status_for_source(source_id):
+def set_status_for_source(source_id, error_message):
     if settings.DEVELOPMENT:
         LOG.info(f"Development enabled. Source ID {source_id} status not set.")
         return
@@ -90,4 +90,4 @@ def set_status_for_source(source_id):
 
     LOG.info(f"Setting availability status for Source ID: {source_id}")
     client = SourcesHTTPClient(instance.auth_header, source_id)
-    client.set_source_status(None)
+    client.set_source_status(error_message)

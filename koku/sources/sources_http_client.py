@@ -18,7 +18,6 @@
 import requests
 from requests.exceptions import RequestException
 
-from api.provider.models import Sources
 from sources.config import Config
 
 
@@ -190,7 +189,6 @@ class SourcesHTTPClient:
 
     def set_source_status(self, error_msg, cost_management_type_id=None):
         """Set the source status with error message."""
-        source = Sources.objects.get(source_id=self._source_id)
         if not cost_management_type_id:
             cost_management_type_id = self.get_cost_management_application_type_id()
 
@@ -204,9 +202,12 @@ class SourcesHTTPClient:
             application_url = f"{self._base_url}/applications/{str(application_id)}"
 
             if error_msg:
-                json_data = {"availability_status": "unavailable", "availability_status_error": str(error_msg)}
+                status = "unavailable"
             else:
-                json_data = source.status
+                status = "available"
+                error_msg = ""
+
+            json_data = {"availability_status": status, "availability_status_error": str(error_msg)}
 
             application_response = requests.patch(application_url, json=json_data, headers=self._identity_header)
             if application_response.status_code != 204:
