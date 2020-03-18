@@ -199,14 +199,16 @@ class SourcesHTTPClient:
         response_data = application_query_response.json().get("data")
         if response_data:
             application_id = response_data[0].get("id")
-
             application_url = f"{self._base_url}/applications/{str(application_id)}"
+
             if error_msg:
                 status = "unavailable"
             else:
                 status = "available"
                 error_msg = ""
+
             json_data = {"availability_status": status, "availability_status_error": str(error_msg)}
+
             application_response = requests.patch(application_url, json=json_data, headers=self._identity_header)
             if application_response.status_code != 204:
                 raise SourcesHTTPClientError(f"Unable to set status for Source: {self._source_id}")

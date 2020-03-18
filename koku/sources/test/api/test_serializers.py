@@ -99,23 +99,19 @@ class SourcesSerializerTests(IamTestCase):
         source.save()
         return source
 
-    @patch("api.provider.serializers.ProviderSerializer.get_request_info")
-    @patch("sources.kafka_source_manager.KafkaSourceManager._create_context")
-    def test_azure_source_update_missing_credential(self, mock_context, mock_request_info):
-        """Test the updating azure source with invalid authentication."""
-        mock_context.return_value = self.request_context, self.Customer, self.User
-        mock_request_info.return_value = self.User, self.Customer
-        source = self._create_source_and_provider(Provider.PROVIDER_AZURE, self.test_azure_source_id)
-        source.authentication.get("credentials").pop("subscription_id")
-        source.save()
+    @patch("sources.tasks.create_or_update_provider.delay")
+    def test_azure_source_update_missing_credential(self, mock_delay):
+        """Test the update azure source with missing credentials."""
+        self.azure_obj.authentication = {}
+        self.azure_obj.save()
 
         serializer = SourcesSerializer(context=self.request_context)
         validated_data = {"authentication": {"credentials": {"subscription_id": "subscription-uuid"}}}
-        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            instance = serializer.update(source, validated_data)
+        instance = serializer.update(self.azure_obj, validated_data)
         self.assertEqual("subscription-uuid", instance.authentication.get("credentials").get("subscription_id"))
+
         for field in ("client_id", "tenant_id", "client_secret"):
-            self.assertIn(field, instance.authentication.get("credentials").keys())
+            self.assertNotIn(field, instance.authentication.get("credentials").keys())
 
     def test_azure_source_update_wrong_type(self):
         """Test the updating azure source with wrong source type."""
@@ -127,13 +123,28 @@ class SourcesSerializerTests(IamTestCase):
         with self.assertRaises(SourcesStorageError):
             serializer.update(self.azure_obj, validated_data)
 
-    @patch("api.provider.serializers.ProviderSerializer.get_request_info")
-    @patch("sources.kafka_source_manager.KafkaSourceManager._create_context")
-    def test_azure_source_billing_source_update(self, mock_context, mock_request_info):
+    @patch("sources.tasks.create_or_update_provider.delay")
+    def test_azure_source_billing_source_update(self, mock_delay):
         """Test the updating azure billing_source."""
-        mock_context.return_value = self.request_context, self.Customer, self.User
-        mock_request_info.return_value = self.User, self.Customer
-        source = self._create_source_and_provider(Provider.PROVIDER_AZURE, self.test_azure_source_id)
+        serializer = SourcesSerializer(context=self.request_context)
+        test_resource_group = "TESTRG"
+        test_storage_account = "testsa"
+        validated_data = {
+            "billing_source": {
+                "data_source": {"resource_group": test_resource_group, "storage_account": test_storage_account}
+            }
+        }
+        instance = serializer.update(self.azure_obj, validated_data)
+        self.assertIn("data_source", instance.billing_source.keys())
+        self.assertEqual(test_resource_group, instance.billing_source.get("data_source").get("resource_group"))
+        self.assertEqual(test_storage_account, instance.billing_source.get("data_source").get("storage_account"))
+
+    @patch("sources.tasks.create_or_update_provider.delay")
+    def test_azure_source_billing_source_update_with_koku_uuid(self, mock_delay):
+        """Test the updating azure billing_source with source_uuid."""
+        self.azure_obj.source_uuid = fake.uuid4()
+        self.azure_obj.pending_update = False
+        self.azure_obj.save()
 
         serializer = SourcesSerializer(context=self.request_context)
         test_resource_group = "TESTRG"
@@ -143,11 +154,8 @@ class SourcesSerializerTests(IamTestCase):
                 "data_source": {"resource_group": test_resource_group, "storage_account": test_storage_account}
             }
         }
-        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            instance = serializer.update(source, validated_data)
-        self.assertIn("data_source", instance.billing_source.keys())
-        self.assertEqual(test_resource_group, instance.billing_source.get("data_source").get("resource_group"))
-        self.assertEqual(test_storage_account, instance.billing_source.get("data_source").get("storage_account"))
+        instance = serializer.update(self.azure_obj, validated_data)
+        self.assertTrue(instance.pending_update)
 
     def test_azure_source_billing_source_update_missing_data_source(self):
         """Test the updating azure billing_source with missing data_source."""
@@ -172,19 +180,14 @@ class SourcesSerializerTests(IamTestCase):
         with self.assertRaises(SourcesStorageError):
             serializer.update(self.azure_obj, validated_data)
 
-    @patch("api.provider.serializers.ProviderSerializer.get_request_info")
-    @patch("sources.kafka_source_manager.KafkaSourceManager._create_context")
-    def test_aws_source_billing_source_update(self, mock_context, mock_request_info):
+    @patch("sources.tasks.create_or_update_provider.delay")
+    def test_aws_source_billing_source_update(self, mock_delay):
         """Test the updating aws billing_source."""
-        mock_context.return_value = self.request_context, self.Customer, self.User
-        mock_request_info.return_value = self.User, self.Customer
-        source = self._create_source_and_provider(Provider.PROVIDER_AWS, self.test_aws_source_id)
-
         serializer = SourcesSerializer(context=self.request_context)
         test_bucket = "some-new-bucket"
         validated_data = {"billing_source": {"bucket": test_bucket}}
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            instance = serializer.update(source, validated_data)
+            instance = serializer.update(self.aws_obj, validated_data)
         self.assertIn("bucket", instance.billing_source.keys())
         self.assertEqual(test_bucket, instance.billing_source.get("bucket"))
 
@@ -207,7 +210,8 @@ class SourcesSerializerTests(IamTestCase):
         with self.assertRaises(SourcesStorageError):
             serializer.update(self.aws_obj, validated_data)
 
-    def test_create_via_admin_serializer(self):
+    @patch("sources.tasks.create_or_update_provider.delay")
+    def test_create_via_admin_serializer(self, mock_delay):
         """Test create source with admin serializer."""
         source_data = {
             "name": "test1",
@@ -265,10 +269,10 @@ class SourcesSerializerTests(IamTestCase):
         account = get_account_from_header(Mock(headers={HEADER_X_RH_IDENTITY: "badencoding&&&"}))
         self.assertIsNone(account)
 
+    @patch("sources.tasks.create_or_update_provider.delay")
     @patch("api.provider.serializers.ProviderSerializer.get_request_info")
-    @patch("sources.kafka_source_manager.KafkaSourceManager._create_context")
-    def test_provider_create(self, mock_context, mock_request_info):
-        mock_context.return_value = self.request_context, self.Customer, self.User
+    @patch("sources.api.serializers.get_auth_header", return_value=Config.SOURCES_FAKE_HEADER)
+    def test_provider_create(self, mock_header, mock_request_info, mock_delay):
         mock_request_info.return_value = self.User, self.Customer
 
         serializer = AdminSourcesSerializer(context=self.request_context)
@@ -278,7 +282,7 @@ class SourcesSerializerTests(IamTestCase):
             "source_type": "AWS",
             "authentication": {"resource_name": "arn:aws:iam::111111111111:role/CostManagement"},
             "billing_source": {"bucket": "first-bucket"},
-            "auth_header": self.request_context["request"].META,
+            "auth_header": Config.SOURCES_FAKE_HEADER,
             "account_id": "acct10001",
             "offset": 10,
         }
