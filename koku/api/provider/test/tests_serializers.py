@@ -25,7 +25,6 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from api.iam.serializers import create_schema_name
-from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
@@ -43,11 +42,7 @@ class ProviderSerializerTest(IamTestCase):
     def setUp(self):
         """Create test case objects."""
         super().setUp()
-        request = self.request_context["request"]
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            user = serializer.save()
-            request.user = user
+
         self.generic_providers = {
             Provider.PROVIDER_OCP: {
                 "name": "test_provider",
@@ -136,9 +131,13 @@ class ProviderSerializerTest(IamTestCase):
             "authentication": {"provider_resource_name": "arn:aws:s3:::my_s3_bucket"},
             "billing_source": {"bucket": "my_s3_bucket"},
         }
-        request = self.request_context["request"]
+        user_data = self._create_user_data()
+        alt_request_context = self._create_request_context(
+            self.create_mock_customer_data(), user_data, create_tenant=True
+        )
+        request = alt_request_context["request"]
         request.user.customer = None
-        serializer = ProviderSerializer(data=provider, context=self.request_context)
+        serializer = ProviderSerializer(data=provider, context=alt_request_context)
         if serializer.is_valid(raise_exception=True):
             with self.assertRaises(serializers.ValidationError):
                 serializer.save()
@@ -264,10 +263,13 @@ class ProviderSerializerTest(IamTestCase):
             "authentication": {"credentials": {"one": "two", "three": "four"}, "provider_resource_name": iam_arn},
             "billing_source": {"data_source": {"foo": "bar"}},
         }
-
-        request = self.request_context["request"]
+        user_data = self._create_user_data()
+        alt_request_context = self._create_request_context(
+            self.create_mock_customer_data(), user_data, create_tenant=True
+        )
+        request = alt_request_context["request"]
         request.user.customer = None
-        serializer = ProviderSerializer(data=provider, context=self.request_context)
+        serializer = ProviderSerializer(data=provider, context=alt_request_context)
         if serializer.is_valid(raise_exception=True):
             with self.assertRaises(serializers.ValidationError):
                 serializer.save()
@@ -281,10 +283,13 @@ class ProviderSerializerTest(IamTestCase):
             "authentication": {"credentials": {"one": "two", "three": "four"}},
             "billing_source": {"data_source": {"foo": "bar"}, "bucket": bucket_name},
         }
-
-        request = self.request_context["request"]
+        user_data = self._create_user_data()
+        alt_request_context = self._create_request_context(
+            self.create_mock_customer_data(), user_data, create_tenant=True
+        )
+        request = alt_request_context["request"]
         request.user.customer = None
-        serializer = ProviderSerializer(data=provider, context=self.request_context)
+        serializer = ProviderSerializer(data=provider, context=alt_request_context)
         if serializer.is_valid(raise_exception=True):
             with self.assertRaises(serializers.ValidationError):
                 serializer.save()
@@ -461,13 +466,6 @@ class ProviderSerializerTest(IamTestCase):
         alt_request_context = self._create_request_context(
             self.create_mock_customer_data(), user_data, create_tenant=True
         )
-        alt_request = alt_request_context["request"]
-        serializer = UserSerializer(data=user_data, context=alt_request_context)
-        if serializer.is_valid(raise_exception=True):
-            user = serializer.save()
-            alt_request.user = user
-        alt_request_context["request"] = alt_request
-
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             serializer = ProviderSerializer(
                 data=self.generic_providers[Provider.PROVIDER_AZURE], context=self.request_context
@@ -517,11 +515,6 @@ class AdminProviderSerializerTest(IamTestCase):
     def setUp(self):
         """Create test case objects."""
         super().setUp()
-        request = self.request_context["request"]
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            user = serializer.save()
-            request.user = user
 
     def test_schema_name_present_on_customer(self):
         """Test that schema_name is returned on customer."""

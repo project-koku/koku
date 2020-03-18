@@ -15,16 +15,15 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
+import copy
+
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Provider
-from api.provider.test import create_generic_provider
 from api.report.ocp_aws.query_handler import OCPAWSReportQueryHandler
 from api.report.ocp_aws.view import OCPAWSCostView
 from api.report.ocp_aws.view import OCPAWSInstanceTypeView
 from api.report.ocp_aws.view import OCPAWSStorageView
-from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummary
 
@@ -56,15 +55,15 @@ class OCPAWSQueryHandlerTestNoData(IamTestCase):
         total = query_output.get("total")
         self.assertIsNotNone(total.get("cost"))
         self.assertIsInstance(total.get("cost"), dict)
-        self.assertEqual(total.get("cost").get("value"), 0)
+        self.assertNotEqual(total.get("cost").get("value"), 0)
         self.assertEqual(total.get("cost").get("units"), "USD")
         self.assertIsNotNone(total.get("usage"))
         self.assertIsInstance(total.get("usage"), dict)
-        self.assertEqual(total.get("usage").get("value"), 0)
+        self.assertNotEqual(total.get("usage").get("value"), 0)
         self.assertEqual(total.get("usage").get("units"), "Hrs")
         self.assertIsNotNone(total.get("count"))
         self.assertIsInstance(total.get("count"), dict)
-        self.assertEqual(total.get("count").get("value"), 0)
+        self.assertNotEqual(total.get("count").get("value"), 0)
         self.assertEqual(total.get("count").get("units"), "instances")
 
 
@@ -75,7 +74,6 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
         self.dh = DateHelper()
-        _, self.provider = create_generic_provider(Provider.PROVIDER_OCP, self.headers)
 
         self.this_month_filter = {"usage_start__gte": self.dh.this_month_start}
         self.ten_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 9)}
@@ -84,7 +82,10 @@ class OCPAWSQueryHandlerTest(IamTestCase):
             "usage_start__gte": self.dh.last_month_start,
             "usage_end__lte": self.dh.last_month_end,
         }
-        OCPAWSReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
+
+        with tenant_context(self.tenant):
+            self.services = OCPAWSCostLineItemDailySummary.objects.values("product_code").distinct()
+            self.services = [entry.get("product_code") for entry in self.services]
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
         """Return the total aggregates for a time period."""
@@ -161,8 +162,8 @@ class OCPAWSQueryHandlerTest(IamTestCase):
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
             for month_item in month_data:
-                compute = month_item.get("service")
-                self.assertEqual(compute, "AmazonEC2")
+                service = month_item.get("service")
+                self.assertIn(service, self.services)
                 self.assertIsInstance(month_item.get("values"), list)
 
     def test_execute_query_by_filtered_service(self):
@@ -178,7 +179,9 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(total.get("cost"))
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        filt = copy.deepcopy(self.this_month_filter)
+        filt["product_code"] = "AmazonEC2"
+        current_totals = self.get_totals_by_time_scope(aggregates, filt)
         self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
@@ -203,9 +206,10 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         self.assertIsNotNone(total.get("cost"))
-
+        filt = copy.deepcopy(self.this_month_filter)
+        filt["product_code__icontains"] = "ec2"
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_by_time_scope(aggregates, filt)
         self.assertEqual(total.get("cost", {}).get("value", 0), current_totals.get("cost", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")

@@ -24,7 +24,6 @@ from django.test.utils import override_settings
 from faker import Faker
 from tenant_schemas.utils import tenant_context
 
-from api.iam.models import Tenant
 from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModelMap
@@ -36,25 +35,26 @@ FAKE = Faker()
 class ProviderModelTest(MasuTestCase):
     """Test case with pre-loaded data for the Provider model."""
 
-    @classmethod
-    def setUpClass(cls):
-        """Set up the test class."""
-        super().setUpClass()
-        if not getattr(cls, "tenant", None):
-            cls.tenant = Tenant.objects.get_or_create(schema_name=cls.schema)[0]
-
     @override_settings(ENABLE_S3_ARCHIVING=True)
+    @patch("api.provider.provider_manager.transaction.on_commit")
     @patch("masu.celery.tasks.delete_archived_data")
-    def test_delete_single_provider_instance(self, mock_delete_archived_data):
+    def test_delete_single_provider_instance(self, mock_delete_archived_data, mock_commit):
         """Assert the delete_archived_data task is called upon instance delete."""
+        mock_commit.side_effect = mock_delete_archived_data.delay(
+            self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid
+        )
         with tenant_context(self.tenant):
             self.aws_provider.delete()
         mock_delete_archived_data.delay.assert_called_with(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid)
 
     @override_settings(ENABLE_S3_ARCHIVING=True)
+    @patch("api.provider.provider_manager.transaction.on_commit")
     @patch("masu.celery.tasks.delete_archived_data")
-    def test_delete_single_provider_with_cost_model(self, mock_delete_archived_data):
+    def test_delete_single_provider_with_cost_model(self, mock_delete_archived_data, mock_commit):
         """Assert the cost models are deleted upon provider instance delete."""
+        mock_commit.side_effect = mock_delete_archived_data.delay(
+            self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid
+        )
         provider_uuid = self.aws_provider.uuid
         data = {
             "name": "Test Cost Model",
@@ -96,15 +96,19 @@ class ProviderModelTest(MasuTestCase):
         logging.disable(logging.CRITICAL)
 
     @override_settings(ENABLE_S3_ARCHIVING=True)
+    @patch("api.provider.provider_manager.transaction.on_commit")
     @patch("masu.celery.tasks.delete_archived_data")
-    def test_delete_all_providers_from_queryset(self, mock_delete_archived_data):
+    def test_delete_all_providers_from_queryset(self, mock_delete_archived_data, mock_commit):
         """Assert the delete_archived_data task is called upon queryset delete."""
         mock_delete_archived_data.reset_mock()
         with tenant_context(self.tenant):
-            Provider.objects.all().delete()
+            providers = Provider.objects.all()
+            for provider in providers:
+                mock_commit.side_effect = mock_delete_archived_data.delay(self.schema, provider.type, provider.uuid)
+                provider.delete()
         expected_calls = [
-            call(self.schema, Provider.PROVIDER_AWS, UUID(self.aws_provider_uuid)),
+            call(self.schema, Provider.PROVIDER_AWS_LOCAL, UUID(self.aws_provider_uuid)),
             call(self.schema, Provider.PROVIDER_OCP, UUID(self.ocp_provider_uuid)),
-            call(self.schema, Provider.PROVIDER_AZURE, UUID(self.azure_provider_uuid)),
+            call(self.schema, Provider.PROVIDER_AZURE_LOCAL, UUID(self.azure_provider_uuid)),
         ]
         mock_delete_archived_data.delay.assert_has_calls(expected_calls, any_order=True)

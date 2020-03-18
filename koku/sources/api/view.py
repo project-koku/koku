@@ -19,6 +19,7 @@ import logging
 
 from django.conf import settings
 from django.db import connection
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
@@ -42,8 +43,6 @@ from api.iam.serializers import create_schema_name
 from api.provider.models import Sources
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
-from sources.api import get_account_from_header
-from sources.api import get_auth_header
 from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesSerializer
 from sources.kafka_source_manager import KafkaSourceManager
@@ -57,7 +56,7 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
     def destroy(self, request, *args, **kwargs):
         """Delete a source."""
         source = self.get_object()
-        manager = KafkaSourceManager(get_auth_header(request))
+        manager = KafkaSourceManager(request.user.identity_header.get("encoded"))
         manager.destroy_provider(source.koku_uuid)
         response = super().destroy(request, *args, **kwargs)
         return response
@@ -65,11 +64,13 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
 
 LOG = logging.getLogger(__name__)
 MIXIN_LIST = [mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet]
-
+HTTP_METHOD_LIST = ["get", "head", "patch"]
 
 if settings.DEVELOPMENT:
     MIXIN_LIST.append(mixins.CreateModelMixin)
     MIXIN_LIST.append(DestroySourceMixin)
+    HTTP_METHOD_LIST.append("post")
+    HTTP_METHOD_LIST.append("delete")
 
 
 class SourceFilter(FilterSet):
@@ -105,13 +106,7 @@ class SourcesViewSet(*MIXIN_LIST):
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = SourceFilter
-
-    @property
-    def allowed_methods(self):
-        """Return the list of allowed HTTP methods, uppercased."""
-        if "put" in self.http_method_names:
-            self.http_method_names.remove("put")
-        return [method.upper() for method in self.http_method_names if hasattr(self, method)]
+    http_method_names = HTTP_METHOD_LIST
 
     def get_serializer_class(self):
         """Return the appropriate serializer depending on the method."""
@@ -127,7 +122,7 @@ class SourcesViewSet(*MIXIN_LIST):
         by filtering against a `account_id` in the request.
         """
         queryset = Sources.objects.none()
-        account_id = get_account_from_header(self.request)
+        account_id = self.request.user.customer.account_id
         try:
             queryset = Sources.objects.filter(account_id=account_id)
         except Sources.DoesNotExist:
@@ -144,15 +139,21 @@ class SourcesViewSet(*MIXIN_LIST):
             obj = Sources.objects.get(source_uuid=uuid)
             if obj:
                 return obj
-        except ValidationError:
+        except (ValidationError, Sources.DoesNotExist):
             pass
-        obj = get_object_or_404(queryset, **{"pk": pk})
-        self.check_object_permissions(self.request, obj)
+
+        try:
+            int(pk)
+            obj = get_object_or_404(queryset, **{"pk": pk})
+            self.check_object_permissions(self.request, obj)
+        except ValueError:
+            raise Http404
+
         return obj
 
     def _get_account_and_tenant(self, request):
         """Get account_id and tenant from request."""
-        account_id = get_account_from_header(request)
+        account_id = request.user.customer.account_id
         schema_name = create_schema_name(account_id)
         tenant = tenant = Tenant.objects.get(schema_name=schema_name)
         return (account_id, tenant)
@@ -171,6 +172,8 @@ class SourcesViewSet(*MIXIN_LIST):
         response = super().list(request=request, args=args, kwargs=kwargs)
         _, tenant = self._get_account_and_tenant(request)
         for source in response.data["data"]:
+            if source.get("authentication", {}).get("credentials", {}).get("client_secret"):
+                del source["authentication"]["credentials"]["client_secret"]
             try:
                 manager = ProviderManager(source["uuid"])
             except ProviderManagerError:
@@ -191,6 +194,8 @@ class SourcesViewSet(*MIXIN_LIST):
         """Get a source."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
         _, tenant = self._get_account_and_tenant(request)
+        if response.data.get("authentication", {}).get("credentials", {}).get("client_secret"):
+            del response.data["authentication"]["credentials"]["client_secret"]
         try:
             manager = ProviderManager(response.data["uuid"])
         except ProviderManagerError:
@@ -209,7 +214,7 @@ class SourcesViewSet(*MIXIN_LIST):
     @action(methods=["get"], detail=True, permission_classes=[AllowAny])
     def stats(self, request, pk=None):
         """Get source stats."""
-        account_id = get_account_from_header(request)
+        account_id = request.user.customer.account_id
         schema_name = create_schema_name(account_id)
         source = self.get_object()
         stats = {}

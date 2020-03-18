@@ -123,16 +123,18 @@ class ReportStatsDBAccessorTest(MasuTestCase):
 
     def test_log_last_started_datetime(self):
         """Test convience function for last started processing time."""
+        initial_count = CostUsageReportStatus.objects.count()
         saver = ReportStatsDBAccessor("myreport", self.manifest_id)
         saver.log_last_started_datetime()
         self.assertIsNotNone(saver.get_last_started_datetime())
         saver.delete()
-        self.assertEqual(CostUsageReportStatus.objects.count(), 0)
+        self.assertEqual(CostUsageReportStatus.objects.count(), initial_count)
 
     def test_log_last_completed_datetime(self):
         """Test convience function for last completed processing time."""
+        initial_count = CostUsageReportStatus.objects.count()
         saver = ReportStatsDBAccessor("myreport", self.manifest_id)
         saver.log_last_completed_datetime()
         self.assertIsNotNone(saver.get_last_completed_datetime())
         saver.delete()
-        self.assertEqual(CostUsageReportStatus.objects.count(), 0)
+        self.assertEqual(CostUsageReportStatus.objects.count(), initial_count)

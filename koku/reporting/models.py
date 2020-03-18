@@ -53,6 +53,7 @@ from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailyS
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
 from reporting.provider.azure.openshift.models import OCPAzureTagsSummary
 from reporting.provider.ocp.costs.models import CostSummary
+from reporting.provider.ocp.models import OCPEnabledTagKeys
 from reporting.provider.ocp.models import OCPNodeLabelLineItem
 from reporting.provider.ocp.models import OCPNodeLabelLineItemDaily
 from reporting.provider.ocp.models import OCPStorageLineItem
