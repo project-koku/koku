@@ -413,14 +413,7 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_rate_cost_type_invalid(self):
         """Test that an invalid cost type is rejected."""
-        self.ocp_data["rates"][0]["tiered_rates"] = [
-            {
-                "unit": "USD",
-                "value": 0.22,
-                "usage": {"usage_start": None, "usage_end": None},
-                "cost_type": "Infrastructurez",
-            }
-        ]
+        self.ocp_data["rates"][0]["cost_type"] = "Infrastructurez"
 
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.ocp_data)
