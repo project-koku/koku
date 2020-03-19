@@ -72,7 +72,7 @@ class QueryParamSerializer(ParamSerializer):
     """Serializer for handling query parameters."""
 
     # Tuples are (key, display_name)
-    DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"))
+    DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"), ("cost_total", "cost_total"))
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
     units = serializers.CharField(required=False)
@@ -152,7 +152,9 @@ class QueryParamSerializer(ParamSerializer):
         valid_delta = "usage"
         request = self.context.get("request")
         if request and "costs" in request.path:
-            valid_delta = "cost"
+            valid_delta = "cost_total"
+            if value == "cost":
+                return valid_delta
         if value != valid_delta:
             error = {"delta": f'"{value}" is not a valid choice.'}
             raise serializers.ValidationError(error)

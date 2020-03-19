@@ -37,6 +37,9 @@ class CostModelMetricsMap(models.Model):
     OCP_METRIC_STORAGE_GB_REQUEST_MONTH = "storage_gb_request_per_month"
     OCP_NODE_MONTH = "node_cost_per_month"
 
+    INFRASTRUCTURE_COST_TYPE = "Infrastructure"
+    SUPPLEMENTARY_COST_TYPE = "Supplementary"
+
     METRIC_CHOICES = (
         (OCP_METRIC_CPU_CORE_USAGE_HOUR, OCP_METRIC_CPU_CORE_USAGE_HOUR),
         (OCP_METRIC_CPU_CORE_REQUEST_HOUR, OCP_METRIC_CPU_CORE_REQUEST_HOUR),
@@ -47,7 +50,10 @@ class CostModelMetricsMap(models.Model):
         (OCP_NODE_MONTH, OCP_NODE_MONTH),
     )
 
-    COST_TYPE_CHOICES = (("Infrastructure", "Infrastructure"), ("Supplementary", "Supplementary"))
+    COST_TYPE_CHOICES = (
+        (INFRASTRUCTURE_COST_TYPE, INFRASTRUCTURE_COST_TYPE),
+        (SUPPLEMENTARY_COST_TYPE, SUPPLEMENTARY_COST_TYPE),
+    )
 
     source_type = models.CharField(max_length=50, null=False, choices=Provider.PROVIDER_CHOICES)
 

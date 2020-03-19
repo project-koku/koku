@@ -288,7 +288,7 @@ class AzureQueryParamSerializerTest(TestCase):
 
     def test_invalid_delta_costs(self):
         """Test failure while handling invalid delta for cost requests."""
-        query_params = {"delta": "cost"}
+        query_params = {"delta": "cost_bad"}
         req = Mock(path="/api/cost-management/v1/reports/azure/storage/")
         serializer = AzureQueryParamSerializer(data=query_params, context={"request": req})
         with self.assertRaises(serializers.ValidationError):
