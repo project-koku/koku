@@ -69,7 +69,7 @@ class CostModelDBAccessor(KokuDBAccess):
         return {
             key: value.get("tiered_rates")[0].get("value")
             for key, value in self.price_list.items()
-            if value.get("tiered_rates")[0].get("cost_type") == "Infrastructure"
+            if value.get("cost_type") == "Infrastructure"
         }
 
     @property
@@ -78,7 +78,7 @@ class CostModelDBAccessor(KokuDBAccess):
         return {
             key: value.get("tiered_rates")[0].get("value")
             for key, value in self.price_list.items()
-            if value.get("tiered_rates")[0].get("cost_type") == "Supplementary"
+            if value.get("cost_type") == "Supplementary"
         }
 
     @property
