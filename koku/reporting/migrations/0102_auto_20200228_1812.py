@@ -56,22 +56,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="ocpusagelineitemdailysummary",
-            name="supplementary_markup_cost",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AddField(
-            model_name="ocpusagelineitemdailysummary",
             name="supplementary_monthly_cost",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AddField(
-            model_name="ocpusagelineitemdailysummary",
-            name="supplementary_project_raw_cost",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AddField(
-            model_name="ocpusagelineitemdailysummary",
-            name="supplementary_raw_cost",
             field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
         ),
         migrations.AddField(
