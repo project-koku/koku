@@ -437,7 +437,10 @@ class OCPAWSReportViewTest(IamTestCase):
         data_totals = data.get("meta", {}).get("total", {})
         for key in totals:
             expected = float(totals[key])
-            result = data_totals.get(key, {}).get("value")
+            if key == "cost":
+                result = data_totals.get(key, {}).get("total").get("value")
+            else:
+                result = data_totals.get(key, {}).get("value")
             self.assertEqual(result, expected)
 
     def test_execute_query_ocp_aws_storage_with_wildcard_tag_filter(self):
@@ -472,7 +475,10 @@ class OCPAWSReportViewTest(IamTestCase):
         data_totals = data.get("meta", {}).get("total", {})
         for key in totals:
             expected = float(totals[key])
-            result = data_totals.get(key, {}).get("value")
+            if key == "cost":
+                result = data_totals.get(key, {}).get("total").get("value")
+            else:
+                result = data_totals.get(key, {}).get("value")
             self.assertEqual(result, expected)
 
     def test_execute_query_ocp_aws_storage_with_tag_group_by(self):
@@ -848,7 +854,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_execute_query_with_order_by(self):
         """Test that the possible order by options work."""
-        order_by_numeric = ["cost", "derived_cost", "infrastructure_cost", "usage", "delta"]
+        order_by_numeric = ["cost", "supplementary", "infrastructure", "usage", "delta"]
         order_by_non_numeric = ["project", "cluster", "node", "account_alias", "region", "service", "product_family"]
         baseurl = reverse("reports-openshift-aws-instance-type")
         client = APIClient()
