@@ -104,8 +104,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-        output = copy.deepcopy(self.parameters.parameters)
+        output = self._initialize_response_output(self.parameters)
         output["data"] = self.query_data
+
         self.query_sum = self._pack_data_object(self.query_sum, **self._mapper.PACK_DEFINITIONS)
         output["total"] = self.query_sum
 
