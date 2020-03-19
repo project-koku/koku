@@ -27,6 +27,7 @@ import pytz
 
 from api.models import Provider
 from masu.config import Config
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleaner
 from masu.processor.azure.azure_report_db_cleaner import AzureReportDBCleaner
@@ -133,6 +134,8 @@ class ExpiredDataRemover:
         """
         Remove expired data based on the retention policy.
 
+        Also remove expired CostUsageReportManifests, regardless of Provider type.
+
         Args:
             None
 
@@ -154,6 +157,17 @@ class ExpiredDataRemover:
                     )
             else:
                 removed_data = self._cleaner.purge_expired_report_data(simulate=simulate, provider_uuid=provider_uuid)
+                with ReportManifestDBAccessor() as manifest_accessor:
+                    # Remove expired CostUsageReportManifests
+                    expiration_date = self._calculate_expiration_date()
+                    if not simulate:
+                        manifest_accessor.purge_expired_report_manifest_provider_uuid(provider_uuid, expiration_date)
+                    LOG.info(
+                        """Removed CostUsageReportManifest for
+                        provider uuid: %s before billing period: %s""",
+                        provider_uuid,
+                        expiration_date,
+                    )
         else:
             expiration_date = self._calculate_expiration_date(line_items_only=line_items_only)
             if line_items_only:
@@ -164,5 +178,16 @@ class ExpiredDataRemover:
                         expired_date=expiration_date, simulate=simulate
                     )
             else:
+                # Remove expired CostUsageReportManifests
                 removed_data = self._cleaner.purge_expired_report_data(expired_date=expiration_date, simulate=simulate)
+                with ReportManifestDBAccessor() as manifest_accessor:
+                    if not simulate:
+                        manifest_accessor.purge_expired_report_manifest(self._provider, expiration_date)
+                    LOG.info(
+                        """Removed CostUsageReportManifest for
+                        provider type: %s before billing period: %s""",
+                        self._provider,
+                        expiration_date,
+                    )
+
         return removed_data
