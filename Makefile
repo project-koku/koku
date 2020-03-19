@@ -100,6 +100,7 @@ help:
 	@echo "  docker-shell                         run Django and database containers with shell access to server (for pdb)"
 	@echo "  docker-logs                          connect to console logs for all services"
 	@echo "  docker-test-all                      run unittests"
+	@echo "  docker-iqe-local-hccm                create container based off local hccm plugin. Requires env 'HCCM_PLUGIN_PATH'"
 	@echo "  docker-iqe-smokes-tests              run smoke tests"
 	@echo "  docker-iqe-api-tests                 run api tests"
 	@echo "  docker-iqe-vortex-tests              run vortex tests"
@@ -527,6 +528,9 @@ docker-up-db-monitor:
 _set-test-dir-permissions:
 	@$(PREFIX) chmod -R o+rw,g+rw ./testing
 	@$(PREFIX) find ./testing -type d -exec chmod o+x,g+x {} \;
+
+docker-iqe-local-hccm: docker-reinitdb _set-test-dir-permissions clear-testing
+	./testing/run_test.sh
 
 docker-iqe-smokes-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_smoke_tests.sh
