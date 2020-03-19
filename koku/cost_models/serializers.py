@@ -191,12 +191,13 @@ class RateSerializer(serializers.Serializer):
 
     def validate_cost_type(self, metric, cost_type):
         """Force validation of cost_type."""
-        choices = [choice for choice in self.get_fields().get("cost_type").choices]
+        choices = {choice.lower(): choice for choice in self.get_fields().get("cost_type").choices}
         if cost_type is None:
             cost_type = self.metric_map.get(metric)
-        if cost_type not in choices:
+        if cost_type.lower() not in choices:
             error_msg = f"{cost_type} is an invalid cost type"
             raise serializers.ValidationError(error_msg)
+        cost_type = choices[cost_type.lower()]
         return cost_type
 
     def validate(self, data):
