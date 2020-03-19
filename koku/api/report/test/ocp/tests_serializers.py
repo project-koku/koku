@@ -445,3 +445,21 @@ class OCPCostQueryParamSerializerTest(TestCase):
         serializer = OCPCostQueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
+
+    def test_query_params_valid_delta(self):
+        """Test parse of delta charge query params for valid fields."""
+        # Charge can't order by request or usage
+        query_params = {
+            "group_by": {"account": ["account1"]},
+            "order_by": {"usage": "asc"},
+            "filter": {
+                "resolution": "daily",
+                "time_scope_value": "-10",
+                "time_scope_units": "day",
+                "resource_scope": [],
+            },
+            "delta": "cost",
+        }
+        serializer = OCPCostQueryParamSerializer(data=query_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
