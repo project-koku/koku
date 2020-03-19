@@ -16,8 +16,26 @@
 #
 """Test the OCP on All query handler."""
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.all.openshift.provider_map import COMPUTE_SUMMARY
+from api.report.all.openshift.provider_map import DATABASE_SUMMARY
+from api.report.all.openshift.provider_map import DEFAULT_SUMMARY
+from api.report.all.openshift.provider_map import NETWORK_SUMMARY
+from api.report.all.openshift.provider_map import STORAGE_SUMMARY
 from api.report.all.openshift.query_handler import OCPAllReportQueryHandler
 from api.urls import OCPAllStorageView
+
+
+def dict_value_types(d, val_types=None):
+    if val_types is None:
+        val_types = set()
+
+    for v in d.values():
+        vt_name = v.__name__ if type(v).__name__ == "type" else type(v).__name__
+        val_types.add(vt_name)
+        if vt_name.lower().endswith("dict"):
+            dict_value_types(v, val_types)
+
+    return val_types
 
 
 class OCPAllQueryHandlerTest(IamTestCase):
@@ -31,3 +49,67 @@ class OCPAllQueryHandlerTest(IamTestCase):
 
         filters = handler._set_or_filters()
         self.assertEqual(filters.connector, "OR")
+
+    def test_ocp_all_view_default_model(self):
+        """Test that the ALL default view model is used"""
+
+        required_type_names = {t.__name__ for t in DEFAULT_SUMMARY}
+        url = "?"
+        query_params = self.mocked_query_params(url, OCPAllStorageView)
+        handler = OCPAllReportQueryHandler(query_params)
+        mapping = handler._mapper._mapping[0]
+        self.assertTrue(dict_value_types(mapping).issuperset(required_type_names))
+
+        url = "/reports/openshift/infrastructures/all/costs/"
+        query_params = self.mocked_query_params(url, OCPAllStorageView)
+        handler = OCPAllReportQueryHandler(query_params)
+
+        mapping = handler._mapper._mapping[0]
+        self.assertTrue(dict_value_types(mapping).issuperset(required_type_names))
+
+    def test_ocp_all_view_storage_model(self):
+        """Test that ALL storage view model is used."""
+
+        url = "/reports/openshift/infrastructures/all/storage/"
+        query_params = self.mocked_query_params(url, OCPAllStorageView)
+        handler = OCPAllReportQueryHandler(query_params)
+
+        mapping = handler._mapper._mapping[0]
+        self.assertTrue(dict_value_types(mapping).issuperset({t.__name__ for t in STORAGE_SUMMARY}))
+
+    def test_ocp_all_view_compute_model(self):
+        """Test that ALL compute view model is used."""
+
+        url = "/reports/openshift/infrastructures/all/instance-types/"
+        query_params = self.mocked_query_params(url, OCPAllStorageView)
+        handler = OCPAllReportQueryHandler(query_params)
+
+        mapping = handler._mapper._mapping[0]
+        self.assertTrue(dict_value_types(mapping).issuperset({t.__name__ for t in COMPUTE_SUMMARY}))
+
+    def test_ocp_all_view_network_model(self):
+        """Test that ALL network view model is used."""
+
+        url = (
+            "/reports/openshift/infrastructures/all/costs/"
+            "?filter[service]='AmazonVPC','AmazonCloudFront','AmazonRoute53','AmazonAPIGateway'"
+        )
+        query_params = self.mocked_query_params(url, OCPAllStorageView)
+        handler = OCPAllReportQueryHandler(query_params)
+
+        mapping = handler._mapper._mapping[0]
+        self.assertTrue(dict_value_types(mapping).issuperset({t.__name__ for t in NETWORK_SUMMARY}))
+
+    def test_ocp_all_view_database_model(self):
+        """Test that ALL database view model is used."""
+
+        url = (
+            "/reports/openshift/infrastructures/all/costs/"
+            "?filter[service]='AmazonRDS','AmazonDynamoDB','AmazonElastiCache',"
+            "'AmazonNeptune','AmazonRedshift','AmazonDocumentDB'"
+        )
+        query_params = self.mocked_query_params(url, OCPAllStorageView)
+        handler = OCPAllReportQueryHandler(query_params)
+
+        mapping = handler._mapper._mapping[0]
+        self.assertTrue(dict_value_types(mapping).issuperset({t.__name__ for t in DATABASE_SUMMARY}))

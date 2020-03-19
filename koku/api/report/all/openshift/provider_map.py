@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider Mapper for OCP on AWS Reports."""
+import sys
+
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
 from django.db.models import Count
@@ -39,39 +41,43 @@ from reporting.models import OCPAllCostLineItemProjectDailySummaryNetwork
 from reporting.models import OCPAllCostLineItemProjectDailySummaryStorage
 
 
-__DEFAULT_SUMMARY = (OCPAllCostLineItemDailySummary, OCPAllCostLineItemProjectDailySummary)
-__STORAGE_SUMMARY = (OCPAllCostLineItemDailySummaryStorage, OCPAllCostLineItemProjectDailySummaryStorage)
-__COMPUTE_SUMMARY = (OCPAllCostLineItemDailySummaryCompute, OCPAllCostLineItemProjectDailySummaryCompute)
-__NETWORK_SUMMARY = (OCPAllCostLineItemDailySummaryNetwork, OCPAllCostLineItemProjectDailySummaryNetwork)
-__DATABASE_SUMMARY = (OCPAllCostLineItemDailySummaryDatabase, OCPAllCostLineItemProjectDailySummaryDatabase)
-__MODEL_MAP = {
-    ("storage", None): __STORAGE_SUMMARY,
-    ("instance_type", None): __COMPUTE_SUMMARY,
-    ("costs", "network"): __NETWORK_SUMMARY,
-    ("costs", "database"): __DATABASE_SUMMARY,
-    ("storage_by_project", None): __STORAGE_SUMMARY,
-    ("instance_type_by_project", None): __STORAGE_SUMMARY,
-    ("costs_by_project", "network"): __NETWORK_SUMMARY,
-    ("costs_by_project", "database"): __DATABASE_SUMMARY,
+DEFAULT_SUMMARY = (OCPAllCostLineItemDailySummary, OCPAllCostLineItemProjectDailySummary)
+STORAGE_SUMMARY = (OCPAllCostLineItemDailySummaryStorage, OCPAllCostLineItemProjectDailySummaryStorage)
+COMPUTE_SUMMARY = (OCPAllCostLineItemDailySummaryCompute, OCPAllCostLineItemProjectDailySummaryCompute)
+NETWORK_SUMMARY = (OCPAllCostLineItemDailySummaryNetwork, OCPAllCostLineItemProjectDailySummaryNetwork)
+DATABASE_SUMMARY = (OCPAllCostLineItemDailySummaryDatabase, OCPAllCostLineItemProjectDailySummaryDatabase)
+MODEL_MAP = {
+    ("storage", None): STORAGE_SUMMARY,
+    ("instance_type", None): COMPUTE_SUMMARY,
+    ("costs", "network"): NETWORK_SUMMARY,
+    ("costs", "database"): DATABASE_SUMMARY,
+    ("storage_by_project", None): STORAGE_SUMMARY,
+    ("instance_type_by_project", None): STORAGE_SUMMARY,
+    ("costs_by_project", "network"): NETWORK_SUMMARY,
+    ("costs_by_project", "database"): DATABASE_SUMMARY,
 }
 
 
-def __resolver(report_type, report_subtype=None):
-    return __MODEL_MAP.get((report_type, report_subtype), __DEFAULT_SUMMARY)
+def resolver(report_type, report_subtype=None):
+    return MODEL_MAP.get((report_type, report_subtype), DEFAULT_SUMMARY)
 
 
-def __summary_resolver(report_type, report_subtype=None):
-    return __resolver(report_type, report_subtype=report_subtype)[0]
+def summary_resolver(report_type, report_subtype=None):
+    return resolver(report_type, report_subtype=report_subtype)[0]
 
 
-def __project_summary_resolver(report_type, report_subtype=None):
-    return __resolver(report_type, report_subtype=report_subtype)[1]
+def project_summary_resolver(report_type, report_subtype=None):
+    return resolver(report_type, report_subtype=report_subtype)[1]
 
 
 class OCPAllProviderMap(ProviderMap):
     """OCP on All Infrastructure Provider Map."""
 
     def __init__(self, provider, report_type, report_subtype=None):
+        print(
+            f"***** OCPAllProviderMap :: report_type = {report_type}; report_subtype = {report_subtype}",
+            file=sys.stderr,
+        )
         """Constructor."""
         self._mapping = [
             {
@@ -151,10 +157,10 @@ class OCPAllProviderMap(ProviderMap):
                     },
                     "costs_by_project": {
                         "tables": {
-                            "query": __project_summary_resolver(
+                            "query": project_summary_resolver(
                                 report_type, report_subtype=report_subtype
                             ),  # OCPAllCostLineItemProjectDailySummary,
-                            "total": __project_summary_resolver(
+                            "total": project_summary_resolver(
                                 report_type, report_subtype=report_subtype
                             ),  # OCPAllCostLineItemProjectDailySummary
                         },
@@ -238,10 +244,10 @@ class OCPAllProviderMap(ProviderMap):
                     },
                     "storage_by_project": {
                         "tables": {
-                            "query": __project_summary_resolver(
+                            "query": project_summary_resolver(
                                 report_type, report_subtype=report_subtype
                             ),  # OCPAllCostLineItemProjectDailySummary
-                            "total": __project_summary_resolver(
+                            "total": project_summary_resolver(
                                 report_type, report_subtype=report_subtype
                             ),  # OCPAllCostLineItemProjectDailySummary
                         },
@@ -340,10 +346,10 @@ class OCPAllProviderMap(ProviderMap):
                     },
                     "instance_type_by_project": {
                         "tables": {
-                            "query": __project_summary_resolver(
+                            "query": project_summary_resolver(
                                 report_type, report_subtype=report_subtype
                             ),  # OCPAllCostLineItemProjectDailySummary
-                            "total": __project_summary_resolver(
+                            "total": project_summary_resolver(
                                 report_type, report_subtype=report_subtype
                             ),  # OCPAllCostLineItemProjectDailySummary
                         },
@@ -404,10 +410,10 @@ class OCPAllProviderMap(ProviderMap):
                 },
                 "start_date": "usage_start",
                 "tables": {
-                    "query": __summary_resolver(
+                    "query": summary_resolver(
                         report_type, report_subtype=report_subtype
                     ),  # OCPAllCostLineItemDailySummary
-                    "total": __summary_resolver(
+                    "total": summary_resolver(
                         report_type, report_subtype=report_subtype
                     ),  # OCPAllCostLineItemDailySummary
                 },
