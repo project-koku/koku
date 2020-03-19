@@ -75,7 +75,8 @@ def create_or_update_provider(source_id):
     instance.save()
 
     set_status_for_source.delay(source_id, err_msg)
-    check_report_updates.delay(provider_uuid=instance.koku_uuid)
+    if status == "available":
+        check_report_updates.delay(provider_uuid=instance.koku_uuid)
 
 
 @app.task(name="sources.tasks.set_status_for_source", queue_name="sources")
