@@ -146,3 +146,39 @@ class ReportManifestDBAccessor(KokuDBAccess):
             if not processed:
                 assembly_ids.append(manifest.assembly_id)
         return assembly_ids
+
+    def purge_expired_report_manifest(self, provider_type, expired_date):
+        """
+        Deletes Cost usage Report Manifests older than expired_date.
+
+        Args:
+            provider_type   (String) the provider type to delete associated manifests
+            expired_date (datetime.datetime) delete all manifests older than this date, exclusive.
+        """
+        delete_count = CostUsageReportManifest.objects.filter(
+            provider__type=provider_type, billing_period_start_datetime__lt=expired_date
+        ).delete()[0]
+        LOG.info(
+            "Removed %s CostUsageReportManifest(s) for provider type %s that had a billing period start date before %s",
+            delete_count,
+            provider_type,
+            expired_date,
+        )
+
+    def purge_expired_report_manifest_provider_uuid(self, provider_uuid, expired_date):
+        """
+        Delete cost usage reports older than expired_date and provider_uuid.
+
+        Args:
+            provider_uuid (uuid) The provider uuid to use to delete associated manifests
+            expired_date (datetime.datetime) delete all manifests older than this date, exclusive.
+        """
+        delete_count = CostUsageReportManifest.objects.filter(
+            provider_id=provider_uuid, billing_period_start_datetime__lt=expired_date
+        ).delete()
+        LOG.info(
+            "Removed %s CostUsageReportManifest(s) for provider_uuid %s that had a billing period start date before %s",
+            delete_count,
+            provider_uuid,
+            expired_date,
+        )

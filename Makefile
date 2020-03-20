@@ -100,6 +100,8 @@ help:
 	@echo "  docker-shell                         run Django and database containers with shell access to server (for pdb)"
 	@echo "  docker-logs                          connect to console logs for all services"
 	@echo "  docker-test-all                      run unittests"
+	@echo "  docker-iqe-local-hccm                create container based off local hccm plugin. Requires env 'HCCM_PLUGIN_PATH'"
+	@echo "                                          @param iqe_cmd - (optional) Command to run. Defaults to 'bash'."
 	@echo "  docker-iqe-smokes-tests              run smoke tests"
 	@echo "  docker-iqe-api-tests                 run api tests"
 	@echo "  docker-iqe-vortex-tests              run vortex tests"
@@ -499,9 +501,9 @@ docker-test-all:
 
 docker-up-koku:
 	@docker-compose up $(build) -d koku-server
-	@echo -n "Waiting on koku status: "
+	@echo "Waiting on koku status: "
 	@until ./scripts/check_for_koku_server.sh $${KOKU_API_HOST:-localhost} $$API_PATH_PREFIX $${KOKU_API_PORT:-8000} >/dev/null 2>&1 ; do \
-        echo -n "." ; \
+        printf "." ; \
         sleep 1 ; \
     done
 	@echo " koku is available!"
@@ -515,7 +517,7 @@ docker-up-no-build:
 docker-up-db:
 	docker-compose up -d db
 	@until pg_isready -h $$POSTGRES_SQL_SERVICE_HOST -p $$POSTGRES_SQL_SERVICE_PORT >/dev/null ; do \
-	    echo -n '.' ; \
+	    printf '.'; \
 	    sleep 0.5 ; \
     done
 	@echo ' PostgreSQL is available!'
@@ -527,6 +529,9 @@ docker-up-db-monitor:
 _set-test-dir-permissions:
 	@$(PREFIX) chmod -R o+rw,g+rw ./testing
 	@$(PREFIX) find ./testing -type d -exec chmod o+x,g+x {} \;
+
+docker-iqe-local-hccm: docker-reinitdb _set-test-dir-permissions clear-testing
+	./testing/run_local_hccm.sh $(iqe_cmd)
 
 docker-iqe-smokes-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_smoke_tests.sh

@@ -60,7 +60,46 @@ class OCPProviderMap(ProviderMap):
                     "costs": {
                         "tables": {"query": OCPUsageLineItemDailySummary},
                         "aggregates": {
-                            "cost": Sum(
+                            "sup_raw": Sum(Value(0, output_field=DecimalField())),
+                            "sup_usage": Sum(
+                                Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
+                                + Coalesce(
+                                    F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(
+                                    F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(F("monthly_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            "sup_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "sup_total": Sum(
+                                Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
+                                + Coalesce(
+                                    F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(
+                                    F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("monthly_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            "infra_raw": Sum(Coalesce(F("infra_cost"), Value(0, output_field=DecimalField()))),
+                            "infra_usage": Sum(Value(0, output_field=DecimalField())),
+                            "infra_markup": Sum(Value(0, output_field=DecimalField())),
+                            "infra_total": Sum(Coalesce(F("infra_cost"), Value(0, output_field=DecimalField()))),
+                            "cost_raw": Sum(Coalesce(F("infra_cost"), Value(0, output_field=DecimalField()))),
+                            "cost_usage": Sum(
+                                Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
+                                + Coalesce(
+                                    F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(
+                                    F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(F("monthly_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "cost_total": Sum(
                                 Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
                                 + Coalesce(
                                     F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
@@ -72,24 +111,51 @@ class OCPProviderMap(ProviderMap):
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infrastructure_cost": Sum(
-                                Coalesce(F("infra_cost"), Value(0, output_field=DecimalField()))
-                            ),
-                            "derived_cost": Sum(
-                                Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
-                                + Coalesce(
-                                    F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
-                                )
-                                + Coalesce(
-                                    F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField())
-                                )
-                                + Coalesce(F("monthly_cost"), Value(0, output_field=DecimalField()))
-                            ),
-                            "markup_cost": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                         },
-                        "default_ordering": {"cost": "desc"},
+                        "default_ordering": {"cost_total": "desc"},
                         "annotations": {
-                            "cost": Sum(
+                            "sup_raw": Value(0, output_field=DecimalField()),
+                            "sup_usage": Sum(
+                                Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
+                                + Coalesce(
+                                    F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(
+                                    F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(F("monthly_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            "sup_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "sup_total": Sum(
+                                Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
+                                + Coalesce(
+                                    F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(
+                                    F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("monthly_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            "infra_raw": Sum(Coalesce(F("infra_cost"), Value(0, output_field=DecimalField()))),
+                            "infra_usage": Value(0, output_field=DecimalField()),
+                            "infra_markup": Value(0, output_field=DecimalField()),
+                            "infra_total": Sum(Coalesce(F("infra_cost"), Value(0, output_field=DecimalField()))),
+                            # Cost =  Supplementary[field] + Infrastructure[filed]
+                            # Note: if a value was currently zero it was left out, unless both sup & infra are zero
+                            "cost_raw": Sum(Coalesce(F("infra_cost"), Value(0, output_field=DecimalField()))),
+                            "cost_usage": Sum(
+                                Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
+                                + Coalesce(
+                                    F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(
+                                    F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(F("monthly_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "cost_total": Sum(
                                 Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
                                 + Coalesce(
                                     F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
@@ -101,26 +167,12 @@ class OCPProviderMap(ProviderMap):
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infrastructure_cost": Sum(
-                                Coalesce(F("infra_cost"), Value(0, output_field=DecimalField()))
-                            ),
-                            "derived_cost": Sum(
-                                Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
-                                + Coalesce(
-                                    F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
-                                )
-                                + Coalesce(
-                                    F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField())
-                                )
-                                + Coalesce(F("monthly_cost"), Value(0, output_field=DecimalField()))
-                            ),
-                            "markup_cost": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Value("USD", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                         },
                         "capacity_aggregate": {},
                         "delta_key": {
-                            "cost": Sum(
+                            "cost_total": Sum(
                                 Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
                                 + Coalesce(
                                     F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
@@ -135,12 +187,56 @@ class OCPProviderMap(ProviderMap):
                         },
                         "filter": [{}],
                         "cost_units_key": "USD",
-                        "sum_columns": ["cost", "infrastructure_cost", "derived_cost", "markup_cost"],
+                        "sum_columns": ["cost_total", "infra_total", "sup_total"],
                     },
                     "costs_by_project": {
                         "tables": {"query": OCPUsageLineItemDailySummary},
                         "aggregates": {
-                            "cost": Sum(
+                            "sup_raw": Sum(Value(0, output_field=DecimalField())),
+                            "sup_usage": Sum(
+                                Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
+                                + Coalesce(
+                                    F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(
+                                    F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField())
+                                )
+                            ),
+                            "sup_markup": Sum(
+                                Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            "sup_total": Sum(
+                                Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
+                                + Coalesce(
+                                    F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(
+                                    F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            "infra_raw": Sum(Coalesce(F("project_infra_cost"), Value(0, output_field=DecimalField()))),
+                            "infra_usage": Sum(Value(0, output_field=DecimalField())),
+                            "infra_markup": Sum(Value(0, output_field=DecimalField())),
+                            "infra_total": Sum(
+                                Coalesce(F("project_infra_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            # Cost =  Supplementary[field] + Infrastructure[filed]
+                            # Note: if a value was currently zero it was left out, unless both sup & infra are zero
+                            "cost_raw": Sum(Coalesce(F("project_infra_cost"), Value(0, output_field=DecimalField()))),
+                            "cost_usage": Sum(
+                                Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
+                                + Coalesce(
+                                    F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(
+                                    F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField())
+                                )
+                            ),
+                            "cost_markup": Sum(
+                                Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            "cost_total": Sum(
                                 Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
                                 + Coalesce(
                                     F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
@@ -150,26 +246,55 @@ class OCPProviderMap(ProviderMap):
                                 )
                                 + Coalesce(F("project_infra_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                            ),
-                            "infrastructure_cost": Sum(
-                                Coalesce(F("project_infra_cost"), Value(0, output_field=DecimalField()))
-                            ),
-                            "derived_cost": Sum(
-                                Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
-                                + Coalesce(
-                                    F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
-                                )
-                                + Coalesce(
-                                    F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField())
-                                )
-                            ),
-                            "markup_cost": Sum(
-                                Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                         },
-                        "default_ordering": {"cost": "desc"},
+                        "default_ordering": {"cost_total": "desc"},
                         "annotations": {
-                            "cost": Sum(
+                            "sup_raw": Value(0, output_field=DecimalField()),
+                            "sup_usage": Sum(
+                                Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
+                                + Coalesce(
+                                    F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(
+                                    F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField())
+                                )
+                            ),
+                            "sup_markup": Sum(
+                                Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            "sup_total": Sum(
+                                Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
+                                + Coalesce(
+                                    F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(
+                                    F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            "infra_raw": Sum(Coalesce(F("project_infra_cost"), Value(0, output_field=DecimalField()))),
+                            "infra_usage": Value(0, output_field=DecimalField()),
+                            "infra_markup": Value(0, output_field=DecimalField()),
+                            "infra_total": Sum(
+                                Coalesce(F("project_infra_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            # Cost =  Supplementary[field] + Infrastructure[filed]
+                            # Note: if a value was currently zero it was left out, unless both sup & infra are zero
+                            "cost_raw": Sum(Coalesce(F("project_infra_cost"), Value(0, output_field=DecimalField()))),
+                            "cost_usage": Sum(
+                                Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
+                                + Coalesce(
+                                    F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
+                                )
+                                + Coalesce(
+                                    F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField())
+                                )
+                            ),
+                            "cost_markup": Sum(
+                                Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            "cost_total": Sum(
                                 Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
                                 + Coalesce(
                                     F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
@@ -179,28 +304,14 @@ class OCPProviderMap(ProviderMap):
                                 )
                                 + Coalesce(F("project_infra_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                            ),
-                            "infrastructure_cost": Sum(
-                                Coalesce(F("project_infra_cost"), Value(0, output_field=DecimalField()))
-                            ),
-                            "derived_cost": Sum(
-                                Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
-                                + Coalesce(
-                                    F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
-                                )
-                                + Coalesce(
-                                    F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField())
-                                )
-                            ),
-                            "markup_cost": Sum(
-                                Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_units": Value("USD", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "cost": Value(0, output_field=DecimalField()),
                         },
                         "capacity_aggregate": {},
                         "delta_key": {
-                            "cost": Sum(
+                            "cost_total": Sum(
                                 Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
                                 + Coalesce(
                                     F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField())
@@ -214,20 +325,43 @@ class OCPProviderMap(ProviderMap):
                         },
                         "filter": [{}],
                         "cost_units_key": "USD",
-                        "sum_columns": ["cost", "infrastructure_cost", "derived_cost", "markup_cost"],
+                        "sum_columns": ["cost_total", "infra_total", "sup_total"],
                     },
                     "cpu": {
                         "aggregates": {
-                            "cost": Sum("pod_charge_cpu_core_hours"),
+                            "sup_raw": Sum(Value(0, output_field=DecimalField())),
+                            "sup_usage": Sum("pod_charge_cpu_core_hours"),
+                            "sup_markup": Sum(Value(0, output_field=DecimalField())),
+                            "sup_total": Sum("pod_charge_cpu_core_hours"),
+                            "infra_raw": Sum(Value(0, output_field=DecimalField())),
+                            "infra_usage": Sum(Value(0, output_field=DecimalField())),
+                            "infra_markup": Sum(Value(0, output_field=DecimalField())),
+                            "infra_total": Sum(Value(0, output_field=DecimalField())),
+                            "cost_raw": Sum(Value(0, output_field=DecimalField())),
+                            "cost_usage": Sum("pod_charge_cpu_core_hours"),
+                            "cost_markup": Sum(Value(0, output_field=DecimalField())),
+                            "cost_total": Sum("pod_charge_cpu_core_hours"),
                             "usage": Sum("pod_usage_cpu_core_hours"),
                             "request": Sum("pod_request_cpu_core_hours"),
                             "limit": Sum("pod_limit_cpu_core_hours"),
-                            "infrastructure_cost": Sum(Value(0, output_field=DecimalField())),
-                            "derived_cost": Sum("pod_charge_cpu_core_hours"),
                         },
                         "capacity_aggregate": {"capacity": Max("cluster_capacity_cpu_core_hours")},
                         "default_ordering": {"usage": "desc"},
                         "annotations": {
+                            "sup_raw": Value(0, output_field=DecimalField()),
+                            "sup_usage": Sum("pod_charge_cpu_core_hours"),
+                            "sup_markup": Value(0, output_field=DecimalField()),
+                            "sup_total": Sum("pod_charge_cpu_core_hours"),
+                            "infra_raw": Value(0, output_field=DecimalField()),
+                            "infra_usage": Value(0, output_field=DecimalField()),
+                            "infra_markup": Value(0, output_field=DecimalField()),
+                            "infra_total": Value(0, output_field=DecimalField()),
+                            "cost_raw": Value(0, output_field=DecimalField()),
+                            "cost_usage": Sum("pod_charge_cpu_core_hours"),
+                            "cost_markup": Value(0, output_field=DecimalField()),
+                            "cost_total": Sum("pod_charge_cpu_core_hours"),
+                            "cost_units": Value("USD", output_field=CharField()),
+                            "usage_units": Value("Core-Hours", output_field=CharField()),
                             "usage": Sum("pod_usage_cpu_core_hours"),
                             "request": Sum("pod_request_cpu_core_hours"),
                             "limit": Sum("pod_limit_cpu_core_hours"),
@@ -235,35 +369,52 @@ class OCPProviderMap(ProviderMap):
                                 "total": Max("total_capacity_cpu_core_hours"),
                                 "cluster": Max("cluster_capacity_cpu_core_hours"),
                             },
-                            "cost": Sum("pod_charge_cpu_core_hours"),
-                            "infrastructure_cost": Value(0, output_field=DecimalField()),
-                            "derived_cost": Sum("pod_charge_cpu_core_hours"),
-                            "cost_units": Value("USD", output_field=CharField()),
-                            "usage_units": Value("Core-Hours", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                         },
                         "delta_key": {
                             "usage": Sum("pod_usage_cpu_core_hours"),
                             "request": Sum("pod_request_cpu_core_hours"),
-                            "cost": Sum("pod_charge_cpu_core_hours"),
+                            "cost_total": Sum("pod_charge_cpu_core_hours"),
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Pod"}],
                         "cost_units_key": "USD",
                         "usage_units_key": "Core-Hours",
-                        "sum_columns": ["usage", "request", "limit", "infrastructure_cost", "derived_cost", "cost"],
+                        "sum_columns": ["usage", "request", "limit", "sup_total", "cost_total", "infra_total"],
                     },
                     "memory": {
                         "aggregates": {
+                            "sup_raw": Sum(Value(0, output_field=DecimalField())),
+                            "sup_usage": Sum("pod_charge_memory_gigabyte_hours"),
+                            "sup_markup": Sum(Value(0, output_field=DecimalField())),
+                            "sup_total": Sum("pod_charge_memory_gigabyte_hours"),
+                            "infra_raw": Sum(Value(0, output_field=DecimalField())),
+                            "infra_usage": Sum(Value(0, output_field=DecimalField())),
+                            "infra_markup": Sum(Value(0, output_field=DecimalField())),
+                            "infra_total": Sum(Value(0, output_field=DecimalField())),
+                            "cost_raw": Sum(Value(0, output_field=DecimalField())),
+                            "cost_usage": Sum("pod_charge_memory_gigabyte_hours"),
+                            "cost_markup": Sum(Value(0, output_field=DecimalField())),
+                            "cost_total": Sum("pod_charge_memory_gigabyte_hours"),
                             "usage": Sum("pod_usage_memory_gigabyte_hours"),
                             "request": Sum("pod_request_memory_gigabyte_hours"),
                             "limit": Sum("pod_limit_memory_gigabyte_hours"),
-                            "cost": Sum("pod_charge_memory_gigabyte_hours"),
-                            "infrastructure_cost": Sum(Value(0, output_field=DecimalField())),
-                            "derived_cost": Sum("pod_charge_memory_gigabyte_hours"),
                         },
                         "capacity_aggregate": {"capacity": Max("cluster_capacity_memory_gigabyte_hours")},
                         "default_ordering": {"usage": "desc"},
                         "annotations": {
+                            "sup_raw": Value(0, output_field=DecimalField()),
+                            "sup_usage": Sum("pod_charge_memory_gigabyte_hours"),
+                            "sup_markup": Value(0, output_field=DecimalField()),
+                            "sup_total": Sum("pod_charge_memory_gigabyte_hours"),
+                            "infra_raw": Value(0, output_field=DecimalField()),
+                            "infra_usage": Value(0, output_field=DecimalField()),
+                            "infra_markup": Value(0, output_field=DecimalField()),
+                            "infra_total": Value(0, output_field=DecimalField()),
+                            "cost_raw": Value(0, output_field=DecimalField()),
+                            "cost_usage": Sum("pod_charge_memory_gigabyte_hours"),
+                            "cost_markup": Value(0, output_field=DecimalField()),
+                            "cost_total": Sum("pod_charge_memory_gigabyte_hours"),
+                            "cost_units": Value("USD", output_field=CharField()),
                             "usage": Sum("pod_usage_memory_gigabyte_hours"),
                             "request": Sum("pod_request_memory_gigabyte_hours"),
                             "limit": Sum("pod_limit_memory_gigabyte_hours"),
@@ -271,44 +422,58 @@ class OCPProviderMap(ProviderMap):
                                 "total": Max("total_capacity_memory_gigabyte_hours"),
                                 "cluster": Max("cluster_capacity_memory_gigabyte_hours"),
                             },
-                            "cost": Sum("pod_charge_memory_gigabyte_hours"),
-                            "infrastructure_cost": Value(0, output_field=DecimalField()),
-                            "derived_cost": Sum("pod_charge_memory_gigabyte_hours"),
-                            "cost_units": Value("USD", output_field=CharField()),
                             "usage_units": Value("GB-Hours", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                         },
                         "delta_key": {
                             "usage": Sum("pod_usage_memory_gigabyte_hours"),
                             "request": Sum("pod_request_memory_gigabyte_hours"),
-                            "cost": Sum("pod_charge_memory_gigabyte_hours"),
+                            "cost_total": Sum("pod_charge_memory_gigabyte_hours"),
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Pod"}],
                         "cost_units_key": "USD",
                         "usage_units_key": "GB-Hours",
-                        "sum_columns": ["usage", "request", "limit", "infrastructure_cost", "derived_cost", "cost"],
+                        "sum_columns": ["usage", "request", "limit", "cost_total", "sup_total", "infra_total"],
                     },
                     "volume": {
                         "tag_column": "volume_labels",
                         "aggregates": {
+                            "sup_raw": Sum(Value(0, output_field=DecimalField())),
+                            "sup_usage": Sum("persistentvolumeclaim_charge_gb_month"),
+                            "sup_markup": Sum(Value(0, output_field=DecimalField())),
+                            "sup_total": Sum("persistentvolumeclaim_charge_gb_month"),
+                            "infra_raw": Sum(Value(0, output_field=DecimalField())),
+                            "infra_usage": Sum(Value(0, output_field=DecimalField())),
+                            "infra_markup": Sum(Value(0, output_field=DecimalField())),
+                            "infra_total": Sum(Value(0, output_field=DecimalField())),
+                            "cost_raw": Sum(Value(0, output_field=DecimalField())),
+                            "cost_usage": Sum("persistentvolumeclaim_charge_gb_month"),
+                            "cost_markup": Sum(Value(0, output_field=DecimalField())),
+                            "cost_total": Sum("persistentvolumeclaim_charge_gb_month"),
                             "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
                             "request": Sum("volume_request_storage_gigabyte_months"),
-                            "cost": Sum("persistentvolumeclaim_charge_gb_month"),
-                            "infrastructure_cost": Sum(Value(0, output_field=DecimalField())),
-                            "derived_cost": Sum("persistentvolumeclaim_charge_gb_month"),
                         },
                         "capacity_aggregate": {"capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months")},
                         "default_ordering": {"usage": "desc"},
                         "annotations": {
+                            "sup_raw": Value(0, output_field=DecimalField()),
+                            "sup_usage": Sum("persistentvolumeclaim_charge_gb_month"),
+                            "sup_markup": Value(0, output_field=DecimalField()),
+                            "sup_total": Sum("persistentvolumeclaim_charge_gb_month"),
+                            "infra_raw": Value(0, output_field=DecimalField()),
+                            "infra_usage": Value(0, output_field=DecimalField()),
+                            "infra_markup": Value(0, output_field=DecimalField()),
+                            "infra_total": Value(0, output_field=DecimalField()),
+                            "cost_raw": Value(0, output_field=DecimalField()),
+                            "cost_usage": Sum("persistentvolumeclaim_charge_gb_month"),
+                            "cost_markup": Value(0, output_field=DecimalField()),
+                            "cost_total": Sum("persistentvolumeclaim_charge_gb_month"),
                             "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
                             "request": Sum("volume_request_storage_gigabyte_months"),
                             "capacity": {
                                 "total": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
                                 "cluster": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
                             },
-                            "cost": Sum("persistentvolumeclaim_charge_gb_month"),
-                            "infrastructure_cost": Value(0, output_field=DecimalField()),
-                            "derived_cost": Sum("persistentvolumeclaim_charge_gb_month"),
                             "cost_units": Value("USD", output_field=CharField()),
                             "usage_units": Value("GB-Mo", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
@@ -316,14 +481,14 @@ class OCPProviderMap(ProviderMap):
                         "delta_key": {
                             "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
                             "request": Sum("volume_request_storage_gigabyte_months"),
-                            "cost": Sum("persistentvolumeclaim_charge_gb_month"),
+                            "cost_total": Sum("persistentvolumeclaim_charge_gb_month"),
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Storage"}],
                         "cost_units_key": "USD",
                         "usage_units_key": "GB-Mo",
-                        "sum_columns": ["usage", "request", "infrastructure_cost", "derived_cost", "cost"],
+                        "sum_columns": ["usage", "request", "cost_total", "sup_total", "infra_total"],
                     },
-                    "tags": {"default_ordering": {"cost": "desc"}},
+                    "tags": {"default_ordering": {"cost_total": "desc"}},
                 },
                 "start_date": "usage_start",
                 "tables": {"query": OCPUsageLineItemDailySummary},

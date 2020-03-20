@@ -106,6 +106,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
         if self._mapper.report_type_map.get("annotations", {}).get("count_units") and count_units_value:
             query_sum["count_units"] = count_units_value
         key_order = list(init_order_keys + list(annotations.keys()))
+
         ordered_total = {total_key: query_sum[total_key] for total_key in key_order if total_key in query_sum}
         ordered_total.update(query_sum)
         self._pack_data_object(ordered_total, **self._mapper.PACK_DEFINITIONS)
