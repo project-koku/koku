@@ -262,8 +262,8 @@ class OrderSerializer(BaseSerializer):
     ORDER_CHOICES = (("asc", "asc"), ("desc", "desc"))
 
     cost = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
-    infrastructure_cost = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
-    derived_cost = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
+    infrastructure = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
+    supplementary = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
     delta = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
 
     def __init__(self, *args, **kwargs):
@@ -285,17 +285,7 @@ class ParamSerializer(BaseSerializer):
     limit = serializers.IntegerField(required=False)
     offset = serializers.IntegerField(required=False)
 
-    # fields that can be ordered without a corresponding group-by
-    order_by_whitelist = (
-        "cost",
-        "derived_cost",
-        "infrastructure_cost",
-        "delta",
-        "usage",
-        "request",
-        "limit",
-        "capacity",
-    )
+    order_by_whitelist = ("cost", "supplementary", "infrastructure", "delta", "usage", "request", "limit", "capacity")
 
     def _init_tagged_fields(self, **kwargs):
         """Initialize serializer fields that support tagging.

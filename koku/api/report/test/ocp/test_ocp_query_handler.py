@@ -34,7 +34,7 @@ from api.utils import DateHelper
 from reporting.models import OCPUsageLineItemDailySummary
 
 
-def _calculate_subtotals(data, cost, infra_cost, de_cost):
+def _calculate_subtotals(data, cost, infra, sup):
     """Returns list of subtotals given data."""
     for _, value in data.items():
         if isinstance(value, list):
@@ -42,12 +42,12 @@ def _calculate_subtotals(data, cost, infra_cost, de_cost):
                 if isinstance(item, dict):
                     if "values" in item.keys():
                         value = item["values"][0]
-                        cost.append(value["cost"]["value"])
-                        infra_cost.append(value["infrastructure_cost"]["value"])
-                        de_cost.append(value["derived_cost"]["value"])
+                        cost.append(value["cost"]["total"]["value"])
+                        infra.append(value["infrastructure"]["total"]["value"])
+                        sup.append(value["supplementary"]["total"]["value"])
                     else:
-                        cost, infra_cost, de_cost = _calculate_subtotals(item, cost, infra_cost, de_cost)
-            return (cost, infra_cost, de_cost)
+                        cost, infra, sup = _calculate_subtotals(item, cost, infra, sup)
+            return (cost, infra, sup)
 
 
 class OCPReportQueryHandlerTest(IamTestCase):
@@ -516,10 +516,24 @@ class OCPReportQueryHandlerTest(IamTestCase):
             query_data = handler.execute_query()
             the_sum = handler.query_sum
             data = query_data["data"][0]
-            sub_cost, sub_infra, sub_derived = _calculate_subtotals(data, [], [], [])
-            expected_cost = the_sum["cost"]["value"]
-            expected_infra = the_sum["infrastructure_cost"]["value"]
-            expected_derived = the_sum["derived_cost"]["value"]
-            self.assertLessEqual(abs(expected_cost - sum(sub_cost)), tolerance)
-            self.assertLessEqual(abs(expected_infra - sum(sub_infra)), tolerance)
-            self.assertLessEqual(abs(expected_derived - sum(sub_derived)), tolerance)
+            result_cost, result_infra, result_sup = _calculate_subtotals(data, [], [], [])
+            test_dict = {
+                "cost": {
+                    "expected": the_sum.get("cost", {}).get("total", {}).get("value"),
+                    "result": sum(result_cost),
+                },
+                "infra": {
+                    "expected": the_sum.get("infrastructure", {}).get("total", {}).get("value"),
+                    "result": sum(result_infra),
+                },
+                "sup": {
+                    "expected": the_sum.get("supplementary", {}).get("total", {}).get("value"),
+                    "result": sum(result_sup),
+                },
+            }
+            for _, data in test_dict.items():
+                expected = data["expected"]
+                result = data["result"]
+                self.assertIsNotNone(expected)
+                self.assertIsNotNone(result)
+                self.assertLessEqual(abs(expected - result), tolerance)
