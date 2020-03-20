@@ -19,6 +19,7 @@ import asyncio
 import concurrent.futures
 import json
 import logging
+import random
 import sys
 import threading
 import time
@@ -342,15 +343,16 @@ async def process_messages(app_type_id, msg_pending_queue):  # noqa: C901; pragm
                         pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
                     )
 
-            elif msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE,):
+            elif msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
                 sources_network = SourcesHTTPClient(msg_data.get("auth_header"))
                 msg_data["source_id"] = sources_network.get_source_id_from_endpoint_id(msg_data.get("resource_id"))
                 is_cost_mgmt = sources_network.get_application_type_is_cost_management(msg_data.get("source_id"))
                 if is_cost_mgmt:
 
-                    storage.create_source_event(  # this will create source if it does not exist.
-                        msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset")
-                    )
+                    if msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE,):
+                        storage.create_source_event(  # this will create source _only_ if it does not exist.
+                            msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset")
+                        )
 
                     with concurrent.futures.ThreadPoolExecutor() as pool:
                         await EVENT_LOOP.run_in_executor(
@@ -366,13 +368,6 @@ async def process_messages(app_type_id, msg_pending_queue):  # noqa: C901; pragm
                         continue
                     await EVENT_LOOP.run_in_executor(
                         pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
-                    )
-
-            elif msg_data.get("event_type") in (KAFKA_AUTHENTICATION_UPDATE,):
-                msg_data["source_id"] = storage.get_source_from_endpoint(msg_data.get("resource_id"))
-                with concurrent.futures.ThreadPoolExecutor() as pool:
-                    await EVENT_LOOP.run_in_executor(
-                        pool, save_auth_info, msg_data.get("auth_header"), msg_data.get("source_id")
                     )
 
             elif msg_data.get("event_type") in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
@@ -509,14 +504,20 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
             if msg.get("operation") != "destroy":
                 storage.clear_update_flag(msg.get("provider").source_id)
         except SourcesIntegrationError as error:
-            LOG.error(f"[synchronize_sources] Re-queueing failed operation. Error: {error}")
-            await asyncio.sleep(Config.RETRY_SECONDS)
-            _log_process_queue_event(process_queue, msg)
-            await process_queue.put(msg)
-            LOG.info(
-                f'Requeue of failed operation: {msg.get("operation")} '
-                f'for Source ID: {str(msg.get("provider").source_id)} complete.'
-            )
+            # requeue/retry the message once
+            if not msg.get("retried"):
+                LOG.info(f"[synchronize_sources] Re-queueing failed operation. Error: {error}")
+                await asyncio.sleep(Config.RETRY_SECONDS)
+                _log_process_queue_event(process_queue, msg)
+                await process_queue.put(msg)
+                LOG.info(
+                    f'Requeue of failed operation: {msg.get("operation")} '
+                    f'for Source ID: {str(msg.get("provider").source_id)} complete.'
+                )
+                msg["retried"] = True
+            else:
+                LOG.error(f"[synchronize_sources] Failed operation. Error: {error}")
+
         except (InterfaceError, OperationalError) as error:
             connection.close()
             LOG.error(
@@ -535,13 +536,17 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
             # loop remains active in the event that provider synchronization fails unexpectedly.
             provider = msg.get("provider")
             source_id = provider.source_id if provider else "unknown"
-            LOG.error(f"Source {source_id} Unexpected synchronization error: {str(error)}", exc_info=True)
+            LOG.error(
+                f"[synchronize_sources] Unexpected synchronization error for Source ID {source_id} "
+                f"encountered: {type(error).__name__}: {error}",
+                exc_info=True,
+            )
 
 
 def backoff(interval, maximum=120):
     """Exponential back-off."""
-    wait = min(maximum, (2 ** interval))
-    LOG.info("Sleeping for %s seconds.", wait)
+    wait = min(maximum, (2 ** interval)) + random.random()
+    LOG.info("Sleeping for %.2f seconds.", wait)
     time.sleep(wait)
 
 
