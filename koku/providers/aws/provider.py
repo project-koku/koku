@@ -102,7 +102,7 @@ def _check_cost_report_access(credential_name, credentials, region="us-east-1", 
         reports = response.get("ReportDefinitions")
     except (ClientError, BotoConnectionError) as boto_error:
         key = "authentication.provider_resource_name"
-        message = "Unable to obtain cost and usage report " "definition data with {}.".format(credential_name)
+        message = f"Unable to obtain cost and usage report definition data with {credential_name}."
         LOG.warn(msg=message, exc_info=boto_error)
         raise serializers.ValidationError(error_obj(key, message))
 
@@ -113,7 +113,7 @@ def _check_cost_report_access(credential_name, credentials, region="us-east-1", 
         for report in bucket_matched:
             if "RESOURCES" not in report.get("AdditionalSchemaElements"):
                 key = "report_configuration"
-                msg = "Required Resource IDs are not included " 'in report "{}".'.format(report.get("ReportName"))
+                msg = "Required Resource IDs are not included in report {}".format(report.get("ReportName"))
                 raise serializers.ValidationError(error_obj(key, msg))
 
 
@@ -128,7 +128,7 @@ class AWSProvider(ProviderInterface):
         """Verify that the S3 bucket exists and is reachable."""
         if not credential_name or credential_name.isspace():
             key = "authentication.provider_resource_name"
-            message = "Provider resource name is a required parameter for AWS" " and must not be blank."
+            message = "Provider resource name is a required parameter for AWS and must not be blank."
             raise serializers.ValidationError(error_obj(key, message))
 
         creds = _get_sts_access(credential_name)
