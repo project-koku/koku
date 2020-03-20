@@ -18,17 +18,21 @@
 import time
 
 from celery.utils.log import get_task_logger
+from django.conf import settings
 from django.db import connection
 from django.db import InterfaceError
 from django.db import OperationalError
+from prometheus_client import CollectorRegistry
 from prometheus_client import Counter
 from prometheus_client import Gauge
+from prometheus_client import push_to_gateway
 
 from .celery import app
 
 LOG = get_task_logger(__name__)
-DB_CONNECTION_ERRORS_COUNTER = Counter("db_connection_errors", "Number of DB connection errors")
-PGSQL_GAUGE = Gauge("postgresql_schema_size_bytes", "PostgreSQL DB Size (bytes)", ["schema"])
+REGISTRY = CollectorRegistry()
+DB_CONNECTION_ERRORS_COUNTER = Counter("db_connection_errors", "Number of DB connection errors", registry=REGISTRY)
+PGSQL_GAUGE = Gauge("postgresql_schema_size_bytes", "PostgreSQL DB Size (bytes)", ["schema"], registry=REGISTRY)
 
 
 class DatabaseStatus:
@@ -131,3 +135,4 @@ def collect_metrics():
     db_status = DatabaseStatus()
     db_status.connection_check()
     db_status.collect()
+    push_to_gateway(settings.PROMETHEUS_PUSHGATEWAY, job="koku.metrics.collect_metrics", registry=REGISTRY)
