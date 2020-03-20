@@ -29,10 +29,26 @@ class ProviderMap:
     """
 
     PACK_DEFINITIONS = {
-        "cost": {
-            "keys": ["cost", "infrastructure_cost", "derived_cost", "markup_cost", "monthly_cost"],
+        # I structured the cost_groups in this way in order to keep the big O
+        # notation the same in queries.py with only one for loop.
+        "cost_groups": {
+            "keys": {
+                "infra_raw": {"key": "raw", "group": "infrastructure"},
+                "infra_markup": {"key": "markup", "group": "infrastructure"},
+                "infra_usage": {"key": "usage", "group": "infrastructure"},
+                "infra_total": {"key": "total", "group": "infrastructure"},
+                "sup_raw": {"key": "raw", "group": "supplementary"},
+                "sup_markup": {"key": "markup", "group": "supplementary"},
+                "sup_usage": {"key": "usage", "group": "supplementary"},
+                "sup_total": {"key": "total", "group": "supplementary"},
+                "cost_raw": {"key": "raw", "group": "cost"},
+                "cost_markup": {"key": "markup", "group": "cost"},
+                "cost_usage": {"key": "usage", "group": "cost"},
+                "cost_total": {"key": "total", "group": "cost"},
+            },
             "units": "cost_units",
         },
+        "cost": {"keys": ["monthly_cost"], "units": "cost_units"},
         "usage": {"keys": ["usage", "request", "limit", "capacity"], "units": "usage_units"},
         "count": {"keys": ["count"], "units": "count_units"},
     }

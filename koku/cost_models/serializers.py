@@ -65,9 +65,6 @@ class TieredRateSerializer(serializers.Serializer):
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
     usage = serializers.DictField(required=False)
     unit = serializers.ChoiceField(choices=CURRENCY_CHOICES)
-    cost_type = serializers.ChoiceField(
-        choices=CostModelMetricsMap.COST_TYPE_CHOICES, default=CostModelMetricsMap.COST_TYPE_CHOICES[1][0]
-    )
 
     def validate_value(self, value):
         """Check that value is a positive value."""
@@ -106,7 +103,14 @@ class RateSerializer(serializers.Serializer):
     RATE_TYPES = ("tiered_rates",)
 
     metric = serializers.DictField(required=True)
+    cost_type = serializers.ChoiceField(choices=CostModelMetricsMap.COST_TYPE_CHOICES)
     tiered_rates = serializers.ListField(required=False)
+
+    @property
+    def metric_map(self):
+        """Return a metric map dictionary with default values."""
+        metrics = CostModelMetricsMap.objects.values("metric", "default_cost_type")
+        return {metric.get("metric"): metric.get("default_cost_type") for metric in metrics}
 
     @staticmethod
     def _convert_to_decimal(rate):
@@ -185,6 +189,17 @@ class RateSerializer(serializers.Serializer):
             validated_rates.append(serializer.validated_data)
         return validated_rates
 
+    def validate_cost_type(self, metric, cost_type):
+        """Force validation of cost_type."""
+        choices = {choice.lower(): choice for choice in self.get_fields().get("cost_type").choices}
+        if cost_type is None:
+            cost_type = self.metric_map.get(metric)
+        if cost_type.lower() not in choices:
+            error_msg = f"{cost_type} is an invalid cost type"
+            raise serializers.ValidationError(error_msg)
+        cost_type = choices[cost_type.lower()]
+        return cost_type
+
     def validate(self, data):
         """Validate that a rate must be defined."""
         data["tiered_rates"] = self.validate_tiered_rates(data.get("tiered_rates", []))
@@ -193,6 +208,9 @@ class RateSerializer(serializers.Serializer):
         if data.get("metric").get("name") not in [metric for metric, metric2 in CostModelMetricsMap.METRIC_CHOICES]:
             error_msg = "{} is an invalid metric".format(data.get("metric").get("name"))
             raise serializers.ValidationError(error_msg)
+
+        data["cost_type"] = self.validate_cost_type(data.get("metric").get("name"), data.get("cost_type"))
+
         if any(data.get(rate_key) is not None for rate_key in self.RATE_TYPES):
             tiered_rates = data.get("tiered_rates")
             if tiered_rates == []:
@@ -233,7 +251,7 @@ class RateSerializer(serializers.Serializer):
                         "unit": rates.get("unit"),
                     }
 
-        out.update({"tiered_rates": tiered_rates})
+        out.update({"tiered_rates": tiered_rates, "cost_type": rate_obj.get("cost_type")})
         return out
 
     def to_internal_value(self, data):
