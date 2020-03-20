@@ -294,23 +294,16 @@ class QueryParameters:
         self._resolve_report_subtype()
 
     def _resolve_report_subtype(self):
-        import sys
-
-        print(f"***** OCP_ALL_COSTS_PATH = {OCP_ALL_COSTS_PATH}", file=sys.stderr)
-        print(f"***** self.request.path = {self.request.path}", file=sys.stderr)
         service_filter = self.get_filter("service")
-        print(f"***** service_filter = {service_filter}", file=sys.stderr)
         if service_filter and OCP_ALL_COSTS_PATH in self.request.path:
             res = (
-                SourceServiceProduct.objects.filter(product_code__overlap=service_filter)
+                SourceServiceProduct.objects.filter(product_codes__overlap=[f.strip("\"'") for f in service_filter])
                 .values("service_category")
                 .distinct()
                 .first()
             )
-            print(f"***** resolve_report_subtype: res = {res}", file=sys.stderr)
-            self.report_subtype = res["service_category"]
+            self.report_subtype = res["service_category"] if res else None
         else:
-            print("***** Force report_subtype = None", file=sys.stderr)
             self.report_subtype = None
 
     @property

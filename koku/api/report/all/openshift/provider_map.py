@@ -15,8 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider Mapper for OCP on AWS Reports."""
-import sys
-
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
 from django.db.models import Count
@@ -74,10 +72,6 @@ class OCPAllProviderMap(ProviderMap):
     """OCP on All Infrastructure Provider Map."""
 
     def __init__(self, provider, report_type, report_subtype=None):
-        print(
-            f"***** OCPAllProviderMap :: report_type = {report_type}; report_subtype = {report_subtype}",
-            file=sys.stderr,
-        )
         """Constructor."""
         self._mapping = [
             {

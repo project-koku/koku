@@ -15,8 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """OCP Query Handling for Reports."""
-import sys
-
 from api.models import Provider
 from api.report.all.openshift.provider_map import OCPAllProviderMap
 from api.report.ocp_aws.query_handler import OCPInfrastructureReportQueryHandlerBase
@@ -34,7 +32,6 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
             parameters    (QueryParameters): parameter object for query
         """
         report_subtype = getattr(parameters, "report_subtype")
-        print(f"***** report_subtype = {report_subtype}", file=sys.stderr)
         self._mapper = OCPAllProviderMap(
             provider=self.provider, report_type=parameters.report_type, report_subtype=report_subtype
         )

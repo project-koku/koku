@@ -155,9 +155,6 @@ class ReportView(APIView):
         except ValidationError as exc:
             return Response(data=exc.detail, status=status.HTTP_400_BAD_REQUEST)
 
-        if type(self).__name__ == "OCPAllCostView":
-            pass  # Check filters here! Reset query handler if necessary;
-
         handler = self.query_handler(params)
         output = handler.execute_query()
         max_rank = handler.max_rank
