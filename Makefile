@@ -101,6 +101,7 @@ help:
 	@echo "  docker-logs                          connect to console logs for all services"
 	@echo "  docker-test-all                      run unittests"
 	@echo "  docker-iqe-local-hccm                create container based off local hccm plugin. Requires env 'HCCM_PLUGIN_PATH'"
+	@echo "                                          @param iqe_cmd - (optional) Command to run. Defaults to 'bash'."
 	@echo "  docker-iqe-smokes-tests              run smoke tests"
 	@echo "  docker-iqe-api-tests                 run api tests"
 	@echo "  docker-iqe-vortex-tests              run vortex tests"
@@ -530,7 +531,7 @@ _set-test-dir-permissions:
 	@$(PREFIX) find ./testing -type d -exec chmod o+x,g+x {} \;
 
 docker-iqe-local-hccm: docker-reinitdb _set-test-dir-permissions clear-testing
-	./testing/run_test.sh
+	./testing/run_local_hccm.sh $(iqe_cmd)
 
 docker-iqe-smokes-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_smoke_tests.sh
