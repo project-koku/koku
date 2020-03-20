@@ -172,7 +172,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 start_date,
                 end_date,
             )
-            accessor.populate_markup_cost(markup, self._cluster_id)
+            accessor.populate_markup_cost(markup, start_date, end_date, self._cluster_id)
         LOG.info("Finished updating markup.")
 
     def _update_monthly_cost(self, start_date, end_date):
