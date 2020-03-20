@@ -50,7 +50,6 @@ hccm_local_container() {
     fi
 
     $CONTAINER_RUNTIME pull $IMAGE
-
     $CONTAINER_RUNTIME run -it \
                            --rm \
                            --network="host" \
@@ -69,7 +68,7 @@ hccm_local_container() {
                            -v $SCRIPTPATH/local_providers/azure_local:/tmp/local_container${FLAGS} \
                            -v $SCRIPTPATH/pvc_dir/insights_local:/var/tmp/masu/insights_local${FLAGS} \
                            $IMAGE \
-                           bash -c "iqe plugin uninstall hccm && iqe plugin install --editable /hccm_plugin/" && bash
+                           bash -c "iqe plugin uninstall hccm && iqe plugin install --editable /hccm_plugin/ && bash"
 }
 
 if [ -z "$COMMAND" ]
