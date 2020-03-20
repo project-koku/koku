@@ -683,17 +683,19 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.refresh_materialized_views")
     @patch("masu.processor.tasks.update_cost_model_costs")
-    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map")
-    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.markup")
-    def test_update_summary_tables_ocp(self, mock_markup, mock_rate_map, mock_charge_info, mock_view, mock_chain):
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_update_summary_tables_ocp(self, mock_cost_model, mock_charge_info, mock_view, mock_chain):
         """Test that the summary table task runs."""
+        infrastructure_rates = {
+            "cpu_core_usage_per_hour": 1.5,
+            "memory_gb_usage_per_hour": 2.5,
+            "storage_gb_usage_per_month": 0.5,
+        }
         markup = {}
-        mem_rate = {"tiered_rates": [{"value": "1.5", "unit": "USD"}]}
-        cpu_rate = {"tiered_rates": [{"value": "2.5", "unit": "USD"}]}
-        rate_metric_map = {"cpu_core_usage_per_hour": cpu_rate, "memory_gb_usage_per_hour": mem_rate}
 
-        mock_markup.return_value = markup
-        mock_rate_map.return_value = rate_metric_map
+        mock_cost_model.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
+        mock_cost_model.return_value.__enter__.return_value.supplementary_rates = {}
+        mock_cost_model.return_value.__enter__.return_value.markup = markup
 
         provider = Provider.PROVIDER_OCP
         provider_ocp_uuid = self.ocp_test_provider_uuid
@@ -726,10 +728,12 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with schema_context(self.schema):
             cluster_id = usage_period_qry.first().cluster_id
 
-            items = self.ocp_accessor._get_db_obj_query(table_name).filter(cluster_id=cluster_id, data_source="Pod")
+            items = self.ocp_accessor._get_db_obj_query(table_name).filter(
+                usage_start__gte=start_date, usage_start__lte=end_date, cluster_id=cluster_id, data_source="Pod"
+            )
             for item in items:
-                self.assertIsNotNone(item.pod_charge_memory_gigabyte_hours)
-                self.assertIsNotNone(item.pod_charge_cpu_core_hours)
+                self.assertNotEqual(item.infrastructure_usage_cost.get("cpu"), 0)
+                self.assertNotEqual(item.infrastructure_usage_cost.get("memory"), 0)
 
             storage_daily_name = OCP_REPORT_TABLE_MAP["storage_line_item_daily"]
 

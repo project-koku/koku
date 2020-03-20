@@ -650,7 +650,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             LOG.info("Populating monthly cost from %s to %s.", first_curr_month, first_next_month)
             if cost_type == "Node":
                 if rate is None:
-                    self.remove_monthly_cost(first_curr_month, first_next_month, cluster_id, cost_type, rate_type)
+                    self.remove_monthly_cost(first_curr_month, first_next_month, cluster_id, cost_type)
                 else:
                     self.upsert_monthly_node_cost_line_item(
                         first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate
@@ -691,13 +691,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     line_item.supplementary_monthly_cost = node_cost
                 line_item.save()
 
-    def remove_monthly_cost(self, start_date, end_date, cluster_id, cost_type, rate_type):
+    def remove_monthly_cost(self, start_date, end_date, cluster_id, cost_type):
         """Delete all monthly costs of a specific type over a date range."""
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
 
         filters = {
-            "usage_start": start_date,
-            "usage_end": start_date,
+            "usage_start": start_date.date(),
+            "usage_end": start_date.date(),
             "report_period": report_period,
             "cluster_id": cluster_id,
             "monthly_cost_type": cost_type,
