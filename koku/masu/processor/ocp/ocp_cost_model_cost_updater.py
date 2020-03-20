@@ -21,6 +21,7 @@ from decimal import Decimal
 from dateutil.parser import parse
 from tenant_schemas.utils import schema_context
 
+from api.metrics.models import CostModelMetricsMap
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -178,21 +179,23 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         """Update the monthly cost for a period of time."""
         try:
             with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
+                rate_type = None
                 rate = None
                 # Ex. cost_type == "Node", rate_term == "node_cost_per_month", rate == 1000
                 for cost_type, rate_term in OCPUsageLineItemDailySummary.MONTHLY_COST_RATE_MAP.items():
                     if self._infra_rates.get(rate_term):
-                        rate_type = "Infrastructure"
+                        rate_type = CostModelMetricsMap.INFRASTRUCTURE_COST_TYPE
                         rate = self._infra_rates.get(rate_term)
                     elif self._supplementary_rates.get(rate_term):
-                        rate_type = "Supplementary"
+                        rate_type = CostModelMetricsMap.SUPPLEMENTARY_COST_TYPE
                         rate = self._supplementary_rates.get(rate_term)
 
-                    if not rate:
-                        return
+                    log_msg = "Updating"
+                    if rate is None:
+                        log_msg = "Removing"
 
                     LOG.info(
-                        "Updating monthly %s cost for" "\n\tSchema: %s \n\t%s Provider: %s (%s) \n\tDates: %s - %s",
+                        log_msg + " monthly %s cost for" "\n\tSchema: %s \n\t%s Provider: %s (%s) \n\tDates: %s - %s",
                         cost_type,
                         self._schema,
                         self._provider.type,

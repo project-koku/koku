@@ -27,13 +27,12 @@ from dateutil.rrule import rrule
 from django.db import connection
 from django.db.models import DecimalField
 from django.db.models import F
-from django.db.models import Max
-from django.db.models import Min
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
+from api.metrics.models import CostModelMetricsMap
 from koku.database import JSONBBuildObject
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
@@ -620,8 +619,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 .values_list("node")
                 .distinct()
             )
-
-        return [node[0] for node in unique_nodes]
+            return [node[0] for node in unique_nodes]
 
     # pylint: disable=too-many-arguments
     def populate_monthly_cost(self, cost_type, rate_type, rate, start_date, end_date, cluster_id, cluster_alias):
@@ -651,9 +649,12 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             first_curr_month, first_next_month = month_date_range_tuple(curr_month)
             LOG.info("Populating monthly cost from %s to %s.", first_curr_month, first_next_month)
             if cost_type == "Node":
-                self.upsert_monthly_node_cost_line_item(
-                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate
-                )
+                if rate is None:
+                    self.remove_monthly_cost(first_curr_month, first_next_month, cluster_id, cost_type, rate_type)
+                else:
+                    self.upsert_monthly_node_cost_line_item(
+                        first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate
+                    )
 
     def upsert_monthly_node_cost_line_item(
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, node_cost
@@ -682,40 +683,40 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         monthly_cost_type="Node",
                         node=node,
                     )
-                if rate_type == "Infrastructure":
+                if rate_type == CostModelMetricsMap.INFRASTRUCTURE_COST_TYPE:
                     LOG.info("Node (%s) has a monthly infrastructure cost of %s.", node, node_cost)
                     line_item.infrastructure_monthly_cost = node_cost
-                elif rate_type == "Supplementary":
+                elif rate_type == CostModelMetricsMap.SUPPLEMENTARY_COST_TYPE:
                     LOG.info("Node (%s) has a monthly supplemenarty cost of %s.", node, node_cost)
                     line_item.supplementary_monthly_cost = node_cost
                 line_item.save()
 
-    def remove_monthly_cost(self):
-        """Delete all the monthly costs of a customer."""
-        # start_date should be the first month this ocp was used
-        with schema_context(self.schema):
-            start_date = OCPUsageLineItemDailySummary.objects.aggregate(Min("usage_start"))["usage_start__min"]
-            # If end_date is not provided, recalculate till the latest month
-            end_date = OCPUsageLineItemDailySummary.objects.aggregate(Max("usage_end"))["usage_end__max"]
+    def remove_monthly_cost(self, start_date, end_date, cluster_id, cost_type, rate_type):
+        """Delete all monthly costs of a specific type over a date range."""
+        report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
 
-        if start_date is None or end_date is None:
-            LOG.info("No monthly costs to remove from %s.", self.schema)
-            return
+        filters = {
+            "usage_start": start_date,
+            "usage_end": start_date,
+            "report_period": report_period,
+            "cluster_id": cluster_id,
+            "monthly_cost_type": cost_type,
+        }
 
-        LOG.info("Removing monthly costs from %s to %s.", start_date, end_date)
-        # usage_start, usage_end are date types
-        first_month = datetime.datetime(*start_date.replace(day=1).timetuple()[:3]).replace(tzinfo=pytz.UTC)
-        end_date = datetime.datetime(*end_date.timetuple()[:3]).replace(hour=23, minute=59, second=59, tzinfo=pytz.UTC)
-
-        with schema_context(self.schema):
-            # Calculate monthly cost for every month
-            for curr_month in rrule(freq=MONTHLY, until=end_date, dtstart=first_month):
-                first_curr_month, _ = month_date_range_tuple(curr_month)
-
-                # Remove existing monthly costs
-                OCPUsageLineItemDailySummary.objects.filter(
-                    usage_start=first_curr_month.date(), monthly_cost__isnull=False
-                ).delete()
+        for rate_type, __ in CostModelMetricsMap.COST_TYPE_CHOICES:
+            cost_filter = f"{rate_type.lower()}_monthly_cost__isnull"
+            filters.update({cost_filter: False})
+            LOG.info(
+                "Removing %s %s monthly costs \n\tfor %s \n\tfrom %s - %s.",
+                cost_type,
+                rate_type,
+                cluster_id,
+                start_date,
+                end_date,
+            )
+            with schema_context(self.schema):
+                OCPUsageLineItemDailySummary.objects.filter(**filters).all().delete()
+            filters.pop(cost_filter)
 
     def populate_node_label_line_item_daily_table(self, start_date, end_date, cluster_id):
         """Populate the daily node label aggregate of line items table.
@@ -822,25 +823,3 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 ),
             ),
         )
-
-        # summary_sql = summary_sql.decode("utf-8")
-        # summary_sql_params = {
-        #     "start_date": start_date,
-        #     "end_date": end_date,
-        #     "cluster_id": cluster_id,
-        #     "schema": self.schema,
-        #     "infra_cpu_usage_rate": infrastructure_rates.get("cpu_core_usage_per_hour", 0),
-        #     "infra_cpu_request_rate": infrastructure_rates.get("cpu_core_request_per_hour", 0),
-        #     "infra_memory_usage_rate": infrastructure_rates.get("memory_gb_usage_per_hour", 0),
-        #     "infra_memory_request_rate": infrastructure_rates.get("memory_gb_request_per_hour", 0),
-        #     "infra_storage_usage_rate": infrastructure_rates.get("storage_gb_usage_per_month", 0),
-        #     "infra_storage_request_rate": infrastructure_rates.get("storage_gb_request_per_month", 0),
-        #     "sup_cpu_usage_rate": supplementary_rates.get("cpu_core_usage_per_hour", 0),
-        #     "sup_cpu_request_rate": supplementary_rates.get("cpu_core_request_per_hour", 0),
-        #     "sup_memory_usage_rate": supplementary_rates.get("memory_gb_usage_per_hour", 0),
-        #     "sup_memory_request_rate": supplementary_rates.get("memory_gb_request_per_hour", 0),
-        #     "sup_storage_usage_rate": supplementary_rates.get("storage_gb_usage_per_month", 0),
-        #     "sup_storage_request_rate": supplementary_rates.get("storage_gb_request_per_month", 0),
-        # }
-        # summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        # self._execute_raw_sql_query(table_name, summary_sql, start_date, end_date, list(summary_sql_params))
