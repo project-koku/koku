@@ -113,7 +113,7 @@ def _check_cost_report_access(credential_name, credentials, region="us-east-1", 
         for report in bucket_matched:
             if "RESOURCES" not in report.get("AdditionalSchemaElements"):
                 key = "report_configuration"
-                msg = "Required Resource IDs are not included in report {}".format(report.get("ReportName"))
+                msg = f"Required Resource IDs are not included in report {report.get('ReportName')}"
                 raise serializers.ValidationError(error_obj(key, msg))
 
 
