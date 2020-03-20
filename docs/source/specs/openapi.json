@@ -2652,6 +2652,13 @@
                             "display_name": "Compute usage Rate"
                         }
                     },
+                    "cost_type": {
+                        "type": "string",
+                        "enum": [
+                            "Infrastructure",
+                            "Supplementary"
+                        ]
+                    },
                     "tiered_rates": {
                         "type": "array",
                         "items": {
@@ -2666,13 +2673,6 @@
                                     "type": "string",
                                     "enum": [
                                         "USD"
-                                    ]
-                                },
-                                "cost_type": {
-                                    "type": "string",
-                                    "enum": [
-                                        "Infrastructure",
-                                        "Supplementary"
                                     ]
                                 }
                             }

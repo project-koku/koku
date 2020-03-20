@@ -7,15 +7,15 @@ azure-core==1.3.0
 azure-mgmt-costmanagement==0.1.0
 azure-mgmt-resource==8.0.1
 azure-mgmt-storage==8.0.0
-azure-storage-blob==12.2.0
+azure-storage-blob==12.3.0
 beautifulsoup4==4.8.2
 billiard==3.6.3.0
-boto3==1.12.17
-botocore==1.15.17
+boto3==1.12.24
+botocore==1.15.24
 bs4==0.0.1
 cachetools==4.0.0
 celery-prometheus-exporter==1.7.0
-celery==4.4.1
+celery==4.4.2
 certifi==2019.11.28
 cffi==1.14.0
 chardet==3.0.4
@@ -35,7 +35,7 @@ drf-nested-routers==0.91
 entrypoints==0.3
 flake8==3.7.9
 google-api-core==1.16.0
-google-auth==1.11.2
+google-auth==1.11.3
 google-cloud-core==1.3.0
 google-cloud-storage==1.19.1
 google-resumable-media==0.4.1
@@ -52,11 +52,11 @@ kombu==4.6.8
 markupsafe==1.1.1
 mccabe==0.6.1
 msrest==0.6.11
-msrestazure==0.6.2
-numpy==1.18.1
+msrestazure==0.6.3
+numpy==1.18.2
 oauthlib==3.1.0
 ordered-set==3.1.1
-pandas==1.0.1
+pandas==1.0.3
 pint==0.11
 prometheus-client==0.7.1
 protobuf==3.11.3
@@ -80,7 +80,7 @@ sentry-sdk==0.14.2
 six==1.14.0
 soupsieve==2.0
 sqlparse==0.3.1
-ujson==2.0.1
+ujson==2.0.2
 unicodecsv==0.14.1
 urllib3==1.25.8 ; python_version != '3.4'
 vine==1.3.0
