@@ -116,7 +116,7 @@ COST_MODEL_JSON=$(cat "$KOKU_PATH/scripts/openshift_on_prem_cost_model.json" | s
 curl --header "Content-Type: application/json" \
   --request POST \
   --data "$COST_MODEL_JSON" \
-  http://$KOKU_API$API_PATH_PREFIX/v1/costmodels/
+  http://$KOKU_API$API_PATH_PREFIX/v1/cost-models/
 
 cd "$NISE_REPO_PATH"
 git checkout -- "$NISE_REPO_PATH/examples/ocp_on_aws/aws_static_data.yml"

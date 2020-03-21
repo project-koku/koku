@@ -90,7 +90,7 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_error_on_invalid_provider(self):
         """Test error with an invalid provider id."""
-        self.ocp_data.update({"provider_uuids": ["1dd7204c-72c4-4ec4-95bc-d5c447688b27"]})
+        self.ocp_data.update({"source_uuids": ["1dd7204c-72c4-4ec4-95bc-d5c447688b27"]})
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.ocp_data)
             with self.assertRaises(serializers.ValidationError):
