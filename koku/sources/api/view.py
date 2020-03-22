@@ -38,6 +38,7 @@ from rest_framework.serializers import UUIDField
 from rest_framework.serializers import ValidationError
 
 from api.common.filters import CharListFilter
+from api.common.permissions import RESOURCE_TYPE_MAP
 from api.iam.models import Tenant
 from api.iam.serializers import create_schema_name
 from api.provider.models import Sources
@@ -115,6 +116,23 @@ class SourcesViewSet(*MIXIN_LIST):
         else:
             return AdminSourcesSerializer
 
+    @staticmethod
+    def get_excludes(request):
+        """Get excluded source types by access.
+        """
+        excludes = []
+        if request.user.admin:
+            return excludes
+        resource_access = request.user.access
+        if resource_access is None or not isinstance(resource_access, dict):
+            for resource_type in RESOURCE_TYPE_MAP.keys():
+                excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
+            return excludes
+        for resource_type in RESOURCE_TYPE_MAP.keys():
+            if resource_access.get(resource_type) is None:
+                excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
+        return excludes
+
     def get_queryset(self):
         """Get a queryset.
 
@@ -124,7 +142,8 @@ class SourcesViewSet(*MIXIN_LIST):
         queryset = Sources.objects.none()
         account_id = self.request.user.customer.account_id
         try:
-            queryset = Sources.objects.filter(account_id=account_id)
+            excludes = self.get_excludes(self.request)
+            queryset = Sources.objects.filter(account_id=account_id).exclude(source_type__in=excludes)
         except Sources.DoesNotExist:
             LOG.error("No sources found for account id %s.", account_id)
 

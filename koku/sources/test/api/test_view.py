@@ -17,6 +17,7 @@
 """Test the sources view."""
 import json
 from random import randint
+from unittest.mock import Mock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 from uuid import uuid4
@@ -25,6 +26,8 @@ import requests_mock
 from django.test.utils import override_settings
 from django.urls import reverse
 
+from api.common.permissions import RESOURCE_TYPE_MAP
+from api.common.permissions.aws_access import AwsAccessPermission
 from api.iam.models import Customer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
@@ -283,3 +286,25 @@ class SourcesViewTests(IamTestCase):
 
             self.assertEqual(response.status_code, 404)
             self.assertIsNotNone(body)
+
+    def test_sources_access(self):
+        """Test the limiting of source type visibility."""
+        mock_user = Mock(admin=True)
+        request = Mock(user=mock_user)
+        excluded = SourcesViewSet.get_excludes(request)
+        self.assertEqual(excluded, [])
+
+        mock_user = Mock(admin=False, access=None)
+        request = Mock(user=mock_user)
+        excluded = SourcesViewSet.get_excludes(request)
+        expected = []
+        for resource_type in RESOURCE_TYPE_MAP.keys():
+            expected.extend(RESOURCE_TYPE_MAP.get(resource_type))
+        self.assertEqual(excluded, expected)
+
+        permissions = {AwsAccessPermission.resource_type: [{"operation": "read", "resources": ["*"]}]}
+        mock_user = Mock(admin=False, access=permissions)
+        request = Mock(user=mock_user)
+        excluded = SourcesViewSet.get_excludes(request)
+        expected = [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL, Provider.PROVIDER_OCP]
+        self.assertEqual(excluded, expected)
