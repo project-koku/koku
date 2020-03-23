@@ -1080,6 +1080,204 @@
                 }]
             }
         },
+        "/reports/openshift/infrastructures/all/costs/": {
+            "get": {
+                "tags": [
+                    "OpenShift Reports"
+                ],
+                "summary": "Query to obtain OpenShift on all infrastructures cost reports",
+                "operationId": "getOpenShiftAllCostReports",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryDelta"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryGroupBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportCosts"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportCosts"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/reports/openshift/infrastructures/all/storage/": {
+            "get": {
+                "tags": [
+                    "OpenShift Reports"
+                ],
+                "summary": "Query to obtain OpenShift on all infrastructures storage data",
+                "operationId": "getOpenShiftAllInventoryStorageReport",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryGroupBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryUnits"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOpenShiftAllStorageInventory"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOpenShiftAllStorageInventory"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/reports/openshift/infrastructures/all/instance-types/": {
+            "get": {
+                "tags": [
+                    "OpenShift Reports"
+                ],
+                "summary": "Query to obtain OpenShift on all infrastructures instance data",
+                "operationId": "getOpenShiftAllInventoryInstanceReport",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryGroupBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryUnits"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOpenShiftAllInstanceInventory"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOpenShiftAllInstanceInventory"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
         "/reports/openshift/infrastructures/aws/costs/": {
             "get": {
                 "tags": [
@@ -4929,6 +5127,24 @@
                                 }
                             }
                         }
+                    }
+                ]
+            },
+            "ReportOpenShiftAllStorageInventory": {
+                "allOf": [{
+                        "$ref": "#/components/schemas/ReportOpenShiftAWSStorageInventory"
+                    },
+                    {
+                        "type": "object"
+                    }
+                ]
+            },
+            "ReportOpenShiftAllInstanceInventory": {
+                "allOf": [{
+                        "$ref": "#/components/schemas/ReportOpenShiftAWSInstanceInventory"
+                    },
+                    {
+                        "type": "object"
                     }
                 ]
             },
