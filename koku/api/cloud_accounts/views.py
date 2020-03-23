@@ -15,23 +15,42 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for Cloud Account."""
-from rest_framework import viewsets
-from rest_framework.permissions import AllowAny
+import json
+import logging
+import os
 
-from api.cloud_accounts.models import CloudAccount
-from api.cloud_accounts.serializers import CloudAccountSerializer
+from rest_framework import permissions
+from rest_framework import status
+from rest_framework.decorators import api_view
+from rest_framework.decorators import permission_classes
+from rest_framework.decorators import renderer_classes
+from rest_framework.renderers import JSONRenderer
+from rest_framework.response import Response
+
+from koku.settings import STATIC_ROOT
+
+LOG = logging.getLogger(__name__)
+OPENAPI_FILE_NAME = os.path.join(STATIC_ROOT, "cloud_accounts.json")
+"""View for Cloud Accounts."""
 
 
-class CloudAccountViewSet(viewsets.ReadOnlyModelViewSet):
-    """View for Cloud Accounts."""
+def get_json(path):
+    """Obtain API JSON data from file path."""
+    json_data = None
+    with open(path) as json_file:
+        try:
+            json_data = json.load(json_file)
+        except (IOError, json.JSONDecodeError) as exc:
+            LOG.exception(exc)
+    return json_data
 
-    serializer_class = CloudAccountSerializer
-    permission_classes = (AllowAny,)
 
-    def get_queryset(self):
-        """Override default get_queryset to filter on name."""
-        queryset = CloudAccount.objects.all()
-        cloud_account = self.request.query_params.get("name", None)
-        if cloud_account is not None:
-            queryset = queryset.filter(name=cloud_account)
-        return queryset
+@api_view(["GET"])
+@permission_classes((permissions.AllowAny,))
+@renderer_classes((JSONRenderer,))
+def cloudaccounts(_):
+    """Provide the openapi information."""
+    data = get_json(OPENAPI_FILE_NAME)
+    if data:
+        return Response(data)
+    return Response(status=status.HTTP_404_NOT_FOUND)
