@@ -37,7 +37,7 @@
     },
     {
         "source": "Azure",
-        "service_category": "conpute",
+        "service_category": "compute",
         "product_codes": ["Virtual Machines"]
     },
     {
