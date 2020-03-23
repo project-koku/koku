@@ -19,17 +19,21 @@ import json
 import logging
 import os
 
+from django.core.paginator import Paginator
+from django.shortcuts import render
 from rest_framework import permissions
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
+from rest_framework.renderers import BrowsableAPIRenderer
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 
 from koku.settings import STATIC_ROOT
 
 LOG = logging.getLogger(__name__)
+
 OPENAPI_FILE_NAME = os.path.join(STATIC_ROOT, "cloud_accounts.json")
 """View for Cloud Accounts."""
 
@@ -47,10 +51,13 @@ def get_json(path):
 
 @api_view(["GET"])
 @permission_classes((permissions.AllowAny,))
-@renderer_classes((JSONRenderer,))
-def cloudaccounts(_):
+@renderer_classes([BrowsableAPIRenderer, JSONRenderer])
+def cloudaccounts(request):
     """Provide the openapi information."""
     data = get_json(OPENAPI_FILE_NAME)
+    paginator = Paginator(data, 25)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
     if data:
-        return Response(data)
+        return Response(list(page_obj))
     return Response(status=status.HTTP_404_NOT_FOUND)
