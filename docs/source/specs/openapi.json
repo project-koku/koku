@@ -78,7 +78,7 @@
                 }
             }
         },
-        "/costmodels/": {
+        "/cost-models/": {
             "get": {
                 "tags": [
                     "Cost Models"
@@ -92,10 +92,10 @@
                         "$ref": "#/components/parameters/QueryLimit"
                     },
                     {
-                        "name": "provider_uuid",
+                        "name": "source_uuid",
                         "required": false,
                         "in": "query",
-                        "description": "Filter response on provider uuid.",
+                        "description": "Filter response on source uuid.",
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -105,7 +105,7 @@
                         "name": "source_type",
                         "required": false,
                         "in": "query",
-                        "description": "Filter response on provider source type.",
+                        "description": "Filter response on source type.",
                         "schema": {
                             "type": "string"
                         }
@@ -221,7 +221,7 @@
                 }
             }
         },
-        "/costmodels/{cost_model_uuid}/": {
+        "/cost-models/{cost_model_uuid}/": {
             "get": {
                 "tags": [
                     "Cost Models"
@@ -2229,7 +2229,7 @@
                     "source_type": {
                         "type": "string"
                     },
-                    "provider_uuids": {
+                    "source_uuids": {
                         "type": "array",
                         "items": {
                             "type": "string"
@@ -2262,7 +2262,7 @@
                     "source_type": {
                         "type": "string"
                     },
-                    "providers": {
+                    "sources": {
                         "type": "array",
                         "items": {
                             "type": "object",
@@ -2273,7 +2273,7 @@
                                 },
                                 "name": {
                                     "type": "string",
-                                    "example": "provider"
+                                    "example": "source"
                                 }
                             }
                         }
@@ -2593,7 +2593,7 @@
                             },
                             "cost_models": {
                                 "type": "array",
-                                "description": "List of cost model name and UUIDs associated with this provider.",
+                                "description": "List of cost model name and UUIDs associated with this source.",
                                 "items": {
                                     "type": "object",
                                     "properties": {

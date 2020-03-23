@@ -2,7 +2,7 @@
     "name": "Cost Management OpenShift Cost Model",
     "description": "A cost model of on-premises OpenShift clusters.",
     "source_type": "OCP",
-    "provider_uuids": ["PROVIDER_UUID"],
+    "source_uuids": ["PROVIDER_UUID"],
     "rates": [{
         "metric": {"name": "cpu_core_usage_per_hour"},
         "tiered_rates": [{
