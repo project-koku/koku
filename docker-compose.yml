@@ -316,3 +316,9 @@ services:
       depends_on:
           - koku-base
           - koku-rabbit
+
+  pushgateway:
+    container_name: koku-pushgateway
+    image: prom/pushgateway
+    ports:
+      - 9091:9091

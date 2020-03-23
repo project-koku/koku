@@ -83,7 +83,7 @@ class DatabaseStatus:
         # transform list-of-lists into list-of-dicts including column names.
         result = [dict(zip(names, row)) for row in rows if len(row) == 2]
 
-        LOG.debug("DatabaseStatus.query (query: %s): query returned.", query_tag)
+        LOG.info("DatabaseStatus.query (query: %s): query returned.", query_tag)
 
         return result
 
