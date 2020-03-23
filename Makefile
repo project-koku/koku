@@ -100,6 +100,8 @@ help:
 	@echo "  docker-shell                         run Django and database containers with shell access to server (for pdb)"
 	@echo "  docker-logs                          connect to console logs for all services"
 	@echo "  docker-test-all                      run unittests"
+	@echo "  docker-iqe-local-hccm                create container based off local hccm plugin. Requires env 'HCCM_PLUGIN_PATH'"
+	@echo "                                          @param iqe_cmd - (optional) Command to run. Defaults to 'bash'."
 	@echo "  docker-iqe-smokes-tests              run smoke tests"
 	@echo "  docker-iqe-api-tests                 run api tests"
 	@echo "  docker-iqe-vortex-tests              run vortex tests"
@@ -499,9 +501,9 @@ docker-test-all:
 
 docker-up-koku:
 	@docker-compose up $(build) -d koku-server
-	@echo -n "Waiting on koku status: "
+	@echo "Waiting on koku status: "
 	@until ./scripts/check_for_koku_server.sh $${KOKU_API_HOST:-localhost} $$API_PATH_PREFIX $${KOKU_API_PORT:-8000} >/dev/null 2>&1 ; do \
-        echo -n "." ; \
+        printf "." ; \
         sleep 1 ; \
     done
 	@echo " koku is available!"
@@ -527,6 +529,9 @@ docker-up-db-monitor:
 _set-test-dir-permissions:
 	@$(PREFIX) chmod -R o+rw,g+rw ./testing
 	@$(PREFIX) find ./testing -type d -exec chmod o+x,g+x {} \;
+
+docker-iqe-local-hccm: docker-reinitdb _set-test-dir-permissions clear-testing
+	./testing/run_local_hccm.sh $(iqe_cmd)
 
 docker-iqe-smokes-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_smoke_tests.sh
@@ -599,8 +604,8 @@ endif
 import-large-ocp-source-testing-costmodel:
 	curl --header 'Content-Type: application/json' \
 	     --request POST \
-	     --data '{"name": "Cost Management OpenShift Cost Model", "description": "A cost model of on-premises OpenShift clusters.", "source_type": "OCP", "provider_uuids": $(shell make -s find-large-testing-source-uuid), "rates": [{"metric": {"name": "cpu_core_usage_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.007, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "node_cost_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.2, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "cpu_core_request_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.2, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "memory_gb_usage_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.009, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "memory_gb_request_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.05, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "storage_gb_usage_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.01, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "storage_gb_request_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.01, "usage_start": null, "usage_end": null}]}]}' \
-	     http://$(KOKU_SERVER):$(KOKU_SERVER_PORT)/api/cost-management/v1/costmodels/
+	     --data '{"name": "Cost Management OpenShift Cost Model", "description": "A cost model of on-premises OpenShift clusters.", "source_type": "OCP", "source_uuids": $(shell make -s find-large-testing-source-uuid), "rates": [{"metric": {"name": "cpu_core_usage_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.007, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "node_cost_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.2, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "cpu_core_request_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.2, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "memory_gb_usage_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.009, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "memory_gb_request_per_hour"}, "tiered_rates": [{"unit": "USD", "value": 0.05, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "storage_gb_usage_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.01, "usage_start": null, "usage_end": null}]}, {"metric": {"name": "storage_gb_request_per_month"}, "tiered_rates": [{"unit": "USD", "value": 0.01, "usage_start": null, "usage_end": null}]}]}' \
+	     http://$(KOKU_SERVER):$(KOKU_SERVER_PORT)/api/cost-management/v1/cost-models/
 
 import-large-ocp-source-testing-data:
 	curl --request GET http://$(MASU_SERVER):$(MASU_SERVER_PORT)/api/cost-management/v1/download/
