@@ -302,7 +302,16 @@ class SourcesViewTests(IamTestCase):
             expected.extend(RESOURCE_TYPE_MAP.get(resource_type))
         self.assertEqual(excluded, expected)
 
-        permissions = {AwsAccessPermission.resource_type: [{"operation": "read", "resources": ["*"]}]}
+        permissions = {AwsAccessPermission.resource_type: {"read": []}}
+        mock_user = Mock(admin=False, access=permissions)
+        request = Mock(user=mock_user)
+        excluded = SourcesViewSet.get_excludes(request)
+        expected = []
+        for resource_type in RESOURCE_TYPE_MAP.keys():
+            expected.extend(RESOURCE_TYPE_MAP.get(resource_type))
+        self.assertEqual(excluded, expected)
+
+        permissions = {AwsAccessPermission.resource_type: {"read": ["*"]}}
         mock_user = Mock(admin=False, access=permissions)
         request = Mock(user=mock_user)
         excluded = SourcesViewSet.get_excludes(request)

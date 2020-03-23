@@ -129,8 +129,12 @@ class SourcesViewSet(*MIXIN_LIST):
                 excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
             return excludes
         for resource_type in RESOURCE_TYPE_MAP.keys():
-            if resource_access.get(resource_type) is None:
+            access_value = resource_access.get(resource_type)
+            if access_value is None:
                 excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
+            elif not access_value.get("read", []):
+                excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
+
         return excludes
 
     def get_queryset(self):
