@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider Mapper for OCP on AWS Reports."""
+import inspect
+
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
 from django.db.models import Count
@@ -39,39 +41,10 @@ from reporting.models import OCPAllCostLineItemProjectDailySummaryNetwork
 from reporting.models import OCPAllCostLineItemProjectDailySummaryStorage
 
 
-DEFAULT_SUMMARY = (OCPAllCostLineItemDailySummary, OCPAllCostLineItemProjectDailySummary)
-STORAGE_SUMMARY = (OCPAllCostLineItemDailySummaryStorage, OCPAllCostLineItemProjectDailySummaryStorage)
-COMPUTE_SUMMARY = (OCPAllCostLineItemDailySummaryCompute, OCPAllCostLineItemProjectDailySummaryCompute)
-NETWORK_SUMMARY = (OCPAllCostLineItemDailySummaryNetwork, OCPAllCostLineItemProjectDailySummaryNetwork)
-DATABASE_SUMMARY = (OCPAllCostLineItemDailySummaryDatabase, OCPAllCostLineItemProjectDailySummaryDatabase)
-MODEL_MAP = {
-    ("storage", None): STORAGE_SUMMARY,
-    ("instance_type", None): COMPUTE_SUMMARY,
-    ("costs", "network"): NETWORK_SUMMARY,
-    ("costs", "database"): DATABASE_SUMMARY,
-    ("storage_by_project", None): STORAGE_SUMMARY,
-    ("instance_type_by_project", None): STORAGE_SUMMARY,
-    ("costs_by_project", "network"): NETWORK_SUMMARY,
-    ("costs_by_project", "database"): DATABASE_SUMMARY,
-}
-
-
-def resolver(report_type, report_subtype=None):
-    return MODEL_MAP.get((report_type, report_subtype), DEFAULT_SUMMARY)
-
-
-def summary_resolver(report_type, report_subtype=None):
-    return resolver(report_type, report_subtype=report_subtype)[0]
-
-
-def project_summary_resolver(report_type, report_subtype=None):
-    return resolver(report_type, report_subtype=report_subtype)[1]
-
-
 class OCPAllProviderMap(ProviderMap):
     """OCP on All Infrastructure Provider Map."""
 
-    def __init__(self, provider, report_type, report_subtype=None):
+    def __init__(self, provider, report_type):
         """Constructor."""
         self._mapping = [
             {
@@ -174,12 +147,8 @@ class OCPAllProviderMap(ProviderMap):
                     },
                     "costs_by_project": {
                         "tables": {
-                            "query": project_summary_resolver(
-                                report_type, report_subtype=report_subtype
-                            ),  # OCPAllCostLineItemProjectDailySummary,
-                            "total": project_summary_resolver(
-                                report_type, report_subtype=report_subtype
-                            ),  # OCPAllCostLineItemProjectDailySummary
+                            "query": OCPAllCostLineItemProjectDailySummary,
+                            "total": OCPAllCostLineItemProjectDailySummary,
                         },
                         "tag_column": "pod_labels",
                         "aggregates": {
@@ -324,12 +293,8 @@ class OCPAllProviderMap(ProviderMap):
                     },
                     "storage_by_project": {
                         "tables": {
-                            "query": project_summary_resolver(
-                                report_type, report_subtype=report_subtype
-                            ),  # OCPAllCostLineItemProjectDailySummary
-                            "total": project_summary_resolver(
-                                report_type, report_subtype=report_subtype
-                            ),  # OCPAllCostLineItemProjectDailySummary
+                            "query": OCPAllCostLineItemProjectDailySummary,
+                            "total": OCPAllCostLineItemProjectDailySummary,
                         },
                         "tag_column": "pod_labels",
                         "aggregates": {
@@ -484,12 +449,8 @@ class OCPAllProviderMap(ProviderMap):
                     },
                     "instance_type_by_project": {
                         "tables": {
-                            "query": project_summary_resolver(
-                                report_type, report_subtype=report_subtype
-                            ),  # OCPAllCostLineItemProjectDailySummary
-                            "total": project_summary_resolver(
-                                report_type, report_subtype=report_subtype
-                            ),  # OCPAllCostLineItemProjectDailySummary
+                            "query": OCPAllCostLineItemProjectDailySummary,
+                            "total": OCPAllCostLineItemProjectDailySummary,
                         },
                         "tag_column": "pod_labels",
                         "aggregates": {
@@ -575,14 +536,67 @@ class OCPAllProviderMap(ProviderMap):
                     "tags": {"default_ordering": {"cost_total": "desc"}},
                 },
                 "start_date": "usage_start",
-                "tables": {
-                    "query": summary_resolver(
-                        report_type, report_subtype=report_subtype
-                    ),  # OCPAllCostLineItemDailySummary
-                    "total": summary_resolver(
-                        report_type, report_subtype=report_subtype
-                    ),  # OCPAllCostLineItemDailySummary
-                },
+                "tables": {"query": OCPAllCostLineItemDailySummary, "total": OCPAllCostLineItemDailySummary},
             }
         ]
         super().__init__(provider, report_type)
+
+    def _replace_matview_model(self, mapping, replace_map):
+        def sequence_getter(s):
+            return enumerate(s)
+
+        def map_getter(m):
+            return m.items()
+
+        if isinstance(mapping, (dict)):
+            getter = map_getter
+        else:
+            getter = sequence_getter
+
+        for k, v in getter(mapping):
+            vt = v if inspect.isclass(v) else type(v)
+            if vt in replace_map:
+                mapping[k] = replace_map[k]
+
+            if vt in (dict, list, tuple, set):
+                self._replace_matview_model(v, replace_map)
+
+
+class OCPAllComputeProviderMap(OCPAllProviderMap):
+    def __init__(self, provider, report_type):
+        super().__init__(provider, report_type)
+        replace_map = {
+            OCPAllCostLineItemDailySummary: OCPAllCostLineItemDailySummaryCompute,
+            OCPAllCostLineItemProjectDailySummary: OCPAllCostLineItemProjectDailySummaryCompute,
+        }
+        self._replace_matview_model(self._mapping, replace_map)
+
+
+class OCPAllStorageProviderMap(OCPAllProviderMap):
+    def __init__(self, provider, report_type):
+        super().__init__(provider, report_type)
+        replace_map = {
+            OCPAllCostLineItemDailySummary: OCPAllCostLineItemDailySummaryStorage,
+            OCPAllCostLineItemProjectDailySummary: OCPAllCostLineItemProjectDailySummaryStorage,
+        }
+        self._replace_matview_model(self._mapping, replace_map)
+
+
+class OCPAllNetworkProviderMap(OCPAllProviderMap):
+    def __init__(self, provider, report_type):
+        super().__init__(provider, report_type)
+        replace_map = {
+            OCPAllCostLineItemDailySummary: OCPAllCostLineItemDailySummaryNetwork,
+            OCPAllCostLineItemProjectDailySummary: OCPAllCostLineItemProjectDailySummaryNetwork,
+        }
+        self._replace_matview_model(self._mapping, replace_map)
+
+
+class OCPAllDatabaseProviderMap(OCPAllProviderMap):
+    def __init__(self, provider, report_type):
+        super().__init__(provider, report_type)
+        replace_map = {
+            OCPAllCostLineItemDailySummary: OCPAllCostLineItemDailySummaryDatabase,
+            OCPAllCostLineItemProjectDailySummary: OCPAllCostLineItemProjectDailySummaryDatabase,
+        }
+        self._replace_matview_model(self._mapping, replace_map)

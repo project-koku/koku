@@ -18,14 +18,24 @@
 import inspect
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.report.all.openshift.provider_map import COMPUTE_SUMMARY
-from api.report.all.openshift.provider_map import DATABASE_SUMMARY
-from api.report.all.openshift.provider_map import NETWORK_SUMMARY
-from api.report.all.openshift.provider_map import STORAGE_SUMMARY
 from api.report.all.openshift.query_handler import OCPAllReportQueryHandler
 from api.urls import OCPAllCostView
 from api.urls import OCPAllInstanceTypeView
 from api.urls import OCPAllStorageView
+from reporting.models import OCPAllCostLineItemDailySummaryCompute
+from reporting.models import OCPAllCostLineItemDailySummaryDatabase
+from reporting.models import OCPAllCostLineItemDailySummaryNetwork
+from reporting.models import OCPAllCostLineItemDailySummaryStorage
+from reporting.models import OCPAllCostLineItemProjectDailySummaryCompute
+from reporting.models import OCPAllCostLineItemProjectDailySummaryDatabase
+from reporting.models import OCPAllCostLineItemProjectDailySummaryNetwork
+from reporting.models import OCPAllCostLineItemProjectDailySummaryStorage
+
+
+COMPUTE_SUMMARY = (OCPAllCostLineItemDailySummaryCompute, OCPAllCostLineItemProjectDailySummaryCompute)
+STORAGE_SUMMARY = (OCPAllCostLineItemDailySummaryStorage, OCPAllCostLineItemProjectDailySummaryStorage)
+NETWORK_SUMMARY = (OCPAllCostLineItemDailySummaryNetwork, OCPAllCostLineItemProjectDailySummaryNetwork)
+DATABASE_SUMMARY = (OCPAllCostLineItemDailySummaryDatabase, OCPAllCostLineItemProjectDailySummaryDatabase)
 
 
 def sequence_getter(s):

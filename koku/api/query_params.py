@@ -31,7 +31,6 @@ from api.models import User
 from api.provider.models import Provider
 from api.report.queries import ReportQueryHandler
 from reporting.models import OCPAllCostLineItemDailySummary
-from reporting_common.models import SourceServiceProduct
 
 
 LOG = logging.getLogger(__name__)
@@ -290,23 +289,6 @@ class QueryParameters:
         if not qps.is_valid():
             raise ValidationError(detail=qps.errors)
         self.parameters = qps.data
-
-        # Check for a specific path and set an internal _report_subtype parameter
-        # This parameter will help tweak the view used on ocpall queries
-        self._resolve_report_subtype()
-
-    def _resolve_report_subtype(self):
-        service_filter = self.get_filter("service")
-        if service_filter and OCP_ALL_COSTS_PATH in self.request.path:
-            res = (
-                SourceServiceProduct.objects.filter(product_codes__overlap=[f.strip("\"'") for f in service_filter])
-                .values("service_category")
-                .distinct()
-                .first()
-            )
-            self.report_subtype = res["service_category"] if res else None
-        else:
-            self.report_subtype = None
 
     @property
     def accept_type(self):

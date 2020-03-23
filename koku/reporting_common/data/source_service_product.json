@@ -1,6 +1,49 @@
 [
     {
-        "source": "AWS",
+        "source": "OCP_All",
+        "service_category": "database",
+        "product_codes": [
+            "AmazonRDS",
+            "AmazonDynamoDB",
+            "AmazonElastiCache",
+            "AmazonNeptune",
+            "AmazonRedshift",
+            "AmazonDocumentDB",
+            "SQL Database"
+        ]
+    },
+    {
+        "source": "OCP_All",
+        "service_category": "network",
+        "product_codes": [
+            "AmazonVPC",
+            "AmazonCloudFront",
+            "AmazonRoute53",
+            "AmazonAPIGateway",
+            "Virtual Network"
+        ]
+    },
+    {
+        "source": "OCP_All",
+        "service_category": "storage",
+        "product_codes": [
+            "AmazonS3",
+            "AmazonEBS",
+            "AmazonEFS",
+            "Storage"
+        ]
+    },
+    {
+        "source": "OCP_All",
+        "service_category": "compute",
+        "product_codes": [
+            "AmazonEC2",
+            "AmazonLambda",
+            "Virtual Machines"
+        ]
+    },
+    {
+        "source": "OCP_All",
         "service_category": "database",
         "product_codes": [
             "AmazonRDS",

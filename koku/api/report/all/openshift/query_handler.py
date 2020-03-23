@@ -15,10 +15,18 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """OCP Query Handling for Reports."""
+import inspect
+
 from api.models import Provider
+from api.report.all.openshift.provider_map import OCPAllComputeProviderMap
+from api.report.all.openshift.provider_map import OCPAllDatabaseProviderMap
+from api.report.all.openshift.provider_map import OCPAllNetworkProviderMap
 from api.report.all.openshift.provider_map import OCPAllProviderMap
+from api.report.all.openshift.provider_map import OCPAllStorageProviderMap
 from api.report.ocp_aws.query_handler import OCPInfrastructureReportQueryHandlerBase
 from api.report.queries import is_grouped_or_filtered_by_project
+from api.views import OCPAllCostView
+from reporting_common.models import SourceServiceProduct
 
 
 class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
@@ -31,19 +39,51 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
         Args:
             parameters    (QueryParameters): parameter object for query
         """
-        report_subtype = getattr(parameters, "report_subtype")
-        self._mapper = OCPAllProviderMap(
-            provider=self.provider, report_type=parameters.report_type, report_subtype=report_subtype
-        )
-        # Update which field is used to calculate cost by group by param.
-        if is_grouped_or_filtered_by_project(parameters):
-            self._report_type = parameters.report_type + "_by_project"
-            self._mapper = OCPAllProviderMap(
-                provider=self.provider, report_type=self._report_type, report_subtype=report_subtype
-            )
-
+        self._resolve_mapper(parameters)
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
+
+    def _resolve_mapper(self, parameters):
+        orm_provider_map = {
+            ("storage", None): OCPAllStorageProviderMap,
+            ("compute", None): OCPAllComputeProviderMap,
+            ("costs", "network"): OCPAllNetworkProviderMap,
+            ("costs", "database"): OCPAllDatabaseProviderMap,
+        }
+
+        service_filter = parameters.get_filter("service")
+        report_subtype = None
+        view_class = [
+            x
+            for x in inspect.getmro(parameters.caller.__class__)
+            if x.__name__.startswith("OCPAll") and x.__name__.endswith("View")
+        ]
+        if len(view_class) == 0:
+            report_subtype = "_"  # Force the default
+        else:
+            view_class = view_class[0]
+            if service_filter:
+                if view_class == OCPAllCostView:
+                    res = (
+                        SourceServiceProduct.objects.filter(source=self.provider)
+                        .filter(product_codes__overlap=[f.strip("\"'") for f in service_filter])
+                        .values("service_category")
+                        .distinct()
+                        .all()
+                    )
+                    if len(res) == 1:
+                        report_subtype = res[0]["service_category"]
+                else:
+                    report_subtype = "_"  # Force the default
+
+        if is_grouped_or_filtered_by_project(parameters):
+            map_report_type = self._report_type = parameters.report_type + "_by_project"
+        else:
+            map_report_type = parameters.report_type
+
+        provider_map_class = orm_provider_map.get((parameters.report_type, report_subtype), OCPAllProviderMap)
+
+        self._mapper = provider_map_class(provider=self.provider, report_type=map_report_type)
