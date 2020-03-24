@@ -29,10 +29,10 @@ from rest_framework.decorators import renderer_classes
 from rest_framework.renderers import BrowsableAPIRenderer
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
-from api.common.pagination import StandardResultsSetPagination
-from api.query_params import QueryParameters
 from rest_framework.serializers import ValidationError
 
+from api.common.pagination import StandardResultsSetPagination
+from api.query_params import QueryParameters
 from koku.settings import STATIC_ROOT
 
 LOG = logging.getLogger(__name__)
@@ -43,15 +43,21 @@ CLOUD_ACCOUNTS_FILE_NAME = os.path.join(STATIC_ROOT, "cloud_accounts.json")
 from api.common.pagination import ReportPagination
 from api.common.pagination import ReportRankedPagination
 from api.cloud_accounts.cloud_accounts_dictionary import CloudAccountsDictionary
-from api.cloud_accounts.cloud_accounts_serializer
 
-def get_paginator(filter_query_params, count):
+# from api.cloud_accounts.cloud_accounts_serializer
+
+
+def get_paginator(request, count):
     """Determine which paginator to use based on query params."""
-    if "offset" in filter_query_params:
-        paginator = ReportRankedPagination()
-        paginator.count = count
-    else:
-        paginator = ReportPagination()
+    # if "offset" in filter_query_params:
+    #     paginator = StandardResultsSetPagination()
+    #     paginator.count = count
+    # else:
+    paginator = StandardResultsSetPagination()
+    paginator.count = count
+    paginator.request = request
+    paginator.limit = int(request.GET.get("limit", 0))
+    paginator.offset = int(request.GET.get("offset", 0))
     return paginator
 
 
@@ -72,14 +78,17 @@ def get_json(path):
 def cloudaccounts(request):
     """Provide the openapi information."""
     data = CloudAccountsDictionary()._mapping
-    paginator = Paginator(data, 1)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    # paginator = Paginator(data, 1)
     # paginator = get_paginator(params.parameters.get("filter", {}), max_rank)
+    paginator = get_paginator(request, 1)  # .GET.get("page", {})
+    # page_number = request.GET.get("page")
+    page_obj = paginator.get_paginated_response(data)
     # paginated_result = paginator.paginate_queryset(output, request)
     # LOG.debug(f"DATA: {output}")
     # if data:
     # return paginator.get_paginated_response(paginated_result)
+
+    # TODO: add __repr__()
     if data:
-        return Response(list(page_obj))
+        return page_obj
     return Response(status=status.HTTP_404_NOT_FOUND)
