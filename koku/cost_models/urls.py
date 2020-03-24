@@ -21,7 +21,7 @@ from rest_framework.routers import DefaultRouter
 from cost_models.views import CostModelViewSet
 
 ROUTER = DefaultRouter()
-ROUTER.register(r"costmodels", CostModelViewSet, basename="costmodels")
+ROUTER.register(r"cost-models", CostModelViewSet, basename="cost-models")
 
 # pylint: disable=invalid-name
 urlpatterns = [url(r"^", include(ROUTER.urls))]
