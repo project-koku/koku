@@ -20,9 +20,6 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Provider
-from api.provider.test import create_generic_provider
-from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
@@ -36,12 +33,6 @@ class SettingsViewTest(IamTestCase):
         """Set up the test class."""
         super().setUpClass()
         cls.dh = DateHelper()
-
-    def setUp(self):
-        """Set up the customer view tests."""
-        super().setUp()
-        _, self.provider = create_generic_provider(Provider.PROVIDER_OCP, self.request_context)
-        OCPReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
     def get_settings(self):
         """Request settings from API."""
@@ -121,5 +112,11 @@ class SettingsViewTest(IamTestCase):
         tag = "Invalid_tag_key_test"
 
         body = {"api": {"settings": {"openshift": {"tag-management": {"enabled": [tag]}}}}}
+        response = self.post_settings(body)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_settings_bad_format(self):
+        """Test settings with bad post format."""
+        body = []
         response = self.post_settings(body)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

@@ -170,12 +170,12 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
 
         mock_refresh.assert_called()
 
-    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
-    def test_update_markup_cost(self, mock_markup):
+    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.cost_model")
+    def test_update_markup_cost(self, mock_cost_model):
         """Test that summary tables are updated correctly."""
         markup = {"value": 10, "unit": "percent"}
         markup_dec = decimal.Decimal(markup.get("value") / 100)
-        mock_markup.return_value = markup
+        mock_cost_model.markup = markup
 
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
@@ -198,11 +198,11 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             for item in query:
                 self.assertAlmostEqual(item.markup_cost, item.unblended_cost * markup_dec)
 
-    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
-    def test_update_project_markup_cost(self, mock_markup):
+    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.cost_model")
+    def test_update_project_markup_cost(self, mock_cost_model):
         """Test that summary tables are updated correctly."""
         markup = {"value": 10, "unit": "percent"}
-        mock_markup.return_value = markup
+        mock_cost_model.markup = markup
         markup_dec = decimal.Decimal(markup.get("value") / 100)
 
         start_date = self.dh.this_month_start
@@ -246,11 +246,11 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views"  # noqa: E501
     )
-    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
-    def test_update_summary_tables_azure(self, mock_markup, mock_refresh):
+    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.cost_model")
+    def test_update_summary_tables_azure(self, mock_cost_model, mock_refresh):
         """Test that summary tables are updated correctly."""
         markup = {"value": 10, "unit": "percent"}
-        mock_markup.return_value = markup
+        mock_cost_model.markup = markup
 
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
@@ -275,8 +275,10 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
                 report_period__provider=self.ocp_on_azure_ocp_provider,
                 report_period__report_period_start=self.dh.this_month_start,
             )
-            infra_cost = query.aggregate(Sum("infra_cost"))["infra_cost__sum"]
-            project_infra_cost = query.aggregate(Sum("project_infra_cost"))["project_infra_cost__sum"]
+            infra_cost = query.aggregate(Sum("infrastructure_raw_cost"))["infrastructure_raw_cost__sum"]
+            project_infra_cost = query.aggregate(Sum("infrastructure_project_raw_cost"))[
+                "infrastructure_project_raw_cost__sum"
+            ]
 
         self.assertIsNotNone(infra_cost)
         self.assertIsNotNone(project_infra_cost)
