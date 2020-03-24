@@ -28,6 +28,8 @@ from api.models import Provider
 from api.report.provider_map import ProviderMap
 from providers.provider_access import ProviderAccessor
 from reporting.models import OCPUsageLineItemDailySummary
+from reporting.provider.ocp.models import OCPComputeSummary
+from reporting.provider.ocp.models import OCPVolumeSummary
 
 
 class OCPProviderMap(ProviderMap):
@@ -494,4 +496,22 @@ class OCPProviderMap(ProviderMap):
                 "tables": {"query": OCPUsageLineItemDailySummary},
             }
         ]
+
+        self.views = {
+            "costs": {"default": None},
+            "costs_by_project": {"default": None},
+            "cpu": {
+                "default": OCPComputeSummary,
+                "cluster": OCPComputeSummary,
+                "project": OCPComputeSummary,
+                "cpu": OCPComputeSummary,
+            },
+            "memory": {
+                "default": OCPComputeSummary,
+                "cluster": OCPComputeSummary,
+                "project": OCPComputeSummary,
+                "cpu": OCPComputeSummary,
+            },
+            "volume": {"default": OCPVolumeSummary, "project": OCPVolumeSummary},
+        }
         super().__init__(provider, report_type)

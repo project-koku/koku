@@ -16,6 +16,7 @@
 #
 """OCP Query Handling for Reports."""
 import copy
+import logging
 from collections import defaultdict
 from decimal import Decimal
 from decimal import DivisionByZero
@@ -32,6 +33,8 @@ from api.models import Provider
 from api.report.ocp.provider_map import OCPProviderMap
 from api.report.queries import is_grouped_or_filtered_by_project
 from api.report.queries import ReportQueryHandler
+
+LOG = logging.getLogger(__name__)
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
@@ -76,6 +79,38 @@ class OCPReportQueryHandler(ReportQueryHandler):
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(""))
         return annotations
+
+    @property
+    def query_table(self):
+        """Return the database table to query against."""
+        query_table = self._mapper.query_table
+        report_type = self.parameters.report_type
+        report_group = "default"
+
+        excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
+        filter_keys = set(self.parameters.get("filter", {}).keys())
+        filter_keys = filter_keys.difference(excluded_filters)
+        group_by_keys = list(self.parameters.get("group_by", {}).keys())
+
+        # If grouping by more than 1 field, we default to the daily summary table
+        if len(group_by_keys) > 1:
+            return query_table
+        if len(filter_keys) > 1:
+            return query_table
+        # If filtering on a different field than grouping by, we default to the daily summary table
+        if group_by_keys and len(filter_keys.difference(group_by_keys)) != 0:
+            return query_table
+
+        if group_by_keys:
+            report_group = group_by_keys[0]
+        elif filter_keys and not group_by_keys:
+            report_group = list(filter_keys)[0]
+        try:
+            query_table = self._mapper.views[report_type][report_group]
+        except KeyError:
+            msg = f"{report_group} for {report_type} has no entry in views. Using the default."
+            LOG.warning(msg)
+        return query_table
 
     @property
     def report_annotations(self):
@@ -125,9 +160,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
         query_sum = self.initialize_totals()
         data = []
 
-        q_table = self._mapper.query_table
+        # q_table = self._mapper.query_table
         with tenant_context(self.tenant):
-            query = q_table.objects.filter(self.query_filter)
+            query = self.query_table.objects.filter(self.query_filter)
+            # query = q_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
 

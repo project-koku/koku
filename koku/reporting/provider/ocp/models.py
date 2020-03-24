@@ -507,3 +507,140 @@ class OCPEnabledTagKeys(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     key = models.CharField(max_length=253, unique=True)
+
+
+class OCPComputeSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage.
+
+    """
+
+    class Meta:
+        """Meta for OCPComputeSummary."""
+
+        db_table = "reporting_ocp_compute_summary"
+        managed = False
+
+    id = models.BigAutoField(primary_key=True)
+
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
+
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+
+    resource_count = models.IntegerField(null=True)
+
+    data_source = models.CharField(max_length=64, null=True)
+
+    # Kubernetes objects by convention have a max name length of 253 chars
+    namespace = models.CharField(max_length=253, null=True)
+
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+
+    pod_usage_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_request_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_limit_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_charge_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_charge_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    node_capacity_cpu_cores = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    node_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    node_capacity_memory_gigabytes = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    node_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    # Total capacity represents the sum of all of the customers clusters
+    total_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    total_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    # Cost columns moved in from the CostSummary table
+    # Need more precision on calculated fields, otherwise there will be
+    # Rounding errors
+    infra_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    # This field is used in place of infrastructure_cost when
+    # grouping by project
+    project_infra_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    markup_cost = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    project_markup_cost = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    # This is the one time monthly costs for a given user.
+    monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+
+class OCPVolumeSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage.
+
+    """
+
+    class Meta:
+        """Meta for OCPVolumeSummary."""
+
+        db_table = "reporting_ocp_volume_summary"
+        managed = False
+
+    id = models.BigAutoField(primary_key=True)
+
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
+
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+
+    resource_count = models.IntegerField(null=True)
+
+    data_source = models.CharField(max_length=64, null=True)
+
+    # Kubernetes objects by convention have a max name length of 253 chars
+    namespace = models.CharField(max_length=253, null=True)
+
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+
+    persistentvolumeclaim_charge_gb_month = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    volume_request_storage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    # Cost columns moved in from the CostSummary table
+    # Need more precision on calculated fields, otherwise there will be
+    # Rounding errors
+    infra_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    # This field is used in place of infrastructure_cost when
+    # grouping by project
+    project_infra_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    markup_cost = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    project_markup_cost = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    # This is the one time monthly costs for a given user.
+    monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
