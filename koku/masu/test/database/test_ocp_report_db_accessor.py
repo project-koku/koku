@@ -25,6 +25,7 @@ from django.db.models import Min
 from django.db.models.query import QuerySet
 from tenant_schemas.utils import schema_context
 
+from api.metrics.models import CostModelMetricsMap
 from api.utils import DateHelper
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -681,11 +682,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
             reports = self.accessor.get_reports()
             self.assertEquals(len(reports), OCPUsageReport.objects.count())
 
-    def test_populate_monthly_cost(self):
-        """Test that the monthly cost row in the summary table is populated."""
+    def test_populate_monthly_cost_node_infrastructure_cost(self):
+        """Test that the monthly infrastructure cost row for nodes in the summary table is populated."""
         self.cluster_id = self.ocp_provider.authentication.provider_resource_name
 
-        node_cost = random.randrange(1, 100)
+        node_rate = random.randrange(1, 100)
 
         dh = DateHelper()
         start_date = dh.this_month_start
@@ -694,11 +695,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
         first_month, _ = month_date_range_tuple(start_date)
 
         cluster_alias = "test_cluster_alias"
-        self.accessor.populate_monthly_cost(node_cost, start_date, end_date, self.cluster_id, cluster_alias)
+        self.accessor.populate_monthly_cost(
+            "Node", "Infrastructure", node_rate, start_date, end_date, self.cluster_id, cluster_alias
+        )
 
         monthly_cost_rows = (
             self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-            .filter(usage_start=first_month, monthly_cost__isnull=False)
+            .filter(usage_start=first_month, infrastructure_monthly_cost__isnull=False)
             .all()
         )
         with schema_context(self.schema):
@@ -712,13 +715,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
             )
             self.assertEquals(monthly_cost_rows.count(), expected_count)
             for monthly_cost_row in monthly_cost_rows:
-                self.assertEquals(monthly_cost_row.monthly_cost, node_cost)
+                self.assertEquals(monthly_cost_row.infrastructure_monthly_cost, node_rate)
 
-    def test_remove_monthly_cost(self):
-        """Test that the monthly cost row in the summary table is removed."""
+    def test_populate_monthly_cost_node_supplementary_cost(self):
+        """Test that the monthly supplementary cost row for nodes in the summary table is populated."""
         self.cluster_id = self.ocp_provider.authentication.provider_resource_name
 
-        node_cost = random.randrange(1, 100)
+        node_rate = random.randrange(1, 100)
 
         dh = DateHelper()
         start_date = dh.this_month_start
@@ -727,16 +730,55 @@ class OCPReportDBAccessorTest(MasuTestCase):
         first_month, _ = month_date_range_tuple(start_date)
 
         cluster_alias = "test_cluster_alias"
-        self.accessor.populate_monthly_cost(node_cost, start_date, end_date, self.cluster_id, cluster_alias)
+        self.accessor.populate_monthly_cost(
+            "Node", "Supplementary", node_rate, start_date, end_date, self.cluster_id, cluster_alias
+        )
 
         monthly_cost_rows = (
             self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-            .filter(usage_start=first_month, monthly_cost__isnull=False)
+            .filter(usage_start=first_month, supplementary_monthly_cost__isnull=False)
+            .all()
+        )
+        with schema_context(self.schema):
+            expected_count = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    report_period__provider_id=self.ocp_provider.uuid, usage_start__gte=start_date
+                )
+                .values("node")
+                .distinct()
+                .count()
+            )
+            self.assertEquals(monthly_cost_rows.count(), expected_count)
+            for monthly_cost_row in monthly_cost_rows:
+                self.assertEquals(monthly_cost_row.supplementary_monthly_cost, node_rate)
+
+    def test_remove_monthly_cost(self):
+        """Test that the monthly cost row in the summary table is removed."""
+        self.cluster_id = self.ocp_provider.authentication.provider_resource_name
+
+        node_rate = random.randrange(1, 100)
+
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+
+        first_month, first_next_month = month_date_range_tuple(start_date)
+
+        cluster_alias = "test_cluster_alias"
+        cost_type = "Node"
+        rate_type = CostModelMetricsMap.SUPPLEMENTARY_COST_TYPE
+        self.accessor.populate_monthly_cost(
+            cost_type, rate_type, node_rate, start_date, end_date, self.cluster_id, cluster_alias
+        )
+
+        monthly_cost_rows = (
+            self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
+            .filter(usage_start=first_month, supplementary_monthly_cost__isnull=False)
             .all()
         )
         with schema_context(self.schema):
             self.assertTrue(monthly_cost_rows.exists())
-        self.accessor.remove_monthly_cost()
+        self.accessor.remove_monthly_cost(start_date, first_next_month, self.cluster_id, cost_type)
         with schema_context(self.schema):
             self.assertFalse(monthly_cost_rows.exists())
 
@@ -744,10 +786,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """Test that an error isn't thrown when the monthly cost row has no data."""
         start_date = DateAccessor().today_with_timezone("UTC")
         end_date = DateAccessor().today_with_timezone("UTC")
-        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
+        cost_type = "Node"
+
         try:
-            self.accessor.remove_monthly_cost()
+            self.accessor.remove_monthly_cost(start_date, end_date, self.cluster_id, cost_type)
         except Exception as err:
             self.fail(f"Exception thrown: {err}")
 
