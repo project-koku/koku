@@ -27,8 +27,15 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
+from reporting.models import OCPAWSComputeSummary
 from reporting.models import OCPAWSCostLineItemDailySummary
 from reporting.models import OCPAWSCostLineItemProjectDailySummary
+from reporting.models import OCPAWSCostSummary
+from reporting.models import OCPAWSCostSummaryByAccount
+from reporting.models import OCPAWSCostSummaryByRegion
+from reporting.models import OCPAWSDatabaseSummary
+from reporting.models import OCPAWSNetworkSummary
+from reporting.models import OCPAWSStorageSummary
 
 
 class OCPAWSProviderMap(ProviderMap):
@@ -481,4 +488,16 @@ class OCPAWSProviderMap(ProviderMap):
                 "tables": {"query": OCPAWSCostLineItemDailySummary, "total": OCPAWSCostLineItemDailySummary},
             }
         ]
+
+        self.views = {
+            "costs": {
+                "default": OCPAWSCostSummary,
+                "account": OCPAWSCostSummaryByAccount,
+                "region": OCPAWSCostSummaryByRegion,
+            },
+            "instance_type": {"default": OCPAWSComputeSummary, "instance_type": OCPAWSComputeSummary},
+            "storage": {"default": OCPAWSStorageSummary},
+            "database": {"default": OCPAWSDatabaseSummary, "service": OCPAWSDatabaseSummary},
+            "network": {"default": OCPAWSNetworkSummary, "service": OCPAWSNetworkSummary},
+        }
         super().__init__(provider, report_type)
