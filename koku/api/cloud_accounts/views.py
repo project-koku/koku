@@ -82,12 +82,49 @@ def cloudaccounts(request):
     # paginator = get_paginator(params.parameters.get("filter", {}), max_rank)
     paginator = get_paginator(request, 1)  # .GET.get("page", {})
     # page_number = request.GET.get("page")
-    page_obj = paginator.get_paginated_response(data)
-    # paginated_result = paginator.paginate_queryset(output, request)
-    # LOG.debug(f"DATA: {output}")
-    # if data:
-    # return paginator.get_paginated_response(paginated_result)
 
+    # if paginator.offset == 0:
+    # page_obj = paginator.get_paginated_response(data[0])
+
+    offset = int(request.GET.get("offset", 0))
+    # if offset > len(data) - 1:
+    #     offset = len(data) - 1
+    # if offset < 0:
+    #     offset = 0
+    limit = int(request.GET.get("limit", 0))
+    page = int(request.GET.get("page", 0))
+    # if limit > len(data):
+    #     limit = len(data)
+    # if limit < 0:
+    #     limit = 0
+    # if limit == 0:
+    #     limit = len(data)
+    # if limit == 0 and offset == 0:
+    #     data = CloudAccountsDictionary()._mapping
+    # else:
+    #     data = CloudAccountsDictionary()._mapping[offset : offset + limit]
+    # # data = CloudAccountsDictionary()._mapping[offset : offset + limit]
+    # def page(data, limit, offset, page):
+    if offset > len(data) - 1:
+        offset = len(data) - 1
+    if offset < 0:
+        offset = 0
+    if limit > len(data):
+        limit = len(data)
+    if limit < 0:
+        limit = 0
+    if limit == 0:
+        limit = len(data)
+    if page > 0:
+        offset = (page + 1) * offset
+    if limit == 0:
+        limit = len(data)
+    if limit == 0 and offset == 0:
+        data = CloudAccountsDictionary()._mapping
+    else:
+        data = CloudAccountsDictionary()._mapping[offset : offset + limit]
+
+    page_obj = paginator.get_paginated_response(data)
     # TODO: add __repr__()
     if data:
         return page_obj
