@@ -156,16 +156,17 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         self.unknown_billing_source = ProviderBillingSource.objects.create(bucket="unknown")
         self.unknown_billing_source.save()
 
-        self.unknown_provider = Provider.objects.create(
-            uuid=self.unkown_test_provider_uuid,
-            name="Test Provider",
-            type="FOO",
-            authentication=self.unknown_auth,
-            billing_source=self.unknown_billing_source,
-            customer=self.customer,
-            setup_complete=False,
-            active=True,
-        )
+        with patch("masu.celery.tasks.check_report_updates"):
+            self.unknown_provider = Provider.objects.create(
+                uuid=self.unkown_test_provider_uuid,
+                name="Test Provider",
+                type="FOO",
+                authentication=self.unknown_auth,
+                billing_source=self.unknown_billing_source,
+                customer=self.customer,
+                setup_complete=False,
+                active=True,
+            )
         self.unknown_provider.save()
 
         with self.assertRaises(ReportSummaryUpdaterError):
