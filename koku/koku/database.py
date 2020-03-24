@@ -18,6 +18,10 @@
 import os
 
 from django.conf import settings
+from django.contrib.postgres.fields.jsonb import KeyTextTransform
+from django.contrib.postgres.fields.jsonb import KeyTransform
+from django.db.models import DecimalField
+from django.db.models.aggregates import Func
 
 from .env import ENVIRONMENT
 
@@ -62,3 +66,30 @@ def config():
 
     database_cert = ENVIRONMENT.get_value("DATABASE_SERVICE_CERT", default=None)
     return _cert_config(db_config, database_cert)
+
+
+class JSONBBuildObject(Func):
+    """Expose the Postgres jsonb_build_object function for use by ORM."""
+
+    function = "jsonb_build_object"
+
+
+class KeyDecimalTransform(KeyTextTransform):
+    """Return a decimal for our numeric JSON."""
+
+    output_field = DecimalField()
+
+    def as_sql(self, compiler, connection):
+        key_transforms = [self.key_name]
+        previous = self.lhs
+        while isinstance(previous, KeyTransform):
+            key_transforms.insert(0, previous.key_name)
+            previous = previous.lhs
+        lhs, params = compiler.compile(previous)
+        if len(key_transforms) > 1:
+            return f"({lhs} {self.nested_operator} %s)", [key_transforms] + params
+        try:
+            lookup = int(self.key_name)
+        except ValueError:
+            lookup = self.key_name
+        return f"({lhs} {self.operator} %s)::numeric", tuple(params) + (lookup,)
