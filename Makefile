@@ -34,6 +34,8 @@ OC_TEMPLATE_DIR = $(TOPDIR)/openshift
 OC_PARAM_DIR = $(OC_TEMPLATE_DIR)/parameters
 OC_TEMPLATES = $(wildcard $(OC_TEMPLATE_DIR))
 
+KOKU_DOCKER_HASH = $(shell docker ps -q -f name=koku_server)
+
 # Platform differences
 #
 # - Use 'sudo' on Linux
@@ -500,12 +502,14 @@ docker-test-all:
 	docker-compose -f koku-test.yml up --build
 
 docker-up-koku:
+ifeq ($(KOKU_DOCKER_HASH), )
 	@docker-compose up $(build) -d koku-server
 	@echo "Waiting on koku status: "
 	@until ./scripts/check_for_koku_server.sh $${KOKU_API_HOST:-localhost} $$API_PATH_PREFIX $${KOKU_API_PORT:-8000} >/dev/null 2>&1 ; do \
         printf "." ; \
         sleep 1 ; \
     done
+endif
 	@echo " koku is available!"
 
 docker-up:
