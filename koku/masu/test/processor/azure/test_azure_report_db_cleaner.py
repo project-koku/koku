@@ -16,6 +16,7 @@
 #
 """Test the AzureReportDBCleaner object."""
 import datetime
+from unittest.mock import patch
 
 from dateutil import relativedelta
 from tenant_schemas.utils import schema_context
@@ -224,15 +225,16 @@ class AzureReportDBCleanerTest(MasuTestCase):
         azure_auth.save()
         azure_billing_source = ProviderBillingSource.objects.create(data_source=azure_data_source)
         azure_billing_source.save()
-        azure_provider = Provider.objects.create(
-            uuid=test_provider_uuid,
-            name="Test Provider",
-            type=Provider.PROVIDER_AZURE_LOCAL,
-            authentication=azure_auth,
-            billing_source=azure_billing_source,
-            customer=self.customer,
-            setup_complete=False,
-        )
+        with patch("masu.celery.tasks.check_report_updates"):
+            azure_provider = Provider.objects.create(
+                uuid=test_provider_uuid,
+                name="Test Provider",
+                type=Provider.PROVIDER_AZURE_LOCAL,
+                authentication=azure_auth,
+                billing_source=azure_billing_source,
+                customer=self.customer,
+                setup_complete=False,
+            )
         azure_provider.save()
         bill_id = self.creator.create_azure_cost_entry_bill(provider_uuid=azure_provider.uuid)
         product_id = self.creator.create_azure_cost_entry_product(provider_uuid=azure_provider.uuid)

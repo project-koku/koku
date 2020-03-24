@@ -20,6 +20,7 @@ from uuid import uuid4
 
 from django.contrib.postgres.fields import JSONField
 from django.db import models
+from django.db import transaction
 from django.db.models.constraints import CheckConstraint
 
 LOG = logging.getLogger(__name__)
@@ -159,6 +160,29 @@ class Provider(models.Model):
     # This field applies to OpenShift providers and identifies
     # which (if any) cloud provider the cluster is on
     infrastructure = models.ForeignKey("ProviderInfrastructureMap", null=True, on_delete=models.SET_NULL)
+
+    def save(self, *args, **kwargs):
+        """Save instance and start data ingest task for active Provider."""
+        # First, see what is in the DB to determine if we should check for data ingest
+        should_ingest = False
+        try:
+            obj = Provider.objects.get(uuid=self.uuid)
+        except Provider.DoesNotExist:
+            should_ingest = True
+        else:
+            # Provider credentials have changed, we should ingest
+            if obj.authentication != self.authentication or obj.billing_source != self.billing_source:
+                should_ingest = True
+
+        # Commit the new/updated Provider to the DB
+        super().save(*args, **kwargs)
+
+        # Local import of task function to avoid potential import cycle.
+        from masu.celery.tasks import check_report_updates
+
+        # Start check_report_updates task after Provider has been committed.
+        if should_ingest and self.active:
+            transaction.on_commit(lambda: check_report_updates.delay(provider_uuid=self.uuid))
 
 
 class Sources(models.Model):
