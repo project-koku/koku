@@ -65,8 +65,15 @@ from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsagePodLabelSummary
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting.provider.ocp_aws.models import OCPAWSComputeSummary
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemProjectDailySummary
+from reporting.provider.ocp_aws.models import OCPAWSCostSummary
+from reporting.provider.ocp_aws.models import OCPAWSCostSummaryByAccount
+from reporting.provider.ocp_aws.models import OCPAWSCostSummaryByRegion
+from reporting.provider.ocp_aws.models import OCPAWSDatabaseSummary
+from reporting.provider.ocp_aws.models import OCPAWSNetworkSummary
+from reporting.provider.ocp_aws.models import OCPAWSStorageSummary
 from reporting.provider.ocp_aws.models import OCPAWSTagsSummary
 
 
@@ -88,3 +95,13 @@ AWS_MATERIALIZED_VIEWS = (
 )
 
 OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (OCPAllCostLineItemDailySummary, OCPAllCostLineItemProjectDailySummary)
+
+OCP_ON_AWS_MATERIALIZED_VIEWS = (
+    OCPAWSCostSummary,
+    OCPAWSCostSummaryByAccount,
+    OCPAWSCostSummaryByRegion,
+    OCPAWSComputeSummary,
+    OCPAWSStorageSummary,
+    OCPAWSNetworkSummary,
+    OCPAWSDatabaseSummary,
+)
