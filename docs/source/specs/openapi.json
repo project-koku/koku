@@ -2239,7 +2239,8 @@
                                 "$ref": "#/components/schemas/SettingIn"
                             }
                         }
-                    }
+                    },
+                    "required": true
                 },
                 "responses": {
                     "200": {
