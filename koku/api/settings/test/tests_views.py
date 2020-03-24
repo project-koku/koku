@@ -114,3 +114,9 @@ class SettingsViewTest(IamTestCase):
         body = {"api": {"settings": {"openshift": {"tag-management": {"enabled": [tag]}}}}}
         response = self.post_settings(body)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_settings_bad_format(self):
+        """Test settings with bad post format."""
+        body = []
+        response = self.post_settings(body)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
