@@ -761,3 +761,17 @@ class AWSDatabaseSummary(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+
+class AWSOrganizationalUnit(models.Model):
+    """The alias table for AWS Organizational Unit."""
+
+    id = models.IntegerField(primary_key=True)
+
+    org_unit_name = models.CharField(max_length=50, null=False, unique=False)
+
+    org_unit_path = models.TextField(null=False, unique=False)
+
+    account_id = models.CharField(max_length=50, null=True, unique=False)
+
+    created_timestamp = models.DateField(null=False)
