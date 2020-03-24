@@ -124,6 +124,14 @@ if not settings.DEVELOPMENT:
     }
 
 
+# Beat used to crawl the organizational units
+# if not settings.DEVELOPMENT:
+app.conf.beat_schedule["crawl_org_units"] = {
+    "task": "masu.celery.tasks.crawl_org_units",
+    "schedule": crontab(minute="*"),
+}
+
+
 # Toggle to enable/disable S3 archiving of account data.
 if settings.ENABLE_S3_ARCHIVING:
     app.conf.beat_schedule["daily_upload_normalized_reports_to_s3"] = {

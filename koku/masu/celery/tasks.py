@@ -370,3 +370,9 @@ def clean_volume():
     LOG.info("Removing all files older than %s", expiration_date)
     LOG.info("The following files were too new to delete: %s", retain_files)
     LOG.info("The following files were deleted: %s", deleted_files)
+
+@app.task(name="masu.celery.tasks.crawl_org_units", queue_name="crawl_org_units")
+def crawl_org_units():
+    """Crawl org units."""
+    LOG.info('#' * 120)
+    LOG.info('this is doing stuff')
