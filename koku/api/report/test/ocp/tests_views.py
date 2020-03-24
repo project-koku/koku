@@ -46,6 +46,7 @@ from api.report.ocp.view import OCPMemoryView
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
+from koku.database import KeyDecimalTransform
 from reporting.models import OCPUsageLineItemDailySummary
 
 
@@ -513,11 +514,34 @@ class OCPReportViewTest(IamTestCase):
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start.date())
                 .aggregate(
                     total=Sum(
-                        Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("project_infra_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                        Coalesce(
+                            KeyDecimalTransform("cpu", "supplementary_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("memory", "supplementary_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("storage", "supplementary_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(
+                            KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("memory", "infrastructure_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("storage", "infrastructure_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField()))
                     )
                 )
                 .get("total")
@@ -557,12 +581,34 @@ class OCPReportViewTest(IamTestCase):
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=this_month_start.date())
                 .aggregate(
                     total=Sum(
-                        Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("infra_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("monthly_cost"), Value(0, output_field=DecimalField()))
+                        Coalesce(
+                            KeyDecimalTransform("cpu", "supplementary_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("memory", "supplementary_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("storage", "supplementary_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(
+                            KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("memory", "infrastructure_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("storage", "infrastructure_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
                     )
                 )
                 .get("total")
@@ -575,12 +621,34 @@ class OCPReportViewTest(IamTestCase):
                 .values(*["date"])
                 .annotate(
                     total=Sum(
-                        Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("infra_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("monthly_cost"), Value(0, output_field=DecimalField()))
+                        Coalesce(
+                            KeyDecimalTransform("cpu", "supplementary_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("memory", "supplementary_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("storage", "supplementary_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(
+                            KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("memory", "infrastructure_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("storage", "infrastructure_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
                     )
                 )
             )
@@ -592,12 +660,34 @@ class OCPReportViewTest(IamTestCase):
                 .values(*["date"])
                 .annotate(
                     total=Sum(
-                        Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("infra_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("monthly_cost"), Value(0, output_field=DecimalField()))
+                        Coalesce(
+                            KeyDecimalTransform("cpu", "supplementary_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("memory", "supplementary_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("storage", "supplementary_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(
+                            KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("memory", "infrastructure_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("storage", "infrastructure_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
                     )
                 )
             )
@@ -940,7 +1030,18 @@ class OCPReportViewTest(IamTestCase):
                         "usage": Sum("pod_usage_cpu_core_hours"),
                         "request": Sum("pod_request_cpu_core_hours"),
                         "limit": Sum("pod_limit_cpu_core_hours"),
-                        "cost": Sum("pod_charge_cpu_core_hours"),
+                        "cost": Sum(
+                            Coalesce(
+                                KeyDecimalTransform("cpu", "supplementary_usage_cost"),
+                                Value(0, output_field=DecimalField()),
+                            )
+                            + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                            + Coalesce(
+                                KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
+                                Value(0, output_field=DecimalField()),
+                            )
+                            + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+                        ),
                     }
                 )
             )
@@ -986,11 +1087,34 @@ class OCPReportViewTest(IamTestCase):
                 .filter(**{f"pod_labels__{filter_key}": filter_value})
                 .aggregate(
                     cost=Sum(
-                        Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("infra_cost"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                        Coalesce(
+                            KeyDecimalTransform("cpu", "supplementary_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("memory", "supplementary_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("storage", "supplementary_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(
+                            KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("memory", "infrastructure_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(
+                            KeyDecimalTransform("storage", "infrastructure_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
                     )
                 )
             )
@@ -1020,12 +1144,25 @@ class OCPReportViewTest(IamTestCase):
         filter_key = tag_keys[0]
 
         with tenant_context(self.tenant):
-            totals = OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date()).aggregate(
+            totals = OCPUsageLineItemDailySummary.objects.filter(
+                usage_start__gte=self.ten_days_ago.date(), pod_labels__has_key=filter_key
+            ).aggregate(
                 **{
                     "usage": Sum("pod_usage_cpu_core_hours"),
                     "request": Sum("pod_request_cpu_core_hours"),
                     "limit": Sum("pod_limit_cpu_core_hours"),
-                    "cost": Sum("pod_charge_cpu_core_hours"),
+                    "cost": Sum(
+                        Coalesce(
+                            KeyDecimalTransform("cpu", "supplementary_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                        + Coalesce(
+                            KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
+                            Value(0, output_field=DecimalField()),
+                        )
+                        + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
+                    ),
                 }
             )
 
