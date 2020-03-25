@@ -274,7 +274,7 @@ class OCPAWSCostSummaryByService(models.Model):
     class Meta:
         """Meta for OCPAWSCostSummaryByService."""
 
-        db_table = "reporting_ocpaws_cost_summary_by_account"
+        db_table = "reporting_ocpaws_cost_summary_by_service"
         managed = False
 
     id = models.IntegerField(primary_key=True)
