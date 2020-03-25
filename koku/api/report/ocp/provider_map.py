@@ -1215,8 +1215,8 @@ class OCPProviderMap(ProviderMap):
         ]
 
         self.views = {
-            "costs": {"default": None},
-            "costs_by_project": {"default": None},
+            # "costs": {"default": None},
+            # "costs_by_project": {"default": None},
             "cpu": {
                 "default": OCPComputeSummary,
                 "cluster": OCPComputeSummary,
@@ -1227,7 +1227,7 @@ class OCPProviderMap(ProviderMap):
                 "default": OCPComputeSummary,
                 "cluster": OCPComputeSummary,
                 "project": OCPComputeSummary,
-                "cpu": OCPComputeSummary,
+                "memory": OCPComputeSummary,
             },
             "volume": {"default": OCPVolumeSummary, "project": OCPVolumeSummary},
         }

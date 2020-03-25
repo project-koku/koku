@@ -542,54 +542,31 @@ class OCPComputeSummary(models.Model):
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
 
+    supplementary_usage_cost = JSONField(null=True)
+
+    infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    infrastructure_usage_cost = JSONField(null=True)
+
+    infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
     pod_usage_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     pod_request_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     pod_limit_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
-    pod_charge_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
     pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
-    pod_charge_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
     pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
-    node_capacity_cpu_cores = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
-    node_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
-    node_capacity_memory_gigabytes = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
-    node_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
     cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
-    cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
     # Total capacity represents the sum of all of the customers clusters
     total_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     total_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
-    # Cost columns moved in from the CostSummary table
-    # Need more precision on calculated fields, otherwise there will be
-    # Rounding errors
-    infra_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
-    # This field is used in place of infrastructure_cost when
-    # grouping by project
-    project_infra_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
-    markup_cost = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
-    project_markup_cost = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
-    # This is the one time monthly costs for a given user.
-    monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
 
 class OCPVolumeSummary(models.Model):
@@ -623,26 +600,16 @@ class OCPVolumeSummary(models.Model):
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
 
-    persistentvolumeclaim_charge_gb_month = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    supplementary_usage_cost = JSONField(null=True)
+
+    infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    infrastructure_usage_cost = JSONField(null=True)
+
+    infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     volume_request_storage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
-    # Cost columns moved in from the CostSummary table
-    # Need more precision on calculated fields, otherwise there will be
-    # Rounding errors
-    infra_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
-    # This field is used in place of infrastructure_cost when
-    # grouping by project
-    project_infra_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
-    markup_cost = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
-    project_markup_cost = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
-    # This is the one time monthly costs for a given user.
-    monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
