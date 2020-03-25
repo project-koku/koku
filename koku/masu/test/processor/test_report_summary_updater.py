@@ -17,6 +17,7 @@
 """Test the ReportSummaryUpdater object."""
 import datetime
 from unittest.mock import patch
+from uuid import uuid4
 
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
@@ -205,3 +206,20 @@ class ReportSummaryUpdaterTest(MasuTestCase):
 
         # manifest_is_ready is now unconditionally returning True, so summary is expected.
         self.assertTrue(updater.manifest_is_ready())
+
+    def test_no_provider_on_create(self):
+        """Test that an error is raised when no provider exists."""
+        billing_start = DateAccessor().today_with_timezone("UTC").replace(day=1)
+        no_provider_uuid = uuid4()
+        manifest_dict = {
+            "assembly_id": "1234",
+            "billing_period_start_datetime": billing_start,
+            "num_total_files": 2,
+            "num_processed_files": 1,
+            "provider_uuid": self.ocp_provider_uuid,
+        }
+        with ReportManifestDBAccessor() as accessor:
+            manifest = accessor.add(**manifest_dict)
+        manifest_id = manifest.id
+        with self.assertRaises(ReportSummaryUpdaterError):
+            ReportSummaryUpdater(self.schema, no_provider_uuid, manifest_id)
