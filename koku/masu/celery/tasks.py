@@ -56,6 +56,10 @@ from masu.util.common import dictify_table_export_settings
 from masu.util.common import NamedTemporaryGZip
 from masu.util.upload import get_upload_path
 
+# from masu.external.accounts.labels.aws import AWSOrgUnitCrawler
+
+# from api.models import Provider
+
 LOG = get_task_logger(__name__)
 _DB_FETCH_BATCH_SIZE = 2000
 
@@ -371,8 +375,17 @@ def clean_volume():
     LOG.info("The following files were too new to delete: %s", retain_files)
     LOG.info("The following files were deleted: %s", deleted_files)
 
+
 @app.task(name="masu.celery.tasks.crawl_org_units", queue_name="crawl_org_units")
 def crawl_org_units():
     """Crawl org units."""
     LOG.info('#' * 120)
     LOG.info('this is doing stuff at: %s' % datetime.now().strftime("%H:%M:%S"))
+    # _, polling_accounts = Orchestrator.get_accounts()
+    # for account in polling_accounts:
+    #     if account.get('provider_type') in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+    #         auth_credential = account.get('authentication')
+    #         act_schema = account.get('schema_name')
+    #         crawler = AWSOrgUnitCrawler(auth_credential, act_schema)
+    #         ou_act_tree = crawler.crawl_org_for_acts()
+    #         LOG.info(ou_act_tree)
