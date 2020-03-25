@@ -239,3 +239,101 @@ class AzureCostSummaryByService(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False, default="USD")
+
+
+class AzureComputeSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage.
+
+    """
+
+    class Meta:
+        """Meta for AzureComputeSummary."""
+
+        db_table = "reporting_azure_compute_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    instance_type = models.CharField(max_length=50, null=True)
+    instance_ids = ArrayField(models.CharField(max_length=256), null=True)
+    instance_count = models.IntegerField(null=True)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unit_of_measure = models.CharField(max_length=63, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.CharField(max_length=10, null=False, default="USD")
+
+
+class AzureStorageSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of storage usage.
+
+    """
+
+    class Meta:
+        """Meta for AzureStorageSummary."""
+
+        db_table = "reporting_azure_storage_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    service_name = models.TextField(null=False)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unit_of_measure = models.CharField(max_length=63, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.CharField(max_length=10, null=False, default="USD")
+
+
+class AWSNetworkSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of network usage.
+
+    """
+
+    class Meta:
+        """Meta for AzureNetworkSummary."""
+
+        db_table = "reporting_azure_network_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    service_name = models.TextField(null=False)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unit_of_measure = models.CharField(max_length=63, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.CharField(max_length=10, null=False, default="USD")
+
+
+class AzureDatabaseSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of database usage.
+
+    """
+
+    class Meta:
+        """Meta for AzureDatabaseSummary."""
+
+        db_table = "reporting_azure_database_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    service_name = models.TextField(null=False)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unit_of_measure = models.CharField(max_length=63, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.CharField(max_length=10, null=False, default="USD")
