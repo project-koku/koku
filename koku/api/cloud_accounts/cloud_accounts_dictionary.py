@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Red Hat, Inc.
+# Copyright 2020 Red Hat, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -14,17 +14,18 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Common functions for test cases to re-use."""
-from api.cloud_accounts.models import CloudAccount
-
-
-class CloudAccountCommonTestUtilities:
-    """Common functions that test cases re-use."""
-
-    def create_cloud_account(
-        self, name="TEST_AWS_ACCOUNT_ID", value="TEST_12345678910", description="TEST Cost Management's AWS Account ID"
-    ):
-        """Create a model for tests."""
-        cloud_account = CloudAccount.objects.create(name=name, value=value, description=description)
-        cloud_account.save()
-        return cloud_account
+"""Cloud Account Dictionary."""
+CLOUD_ACCOUNTS_DICTIONARY = [
+    {
+        "name": "AWS",
+        "value": "589173575009",
+        "description": "Cost Management's AWS account ID",
+        "updated_timestamp": "2020-03-06T14:41:11.808752Z",
+    },
+    {
+        "name": "AWS_LOCAL",
+        "value": "589173575009",
+        "description": "Cost Management's AWS_LOCAL account ID",
+        "updated_timestamp": "2020-03-06T14:41:11.808752Z",
+    },
+]
