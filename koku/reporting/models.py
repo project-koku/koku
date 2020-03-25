@@ -54,6 +54,7 @@ from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjec
 from reporting.provider.azure.openshift.models import OCPAzureTagsSummary
 from reporting.provider.ocp.costs.models import CostSummary
 from reporting.provider.ocp.models import OCPComputeSummary
+from reporting.provider.ocp.models import OCPCostSummary
 from reporting.provider.ocp.models import OCPEnabledTagKeys
 from reporting.provider.ocp.models import OCPNodeLabelLineItem
 from reporting.provider.ocp.models import OCPNodeLabelLineItemDaily
@@ -89,6 +90,6 @@ AWS_MATERIALIZED_VIEWS = (
     AWSStorageSummaryByService,
 )
 
-OCP_MATERIALIZED_VIEWS = (OCPComputeSummary, OCPVolumeSummary)
+OCP_MATERIALIZED_VIEWS = (OCPComputeSummary, OCPVolumeSummary, OCPCostSummary)
 
 OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (OCPAllCostLineItemDailySummary, OCPAllCostLineItemProjectDailySummary)

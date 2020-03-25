@@ -30,6 +30,7 @@ from koku.database import KeyDecimalTransform
 from providers.provider_access import ProviderAccessor
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPComputeSummary
+from reporting.provider.ocp.models import OCPCostSummary
 from reporting.provider.ocp.models import OCPVolumeSummary
 
 
@@ -1215,7 +1216,7 @@ class OCPProviderMap(ProviderMap):
         ]
 
         self.views = {
-            # "costs": {"default": None},
+            "costs": {"default": OCPCostSummary},
             # "costs_by_project": {"default": None},
             "cpu": {
                 "default": OCPComputeSummary,
