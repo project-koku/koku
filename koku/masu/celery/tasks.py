@@ -377,14 +377,13 @@ def clean_volume():
 @app.task(name="masu.celery.tasks.crawl_org_units", queue_name="crawl_org_units")
 def crawl_org_units():
     """Crawl org units."""
-    LOG.info("#" * 120)
-    LOG.info("this is doing stuff at: %s" % datetime.now().strftime("%H:%M:%S"))
     _, polling_accounts = Orchestrator.get_accounts()
+    LOG.info("AWS organizational unit crawler found %s accounts to scan" % len(polling_accounts))
     for account in polling_accounts:
         if account.get("provider_type") in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
             auth_credential = account.get("authentication")
             act_schema = account.get("schema_name")
-            LOG.info("Starting aws organizational unit crawler for provider_uuid (%s)" % account.get("provider_uuid"))
+            LOG.info("Starting AWS organizational unit crawler for provider_uuid (%s)" % account.get("provider_uuid"))
             crawler = AWSOrgUnitCrawler(auth_credential, act_schema)
             ou_act_tree = crawler.crawl_org_for_acts()
-            LOG.info("Crawl finished, %s nodes found in organizational tree." % (str(len(ou_act_tree))))
+            LOG.info("Finished AWS organizational unit crawler: %s nodes found in organizational tree." % (str(len(ou_act_tree))))

@@ -125,11 +125,7 @@ if not settings.DEVELOPMENT:
 
 
 # Beat used to crawl the organizational units
-if not settings.DEVELOPMENT:
-    CRAWL_ORG_UNITS_CROWNTAB = crontab(day_of_week="*")
-else:
-    CRAWL_ORG_UNITS_MINUTE_INTERVAL = ENVIRONMENT.get_value("CRAWL_ORG_UNITS_MINUTE_INTERVAL", default="1")
-    CRAWL_ORG_UNITS_CROWNTAB = crontab(minute=("*/%s" % CRAWL_ORG_UNITS_MINUTE_INTERVAL))
+CRAWL_ORG_UNITS_CROWNTAB = crontab(day_of_week="*")
 app.conf.beat_schedule["crawl_org_units"] = {
     "task": "masu.celery.tasks.crawl_org_units",
     "schedule": CRAWL_ORG_UNITS_CROWNTAB,
