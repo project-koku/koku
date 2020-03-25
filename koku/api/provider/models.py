@@ -18,6 +18,7 @@
 import logging
 from uuid import uuid4
 
+from django.conf import settings
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db import transaction
@@ -181,7 +182,7 @@ class Provider(models.Model):
         from masu.celery.tasks import check_report_updates
 
         # Start check_report_updates task after Provider has been committed.
-        if should_ingest and self.active:
+        if settings.AUTO_DATA_INGEST and should_ingest and self.active:
             transaction.on_commit(lambda: check_report_updates.delay(provider_uuid=self.uuid))
 
 
