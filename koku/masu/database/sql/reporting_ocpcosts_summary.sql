@@ -54,8 +54,8 @@ CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}} AS (
 ;
 
 UPDATE reporting_ocpusagelineitem_daily_summary ods
-    SET infra_cost = ic.infra_cost,
-        project_infra_cost = ic.project_infra_cost
+    SET infrastructure_raw_cost = ic.infra_cost,
+        infrastructure_project_raw_cost = ic.project_infra_cost
     FROM reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}} AS ic
     WHERE ic.data_source = 'Pod'
         AND ods.report_period_id = ic.report_period_id
@@ -70,8 +70,8 @@ UPDATE reporting_ocpusagelineitem_daily_summary ods
 ;
 
 UPDATE reporting_ocpusagelineitem_daily_summary ods
-    SET infra_cost = ic.infra_cost,
-        project_infra_cost = ic.project_infra_cost
+    SET infrastructure_raw_cost = ic.infra_cost,
+        infrastructure_project_raw_cost = ic.project_infra_cost
     FROM reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}} AS ic
     WHERE ic.data_source = 'Storage'
         AND ods.report_period_id = ic.report_period_id
@@ -86,11 +86,11 @@ UPDATE reporting_ocpusagelineitem_daily_summary ods
 ;
 
 UPDATE reporting_ocpusagelineitem_daily_summary ods
-    SET infra_cost = 0::decimal
-    WHERE infra_cost IS NULL
+    SET infrastructure_raw_cost = 0::decimal
+    WHERE infrastructure_raw_cost IS NULL
 ;
 
 UPDATE reporting_ocpusagelineitem_daily_summary ods
-    SET project_infra_cost = 0::decimal
-    WHERE project_infra_cost IS NULL
+    SET infrastructure_project_raw_cost = 0::decimal
+    WHERE infrastructure_project_raw_cost IS NULL
 ;

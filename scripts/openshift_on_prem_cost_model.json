@@ -2,14 +2,15 @@
     "name": "Cost Management OpenShift Cost Model",
     "description": "A cost model of on-premises OpenShift clusters.",
     "source_type": "OCP",
-    "provider_uuids": ["PROVIDER_UUID"],
+    "source_uuids": ["PROVIDER_UUID"],
     "rates": [{
         "metric": {"name": "cpu_core_usage_per_hour"},
         "tiered_rates": [{
             "unit": "USD",
             "value": 0.0070000000,
             "usage_start": null,
-            "usage_end": null
+            "usage_end": null,
+            "cost_type": "Supplementary"
         }]
     },
     {
@@ -18,7 +19,8 @@
             "unit": "USD",
             "value": 0.2000000000,
             "usage_start": null,
-            "usage_end": null
+            "usage_end": null,
+            "cost_type": "Supplementary"
         }]
     },
     {
@@ -27,7 +29,8 @@
             "unit": "USD",
             "value": 0.0090000000,
             "usage_start": null,
-            "usage_end": null
+            "usage_end": null,
+            "cost_type": "Supplementary"
         }]
     },
     {
@@ -36,7 +39,8 @@
             "unit": "USD",
             "value": 0.0500000000,
             "usage_start": null,
-            "usage_end": null
+            "usage_end": null,
+            "cost_type": "Supplementary"
         }]
     },
     {
@@ -45,7 +49,8 @@
             "unit": "USD",
             "value": 0.01,
             "usage_start": null,
-            "usage_end": null
+            "usage_end": null,
+            "cost_type": "Supplementary"
         }]
     },
     {
@@ -54,7 +59,18 @@
             "unit": "USD",
             "value": 0.01,
             "usage_start": null,
-            "usage_end": null
+            "usage_end": null,
+            "cost_type": "Supplementary"
+        }]
+    },
+    {
+        "metric": {"name": "node_cost_per_month"},
+        "tiered_rates": [{
+            "unit": "USD",
+            "value": 1000.0,
+            "usage_start": null,
+            "usage_end": null,
+            "cost_type": "Infrastructure"
         }]
     }
     ]

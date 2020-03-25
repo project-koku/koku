@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Cost Model Manager."""
+from unittest.mock import patch
+
 from tenant_schemas.utils import tenant_context
 
 from api.iam.models import Customer
@@ -79,7 +81,8 @@ class CostModelManagerTest(IamTestCase):
     def test_create_with_provider(self):
         """Test creating a cost model with provider uuids."""
         provider_name = "sample_provider"
-        provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
 
         # Get Provider UUID
         provider_uuid = provider.uuid
@@ -113,7 +116,8 @@ class CostModelManagerTest(IamTestCase):
     def test_create_second_cost_model_same_provider(self):
         """Test that the cost model map is updated for the second model."""
         provider_name = "sample_provider"
-        provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
 
         # Get Provider UUID
         provider_uuid = provider.uuid
@@ -151,13 +155,15 @@ class CostModelManagerTest(IamTestCase):
     def test_create_with_two_providers(self):
         """Test creating a cost model with multiple providers."""
         provider_name = "sample_provider"
-        provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
 
         # Get Provider UUID
         provider_uuid = provider.uuid
 
         provider_name_2 = "sample_provider2"
-        provider_2 = Provider.objects.create(name=provider_name_2, created_by=self.user, customer=self.customer)
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider_2 = Provider.objects.create(name=provider_name_2, created_by=self.user, customer=self.customer)
         provider_uuid_2 = provider_2.uuid
 
         metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
@@ -209,7 +215,8 @@ class CostModelManagerTest(IamTestCase):
             self.assertEqual(len(cost_model_map), 0)
 
         provider_name = "sample_provider"
-        provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
 
         # Get Provider UUID
         provider_uuid = provider.uuid

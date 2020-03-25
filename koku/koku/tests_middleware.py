@@ -100,7 +100,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         """Test that the customer, tenant and user are not created."""
         customer = self._create_customer_data()
         user_data = self._create_user_data()
-        account_id = "12345"
+        account_id = "99999"
         del customer["account_id"]
         request_context = self._create_request_context(customer, user_data, create_customer=False, create_user=False)
         mock_request = request_context["request"]

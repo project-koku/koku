@@ -47,7 +47,7 @@ class CostModelsFilter(FilterSet):
 
     name = CharFilter(field_name="name", method="list_contain_filter")
     uuid = UUIDFilter(field_name="uuid")
-    provider_uuid = UUIDFilter(field_name="costmodelmap__provider_uuid")
+    source_uuid = UUIDFilter(field_name="costmodelmap__provider_uuid")
     description = CharFilter(field_name="description", lookup_expr="icontains")
     source_type = CharListFilter(field_name="source_type", lookup_expr="source_type__iexact")
 
@@ -60,7 +60,7 @@ class CostModelsFilter(FilterSet):
 
     class Meta:
         model = CostModel
-        fields = ["source_type", "name", "provider_uuid", "description"]
+        fields = ["source_type", "name", "source_uuid", "description"]
 
 
 class RateProviderPermissionDenied(APIException):
@@ -129,7 +129,7 @@ class CostModelViewSet(
     @staticmethod
     def check_fields(dict_, model, exception):
         """Check if GET fields are valid."""
-        valid_query_params = ["limit", "offset", "provider_uuid", "ordering"]
+        valid_query_params = ["limit", "offset", "source_uuid", "ordering"]
         cost_models_params = {k: dict_.get(k) for k in dict_.keys() if k not in valid_query_params}
         try:
             model.objects.filter(**cost_models_params)
@@ -139,7 +139,7 @@ class CostModelViewSet(
     def get_queryset(self):  # noqa: C901
         """Get a queryset.
 
-        Restricts the returned data to provider_uuid if supplied as a query parameter.
+        Restricts the returned data to source_uuid if supplied as a query parameter.
         """
         queryset = CostModel.objects.all()
         self.check_fields(self.request.query_params, CostModel, CostModelQueryException)

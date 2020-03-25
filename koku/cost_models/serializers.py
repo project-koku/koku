@@ -278,7 +278,7 @@ class CostModelSerializer(serializers.Serializer):
 
     source_type = serializers.CharField(required=True)
 
-    provider_uuids = serializers.ListField(
+    source_uuids = serializers.ListField(
         child=UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field="uuid"), required=False
     )
 
@@ -347,11 +347,11 @@ class CostModelSerializer(serializers.Serializer):
                     err_msg = f"Duplicate {rate_type} entry found for {metric}"
                     raise serializers.ValidationError(err_msg)
 
-    def validate_provider_uuids(self, provider_uuids):
-        """Check that uuids in provider_uuids are valid identifiers."""
+    def validate_source_uuids(self, source_uuids):
+        """Check that uuids in source_uuids are valid identifiers."""
         valid_uuids = []
         invalid_uuids = []
-        for uuid in provider_uuids:
+        for uuid in source_uuids:
             if Provider.objects.filter(uuid=uuid).count() == 1:
                 valid_uuids.append(uuid)
             else:
@@ -373,13 +373,15 @@ class CostModelSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         """Create the cost model object in the database."""
+        source_uuids = validated_data.pop("source_uuids", [])
+        validated_data.update({"provider_uuids": source_uuids})
         return CostModelManager().create(**validated_data)
 
     def update(self, instance, validated_data, *args, **kwargs):
         """Update the rate object in the database."""
-        provider_uuids = validated_data.pop("provider_uuids", [])
+        source_uuids = validated_data.pop("source_uuids", [])
         new_providers_for_instance = []
-        for uuid in provider_uuids:
+        for uuid in source_uuids:
             new_providers_for_instance.append(str(Provider.objects.filter(uuid=uuid).first().uuid))
         manager = CostModelManager(cost_model_uuid=instance.uuid)
         manager.update_provider_uuids(new_providers_for_instance)
@@ -408,7 +410,16 @@ class CostModelSerializer(serializers.Serializer):
             source_type = SOURCE_TYPE_MAP[source_type]
         rep["source_type"] = source_type
 
+        rep["source_uuids"] = rep.get("provider_uuids", [])
+        if rep.get("provider_uuids"):
+            del rep["provider_uuids"]
         cm_uuid = cost_model_obj.uuid
-        provider_uuids = CostModelManager(cm_uuid).get_provider_names_uuids()
-        rep.update({"providers": provider_uuids})
+        source_uuids = CostModelManager(cm_uuid).get_provider_names_uuids()
+        rep.update({"sources": source_uuids})
         return rep
+
+    def to_internal_value(self, data):
+        """ Alter source_uuids to provider_uuids."""
+        internal = super().to_internal_value(data)
+        internal["provider_uuids"] = internal.get("source_uuids", [])
+        return internal
