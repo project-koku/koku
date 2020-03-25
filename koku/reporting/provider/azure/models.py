@@ -151,3 +151,91 @@ class AzureTagsSummary(models.Model):
     values = ArrayField(models.CharField(max_length=253))
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
     subscription_guid = ArrayField(models.CharField(max_length=50))
+
+
+# Materialized Views for UI Reporting
+class AzureCostSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost.
+
+    """
+
+    class Meta:
+        """Meta for AzureCostSummary."""
+
+        db_table = "reporting_azure_cost_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.CharField(max_length=10, null=False, default="USD")
+
+
+class AzureCostSummaryByAccount(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by account.
+
+    """
+
+    class Meta:
+        """Meta for AzureCostSummaryByService."""
+
+        db_table = "reporting_azure_cost_summary_by_account"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    subscription_guid = models.CharField(max_length=50, null=False)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.CharField(max_length=10, null=False, default="USD")
+
+
+class AzureCostSummaryByLocation(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by location.
+
+    """
+
+    class Meta:
+        """Meta for AzureCostSummaryByService."""
+
+        db_table = "reporting_azure_cost_summary_by_location"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    resource_location = models.CharField(max_length=50, null=False)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.CharField(max_length=10, null=False, default="USD")
+
+
+class AzureCostSummaryByService(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by service.
+
+    """
+
+    class Meta:
+        """Meta for AzureCostSummaryByService."""
+
+        db_table = "reporting_azure_cost_summary_by_service"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    service_name = models.TextField(null=False)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.CharField(max_length=10, null=False, default="USD")
