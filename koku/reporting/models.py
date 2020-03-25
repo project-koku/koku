@@ -71,6 +71,7 @@ from reporting.provider.ocp_aws.models import OCPAWSCostLineItemProjectDailySumm
 from reporting.provider.ocp_aws.models import OCPAWSCostSummary
 from reporting.provider.ocp_aws.models import OCPAWSCostSummaryByAccount
 from reporting.provider.ocp_aws.models import OCPAWSCostSummaryByRegion
+from reporting.provider.ocp_aws.models import OCPAWSCostSummaryByService
 from reporting.provider.ocp_aws.models import OCPAWSDatabaseSummary
 from reporting.provider.ocp_aws.models import OCPAWSNetworkSummary
 from reporting.provider.ocp_aws.models import OCPAWSStorageSummary
@@ -99,6 +100,7 @@ OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (OCPAllCostLineItemDailySummary, OCPA
 OCP_ON_AWS_MATERIALIZED_VIEWS = (
     OCPAWSCostSummary,
     OCPAWSCostSummaryByAccount,
+    OCPAWSCostSummaryByService,
     OCPAWSCostSummaryByRegion,
     OCPAWSComputeSummary,
     OCPAWSStorageSummary,

@@ -15,6 +15,8 @@ class Migration(migrations.Migration):
                 ("id", models.IntegerField(primary_key=True, serialize=False)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
+                ("cluster_id", models.CharField(max_length=50, null=True)),
+                ("cluster_alias", models.CharField(max_length=256, null=True)),
                 ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
                 ("markup_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
                 ("currency_code", models.CharField(max_length=10)),
@@ -27,14 +29,10 @@ class Migration(migrations.Migration):
                 ("id", models.IntegerField(primary_key=True, serialize=False)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
+                ("cluster_id", models.CharField(max_length=50, null=True)),
+                ("cluster_alias", models.CharField(max_length=256, null=True)),
                 ("instance_type", models.CharField(max_length=50, null=True)),
-                (
-                    "resource_ids",
-                    django.contrib.postgres.fields.ArrayField(
-                        base_field=models.CharField(max_length=256), null=True, size=None
-                    ),
-                ),
-                ("resource_count", models.IntegerField(null=True)),
+                ("resource_id", models.CharField(max_length=253, null=True)),
                 ("usage_amount", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
                 ("unit", models.CharField(max_length=63, null=True)),
                 ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
@@ -49,7 +47,25 @@ class Migration(migrations.Migration):
                 ("id", models.IntegerField(primary_key=True, serialize=False)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
+                ("cluster_id", models.CharField(max_length=50, null=True)),
+                ("cluster_alias", models.CharField(max_length=256, null=True)),
                 ("usage_account_id", models.CharField(max_length=50)),
+                ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
+                ("markup_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
+                ("currency_code", models.CharField(max_length=10)),
+            ],
+            options={"db_table": "reporting_ocpaws_cost_summary_by_account", "managed": False},
+        ),
+        migrations.CreateModel(
+            name="OCPAWSCostSummaryByService",
+            fields=[
+                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("usage_start", models.DateField()),
+                ("usage_end", models.DateField()),
+                ("cluster_id", models.CharField(max_length=50, null=True)),
+                ("cluster_alias", models.CharField(max_length=256, null=True)),
+                ("product_code", models.CharField(max_length=50)),
+                ("product_family", models.CharField(max_length=150, null=True)),
                 ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
                 ("markup_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
                 ("currency_code", models.CharField(max_length=10)),
@@ -76,6 +92,8 @@ class Migration(migrations.Migration):
                 ("id", models.IntegerField(primary_key=True, serialize=False)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
+                ("cluster_id", models.CharField(max_length=50, null=True)),
+                ("cluster_alias", models.CharField(max_length=256, null=True)),
                 ("product_code", models.CharField(max_length=50)),
                 ("usage_amount", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
                 ("unit", models.CharField(max_length=63, null=True)),
@@ -91,6 +109,8 @@ class Migration(migrations.Migration):
                 ("id", models.IntegerField(primary_key=True, serialize=False)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
+                ("cluster_id", models.CharField(max_length=50, null=True)),
+                ("cluster_alias", models.CharField(max_length=256, null=True)),
                 ("product_code", models.CharField(max_length=50)),
                 ("usage_amount", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
                 ("unit", models.CharField(max_length=63, null=True)),
@@ -106,6 +126,8 @@ class Migration(migrations.Migration):
                 ("id", models.IntegerField(primary_key=True, serialize=False)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
+                ("cluster_id", models.CharField(max_length=50, null=True)),
+                ("cluster_alias", models.CharField(max_length=256, null=True)),
                 ("product_family", models.CharField(max_length=150, null=True)),
                 ("usage_amount", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
                 ("unit", models.CharField(max_length=63, null=True)),
@@ -116,28 +138,34 @@ class Migration(migrations.Migration):
             options={"db_table": "reporting_ocpaws_storage_summary", "managed": False},
         ),
         migrations.RunSQL(
-            """CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary AS(
-                    SELECT row_number() OVER(ORDER BY date(usage_start)) as id,
-                        date(usage_start) as usage_start,
-                        date(usage_start) as usage_end,
-                        sum(unblended_cost) as unblended_cost,
-                        sum(markup_cost) as markup_cost,
-                        max(currency_code) as currency_code
-                    FROM reporting_ocpawscostlineitem_daily_summary
-                    -- Get data for this month or last month
-                    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-                    GROUP BY date(usage_start)
-                )
-                ;
+            """
+            CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary AS(
+                SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias) as id,
+                    usage_start as usage_start,
+                    usage_start as usage_end,
+                    cluster_id,
+                    cluster_alias,
+                    sum(unblended_cost) as unblended_cost,
+                    sum(markup_cost) as markup_cost,
+                    max(currency_code) as currency_code
+                FROM reporting_ocpawscostlineitem_daily_summary
+                -- Get data for this month or last month
+                WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+                GROUP BY usage_start, cluster_id, cluster_alias
+            )
+            WITH DATA
+            ;
 
-                CREATE UNIQUE INDEX ocpaws_cost_summary
-                ON reporting_ocpaws_cost_summary (usage_start)
-                ;
+            CREATE UNIQUE INDEX ocpaws_cost_summary
+            ON reporting_ocpaws_cost_summary (usage_start)
+            ;
 
             CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary_by_account AS(
-                SELECT row_number() OVER(ORDER BY date(usage_start), usage_account_id, account_alias_id) as id,
-                    date(usage_start) as usage_start,
-                    date(usage_start) as usage_end,
+                SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, usage_account_id, account_alias_id) as id,
+                    usage_start as usage_start,
+                    usage_start as usage_end,
+                    cluster_id,
+                    cluster_alias,
                     usage_account_id,
                     account_alias_id,
                     sum(unblended_cost) as unblended_cost,
@@ -146,18 +174,44 @@ class Migration(migrations.Migration):
                 FROM reporting_ocpawscostlineitem_daily_summary
                 -- Get data for this month or last month
                 WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-                GROUP BY date(usage_start), usage_account_id, account_alias_id
+                GROUP BY usage_start, cluster_id, cluster_alias, usage_account_id, account_alias_id
             )
+            WITH DATA
             ;
 
             CREATE UNIQUE INDEX ocpaws_cost_summary_account
-            ON reporting_ocpaws_cost_summary_by_account (usage_start, usage_account_id, account_alias_id)
+            ON reporting_ocpaws_cost_summary_by_account (usage_start, cluster_id, cluster_alias, usage_account_id, account_alias_id)
+            ;
+
+            CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary_by_service AS(
+                SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, product_code, product_family) as id,
+                    usage_start as usage_start,
+                    usage_start as usage_end,
+                    cluster_id,
+                    cluster_alias,
+                    product_code,
+                    product_family,
+                    sum(unblended_cost) as unblended_cost,
+                    sum(markup_cost) as markup_cost,
+                    max(currency_code) as currency_code
+                FROM reporting_ocpawscostlineitem_daily_summary
+                -- Get data for this month or last month
+                WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+                GROUP BY usage_start, cluster_id, cluster_alias, product_code, product_family
+            )
+            WITH DATA
+            ;
+
+            CREATE UNIQUE INDEX ocpaws_cost_summary_service
+            ON reporting_ocpaws_cost_summary_by_service (usage_start, cluster_id, cluster_alias, product_code, product_family)
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary_by_region AS(
-                SELECT row_number() OVER(ORDER BY date(usage_start), region, availability_zone) as id,
-                    date(usage_start) as usage_start,
-                    date(usage_start) as usage_end,
+                SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, region, availability_zone) as id,
+                    usage_start as usage_start,
+                    usage_start as usage_end,
+                    cluster_id,
+                    cluster_alias,
                     region,
                     availability_zone,
                     sum(unblended_cost) as unblended_cost,
@@ -166,42 +220,46 @@ class Migration(migrations.Migration):
                 FROM reporting_ocpawscostlineitem_daily_summary
                 -- Get data for this month or last month
                 WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-                GROUP BY date(usage_start), region, availability_zone
+                GROUP BY usage_start, cluster_id, cluster_alias, region, availability_zone
             )
+            WITH DATA
             ;
 
             CREATE UNIQUE INDEX ocpaws_cost_summary_region
-            ON reporting_ocpaws_cost_summary_by_region (usage_start, region, availability_zone)
+            ON reporting_ocpaws_cost_summary_by_region (usage_start, cluster_id, cluster_alias, region, availability_zone)
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocpaws_compute_summary AS(
-                SELECT ROW_NUMBER() OVER(ORDER BY lids.usage_start, lids.instance_type) AS id,
-                    lids.usage_start,
-                    lids.usage_start as usage_end,
-                    lids.instance_type,
-                    array_agg(DISTINCT lids.resource_id) as resource_ids,
-                    count(DISTINCT resource_id) AS resource_count,
-                    sum(lids.usage_amount) as usage_amount,
-                    max(lids.unit) as unit,
-                    sum(lids.unblended_cost) as unblended_cost,
-                    sum(lids.markup_cost) as markup_cost,
-                    max(lids.currency_code) as currency_code
-                FROM acct10001.reporting_ocpawscostlineitem_daily_summary AS lids
+                SELECT ROW_NUMBER() OVER(ORDER BY usage_start, cluster_id, cluster_alias, instance_type, resource_id) AS id,
+                    usage_start,
+                    usage_start as usage_end,
+                    cluster_id,
+                    cluster_alias,
+                    instance_type,
+                    resource_id,
+                    sum(usage_amount) as usage_amount,
+                    max(unit) as unit,
+                    sum(unblended_cost) as unblended_cost,
+                    sum(markup_cost) as markup_cost,
+                    max(currency_code) as currency_code
+                FROM acct10001.reporting_ocpawscostlineitem_daily_summary
                 WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
                     AND instance_type IS NOT NULL
-                GROUP BY usage_start, instance_type
+                GROUP BY usage_start, cluster_id, cluster_alias, instance_type, resource_id
             )
             WITH DATA
             ;
 
             CREATE UNIQUE INDEX ocpaws_compute_summary
-                ON reporting_ocpaws_compute_summary (usage_start, instance_type)
+                ON reporting_ocpaws_compute_summary (usage_start, cluster_id, cluster_alias, instance_type, resource_id)
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocpaws_storage_summary AS(
-                SELECT row_number() OVER(ORDER BY date(usage_start), product_family) as id,
-                    date(usage_start) as usage_start,
-                    date(usage_start) as usage_end,
+                SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, product_family) as id,
+                    usage_start as usage_start,
+                    usage_start as usage_end,
+                    cluster_id,
+                    cluster_alias,
                     product_family,
                     sum(usage_amount) as usage_amount,
                     max(unit) as unit,
@@ -213,18 +271,21 @@ class Migration(migrations.Migration):
                 WHERE product_family LIKE '%Storage%'
                     AND unit = 'GB-Mo'
                     AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-                GROUP BY date(usage_start), product_family
+                GROUP BY usage_start, cluster_id, cluster_alias, product_family
             )
+            WITH DATA
             ;
 
             CREATE UNIQUE INDEX ocpaws_storage_summary
-            ON reporting_ocpaws_storage_summary (usage_start, product_family)
+            ON reporting_ocpaws_storage_summary (usage_start, cluster_id, cluster_alias, product_family)
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocpaws_network_summary AS(
-                SELECT row_number() OVER(ORDER BY date(usage_start), product_code) as id,
-                    date(usage_start) as usage_start,
-                    date(usage_start) as usage_end,
+                SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, product_code) as id,
+                    usage_start as usage_start,
+                    usage_start as usage_end,
+                    cluster_id,
+                    cluster_alias,
                     product_code,
                     sum(usage_amount) as usage_amount,
                     max(unit) as unit,
@@ -235,18 +296,21 @@ class Migration(migrations.Migration):
                 -- Get data for this month or last month
                 WHERE product_code IN ('AmazonVPC','AmazonCloudFront','AmazonRoute53','AmazonAPIGateway')
                     AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-                GROUP BY date(usage_start), product_code
+                GROUP BY usage_start, cluster_id, cluster_alias, product_code
             )
+            WITH DATA
             ;
 
             CREATE UNIQUE INDEX ocpaws_network_summary
-            ON reporting_ocpaws_network_summary (usage_start, product_code)
+            ON reporting_ocpaws_network_summary (usage_start, cluster_id, cluster_alias, product_code)
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocpaws_database_summary AS(
-                SELECT row_number() OVER(ORDER BY date(usage_start), product_code) as id,
-                    date(usage_start) as usage_start,
-                    date(usage_start) as usage_end,
+                SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, product_code) as id,
+                    usage_start as usage_start,
+                    usage_start as usage_end,
+                    cluster_id,
+                    cluster_alias,
                     product_code,
                     sum(usage_amount) as usage_amount,
                     max(unit) as unit,
@@ -257,12 +321,13 @@ class Migration(migrations.Migration):
                 -- Get data for this month or last month
                 WHERE product_code IN ('AmazonRDS','AmazonDynamoDB','AmazonElastiCache','AmazonNeptune','AmazonRedshift','AmazonDocumentDB')
                     AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-                GROUP BY date(usage_start), product_code
+                GROUP BY usage_start, cluster_id, cluster_alias, product_code
             )
+            WITH DATA
             ;
 
             CREATE UNIQUE INDEX ocpaws_database_summary
-            ON reporting_ocpaws_database_summary (usage_start, product_code)
+            ON reporting_ocpaws_database_summary (usage_start, cluster_id, cluster_alias, product_code)
             ;
             """
         ),

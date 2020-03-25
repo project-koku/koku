@@ -33,6 +33,7 @@ from reporting.models import OCPAWSCostLineItemProjectDailySummary
 from reporting.models import OCPAWSCostSummary
 from reporting.models import OCPAWSCostSummaryByAccount
 from reporting.models import OCPAWSCostSummaryByRegion
+from reporting.models import OCPAWSCostSummaryByService
 from reporting.models import OCPAWSDatabaseSummary
 from reporting.models import OCPAWSNetworkSummary
 from reporting.models import OCPAWSStorageSummary
@@ -493,6 +494,7 @@ class OCPAWSProviderMap(ProviderMap):
             "costs": {
                 "default": OCPAWSCostSummary,
                 "account": OCPAWSCostSummaryByAccount,
+                "service": OCPAWSCostSummaryByService,
                 "region": OCPAWSCostSummaryByRegion,
             },
             "instance_type": {"default": OCPAWSComputeSummary, "instance_type": OCPAWSComputeSummary},

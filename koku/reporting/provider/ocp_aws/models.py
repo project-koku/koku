@@ -219,6 +219,10 @@ class OCPAWSCostSummary(models.Model):
 
     usage_end = models.DateField(null=False)
 
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
+
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -227,6 +231,40 @@ class OCPAWSCostSummary(models.Model):
 
 
 class OCPAWSCostSummaryByAccount(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by account.
+
+    """
+
+    class Meta:
+        """Meta for OCPAWSCostSummaryByAccount."""
+
+        db_table = "reporting_ocpaws_cost_summary_by_account"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+
+class OCPAWSCostSummaryByService(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
 
     This table gives a daily breakdown of total cost by account.
@@ -245,9 +283,13 @@ class OCPAWSCostSummaryByAccount(models.Model):
 
     usage_end = models.DateField(null=False)
 
-    usage_account_id = models.CharField(max_length=50, null=False)
+    cluster_id = models.CharField(max_length=50, null=True)
 
-    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+
+    product_code = models.CharField(max_length=50, null=False)
+
+    product_family = models.CharField(max_length=150, null=True)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
@@ -264,7 +306,7 @@ class OCPAWSCostSummaryByRegion(models.Model):
     """
 
     class Meta:
-        """Meta for OCPAWSCostSummaryByService."""
+        """Meta for OCPAWSCostSummaryByRegion."""
 
         db_table = "reporting_ocpaws_cost_summary_by_region"
         managed = False
@@ -274,6 +316,10 @@ class OCPAWSCostSummaryByRegion(models.Model):
     usage_start = models.DateField(null=False)
 
     usage_end = models.DateField(null=False)
+
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
 
     region = models.CharField(max_length=50, null=True)
 
@@ -305,11 +351,13 @@ class OCPAWSComputeSummary(models.Model):
 
     usage_end = models.DateField(null=False)
 
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
+
     instance_type = models.CharField(max_length=50, null=True)
 
-    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
-
-    resource_count = models.IntegerField(null=True)
+    resource_id = models.CharField(max_length=253, null=True)
 
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
@@ -340,6 +388,10 @@ class OCPAWSStorageSummary(models.Model):
     usage_start = models.DateField(null=False)
 
     usage_end = models.DateField(null=False)
+
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
 
     product_family = models.CharField(max_length=150, null=True)
 
@@ -373,6 +425,10 @@ class OCPAWSNetworkSummary(models.Model):
 
     usage_end = models.DateField(null=False)
 
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
+
     product_code = models.CharField(max_length=50, null=False)
 
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -404,6 +460,10 @@ class OCPAWSDatabaseSummary(models.Model):
     usage_start = models.DateField(null=False)
 
     usage_end = models.DateField(null=False)
+
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
 
     product_code = models.CharField(max_length=50, null=False)
 
