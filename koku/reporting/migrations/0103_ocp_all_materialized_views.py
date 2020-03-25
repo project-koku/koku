@@ -5,7 +5,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0101_ocpenabledtagkeys"), ("reporting_common", "0021_source_service_product")]
+    dependencies = [("reporting", "0102_auto_20200228_1812"), ("reporting_common", "0021_source_service_product")]
 
     operations = [
         # Add index to usage_start on 2 materialized views for ocp_all
