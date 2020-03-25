@@ -375,4 +375,4 @@ def clean_volume():
 def crawl_org_units():
     """Crawl org units."""
     LOG.info('#' * 120)
-    LOG.info('this is doing stuff')
+    LOG.info('this is doing stuff at: %s' % datetime.now().strftime("%H:%M:%S"))
