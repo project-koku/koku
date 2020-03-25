@@ -19,7 +19,6 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.cloud_accounts.tests.cloud_account_common_test_utilities import CloudAccountCommonTestUtilities
 from api.iam.test.iam_test_case import IamTestCase
 
 
@@ -28,7 +27,7 @@ class CloudAccountViewTest(IamTestCase):
 
     def testCloudAccountViewSet(self):
         """Test that /cloud_accounts endpoint returns 200 HTTP_OK."""
-        url = reverse("cloud_accounts-list")
+        url = reverse("cloud-accounts")
         client = APIClient()
 
         response = client.get(url, **self.headers)
@@ -40,29 +39,124 @@ class CloudAccountViewTest(IamTestCase):
 
         Adds an account to CloudAccounts.
         """
-        CloudAccountCommonTestUtilities.create_cloud_account(self)
-
-        url = reverse("cloud_accounts-list")
+        url = reverse("cloud-accounts")
         client = APIClient()
 
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def testCloudAccountName(self):
+    def testCloudAccountPagination(self):
         """
         Test contents of cloud account.
 
         This test creates a cloud account with test values.
         """
-        CloudAccountCommonTestUtilities.create_cloud_account(self)
-
-        url = reverse("cloud_accounts-list")
+        url = reverse("cloud-accounts")
         client = APIClient()
-        response = client.get(url + "?name=TEST_AWS_ACCOUNT_ID", **self.headers)
-        actualName = response.data["data"][0]["name"]
+        # actual_name = response.data["data"]["name"]
+        actual_name = client.get(url, **self.headers).data["data"][0]["name"]
+        expected_name = "AWS"
+        self.assertEqual(expected_name, actual_name)
+        expected_value = client.get(url, **self.headers).data["data"][0]["value"]
+        expected_value = "589173575009"
+        self.assertEqual(expected_value, expected_value)
+        second_page_name = client.get(url + "?limit=1&offset=1", **self.headers).data["data"][0]["name"]
+        self.assertEqual("AWS_LOCAL", second_page_name)
 
-        expectedName = "TEST_AWS_ACCOUNT_ID"
-        self.assertEqual(expectedName, actualName)
-        actualValue = response.data["data"][0]["value"]
-        expectedValue = "TEST_12345678910"
-        self.assertEqual(expectedValue, actualValue)
+    def testCloudAccountPagination2(self):
+        """
+        Test contents of cloud account.
+
+        This test creates a cloud account with test values.
+        """
+        url = reverse("cloud-accounts")
+        client = APIClient()
+        # actual_name = response.data["data"]["name"]
+        actual_name = client.get(url, **self.headers).data["data"][0]["name"]
+        expected_name = "AWS"
+        self.assertEqual(expected_name, actual_name)
+        expected_value = client.get(url, **self.headers).data["data"][0]["value"]
+        expected_value = "589173575009"
+        self.assertEqual(expected_value, expected_value)
+        second_page_name = client.get(url + "?offset=-1", **self.headers).data["data"][0]["name"]
+        self.assertEqual("AWS", second_page_name)
+
+    def testLimitGreaterThanTotalSize(self):
+        """
+        Test contents of cloud account.
+
+        Test that when limit is greater than the number of cloud accounts, return all cloud accounts.
+        """
+        url = reverse("cloud-accounts")
+        client = APIClient()
+        actual_name = client.get(url, **self.headers).data["data"][0]["name"]
+        expected_name = "AWS"
+        expected_value = "589173575009"
+        self.assertEqual(expected_value, expected_value)
+        self.assertEqual(expected_name, actual_name)
+        actual_name = client.get(url, **self.headers).data["data"][1]["name"]
+        expected_name = "AWS_LOCAL"
+        self.assertEqual(expected_value, expected_value)
+        self.assertEqual(expected_name, actual_name)
+
+    def testPage1(self):
+        """
+        Test contents of cloud account.
+
+        Test that when limit is greater than the number of cloud accounts, return all cloud accounts.
+        """
+        url = reverse("cloud-accounts")
+        client = APIClient()
+        actual_name = client.get(url + "?page=0&offset=1", **self.headers).data["data"][0]["name"]
+        expected_name = "AWS_LOCAL"
+        self.assertEqual(expected_name, actual_name)
+
+    def testNegativeLimit(self):
+        """
+        Test contents of cloud account.
+
+        A negative limit should default to limit=0
+        """
+        url = reverse("cloud-accounts")
+        client = APIClient()
+        actual_name = client.get(url + "?limit=-1", **self.headers).data["data"][0]["name"]
+        expected_name = "AWS"
+        expected_value = "589173575009"
+        self.assertEqual(expected_value, expected_value)
+        self.assertEqual(expected_name, actual_name)
+        actual_name = client.get(url, **self.headers).data["data"][1]["name"]
+
+    def testBigLimit(self):
+        """
+        Test contents of cloud account.
+
+        A bigger limit than len(data) gives all the data.
+        """
+        url = reverse("cloud-accounts")
+        client = APIClient()
+        actual_name = client.get(url + "?limit=50", **self.headers).data["data"][0]["name"]
+        expected_name = "AWS"
+        expected_value = "589173575009"
+        self.assertEqual(expected_value, expected_value)
+        self.assertEqual(expected_name, actual_name)
+        actual_name = client.get(url, **self.headers).data["data"][1]["name"]
+
+    def testPage2(self):
+        """
+        Test accessing second page cloud account.
+        """
+        url = reverse("cloud-accounts")
+        client = APIClient()
+        actual_name = client.get(url + "?limit=1&page=1", **self.headers).data["data"][0]["name"]
+        expected_name = "AWS_LOCAL"
+        expected_value = "589173575009"
+        self.assertEqual(expected_value, expected_value)
+        self.assertEqual(expected_name, actual_name)
+        actual_name = client.get(url, **self.headers).data["data"][1]["name"]
+
+    def testEmptyResponse(self):
+        """Test accessing an empty page."""
+        url = reverse("cloud-accounts")
+        client = APIClient()
+        data = client.get(url + "?limit=1&page=2", **self.headers).data["data"]
+        self.assertEqual([], data)
