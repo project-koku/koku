@@ -124,11 +124,17 @@ if not settings.DEVELOPMENT:
     }
 
 
-# Beat used to crawl the organizational units
-CRAWL_ORG_UNITS_CROWNTAB = crontab(day_of_week="*")
+# Beat used to crawl the account hierarchy
+CRAWL_ACCOUNT_HIERARCHY_UTC_TIME = ENVIRONMENT.get_value("CRAWL_ACCOUNT_HIERARCHY_UTC_TIME", default="00:00")
+CRAWL_HOUR, CRAWL_MINUTE = CRAWL_ACCOUNT_HIERARCHY_UTC_TIME.split(":")
+if not settings.DEVELOPMENT:
+    CRAWL_ACCOUNT_HIERARCHY_CROWNTAB = crontab(hour=int(CRAWL_HOUR), minute=int(CRAWL_MINUTE))
+else:
+    DEV_CRAWL_ACCOUNT_HIERARCHY_MINUTE_INTERVAL = ENVIRONMENT.get_value("DEV_CRAWL_ACCOUNT_HIERARCHY_MINUTE_INTERVAL", default="0")
+    CRAWL_ACCOUNT_HIERARCHY_CROWNTAB = crontab(minute=DEV_CRAWL_ACCOUNT_HIERARCHY_MINUTE_INTERVAL)
 app.conf.beat_schedule["crawl_org_units"] = {
     "task": "masu.celery.tasks.crawl_org_units",
-    "schedule": CRAWL_ORG_UNITS_CROWNTAB,
+    "schedule": CRAWL_ACCOUNT_HIERARCHY_CROWNTAB,
 }
 
 

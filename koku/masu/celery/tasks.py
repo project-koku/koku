@@ -50,7 +50,7 @@ from koku.celery import app
 from masu.celery.export import table_export_settings
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.accounts.labels.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
+from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
 from masu.external.date_accessor import DateAccessor
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import vacuum_schema
@@ -374,16 +374,27 @@ def clean_volume():
     LOG.info("The following files were deleted: %s", deleted_files)
 
 
-@app.task(name="masu.celery.tasks.crawl_org_units", queue_name="crawl_org_units")
-def crawl_org_units():
-    """Crawl org units."""
+@app.task(name="masu.celery.tasks.crawl_account_hierarchy", queue_name="crawl_account_hierarchy")
+def crawl_account_hierarchy():
+    """Crawl top level accounts to discover hierarchy."""
     _, polling_accounts = Orchestrator.get_accounts()
-    LOG.info("AWS organizational unit crawler found %s accounts to scan" % len(polling_accounts))
+    LOG.info("Account hierarchy crawler found %s accounts to scan" % len(polling_accounts))
+    processed = 0
+    skipped = 0
     for account in polling_accounts:
-        if account.get("provider_type") in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            auth_credential = account.get("authentication")
-            act_schema = account.get("schema_name")
-            LOG.info("Starting AWS organizational unit crawler for provider_uuid (%s)" % account.get("provider_uuid"))
-            crawler = AWSOrgUnitCrawler(auth_credential, act_schema)
-            ou_act_tree = crawler.crawl_org_for_acts()
-            LOG.info("Finished AWS organizational unit crawler: %s nodes found in organizational tree." % (str(len(ou_act_tree))))
+        crawler = None
+
+        # Look for a known crawler class to handle this provider
+        if account.get("provider_type") == Provider.PROVIDER_AWS:
+            crawler = AWSOrgUnitCrawler(account)
+
+        if crawler:
+            LOG.info("Starting account hierarchy crawler for type %s with provider_uuid (%s)" % (
+                account.get('provider_type'), account.get("provider_uuid")))
+            crawler.crawl_account_hierarchy()
+            processed += 1
+        else:
+            LOG.info("No known crawler for account %s of type %s" %
+                     (account.get("provider_uuid"), account.get("provider_type")))
+            skipped += 1
+    LOG.info("Account hierarchy crawler finished. %s processed and %s skipped" % (processed,skipped))

@@ -770,6 +770,8 @@ class AWSOrganizationalUnit(models.Model):
 
     org_unit_name = models.CharField(max_length=50, null=False, unique=False)
 
+    org_unit_id = models.CharField(max_length=50, null=False, unique=False)
+
     org_unit_path = models.TextField(null=False, unique=False)
 
     account_id = models.CharField(max_length=50, null=True, unique=False)

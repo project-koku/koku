@@ -20,22 +20,23 @@ import logging
 
 from masu.util.aws import common as utils
 from masu.util.aws.common import get_assume_role_session
+from masu.external.accounts.hierarchy.account_crawler import AccountCrawler
 
 LOG = logging.getLogger(__name__)
 
 
-class AWSOrgUnitCrawler:
+class AWSOrgUnitCrawler(AccountCrawler):
     """AWS org unit crawler."""
 
-    def __init__(self, auth_credential, schema):
+    def __init__(self, account):
         """
         Object to crawl the org unit structure for accounts to org units.
 
         Args:
             role_arn (String): AWS IAM RoleArn
         """
-        self._auth_cred = auth_credential
-        self._schema = schema
+        super().__init__(account)
+        self._auth_cred = self.account.get("authentication")
         self.client = self.get_session()
         self.key = "koku_path"
 
@@ -100,7 +101,10 @@ class AWSOrgUnitCrawler:
         LOG.info("Obtained the root identifier: %s" % (root_ou["Id"]))
         return root_ou
 
-    def crawl_org_for_acts(self, ou=None):
+    def crawl_account_hierarchy(self):
+        self._crawl_org_for_acts()
+
+    def _crawl_org_for_acts(self, ou=None):
         """
         Recursively crawls the org units and accounts.
 
@@ -117,6 +121,6 @@ class AWSOrgUnitCrawler:
                 sub_ou[self.key] = ou[self.key] + ("&%s" % sub_ou["Id"])
             else:
                 sub_ou[self.key] = ou["Id"] + ("&%s" % sub_ou["Id"])
-            results.extend(self.crawl_org_for_acts(sub_ou))
+            results.extend(self._crawl_org_for_acts(sub_ou))
         results.extend(self.get_accounts_per_id(ou["Id"], ou[self.key]))
         return results
