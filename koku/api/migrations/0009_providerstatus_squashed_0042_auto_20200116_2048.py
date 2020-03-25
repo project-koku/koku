@@ -234,6 +234,5 @@ class Migration(migrations.Migration):
                 null=True, on_delete=django.db.models.deletion.SET_NULL, to="api.ProviderInfrastructureMap"
             ),
         ),
-        migrations.RunPython(code=seed_cost_management_aws_account_id),
         migrations.RunPython(code=load_openshift_metric_map),
     ]
