@@ -397,6 +397,9 @@ SOURCES_CLIENT_BASE_URL = "http://{}:{}{}/v1".format(
 # Prometheus pushgateway hostname:port
 PROMETHEUS_PUSHGATEWAY = ENVIRONMENT.get_value("PROMETHEUS_PUSHGATEWAY", default="localhost:9091")
 
+# Flag for automatic data ingest on Provider create
+AUTO_DATA_INGEST = ENVIRONMENT.get_value("AUTO_DATA_INGEST", default=True)
+
 # Demo Accounts list
 DEMO_ACCOUNTS = {}
 try:
