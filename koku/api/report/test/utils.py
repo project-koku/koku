@@ -73,13 +73,14 @@ class NiseDataLoader:
     def load_openshift_data(self, customer, static_data_file, cluster_id):
         """Load OpenShift data into the database."""
         provider_type = Provider.PROVIDER_OCP
-        provider = baker.make(
-            "Provider",
-            type=provider_type,
-            authentication__provider_resource_name=cluster_id,
-            billing_source__bucket="",
-            customer=customer,
-        )
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = baker.make(
+                "Provider",
+                type=provider_type,
+                authentication__provider_resource_name=cluster_id,
+                billing_source__bucket="",
+                customer=customer,
+            )
         template, static_data_path = self.prepare_template(provider_type, static_data_file)
         options = {
             "static_report_file": static_data_path,
@@ -128,13 +129,14 @@ class NiseDataLoader:
             provider_resource_name = "arn:aws:iam::999999999999:role/CostManagement"
         nise_provider_type = provider_type.replace("-local", "")
         report_name = "Test"
-        provider = baker.make(
-            "Provider",
-            type=provider_type,
-            authentication__provider_resource_name=provider_resource_name,
-            customer=customer,
-            billing_source__bucket="test-bucket",
-        )
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = baker.make(
+                "Provider",
+                type=provider_type,
+                authentication__provider_resource_name=provider_resource_name,
+                customer=customer,
+                billing_source__bucket="test-bucket",
+            )
         template, static_data_path = self.prepare_template(provider_type, static_data_file)
         options = {
             "static_report_file": static_data_path,
@@ -191,13 +193,14 @@ class NiseDataLoader:
         if data_source is None:
             data_source = {"resource_group": "resourcegroup1", "storage_account": "storageaccount1"}
 
-        provider = baker.make(
-            "Provider",
-            type=provider_type,
-            authentication__credentials=credentials,
-            customer=customer,
-            billing_source__data_source=data_source,
-        )
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = baker.make(
+                "Provider",
+                type=provider_type,
+                authentication__credentials=credentials,
+                customer=customer,
+                billing_source__data_source=data_source,
+            )
         template, static_data_path = self.prepare_template(provider_type, static_data_file)
         options = {
             "static_report_file": static_data_path,
