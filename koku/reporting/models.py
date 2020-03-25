@@ -43,7 +43,6 @@ from reporting.provider.aws.models import AWSStorageSummaryByAccount
 from reporting.provider.aws.models import AWSStorageSummaryByRegion
 from reporting.provider.aws.models import AWSStorageSummaryByService
 from reporting.provider.aws.models import AWSTagsSummary
-from reporting.provider.azure.models import AWSNetworkSummary
 from reporting.provider.azure.models import AzureComputeSummary
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDaily
@@ -55,6 +54,7 @@ from reporting.provider.azure.models import AzureCostSummaryByLocation
 from reporting.provider.azure.models import AzureCostSummaryByService
 from reporting.provider.azure.models import AzureDatabaseSummary
 from reporting.provider.azure.models import AzureMeter
+from reporting.provider.azure.models import AzureNetworkSummary
 from reporting.provider.azure.models import AzureStorageSummary
 from reporting.provider.azure.models import AzureTagsSummary
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
@@ -102,7 +102,7 @@ AZURE_MATERIALIZED_VIEWS = (
     AzureCostSummaryByService,
     AzureComputeSummary,
     AzureStorageSummary,
-    AWSNetworkSummary,
+    AzureNetworkSummary,
     AzureDatabaseSummary,
 )
 

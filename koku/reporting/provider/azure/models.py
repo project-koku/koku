@@ -291,7 +291,7 @@ class AzureStorageSummary(models.Model):
     currency = models.CharField(max_length=10, null=False, default="USD")
 
 
-class AWSNetworkSummary(models.Model):
+class AzureNetworkSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
 
     This table gives a daily breakdown of network usage.
