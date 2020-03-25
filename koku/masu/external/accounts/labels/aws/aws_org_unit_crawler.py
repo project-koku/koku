@@ -16,8 +16,12 @@
 #
 """AWS org unit crawler."""
 # from tenant_schemas.utils import schema_context
+import logging
+
 from masu.util.aws import common as utils
 from masu.util.aws.common import get_assume_role_session
+
+LOG = logging.getLogger(__name__)
 
 
 class AWSOrgUnitCrawler:
@@ -44,6 +48,7 @@ class AWSOrgUnitCrawler:
         """
         session = get_assume_role_session(utils.AwsArn(self._auth_cred))
         session_client = session.client("organizations")
+        LOG.info("Starting aws organizations session for crawler.")
         return session_client
 
     def depaginate(self, function, resource_key, **kwargs):
@@ -76,6 +81,7 @@ class AWSOrgUnitCrawler:
         [1] https://docs.aws.amazon.com/cli/latest/reference/organizations/list-accounts-for-parent.html
         [2] https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/organizations.html
         """
+        LOG.info("Obtaining accounts for organizational unit: %s" % parent_id)
         results = []
         child_accounts = self.depaginate(
             function=self.client.list_accounts_for_parent, resource_key="Accounts", ParentId=parent_id
@@ -91,6 +97,7 @@ class AWSOrgUnitCrawler:
         """
         root_ou = self.client.list_roots()["Roots"][0]
         root_ou[self.key] = root_ou["Id"]
+        LOG.info("Obtained the root identifier: %s" % (root_ou["Id"]))
         return root_ou
 
     def crawl_org_for_acts(self, ou=None):
@@ -105,6 +112,7 @@ class AWSOrgUnitCrawler:
         results = [ou]
         ou_pager = self.client.get_paginator("list_organizational_units_for_parent")
         for sub_ou in ou_pager.paginate(ParentId=ou["Id"]).build_full_result().get("OrganizationalUnits"):
+            LOG.info("Organizational unit found during crawl: %s" % (sub_ou["Id"]))
             if ou.get(self.key):
                 sub_ou[self.key] = ou[self.key] + ("&%s" % sub_ou["Id"])
             else:
