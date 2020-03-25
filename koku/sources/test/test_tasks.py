@@ -69,7 +69,7 @@ class SourcesTasksTest(TestCase):
         self.aws_source_info = {
             "source_id": 1,
             "source_uuid": uuid4(),
-            "account_id": "acct10001",
+            "account_id": "acct12345",
             "offset": 1,
             "auth_header": Config.SOURCES_FAKE_HEADER,
             "name": "FakeAWS",
@@ -81,7 +81,7 @@ class SourcesTasksTest(TestCase):
         self.azure_source_info = {
             "source_id": 2,
             "source_uuid": uuid4(),
-            "account_id": "acct10001",
+            "account_id": "acct12345",
             "offset": 2,
             "auth_header": Config.SOURCES_FAKE_HEADER,
             "name": "FakeAzure",
@@ -90,8 +90,9 @@ class SourcesTasksTest(TestCase):
         self.azure_source = Sources.objects.create(**self.azure_source_info)
         self.azure_source.save()
 
+    @patch("masu.celery.tasks.check_report_updates")
     @patch("sources.tasks.set_status_for_source")
-    def test_create_with_complete_source(self, mock_status):
+    def test_create_with_complete_source(self, mock_status, __):
         """Test that provider is created when source is complete and source status is saved."""
         self.aws_source.billing_source = BILLING_SOURCES.get(Provider.PROVIDER_AWS)
         self.aws_source.authentication = AUTHENTICATIONS.get(Provider.PROVIDER_AWS)
@@ -125,8 +126,9 @@ class SourcesTasksTest(TestCase):
         with self.assertLogs(logger="sources.tasks", level="ERROR"):
             create_or_update_provider(3)
 
+    @patch("masu.celery.tasks.check_report_updates")
     @patch("sources.tasks.set_status_for_source")
-    def test_create_with_complete_source_validation_error(self, mock_status):
+    def test_create_with_complete_source_validation_error(self, mock_status, __):
         """Test that provider is created when source is complete and source status is saved."""
         self.aws_source.billing_source = BILLING_SOURCES.get(Provider.PROVIDER_AWS)
         self.aws_source.authentication = AUTHENTICATIONS.get(Provider.PROVIDER_AWS)
@@ -138,9 +140,10 @@ class SourcesTasksTest(TestCase):
         self.assertEqual(source.status.get("availability_status"), "unavailable")
 
     @patch.object(settings, "DEVELOPMENT", False)
+    @patch("masu.celery.tasks.check_report_updates")
     @patch("sources.tasks.set_status_for_source.delay", side_effect=MockStatus)
     @patch("sources.sources_http_client.SourcesHTTPClient.set_source_status")
-    def test_set_status(self, mock_call, mock_status):
+    def test_set_status(self, mock_call, mock_status, __):
         """Test that set status is called when source exists."""
         self.aws_source.billing_source = BILLING_SOURCES.get(Provider.PROVIDER_AWS)
         self.aws_source.authentication = AUTHENTICATIONS.get(Provider.PROVIDER_AWS)

@@ -75,7 +75,7 @@ class AWSCostModelCostUpdaterTest(MasuTestCase):
 
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 
-    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup")
+    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.markup")
     def test_update_summary_cost_model_costs(self, mock_markup):
         """Test to verify AWS derived cost summary is calculated."""
         markup = {"value": 10, "unit": "percent"}
