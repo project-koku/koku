@@ -50,6 +50,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         """
         self._mapper = OCPProviderMap(provider=self.provider, report_type=parameters.report_type)
+        self._report_type = parameters.report_type
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
 
@@ -84,7 +85,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
     def query_table(self):
         """Return the database table to query against."""
         query_table = self._mapper.query_table
-        report_type = self.parameters.report_type
+        report_type = self._report_type if self._report_type else self.parameters.report_type
         report_group = "default"
 
         excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
