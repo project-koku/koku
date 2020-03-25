@@ -27,13 +27,13 @@ from dateutil.rrule import rrule
 from django.db import connection
 from django.db.models import DecimalField
 from django.db.models import F
-from django.db.models import Max
-from django.db.models import Min
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
+from api.metrics.models import CostModelMetricsMap
+from koku.database import JSONBBuildObject
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -597,35 +597,34 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
-    def populate_markup_cost(self, infra_provider_markup, ocp_markup, cluster_id):
+    def populate_markup_cost(self, markup, start_date, end_date, cluster_id):
         """Set markup cost for OCP including infrastructure cost markup."""
         with schema_context(self.schema):
-            OCPUsageLineItemDailySummary.objects.filter(cluster_id=cluster_id).update(
-                markup_cost=(
-                    (
-                        Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField()))
-                    )
-                    * ocp_markup
-                    + (Coalesce(F("infra_cost"), Value(0, output_field=DecimalField()))) * infra_provider_markup
-                )
-            )
-            OCPUsageLineItemDailySummary.objects.filter(cluster_id=cluster_id).update(
-                project_markup_cost=(
-                    (
-                        Coalesce(F("pod_charge_cpu_core_hours"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("pod_charge_memory_gigabyte_hours"), Value(0, output_field=DecimalField()))
-                        + Coalesce(F("persistentvolumeclaim_charge_gb_month"), Value(0, output_field=DecimalField()))
-                    )
-                    * ocp_markup
-                    + (Coalesce(F("project_infra_cost"), Value(0, output_field=DecimalField())))
-                    * infra_provider_markup
-                )
+            OCPUsageLineItemDailySummary.objects.filter(
+                cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date
+            ).update(
+                infrastructure_markup_cost=(
+                    (Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))) * markup
+                ),
+                infrastructure_project_markup_cost=(
+                    (Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))) * markup
+                ),
             )
 
+    def get_distinct_nodes(self, start_date, end_date, cluster_id):
+        """Return a list of nodes for a cluster between given dates."""
+        with schema_context(self.schema):
+            unique_nodes = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=start_date, usage_start__lt=end_date, cluster_id=cluster_id, node__isnull=False
+                )
+                .values_list("node")
+                .distinct()
+            )
+            return [node[0] for node in unique_nodes]
+
     # pylint: disable=too-many-arguments
-    def populate_monthly_cost(self, node_cost, start_date, end_date, cluster_id, cluster_alias):
+    def populate_monthly_cost(self, cost_type, rate_type, rate, start_date, end_date, cluster_id, cluster_alias):
         """
         Populate the monthly cost of a customer.
 
@@ -639,91 +638,87 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         """
         if isinstance(start_date, str):
-            start_date = parse(start_date)
+            start_date = parse(start_date).date()
         if isinstance(end_date, str):
-            end_date = parse(end_date)
-        if not start_date:
-            # If start_date is not provided, recalculate from the first month
-            start_date = OCPUsageLineItemDailySummary.objects.aggregate(Min("usage_start"))["usage_start__min"]
-        if not end_date:
-            # If end_date is not provided, recalculate till the latest month
-            end_date = OCPUsageLineItemDailySummary.objects.aggregate(Max("usage_end"))["usage_end__max"]
+            end_date = parse(end_date).date()
 
         # usage_start, usage_end are date types
         first_month = datetime.datetime(*start_date.replace(day=1).timetuple()[:3]).replace(tzinfo=pytz.UTC)
         end_date = datetime.datetime(*end_date.timetuple()[:3]).replace(hour=23, minute=59, second=59, tzinfo=pytz.UTC)
 
-        with schema_context(self.schema):
-            # Calculate monthly cost for every month
-            for curr_month in rrule(freq=MONTHLY, until=end_date, dtstart=first_month):
-                first_curr_month, first_next_month = month_date_range_tuple(curr_month)
-                LOG.info("Populating Monthly node cost from %s to %s.", first_curr_month, first_next_month)
-
-                unique_nodes = (
-                    OCPUsageLineItemDailySummary.objects.filter(
-                        usage_start__gte=first_curr_month.date(),
-                        usage_start__lt=first_next_month.date(),
-                        cluster_id=cluster_id,
-                        node__isnull=False,
+        # Calculate monthly cost for each month from start date to end date
+        for curr_month in rrule(freq=MONTHLY, until=end_date, dtstart=first_month):
+            first_curr_month, first_next_month = month_date_range_tuple(curr_month)
+            LOG.info("Populating monthly cost from %s to %s.", first_curr_month, first_next_month)
+            if cost_type == "Node":
+                if rate is None:
+                    self.remove_monthly_cost(first_curr_month, first_next_month, cluster_id, cost_type)
+                else:
+                    self.upsert_monthly_node_cost_line_item(
+                        first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate
                     )
-                    .values_list("node")
-                    .distinct()
-                )
 
-                report_period = self.get_usage_period_by_dates_and_cluster(
-                    first_curr_month, first_next_month, cluster_id
-                )
-
-                for node in unique_nodes:
-                    LOG.info("Node (%s) has a monthly cost of %s.", node[0], node_cost)
-                    # delete node cost per month
-                    OCPUsageLineItemDailySummary.objects.filter(
-                        usage_start=first_curr_month.date(),
-                        usage_end=first_curr_month.date(),
-                        monthly_cost=node_cost,
+    def upsert_monthly_node_cost_line_item(
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, node_cost
+    ):
+        """Update or insert a daily summary line item for node cost."""
+        unique_nodes = self.get_distinct_nodes(start_date, end_date, cluster_id)
+        report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
+        with schema_context(self.schema):
+            for node in unique_nodes:
+                line_item = OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start=start_date,
+                    usage_end=start_date,
+                    report_period=report_period,
+                    cluster_id=cluster_id,
+                    cluster_alias=cluster_alias,
+                    monthly_cost_type="Node",
+                    node=node,
+                ).first()
+                if not line_item:
+                    line_item = OCPUsageLineItemDailySummary(
+                        usage_start=start_date,
+                        usage_end=start_date,
                         report_period=report_period,
                         cluster_id=cluster_id,
                         cluster_alias=cluster_alias,
-                        monthly_cost__isnull=False,
-                        node=node[0],
-                    ).delete()
-                    # add node cost per month
-                    OCPUsageLineItemDailySummary.objects.create(
-                        usage_start=first_curr_month.date(),
-                        usage_end=first_curr_month.date(),
-                        monthly_cost=node_cost,
-                        report_period=report_period,
-                        cluster_id=cluster_id,
-                        cluster_alias=cluster_alias,
-                        node=node[0],
+                        monthly_cost_type="Node",
+                        node=node,
                     )
+                if rate_type == CostModelMetricsMap.INFRASTRUCTURE_COST_TYPE:
+                    LOG.info("Node (%s) has a monthly infrastructure cost of %s.", node, node_cost)
+                    line_item.infrastructure_monthly_cost = node_cost
+                elif rate_type == CostModelMetricsMap.SUPPLEMENTARY_COST_TYPE:
+                    LOG.info("Node (%s) has a monthly supplemenarty cost of %s.", node, node_cost)
+                    line_item.supplementary_monthly_cost = node_cost
+                line_item.save()
 
-    def remove_monthly_cost(self):
-        """Delete all the monthly costs of a customer."""
-        # start_date should be the first month this ocp was used
-        with schema_context(self.schema):
-            start_date = OCPUsageLineItemDailySummary.objects.aggregate(Min("usage_start"))["usage_start__min"]
-            # If end_date is not provided, recalculate till the latest month
-            end_date = OCPUsageLineItemDailySummary.objects.aggregate(Max("usage_end"))["usage_end__max"]
+    def remove_monthly_cost(self, start_date, end_date, cluster_id, cost_type):
+        """Delete all monthly costs of a specific type over a date range."""
+        report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
 
-        if start_date is None or end_date is None:
-            LOG.info("No monthly costs to remove from %s.", self.schema)
-            return
+        filters = {
+            "usage_start": start_date.date(),
+            "usage_end": start_date.date(),
+            "report_period": report_period,
+            "cluster_id": cluster_id,
+            "monthly_cost_type": cost_type,
+        }
 
-        LOG.info("Removing monthly costs from %s to %s.", start_date, end_date)
-        # usage_start, usage_end are date types
-        first_month = datetime.datetime(*start_date.replace(day=1).timetuple()[:3]).replace(tzinfo=pytz.UTC)
-        end_date = datetime.datetime(*end_date.timetuple()[:3]).replace(hour=23, minute=59, second=59, tzinfo=pytz.UTC)
-
-        with schema_context(self.schema):
-            # Calculate monthly cost for every month
-            for curr_month in rrule(freq=MONTHLY, until=end_date, dtstart=first_month):
-                first_curr_month, _ = month_date_range_tuple(curr_month)
-
-                # Remove existing monthly costs
-                OCPUsageLineItemDailySummary.objects.filter(
-                    usage_start=first_curr_month.date(), monthly_cost__isnull=False
-                ).delete()
+        for rate_type, __ in CostModelMetricsMap.COST_TYPE_CHOICES:
+            cost_filter = f"{rate_type.lower()}_monthly_cost__isnull"
+            filters.update({cost_filter: False})
+            LOG.info(
+                "Removing %s %s monthly costs \n\tfor %s \n\tfrom %s - %s.",
+                cost_type,
+                rate_type,
+                cluster_id,
+                start_date,
+                end_date,
+            )
+            with schema_context(self.schema):
+                OCPUsageLineItemDailySummary.objects.filter(**filters).all().delete()
+            filters.pop(cost_filter)
 
     def populate_node_label_line_item_daily_table(self, start_date, end_date, cluster_id):
         """Populate the daily node label aggregate of line items table.
@@ -757,3 +752,76 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         }
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
         self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
+
+    def populate_usage_costs(self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id):
+        """Update the reporting_ocpusagelineitem_daily_summary table with usage costs."""
+        # Cast start_date and end_date to date object, if they aren't already
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
+
+        OCPUsageLineItemDailySummary.objects.filter(
+            cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date
+        ).update(
+            infrastructure_usage_cost=JSONBBuildObject(
+                Value("cpu"),
+                Coalesce(
+                    Value(infrastructure_rates.get("cpu_core_usage_per_hour", 0), output_field=DecimalField())
+                    * Coalesce(F("pod_usage_cpu_core_hours"), Value(0), output_field=DecimalField())
+                    + Value(infrastructure_rates.get("cpu_core_request_per_hour", 0), output_field=DecimalField())
+                    * Coalesce(F("pod_request_cpu_core_hours"), Value(0), output_field=DecimalField()),
+                    0,
+                    output_field=DecimalField(),
+                ),
+                Value("memory"),
+                Coalesce(
+                    Value(infrastructure_rates.get("memory_gb_usage_per_hour", 0), output_field=DecimalField())
+                    * Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0), output_field=DecimalField())
+                    + Value(infrastructure_rates.get("memory_gb_request_per_hour", 0), output_field=DecimalField())
+                    * Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0), output_field=DecimalField()),
+                    0,
+                    output_field=DecimalField(),
+                ),
+                Value("storage"),
+                Coalesce(
+                    Value(infrastructure_rates.get("storage_gb_usage_per_month", 0), output_field=DecimalField())
+                    * Coalesce(F("persistentvolumeclaim_usage_gigabyte_months"), Value(0), output_field=DecimalField())
+                    + Value(infrastructure_rates.get("storage_gb_request_per_month", 0), output_field=DecimalField())
+                    * Coalesce(F("volume_request_storage_gigabyte_months"), Value(0), output_field=DecimalField()),
+                    0,
+                    output_field=DecimalField(),
+                ),
+            ),
+            supplementary_usage_cost=JSONBBuildObject(
+                Value("cpu"),
+                Coalesce(
+                    Value(supplementary_rates.get("cpu_core_usage_per_hour", 0), output_field=DecimalField())
+                    * Coalesce(F("pod_usage_cpu_core_hours"), Value(0), output_field=DecimalField())
+                    + Value(supplementary_rates.get("cpu_core_request_per_hour", 0), output_field=DecimalField())
+                    * Coalesce(F("pod_request_cpu_core_hours"), Value(0), output_field=DecimalField()),
+                    0,
+                    output_field=DecimalField(),
+                ),
+                Value("memory"),
+                Coalesce(
+                    Value(supplementary_rates.get("memory_gb_usage_per_hour", 0), output_field=DecimalField())
+                    * Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0), output_field=DecimalField())
+                    + Value(supplementary_rates.get("memory_gb_request_per_hour", 0), output_field=DecimalField())
+                    * Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0), output_field=DecimalField()),
+                    0,
+                    output_field=DecimalField(),
+                ),
+                Value("storage"),
+                Coalesce(
+                    Value(supplementary_rates.get("storage_gb_usage_per_month", 0), output_field=DecimalField())
+                    * Coalesce(F("persistentvolumeclaim_usage_gigabyte_months"), Value(0), output_field=DecimalField())
+                    + Value(supplementary_rates.get("storage_gb_request_per_month", 0), output_field=DecimalField())
+                    * Coalesce(F("volume_request_storage_gigabyte_months"), Value(0), output_field=DecimalField()),
+                    0,
+                    output_field=DecimalField(),
+                ),
+            ),
+        )

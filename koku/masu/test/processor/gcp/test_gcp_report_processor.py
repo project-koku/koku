@@ -4,6 +4,7 @@ import shutil
 import tempfile
 import uuid
 from datetime import datetime
+from unittest.mock import patch
 
 import numpy as np
 import pytz
@@ -54,15 +55,16 @@ class GCPReportProcessorTest(MasuTestCase):
 
         gcp_auth = ProviderAuthentication.objects.create(credentials={"project-id": fake.word()})
         gcp_billing_source = ProviderBillingSource.objects.create(data_source={"bucket": fake.word()})
-        self.gcp_provider = Provider.objects.create(
-            uuid=uuid.uuid4(),
-            name="Test Provider",
-            type=Provider.PROVIDER_GCP,
-            authentication=gcp_auth,
-            billing_source=gcp_billing_source,
-            customer=self.customer,
-            setup_complete=True,
-        )
+        with patch("masu.celery.tasks.check_report_updates"):
+            self.gcp_provider = Provider.objects.create(
+                uuid=uuid.uuid4(),
+                name="Test Provider",
+                type=Provider.PROVIDER_GCP,
+                authentication=gcp_auth,
+                billing_source=gcp_billing_source,
+                customer=self.customer,
+                setup_complete=True,
+            )
 
         start_time = "2019-09-17T00:00:00-07:00"
         report_date_range = utils.month_date_range(parser.parse(start_time))

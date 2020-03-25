@@ -17,9 +17,11 @@
 """View for Settings."""
 import logging
 
+from django.utils.translation import ugettext as _
 from django.views.decorators.cache import never_cache
 from rest_framework import permissions
 from rest_framework.response import Response
+from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
 from api.settings.ocp import OpenShiftSettings
@@ -47,6 +49,9 @@ class SettingsView(APIView):
 
     def post(self, request):
         """Handle all changed settings."""
+        if not isinstance(request.data, dict):
+            msg = "Invalid input format."
+            raise ValidationError({"details": _(msg)})
         for settings_clazz in SETTINGS_GENERATORS.values():
             instance = settings_clazz(request)
             instance.handle_settings(request.data)

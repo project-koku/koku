@@ -184,44 +184,5 @@ class Migration(migrations.Migration):
             ],
             options={"ordering": ["name"], "unique_together": {("authentication", "billing_source")}},
         ),
-        # Making things look like master and production from the migrations squash branch
-        # This ensures that primary key constraint name matches then name used on the master branch
-        # This also ensures that the sequence for the (unused) id column is created.
-        # This id column appears to be unused, but it does exist on master and production and feels beyond
-        # the scope of this ticket to change.
-        migrations.RunSQL(
-            sql="""
-            do $$
-            declare
-                provider_pk_name text = null;
-            begin
-                select constraint_name
-                  into provider_pk_name
-                  from information_schema.table_constraints
-                 where table_schema = 'public'
-                   and table_name = 'api_provider'
-                   and constraint_type = 'PRIMARY KEY';
-
-                if ( provider_pk_name is not null )
-                then
-                    execute 'alter table public.api_provider drop constraint '
-                            || quote_ident(provider_pk_name)
-                            || ';';
-                end if;
-            end;
-            $$;
-            alter table public.api_provider
-              add constraint api_provider_uuid_7aa7496c_pk primary key (uuid);
-
-            create sequence public.api_provider_id_seq
-                   start with 1
-                   increment by 1
-                   no maxvalue
-                   cache 1;
-            alter sequence public.api_provider_id_seq owned by api_provider.id;
-            alter table public.api_provider
-                  alter column id set default nextval('public.api_provider_id_seq'::regclass);
-            """
-        ),
         migrations.RunPython(code=migrate_customer_schema_name),
     ]

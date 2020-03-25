@@ -60,5 +60,8 @@ class OCPTagQueryHandler(TagQueryHandler):
         """
         if not hasattr(self, "_mapper"):
             self._mapper = OCPProviderMap(provider=self.provider, report_type=parameters.report_type)
+
+        if parameters.get_filter("enabled") is None:
+            parameters.set_filter(**{"enabled": True})
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
