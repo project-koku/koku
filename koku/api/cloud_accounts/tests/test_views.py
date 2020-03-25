@@ -19,7 +19,6 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.cloud_accounts.tests.cloud_account_common_test_utilities import CloudAccountCommonTestUtilities
 from api.iam.test.iam_test_case import IamTestCase
 
 
@@ -28,7 +27,7 @@ class CloudAccountViewTest(IamTestCase):
 
     def testCloudAccountViewSet(self):
         """Test that /cloud_accounts endpoint returns 200 HTTP_OK."""
-        url = reverse("cloud_accounts-list")
+        url = reverse("cloud-accounts")
         client = APIClient()
 
         response = client.get(url, **self.headers)
@@ -40,9 +39,7 @@ class CloudAccountViewTest(IamTestCase):
 
         Adds an account to CloudAccounts.
         """
-        CloudAccountCommonTestUtilities.create_cloud_account(self)
-
-        url = reverse("cloud_accounts-list")
+        url = reverse("cloud-accounts")
         client = APIClient()
 
         response = client.get(url, **self.headers)
@@ -54,15 +51,13 @@ class CloudAccountViewTest(IamTestCase):
 
         This test creates a cloud account with test values.
         """
-        CloudAccountCommonTestUtilities.create_cloud_account(self)
-
-        url = reverse("cloud_accounts-list")
+        url = reverse("cloud-accounts")
         client = APIClient()
         response = client.get(url + "?name=TEST_AWS_ACCOUNT_ID", **self.headers)
         actualName = response.data["data"][0]["name"]
 
-        expectedName = "TEST_AWS_ACCOUNT_ID"
+        expectedName = "AWS"
         self.assertEqual(expectedName, actualName)
         actualValue = response.data["data"][0]["value"]
-        expectedValue = "TEST_12345678910"
+        expectedValue = "589173575009"
         self.assertEqual(expectedValue, actualValue)

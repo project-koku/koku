@@ -34,19 +34,11 @@ from koku.settings import STATIC_ROOT
 
 LOG = logging.getLogger(__name__)
 
-CLOUD_ACCOUNTS_FILE_NAME = os.path.join(STATIC_ROOT, "cloud_accounts.json")
 """View for Cloud Accounts."""
 
 
-# from api.cloud_accounts.cloud_accounts_serializer
-
-
 def get_paginator(request, count):
-    """Determine which paginator to use based on query params."""
-    # if "offset" in filter_query_params:
-    #     paginator = StandardResultsSetPagination()
-    #     paginator.count = count
-    # else:
+    """Get Paginator."""
     paginator = StandardResultsSetPagination()
     paginator.count = count
     paginator.request = request
@@ -55,25 +47,13 @@ def get_paginator(request, count):
     return paginator
 
 
-def get_json(path):
-    """Obtain API JSON data from file path."""
-    json_data = None
-    with open(path) as json_file:
-        try:
-            json_data = json.load(json_file)
-        except (IOError, json.JSONDecodeError) as exc:
-            LOG.exception(exc)
-    return json_data
-
-
 @api_view(["GET"])
 @permission_classes((permissions.AllowAny,))
 @renderer_classes([BrowsableAPIRenderer, JSONRenderer])
 def cloudaccounts(request):
     """Provide the openapi information."""
     data = CloudAccountsDictionary()._mapping
-    paginator = get_paginator(request, 1)  # .GET.get("page", {})
-
+    paginator = get_paginator(request, len(data))
     offset = int(request.GET.get("offset", 0))
     limit = int(request.GET.get("limit", 0))
     page = int(request.GET.get("page", 0))
@@ -89,16 +69,16 @@ def cloudaccounts(request):
     if limit == 0:
         limit = len(data)
     if page > 0:
-        offset = (page + 1) * offset
+        if offset > 0:
+            offset = (page + 1) * offset
+        else:
+            offset = page * 1
     if limit == 0:
         limit = len(data)
     if limit == 0 and offset == 0:
         data = CloudAccountsDictionary()._mapping
     else:
-        data = CloudAccountsDictionary()._mapping[offset:offset + limit]
-
+        data = CloudAccountsDictionary()._mapping[offset : offset + limit]
     page_obj = paginator.get_paginated_response(data)
-    # TODO: add __repr__()
-    if data:
-        return page_obj
-    return Response(status=status.HTTP_404_NOT_FOUND)
+
+    return page_obj
