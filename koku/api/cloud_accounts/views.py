@@ -68,10 +68,6 @@ def cloudaccounts(request):
             offset = (page + 1) * offset
         else:
             offset = page * 1
-    if limit == 0:
-        limit = len(data)
-    if limit == 0 and offset == 0:
-        data = CloudAccountsDictionary()._mapping
     else:
         data = CloudAccountsDictionary()._mapping[offset : offset + limit]  # noqa E203
     page_obj = paginator.get_paginated_response(data)
