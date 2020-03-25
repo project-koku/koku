@@ -19,8 +19,6 @@ import json
 import logging
 import os
 
-from django.core.paginator import Paginator
-from django.shortcuts import render
 from rest_framework import permissions
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -29,10 +27,9 @@ from rest_framework.decorators import renderer_classes
 from rest_framework.renderers import BrowsableAPIRenderer
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
-from rest_framework.serializers import ValidationError
 
+from api.cloud_accounts.cloud_accounts_dictionary import CloudAccountsDictionary
 from api.common.pagination import StandardResultsSetPagination
-from api.query_params import QueryParameters
 from koku.settings import STATIC_ROOT
 
 LOG = logging.getLogger(__name__)
@@ -40,9 +37,6 @@ LOG = logging.getLogger(__name__)
 CLOUD_ACCOUNTS_FILE_NAME = os.path.join(STATIC_ROOT, "cloud_accounts.json")
 """View for Cloud Accounts."""
 
-from api.common.pagination import ReportPagination
-from api.common.pagination import ReportRankedPagination
-from api.cloud_accounts.cloud_accounts_dictionary import CloudAccountsDictionary
 
 # from api.cloud_accounts.cloud_accounts_serializer
 
@@ -78,33 +72,12 @@ def get_json(path):
 def cloudaccounts(request):
     """Provide the openapi information."""
     data = CloudAccountsDictionary()._mapping
-    # paginator = Paginator(data, 1)
-    # paginator = get_paginator(params.parameters.get("filter", {}), max_rank)
     paginator = get_paginator(request, 1)  # .GET.get("page", {})
-    # page_number = request.GET.get("page")
-
-    # if paginator.offset == 0:
-    # page_obj = paginator.get_paginated_response(data[0])
 
     offset = int(request.GET.get("offset", 0))
-    # if offset > len(data) - 1:
-    #     offset = len(data) - 1
-    # if offset < 0:
-    #     offset = 0
     limit = int(request.GET.get("limit", 0))
     page = int(request.GET.get("page", 0))
-    # if limit > len(data):
-    #     limit = len(data)
-    # if limit < 0:
-    #     limit = 0
-    # if limit == 0:
-    #     limit = len(data)
-    # if limit == 0 and offset == 0:
-    #     data = CloudAccountsDictionary()._mapping
-    # else:
-    #     data = CloudAccountsDictionary()._mapping[offset : offset + limit]
-    # # data = CloudAccountsDictionary()._mapping[offset : offset + limit]
-    # def page(data, limit, offset, page):
+
     if offset > len(data) - 1:
         offset = len(data) - 1
     if offset < 0:
@@ -122,7 +95,7 @@ def cloudaccounts(request):
     if limit == 0 and offset == 0:
         data = CloudAccountsDictionary()._mapping
     else:
-        data = CloudAccountsDictionary()._mapping[offset : offset + limit]
+        data = CloudAccountsDictionary()._mapping[offset:offset + limit]
 
     page_obj = paginator.get_paginated_response(data)
     # TODO: add __repr__()
