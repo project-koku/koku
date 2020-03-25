@@ -16,6 +16,7 @@
 #
 """Provider Mapper for OCP on AWS Reports."""
 import inspect
+from collections import Hashable
 
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
@@ -555,8 +556,8 @@ class OCPAllProviderMap(ProviderMap):
 
         for k, v in getter(mapping):
             vt = v if inspect.isclass(v) else type(v)
-            if vt in replace_map:
-                mapping[k] = replace_map[k]
+            if inspect.isclass(v) and isinstance(v, Hashable) and v in replace_map:
+                mapping[k] = replace_map[v]
 
             if vt in (dict, list, tuple, set):
                 self._replace_matview_model(v, replace_map)

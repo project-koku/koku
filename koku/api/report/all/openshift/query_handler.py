@@ -48,24 +48,17 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
     def _resolve_mapper(self, parameters):
         orm_provider_map = {
             ("storage", None): OCPAllStorageProviderMap,
-            ("compute", None): OCPAllComputeProviderMap,
+            ("instance_type", None): OCPAllComputeProviderMap,
             ("costs", "network"): OCPAllNetworkProviderMap,
             ("costs", "database"): OCPAllDatabaseProviderMap,
         }
 
         service_filter = parameters.get_filter("service")
         report_subtype = None
-        view_class = [
-            x
-            for x in inspect.getmro(parameters.caller.__class__)
-            if x.__name__.startswith("OCPAll") and x.__name__.endswith("View")
-        ]
-        if len(view_class) == 0:
-            report_subtype = "_"  # Force the default
-        else:
-            view_class = view_class[0]
+        if inspect.isclass(parameters.caller):
+            view_class = parameters.caller.__name__
             if service_filter:
-                if view_class.__name__ == "OCPAllCostView":
+                if view_class == "OCPAllCostView":
                     res = (
                         SourceServiceProduct.objects.filter(source=self.provider)
                         .filter(product_codes__overlap=[f.strip("\"'") for f in service_filter])
@@ -77,12 +70,15 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
                         report_subtype = res[0]["service_category"]
                 else:
                     report_subtype = "_"  # Force the default
+        else:
+            report_subtype = "_"
 
         if is_grouped_or_filtered_by_project(parameters):
             map_report_type = self._report_type = parameters.report_type + "_by_project"
         else:
             map_report_type = parameters.report_type
 
-        provider_map_class = orm_provider_map.get((parameters.report_type, report_subtype), OCPAllProviderMap)
+        map_class_key = (parameters.report_type, report_subtype)
+        provider_map_class = orm_provider_map.get(map_class_key, OCPAllProviderMap)
 
         self._mapper = provider_map_class(provider=self.provider, report_type=map_report_type)
