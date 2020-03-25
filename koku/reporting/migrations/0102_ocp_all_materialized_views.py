@@ -68,9 +68,9 @@ SELECT row_number() OVER () AS id,
   WITH DATA;
 
 CREATE INDEX ix_reporting_ocpallcost_lids_db_cluster_id
-    ON reporting_ocpallcostlineitem_daily_summary_storage (cluster_id);
+    ON reporting_ocpallcostlineitem_daily_summary_database (cluster_id);
 CREATE INDEX ix_reporting_ocpallcost_lids_db_cluster_alias
-    ON reporting_ocpallcostlineitem_daily_summary_storage (cluster_alias);
+    ON reporting_ocpallcostlineitem_daily_summary_database (cluster_alias);
 CREATE INDEX ix_reporting_ocpallcost_lids_db_usage_start
     ON reporting_ocpallcostlineitem_daily_summary_database (usage_start);
 CREATE INDEX ix_reporting_ocpallcost_lids_db_prod_code_ilike
@@ -105,9 +105,9 @@ SELECT row_number() OVER () AS id,
   WITH DATA;
 
 CREATE INDEX ix_reporting_ocpallcost_lids_cp_cluster_id
-    ON reporting_ocpallcostlineitem_daily_summary_storage (cluster_id);
+    ON reporting_ocpallcostlineitem_daily_summary_compute (cluster_id);
 CREATE INDEX ix_reporting_ocpallcost_lids_cp_cluster_alias
-    ON reporting_ocpallcostlineitem_daily_summary_storage (cluster_alias);
+    ON reporting_ocpallcostlineitem_daily_summary_compute (cluster_alias);
 CREATE INDEX ix_reporting_ocpallcost_lids_cp_usage_start
     ON reporting_ocpallcostlineitem_daily_summary_compute (usage_start);
 CREATE INDEX ix_reporting_ocpallcost_lids_cp_prod_code_ilike
@@ -142,9 +142,9 @@ SELECT row_number() OVER () AS id,
   WITH DATA;
 
 CREATE INDEX ix_reporting_ocpallcost_lids_nw_cluster_id
-    ON reporting_ocpallcostlineitem_daily_summary_storage (cluster_id);
+    ON reporting_ocpallcostlineitem_daily_summary_network (cluster_id);
 CREATE INDEX ix_reporting_ocpallcost_lids_nw_cluster_alias
-    ON reporting_ocpallcostlineitem_daily_summary_storage (cluster_alias);
+    ON reporting_ocpallcostlineitem_daily_summary_network (cluster_alias);
 CREATE INDEX ix_reporting_ocpallcost_lids_nw_usage_start
     ON reporting_ocpallcostlineitem_daily_summary_network (usage_start);
 CREATE INDEX ix_reporting_ocpallcost_lids_nw_prod_code_ilike

@@ -251,7 +251,7 @@ class OCPAllCostLineItemProjectDailySummary(models.Model):
         indexes = [
             models.Index(fields=["usage_start"], name="ocpall_proj_usage_idx"),
             models.Index(fields=["namespace"], name="ocpall_proj_namespace_idx"),
-            models.Index(fields=["product_family"], name="ocpall_proj_prod_fam_idx"),
+            models.Index(fields=["product_code"], name="ocpall_proj_prod_code_idx"),
         ]
 
     id = models.IntegerField(primary_key=True)
