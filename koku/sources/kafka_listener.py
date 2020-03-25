@@ -409,17 +409,20 @@ async def listen_for_messages(consumer, application_source_id, msg_pending_queue
         None
 
     """
-    await consumer.start()
-    LOG.info("Listener started.  Waiting for messages...")
-    try:
-        async for msg in consumer:
-            LOG.debug(f"Filtering Message: {str(msg)}")
-            msg = get_sources_msg_data(msg, application_source_id)
-            if msg:
-                LOG.info(f"Cost Management Message to process: {str(msg)}")
-                await msg_pending_queue.put(msg)
-    finally:
-        await consumer.stop()
+    while True:
+        await consumer.start()
+        LOG.info("Listener started.  Waiting for messages...")
+        try:
+            async for msg in consumer:
+                LOG.debug(f"Filtering Message: {str(msg)}")
+                msg = get_sources_msg_data(msg, application_source_id)
+                if msg:
+                    LOG.info(f"Cost Management Message to process: {str(msg)}")
+                    await msg_pending_queue.put(msg)
+        except KafkaError as error:
+            LOG.error(f"[listen_for_messages] Kafka error encountered: {type(error).__name__}: {error}", exc_info=True)
+        finally:
+            await consumer.stop()
 
 
 def execute_koku_provider_op(msg, cost_management_type_id):
@@ -634,15 +637,14 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
         Config.SOURCES_TOPIC, loop=event_loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id="hccm-sources"
     )
 
-    while True:
-        load_process_queue()
-        try:  # Finally, after the connections are established, start the message processing tasks
-            event_loop.create_task(listen_for_messages(consumer, cost_management_type_id, PENDING_PROCESS_QUEUE))
-            event_loop.create_task(process_messages(cost_management_type_id, PENDING_PROCESS_QUEUE))
-            event_loop.create_task(synchronize_sources(PROCESS_QUEUE, cost_management_type_id))
-            event_loop.run_forever()
-        except KeyboardInterrupt:
-            sys.exit(0)
+    load_process_queue()
+    try:  # Finally, after the connections are established, start the message processing tasks
+        event_loop.create_task(listen_for_messages(consumer, cost_management_type_id, PENDING_PROCESS_QUEUE))
+        event_loop.create_task(process_messages(cost_management_type_id, PENDING_PROCESS_QUEUE))
+        event_loop.create_task(synchronize_sources(PROCESS_QUEUE, cost_management_type_id))
+        event_loop.run_forever()
+    except KeyboardInterrupt:
+        sys.exit(0)
 
 
 def initialize_sources_integration():  # pragma: no cover
