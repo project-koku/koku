@@ -111,7 +111,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                 accessor.populate_ocp_on_aws_cost_daily_summary(start, end, cluster_id, aws_bill_ids)
             accessor.populate_ocp_on_aws_markup_cost(markup_value, aws_bill_ids)
             accessor.populate_ocp_on_aws_tags_summary_table()
-            self.refresh_openshift_on_infrastructure_views(OCP_ON_AWS_MATERIALIZED_VIEWS)
+        self.refresh_openshift_on_infrastructure_views(OCP_ON_AWS_MATERIALIZED_VIEWS)
 
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             # This call just sends the infrastructure cost to the
