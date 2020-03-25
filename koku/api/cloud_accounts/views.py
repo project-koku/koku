@@ -68,8 +68,10 @@ def cloudaccounts(request):
             offset = (page + 1) * offset
         else:
             offset = page * 1
-    else:
+    try:
         data = CLOUD_ACCOUNTS_DICTIONARY[offset : offset + limit]  # noqa E203
+    except IndexError:
+        data = []
     page_obj = paginator.get_paginated_response(data)
 
     return page_obj

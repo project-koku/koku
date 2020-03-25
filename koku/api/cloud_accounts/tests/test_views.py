@@ -98,3 +98,65 @@ class CloudAccountViewTest(IamTestCase):
         expected_name = "AWS_LOCAL"
         self.assertEqual(expected_value, expected_value)
         self.assertEqual(expected_name, actual_name)
+
+    def testPage1(self):
+        """
+        Test contents of cloud account.
+
+        Test that when limit is greater than the number of cloud accounts, return all cloud accounts.
+        """
+        url = reverse("cloud-accounts")
+        client = APIClient()
+        actual_name = client.get(url + "?page=0&offset=1", **self.headers).data["data"][0]["name"]
+        expected_name = "AWS_LOCAL"
+        self.assertEqual(expected_name, actual_name)
+
+    def testNegativeLimit(self):
+        """
+        Test contents of cloud account.
+
+        A negative limit should default to limit=0
+        """
+        url = reverse("cloud-accounts")
+        client = APIClient()
+        actual_name = client.get(url + "?limit=-1", **self.headers).data["data"][0]["name"]
+        expected_name = "AWS"
+        expected_value = "589173575009"
+        self.assertEqual(expected_value, expected_value)
+        self.assertEqual(expected_name, actual_name)
+        actual_name = client.get(url, **self.headers).data["data"][1]["name"]
+
+    def testBigLimit(self):
+        """
+        Test contents of cloud account.
+
+        A bigger limit than len(data) gives all the data.
+        """
+        url = reverse("cloud-accounts")
+        client = APIClient()
+        actual_name = client.get(url + "?limit=50", **self.headers).data["data"][0]["name"]
+        expected_name = "AWS"
+        expected_value = "589173575009"
+        self.assertEqual(expected_value, expected_value)
+        self.assertEqual(expected_name, actual_name)
+        actual_name = client.get(url, **self.headers).data["data"][1]["name"]
+
+    def testPage2(self):
+        """
+        Test accessing second page cloud account.
+        """
+        url = reverse("cloud-accounts")
+        client = APIClient()
+        actual_name = client.get(url + "?limit=1&page=1", **self.headers).data["data"][0]["name"]
+        expected_name = "AWS_LOCAL"
+        expected_value = "589173575009"
+        self.assertEqual(expected_value, expected_value)
+        self.assertEqual(expected_name, actual_name)
+        actual_name = client.get(url, **self.headers).data["data"][1]["name"]
+
+    def testEmptyResponse(self):
+        """Test accessing an empty page."""
+        url = reverse("cloud-accounts")
+        client = APIClient()
+        data = client.get(url + "?limit=1&page=2", **self.headers).data["data"]
+        self.assertEqual([], data)
