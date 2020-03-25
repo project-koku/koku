@@ -15,27 +15,17 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Cloud Account Dictionary."""
-
-
-class CloudAccountsDictionary:
-    """Cloud Accounts Dictionary."""
-
-    def __init__(self):
-        """Constructs the object"""
-        self._mapping = [
-            {
-                "name": "AWS",
-                "value": "589173575009",
-                "description": "Cost Management's AWS account ID",
-                "updated_timestamp": "2020-03-06T14:41:11.808752Z",
-            },
-            {
-                "name": "AWS_LOCAL",
-                "value": "589173575009",
-                "description": "Cost Management's AWS_LOCAL account ID",
-                "updated_timestamp": "2020-03-06T14:41:11.808752Z",
-            },
-        ]
-
-    def __len__(self):
-        return len(self._mapping)
+CLOUD_ACCOUNTS_DICTIONARY = [
+    {
+        "name": "AWS",
+        "value": "589173575009",
+        "description": "Cost Management's AWS account ID",
+        "updated_timestamp": "2020-03-06T14:41:11.808752Z",
+    },
+    {
+        "name": "AWS_LOCAL",
+        "value": "589173575009",
+        "description": "Cost Management's AWS_LOCAL account ID",
+        "updated_timestamp": "2020-03-06T14:41:11.808752Z",
+    },
+]

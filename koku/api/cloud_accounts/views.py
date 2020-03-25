@@ -24,7 +24,7 @@ from rest_framework.decorators import renderer_classes
 from rest_framework.renderers import BrowsableAPIRenderer
 from rest_framework.renderers import JSONRenderer
 
-from api.cloud_accounts.cloud_accounts_dictionary import CloudAccountsDictionary
+from api.cloud_accounts.cloud_accounts_dictionary import CLOUD_ACCOUNTS_DICTIONARY
 from api.common.pagination import StandardResultsSetPagination
 
 LOG = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ def get_paginator(request, count):
 @renderer_classes([BrowsableAPIRenderer, JSONRenderer])
 def cloudaccounts(request):
     """Provide the openapi information."""
-    data = CloudAccountsDictionary()._mapping
+    data = CLOUD_ACCOUNTS_DICTIONARY
     paginator = get_paginator(request, len(data))
     offset = int(request.query_params.get("offset", 0))
     limit = int(request.query_params.get("limit", 0))
@@ -69,7 +69,7 @@ def cloudaccounts(request):
         else:
             offset = page * 1
     else:
-        data = CloudAccountsDictionary()._mapping[offset : offset + limit]  # noqa E203
+        data = CLOUD_ACCOUNTS_DICTIONARY[offset : offset + limit]  # noqa E203
     page_obj = paginator.get_paginated_response(data)
 
     return page_obj
