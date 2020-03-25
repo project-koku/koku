@@ -248,6 +248,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static")
 STATIC_URL = "{}/static/".format(API_PATH_PREFIX.rstrip("/"))
 
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "..", "docs/source/specs")]
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 INTERNAL_IPS = ["127.0.0.1"]
 

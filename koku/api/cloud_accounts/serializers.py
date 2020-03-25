@@ -14,24 +14,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""View for Cloud Account."""
-from rest_framework import viewsets
-from rest_framework.permissions import AllowAny
+"""Serializer for CloudAccount."""
+from rest_framework import serializers
 
 from api.cloud_accounts.models import CloudAccount
-from api.cloud_accounts.serializers import CloudAccountSerializer
 
 
-class CloudAccountViewSet(viewsets.ReadOnlyModelViewSet):
-    """View for Cloud Accounts."""
+class CloudAccountSerializer(serializers.ModelSerializer):
+    """Serializer for CloudAccount."""
 
-    serializer_class = CloudAccountSerializer
-    permission_classes = (AllowAny,)
-
-    def get_queryset(self):
-        """Override default get_queryset to filter on name."""
-        queryset = CloudAccount.objects.all()
-        cloud_account = self.request.query_params.get("name", None)
-        if cloud_account is not None:
-            queryset = queryset.filter(name=cloud_account)
-        return queryset
+    class Meta:
+        model = CloudAccount
+        fields = ("name", "value", "description", "updated_timestamp")

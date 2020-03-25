@@ -13,6 +13,16 @@ from django.db import models
 # Move them and any dependencies into this file, then update the
 # RunPython operations to refer to the local versions:
 
+# api.migrations.0029_cloud_account_seeder
+def seed_cost_management_aws_account_id(apps, schema_editor):
+    """Create a cloud account, using the historical CloudAccount model."""
+    CloudAccount = apps.get_model("api", "CloudAccount")
+    cloud_account = CloudAccount.objects.create(
+        name="AWS", value="589173575009", description="Cost Management's AWS account ID"
+    )
+    cloud_account.save()
+
+
 # api.migrations.0040_auto_20191121_2154
 def load_openshift_metric_map(apps, schema_editor):
     """Load AWS Cost Usage report to database mapping."""
@@ -234,5 +244,6 @@ class Migration(migrations.Migration):
                 null=True, on_delete=django.db.models.deletion.SET_NULL, to="api.ProviderInfrastructureMap"
             ),
         ),
+        migrations.RunPython(code=seed_cost_management_aws_account_id),
         migrations.RunPython(code=load_openshift_metric_map),
     ]

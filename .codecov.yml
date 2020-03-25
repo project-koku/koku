@@ -30,6 +30,3 @@ comment:
   layout: "header, diff"
   behavior: default
   require_changes: no
-
-ignore:
-  - "koku/api/cloud_accounts/cloud_accounts_dictionary.py"
