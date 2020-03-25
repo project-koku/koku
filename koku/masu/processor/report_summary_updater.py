@@ -32,7 +32,7 @@ LOG = logging.getLogger(__name__)
 
 
 class ReportSummaryUpdaterError(Exception):
-    """Expired Data Removalerror."""
+    """Report Summary Updater Error."""
 
     pass
 
@@ -59,6 +59,10 @@ class ReportSummaryUpdater:
         self._date_accessor = DateAccessor()
         with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
             self._provider = provider_accessor.get_provider()
+
+        if not self._provider:
+            raise ReportSummaryUpdaterError("Provider not found.")
+
         try:
             self._updater, self._ocp_cloud_updater = self._set_updater()
         except Exception as err:
