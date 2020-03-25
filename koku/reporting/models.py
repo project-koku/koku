@@ -89,6 +89,6 @@ AWS_MATERIALIZED_VIEWS = (
     AWSStorageSummaryByService,
 )
 
-OCP_MATERIALIZED_VIEWS = (OCPComputeSummary, OCPVolumeSummary)
+OCP_MATERIALIZED_VIEWS = (OCPComputeSummary,)
 
 OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (OCPAllCostLineItemDailySummary, OCPAllCostLineItemProjectDailySummary)

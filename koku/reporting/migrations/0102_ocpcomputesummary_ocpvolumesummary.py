@@ -103,7 +103,7 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             sql="""
             CREATE MATERIALIZED VIEW reporting_ocp_compute_summary AS(
-                SELECT row_number() OVER(ORDER BY date(usage_start)) as id,
+                SELECT row_number() OVER(ORDER BY date(usage_start), cluster_id, cluster_alias, namespace) as id,
                     date(usage_start) as usage_start,
                     date(usage_start) as usage_end,
                     cluster_id,
@@ -146,7 +146,7 @@ class Migration(migrations.Migration):
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocp_volume_summary AS(
-                SELECT row_number() OVER(ORDER BY date(usage_start)) as id,
+                SELECT row_number() OVER(ORDER BY date(usage_start), cluster_id, cluster_alias, namespace) as id,
                     date(usage_start) as usage_start,
                     date(usage_start) as usage_end,
                     cluster_id,
