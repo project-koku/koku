@@ -6,7 +6,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0101_ocpenabledtagkeys")]
+    dependencies = [("reporting", "0102_auto_20200228_1812")]
 
     operations = [
         migrations.CreateModel(
