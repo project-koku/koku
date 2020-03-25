@@ -256,14 +256,44 @@ class OCPAllCostLineItemProjectDailySummary(models.Model):
 
     id = models.IntegerField(primary_key=True)
 
+    # The infrastructure provider type
+    source_type = models.TextField()
+
+    # OCP Fields
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
+
+    # Whether the data comes from a pod or volume report
+    data_source = models.CharField(max_length=64, null=True)
+
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
+
+    node = models.CharField(max_length=253, null=False)
+
+    pod_labels = JSONField(null=True)
+
+    resource_id = models.CharField(max_length=253, null=True)
 
     usage_start = models.DateField(null=False)
 
     usage_end = models.DateField(null=False)
 
+    # AWS Fields
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+
     product_code = models.CharField(max_length=50, null=False)
+
+    product_family = models.CharField(max_length=150, null=True)
+
+    instance_type = models.CharField(max_length=50, null=True)
+
+    region = models.CharField(max_length=50, null=True)
+
+    availability_zone = models.CharField(max_length=50, null=True)
 
     # Need more precision on calculated fields, otherwise there will be
     # Rounding errors

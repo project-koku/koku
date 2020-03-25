@@ -196,25 +196,64 @@ CREATE INDEX ix_reporting_ocpallcost_lids_st_prod_code_like
 DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_project_daily_summary_compute;
 CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary_compute AS
 SELECT row_number() OVER () AS id,
-       lids.namespace,
-       lids.usage_start,
-       lids.usage_start as "usage_end",
-       lids.product_code,
-       sum(lids.usage_amount) as "usage_amount",
-       max(lids.unit) as "unit",
-       sum(lids.unblended_cost) as "unblended_cost",
-       sum(lids.project_markup_cost) as "project_markup_cost",
-       sum(lids.pod_cost) as "pod_cost",
-       max(lids.currency_code) as "currency_code"
-  FROM reporting_ocpallcostlineitem_project_daily_summary lids
-  JOIN reporting_common_sourceserviceproduct rcssp
-    ON rcssp.source = lids.source_type
-   AND rcssp.service_category = 'compute'
-   AND lids.product_code = any(rcssp.product_codes)
- GROUP
-    BY lids.namespace,
-       lids.usage_start,
-       lids.product_code
+       a.namespace,
+       a.usage_start,
+       a.usage_end,
+       a.product_code,
+       a.usage_amount,
+       a.unit,
+       a.unblended_cost,
+       a.project_markup_cost,
+       a.pod_cost,
+       a.currency_code,
+       b.pod_labels
+  FROM (
+        SELECT lids.namespace,
+               lids.usage_start,
+               lids.usage_start as "usage_end",
+               lids.product_code,
+               sum(lids.usage_amount) as "usage_amount",
+               max(lids.unit) as "unit",
+               sum(lids.unblended_cost) as "unblended_cost",
+               sum(lids.project_markup_cost) as "project_markup_cost",
+               sum(lids.pod_cost) as "pod_cost",
+               max(lids.currency_code) as "currency_code"
+          FROM reporting_ocpallcostlineitem_project_daily_summary lids
+          JOIN reporting_common_sourceserviceproduct rcssp
+            ON rcssp.source = lids.source_type
+           AND rcssp.service_category = 'compute'
+           AND lids.product_code = any(rcssp.product_codes)
+         GROUP
+            BY lids.namespace,
+               lids.usage_start,
+               lids.product_code,
+               lids.pod_labels
+       ) as a
+  LEFT
+  JOIN (
+        -- re-aggregate
+        SELECT lids2.namespace,
+               lids2.usage_start,
+               lids2.product_code,
+               jsonb_object_agg(lids2.key, lids2.value) as "pod_labels"
+          FROM (
+                -- un-aggregate
+                SELECT lids3.namespace,
+                       lids3.usage_start,
+                       lids3.product_code,
+                       k.key,
+                       k.value
+                  FROM reporting_ocpallcostlineitem_project_daily_summary lids3,
+                       jsonb_each_text(lids3.pod_labels) k
+               ) as lids2
+         GROUP
+            BY lids2.namespace,
+               lids2.usage_start,
+               lids2.product_code
+       ) as b
+    ON b.namespace = a.namespace
+   AND b.usage_start = a.usage_start
+   AND b.product_code = a.product_code
   WITH DATA;
 
 CREATE INDEX ocpallcstprjdlysumm_cp_nsp
@@ -232,25 +271,64 @@ CREATE INDEX ix_reporting_ocpallcostprj_lids_cp_prod_code_like
 DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_project_daily_summary_storage;
 CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary_storage AS
 SELECT row_number() OVER () AS id,
-       lids.namespace,
-       lids.usage_start,
-       lids.usage_start as "usage_end",
-       lids.product_code,
-       sum(lids.usage_amount) as "usage_amount",
-       max(lids.unit) as "unit",
-       sum(lids.unblended_cost) as "unblended_cost",
-       sum(lids.project_markup_cost) as "project_markup_cost",
-       sum(lids.pod_cost) as "pod_cost",
-       max(lids.currency_code) as "currency_code"
-  FROM reporting_ocpallcostlineitem_project_daily_summary lids
-  JOIN reporting_common_sourceserviceproduct rcssp
-    ON rcssp.source = lids.source_type
-   AND rcssp.service_category = 'storage'
-   AND lids.product_code = any(rcssp.product_codes)
- GROUP
-    BY lids.namespace,
-       lids.usage_start,
-       lids.product_code
+       a.namespace,
+       a.usage_start,
+       a.usage_end,
+       a.product_code,
+       a.usage_amount,
+       a.unit,
+       a.unblended_cost,
+       a.project_markup_cost,
+       a.pod_cost,
+       a.currency_code,
+       b.pod_labels
+  FROM (
+        SELECT lids.namespace,
+               lids.usage_start,
+               lids.usage_start as "usage_end",
+               lids.product_code,
+               sum(lids.usage_amount) as "usage_amount",
+               max(lids.unit) as "unit",
+               sum(lids.unblended_cost) as "unblended_cost",
+               sum(lids.project_markup_cost) as "project_markup_cost",
+               sum(lids.pod_cost) as "pod_cost",
+               max(lids.currency_code) as "currency_code"
+          FROM reporting_ocpallcostlineitem_project_daily_summary lids
+          JOIN reporting_common_sourceserviceproduct rcssp
+            ON rcssp.source = lids.source_type
+           AND rcssp.service_category = 'storage'
+           AND lids.product_code = any(rcssp.product_codes)
+         GROUP
+            BY lids.namespace,
+               lids.usage_start,
+               lids.product_code,
+               lids.pod_labels
+       ) as a
+  LEFT
+  JOIN (
+        -- re-aggregate
+        SELECT lids2.namespace,
+               lids2.usage_start,
+               lids2.product_code,
+               jsonb_object_agg(lids2.key, lids2.value) as "pod_labels"
+          FROM (
+                -- un-aggregate
+                SELECT lids3.namespace,
+                       lids3.usage_start,
+                       lids3.product_code,
+                       k.key,
+                       k.value
+                  FROM reporting_ocpallcostlineitem_project_daily_summary lids3,
+                       jsonb_each_text(lids3.pod_labels) k
+               ) as lids2
+         GROUP
+            BY lids2.namespace,
+               lids2.usage_start,
+               lids2.product_code
+       ) as b
+    ON b.namespace = a.namespace
+   AND b.usage_start = a.usage_start
+   AND b.product_code = a.product_code
   WITH DATA;
 
 CREATE INDEX ocpallcstprjdlysumm_st_nsp
@@ -268,25 +346,64 @@ CREATE INDEX ix_reporting_ocpallcostprj_lids_st_prod_code_like
 DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_project_daily_summary_network;
 CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary_network AS
 SELECT row_number() OVER () AS id,
-       lids.namespace,
-       lids.usage_start,
-       lids.usage_start as "usage_end",
-       lids.product_code,
-       sum(lids.usage_amount) as "usage_amount",
-       max(lids.unit) as "unit",
-       sum(lids.unblended_cost) as "unblended_cost",
-       sum(lids.project_markup_cost) as "project_markup_cost",
-       sum(lids.pod_cost) as "pod_cost",
-       max(lids.currency_code) as "currency_code"
-  FROM reporting_ocpallcostlineitem_project_daily_summary lids
-  JOIN reporting_common_sourceserviceproduct rcssp
-    ON rcssp.source = lids.source_type
-   AND rcssp.service_category = 'network'
-   AND lids.product_code = any(rcssp.product_codes)
- GROUP
-    BY lids.namespace,
-       lids.usage_start,
-       lids.product_code
+       a.namespace,
+       a.usage_start,
+       a.usage_end,
+       a.product_code,
+       a.usage_amount,
+       a.unit,
+       a.unblended_cost,
+       a.project_markup_cost,
+       a.pod_cost,
+       a.currency_code,
+       b.pod_labels
+  FROM (
+        SELECT lids.namespace,
+               lids.usage_start,
+               lids.usage_start as "usage_end",
+               lids.product_code,
+               sum(lids.usage_amount) as "usage_amount",
+               max(lids.unit) as "unit",
+               sum(lids.unblended_cost) as "unblended_cost",
+               sum(lids.project_markup_cost) as "project_markup_cost",
+               sum(lids.pod_cost) as "pod_cost",
+               max(lids.currency_code) as "currency_code"
+          FROM reporting_ocpallcostlineitem_project_daily_summary lids
+          JOIN reporting_common_sourceserviceproduct rcssp
+            ON rcssp.source = lids.source_type
+           AND rcssp.service_category = 'network'
+           AND lids.product_code = any(rcssp.product_codes)
+         GROUP
+            BY lids.namespace,
+               lids.usage_start,
+               lids.product_code,
+               lids.pod_labels
+       ) as a
+  LEFT
+  JOIN (
+        -- re-aggregate
+        SELECT lids2.namespace,
+               lids2.usage_start,
+               lids2.product_code,
+               jsonb_object_agg(lids2.key, lids2.value) as "pod_labels"
+          FROM (
+                -- un-aggregate
+                SELECT lids3.namespace,
+                       lids3.usage_start,
+                       lids3.product_code,
+                       k.key,
+                       k.value
+                  FROM reporting_ocpallcostlineitem_project_daily_summary lids3,
+                       jsonb_each_text(lids3.pod_labels) k
+               ) as lids2
+         GROUP
+            BY lids2.namespace,
+               lids2.usage_start,
+               lids2.product_code
+       ) as b
+    ON b.namespace = a.namespace
+   AND b.usage_start = a.usage_start
+   AND b.product_code = a.product_code
   WITH DATA;
 
 CREATE INDEX ocpallcstprjdlysumm_nw_nsp
@@ -304,25 +421,64 @@ CREATE INDEX ix_reporting_ocpallcostprj_lids_nw_prod_code_like
 DROP MATERIALIZED VIEW IF EXISTS reporting_ocpallcostlineitem_project_daily_summary_database;
 CREATE MATERIALIZED VIEW reporting_ocpallcostlineitem_project_daily_summary_database AS
 SELECT row_number() OVER () AS id,
-       lids.namespace,
-       lids.usage_start,
-       lids.usage_start as "usage_end",
-       lids.product_code,
-       sum(lids.usage_amount) as "usage_amount",
-       max(lids.unit) as "unit",
-       sum(lids.unblended_cost) as "unblended_cost",
-       sum(lids.project_markup_cost) as "project_markup_cost",
-       sum(lids.pod_cost) as "pod_cost",
-       max(lids.currency_code) as "currency_code"
-  FROM reporting_ocpallcostlineitem_project_daily_summary lids
-  JOIN reporting_common_sourceserviceproduct rcssp
-    ON rcssp.source = lids.source_type
-   AND rcssp.service_category = 'database'
-   AND lids.product_code = any(rcssp.product_codes)
- GROUP
-    BY lids.namespace,
-       lids.usage_start,
-       lids.product_code
+       a.namespace,
+       a.usage_start,
+       a.usage_end,
+       a.product_code,
+       a.usage_amount,
+       a.unit,
+       a.unblended_cost,
+       a.project_markup_cost,
+       a.pod_cost,
+       a.currency_code,
+       b.pod_labels
+  FROM (
+        SELECT lids.namespace,
+               lids.usage_start,
+               lids.usage_start as "usage_end",
+               lids.product_code,
+               sum(lids.usage_amount) as "usage_amount",
+               max(lids.unit) as "unit",
+               sum(lids.unblended_cost) as "unblended_cost",
+               sum(lids.project_markup_cost) as "project_markup_cost",
+               sum(lids.pod_cost) as "pod_cost",
+               max(lids.currency_code) as "currency_code"
+          FROM reporting_ocpallcostlineitem_project_daily_summary lids
+          JOIN reporting_common_sourceserviceproduct rcssp
+            ON rcssp.source = lids.source_type
+           AND rcssp.service_category = 'database'
+           AND lids.product_code = any(rcssp.product_codes)
+         GROUP
+            BY lids.namespace,
+               lids.usage_start,
+               lids.product_code,
+               lids.pod_labels
+       ) as a
+  LEFT
+  JOIN (
+        -- re-aggregate
+        SELECT lids2.namespace,
+               lids2.usage_start,
+               lids2.product_code,
+               jsonb_object_agg(lids2.key, lids2.value) as "pod_labels"
+          FROM (
+                -- un-aggregate
+                SELECT lids3.namespace,
+                       lids3.usage_start,
+                       lids3.product_code,
+                       k.key,
+                       k.value
+                  FROM reporting_ocpallcostlineitem_project_daily_summary lids3,
+                       jsonb_each_text(lids3.pod_labels) k
+               ) as lids2
+         GROUP
+            BY lids2.namespace,
+               lids2.usage_start,
+               lids2.product_code
+       ) as b
+    ON b.namespace = a.namespace
+   AND b.usage_start = a.usage_start
+   AND b.product_code = a.product_code
   WITH DATA;
 
 CREATE INDEX ocpallcstprjdlysumm_db_nsp
