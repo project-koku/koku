@@ -23,11 +23,11 @@ from unittest.mock import patch
 
 from django.db import OperationalError
 from faker import Faker
-from prometheus_client import REGISTRY
 
 from api.iam.test.iam_test_case import IamTestCase
 from koku.metrics import collect_metrics
 from koku.metrics import DatabaseStatus
+from koku.metrics import REGISTRY
 
 FAKE = Faker()
 
@@ -49,21 +49,26 @@ class DatabaseStatusTest(IamTestCase):
         mock_connection.cursor.side_effect = OperationalError("test exception")
         logging.disable(logging.NOTSET)
         before = REGISTRY.get_sample_value("db_connection_errors_total")
+        self.assertIsNotNone(before)
         with self.assertLogs(logger="koku.metrics", level=logging.ERROR):
             DatabaseStatus().connection_check()
         after = REGISTRY.get_sample_value("db_connection_errors_total")
+        self.assertIsNotNone(after)
         self.assertEqual(1, after - before)
 
+    @patch("koku.metrics.push_to_gateway")
     @patch("koku.metrics.DatabaseStatus.collect")
-    def test_celery_task(self, mock_collect):
+    def test_celery_task(self, mock_collect, mock_push):
         """Test celery task to increment prometheus counter."""
         before = REGISTRY.get_sample_value("db_connection_errors_total")
+        self.assertIsNotNone(before)
         with mock.patch("django.db.backends.utils.CursorWrapper") as mock_cursor:
             mock_cursor.side_effect = OperationalError("test exception")
             mock_collect.return_value = []
             task = collect_metrics.s().apply()
             self.assertTrue(task.successful())
         after = REGISTRY.get_sample_value("db_connection_errors_total")
+        self.assertIsNotNone(after)
         self.assertEqual(1, after - before)
 
     @patch("koku.metrics.DatabaseStatus.query", return_value=True)
@@ -82,12 +87,12 @@ class DatabaseStatusTest(IamTestCase):
         dbs.collect()
         self.assertTrue(mock_gauge.called)
 
-    @patch("koku.metrics.PGSQL_GAUGE.labels")
+    @patch("koku.metrics.push_to_gateway")
     @patch("koku.metrics.DatabaseStatus.query", return_value=[{"schema": "foo", "size": 10}])
-    def test_collect_metrics(self, _, mock_gauge):
+    def test_collect_metrics(self, _, mock_push):
         """Test collect_metrics."""
         collect_metrics()
-        self.assertTrue(mock_gauge.called)
+        self.assertTrue(mock_push.called)
 
     @patch("koku.metrics.PGSQL_GAUGE.labels")
     @patch("koku.metrics.DatabaseStatus.query", return_value=[{"schema": None, "size": None}])
