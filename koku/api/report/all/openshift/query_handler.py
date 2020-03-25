@@ -25,7 +25,6 @@ from api.report.all.openshift.provider_map import OCPAllProviderMap
 from api.report.all.openshift.provider_map import OCPAllStorageProviderMap
 from api.report.ocp_aws.query_handler import OCPInfrastructureReportQueryHandlerBase
 from api.report.queries import is_grouped_or_filtered_by_project
-from api.views import OCPAllCostView
 from reporting_common.models import SourceServiceProduct
 
 
@@ -66,7 +65,7 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
         else:
             view_class = view_class[0]
             if service_filter:
-                if view_class == OCPAllCostView:
+                if view_class.__name__ == "OCPAllCostView":
                     res = (
                         SourceServiceProduct.objects.filter(source=self.provider)
                         .filter(product_codes__overlap=[f.strip("\"'") for f in service_filter])

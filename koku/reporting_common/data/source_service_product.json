@@ -43,7 +43,7 @@
         ]
     },
     {
-        "source": "OCP_All",
+        "source": "AWS",
         "service_category": "database",
         "product_codes": [
             "AmazonRDS",
