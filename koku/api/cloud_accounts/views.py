@@ -17,7 +17,6 @@
 """View for Cloud Account."""
 import json
 import logging
-import os
 
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
@@ -27,7 +26,7 @@ from rest_framework.renderers import JSONRenderer
 from api.cloud_accounts.cloud_account_serializer import CloudAccountSerializer
 
 LOG = logging.getLogger(__name__)
-OPENAPI_FILE_NAME = os.path.join("koku/api/cloud_accounts/", "cloud_accounts.json")
+CLOUD_ACCOUNTS_FILE_NAME = "koku/api/cloud_accounts/cloud_accounts.json"
 """View for Cloud Accounts."""
 
 
@@ -40,7 +39,7 @@ class CloudAccountViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         """ViewSet get_queryset method."""
-        data = self.get_json(OPENAPI_FILE_NAME)
+        data = self.get_json(CLOUD_ACCOUNTS_FILE_NAME)
         return data
 
     def get_json(self, path):

@@ -27,7 +27,7 @@ class CloudAccountViewTest(IamTestCase):
 
     def testCloudAccountViewSet(self):
         """Test that /cloud_accounts endpoint returns 200 HTTP_OK."""
-        url = reverse("cloud-accounts")
+        url = reverse("cloud_accounts-list")
         client = APIClient()
 
         response = client.get(url, **self.headers)
@@ -45,13 +45,13 @@ class CloudAccountViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def testCloudAccountPagination(self):
+    def testCloudAccountValues(self):
         """
         Test contents of cloud account.
 
         This test creates a cloud account with test values.
         """
-        url = reverse("cloud-accounts")
+        url = reverse("cloud_accounts-list")
         client = APIClient()
         # actual_name = response.data["data"]["name"]
         actual_name = client.get(url, **self.headers).data["data"][0]["name"]
