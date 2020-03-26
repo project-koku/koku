@@ -70,27 +70,25 @@ class AWSOrgUnitCrawler(AccountCrawler):
             results = results + response[resource_key]
         return results
 
-    def get_accounts_per_id(self, parent_id, koku_path):
+    def get_accounts_per_id(self, ou, prefix):
         """
         List accounts for parents given an aws identifer.
 
         Args:
             parent_id: unique id for org unit you want to list.
-            koku_path: The org unit tree path
+            prefix: The org unit tree path
 
         See:
         [1] https://docs.aws.amazon.com/cli/latest/reference/organizations/list-accounts-for-parent.html
         [2] https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/organizations.html
         """
+        parent_id = ou.get("Id")
         LOG.info("Obtaining accounts for organizational unit: %s" % parent_id)
-        results = []
         child_accounts = self.depaginate(
             function=self.client.list_accounts_for_parent, resource_key="Accounts", ParentId=parent_id
         )
         for act_info in child_accounts:
-            act_info[self.key] = koku_path + ("&%s" % act_info["Id"])
-            results.append(act_info)
-        return results
+            self._save_aws_org_method(ou.get("Name", ou.get("Id")), ou.get("Id"), prefix, act_info.get("Id"))
 
     def get_root_ou(self):
         """
@@ -102,25 +100,36 @@ class AWSOrgUnitCrawler(AccountCrawler):
         return root_ou
 
     def crawl_account_hierarchy(self):
-        self._crawl_org_for_acts()
+        root_ou = self.get_root_ou()
+        self._crawl_org_for_acts(root_ou, root_ou.get("Id"))
 
-    def _crawl_org_for_acts(self, ou=None):
+    def _crawl_org_for_acts(self, ou, prefix):
         """
         Recursively crawls the org units and accounts.
 
         Args:
             ou (dict): A return from aws client that includes the Id
         """
-        if not ou:
-            ou = self.get_root_ou()
-        results = [ou]
+
+        # Save entry for current OU
+        self._save_aws_org_method(ou.get("Name", ou.get("Id")), ou.get("Id"), prefix, None)
+
+        # process accounts for this org unit
+        self.get_accounts_per_id(ou, prefix)
+
+        # recurse and look for sub org units
         ou_pager = self.client.get_paginator("list_organizational_units_for_parent")
-        for sub_ou in ou_pager.paginate(ParentId=ou["Id"]).build_full_result().get("OrganizationalUnits"):
-            LOG.info("Organizational unit found during crawl: %s" % (sub_ou["Id"]))
-            if ou.get(self.key):
-                sub_ou[self.key] = ou[self.key] + ("&%s" % sub_ou["Id"])
-            else:
-                sub_ou[self.key] = ou["Id"] + ("&%s" % sub_ou["Id"])
-            results.extend(self._crawl_org_for_acts(sub_ou))
-        results.extend(self.get_accounts_per_id(ou["Id"], ou[self.key]))
-        return results
+        for sub_ou in ou_pager.paginate(ParentId=ou.get("Id")).build_full_result().get("OrganizationalUnits"):
+            new_prefix = prefix + ("&%s" % sub_ou.get("Id"))
+            LOG.info("Organizational unit found during crawl: %s" % (sub_ou.get("Id")))
+            self._crawl_org_for_acts(sub_ou, new_prefix)
+
+    def _save_aws_org_method(self, unit_name, unit_id, unit_path, account_id=None):
+        """
+        Recursively crawls the org units and accounts.
+
+        Args:
+            ou (dict): A return from aws client that includes the Id
+        """
+        LOG.info('Saving account or org unit: unit_name=%s, unit_id=%s, unit_path=%s, account_id=%s' %
+                 (unit_name, unit_id, unit_path, account_id))
