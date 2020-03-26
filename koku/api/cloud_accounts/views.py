@@ -17,6 +17,7 @@
 """View for Cloud Account."""
 import json
 import logging
+import os
 
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
@@ -24,9 +25,10 @@ from rest_framework.renderers import BrowsableAPIRenderer
 from rest_framework.renderers import JSONRenderer
 
 from api.cloud_accounts.cloud_account_serializer import CloudAccountSerializer
+from koku.settings import BASE_DIR
 
 LOG = logging.getLogger(__name__)
-CLOUD_ACCOUNTS_FILE_NAME = "koku/api/cloud_accounts/cloud_accounts.json"
+CLOUD_ACCOUNTS_FILE_NAME = os.path.join(BASE_DIR + "/api/cloud_accounts/cloud_accounts.json")
 """View for Cloud Accounts."""
 
 
