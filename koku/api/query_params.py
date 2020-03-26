@@ -35,8 +35,6 @@ from reporting.models import OCPAllCostLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
 
-OCP_ALL_COSTS_PATH = "openshift/infrastructures/all/costs"
-
 
 class QueryParameters:
     """Query parameter container object.
@@ -72,7 +70,6 @@ class QueryParameters:
         self._display_parameters = OrderedDict()
 
         self.request = request
-        self.caller = caller
         self.report_type = caller.report
         self.serializer = caller.serializer
         self.query_handler = caller.query_handler
