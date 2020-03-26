@@ -28,7 +28,7 @@ from api.cloud_accounts.serializers import CloudAccountSerializer
 from koku.settings import BASE_DIR
 
 LOG = logging.getLogger(__name__)
-CLOUD_ACCOUNTS_FILE_NAME = os.path.join(BASE_DIR + "/api/cloud_accounts/cloud_accounts.json")
+CLOUD_ACCOUNTS_FILE_NAME = os.path.join(BASE_DIR, "api/cloud_accounts/data/cloud_accounts.json")
 """View for Cloud Accounts."""
 
 
