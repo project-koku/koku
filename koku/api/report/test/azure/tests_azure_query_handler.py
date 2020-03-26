@@ -37,8 +37,16 @@ from api.report.azure.view import AzureStorageView
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.azure.view import AzureTagView
 from api.utils import DateHelper
+from reporting.models import AzureComputeSummary
 from reporting.models import AzureCostEntryLineItemDailySummary
 from reporting.models import AzureCostEntryProductService
+from reporting.models import AzureCostSummary
+from reporting.models import AzureCostSummaryByAccount
+from reporting.models import AzureCostSummaryByLocation
+from reporting.models import AzureCostSummaryByService
+from reporting.models import AzureDatabaseSummary
+from reporting.models import AzureNetworkSummary
+from reporting.models import AzureStorageSummary
 
 
 class AzureReportQueryHandlerTest(IamTestCase):
@@ -1065,3 +1073,27 @@ class AzureReportQueryHandlerTest(IamTestCase):
         result = data_totals.get("cost", {}).get("total")
         self.assertIsNotNone(result)
         self.assertAlmostEqual(result.get("value"), totals[ag_key], 6)
+
+    def test_query_table(self):
+        """Test that the correct view is assigned by query table property."""
+        test_cases = [
+            ("?", AzureCostView, AzureCostSummary),
+            ("?group_by[subscription_guid]=*", AzureCostView, AzureCostSummaryByAccount),
+            ("?group_by[resource_location]=*", AzureCostView, AzureCostSummaryByLocation),
+            ("?group_by[service_name]=*", AzureCostView, AzureCostSummaryByService),
+            ("?", AzureInstanceTypeView, AzureComputeSummary),
+            ("?", AzureStorageView, AzureStorageSummary),
+            ("?filter[service_name]=Database,Cosmos%20DB,Cache%20for%20Redis", AzureCostView, AzureDatabaseSummary),
+            (
+                "?filter[service_name]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway",  # noqa: E501
+                AzureCostView,
+                AzureNetworkSummary,
+            ),
+        ]
+
+        for test_case in test_cases:
+            with self.subTest(test_case=test_case):
+                url, view, table = test_case
+                query_params = self.mocked_query_params(url, view)
+                handler = AzureReportQueryHandler(query_params)
+                self.assertEqual(handler.query_table, table)
