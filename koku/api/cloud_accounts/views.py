@@ -15,63 +15,40 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for Cloud Account."""
+import json
 import logging
+import os
 
-from rest_framework import permissions
-from rest_framework.decorators import api_view
-from rest_framework.decorators import permission_classes
-from rest_framework.decorators import renderer_classes
+from rest_framework import viewsets
+from rest_framework.permissions import AllowAny
 from rest_framework.renderers import BrowsableAPIRenderer
 from rest_framework.renderers import JSONRenderer
 
-from api.cloud_accounts.cloud_accounts_dictionary import CLOUD_ACCOUNTS_DICTIONARY
-from api.common.pagination import StandardResultsSetPagination
+from api.cloud_accounts.cloud_account_serializer import CloudAccountSerializer
 
 LOG = logging.getLogger(__name__)
-
+OPENAPI_FILE_NAME = os.path.join("koku/api/cloud_accounts/", "cloud_accounts.json")
 """View for Cloud Accounts."""
 
 
-def get_paginator(request, count):
-    """Get Paginator."""
-    paginator = StandardResultsSetPagination()
-    paginator.count = count
-    paginator.request = request
-    paginator.limit = int(request.GET.get("limit", 0))
-    paginator.offset = int(request.GET.get("offset", 0))
-    return paginator
+class CloudAccountViewSet(viewsets.ReadOnlyModelViewSet):
+    """View for Cloud Accounts."""
 
+    permission_classes = (AllowAny,)
+    renderer_classes = [BrowsableAPIRenderer, JSONRenderer]
+    serializer_class = CloudAccountSerializer
 
-@api_view(["GET"])
-@permission_classes((permissions.AllowAny,))
-@renderer_classes([BrowsableAPIRenderer, JSONRenderer])
-def cloudaccounts(request):
-    """Provide the openapi information."""
-    data = CLOUD_ACCOUNTS_DICTIONARY
-    paginator = get_paginator(request, len(data))
-    offset = int(request.query_params.get("offset", 0))
-    limit = int(request.query_params.get("limit", 0))
-    page = int(request.query_params.get("page", 0))
+    def get_queryset(self):
+        """ViewSet get_queryset method."""
+        data = self.get_json(OPENAPI_FILE_NAME)
+        return data
 
-    if offset > len(data) - 1:
-        offset = len(data) - 1
-    if offset < 0:
-        offset = 0
-    if limit > len(data):
-        limit = len(data)
-    if limit < 0:
-        limit = 0
-    if limit == 0:
-        limit = len(data)
-    if page > 0:
-        if offset > 0:
-            offset = (page + 1) * offset
-        else:
-            offset = page * 1
-    try:
-        data = CLOUD_ACCOUNTS_DICTIONARY[offset : offset + limit]  # noqa E203
-    except IndexError:
-        data = []
-    page_obj = paginator.get_paginated_response(data)
-
-    return page_obj
+    def get_json(self, path):
+        """Obtain API JSON data from file path."""
+        json_data = None
+        with open(path) as json_file:
+            try:
+                json_data = json.load(json_file)
+            except (IOError, json.JSONDecodeError) as exc:
+                LOG.exception(exc)
+        return json_data
