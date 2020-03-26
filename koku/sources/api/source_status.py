@@ -43,7 +43,7 @@ class SourceStatus:
         self.request = request
         self.user = request.user
         self.source = Sources.objects.get(source_id=source_id)
-        self.auth_header = self.user.identity_header.get("encoded")
+        self.auth_header = request.headers.get("X-Rh-Identity")
         self.sources_client = SourcesHTTPClient(auth_header=self.auth_header, source_id=source_id)
 
     def status(self):
