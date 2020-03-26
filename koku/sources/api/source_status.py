@@ -42,6 +42,7 @@ class SourceStatus:
         """Initialize source id."""
         self.request = request
         self.user = request.user
+        self.source_id = source_id
         self.source = Sources.objects.get(source_id=source_id)
         self.auth_header = request.headers.get("X-Rh-Identity")
         self.sources_client = SourcesHTTPClient(auth_header=self.auth_header, source_id=source_id)
@@ -96,6 +97,7 @@ def _deliver_status(request, status_obj):
     if request.method == "GET":
         return Response(availability_status, status=status.HTTP_200_OK)
     elif request.method == "POST":
+        LOG.info("Delivering source status for Source ID: %s", status_obj.source_id)
         status_thread = threading.Thread(
             target=status_obj.push_status, args=(availability_status.get("availability_status_error"),)
         )
