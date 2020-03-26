@@ -132,6 +132,12 @@ class ReportManifestDBAccessorTest(IamTestCase):
 
         self.assertEqual(result, later_time)
 
+    def test_get_last_report_completed_datetime_none(self):
+        """Test that the last completed report datetime returns none if not found."""
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
+        result = self.manifest_accessor.get_last_report_completed_datetime(manifest.id)
+        self.assertIsNone(result)
+
     def test_get_last_seen_manifest_ids(self):
         """Test that get_last_seen_manifest_ids returns the appropriate assembly_ids."""
         # test that the most recently seen manifests that haven't been processed are returned
