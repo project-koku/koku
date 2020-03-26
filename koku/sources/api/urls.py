@@ -28,7 +28,6 @@ ROUTER.register(r"sources", SourcesViewSet)
 # # pylint: disable=invalid-name
 urlpatterns = [
     url(r"^status/$", get_status, name="server-status"),
-    url(r"^source-status/$", source_status, name="source-status"),
-    url(r"^source-status$", source_status, name="source-status"),
+    url(r"^source-status/?$", source_status, name="source-status"),
     url(r"^", include(ROUTER.urls)),
 ]
