@@ -25,7 +25,7 @@ from api.iam.test.iam_test_case import IamTestCase
 class CloudAccountViewTest(IamTestCase):
     """Test Cases for CloudAccountViewSet."""
 
-    def testCloudAccountViewSet(self):
+    def test_http_status_code_200_ok(self):
         """Test that /cloud_accounts endpoint returns 200 HTTP_OK."""
         url = reverse("cloud_accounts-list")
         client = APIClient()
@@ -33,7 +33,7 @@ class CloudAccountViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def testCloudAccountValues(self):
+    def test_cloud_account_values(self):
         """
         Test contents of cloud account.
 

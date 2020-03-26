@@ -24,7 +24,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.renderers import BrowsableAPIRenderer
 from rest_framework.renderers import JSONRenderer
 
-from api.cloud_accounts.cloud_account_serializer import CloudAccountSerializer
+from api.cloud_accounts.serializers import CloudAccountSerializer
 from koku.settings import BASE_DIR
 
 LOG = logging.getLogger(__name__)
