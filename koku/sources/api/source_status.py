@@ -42,8 +42,9 @@ class SourceStatus:
         """Initialize source id."""
         self.request = request
         self.user = request.user
+        self.source_id = source_id
         self.source = Sources.objects.get(source_id=source_id)
-        self.auth_header = self.user.identity_header.get("encoded")
+        self.auth_header = request.headers.get("X-Rh-Identity")
         self.sources_client = SourcesHTTPClient(auth_header=self.auth_header, source_id=source_id)
 
     def status(self):
@@ -69,9 +70,10 @@ class SourceStatus:
         availability_status = interface.availability_status(source_authentication, source_billing_source)
         return availability_status
 
-    def push_status(self, status_msg):
+    def push_status(self):
         """Push status_msg to platform sources."""
         try:
+            status_msg = self.status()
             self.sources_client.set_source_status(status_msg)
         except SourcesHTTPClientError as error:
             err_msg = "Unable to push source status. Reason: {}".format(str(error))
@@ -91,14 +93,11 @@ def _get_source_id_from_request(request):
 
 def _deliver_status(request, status_obj):
     """Deliver status depending on request."""
-    availability_status = status_obj.status()
-
     if request.method == "GET":
-        return Response(availability_status, status=status.HTTP_200_OK)
+        return Response(status_obj.status(), status=status.HTTP_200_OK)
     elif request.method == "POST":
-        status_thread = threading.Thread(
-            target=status_obj.push_status, args=(availability_status.get("availability_status_error"),)
-        )
+        LOG.info("Delivering source status for Source ID: %s", status_obj.source_id)
+        status_thread = threading.Thread(target=status_obj.push_status)
         status_thread.daemon = True
         status_thread.start()
         return Response(status=status.HTTP_204_NO_CONTENT)
