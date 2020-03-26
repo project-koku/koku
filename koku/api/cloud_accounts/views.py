@@ -35,9 +35,9 @@ CLOUD_ACCOUNTS_FILE_NAME = os.path.join(BASE_DIR + "/api/cloud_accounts/cloud_ac
 class CloudAccountViewSet(viewsets.ReadOnlyModelViewSet):
     """View for Cloud Accounts."""
 
+    serializer_class = CloudAccountSerializer
     permission_classes = (AllowAny,)
     renderer_classes = [BrowsableAPIRenderer, JSONRenderer]
-    serializer_class = CloudAccountSerializer
 
     def get_queryset(self):
         """ViewSet get_queryset method."""
