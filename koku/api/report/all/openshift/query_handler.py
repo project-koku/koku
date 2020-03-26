@@ -45,6 +45,17 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
 
+    def check_view_filter_and_group_by_criteria(self, filter_keys, group_by_keys):
+        no_view_group_bys = {"project", "node"}
+        if len(filter_keys) > 1 or len(group_by_keys) > 1:
+            return True
+        if group_by_keys and len(filter_keys.difference(group_by_keys)) != 0:
+            return True
+        if group_by_keys.intersection(no_view_group_bys) or filter_keys.intersection(no_view_group_bys):
+            return True
+
+        return False
+
     def _resolve_mapper(self, parameters):
         orm_provider_map = {
             ("storage", None): OCPAllStorageProviderMap,
@@ -53,25 +64,31 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
             ("costs", "database"): OCPAllDatabaseProviderMap,
         }
 
-        service_filter = parameters.get_filter("service")
-        report_subtype = None
-        if inspect.isclass(parameters.caller):
-            view_class = parameters.caller.__name__
-            if service_filter:
-                if view_class == "OCPAllCostView":
-                    res = (
-                        SourceServiceProduct.objects.filter(source=self.provider)
-                        .filter(product_codes__overlap=[f.strip("\"'") for f in service_filter])
-                        .values("service_category")
-                        .distinct()
-                        .all()
-                    )
-                    if len(res) == 1:
-                        report_subtype = res[0]["service_category"]
-                else:
-                    report_subtype = "_"  # Force the default
-        else:
+        excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
+        filter_keys = set(self.parameters.get("filter", {}).keys()).difference(excluded_filters)
+        group_by_keys = set(self.parameters.get("group_by", {}).keys())
+        if self.check_view_filter_and_group_by_criteria(filter_keys, group_by_keys):
             report_subtype = "_"
+        else:
+            service_filter = parameters.get_filter("service")
+            report_subtype = None
+            if inspect.isclass(parameters.caller):
+                view_class = parameters.caller.__name__
+                if service_filter:
+                    if view_class == "OCPAllCostView":
+                        res = (
+                            SourceServiceProduct.objects.filter(source=self.provider)
+                            .filter(product_codes__overlap=[f.strip("\"'") for f in service_filter])
+                            .values("service_category")
+                            .distinct()
+                            .all()
+                        )
+                        if len(res) == 1:
+                            report_subtype = res[0]["service_category"]
+                    else:
+                        report_subtype = "_"  # Force the default
+            else:
+                report_subtype = "_"
 
         if is_grouped_or_filtered_by_project(parameters):
             map_report_type = self._report_type = parameters.report_type + "_by_project"
