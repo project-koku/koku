@@ -29,9 +29,9 @@ from api.report.provider_map import ProviderMap
 from koku.database import KeyDecimalTransform
 from providers.provider_access import ProviderAccessor
 from reporting.models import OCPUsageLineItemDailySummary
-from reporting.provider.ocp.models import OCPComputeSummary
 from reporting.provider.ocp.models import OCPCostSummary
 from reporting.provider.ocp.models import OCPCostSummaryByProject
+from reporting.provider.ocp.models import OCPPodSummary
 from reporting.provider.ocp.models import OCPVolumeSummary
 
 
@@ -1220,16 +1220,16 @@ class OCPProviderMap(ProviderMap):
             "costs": {"default": OCPCostSummary, "cluster": OCPCostSummary, "project": OCPCostSummary},
             "costs_by_project": {"default": OCPCostSummaryByProject, "project": OCPCostSummaryByProject},
             "cpu": {
-                "default": OCPComputeSummary,
-                "cluster": OCPComputeSummary,
-                "project": OCPComputeSummary,
-                "cpu": OCPComputeSummary,
+                "default": OCPPodSummary,
+                "cluster": OCPPodSummary,
+                "project": OCPPodSummary,
+                "cpu": OCPPodSummary,
             },
             "memory": {
-                "default": OCPComputeSummary,
-                "cluster": OCPComputeSummary,
-                "project": OCPComputeSummary,
-                "memory": OCPComputeSummary,
+                "default": OCPPodSummary,
+                "cluster": OCPPodSummary,
+                "project": OCPPodSummary,
+                "memory": OCPPodSummary,
             },
             "volume": {"default": OCPVolumeSummary, "project": OCPVolumeSummary},
         }

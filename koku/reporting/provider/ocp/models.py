@@ -511,7 +511,7 @@ class OCPEnabledTagKeys(models.Model):
     key = models.CharField(max_length=253, unique=True)
 
 
-class OCPComputeSummary(models.Model):
+class OCPPodSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
 
     This table gives a daily breakdown of compute usage.
@@ -519,9 +519,9 @@ class OCPComputeSummary(models.Model):
     """
 
     class Meta:
-        """Meta for OCPComputeSummary."""
+        """Meta for OCPPodSummary."""
 
-        db_table = "reporting_ocp_compute_summary"
+        db_table = "reporting_ocp_pod_summary"
         managed = False
 
     id = models.BigAutoField(primary_key=True)
