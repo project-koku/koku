@@ -16,29 +16,61 @@
 #
 """Test the AWSOrgUnitCrawler object."""
 # from unittest.mock import patch
+from unittest.mock import Mock
+from unittest.mock import patch
+
+from faker import Faker
+
+from api.models import Provider
+from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
 from masu.test import MasuTestCase
+from masu.test.external.downloader.aws import fake_arn
 
-# from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
-# from masu.test.external.downloader.aws.test_aws_report_downloader import FakeSession
+FAKE = Faker()
+CUSTOMER_NAME = FAKE.word()
+BUCKET = FAKE.word()
+P_UUID = FAKE.uuid4()
+P_TYPE = Provider.PROVIDER_AWS
 
-# A good resouce for how to much this stuff:
-# https://github.com/project-koku/koku/blob/500fec9597bd6011b837d95904b3bc03cbb951aa/koku/masu/test/util/aws/test_common.py
+
+class FakeSession:
+    """
+    Fake Boto Session object.
+
+    This is here because Moto doesn't mock out the 'cur' endpoint yet. As soon
+    as Moto supports 'cur', this can be removed.
+    """
+
+    @staticmethod
+    def client(service):
+        """Return a fake AWS Client with a report."""
+
+        if "cur" in service:
+            return Mock(**{"describe_report_definitions.return_value": "fake_report"})
+        else:
+            return Mock()
 
 
 class AWSOrgUnitCrawlerTest(MasuTestCase):
     """Test Cases for the AWSOrgUnitCrawler object."""
 
+    @classmethod
+    def setUpClass(cls):
+        """Set up shared class variables."""
+        super().setUpClass()
+        cls.account = {
+            "authentication": fake_arn(service="iam", generate_account_id=True),
+            "customer_name": CUSTOMER_NAME,
+            "billing_source": BUCKET,
+            "provider_type": P_TYPE,
+            "schema_name": BUCKET,
+            "provider_uuid": P_UUID,
+        }
+
+    @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
     def setUp(self):
         """Set up test case."""
         super().setUp()
-        self.account_id = "111111111111"
-
-    # @patch("masu.external.accounts.labels.aws.aws_account_alias.get_assume_role_session", return_value=FakeSession)
-    # def test_initializer(self, session_mock):
-    #     """Test AWSAccountAlias initializer."""
-    #     arn = "roleArn"
-    #     schema = "acct10001"
-    #     accessor = AWSOrgUnitCrawler(arn, schema)
-    #     # self.assertEqual(accessor._role_arn, arn)
-    #     # self.assertEqual(accessor._schema, schema)
-    #     # TODO: I need to figure
+        self.unit_crawler = AWSOrgUnitCrawler(self.account)
+        # We init the class here so that we don't have to moc the
+        # assume role session in each test below.
