@@ -21,7 +21,6 @@ import os
 
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
-from rest_framework.renderers import BrowsableAPIRenderer
 from rest_framework.renderers import JSONRenderer
 
 from api.cloud_accounts.serializers import CloudAccountSerializer
