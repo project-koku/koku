@@ -65,8 +65,8 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
         }
 
         excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
-        filter_keys = set(self.parameters.get("filter", {}).keys()).difference(excluded_filters)
-        group_by_keys = set(self.parameters.get("group_by", {}).keys())
+        filter_keys = set(parameters.get("filter", {}).keys()).difference(excluded_filters)
+        group_by_keys = set(parameters.get("group_by", {}).keys())
         if self.check_view_filter_and_group_by_criteria(filter_keys, group_by_keys):
             report_subtype = "_"
         else:
