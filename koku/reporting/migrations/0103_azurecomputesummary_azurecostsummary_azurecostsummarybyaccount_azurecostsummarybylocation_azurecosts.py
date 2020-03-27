@@ -130,16 +130,16 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             sql="""
 CREATE MATERIALIZED VIEW reporting_azure_cost_summary AS(
-    SELECT row_number() OVER(ORDER BY date(usage_start)) as id,
-        date(usage_start) as usage_start,
-        date(usage_start) as usage_end,
+    SELECT row_number() OVER(ORDER BY usage_start) as id,
+        usage_start as usage_start,
+        usage_start as usage_end,
         sum(pretax_cost) as pretax_cost,
         sum(markup_cost) as markup_cost,
         max(currency) as currency
     FROM reporting_azurecostentrylineitem_daily_summary
     -- Get data for this month or last month
     WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-    GROUP BY date(usage_start)
+    GROUP BY usage_start
 )
 ;
 
@@ -148,9 +148,9 @@ ON reporting_azure_cost_summary (usage_start)
 ;
 
 CREATE MATERIALIZED VIEW reporting_azure_cost_summary_by_account AS(
-    SELECT row_number() OVER(ORDER BY date(usage_start), subscription_guid) as id,
-        date(usage_start) as usage_start,
-        date(usage_start) as usage_end,
+    SELECT row_number() OVER(ORDER BY usage_start, subscription_guid) as id,
+        usage_start as usage_start,
+        usage_start as usage_end,
         subscription_guid,
         sum(pretax_cost) as pretax_cost,
         sum(markup_cost) as markup_cost,
@@ -158,7 +158,7 @@ CREATE MATERIALIZED VIEW reporting_azure_cost_summary_by_account AS(
     FROM reporting_azurecostentrylineitem_daily_summary
     -- Get data for this month or last month
     WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-    GROUP BY date(usage_start), subscription_guid
+    GROUP BY usage_start, subscription_guid
 )
 ;
 
@@ -167,9 +167,9 @@ ON reporting_azure_cost_summary_by_account (usage_start, subscription_guid)
 ;
 
 CREATE MATERIALIZED VIEW reporting_azure_cost_summary_by_location AS(
-    SELECT row_number() OVER(ORDER BY date(usage_start), resource_location) as id,
-        date(usage_start) as usage_start,
-        date(usage_start) as usage_end,
+    SELECT row_number() OVER(ORDER BY usage_start, resource_location) as id,
+        usage_start as usage_start,
+        usage_start as usage_end,
         resource_location,
         sum(pretax_cost) as pretax_cost,
         sum(markup_cost) as markup_cost,
@@ -177,7 +177,7 @@ CREATE MATERIALIZED VIEW reporting_azure_cost_summary_by_location AS(
     FROM reporting_azurecostentrylineitem_daily_summary
     -- Get data for this month or last month
     WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-    GROUP BY date(usage_start), resource_location
+    GROUP BY usage_start, resource_location
 )
 ;
 
@@ -186,9 +186,9 @@ ON reporting_azure_cost_summary_by_location (usage_start, resource_location)
 ;
 
 CREATE MATERIALIZED VIEW reporting_azure_cost_summary_by_service AS(
-    SELECT row_number() OVER(ORDER BY date(usage_start), service_name) as id,
-        date(usage_start) as usage_start,
-        date(usage_start) as usage_end,
+    SELECT row_number() OVER(ORDER BY usage_start, service_name) as id,
+        usage_start as usage_start,
+        usage_start as usage_end,
         service_name,
         sum(pretax_cost) as pretax_cost,
         sum(markup_cost) as markup_cost,
@@ -196,7 +196,7 @@ CREATE MATERIALIZED VIEW reporting_azure_cost_summary_by_service AS(
     FROM reporting_azurecostentrylineitem_daily_summary
     -- Get data for this month or last month
     WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-    GROUP BY date(usage_start), service_name
+    GROUP BY usage_start, service_name
 )
 ;
 
@@ -260,9 +260,9 @@ CREATE UNIQUE INDEX azure_compute_summary
 ;
 
 CREATE MATERIALIZED VIEW reporting_azure_storage_summary AS(
-    SELECT row_number() OVER(ORDER BY date(usage_start), service_name) as id,
-        date(usage_start) as usage_start,
-        date(usage_start) as usage_end,
+    SELECT row_number() OVER(ORDER BY usage_start, service_name) as id,
+        usage_start as usage_start,
+        usage_start as usage_end,
         service_name,
         sum(usage_quantity) as usage_quantity,
         max(unit_of_measure) as unit_of_measure,
@@ -273,7 +273,7 @@ CREATE MATERIALIZED VIEW reporting_azure_storage_summary AS(
     -- Get data for this month or last month
     WHERE service_name LIKE '%Storage%'
         AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-    GROUP BY date(usage_start), service_name
+    GROUP BY usage_start, service_name
 )
 ;
 
@@ -283,9 +283,9 @@ ON reporting_azure_storage_summary (usage_start, service_name)
 
 
 CREATE MATERIALIZED VIEW reporting_azure_network_summary AS(
-    SELECT row_number() OVER(ORDER BY date(usage_start), service_name) as id,
-        date(usage_start) as usage_start,
-        date(usage_start) as usage_end,
+    SELECT row_number() OVER(ORDER BY usage_start, service_name) as id,
+        usage_start as usage_start,
+        usage_start as usage_end,
         service_name,
         sum(usage_quantity) as usage_quantity,
         max(unit_of_measure) as unit_of_measure,
@@ -296,7 +296,7 @@ CREATE MATERIALIZED VIEW reporting_azure_network_summary AS(
     -- Get data for this month or last month
     WHERE service_name IN ('Virtual Network','VPN','DNS','Traffic Manager','ExpressRoute','Load Balancer','Application Gateway')
         AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-    GROUP BY date(usage_start), service_name
+    GROUP BY usage_start, service_name
 )
 ;
 
@@ -305,9 +305,9 @@ ON reporting_azure_network_summary (usage_start, service_name)
 ;
 
 CREATE MATERIALIZED VIEW reporting_azure_database_summary AS(
-    SELECT row_number() OVER(ORDER BY date(usage_start), service_name) as id,
-        date(usage_start) as usage_start,
-        date(usage_start) as usage_end,
+    SELECT row_number() OVER(ORDER BY usage_start, service_name) as id,
+        usage_start as usage_start,
+        usage_start as usage_end,
         service_name,
         sum(usage_quantity) as usage_quantity,
         max(unit_of_measure) as unit_of_measure,
@@ -318,7 +318,7 @@ CREATE MATERIALIZED VIEW reporting_azure_database_summary AS(
     -- Get data for this month or last month
     WHERE service_name IN ('Cosmos DB','Cache for Redis') OR service_name ILIKE '%database%'
         AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-    GROUP BY date(usage_start), service_name
+    GROUP BY usage_start, service_name
 )
 ;
 
