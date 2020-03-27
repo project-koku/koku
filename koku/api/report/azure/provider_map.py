@@ -25,7 +25,15 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
+from reporting.models import AzureComputeSummary
 from reporting.models import AzureCostEntryLineItemDailySummary
+from reporting.models import AzureCostSummary
+from reporting.models import AzureCostSummaryByAccount
+from reporting.models import AzureCostSummaryByLocation
+from reporting.models import AzureCostSummaryByService
+from reporting.models import AzureDatabaseSummary
+from reporting.models import AzureNetworkSummary
+from reporting.models import AzureStorageSummary
 
 
 class AzureProviderMap(ProviderMap):
@@ -227,4 +235,17 @@ class AzureProviderMap(ProviderMap):
                 "tables": {"query": AzureCostEntryLineItemDailySummary},
             }
         ]
+
+        self.views = {
+            "costs": {
+                "default": AzureCostSummary,
+                "subscription_guid": AzureCostSummaryByAccount,
+                "resource_location": AzureCostSummaryByLocation,
+                "service_name": AzureCostSummaryByService,
+            },
+            "instance_type": {"default": AzureComputeSummary, "instance_type": AzureComputeSummary},
+            "storage": {"default": AzureStorageSummary},
+            "database": {"default": AzureDatabaseSummary, "service_name": AzureDatabaseSummary},
+            "network": {"default": AzureNetworkSummary, "service_name": AzureNetworkSummary},
+        }
         super().__init__(provider, report_type)
