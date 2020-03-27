@@ -102,18 +102,142 @@ class OCPAllCostLineItemDailySummary(models.Model):
     project_costs = JSONField(null=True)
 
 
-class OCPAllCostLineItemDailySummaryCompute(models.Model):
+# Materialized Views for UI Reporting
+class OCPAllCostSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+    This table gives a daily breakdown of total cost.
+    """
+
+    class Meta:
+        """Meta for OCPAllCostSummary."""
+
+        db_table = "reporting_ocpall_cost_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+
+class OCPAllCostSummaryByAccount(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+    This table gives a daily breakdown of total cost by account.
+    """
+
+    class Meta:
+        """Meta for OCPAllCostSummaryByAccount."""
+
+        db_table = "reporting_ocpall_cost_summary_by_account"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+
+class OCPAllCostSummaryByService(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+    This table gives a daily breakdown of total cost by account.
+    """
+
+    class Meta:
+        """Meta for OCPAllCostSummaryByService."""
+
+        db_table = "reporting_ocpall_cost_summary_by_service"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
+
+    product_code = models.CharField(max_length=50, null=False)
+
+    product_family = models.CharField(max_length=150, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+
+class OCPAllCostSummaryByRegion(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+    This table gives a daily breakdown of total cost by region.
+    """
+
+    class Meta:
+        """Meta for OCPAllCostSummaryByRegion."""
+
+        db_table = "reporting_ocpall_cost_summary_by_region"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
+
+    region = models.CharField(max_length=50, null=True)
+
+    availability_zone = models.CharField(max_length=50, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+
+class OCPAllComputeSummary(models.Model):
     """A summarized view of OCP on All infrastructure cost for products in the compute service category."""
 
     class Meta:
-        """Meta for OCPAllCostLineItemDailySummaryCompute."""
+        """Meta for OCPAllComputeSummary."""
 
-        db_table = "reporting_ocpallcostlineitem_daily_summary_compute"
+        db_table = "reporting_ocpall_compute_summary"
         managed = False
 
     id = models.IntegerField(primary_key=True)
 
-    # OCP Fields
     cluster_id = models.CharField(max_length=50, null=True)
 
     cluster_alias = models.CharField(max_length=256, null=True)
@@ -135,79 +259,13 @@ class OCPAllCostLineItemDailySummaryCompute(models.Model):
     currency_code = models.CharField(max_length=10, null=True)
 
 
-class OCPAllCostLineItemDailySummaryNetwork(models.Model):
-    """A summarized view of OCP on All infrastructure cost for products in the network service category."""
-
-    class Meta:
-        """Meta for OCPAllCostLineItemDailySummaryNetwork."""
-
-        db_table = "reporting_ocpallcostlineitem_daily_summary_network"
-        managed = False
-
-    id = models.IntegerField(primary_key=True)
-
-    # OCP Fields
-    cluster_id = models.CharField(max_length=50, null=True)
-
-    cluster_alias = models.CharField(max_length=256, null=True)
-
-    usage_start = models.DateField(null=False)
-
-    usage_end = models.DateField(null=False)
-
-    product_code = models.CharField(max_length=50, null=False)
-
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    unit = models.CharField(max_length=63, null=True)
-
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    currency_code = models.CharField(max_length=10, null=True)
-
-
-class OCPAllCostLineItemDailySummaryStorage(models.Model):
-    """A summarized view of OCP on All infrastructure cost for products in the storage service category."""
-
-    class Meta:
-        """Meta for OCPAllCostLineItemDailySummaryStorage."""
-
-        db_table = "reporting_ocpallcostlineitem_daily_summary_storage"
-        managed = False
-
-    id = models.IntegerField(primary_key=True)
-
-    # OCP Fields
-    cluster_id = models.CharField(max_length=50, null=True)
-
-    cluster_alias = models.CharField(max_length=256, null=True)
-
-    usage_start = models.DateField(null=False)
-
-    usage_end = models.DateField(null=False)
-
-    product_code = models.CharField(max_length=50, null=False)
-
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    unit = models.CharField(max_length=63, null=True)
-
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    currency_code = models.CharField(max_length=10, null=True)
-
-
-class OCPAllCostLineItemDailySummaryDatabase(models.Model):
+class OCPAllDatabaseSummary(models.Model):
     """A summarized view of OCP on All infrastructure cost for products in the database service category."""
 
     class Meta:
-        """Meta for OCPAllCostLineItemDailySummaryDatabase."""
+        """Meta for OCPAllDatabaseSummary."""
 
-        db_table = "reporting_ocpallcostlineitem_daily_summary_database"
+        db_table = "reporting_ocpall_database_summary"
         managed = False
 
     id = models.IntegerField(primary_key=True)
@@ -220,6 +278,73 @@ class OCPAllCostLineItemDailySummaryDatabase(models.Model):
     usage_start = models.DateField(null=False)
 
     usage_end = models.DateField(null=False)
+
+    product_code = models.CharField(max_length=50, null=False)
+
+    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+
+    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+
+    currency_code = models.CharField(max_length=10, null=True)
+
+
+class OCPAllNetworkSummary(models.Model):
+    """A summarized view of OCP on All infrastructure cost for products in the network service category."""
+
+    class Meta:
+        """Meta for OCPAllNetworkSummary."""
+
+        db_table = "reporting_ocpall_network_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    product_code = models.CharField(max_length=50, null=False)
+
+    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+
+    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+
+    currency_code = models.CharField(max_length=10, null=True)
+
+
+class OCPAllStorageSummary(models.Model):
+    """A summarized view of OCP on All infrastructure cost for products in the storage service category."""
+
+    class Meta:
+        """Meta for OCPAllStorageSummary."""
+
+        db_table = "reporting_ocpall_storage_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    # OCP Fields
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    product_family = models.CharField(max_length=150, null=True)
 
     product_code = models.CharField(max_length=50, null=False)
 
@@ -294,146 +419,6 @@ class OCPAllCostLineItemProjectDailySummary(models.Model):
     region = models.CharField(max_length=50, null=True)
 
     availability_zone = models.CharField(max_length=50, null=True)
-
-    # Need more precision on calculated fields, otherwise there will be
-    # Rounding errors
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    unit = models.CharField(max_length=63, null=True)
-
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    currency_code = models.CharField(max_length=10, null=True)
-
-
-class OCPAllCostLineItemProjectDailySummaryCompute(models.Model):
-    """A summarized view of OCP on AWS cost by OpenShift project for products in the compute service category."""
-
-    class Meta:
-        """Meta for OCPAllCostLineItemProjectDailySummaryCompute."""
-
-        db_table = "reporting_ocpallcostlineitem_project_daily_summary_compute"
-        managed = False
-
-    id = models.IntegerField(primary_key=True)
-
-    # Kubernetes objects by convention have a max name length of 253 chars
-    namespace = models.CharField(max_length=253, null=False)
-
-    usage_start = models.DateField(null=False)
-
-    usage_end = models.DateField(null=False)
-
-    product_code = models.CharField(max_length=50, null=False)
-
-    # Need more precision on calculated fields, otherwise there will be
-    # Rounding errors
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    unit = models.CharField(max_length=63, null=True)
-
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    currency_code = models.CharField(max_length=10, null=True)
-
-
-class OCPAllCostLineItemProjectDailySummaryDatabase(models.Model):
-    """A summarized view of OCP on AWS cost by OpenShift project for products in the database service category."""
-
-    class Meta:
-        """Meta for OCPAllCostLineItemProjectDailySummaryDatabase."""
-
-        db_table = "reporting_ocpallcostlineitem_project_daily_summary_database"
-        managed = False
-
-    id = models.IntegerField(primary_key=True)
-
-    # Kubernetes objects by convention have a max name length of 253 chars
-    namespace = models.CharField(max_length=253, null=False)
-
-    usage_start = models.DateField(null=False)
-
-    usage_end = models.DateField(null=False)
-
-    product_code = models.CharField(max_length=50, null=False)
-
-    # Need more precision on calculated fields, otherwise there will be
-    # Rounding errors
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    unit = models.CharField(max_length=63, null=True)
-
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    currency_code = models.CharField(max_length=10, null=True)
-
-
-class OCPAllCostLineItemProjectDailySummaryNetwork(models.Model):
-    """A summarized view of OCP on AWS cost by OpenShift project for products in the network service category."""
-
-    class Meta:
-        """Meta for OCPAllCostLineItemProjectDailySummaryNetwork."""
-
-        db_table = "reporting_ocpallcostlineitem_project_daily_summary_network"
-        managed = False
-
-    id = models.IntegerField(primary_key=True)
-
-    # Kubernetes objects by convention have a max name length of 253 chars
-    namespace = models.CharField(max_length=253, null=False)
-
-    usage_start = models.DateField(null=False)
-
-    usage_end = models.DateField(null=False)
-
-    product_code = models.CharField(max_length=50, null=False)
-
-    # Need more precision on calculated fields, otherwise there will be
-    # Rounding errors
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    unit = models.CharField(max_length=63, null=True)
-
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-
-    currency_code = models.CharField(max_length=10, null=True)
-
-
-class OCPAllCostLineItemProjectDailySummaryStorage(models.Model):
-    """A summarized view of OCP on AWS cost by OpenShift project for products in the storage service category."""
-
-    class Meta:
-        """Meta for OCPAllCostLineItemProjectDailySummaryStorage."""
-
-        db_table = "reporting_ocpallcostlineitem_project_daily_summary_storage"
-        managed = False
-
-    id = models.IntegerField(primary_key=True)
-
-    # Kubernetes objects by convention have a max name length of 253 chars
-    namespace = models.CharField(max_length=253, null=False)
-
-    usage_start = models.DateField(null=False)
-
-    usage_end = models.DateField(null=False)
-
-    product_code = models.CharField(max_length=50, null=False)
 
     # Need more precision on calculated fields, otherwise there will be
     # Rounding errors
