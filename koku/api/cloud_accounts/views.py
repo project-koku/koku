@@ -15,11 +15,22 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for Cloud Account."""
+import json
+import logging
+import os
+
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
+from rest_framework.renderers import JSONRenderer
+from rest_framework.settings import api_settings
 
-from api.cloud_accounts.models import CloudAccount
+from api.cloud_accounts.serializers import CloudAccountQueryParamsSerializer
 from api.cloud_accounts.serializers import CloudAccountSerializer
+from koku.settings import BASE_DIR
+
+LOG = logging.getLogger(__name__)
+CLOUD_ACCOUNTS_FILE_NAME = os.path.join(BASE_DIR, "api/cloud_accounts/data/cloud_accounts.json")
+"""View for Cloud Accounts."""
 
 
 class CloudAccountViewSet(viewsets.ReadOnlyModelViewSet):
@@ -27,11 +38,21 @@ class CloudAccountViewSet(viewsets.ReadOnlyModelViewSet):
 
     serializer_class = CloudAccountSerializer
     permission_classes = (AllowAny,)
+    renderer_classes = [JSONRenderer] + api_settings.DEFAULT_RENDERER_CLASSES
 
     def get_queryset(self):
-        """Override default get_queryset to filter on name."""
-        queryset = CloudAccount.objects.all()
-        cloud_account = self.request.query_params.get("name", None)
-        if cloud_account is not None:
-            queryset = queryset.filter(name=cloud_account)
-        return queryset
+        """ViewSet get_queryset method."""
+        serializer = CloudAccountQueryParamsSerializer(data=self.request.query_params)
+        serializer.is_valid(raise_exception=True)
+        data = self.get_json(CLOUD_ACCOUNTS_FILE_NAME)
+        return data
+
+    def get_json(self, path):
+        """Obtain API JSON data from file path."""
+        json_data = None
+        with open(path) as json_file:
+            try:
+                json_data = json.load(json_file)
+            except (IOError, json.JSONDecodeError) as exc:
+                LOG.exception(exc)
+        return json_data
