@@ -24,6 +24,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONRenderer
 from rest_framework.settings import api_settings
 
+from api.cloud_accounts.serializers import CloudAccountQueryParamsSerializer
 from api.cloud_accounts.serializers import CloudAccountSerializer
 from koku.settings import BASE_DIR
 
@@ -41,6 +42,8 @@ class CloudAccountViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         """ViewSet get_queryset method."""
+        serializer = CloudAccountQueryParamsSerializer(data=self.request.query_params)
+        serializer.is_valid(raise_exception=True)
         data = self.get_json(CLOUD_ACCOUNTS_FILE_NAME)
         return data
 

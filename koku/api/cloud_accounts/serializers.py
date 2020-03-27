@@ -25,3 +25,11 @@ class CloudAccountSerializer(serializers.Serializer):
     value = serializers.CharField()
     description = serializers.CharField()
     updated_timestamp = serializers.DateTimeField()
+
+
+class CloudAccountQueryParamsSerializer(serializers.Serializer):
+    """Serializer for the Query params on Cloud Account."""
+
+    limit = serializers.IntegerField(required=False, min_value=1)
+    offset = serializers.IntegerField(required=False, min_value=0)
+    page = serializers.IntegerField(required=False, min_value=1)
