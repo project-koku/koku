@@ -58,7 +58,7 @@ CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
             {% endif %}
     ) AS ocp
     INNER JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys as enabled_tags
-        ON enabled_tags.key = ocp.key
+        ON LOWER(enabled_tags.key) = ocp.key
 )
 ;
 
@@ -81,7 +81,7 @@ CREATE TEMPORARY TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
             {% endif %}
     ) AS ocp
     INNER JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys as enabled_tags
-        ON enabled_tags.key = ocp.key
+        ON LOWER(enabled_tags.key) = ocp.key
 )
 ;
 
