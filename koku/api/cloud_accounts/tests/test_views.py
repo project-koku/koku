@@ -19,14 +19,13 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.cloud_accounts.tests.cloud_account_common_test_utilities import CloudAccountCommonTestUtilities
 from api.iam.test.iam_test_case import IamTestCase
 
 
 class CloudAccountViewTest(IamTestCase):
     """Test Cases for CloudAccountViewSet."""
 
-    def testCloudAccountViewSet(self):
+    def test_http_status_code_200_ok(self):
         """Test that /cloud_accounts endpoint returns 200 HTTP_OK."""
         url = reverse("cloud_accounts-list")
         client = APIClient()
@@ -34,35 +33,18 @@ class CloudAccountViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def testCloudAccounViewSetWithSecondCloudAccount(self):
-        """
-        Test that /cloud_account endpoint returns HTTP 200 OK.
-
-        Adds an account to CloudAccounts.
-        """
-        CloudAccountCommonTestUtilities.create_cloud_account(self)
-
-        url = reverse("cloud_accounts-list")
-        client = APIClient()
-
-        response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def testCloudAccountName(self):
+    def test_cloud_account_values(self):
         """
         Test contents of cloud account.
 
-        This test creates a cloud account with test values.
+        Test getting the cloud accounts from the API.
         """
-        CloudAccountCommonTestUtilities.create_cloud_account(self)
-
         url = reverse("cloud_accounts-list")
         client = APIClient()
-        response = client.get(url + "?name=TEST_AWS_ACCOUNT_ID", **self.headers)
-        actualName = response.data["data"][0]["name"]
-
-        expectedName = "TEST_AWS_ACCOUNT_ID"
-        self.assertEqual(expectedName, actualName)
-        actualValue = response.data["data"][0]["value"]
-        expectedValue = "TEST_12345678910"
-        self.assertEqual(expectedValue, actualValue)
+        response = client.get(url, **self.headers).data["data"]
+        actual_name = response[0].get("name", "")
+        expected_name = "AWS"
+        self.assertEqual(expected_name, actual_name)
+        actual_value = response[0].get("value", "")
+        expected_value = "589173575009"
+        self.assertEqual(expected_value, actual_value)
