@@ -60,9 +60,8 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
         query_sum = self.initialize_totals()
         data = []
 
-        q_table = self._mapper.query_table
         with tenant_context(self.tenant):
-            query = q_table.objects.filter(self.query_filter)
+            query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value

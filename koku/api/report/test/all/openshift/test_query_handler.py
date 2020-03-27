@@ -49,9 +49,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
         url = "/reports/openshift/infrastructures/all/storage/"
         query_params = self.mocked_query_params(url, OCPAllStorageView)
         handler = OCPAllReportQueryHandler(query_params)
-
-        mapping = handler._mapper._mapping[0]
-        self.assertTrue(mapping["tables"]["query"] == STORAGE_SUMMARY)
+        self.assertTrue(handler.query_table == STORAGE_SUMMARY)
 
     def test_ocp_all_view_compute_model(self):
         """Test that ALL compute view model is used."""
@@ -59,33 +57,27 @@ class OCPAllQueryHandlerTest(IamTestCase):
         url = "/reports/openshift/infrastructures/all/instance-types/"
         query_params = self.mocked_query_params(url, OCPAllInstanceTypeView)
         handler = OCPAllReportQueryHandler(query_params)
-
-        mapping = handler._mapper._mapping[0]
-        self.assertTrue(mapping["tables"]["query"] == COMPUTE_SUMMARY)
+        self.assertTrue(handler.query_table == COMPUTE_SUMMARY)
 
     def test_ocp_all_view_network_model(self):
         """Test that ALL network view model is used."""
 
         url = (
             "/reports/openshift/infrastructures/all/costs/"
-            "?filter[service]='AmazonVPC','AmazonCloudFront','AmazonRoute53','AmazonAPIGateway'"
+            "?filter[service]=AmazonVPC,AmazonCloudFront,AmazonRoute53,AmazonAPIGateway"
         )
         query_params = self.mocked_query_params(url, OCPAllCostView)
         handler = OCPAllReportQueryHandler(query_params)
-
-        mapping = handler._mapper._mapping[0]
-        self.assertTrue(mapping["tables"]["query"] == NETWORK_SUMMARY)
+        self.assertTrue(handler.query_table == NETWORK_SUMMARY)
 
     def test_ocp_all_view_database_model(self):
         """Test that ALL database view model is used."""
 
         url = (
             "/reports/openshift/infrastructures/all/costs/"
-            "?filter[service]='AmazonRDS','AmazonDynamoDB','AmazonElastiCache',"
-            "'AmazonNeptune','AmazonRedshift','AmazonDocumentDB'"
+            "?filter[service]=AmazonRDS,AmazonDynamoDB,AmazonElastiCache,"
+            "AmazonNeptune,AmazonRedshift,AmazonDocumentDB"
         )
         query_params = self.mocked_query_params(url, OCPAllCostView)
         handler = OCPAllReportQueryHandler(query_params)
-
-        mapping = handler._mapper._mapping[0]
-        self.assertTrue(mapping["tables"]["query"] == DATABASE_SUMMARY)
+        self.assertTrue(handler.query_table == DATABASE_SUMMARY)

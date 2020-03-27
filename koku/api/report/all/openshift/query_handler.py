@@ -48,7 +48,7 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
             return query_table
 
         # Special Casess for Network and Database Cards in the UI
-        service_filter = set(self.parameters.get("filter", {}).get("service", []))
+        service_filter = {f.replace("\"'", "") for f in self.parameters.get("filter", {}).get("service", [])}
         network_services = [
             "AmazonVPC",
             "AmazonCloudFront",
