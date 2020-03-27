@@ -21,6 +21,6 @@ def reload_cost_model_metric_map(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0016_auto_20200324_1420")]
+    dependencies = [("api", "0017_delete_cloudaccount")]
 
     operations = [migrations.RunPython(reload_cost_model_metric_map)]
