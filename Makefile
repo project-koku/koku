@@ -35,6 +35,7 @@ OC_PARAM_DIR = $(OC_TEMPLATE_DIR)/parameters
 OC_TEMPLATES = $(wildcard $(OC_TEMPLATE_DIR))
 
 KOKU_DOCKER_HASH = $(shell docker ps -q -f name=koku_server)
+WORKER_DOCKER_HASH = $(shell docker ps -q -f name=koku_worker)
 
 # Platform differences
 #
@@ -501,7 +502,7 @@ docker-shell:
 docker-test-all:
 	docker-compose -f koku-test.yml up --build
 
-docker-up-koku:
+docker-up-koku: docker-up-db
 ifeq ($(KOKU_DOCKER_HASH), )
 	@docker-compose up $(build) -d koku-server
 	@echo "Waiting on koku status: "
@@ -512,8 +513,12 @@ ifeq ($(KOKU_DOCKER_HASH), )
 endif
 	@echo " koku is available!"
 
-docker-up:
-	docker-compose up --build -d
+docker-up: docker-up-koku
+ifeq ($(WORKER_DOCKER_HASH), )
+	@echo "Starting koku worker: "
+	@docker-compose up $(build) -d koku-worker
+endif
+	@echo " koku worker is available!"
 
 docker-up-no-build:
 	docker-compose up -d
