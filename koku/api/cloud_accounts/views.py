@@ -36,7 +36,7 @@ class CloudAccountViewSet(viewsets.ReadOnlyModelViewSet):
 
     serializer_class = CloudAccountSerializer
     permission_classes = (AllowAny,)
-    renderer_classes = [BrowsableAPIRenderer, JSONRenderer]
+    renderer_classes = [JSONRenderer] + api_settings.DEFAULT_RENDERER_CLASSES
 
     def get_queryset(self):
         """ViewSet get_queryset method."""
