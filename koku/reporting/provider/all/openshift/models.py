@@ -381,7 +381,6 @@ class OCPAllCostLineItemProjectDailySummary(models.Model):
             GinIndex(fields=["pod_labels"], name="ocpall_proj_pod_labels_idx"),
             models.Index(fields=["product_family"], name="ocpall_proj_prod_fam_idx"),
             models.Index(fields=["instance_type"], name="ocpall_proj_inst_type_idx"),
-            models.Index(fields=["product_code"], name="ocpall_proj_prod_code_idx"),
         ]
 
     id = models.IntegerField(primary_key=True)
