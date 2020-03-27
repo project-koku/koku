@@ -24,31 +24,36 @@ CREATE TEMPORARY TABLE reporting_azure_tags_{{uuid | sqlsafe}} AS (
 -- columns. We reference this split multiple times so we put it in a
 -- TEMPORARY TABLE for re-use
 CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
-    SELECT ocp.*,
-        LOWER(key) as key,
-        LOWER(value) as value
-    FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp,
-        jsonb_each_text(ocp.persistentvolume_labels) labels
-    WHERE ocp.usage_start >= {{start_date}}::date
-        AND ocp.usage_start <= {{end_date}}::date
-        --ocp_where_clause
-        {% if cluster_id %}
-        AND cluster_id = {{cluster_id}}
-        {% endif %}
+    SELECT ocp.*
+    FROM (
+        SELECT ocp.*,
+            LOWER(key) as key,
+            LOWER(value) as value
+        FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp,
+            jsonb_each_text(ocp.persistentvolume_labels) labels
+        WHERE ocp.usage_start >= {{start_date}}::date
+            AND ocp.usage_start <= {{end_date}}::date
+            --ocp_where_clause
+            {% if cluster_id %}
+            AND cluster_id = {{cluster_id}}
+            {% endif %}
 
-    UNION ALL
+        UNION ALL
 
-    SELECT ocp.*,
-        LOWER(key) as key,
-        LOWER(value) as value
-    FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp,
-        jsonb_each_text(ocp.persistentvolumeclaim_labels) labels
-    WHERE ocp.usage_start >= {{start_date}}::date
-        AND ocp.usage_start <= {{end_date}}::date
-        --ocp_where_clause
-        {% if cluster_id %}
-        AND cluster_id = {{cluster_id}}
-        {% endif %}
+        SELECT ocp.*,
+            LOWER(key) as key,
+            LOWER(value) as value
+        FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp,
+            jsonb_each_text(ocp.persistentvolumeclaim_labels) labels
+        WHERE ocp.usage_start >= {{start_date}}::date
+            AND ocp.usage_start <= {{end_date}}::date
+            --ocp_where_clause
+            {% if cluster_id %}
+            AND cluster_id = {{cluster_id}}
+            {% endif %}
+    ) AS ocp
+    INNER JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys as enabled_tags
+        ON enabled_tags.key = ocp.key
 )
 ;
 
@@ -56,17 +61,22 @@ CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
 -- columns. We reference this split multiple times so we put it in a
 -- TEMPORARY TABLE for re-use
 CREATE TEMPORARY TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
-    SELECT ocp.*,
-        LOWER(key) as key,
-        LOWER(value) as value
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp,
-        jsonb_each_text(ocp.pod_labels) labels
-    WHERE ocp.usage_start >= {{start_date}}::date
-        AND ocp.usage_start <= {{end_date}}::date
-        --ocp_where_clause
-        {% if cluster_id %}
-        AND cluster_id = {{cluster_id}}
-        {% endif %}
+    SELECT ocp.*
+    FROM (
+        SELECT ocp.*,
+            LOWER(key) as key,
+            LOWER(value) as value
+        FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp,
+            jsonb_each_text(ocp.pod_labels) labels
+        WHERE ocp.usage_start >= {{start_date}}::date
+            AND ocp.usage_start <= {{end_date}}::date
+            --ocp_where_clause
+            {% if cluster_id %}
+            AND cluster_id = {{cluster_id}}
+            {% endif %}
+    ) AS ocp
+    INNER JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys as enabled_tags
+        ON enabled_tags.key = ocp.key
 )
 ;
 
