@@ -187,6 +187,8 @@ services:
         - KOKU_CELERY_SENTRY_DSN
         - KOKU_SENTRY_ENVIRONMENT
         - DEMO_ACCOUNTS=${DEMO_ACCOUNTS-{}}
+        - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-True}
+        - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
       privileged: true
       volumes:
         - '.:/koku'
