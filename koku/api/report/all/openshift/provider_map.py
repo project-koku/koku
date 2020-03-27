@@ -15,9 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider Mapper for OCP on AWS Reports."""
-import inspect
-from collections import Hashable
-
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
 from django.db.models import Count
@@ -30,16 +27,16 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
+from reporting.models import OCPAllComputeSummary
 from reporting.models import OCPAllCostLineItemDailySummary
-from reporting.models import OCPAllCostLineItemDailySummaryCompute
-from reporting.models import OCPAllCostLineItemDailySummaryDatabase
-from reporting.models import OCPAllCostLineItemDailySummaryNetwork
-from reporting.models import OCPAllCostLineItemDailySummaryStorage
 from reporting.models import OCPAllCostLineItemProjectDailySummary
-from reporting.models import OCPAllCostLineItemProjectDailySummaryCompute
-from reporting.models import OCPAllCostLineItemProjectDailySummaryDatabase
-from reporting.models import OCPAllCostLineItemProjectDailySummaryNetwork
-from reporting.models import OCPAllCostLineItemProjectDailySummaryStorage
+from reporting.models import OCPAllCostSummary
+from reporting.models import OCPAllCostSummaryByAccount
+from reporting.models import OCPAllCostSummaryByRegion
+from reporting.models import OCPAllCostSummaryByService
+from reporting.models import OCPAllDatabaseSummary
+from reporting.models import OCPAllNetworkSummary
+from reporting.models import OCPAllStorageSummary
 
 
 class OCPAllProviderMap(ProviderMap):
@@ -540,64 +537,18 @@ class OCPAllProviderMap(ProviderMap):
                 "tables": {"query": OCPAllCostLineItemDailySummary, "total": OCPAllCostLineItemDailySummary},
             }
         ]
-        super().__init__(provider, report_type)
 
-    def _replace_matview_model(self, mapping, replace_map):
-        def sequence_getter(s):
-            return enumerate(s)
-
-        def map_getter(m):
-            return m.items()
-
-        if isinstance(mapping, (dict)):
-            getter = map_getter
-        else:
-            getter = sequence_getter
-
-        for k, v in getter(mapping):
-            vt = v if inspect.isclass(v) else type(v)
-            if inspect.isclass(v) and isinstance(v, Hashable) and v in replace_map:
-                mapping[k] = replace_map[v]
-
-            if vt in (dict, list, tuple, set):
-                self._replace_matview_model(v, replace_map)
-
-
-class OCPAllComputeProviderMap(OCPAllProviderMap):
-    def __init__(self, provider, report_type):
-        super().__init__(provider, report_type)
-        replace_map = {
-            OCPAllCostLineItemDailySummary: OCPAllCostLineItemDailySummaryCompute,
-            OCPAllCostLineItemProjectDailySummary: OCPAllCostLineItemProjectDailySummaryCompute,
+        self.views = {
+            "costs": {
+                "default": OCPAllCostSummary,
+                "account": OCPAllCostSummaryByAccount,
+                "region": OCPAllCostSummaryByRegion,
+                "service": OCPAllCostSummaryByService,
+                "product_family": OCPAllCostSummaryByService,
+            },
+            "instance_type": {"default": OCPAllComputeSummary, "instance_type": OCPAllComputeSummary},
+            "storage": {"default": OCPAllStorageSummary, "product_family": OCPAllStorageSummary},
+            "database": {"default": OCPAllDatabaseSummary, "service": OCPAllDatabaseSummary},
+            "network": {"default": OCPAllNetworkSummary, "service": OCPAllNetworkSummary},
         }
-        self._replace_matview_model(self._mapping, replace_map)
-
-
-class OCPAllStorageProviderMap(OCPAllProviderMap):
-    def __init__(self, provider, report_type):
         super().__init__(provider, report_type)
-        replace_map = {
-            OCPAllCostLineItemDailySummary: OCPAllCostLineItemDailySummaryStorage,
-            OCPAllCostLineItemProjectDailySummary: OCPAllCostLineItemProjectDailySummaryStorage,
-        }
-        self._replace_matview_model(self._mapping, replace_map)
-
-
-class OCPAllNetworkProviderMap(OCPAllProviderMap):
-    def __init__(self, provider, report_type):
-        super().__init__(provider, report_type)
-        replace_map = {
-            OCPAllCostLineItemDailySummary: OCPAllCostLineItemDailySummaryNetwork,
-            OCPAllCostLineItemProjectDailySummary: OCPAllCostLineItemProjectDailySummaryNetwork,
-        }
-        self._replace_matview_model(self._mapping, replace_map)
-
-
-class OCPAllDatabaseProviderMap(OCPAllProviderMap):
-    def __init__(self, provider, report_type):
-        super().__init__(provider, report_type)
-        replace_map = {
-            OCPAllCostLineItemDailySummary: OCPAllCostLineItemDailySummaryDatabase,
-            OCPAllCostLineItemProjectDailySummary: OCPAllCostLineItemProjectDailySummaryDatabase,
-        }
-        self._replace_matview_model(self._mapping, replace_map)
