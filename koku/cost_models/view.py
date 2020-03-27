@@ -36,6 +36,7 @@ from rest_framework.filters import OrderingFilter
 
 from api.common.filters import CharListFilter
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
+from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 from cost_models.serializers import CostModelSerializer
 
@@ -175,6 +176,9 @@ class CostModelViewSet(
     @never_cache
     def destroy(self, request, *args, **kwargs):
         """Delete a rate."""
+        uuid = kwargs.get("uuid")
+        manager = CostModelManager(cost_model_uuid=uuid)
+        manager.update_provider_uuids([])
         return super().destroy(request=request, args=args, kwargs=kwargs)
 
     @never_cache
