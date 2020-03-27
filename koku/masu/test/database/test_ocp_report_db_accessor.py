@@ -359,7 +359,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
             "node_capacity_cpu_cores",
             "node_capacity_memory_gigabyte_hours",
             "node_capacity_memory_gigabytes",
-            "pod",
             "pod_labels",
             "pod_limit_cpu_core_hours",
             "pod_limit_memory_gigabyte_hours",
