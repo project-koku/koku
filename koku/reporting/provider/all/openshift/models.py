@@ -359,9 +359,6 @@ class OCPAllStorageSummary(models.Model):
     currency_code = models.CharField(max_length=10, null=True)
 
 
-# ===============
-#  Project views
-# ===============
 
 
 class OCPAllCostLineItemProjectDailySummary(models.Model):
