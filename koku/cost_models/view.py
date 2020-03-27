@@ -177,8 +177,12 @@ class CostModelViewSet(
     def destroy(self, request, *args, **kwargs):
         """Delete a rate."""
         uuid = kwargs.get("uuid")
-        manager = CostModelManager(cost_model_uuid=uuid)
-        manager.update_provider_uuids([])
+        try:
+            manager = CostModelManager(cost_model_uuid=uuid)
+        except CostModel.DoesNotExist:
+            LOG.info("CostModel does not exist.")
+        else:
+            manager.update_provider_uuids([])
         return super().destroy(request=request, args=args, kwargs=kwargs)
 
     @never_cache

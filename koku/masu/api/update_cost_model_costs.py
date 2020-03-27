@@ -30,7 +30,6 @@ from rest_framework.settings import api_settings
 from api.utils import DateHelper
 from masu.processor.tasks import update_cost_model_costs as cost_task
 
-DH = DateHelper()
 LOG = logging.getLogger(__name__)
 
 
@@ -52,9 +51,9 @@ def update_cost_model_costs(request):
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
     if start_date is None:
-        start_date = str(DH.this_month_start())
+        start_date = str(DateHelper().this_month_start)
     if end_date is None:
-        end_date = str(DH.this_month_end())
+        end_date = str(DateHelper().today)
     start_date = parse(start_date)
     end_date = parse(end_date)
 

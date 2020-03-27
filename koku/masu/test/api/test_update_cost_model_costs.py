@@ -17,9 +17,12 @@
 """Test the update_cost_model_costs endpoint view."""
 from unittest.mock import patch
 
+from dateutil.parser import parse
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
+
+from api.utils import DateHelper
 
 
 @override_settings(ROOT_URLCONF="masu.urls")
@@ -36,9 +39,32 @@ class UpdateCostModelCostTest(TestCase):
         response = self.client.get(reverse("update_cost_model_costs"), params)
         body = response.json()
 
+        start_date = parse(str(DateHelper().this_month_start))
+        end_date = parse(str(DateHelper().today))
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
-        mock_update.delay.assert_called_with(params["schema"], params["provider_uuid"])
+        mock_update.delay.assert_called_with(params["schema"], params["provider_uuid"], start_date, end_date)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.update_cost_model_costs.cost_task")
+    def test_get_update_cost_model_costs_with_dates(self, mock_update, _):
+        """Test the GET report_data endpoint."""
+        params = {
+            "schema": "acct10001",
+            "provider_uuid": "3c6e687e-1a09-4a05-970c-2ccf44b0952e",
+            "start_date": "01-03-2010",
+            "end_date": "31-03-2010",
+        }
+        expected_key = "Update Cost Model Cost Task ID"
+
+        response = self.client.get(reverse("update_cost_model_costs"), params)
+        body = response.json()
+
+        start_date = parse(params["start_date"])
+        end_date = parse(params["end_date"])
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(expected_key, body)
+        mock_update.delay.assert_called_with(params["schema"], params["provider_uuid"], start_date, end_date)
 
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.update_cost_model_costs.cost_task")

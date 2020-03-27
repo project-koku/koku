@@ -67,7 +67,8 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            cost_model_obj = manager.create(**data)
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
                 self.assertEqual(rate.get("metric", {}).get("name"), metric)
@@ -98,7 +99,8 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            cost_model_obj = manager.create(**data)
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
                 self.assertEqual(rate.get("metric", {}).get("name"), metric)
@@ -134,14 +136,16 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            cost_model_obj = manager.create(**data)
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                cost_model_obj = manager.create(**data)
 
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
             self.assertIsNotNone(cost_model_map)
             self.assertEqual(cost_model_map.first().cost_model, cost_model_obj)
             self.assertEqual(CostModelManager(cost_model_obj.uuid).get_provider_names_uuids(), provider_names_uuids)
 
-            second_cost_model_obj = manager.create(**data)
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                second_cost_model_obj = manager.create(**data)
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
             self.assertIsNotNone(cost_model_map)
             # Make sure we no longer associate this provider with
@@ -178,7 +182,8 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            cost_model_obj = manager.create(**data)
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
                 self.assertEqual(rate.get("metric", {}).get("name"), metric)
@@ -209,7 +214,8 @@ class CostModelManagerTest(IamTestCase):
         cost_model_obj = None
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            cost_model_obj = manager.create(**data)
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                cost_model_obj = manager.create(**data)
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 0)
@@ -224,7 +230,8 @@ class CostModelManagerTest(IamTestCase):
         # Add provider to existing cost model
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
-            manager.update_provider_uuids(provider_uuids=[provider_uuid])
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                manager.update_provider_uuids(provider_uuids=[provider_uuid])
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertIsNotNone(cost_model_map)
@@ -234,7 +241,8 @@ class CostModelManagerTest(IamTestCase):
         # Add provider again to existing cost model.  Verify there is still only 1 item in map
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
-            manager.update_provider_uuids(provider_uuids=[provider_uuid])
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                manager.update_provider_uuids(provider_uuids=[provider_uuid])
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertIsNotNone(cost_model_map)
@@ -244,7 +252,8 @@ class CostModelManagerTest(IamTestCase):
         # Remove provider from existing rate
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
-            manager.update_provider_uuids(provider_uuids=[])
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                manager.update_provider_uuids(provider_uuids=[])
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 0)
