@@ -32,7 +32,7 @@ class OCPAllCostLineItemDailySummary(models.Model):
 
         indexes = [
             models.Index(fields=["usage_start"], name="ocpall_usage_idx"),
-            GinIndex(fields=["namespace"], name="ocpall_namespace_idx"),
+            models.Index(fields=["namespace"], name="ocpall_namespace_idx"),
             models.Index(fields=["node"], name="ocpall_node_idx", opclasses=["varcahr_pattern_ops"]),
             models.Index(fields=["resource_id"], name="ocpall_resource_idx"),
             GinIndex(fields=["tags"], name="ocpall_tags_idx"),
@@ -51,7 +51,7 @@ class OCPAllCostLineItemDailySummary(models.Model):
     cluster_alias = models.CharField(max_length=256, null=True)
 
     # Kubernetes objects by convention have a max name length of 253 chars
-    namespace = ArrayField(models.TextField(null=False))
+    namespace = ArrayField(models.CharField(max_length=253, null=False))
 
     node = models.CharField(max_length=253, null=False)
 
@@ -376,6 +376,11 @@ class OCPAllCostLineItemProjectDailySummary(models.Model):
         indexes = [
             models.Index(fields=["usage_start"], name="ocpall_proj_usage_idx"),
             models.Index(fields=["namespace"], name="ocpall_proj_namespace_idx"),
+            models.Index(fields=["node"], name="ocpall_proj_node_idx"),
+            models.Index(fields=["resource_id"], name="ocpall_proj_resource_idx"),
+            GinIndex(fields=["pod_labels"], name="ocpall_proj_pod_labels_idx"),
+            models.Index(fields=["product_family"], name="ocpall_proj_prod_fam_idx"),
+            models.Index(fields=["instance_type"], name="ocpall_proj_inst_type_idx"),
             models.Index(fields=["product_code"], name="ocpall_proj_prod_code_idx"),
         ]
 

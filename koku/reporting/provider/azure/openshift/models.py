@@ -31,7 +31,7 @@ class OCPAzureCostLineItemDailySummary(models.Model):
 
         indexes = [
             models.Index(fields=["usage_start"], name="ocpazure_usage_start_idx"),
-            GinIndex(fields=["namespace"], name="ocpazure_namespace_idx"),
+            models.Index(fields=["namespace"], name="ocpazure_namespace_idx"),
             models.Index(fields=["node"], name="ocpazure_node_idx", opclasses=["varchar_pattern_ops"]),
             models.Index(fields=["resource_id"], name="ocpazure_resource_idx"),
             GinIndex(fields=["tags"], name="ocpazure_tags_idx"),
