@@ -74,3 +74,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         self.unit_crawler = AWSOrgUnitCrawler(self.account)
         # We init the class here so that we don't have to moc the
         # assume role session in each test below.
+
+    # def test_save_aws_org_method(self):
+    #     """Test that saving to the database works."""
+    #     self.unit_crawler._save_aws_org_method('unit_name', 'unit_id', 'unit_path', 'account_id')

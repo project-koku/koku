@@ -18,11 +18,18 @@
 # from tenant_schemas.utils import schema_context
 import logging
 
+from django.db import transaction
+from tenant_schemas.utils import schema_context
+
+from masu.external.accounts.hierarchy.account_crawler import AccountCrawler
+from masu.external.date_accessor import DateAccessor
 from masu.util.aws import common as utils
 from masu.util.aws.common import get_assume_role_session
-from masu.external.accounts.hierarchy.account_crawler import AccountCrawler
+from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
+
+# TODO: define a new exception and do try catch
 
 
 class AWSOrgUnitCrawler(AccountCrawler):
@@ -38,7 +45,6 @@ class AWSOrgUnitCrawler(AccountCrawler):
         super().__init__(account)
         self._auth_cred = self.account.get("authentication")
         self.client = self.get_session()
-        self.key = "koku_path"
 
     def get_session(self):
         """
@@ -95,10 +101,10 @@ class AWSOrgUnitCrawler(AccountCrawler):
         Gets the root org unit and preps it for the recursive crawl.
         """
         root_ou = self.client.list_roots()["Roots"][0]
-        root_ou[self.key] = root_ou["Id"]
         LOG.info("Obtained the root identifier: %s" % (root_ou["Id"]))
         return root_ou
 
+    @transaction.atomic
     def crawl_account_hierarchy(self):
         root_ou = self.get_root_ou()
         self._crawl_org_for_acts(root_ou, root_ou.get("Id"))
@@ -131,5 +137,14 @@ class AWSOrgUnitCrawler(AccountCrawler):
         Args:
             ou (dict): A return from aws client that includes the Id
         """
-        LOG.info('Saving account or org unit: unit_name=%s, unit_id=%s, unit_path=%s, account_id=%s' %
-                 (unit_name, unit_id, unit_path, account_id))
+        LOG.info(
+            "Saving account or org unit: unit_name=%s, unit_id=%s, unit_path=%s, account_id=%s"
+            % (unit_name, unit_id, unit_path, account_id)
+        )
+        with schema_context(self.schema):
+            row, created = AWSOrganizationalUnit.objects.get_or_create(
+                org_unit_name=unit_name, org_unit_id=unit_id, org_unit_path=unit_path, account_id=account_id
+            )
+            if created:
+                row.created_timestamp = DateAccessor().today()
+                row.save()
