@@ -183,3 +183,205 @@ class OCPAzureTagsSummary(models.Model):
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
     subscription_guid = ArrayField(models.CharField(max_length=50))
     namespace = ArrayField(models.CharField(max_length=253, null=False))
+
+
+# Materialized Views for UI Reporting
+class OCPAzureCostSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost.
+
+    """
+
+    class Meta:
+        """Meta for OCPAzureCostSummary."""
+
+        db_table = "reporting_ocpazure_cost_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.CharField(max_length=10, null=False, default="USD")
+
+
+class OCPAzureCostSummaryByAccount(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by account.
+
+    """
+
+    class Meta:
+        """Meta for OCPAzureCostSummaryByService."""
+
+        db_table = "reporting_ocpazure_cost_summary_by_account"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+    subscription_guid = models.CharField(max_length=50, null=False)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.CharField(max_length=10, null=False, default="USD")
+
+
+class OCPAzureCostSummaryByLocation(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by location.
+
+    """
+
+    class Meta:
+        """Meta for OCPAzureCostSummaryByService."""
+
+        db_table = "reporting_ocpazure_cost_summary_by_location"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+    resource_location = models.CharField(max_length=50, null=False)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.CharField(max_length=10, null=False, default="USD")
+
+
+class OCPAzureCostSummaryByService(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by service.
+
+    """
+
+    class Meta:
+        """Meta for OCPAzureCostSummaryByService."""
+
+        db_table = "reporting_ocpazure_cost_summary_by_service"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+    service_name = models.TextField(null=False)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.CharField(max_length=10, null=False, default="USD")
+
+
+class OCPAzureComputeSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage.
+
+    """
+
+    class Meta:
+        """Meta for OCPAzureComputeSummary."""
+
+        db_table = "reporting_ocpazure_compute_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+    instance_type = models.CharField(max_length=50, null=True)
+    instance_ids = ArrayField(models.CharField(max_length=256), null=True)
+    instance_count = models.IntegerField(null=True)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unit_of_measure = models.CharField(max_length=63, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.CharField(max_length=10, null=False, default="USD")
+
+
+class OCPAzureStorageSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of storage usage.
+
+    """
+
+    class Meta:
+        """Meta for OCPAzureStorageSummary."""
+
+        db_table = "reporting_ocpazure_storage_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+    service_name = models.TextField(null=False)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unit_of_measure = models.CharField(max_length=63, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.CharField(max_length=10, null=False, default="USD")
+
+
+class OCPAzureNetworkSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of network usage.
+
+    """
+
+    class Meta:
+        """Meta for OCPAzureNetworkSummary."""
+
+        db_table = "reporting_ocpazure_network_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+    service_name = models.TextField(null=False)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unit_of_measure = models.CharField(max_length=63, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.CharField(max_length=10, null=False, default="USD")
+
+
+class OCPAzureDatabaseSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of database usage.
+
+    """
+
+    class Meta:
+        """Meta for OCPAzureDatabaseSummary."""
+
+        db_table = "reporting_ocpazure_database_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+    service_name = models.TextField(null=False)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unit_of_measure = models.CharField(max_length=63, null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.CharField(max_length=10, null=False, default="USD")

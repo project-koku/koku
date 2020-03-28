@@ -57,8 +57,16 @@ from reporting.provider.azure.models import AzureMeter
 from reporting.provider.azure.models import AzureNetworkSummary
 from reporting.provider.azure.models import AzureStorageSummary
 from reporting.provider.azure.models import AzureTagsSummary
+from reporting.provider.azure.openshift.models import OCPAzureComputeSummary
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
+from reporting.provider.azure.openshift.models import OCPAzureCostSummary
+from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByAccount
+from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByRegion
+from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByService
+from reporting.provider.azure.openshift.models import OCPAzureDatabaseSummary
+from reporting.provider.azure.openshift.models import OCPAzureNetworkSummary
+from reporting.provider.azure.openshift.models import OCPAzureStorageSummary
 from reporting.provider.azure.openshift.models import OCPAzureTagsSummary
 from reporting.provider.ocp.costs.models import CostSummary
 from reporting.provider.ocp.models import OCPEnabledTagKeys
@@ -107,3 +115,14 @@ AZURE_MATERIALIZED_VIEWS = (
 )
 
 OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (OCPAllCostLineItemDailySummary, OCPAllCostLineItemProjectDailySummary)
+
+OCP_ON_AZURE_MATERIALIZED_VIEWS = (
+    OCPAzureCostSummary,
+    OCPAzureCostSummaryByAccount,
+    OCPAzureCostSummaryByService,
+    OCPAzureCostSummaryByRegion,
+    OCPAzureComputeSummary,
+    OCPAzureStorageSummary,
+    OCPAzureNetworkSummary,
+    OCPAzureDatabaseSummary,
+)
