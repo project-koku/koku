@@ -162,7 +162,7 @@ class Migration(migrations.Migration):
             ;
 
             CREATE UNIQUE INDEX ocpaws_cost_summary
-            ON reporting_ocpaws_cost_summary (usage_start)
+            ON reporting_ocpaws_cost_summary (usage_start, cluster_id, cluster_alias)
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary_by_account AS(
