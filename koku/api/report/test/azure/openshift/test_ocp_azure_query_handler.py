@@ -37,10 +37,18 @@ from api.report.azure.openshift.view import OCPAzureInstanceTypeView
 from api.report.azure.openshift.view import OCPAzureStorageView
 from api.report.test.azure.helpers import AZURE_SERVICES
 from api.utils import DateHelper
+from reporting.models import OCPAzureComputeSummary
 from reporting.models import OCPAzureCostLineItemDailySummary
+from reporting.models import OCPAzureCostSummary
+from reporting.models import OCPAzureCostSummaryByAccount
+from reporting.models import OCPAzureCostSummaryByRegion
+from reporting.models import OCPAzureCostSummaryByService
+from reporting.models import OCPAzureDatabaseSummary
+from reporting.models import OCPAzureNetworkSummary
+from reporting.models import OCPAzureStorageSummary
 
 
-class OCPAWSQueryHandlerTestNoData(IamTestCase):
+class OCPAzureQueryHandlerTestNoData(IamTestCase):
     """Tests for the OCP report query handler with no data."""
 
     def setUp(self):
@@ -908,3 +916,47 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         ]
         ordered_data = handler.order_by(unordered_data, order_fields)
         self.assertEqual(ordered_data, expected)
+
+    def test_query_table(self):
+        """Test that the correct view is assigned by query table property."""
+        url = "?"
+        query_params = self.mocked_query_params(url, OCPAzureCostView)
+        handler = OCPAzureReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAzureCostSummary)
+
+        url = "?group_by[account]=*"
+        query_params = self.mocked_query_params(url, OCPAzureCostView)
+        handler = OCPAzureReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAzureCostSummaryByAccount)
+
+        url = "?group_by[region]=*"
+        query_params = self.mocked_query_params(url, OCPAzureCostView)
+        handler = OCPAzureReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAzureCostSummaryByRegion)
+
+        url = "?group_by[service]=*"
+        query_params = self.mocked_query_params(url, OCPAzureCostView)
+        handler = OCPAzureReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAzureCostSummaryByService)
+
+        url = "?"
+        query_params = self.mocked_query_params(url, OCPAzureInstanceTypeView)
+        handler = OCPAzureReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAzureComputeSummary)
+
+        url = "?"
+        query_params = self.mocked_query_params(url, OCPAzureStorageView)
+        handler = OCPAzureReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAzureStorageSummary)
+
+        url = "?filter[service]=AmazonVPC,AmazonCloudFront,AmazonRoute53,AmazonAPIGateway"
+        query_params = self.mocked_query_params(url, OCPAzureCostView)
+        handler = OCPAzureReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAzureNetworkSummary)
+
+        url = (
+            "?filter[service]=AmazonRDS,AmazonDynamoDB,AmazonElastiCache,AmazonNeptune,AmazonRedshift,AmazonDocumentDB"
+        )
+        query_params = self.mocked_query_params(url, OCPAzureCostView)
+        handler = OCPAzureReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAzureDatabaseSummary)
