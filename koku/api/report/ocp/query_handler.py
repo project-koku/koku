@@ -163,11 +163,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         query_sum = self.initialize_totals()
         data = []
 
-        # q_table = self._mapper.query_table
         with tenant_context(self.tenant):
-            # import pdb; pdb.set_trace()
             query = self.query_table.objects.filter(self.query_filter)
-            # query = q_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
 
