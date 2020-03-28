@@ -67,6 +67,7 @@ from reporting.provider.ocp.models import OCPEnabledTagKeys
 from reporting.provider.ocp.models import OCPNodeLabelLineItem
 from reporting.provider.ocp.models import OCPNodeLabelLineItemDaily
 from reporting.provider.ocp.models import OCPPodSummary
+from reporting.provider.ocp.models import OCPPodSummaryByProject
 from reporting.provider.ocp.models import OCPStorageLineItem
 from reporting.provider.ocp.models import OCPStorageLineItemDaily
 from reporting.provider.ocp.models import OCPStorageVolumeLabelSummary
@@ -77,6 +78,7 @@ from reporting.provider.ocp.models import OCPUsagePodLabelSummary
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import OCPVolumeSummary
+from reporting.provider.ocp.models import OCPVolumeSummaryByProject
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemProjectDailySummary
 from reporting.provider.ocp_aws.models import OCPAWSTagsSummary
@@ -99,7 +101,14 @@ AWS_MATERIALIZED_VIEWS = (
     AWSStorageSummaryByService,
 )
 
-OCP_MATERIALIZED_VIEWS = (OCPPodSummary, OCPVolumeSummary, OCPCostSummary, OCPCostSummaryByProject)
+OCP_MATERIALIZED_VIEWS = (
+    OCPPodSummary,
+    OCPPodSummaryByProject,
+    OCPVolumeSummary,
+    OCPVolumeSummaryByProject,
+    OCPCostSummary,
+    OCPCostSummaryByProject,
+)
 
 AZURE_MATERIALIZED_VIEWS = (
     AzureCostSummary,

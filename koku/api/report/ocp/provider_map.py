@@ -32,7 +32,9 @@ from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPCostSummary
 from reporting.provider.ocp.models import OCPCostSummaryByProject
 from reporting.provider.ocp.models import OCPPodSummary
+from reporting.provider.ocp.models import OCPPodSummaryByProject
 from reporting.provider.ocp.models import OCPVolumeSummary
+from reporting.provider.ocp.models import OCPVolumeSummaryByProject
 
 
 class OCPProviderMap(ProviderMap):
@@ -43,7 +45,7 @@ class OCPProviderMap(ProviderMap):
         self._mapping = [
             {
                 "provider": Provider.PROVIDER_OCP,
-                "annotations": {"cluster": "cluster_id", "project": "namespace"},
+                "annotations": {"cluster": "cluster_id"},
                 "end_date": "usage_end",
                 "filters": {
                     "project": {"field": "namespace", "operation": "icontains"},
@@ -1222,15 +1224,15 @@ class OCPProviderMap(ProviderMap):
             "cpu": {
                 "default": OCPPodSummary,
                 "cluster": OCPPodSummary,
-                "project": OCPPodSummary,
+                "project": OCPPodSummaryByProject,
                 "cpu": OCPPodSummary,
             },
             "memory": {
                 "default": OCPPodSummary,
                 "cluster": OCPPodSummary,
-                "project": OCPPodSummary,
+                "project": OCPPodSummaryByProject,
                 "memory": OCPPodSummary,
             },
-            "volume": {"default": OCPVolumeSummary, "project": OCPVolumeSummary},
+            "volume": {"default": OCPVolumeSummary, "cluster": OCPVolumeSummary, "project": OCPVolumeSummaryByProject},
         }
         super().__init__(provider, report_type)

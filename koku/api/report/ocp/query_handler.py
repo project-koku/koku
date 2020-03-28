@@ -79,6 +79,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         fields = self._mapper.provider_map.get("annotations")
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(""))
+        if "project" in self.parameters.parameters.get("group_by", {}):
+            annotations["project"] = Concat("namespace", Value(""))
         return annotations
 
     @property

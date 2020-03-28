@@ -536,8 +536,62 @@ class OCPPodSummary(models.Model):
 
     data_source = models.CharField(max_length=64, null=True)
 
-    # Kubernetes objects by convention have a max name length of 253 chars
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+
+    supplementary_usage_cost = JSONField(null=True)
+
+    infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    infrastructure_usage_cost = JSONField(null=True)
+
+    infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    pod_usage_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_request_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_limit_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    # Total capacity represents the sum of all of the customers clusters
+    total_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    total_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+
+class OCPPodSummaryByProject(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage.
+
+    """
+
+    class Meta:
+        """Meta for OCPPodSummaryByProject."""
+
+        db_table = "reporting_ocp_pod_summary_by_project"
+        managed = False
+
+    id = models.BigAutoField(primary_key=True)
+
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
+
     namespace = models.CharField(max_length=253, null=True)
+
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+
+    resource_count = models.IntegerField(null=True)
+
+    data_source = models.CharField(max_length=64, null=True)
 
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
@@ -594,8 +648,50 @@ class OCPVolumeSummary(models.Model):
 
     data_source = models.CharField(max_length=64, null=True)
 
-    # Kubernetes objects by convention have a max name length of 253 chars
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+
+    supplementary_usage_cost = JSONField(null=True)
+
+    infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    infrastructure_usage_cost = JSONField(null=True)
+
+    infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    volume_request_storage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+
+class OCPVolumeSummaryByProject(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage.
+
+    """
+
+    class Meta:
+        """Meta for OCPVolumeSummaryByProject."""
+
+        db_table = "reporting_ocp_volume_summary_by_project"
+        managed = False
+
+    id = models.BigAutoField(primary_key=True)
+
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
+
     namespace = models.CharField(max_length=253, null=True)
+
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+
+    resource_count = models.IntegerField(null=True)
+
+    data_source = models.CharField(max_length=64, null=True)
 
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
@@ -633,9 +729,6 @@ class OCPCostSummary(models.Model):
     cluster_id = models.CharField(max_length=50, null=True)
 
     cluster_alias = models.CharField(max_length=256, null=True)
-
-    # Kubernetes objects by convention have a max name length of 253 chars
-    namespace = models.CharField(max_length=253, null=True)
 
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
