@@ -608,7 +608,7 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_storage_direct_tag_matched_{{uuid | sql
             aws.tags
         FROM reporting_aws_tags_{{uuid | sqlsafe}} as aws
         JOIN reporting_ocp_storage_tags_{{uuid | sqlsafe}} as ocp
-            ON LOWER(aws.key) = ocp.key
+            ON aws.key = ocp.key
                 AND aws.value = ocp.value
                 AND aws.usage_start = ocp.usage_start
         WHERE aws.usage_start >= {{start_date}}::date
