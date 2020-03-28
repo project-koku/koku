@@ -109,7 +109,7 @@ class ProviderManager:
         manifest_months_query = (
             CostUsageReportManifest.objects.filter(provider=self.model)
             .distinct("billing_period_start_datetime")
-            .order_by("billing_period_start_datetime")
+            .order_by("-billing_period_start_datetime")
             .all()
         )
 
