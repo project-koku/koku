@@ -27,8 +27,16 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
+from reporting.models import OCPAzureComputeSummary
 from reporting.models import OCPAzureCostLineItemDailySummary
 from reporting.models import OCPAzureCostLineItemProjectDailySummary
+from reporting.models import OCPAzureCostSummary
+from reporting.models import OCPAzureCostSummaryByAccount
+from reporting.models import OCPAzureCostSummaryByRegion
+from reporting.models import OCPAzureCostSummaryByService
+from reporting.models import OCPAzureDatabaseSummary
+from reporting.models import OCPAzureNetworkSummary
+from reporting.models import OCPAzureStorageSummary
 
 
 class OCPAzureProviderMap(ProviderMap):
@@ -480,4 +488,17 @@ class OCPAzureProviderMap(ProviderMap):
                 "tables": {"query": OCPAzureCostLineItemDailySummary, "total": OCPAzureCostLineItemDailySummary},
             }
         ]
+
+        self.views = {
+            "costs": {
+                "default": OCPAzureCostSummary,
+                "account": OCPAzureCostSummaryByAccount,
+                "service": OCPAzureCostSummaryByService,
+                "region": OCPAzureCostSummaryByRegion,
+            },
+            "instance_type": {"default": OCPAzureComputeSummary, "instance_type": OCPAzureComputeSummary},
+            "storage": {"default": OCPAzureStorageSummary},
+            "database": {"default": OCPAzureDatabaseSummary, "service": OCPAzureDatabaseSummary},
+            "network": {"default": OCPAzureNetworkSummary, "service": OCPAzureNetworkSummary},
+        }
         super().__init__(provider, report_type)
