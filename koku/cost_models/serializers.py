@@ -15,19 +15,24 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Rate serializer."""
+import json
+import logging
+import os
 from collections import defaultdict
 from decimal import Decimal
 
 from rest_framework import serializers
 
-from api.metrics.models import CostModelMetricsMap
+from api.metrics import constants
 from api.metrics.serializers import SOURCE_TYPE_MAP
 from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
+from koku.settings import BASE_DIR
 
 CURRENCY_CHOICES = (("USD", "USD"),)
 MARKUP_CHOICES = (("percent", "%"),)
+LOG = logging.getLogger(__name__)
 
 
 class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
@@ -96,6 +101,17 @@ class TieredRateSerializer(serializers.Serializer):
             return data
 
 
+def get_json(path):
+    """Obtain API JSON data from file path."""
+    json_data = None
+    with open(path) as json_file:
+        try:
+            json_data = json.load(json_file)
+        except (IOError, json.JSONDecodeError) as exc:
+            LOG.exception(exc)
+    return json_data
+
+
 class RateSerializer(serializers.Serializer):
     """Rate Serializer."""
 
@@ -103,13 +119,13 @@ class RateSerializer(serializers.Serializer):
     RATE_TYPES = ("tiered_rates",)
 
     metric = serializers.DictField(required=True)
-    cost_type = serializers.ChoiceField(choices=CostModelMetricsMap.COST_TYPE_CHOICES)
+    cost_type = serializers.ChoiceField(choices=constants.COST_TYPE_CHOICES)
     tiered_rates = serializers.ListField(required=False)
 
     @property
     def metric_map(self):
         """Return a metric map dictionary with default values."""
-        metrics = CostModelMetricsMap.objects.values("metric", "default_cost_type")
+        metrics = get_json(os.path.join(BASE_DIR, "api/metrics/data/cost_models_metric_map.json"))
         return {metric.get("metric"): metric.get("default_cost_type") for metric in metrics}
 
     @staticmethod
@@ -205,7 +221,7 @@ class RateSerializer(serializers.Serializer):
         data["tiered_rates"] = self.validate_tiered_rates(data.get("tiered_rates", []))
 
         rate_keys_str = ", ".join(str(rate_key) for rate_key in self.RATE_TYPES)
-        if data.get("metric").get("name") not in [metric for metric, metric2 in CostModelMetricsMap.METRIC_CHOICES]:
+        if data.get("metric").get("name") not in [metric for metric, metric2 in constants.METRIC_CHOICES]:
             error_msg = "{} is an invalid metric".format(data.get("metric").get("name"))
             raise serializers.ValidationError(error_msg)
 
@@ -294,9 +310,14 @@ class CostModelSerializer(serializers.Serializer):
     def metric_map(self):
         """Map metrics and display names."""
         metric_map_by_source = defaultdict(dict)
-        metric_map = CostModelMetricsMap.objects.all()
+        metric_map = get_json(os.path.join(BASE_DIR, "api/metrics/data/cost_models_metric_map.json"))
+
+        class DotDict(dict):
+            def __getattr__(self, key):
+                return self[key]
 
         for metric in metric_map:
+            metric = DotDict(metric)
             metric_map_by_source[metric.source_type][metric.metric] = metric
         return metric_map_by_source
 
