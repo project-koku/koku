@@ -1219,10 +1219,33 @@ class OCPProviderMap(ProviderMap):
         ]
 
         self.views = {
-            "costs": {"default": OCPCostSummary, "cluster": OCPCostSummaryByCluster, "project": OCPCostSummary},
-            "costs_by_project": {"default": OCPCostSummaryByProject, "project": OCPCostSummaryByProject},
-            "cpu": {"default": OCPPodSummary, "project": OCPPodSummaryByProject, "cpu": OCPPodSummary},
-            "memory": {"default": OCPPodSummary, "project": OCPPodSummaryByProject, "memory": OCPPodSummary},
-            "volume": {"default": OCPVolumeSummary, "project": OCPVolumeSummaryByProject},
+            "costs": {
+                "default": OCPCostSummary,
+                "cluster": OCPCostSummaryByCluster,
+                "project": OCPCostSummary,
+                "report_annotations": {"clusters": Coalesce("cluster_alias", "cluster_id")},
+            },
+            "costs_by_project": {
+                "default": OCPCostSummaryByProject,
+                "project": OCPCostSummaryByProject,
+                "report_annotations": {"clusters": Coalesce("cluster_alias", "cluster_id")},
+            },
+            "cpu": {
+                "default": OCPPodSummary,
+                "project": OCPPodSummaryByProject,
+                "cpu": OCPPodSummary,
+                "report_annotations": {"clusters": Coalesce("cluster_alias", "cluster_id")},
+            },
+            "memory": {
+                "default": OCPPodSummary,
+                "project": OCPPodSummaryByProject,
+                "memory": OCPPodSummary,
+                "report_annotations": {"clusters": Coalesce("cluster_alias", "cluster_id")},
+            },
+            "volume": {
+                "default": OCPVolumeSummary,
+                "project": OCPVolumeSummaryByProject,
+                "report_annotations": {"clusters": Coalesce("cluster_alias", "cluster_id")},
+            },
         }
         super().__init__(provider, report_type)
