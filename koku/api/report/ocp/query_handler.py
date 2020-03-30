@@ -67,20 +67,25 @@ class OCPReportQueryHandler(ReportQueryHandler):
     def annotations(self):
         """Create dictionary for query annotations.
 
-        Args:
-            fields (dict): Fields to create annotations for
-
         Returns:
             (Dict): query annotations dictionary
 
         """
         annotations = {"date": self.date_trunc("usage_start")}
         # { query_param: database_field_name }
-        fields = self._mapper.provider_map.get("annotations")
-        for q_param, db_field in fields.items():
-            annotations[q_param] = Concat(db_field, Value(""))
-        if "project" in self.parameters.parameters.get("group_by", {}):
+        if (
+            "project" in self.parameters.parameters.get("group_by", {})
+            or "and:project" in self.parameters.parameters.get("group_by", {})
+            or "or:project" in self.parameters.parameters.get("group_by", {})
+        ):
             annotations["project"] = Concat("namespace", Value(""))
+
+        if (
+            "cluster" in self.parameters.parameters.get("group_by", {})
+            or "and:cluster" in self.parameters.parameters.get("group_by", {})
+            or "or:cluster" in self.parameters.parameters.get("group_by", {})
+        ):
+            annotations["cluster"] = Concat("cluster_id", Value(""))
         return annotations
 
     @property

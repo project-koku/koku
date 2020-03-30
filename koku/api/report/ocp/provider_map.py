@@ -30,6 +30,7 @@ from koku.database import KeyDecimalTransform
 from providers.provider_access import ProviderAccessor
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPCostSummary
+from reporting.provider.ocp.models import OCPCostSummaryByCluster
 from reporting.provider.ocp.models import OCPCostSummaryByProject
 from reporting.provider.ocp.models import OCPPodSummary
 from reporting.provider.ocp.models import OCPPodSummaryByProject
@@ -45,7 +46,6 @@ class OCPProviderMap(ProviderMap):
         self._mapping = [
             {
                 "provider": Provider.PROVIDER_OCP,
-                "annotations": {"cluster": "cluster_id"},
                 "end_date": "usage_end",
                 "filters": {
                     "project": {"field": "namespace", "operation": "icontains"},
@@ -1219,20 +1219,10 @@ class OCPProviderMap(ProviderMap):
         ]
 
         self.views = {
-            "costs": {"default": OCPCostSummary, "cluster": OCPCostSummary, "project": OCPCostSummary},
+            "costs": {"default": OCPCostSummary, "cluster": OCPCostSummaryByCluster, "project": OCPCostSummary},
             "costs_by_project": {"default": OCPCostSummaryByProject, "project": OCPCostSummaryByProject},
-            "cpu": {
-                "default": OCPPodSummary,
-                "cluster": OCPPodSummary,
-                "project": OCPPodSummaryByProject,
-                "cpu": OCPPodSummary,
-            },
-            "memory": {
-                "default": OCPPodSummary,
-                "cluster": OCPPodSummary,
-                "project": OCPPodSummaryByProject,
-                "memory": OCPPodSummary,
-            },
-            "volume": {"default": OCPVolumeSummary, "cluster": OCPVolumeSummary, "project": OCPVolumeSummaryByProject},
+            "cpu": {"default": OCPPodSummary, "project": OCPPodSummaryByProject, "cpu": OCPPodSummary},
+            "memory": {"default": OCPPodSummary, "project": OCPPodSummaryByProject, "memory": OCPPodSummary},
+            "volume": {"default": OCPVolumeSummary, "project": OCPVolumeSummaryByProject},
         }
         super().__init__(provider, report_type)
