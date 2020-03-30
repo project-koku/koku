@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Models for provider management."""
-import copy
 import logging
 from uuid import uuid4
 
@@ -174,27 +173,21 @@ class Provider(models.Model):
         try:
             provider = Provider.objects.get(uuid=self.uuid)
         except Provider.DoesNotExist:
-            instance_auth = None
-            instance_bill = None
+            pass
         else:
-            instance_auth = copy.deepcopy(provider.authentication)
-            instance_bill = copy.deepcopy(provider.billing_source)
+            # These values determine if Provider credentials have been updated:
+            if provider.authentication != self.authentication or provider.billing_source != self.billing_source:
+                should_ingest = True
 
         # Commit the new/updated Provider to the DB
         super().save(*args, **kwargs)
 
-        # These values determine if Provider credentials have been updated:
-        if (instance_auth and instance_bill) and (
-            self.billing_source != instance_bill or self.authentication != instance_auth
-        ):
-            should_ingest = True
-
-        # Start check_report_updates task after Provider has been committed.
         if settings.AUTO_DATA_INGEST and should_ingest and self.active:
             # Local import of task function to avoid potential import cycle.
             from masu.celery.tasks import check_report_updates
 
             LOG.info(f"Starting data ingest task for Provider {self.uuid}")
+            # Start check_report_updates task after Provider has been committed.
             transaction.on_commit(lambda: check_report_updates.delay(provider_uuid=self.uuid))
 
 
