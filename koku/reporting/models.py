@@ -17,8 +17,16 @@
 """Models for cost entry tables."""
 # flake8: noqa
 # pylint: disable=unused-import
+from reporting.provider.all.openshift.models import OCPAllComputeSummary
 from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummary
 from reporting.provider.all.openshift.models import OCPAllCostLineItemProjectDailySummary
+from reporting.provider.all.openshift.models import OCPAllCostSummary
+from reporting.provider.all.openshift.models import OCPAllCostSummaryByAccount
+from reporting.provider.all.openshift.models import OCPAllCostSummaryByRegion
+from reporting.provider.all.openshift.models import OCPAllCostSummaryByService
+from reporting.provider.all.openshift.models import OCPAllDatabaseSummary
+from reporting.provider.all.openshift.models import OCPAllNetworkSummary
+from reporting.provider.all.openshift.models import OCPAllStorageSummary
 from reporting.provider.aws.models import AWSAccountAlias
 from reporting.provider.aws.models import AWSComputeSummary
 from reporting.provider.aws.models import AWSComputeSummaryByAccount
@@ -103,6 +111,7 @@ AWS_MATERIALIZED_VIEWS = (
     AWSStorageSummaryByService,
 )
 
+
 AZURE_MATERIALIZED_VIEWS = (
     AzureCostSummary,
     AzureCostSummaryByAccount,
@@ -114,8 +123,6 @@ AZURE_MATERIALIZED_VIEWS = (
     AzureDatabaseSummary,
 )
 
-OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (OCPAllCostLineItemDailySummary, OCPAllCostLineItemProjectDailySummary)
-
 OCP_ON_AWS_MATERIALIZED_VIEWS = (
     OCPAWSCostSummary,
     OCPAWSCostSummaryByAccount,
@@ -125,4 +132,17 @@ OCP_ON_AWS_MATERIALIZED_VIEWS = (
     OCPAWSStorageSummary,
     OCPAWSNetworkSummary,
     OCPAWSDatabaseSummary,
+)
+
+OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (
+    OCPAllCostLineItemDailySummary,
+    OCPAllCostSummary,
+    OCPAllCostSummaryByAccount,
+    OCPAllCostSummaryByService,
+    OCPAllCostSummaryByRegion,
+    OCPAllComputeSummary,
+    OCPAllDatabaseSummary,
+    OCPAllNetworkSummary,
+    OCPAllStorageSummary,
+    OCPAllCostLineItemProjectDailySummary,
 )

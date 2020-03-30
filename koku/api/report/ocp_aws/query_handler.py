@@ -117,7 +117,6 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                 groups.remove("date")
                 data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
-
         init_order_keys = []
         query_sum["cost_units"] = cost_units_value
         if self._mapper.usage_units_key and usage_units_value:
