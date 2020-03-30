@@ -62,7 +62,7 @@ from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjec
 from reporting.provider.azure.openshift.models import OCPAzureTagsSummary
 from reporting.provider.ocp.costs.models import CostSummary
 from reporting.provider.ocp.models import OCPCostSummary
-from reporting.provider.ocp.models import OCPCostSummaryByCluster
+from reporting.provider.ocp.models import OCPCostSummaryByNode
 from reporting.provider.ocp.models import OCPCostSummaryByProject
 from reporting.provider.ocp.models import OCPEnabledTagKeys
 from reporting.provider.ocp.models import OCPNodeLabelLineItem
@@ -109,7 +109,7 @@ OCP_MATERIALIZED_VIEWS = (
     OCPVolumeSummaryByProject,
     OCPCostSummary,
     OCPCostSummaryByProject,
-    OCPCostSummaryByCluster,
+    OCPCostSummaryByNode,
 )
 
 AZURE_MATERIALIZED_VIEWS = (
@@ -128,5 +128,5 @@ OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (
     OCPAllCostLineItemProjectDailySummary,
     OCPCostSummary,
     OCPCostSummaryByProject,
-    OCPCostSummaryByCluster,
+    OCPCostSummaryByNode,
 )
