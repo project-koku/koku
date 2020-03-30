@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Provider serializers."""
-import logging
 import random
 import uuid
 from itertools import permutations
@@ -158,9 +157,7 @@ class ProviderSerializerTest(IamTestCase):
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             serializer = ProviderSerializer(data=provider, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
-                with self.assertLogs("api.provider.models", logging.INFO) as logs:
-                    instance = serializer.save()
-                    self.assertEqual(len(logs.output), 1)
+                instance = serializer.save()
 
         schema_name = serializer.data["customer"].get("schema_name")
         self.assertIsInstance(instance.uuid, uuid.UUID)
@@ -181,9 +178,7 @@ class ProviderSerializerTest(IamTestCase):
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             serializer = ProviderSerializer(data=provider, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
-                with self.assertLogs("api.provider.models", logging.INFO) as logs:
-                    instance = serializer.save()
-                    self.assertEqual(len(logs.output), 1)
+                instance = serializer.save()
 
         schema_name = serializer.data["customer"].get("schema_name")
         self.assertIsInstance(instance.uuid, uuid.UUID)
@@ -381,9 +376,7 @@ class ProviderSerializerTest(IamTestCase):
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             serializer = ProviderSerializer(data=provider, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
-                with self.assertLogs("api.provider.models", logging.INFO) as logs:
-                    instance = serializer.save()
-                    self.assertEqual(len(logs.output), 1)
+                instance = serializer.save()
 
         schema_name = serializer.data["customer"].get("schema_name")
         self.assertIsInstance(instance.uuid, uuid.UUID)
