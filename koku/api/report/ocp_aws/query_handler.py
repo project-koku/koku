@@ -64,6 +64,10 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
 
         with tenant_context(self.tenant):
             query = q_table.objects.filter(self.query_filter)
+            import sys
+
+            print(f"**** DEBUG SQL: {query.query}", file=sys.stderr)
+
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value
