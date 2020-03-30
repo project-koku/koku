@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Models for provider management."""
+import copy
 import logging
 from uuid import uuid4
 
@@ -82,6 +83,9 @@ class ProviderBillingSource(models.Model):
                 name="bucket_and_data_source_both_null",
             )
         ]
+
+
+count = 0
 
 
 class Provider(models.Model):
@@ -164,25 +168,35 @@ class Provider(models.Model):
 
     def save(self, *args, **kwargs):
         """Save instance and start data ingest task for active Provider."""
-        # First, see what is in the DB to determine if we should check for data ingest
+
         should_ingest = False
-        try:
-            obj = Provider.objects.get(uuid=self.uuid)
-        except Provider.DoesNotExist:
+        # These values determine if a Provider is new
+        if self.created_timestamp and not self.setup_complete:
             should_ingest = True
+
+        try:
+            provider = Provider.objects.get(uuid=self.uuid)
+        except Provider.DoesNotExist:
+            instance_auth = None
+            instance_bill = None
         else:
-            # Provider credentials have changed, we should ingest
-            if obj.authentication != self.authentication or obj.billing_source != self.billing_source:
-                should_ingest = True
+            instance_auth = copy.deepcopy(provider.authentication)
+            instance_bill = copy.deepcopy(provider.billing_source)
 
         # Commit the new/updated Provider to the DB
         super().save(*args, **kwargs)
 
-        # Local import of task function to avoid potential import cycle.
-        from masu.celery.tasks import check_report_updates
+        # These values determine if Provider credentials have been updated:
+        if (instance_auth and instance_bill) and (
+            self.billing_source != instance_bill or self.authentication != instance_auth
+        ):
+            should_ingest = True
 
         # Start check_report_updates task after Provider has been committed.
         if settings.AUTO_DATA_INGEST and should_ingest and self.active:
+            # Local import of task function to avoid potential import cycle.
+            from masu.celery.tasks import check_report_updates
+
             transaction.on_commit(lambda: check_report_updates.delay(provider_uuid=self.uuid))
 
 
