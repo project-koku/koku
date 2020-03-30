@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Sources Model Serializers."""
+import copy
 import logging
 from uuid import uuid4
 
@@ -102,6 +103,11 @@ class SourcesSerializer(serializers.ModelSerializer):
     def _update_billing_source(self, instance, billing_source):
         if instance.source_type not in ALLOWED_BILLING_SOURCE_PROVIDERS:
             raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
+        if instance.billing_source.get("data_source"):
+            billing_copy = copy.deepcopy(instance.billing_source.get("data_source"))
+            if billing_source.get("data_source"):
+                billing_copy.update(billing_source.get("data_source"))
+                billing_source["data_source"] = billing_copy
         self._validate_billing_source(instance.source_type, billing_source)
         instance.billing_source = billing_source
         update_fields = []
