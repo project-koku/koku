@@ -4,6 +4,7 @@ import shutil
 from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 from jinja2 import Template
 from model_bakery import baker
 from nise.__main__ import run
@@ -73,7 +74,7 @@ class NiseDataLoader:
     def load_openshift_data(self, customer, static_data_file, cluster_id):
         """Load OpenShift data into the database."""
         provider_type = Provider.PROVIDER_OCP
-        with patch("masu.celery.tasks.check_report_updates"):
+        with patch.object(settings, "AUTO_DATA_INGEST", False):
             provider = baker.make(
                 "Provider",
                 type=provider_type,
@@ -129,7 +130,7 @@ class NiseDataLoader:
             provider_resource_name = "arn:aws:iam::999999999999:role/CostManagement"
         nise_provider_type = provider_type.replace("-local", "")
         report_name = "Test"
-        with patch("masu.celery.tasks.check_report_updates"):
+        with patch.object(settings, "AUTO_DATA_INGEST", False):
             provider = baker.make(
                 "Provider",
                 type=provider_type,
@@ -169,7 +170,7 @@ class NiseDataLoader:
                         elif "manifest" in report.lower():
                             continue
                         self.process_report(report, "GZIP", provider_type, provider, manifest)
-            with patch("masu.processor.tasks.chain"):
+            with patch("masu.processor.tasks.chain"), patch.object(settings, "AUTO_DATA_INGEST", False):
                 update_summary_tables(
                     self.schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id
                 )
@@ -193,7 +194,7 @@ class NiseDataLoader:
         if data_source is None:
             data_source = {"resource_group": "resourcegroup1", "storage_account": "storageaccount1"}
 
-        with patch("masu.celery.tasks.check_report_updates"):
+        with patch.object(settings, "AUTO_DATA_INGEST", False):
             provider = baker.make(
                 "Provider",
                 type=provider_type,
@@ -228,7 +229,7 @@ class NiseDataLoader:
                 elif "manifest" in report.name.lower():
                     continue
                 self.process_report(report, "PLAIN", provider_type, provider, manifest)
-            with patch("masu.processor.tasks.chain"):
+            with patch("masu.processor.tasks.chain"), patch.object(settings, "AUTO_DATA_INGEST", False):
                 update_summary_tables(
                     self.schema, provider_type, provider.uuid, start_date, end_date, manifest_id=manifest.id
                 )
