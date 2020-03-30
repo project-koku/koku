@@ -19,11 +19,11 @@ import logging
 
 from django.utils.translation import ugettext as _
 from django.views.decorators.cache import never_cache
-from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
+from api.common.permissions.settings_access import SettingsAccessPermission
 from api.settings.ocp import OpenShiftSettings
 from api.settings.utils import OPENSHIFT_SETTINGS_PREFIX
 
@@ -36,7 +36,7 @@ class SettingsView(APIView):
     View to interact with settings for a customer.
     """
 
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [SettingsAccessPermission]
 
     @never_cache
     def get(self, request):
