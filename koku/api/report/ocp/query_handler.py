@@ -73,6 +73,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """
         annotations = {"date": self.date_trunc("usage_start")}
         # { query_param: database_field_name }
+        fields = self._mapper.provider_map.get("annotations")
+        for q_param, db_field in fields.items():
+            annotations[q_param] = Concat(db_field, Value(""))
         if (
             "project" in self.parameters.parameters.get("group_by", {})
             or "and:project" in self.parameters.parameters.get("group_by", {})
@@ -80,20 +83,14 @@ class OCPReportQueryHandler(ReportQueryHandler):
         ):
             annotations["project"] = Concat("namespace", Value(""))
 
-        if (
-            "cluster" in self.parameters.parameters.get("group_by", {})
-            or "and:cluster" in self.parameters.parameters.get("group_by", {})
-            or "or:cluster" in self.parameters.parameters.get("group_by", {})
-        ):
-            annotations["cluster"] = Concat("cluster_id", Value(""))
         return annotations
 
-    def get_query_context(self):
+    @property
+    def query_table(self):
         """Return the database table and custom annotations to query against."""
         query_table = self._mapper.query_table
         report_type = self._report_type if self._report_type else self.parameters.report_type
         report_group = "default"
-        report_annotations = None
 
         excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
         filter_keys = set(self.parameters.get("filter", {}).keys())
@@ -102,12 +99,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         # If grouping by more than 1 field, we default to the daily summary table
         if len(group_by_keys) > 1:
-            return query_table, None
+            return query_table
         if len(filter_keys) > 1:
-            return query_table, None
+            return query_table
         # If filtering on a different field than grouping by, we default to the daily summary table
         if group_by_keys and len(filter_keys.difference(group_by_keys)) != 0:
-            return query_table, None
+            return query_table
 
         if group_by_keys:
             report_group = group_by_keys[0]
@@ -115,11 +112,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
             report_group = list(filter_keys)[0]
         try:
             query_table = self._mapper.views[report_type][report_group]
-            report_annotations = self._mapper.views[report_type]["report_annotations"]
         except KeyError:
             msg = f"{report_group} for {report_type} has no entry in views. Using the default."
             LOG.warning(msg)
-        return query_table, report_annotations
+        return query_table
 
     @property
     def report_annotations(self):
@@ -170,8 +166,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         data = []
 
         with tenant_context(self.tenant):
-            query_table, override_rep_annotations = self.get_query_context()
-            query = query_table.objects.filter(self.query_filter)
+            query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
 
@@ -180,8 +175,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_order_by.extend([self.order])
 
             report_annotations = self.report_annotations
-            if override_rep_annotations:
-                report_annotations.update(override_rep_annotations)
             query_data = query_data.values(*query_group_by).annotate(**report_annotations)
 
             if self._limit and group_by_value:

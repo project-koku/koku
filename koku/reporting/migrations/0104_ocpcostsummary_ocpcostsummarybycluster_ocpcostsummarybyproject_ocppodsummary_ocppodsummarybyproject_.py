@@ -18,18 +18,8 @@ class Migration(migrations.Migration):
             name="OCPCostSummary",
             fields=[
                 ("id", models.BigAutoField(primary_key=True, serialize=False)),
-                (
-                    "cluster_id",
-                    django.contrib.postgres.fields.ArrayField(
-                        base_field=models.CharField(max_length=256), null=True, size=None
-                    ),
-                ),
-                (
-                    "cluster_alias",
-                    django.contrib.postgres.fields.ArrayField(
-                        base_field=models.CharField(max_length=256), null=True, size=None
-                    ),
-                ),
+                ("cluster_id", models.TextField()),
+                ("cluster_alias", models.TextField(null=True)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
                 ("supplementary_usage_cost", django.contrib.postgres.fields.jsonb.JSONField(null=True)),
@@ -42,43 +32,11 @@ class Migration(migrations.Migration):
             options={"db_table": "reporting_ocp_cost_summary", "managed": False},
         ),
         migrations.CreateModel(
-            name="OCPCostSummaryByCluster",
-            fields=[
-                ("id", models.BigAutoField(primary_key=True, serialize=False)),
-                ("cluster_id", models.CharField(max_length=50, null=True)),
-                ("cluster_alias", models.CharField(max_length=256, null=True)),
-                ("usage_start", models.DateField()),
-                ("usage_end", models.DateField()),
-                ("supplementary_usage_cost", django.contrib.postgres.fields.jsonb.JSONField(null=True)),
-                ("infrastructure_raw_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
-                ("infrastructure_usage_cost", django.contrib.postgres.fields.jsonb.JSONField(null=True)),
-                ("infrastructure_markup_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
-                ("supplementary_monthly_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
-                ("infrastructure_monthly_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
-                (
-                    "infrastructure_project_markup_cost",
-                    models.DecimalField(decimal_places=15, max_digits=33, null=True),
-                ),
-                ("infrastructure_project_raw_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
-            ],
-            options={"db_table": "reporting_ocp_cost_summary_by_cluster", "managed": False},
-        ),
-        migrations.CreateModel(
             name="OCPCostSummaryByProject",
             fields=[
                 ("id", models.BigAutoField(primary_key=True, serialize=False)),
-                (
-                    "cluster_id",
-                    django.contrib.postgres.fields.ArrayField(
-                        base_field=models.CharField(max_length=256), null=True, size=None
-                    ),
-                ),
-                (
-                    "cluster_alias",
-                    django.contrib.postgres.fields.ArrayField(
-                        base_field=models.CharField(max_length=256), null=True, size=None
-                    ),
-                ),
+                ("cluster_id", models.TextField()),
+                ("cluster_alias", models.TextField(null=True)),
                 ("namespace", models.CharField(max_length=253, null=True)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
@@ -97,21 +55,29 @@ class Migration(migrations.Migration):
             options={"db_table": "reporting_ocp_cost_summary_by_project", "managed": False},
         ),
         migrations.CreateModel(
+            name="OCPCostSummaryByNode",
+            fields=[
+                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("cluster_id", models.TextField()),
+                ("cluster_alias", models.TextField(null=True)),
+                ("node", models.CharField(max_length=253, null=False)),
+                ("usage_start", models.DateField()),
+                ("usage_end", models.DateField()),
+                ("infrastructure_raw_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
+                ("infrastructure_usage_cost", django.contrib.postgres.fields.jsonb.JSONField(null=True)),
+                ("infrastructure_markup_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
+                ("infrastructure_monthly_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
+                ("supplementary_usage_cost", django.contrib.postgres.fields.jsonb.JSONField(null=True)),
+                ("supplementary_monthly_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
+            ],
+            options={"db_table": "reporting_ocp_cost_summary_by_node", "managed": False},
+        ),
+        migrations.CreateModel(
             name="OCPPodSummary",
             fields=[
                 ("id", models.BigAutoField(primary_key=True, serialize=False)),
-                (
-                    "cluster_id",
-                    django.contrib.postgres.fields.ArrayField(
-                        base_field=models.CharField(max_length=256), null=True, size=None
-                    ),
-                ),
-                (
-                    "cluster_alias",
-                    django.contrib.postgres.fields.ArrayField(
-                        base_field=models.CharField(max_length=256), null=True, size=None
-                    ),
-                ),
+                ("cluster_id", models.TextField()),
+                ("cluster_alias", models.TextField(null=True)),
                 (
                     "resource_ids",
                     django.contrib.postgres.fields.ArrayField(
@@ -149,18 +115,8 @@ class Migration(migrations.Migration):
             name="OCPPodSummaryByProject",
             fields=[
                 ("id", models.BigAutoField(primary_key=True, serialize=False)),
-                (
-                    "cluster_id",
-                    django.contrib.postgres.fields.ArrayField(
-                        base_field=models.CharField(max_length=256), null=True, size=None
-                    ),
-                ),
-                (
-                    "cluster_alias",
-                    django.contrib.postgres.fields.ArrayField(
-                        base_field=models.CharField(max_length=256), null=True, size=None
-                    ),
-                ),
+                ("cluster_id", models.TextField()),
+                ("cluster_alias", models.TextField(null=True)),
                 ("namespace", models.CharField(max_length=253, null=True)),
                 (
                     "resource_ids",
@@ -199,18 +155,8 @@ class Migration(migrations.Migration):
             name="OCPVolumeSummary",
             fields=[
                 ("id", models.BigAutoField(primary_key=True, serialize=False)),
-                (
-                    "cluster_id",
-                    django.contrib.postgres.fields.ArrayField(
-                        base_field=models.CharField(max_length=256), null=True, size=None
-                    ),
-                ),
-                (
-                    "cluster_alias",
-                    django.contrib.postgres.fields.ArrayField(
-                        base_field=models.CharField(max_length=256), null=True, size=None
-                    ),
-                ),
+                ("cluster_id", models.TextField()),
+                ("cluster_alias", models.TextField(null=True)),
                 (
                     "resource_ids",
                     django.contrib.postgres.fields.ArrayField(
@@ -244,18 +190,8 @@ class Migration(migrations.Migration):
             name="OCPVolumeSummaryByProject",
             fields=[
                 ("id", models.BigAutoField(primary_key=True, serialize=False)),
-                (
-                    "cluster_id",
-                    django.contrib.postgres.fields.ArrayField(
-                        base_field=models.CharField(max_length=256), null=True, size=None
-                    ),
-                ),
-                (
-                    "cluster_alias",
-                    django.contrib.postgres.fields.ArrayField(
-                        base_field=models.CharField(max_length=256), null=True, size=None
-                    ),
-                ),
+                ("cluster_id", models.TextField()),
+                ("cluster_alias", models.TextField(null=True)),
                 ("namespace", models.CharField(max_length=253, null=True)),
                 (
                     "resource_ids",
@@ -289,11 +225,11 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             sql="""
             CREATE MATERIALIZED VIEW reporting_ocp_pod_summary AS(
-                SELECT row_number() OVER(ORDER BY date(usage_start)) as id,
-                    date(usage_start) as usage_start,
-                    date(usage_start) as usage_end,
-                    array_agg(DISTINCT cluster_id) as cluster_id,
-                    array_agg(DISTINCT cluster_alias) as cluster_alias,
+                SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias) as id,
+                    usage_start as usage_start,
+                    usage_start as usage_end,
+                    cluster_id,
+                    cluster_alias,
                     max(data_source) as data_source,
                     array_agg(DISTINCT resource_id) as resource_ids,
                     count(DISTINCT resource_id) as resource_count,
@@ -319,20 +255,20 @@ class Migration(migrations.Migration):
                 FROM reporting_ocpusagelineitem_daily_summary
                 -- Get data for this month or last month
                 WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date AND data_source = 'Pod'
-                GROUP BY date(usage_start)
+                GROUP BY usage_start, cluster_id, cluster_alias
             )
             ;
 
             CREATE UNIQUE INDEX ocp_pod_summary
-            ON reporting_ocp_pod_summary (usage_start)
+            ON reporting_ocp_pod_summary (usage_start, cluster_id, cluster_alias)
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocp_pod_summary_by_project AS(
-                SELECT row_number() OVER(ORDER BY date(usage_start), namespace) as id,
-                    date(usage_start) as usage_start,
-                    date(usage_start) as usage_end,
-                    array_agg(DISTINCT cluster_id) as cluster_id,
-                    array_agg(DISTINCT cluster_alias) as cluster_alias,
+                SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, namespace) as id,
+                    usage_start as usage_start,
+                    usage_start as usage_end,
+                    cluster_id,
+                    cluster_alias,
                     namespace,
                     max(data_source) as data_source,
                     array_agg(DISTINCT resource_id) as resource_ids,
@@ -359,20 +295,20 @@ class Migration(migrations.Migration):
                 FROM reporting_ocpusagelineitem_daily_summary
                 -- Get data for this month or last month
                 WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date AND data_source = 'Pod'
-                GROUP BY date(usage_start), namespace
+                GROUP BY usage_start, cluster_id, cluster_alias, namespace
             )
             ;
 
             CREATE UNIQUE INDEX ocp_pod_summary_by_project
-            ON reporting_ocp_pod_summary_by_project (usage_start, namespace)
+            ON reporting_ocp_pod_summary_by_project (usage_start, cluster_id, cluster_alias, namespace)
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocp_volume_summary AS(
-                SELECT row_number() OVER(ORDER BY date(usage_start)) as id,
-                    date(usage_start) as usage_start,
-                    date(usage_start) as usage_end,
-                    array_agg(DISTINCT cluster_id) as cluster_id,
-                    array_agg(DISTINCT cluster_alias) as cluster_alias,
+                SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias) as id,
+                    usage_start as usage_start,
+                    usage_start as usage_end,
+                    cluster_id,
+                    cluster_alias,
                     max(data_source) as data_source,
                     array_agg(DISTINCT resource_id) as resource_ids,
                     count(DISTINCT resource_id) as resource_count,
@@ -390,20 +326,20 @@ class Migration(migrations.Migration):
                 FROM reporting_ocpusagelineitem_daily_summary
                 -- Get data for this month or last month
                 WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date AND data_source = 'Storage'
-                GROUP BY date(usage_start)
+                GROUP BY usage_start, cluster_id, cluster_alias
             )
             ;
 
             CREATE UNIQUE INDEX ocp_volume_summary
-            ON reporting_ocp_volume_summary (usage_start)
+            ON reporting_ocp_volume_summary (usage_start, cluster_id, cluster_alias)
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocp_volume_summary_by_project AS(
-                SELECT row_number() OVER(ORDER BY date(usage_start), namespace) as id,
-                    date(usage_start) as usage_start,
-                    date(usage_start) as usage_end,
-                    array_agg(DISTINCT cluster_id) as cluster_id,
-                    array_agg(DISTINCT cluster_alias) as cluster_alias,
+                SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, namespace) as id,
+                    usage_start as usage_start,
+                    usage_start as usage_end,
+                    cluster_id,
+                    cluster_alias,
                     namespace,
                     max(data_source) as data_source,
                     array_agg(DISTINCT resource_id) as resource_ids,
@@ -422,20 +358,20 @@ class Migration(migrations.Migration):
                 FROM reporting_ocpusagelineitem_daily_summary
                 -- Get data for this month or last month
                 WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date AND data_source = 'Storage'
-                GROUP BY date(usage_start), namespace
+                GROUP BY usage_start, cluster_id, cluster_alias, namespace
             )
             ;
 
             CREATE UNIQUE INDEX ocp_volume_summary_by_project
-            ON reporting_ocp_volume_summary_by_project (usage_start, namespace)
+            ON reporting_ocp_volume_summary_by_project (usage_start, cluster_id, cluster_alias, namespace)
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocp_cost_summary AS(
-                SELECT row_number() OVER(ORDER BY date(usage_start)) as id,
-                    date(usage_start) as usage_start,
-                    date(usage_start) as usage_end,
-                    array_agg(DISTINCT cluster_id) as cluster_id,
-                    array_agg(DISTINCT cluster_alias) as cluster_alias,
+                SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias) as id,
+                    usage_start as usage_start,
+                    usage_start as usage_end,
+                    cluster_id,
+                    cluster_alias,
                     json_build_object('cpu', sum((supplementary_usage_cost->>'cpu')::decimal),
                                     'memory', sum((supplementary_usage_cost->>'memory')::decimal),
                                     'storage', sum((supplementary_usage_cost->>'storage')::decimal)) as supplementary_usage_cost,
@@ -449,20 +385,20 @@ class Migration(migrations.Migration):
                 FROM reporting_ocpusagelineitem_daily_summary
                 -- Get data for this month or last month
                 WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-                GROUP BY date(usage_start)
+                GROUP BY usage_start, cluster_id, cluster_alias
             )
             ;
 
             CREATE UNIQUE INDEX ocp_cost_summary
-            ON reporting_ocp_cost_summary (usage_start)
+            ON reporting_ocp_cost_summary (usage_start, cluster_id, cluster_alias)
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocp_cost_summary_by_project AS(
-                SELECT row_number() OVER(ORDER BY date(usage_start), namespace) as id,
-                    date(usage_start) as usage_start,
-                    date(usage_start) as usage_end,
-                    array_agg(DISTINCT cluster_id) as cluster_id,
-                    array_agg(DISTINCT cluster_alias) as cluster_alias,
+                SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, namespace) as id,
+                    usage_start as usage_start,
+                    usage_start as usage_end,
+                    cluster_id,
+                    cluster_alias,
                     namespace,
                     json_build_object('cpu', sum((supplementary_usage_cost->>'cpu')::decimal),
                                     'memory', sum((supplementary_usage_cost->>'memory')::decimal),
@@ -470,29 +406,28 @@ class Migration(migrations.Migration):
                     json_build_object('cpu', sum((infrastructure_usage_cost->>'cpu')::decimal),
                                     'memory', sum((infrastructure_usage_cost->>'memory')::decimal),
                                     'storage', sum((infrastructure_usage_cost->>'storage')::decimal)) as infrastructure_usage_cost,
-                    sum(infrastructure_raw_cost) as infrastructure_raw_cost,
-                    sum(infrastructure_markup_cost) as infrastructure_markup_cost,
-                    sum(supplementary_monthly_cost) as supplementary_monthly_cost,
-                    sum(infrastructure_monthly_cost) as infrastructure_monthly_cost,
+                    sum(infrastructure_project_raw_cost) as infrastructure_project_raw_cost,
                     sum(infrastructure_project_markup_cost) as infrastructure_project_markup_cost,
-                    sum(infrastructure_project_raw_cost) as infrastructure_project_raw_cost
+                    sum(supplementary_monthly_cost) as supplementary_monthly_cost,
+                    sum(infrastructure_monthly_cost) as infrastructure_monthly_cost
                 FROM reporting_ocpusagelineitem_daily_summary
                 -- Get data for this month or last month
                 WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-                GROUP BY date(usage_start), namespace
+                GROUP BY usage_start, cluster_id, cluster_alias, namespace
             )
             ;
 
             CREATE UNIQUE INDEX ocp_cost_summary_by_project
-            ON reporting_ocp_cost_summary_by_project (usage_start, namespace)
+            ON reporting_ocp_cost_summary_by_project (usage_start, cluster_id, cluster_alias, namespace)
             ;
 
-            CREATE MATERIALIZED VIEW reporting_ocp_cost_summary_by_cluster AS(
-                SELECT row_number() OVER(ORDER BY date(usage_start), cluster_id, cluster_alias) as id,
-                    date(usage_start) as usage_start,
-                    date(usage_start) as usage_end,
+            CREATE MATERIALIZED VIEW reporting_ocp_cost_summary_by_node AS(
+                SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, node) as id,
+                    usage_start as usage_start,
+                    usage_start as usage_end,
                     cluster_id,
                     cluster_alias,
+                    node,
                     json_build_object('cpu', sum((supplementary_usage_cost->>'cpu')::decimal),
                                     'memory', sum((supplementary_usage_cost->>'memory')::decimal),
                                     'storage', sum((supplementary_usage_cost->>'storage')::decimal)) as supplementary_usage_cost,
@@ -508,12 +443,12 @@ class Migration(migrations.Migration):
                 FROM reporting_ocpusagelineitem_daily_summary
                 -- Get data for this month or last month
                 WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-                GROUP BY date(usage_start), cluster_id, cluster_alias
+                GROUP BY usage_start, cluster_id, cluster_alias, node
             )
             ;
 
-            CREATE UNIQUE INDEX ocp_cost_summary_by_cluster
-            ON reporting_ocp_cost_summary_by_cluster (usage_start, cluster_id, cluster_alias)
+            CREATE UNIQUE INDEX ocp_cost_summary_by_node
+            ON reporting_ocp_cost_summary_by_node (usage_start, cluster_id, cluster_alias, node)
             ;
 
             """
