@@ -15,7 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Views for CostModelMetricsMap."""
+import json
 import logging
+import os
 
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import mixins
@@ -23,10 +25,12 @@ from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
 
 from api.common import RH_IDENTITY_HEADER
-from api.metrics.models import CostModelMetricsMap
 from api.metrics.serializers import CostModelMetricMapSerializer
+from koku.settings import BASE_DIR
 
 LOG = logging.getLogger(__name__)
+
+COST_MODEL_METRICS_FILE_NAME = os.path.join(BASE_DIR, "api/metrics/data/cost_models_metric_map.json")
 
 
 class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
@@ -36,7 +40,7 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
 
     """
 
-    queryset = CostModelMetricsMap.objects.all()
+    # queryset = CostModelMetricsMap.objects.all()
     serializer_class = CostModelMetricMapSerializer
     permission_classes = (AllowAny,)
 
@@ -45,10 +49,11 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
 
         Restricts the returned data to provider_uuid if supplied as a query parameter.
         """
-        queryset = CostModelMetricsMap.objects.all()
+        queryset = self.get_json(COST_MODEL_METRICS_FILE_NAME)
         source_type = self.request.query_params.get("source_type")
         if source_type:
-            queryset = queryset.filter(source_type=source_type)
+            # Query on source type
+            queryset = list(filter(lambda x: x.get("source_type") == source_type, queryset))
 
         return queryset
 
@@ -56,3 +61,13 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
     def list(self, request, *args, **kwargs):
         """Obtain the list of CostModelMetrics for the tenant."""
         return super().list(request=request, args=args, kwargs=kwargs)
+
+    def get_json(self, path):
+        """Obtain API JSON data from file path."""
+        json_data = None
+        with open(path) as json_file:
+            try:
+                json_data = json.load(json_file)
+            except (IOError, json.JSONDecodeError) as exc:
+                LOG.exception(exc)
+        return json_data
