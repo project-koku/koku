@@ -201,6 +201,8 @@ class SourcesViewSet(*MIXIN_LIST):
                 manager = ProviderManager(source["uuid"])
             except ProviderManagerError:
                 source["provider_linked"] = False
+                source["infrastructure"] = "Unknown"
+                source["cost_models"] = []
             else:
                 source["provider_linked"] = True
                 source["infrastructure"] = manager.get_infrastructure_name()
@@ -223,6 +225,8 @@ class SourcesViewSet(*MIXIN_LIST):
             manager = ProviderManager(response.data["uuid"])
         except ProviderManagerError:
             response.data["provider_linked"] = False
+            response.data["infrastructure"] = "Unknown"
+            response.data["cost_models"] = []
         else:
             response.data["provider_linked"] = True
             response.data["infrastructure"] = manager.get_infrastructure_name()

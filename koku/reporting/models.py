@@ -69,9 +69,14 @@ from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailyS
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
 from reporting.provider.azure.openshift.models import OCPAzureTagsSummary
 from reporting.provider.ocp.costs.models import CostSummary
+from reporting.provider.ocp.models import OCPCostSummary
+from reporting.provider.ocp.models import OCPCostSummaryByNode
+from reporting.provider.ocp.models import OCPCostSummaryByProject
 from reporting.provider.ocp.models import OCPEnabledTagKeys
 from reporting.provider.ocp.models import OCPNodeLabelLineItem
 from reporting.provider.ocp.models import OCPNodeLabelLineItemDaily
+from reporting.provider.ocp.models import OCPPodSummary
+from reporting.provider.ocp.models import OCPPodSummaryByProject
 from reporting.provider.ocp.models import OCPStorageLineItem
 from reporting.provider.ocp.models import OCPStorageLineItemDaily
 from reporting.provider.ocp.models import OCPStorageVolumeLabelSummary
@@ -81,6 +86,8 @@ from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsagePodLabelSummary
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting.provider.ocp.models import OCPVolumeSummary
+from reporting.provider.ocp.models import OCPVolumeSummaryByProject
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemProjectDailySummary
 from reporting.provider.ocp_aws.models import OCPAWSTagsSummary
@@ -103,6 +110,15 @@ AWS_MATERIALIZED_VIEWS = (
     AWSStorageSummaryByService,
 )
 
+OCP_MATERIALIZED_VIEWS = (
+    OCPPodSummary,
+    OCPPodSummaryByProject,
+    OCPVolumeSummary,
+    OCPVolumeSummaryByProject,
+    OCPCostSummary,
+    OCPCostSummaryByProject,
+    OCPCostSummaryByNode,
+)
 
 AZURE_MATERIALIZED_VIEWS = (
     AzureCostSummary,
@@ -115,7 +131,6 @@ AZURE_MATERIALIZED_VIEWS = (
     AzureDatabaseSummary,
 )
 
-
 OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (
     OCPAllCostLineItemDailySummary,
     OCPAllCostSummary,
@@ -127,4 +142,7 @@ OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (
     OCPAllNetworkSummary,
     OCPAllStorageSummary,
     OCPAllCostLineItemProjectDailySummary,
+    OCPCostSummary,
+    OCPCostSummaryByProject,
+    OCPCostSummaryByNode,
 )
