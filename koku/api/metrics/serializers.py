@@ -20,7 +20,6 @@ import logging
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
-from api.metrics.models import CostModelMetricsMap
 from api.models import Provider
 
 LOG = logging.getLogger(__name__)
@@ -40,12 +39,6 @@ def error_obj(key, message):
 
 class CostModelMetricMapSerializer(serializers.ModelSerializer):
     """Serializer for the CostModelMetricsMap model."""
-
-    class Meta:
-        """Metadata for the serializer."""
-
-        model = CostModelMetricsMap
-        exclude = ("id",)
 
     def to_representation(self, instance):
         """Convert our internal source name to full source name."""
