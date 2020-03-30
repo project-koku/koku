@@ -50,7 +50,7 @@ def check_view_filter_and_group_by_criteria(filter_keys, group_by_keys):
 class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
     """Base class for OCP on Infrastructure."""
 
-    def execute_query(self):  # noqa: C901
+    def execute_query(self, _query_table=None):  # noqa: C901
         """Execute query and return provided data.
 
         Returns:
@@ -60,8 +60,10 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
         query_sum = self.initialize_totals()
         data = []
 
+        q_table = _query_table if _query_table is not None else self._mapper.query_table
+
         with tenant_context(self.tenant):
-            query = self.query_table.objects.filter(self.query_filter)
+            query = q_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value

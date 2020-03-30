@@ -248,6 +248,10 @@ class OCPAllComputeSummary(models.Model):
 
     product_code = models.CharField(max_length=50, null=False)
 
+    instance_type = models.CharField(max_length=50)
+
+    resource_id = models.CharField(max_length=253)
+
     usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)

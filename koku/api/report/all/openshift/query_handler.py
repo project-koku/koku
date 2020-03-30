@@ -31,6 +31,9 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
 
     provider = Provider.OCP_ALL
 
+    def execute_query(self):
+        super().execute_query(_query_table=self.query_table)
+
     @property
     def query_table(self):
         """Return the database table to query against."""

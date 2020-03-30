@@ -22,6 +22,8 @@ class Migration(migrations.Migration):
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
                 ("product_code", models.CharField(max_length=50)),
+                ("instance_type", models.CharField(max_length=50)),
+                ("resource_id", models.CharField(max_length=253)),
                 ("usage_amount", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
                 ("unit", models.CharField(max_length=63, null=True)),
                 ("unblended_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
@@ -243,6 +245,8 @@ class Migration(migrations.Migration):
                     lids.cluster_id,
                     lids.cluster_alias,
                     lids.product_code,
+                    lids.instance_type,
+                    lids.resource_id,
                     sum(lids.usage_amount) as usage_amount,
                     max(lids.unit) as unit,
                     sum(lids.unblended_cost) as unblended_cost,
@@ -254,7 +258,9 @@ class Migration(migrations.Migration):
                 GROUP BY lids.usage_start,
                     lids.cluster_id,
                     lids.cluster_alias,
-                    lids.product_code
+                    lids.product_code,
+                    lids.instance_type,
+                    lids.resource_id
             )
             WITH DATA
             ;
