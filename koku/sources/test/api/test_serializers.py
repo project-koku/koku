@@ -140,6 +140,50 @@ class SourcesSerializerTests(IamTestCase):
         self.assertEqual(test_storage_account, instance.billing_source.get("data_source").get("storage_account"))
 
     @patch("sources.tasks.create_or_update_provider.delay")
+    def test_azure_source_billing_source_resource_group_update(self, mock_delay):
+        """Test the updating azure billing_source."""
+        serializer = SourcesSerializer(context=self.request_context)
+        test_resource_group = "TESTRG"
+        test_storage_account = "testsa"
+        validated_data = {
+            "billing_source": {
+                "data_source": {"resource_group": test_resource_group, "storage_account": test_storage_account}
+            }
+        }
+        instance = serializer.update(self.azure_obj, validated_data)
+        self.assertIn("data_source", instance.billing_source.keys())
+        self.assertEqual(test_resource_group, instance.billing_source.get("data_source").get("resource_group"))
+        self.assertEqual(test_storage_account, instance.billing_source.get("data_source").get("storage_account"))
+
+        new_resource_group = "NEW_RG"
+        validated_data = {"billing_source": {"data_source": {"resource_group": new_resource_group}}}
+        instance = serializer.update(self.azure_obj, validated_data)
+        self.assertIn("data_source", instance.billing_source.keys())
+        self.assertEqual(new_resource_group, instance.billing_source.get("data_source").get("resource_group"))
+
+    @patch("sources.tasks.create_or_update_provider.delay")
+    def test_azure_source_billing_source_storage_account_update(self, mock_delay):
+        """Test the updating azure billing_source."""
+        serializer = SourcesSerializer(context=self.request_context)
+        test_resource_group = "TESTRG"
+        test_storage_account = "testsa"
+        validated_data = {
+            "billing_source": {
+                "data_source": {"resource_group": test_resource_group, "storage_account": test_storage_account}
+            }
+        }
+        instance = serializer.update(self.azure_obj, validated_data)
+        self.assertIn("data_source", instance.billing_source.keys())
+        self.assertEqual(test_resource_group, instance.billing_source.get("data_source").get("resource_group"))
+        self.assertEqual(test_storage_account, instance.billing_source.get("data_source").get("storage_account"))
+
+        new_storage_account = "NEW_SA"
+        validated_data = {"billing_source": {"data_source": {"storage_account": new_storage_account}}}
+        instance = serializer.update(self.azure_obj, validated_data)
+        self.assertIn("data_source", instance.billing_source.keys())
+        self.assertEqual(new_storage_account, instance.billing_source.get("data_source").get("storage_account"))
+
+    @patch("sources.tasks.create_or_update_provider.delay")
     def test_azure_source_billing_source_update_with_koku_uuid(self, mock_delay):
         """Test the updating azure billing_source with source_uuid."""
         self.azure_obj.source_uuid = fake.uuid4()
