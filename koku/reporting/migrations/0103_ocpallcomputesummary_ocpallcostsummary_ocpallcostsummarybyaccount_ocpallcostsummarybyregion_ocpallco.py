@@ -266,7 +266,7 @@ class Migration(migrations.Migration):
             ;
 
             CREATE UNIQUE INDEX ocpall_compute_summary
-            ON reporting_ocpall_compute_summary (usage_start, cluster_id, cluster_alias, product_code);
+            ON reporting_ocpall_compute_summary (usage_start, cluster_id, cluster_alias, product_code, instance_type, resource_id);
 
             DROP MATERIALIZED VIEW IF EXISTS reporting_ocpall_database_summary;
             CREATE MATERIALIZED VIEW reporting_ocpall_database_summary AS (
