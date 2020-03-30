@@ -22,12 +22,15 @@ from django.conf import settings
 from django.db import connections
 from django.test.runner import DiscoverRunner
 from django.test.utils import get_unique_databases_and_mirrors
+from tenant_schemas.utils import tenant_context
 
 from api.models import Customer
 from api.models import Tenant
 from api.report.test.utils import NiseDataLoader
+from reporting.models import OCPEnabledTagKeys
 
 LOG = logging.getLogger(__name__)
+OCP_ENABLED_TAGS = ["app", "storageclass", "environment", "version"]
 
 
 class KokuTestRunner(DiscoverRunner):
@@ -80,6 +83,9 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                     customer, __ = Customer.objects.get_or_create(
                         account_id=KokuTestRunner.account, schema_name=KokuTestRunner.schema
                     )
+                    with tenant_context(tenant):
+                        for tag_key in OCP_ENABLED_TAGS:
+                            OCPEnabledTagKeys.objects.get_or_create(key=tag_key)
                     data_loader = NiseDataLoader(KokuTestRunner.schema)
                     data_loader.load_openshift_data(customer, "ocp_aws_static_data.yml", "OCP-on-AWS")
                     data_loader.load_openshift_data(customer, "ocp_azure_static_data.yml", "OCP-on-Azure")
