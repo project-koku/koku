@@ -99,12 +99,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         # If grouping by more than 1 field, we default to the daily summary table
         if len(group_by_keys) > 1:
-            return query_table, None
+            return query_table
         if len(filter_keys) > 1:
-            return query_table, None
+            return query_table
         # If filtering on a different field than grouping by, we default to the daily summary table
         if group_by_keys and len(filter_keys.difference(group_by_keys)) != 0:
-            return query_table, None
+            return query_table
 
         if group_by_keys:
             report_group = group_by_keys[0]
