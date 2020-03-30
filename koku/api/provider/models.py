@@ -85,9 +85,6 @@ class ProviderBillingSource(models.Model):
         ]
 
 
-count = 0
-
-
 class Provider(models.Model):
     """A Koku Provider.
 
