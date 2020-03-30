@@ -197,6 +197,7 @@ class Provider(models.Model):
             # Local import of task function to avoid potential import cycle.
             from masu.celery.tasks import check_report_updates
 
+            LOG.info(f"Starting data ingest task for Provider {self.uuid}")
             transaction.on_commit(lambda: check_report_updates.delay(provider_uuid=self.uuid))
 
 
