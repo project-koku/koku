@@ -105,9 +105,8 @@ class SourcesSerializer(serializers.ModelSerializer):
             raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
         if instance.billing_source.get("data_source"):
             billing_copy = copy.deepcopy(instance.billing_source.get("data_source"))
-            if billing_source.get("data_source").get("resource_group") or billing_source.get("data_source").get(
-                "storage_account"
-            ):
+            data_source = billing_source.get("data_source", {})
+            if data_source.get("resource_group") or data_source.get("storage_account"):
                 billing_copy.update(billing_source.get("data_source"))
                 billing_source["data_source"] = billing_copy
         self._validate_billing_source(instance.source_type, billing_source)
