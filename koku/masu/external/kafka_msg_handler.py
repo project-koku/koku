@@ -119,7 +119,7 @@ def extract_payload(url):
         mytar.extractall(path=temp_dir)
         files = mytar.getnames()
         manifest_path = [manifest for manifest in files if "manifest.json" in manifest]
-    except (ReadError, EOFError) as error:
+    except (ReadError, EOFError, OSError) as error:
         LOG.error("Unable to untar file. Reason: %s", str(error))
         shutil.rmtree(temp_dir)
         raise KafkaMsgHandlerError("Extraction failure.")
@@ -231,7 +231,7 @@ def handle_message(msg):
             LOG.info(f"Extracting Payload for msg: {str(msg)}")
             report_meta = extract_payload(value["url"])
             return SUCCESS_CONFIRM_STATUS, report_meta
-        except KafkaMsgHandlerError as error:
+        except Exception as error:  # noqa
             LOG.error("Unable to extract payload. Error: %s", str(error))
             return FAILURE_CONFIRM_STATUS, None
     else:
