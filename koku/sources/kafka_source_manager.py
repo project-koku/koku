@@ -30,6 +30,7 @@ from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
 from api.provider.serializers import ProviderSerializer
 from koku.middleware import IdentityHeaderMiddleware
+from masu.processor.tasks import refresh_materialized_views
 from sources.config import Config
 
 
@@ -226,5 +227,7 @@ class KafkaSourceManager:
         except ProviderManagerError:
             LOG.info("Provider does not exist, skipping Provider delete.")
         else:
+            provider_type = manager.model.type
             manager.remove(user=user, from_sources=True)
+            refresh_materialized_views.delay(customer.schema_name, provider_type)
         connection.set_schema_to_public()
