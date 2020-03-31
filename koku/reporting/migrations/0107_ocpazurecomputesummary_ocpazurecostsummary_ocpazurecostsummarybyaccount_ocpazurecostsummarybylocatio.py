@@ -236,11 +236,11 @@ class Migration(migrations.Migration):
                     cluster_alias,
                     instance_type,
                     resource_id,
-                    sum(usage_amount) as usage_amount,
-                    max(unit) as unit,
-                    sum(unblended_cost) as unblended_cost,
+                    sum(usage_quantity) as usage_quantity,
+                    max(unit_of_measure) as unit_of_measure,
+                    sum(pretax_cost) as pretax_cost,
                     sum(markup_cost) as markup_cost,
-                    max(currency_code) as currency_code
+                    max(currency) as currency
                 FROM acct10001.reporting_ocpazurecostlineitem_daily_summary
                 WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
                     AND instance_type IS NOT NULL
