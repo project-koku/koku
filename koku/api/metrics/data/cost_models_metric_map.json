@@ -54,5 +54,13 @@
         "label_measurement": "Currency",
         "label_measurement_unit": "node-month",
         "default_cost_type": "Infrastructure"
+    },
+    {
+        "source_type": "OCP",
+        "metric": "cluster_cost_per_month",
+        "label_metric": "Cluster",
+        "label_measurement": "Currency",
+        "label_measurement_unit": "cluster-month",
+        "default_cost_type": "Infrastructure"
     }
 ]

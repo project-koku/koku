@@ -27,8 +27,16 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
+from reporting.models import OCPAllComputeSummary
 from reporting.models import OCPAllCostLineItemDailySummary
 from reporting.models import OCPAllCostLineItemProjectDailySummary
+from reporting.models import OCPAllCostSummary
+from reporting.models import OCPAllCostSummaryByAccount
+from reporting.models import OCPAllCostSummaryByRegion
+from reporting.models import OCPAllCostSummaryByService
+from reporting.models import OCPAllDatabaseSummary
+from reporting.models import OCPAllNetworkSummary
+from reporting.models import OCPAllStorageSummary
 
 
 class OCPAllProviderMap(ProviderMap):
@@ -529,4 +537,18 @@ class OCPAllProviderMap(ProviderMap):
                 "tables": {"query": OCPAllCostLineItemDailySummary, "total": OCPAllCostLineItemDailySummary},
             }
         ]
+
+        self.views = {
+            "costs": {
+                "default": OCPAllCostSummary,
+                "account": OCPAllCostSummaryByAccount,
+                "region": OCPAllCostSummaryByRegion,
+                "service": OCPAllCostSummaryByService,
+                "product_family": OCPAllCostSummaryByService,
+            },
+            "instance_type": {"default": OCPAllComputeSummary, "instance_type": OCPAllComputeSummary},
+            "storage": {"default": OCPAllStorageSummary, "product_family": OCPAllStorageSummary},
+            "database": {"default": OCPAllDatabaseSummary, "service": OCPAllDatabaseSummary},
+            "network": {"default": OCPAllNetworkSummary, "service": OCPAllNetworkSummary},
+        }
         super().__init__(provider, report_type)
