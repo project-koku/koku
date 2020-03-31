@@ -36,6 +36,7 @@ class CostModelMetricsMap(models.Model):
     OCP_METRIC_STORAGE_GB_USAGE_MONTH = "storage_gb_usage_per_month"
     OCP_METRIC_STORAGE_GB_REQUEST_MONTH = "storage_gb_request_per_month"
     OCP_NODE_MONTH = "node_cost_per_month"
+    OCP_CLUSTER_MONTH = "cluster_cost_per_month"
 
     INFRASTRUCTURE_COST_TYPE = "Infrastructure"
     SUPPLEMENTARY_COST_TYPE = "Supplementary"
@@ -48,6 +49,7 @@ class CostModelMetricsMap(models.Model):
         (OCP_METRIC_STORAGE_GB_USAGE_MONTH, OCP_METRIC_STORAGE_GB_USAGE_MONTH),
         (OCP_METRIC_STORAGE_GB_REQUEST_MONTH, OCP_METRIC_STORAGE_GB_REQUEST_MONTH),
         (OCP_NODE_MONTH, OCP_NODE_MONTH),
+        (OCP_CLUSTER_MONTH, OCP_CLUSTER_MONTH),
     )
 
     COST_TYPE_CHOICES = (
