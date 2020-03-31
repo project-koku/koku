@@ -965,6 +965,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         li.tags,
         max(li.usage_amount) as usage_amount,
         max(li.normalized_usage_amount) as normalized_usage_amount,
+        max(li.currency_code) as currency_code,
         max(li.unblended_cost) as unblended_cost,
         max(li.shared_projects) as shared_projects,
         pc.project_costs as project_costs
@@ -1005,6 +1006,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         li.tags,
         max(li.usage_amount) as usage_amount,
         max(li.normalized_usage_amount) as normalized_usage_amount,
+        max(li.currency_code) as currency_code,
         max(li.unblended_cost) as unblended_cost,
         max(li.shared_projects) as shared_projects,
         pc.project_costs
@@ -1057,6 +1059,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         max(pr.unit) as unit,
         sum(li.usage_amount / li.shared_pods) as usage_amount,
         sum(li.normalized_usage_amount / li.shared_pods) as normalized_usage_amount,
+        max(li.currency_code) as currency_code,
         sum(li.unblended_cost / li.shared_pods) as unblended_cost,
         max(li.shared_pods) as shared_pods,
         li.pod_cost
@@ -1104,6 +1107,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         max(pr.unit) as unit,
         sum(li.usage_amount / li.shared_pods) as usage_amount,
         sum(li.normalized_usage_amount / li.shared_pods) as normalized_usage_amount,
+        max(li.currency_code) as currency_code,
         sum(li.unblended_cost / li.shared_pods) as unblended_cost,
         max(li.shared_pods) as shared_pods,
         li.pod_cost
@@ -1173,6 +1177,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
     tags,
     usage_amount,
     normalized_usage_amount,
+    currency_code,
     unblended_cost,
     shared_projects,
     project_costs
@@ -1198,6 +1203,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
         tags,
         usage_amount,
         normalized_usage_amount,
+        currency_code,
         unblended_cost,
         shared_projects,
         project_costs
@@ -1244,6 +1250,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
     unit,
     usage_amount,
     normalized_usage_amount,
+    currency_code,
     unblended_cost,
     pod_cost
 )
@@ -1269,6 +1276,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
         unit,
         usage_amount,
         normalized_usage_amount,
+        currency_code,
         unblended_cost,
         pod_cost
     FROM reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}}
