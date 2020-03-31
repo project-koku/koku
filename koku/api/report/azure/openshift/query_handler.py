@@ -98,7 +98,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             return query_table
 
         # Special Casess for Network and Database Cards in the UI
-        service_filter = set(self.parameters.get("filter", {}).get("service", []))
+        service_filter = set(self.parameters.get("filter", {}).get("service_name", []))
         network_services = [
             "Virtual Network",
             "VPN",

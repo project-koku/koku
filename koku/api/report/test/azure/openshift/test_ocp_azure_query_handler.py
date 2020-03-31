@@ -950,8 +950,8 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertEqual(handler.query_table, OCPAzureStorageSummary)
 
         url = (
-            "?filter[service_name]=Virtual Network,VPN,DNS,Traffic Manager"
-            ",ExpressRoute,Load Balancer,Application Gateway"
+            "?filter[service_name]=Virtual Network,VPN,DNS,Traffic Manager,"
+            "ExpressRoute,Load Balancer,Application Gateway"
         )
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
