@@ -103,7 +103,7 @@ class SourcesHTTPClient:
             r = requests.get(application_type_url, headers=self._identity_header)
         except RequestException as conn_error:
             raise SourcesHTTPClientError(
-                "Unable to get cost management application ID Type. Reason: ", str(conn_error)
+                f"Unable to get cost management application ID Type. Reason: {str(conn_error)}"
             )
 
         if r.status_code != 200:
@@ -211,6 +211,9 @@ class SourcesHTTPClient:
 
             application_response = requests.patch(application_url, json=json_data, headers=self._identity_header)
             if application_response.status_code != 204:
-                raise SourcesHTTPClientError(f"Unable to set status for Source: {self._source_id}")
+                raise SourcesHTTPClientError(
+                    f"Unable to set status for Source {self._source_id}. Reason: "
+                    f"Status code: {application_response.status_code}. Response: {application_response.text}."
+                )
             return True
         return False
