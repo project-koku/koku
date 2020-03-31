@@ -752,6 +752,60 @@ class OCPReportDBAccessorTest(MasuTestCase):
             for monthly_cost_row in monthly_cost_rows:
                 self.assertEquals(monthly_cost_row.supplementary_monthly_cost, node_rate)
 
+    def test_populate_monthly_cost_cluster_infrastructure_cost(self):
+        """Test that the monthly infrastructure cost row for clusters in the summary table is populated."""
+        self.cluster_id = self.ocp_provider.authentication.provider_resource_name
+
+        cluster_rate = random.randrange(1, 100)
+
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+
+        first_month, _ = month_date_range_tuple(start_date)
+
+        cluster_alias = "test_cluster_alias"
+        self.accessor.populate_monthly_cost(
+            "Cluster", "Infrastructure", cluster_rate, start_date, end_date, self.cluster_id, cluster_alias
+        )
+
+        monthly_cost_rows = (
+            self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
+            .filter(usage_start=first_month, infrastructure_monthly_cost__isnull=False)
+            .all()
+        )
+        with schema_context(self.schema):
+            self.assertEquals(monthly_cost_rows.count(), 1)
+            for monthly_cost_row in monthly_cost_rows:
+                self.assertEquals(monthly_cost_row.infrastructure_monthly_cost, cluster_rate)
+
+    def test_populate_monthly_cost_cluster_supplementary_cost(self):
+        """Test that the monthly infrastructure cost row for clusters in the summary table is populated."""
+        self.cluster_id = self.ocp_provider.authentication.provider_resource_name
+
+        cluster_rate = random.randrange(1, 100)
+
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+
+        first_month, _ = month_date_range_tuple(start_date)
+
+        cluster_alias = "test_cluster_alias"
+        self.accessor.populate_monthly_cost(
+            "Cluster", "Supplementary", cluster_rate, start_date, end_date, self.cluster_id, cluster_alias
+        )
+
+        monthly_cost_rows = (
+            self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
+            .filter(usage_start=first_month, supplementary_monthly_cost__isnull=False)
+            .all()
+        )
+        with schema_context(self.schema):
+            self.assertEquals(monthly_cost_rows.count(), 1)
+            for monthly_cost_row in monthly_cost_rows:
+                self.assertEquals(monthly_cost_row.supplementary_monthly_cost, cluster_rate)
+
     def test_remove_monthly_cost(self):
         """Test that the monthly cost row in the summary table is removed."""
         self.cluster_id = self.ocp_provider.authentication.provider_resource_name
