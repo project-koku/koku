@@ -494,7 +494,7 @@ class OCPAzureProviderMap(ProviderMap):
                 "default": OCPAzureCostSummary,
                 "account": OCPAzureCostSummaryByAccount,
                 "service": OCPAzureCostSummaryByService,
-                "region": OCPAzureCostSummaryByLocation,
+                "resource_location": OCPAzureCostSummaryByLocation,
             },
             "instance_type": {"default": OCPAzureComputeSummary, "instance_type": OCPAzureComputeSummary},
             "storage": {"default": OCPAzureStorageSummary},

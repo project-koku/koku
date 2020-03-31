@@ -154,7 +154,7 @@ class Migration(migrations.Migration):
                     sum(pretax_cost) as pretax_cost,
                     sum(markup_cost) as markup_cost,
                     max(currency) as currency
-                FROM reporting_ocpazurecostentrylineitem_daily_summary
+                FROM reporting_ocpazurecostlineitem_daily_summary
                 -- Get data for this month or last month
                 WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
                 GROUP BY usage_start, cluster_id, cluster_alias
@@ -175,7 +175,7 @@ class Migration(migrations.Migration):
                     sum(pretax_cost) as pretax_cost,
                     sum(markup_cost) as markup_cost,
                     max(currency) as currency
-                FROM reporting_ocpazurecostentrylineitem_daily_summary
+                FROM reporting_ocpazurecostlineitem_daily_summary
                 -- Get data for this month or last month
                 WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
                 GROUP BY usage_start, cluster_id, cluster_alias, subscription_guid
@@ -196,7 +196,7 @@ class Migration(migrations.Migration):
                     sum(pretax_cost) as pretax_cost,
                     sum(markup_cost) as markup_cost,
                     max(currency) as currency
-                FROM reporting_ocpazurecostentrylineitem_daily_summary
+                FROM reporting_ocpazurecostlineitem_daily_summary
                 -- Get data for this month or last month
                 WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
                 GROUP BY usage_start, cluster_id, cluster_alias, resource_location
@@ -217,7 +217,7 @@ class Migration(migrations.Migration):
                     sum(pretax_cost) as pretax_cost,
                     sum(markup_cost) as markup_cost,
                     max(currency) as currency
-                FROM reporting_ocpazurecostentrylineitem_daily_summary
+                FROM reporting_ocpazurecostlineitem_daily_summary
                 -- Get data for this month or last month
                 WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
                 GROUP BY usage_start, cluster_id, cluster_alias, service_name
@@ -265,7 +265,7 @@ class Migration(migrations.Migration):
                     sum(pretax_cost) as pretax_cost,
                     sum(markup_cost) as markup_cost,
                     max(currency) as currency
-                FROM reporting_ocpazurecostentrylineitem_daily_summary
+                FROM reporting_ocpazurecostlineitem_daily_summary
                 -- Get data for this month or last month
                 WHERE service_name LIKE '%Storage%'
                     AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
@@ -290,7 +290,7 @@ class Migration(migrations.Migration):
                     sum(pretax_cost) as pretax_cost,
                     sum(markup_cost) as markup_cost,
                     max(currency) as currency
-                FROM reporting_ocpazurecostentrylineitem_daily_summary
+                FROM reporting_ocpazurecostlineitem_daily_summary
                 -- Get data for this month or last month
                 WHERE service_name IN ('Virtual Network','VPN','DNS','Traffic Manager','ExpressRoute','Load Balancer','Application Gateway')
                     AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
@@ -314,7 +314,7 @@ class Migration(migrations.Migration):
                     sum(pretax_cost) as pretax_cost,
                     sum(markup_cost) as markup_cost,
                     max(currency) as currency
-                FROM reporting_ocpazurecostentrylineitem_daily_summary
+                FROM reporting_ocpazurecostlineitem_daily_summary
                 -- Get data for this month or last month
                 WHERE service_name IN ('Cosmos DB','Cache for Redis') OR service_name ILIKE '%database%'
                     AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date

@@ -929,7 +929,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         handler = OCPAzureReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAzureCostSummaryByAccount)
 
-        url = "?group_by[region]=*"
+        url = "?group_by[resource_location]=*"
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAzureCostSummaryByLocation)
