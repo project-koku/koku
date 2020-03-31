@@ -33,6 +33,7 @@ from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_p
 from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_id_from_provider
+from reporting.models import OCP_ON_AWS_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
 
@@ -111,6 +112,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                 accessor.populate_ocp_on_aws_cost_daily_summary(start, end, cluster_id, aws_bill_ids)
             accessor.populate_ocp_on_aws_markup_cost(markup_value, aws_bill_ids)
             accessor.populate_ocp_on_aws_tags_summary_table()
+        self.refresh_openshift_on_infrastructure_views(OCP_ON_AWS_MATERIALIZED_VIEWS)
 
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             # This call just sends the infrastructure cost to the

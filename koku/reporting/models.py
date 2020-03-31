@@ -96,8 +96,16 @@ from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import OCPVolumeSummary
 from reporting.provider.ocp.models import OCPVolumeSummaryByProject
+from reporting.provider.ocp_aws.models import OCPAWSComputeSummary
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemProjectDailySummary
+from reporting.provider.ocp_aws.models import OCPAWSCostSummary
+from reporting.provider.ocp_aws.models import OCPAWSCostSummaryByAccount
+from reporting.provider.ocp_aws.models import OCPAWSCostSummaryByRegion
+from reporting.provider.ocp_aws.models import OCPAWSCostSummaryByService
+from reporting.provider.ocp_aws.models import OCPAWSDatabaseSummary
+from reporting.provider.ocp_aws.models import OCPAWSNetworkSummary
+from reporting.provider.ocp_aws.models import OCPAWSStorageSummary
 from reporting.provider.ocp_aws.models import OCPAWSTagsSummary
 
 
@@ -118,6 +126,17 @@ AWS_MATERIALIZED_VIEWS = (
     AWSStorageSummaryByService,
 )
 
+AZURE_MATERIALIZED_VIEWS = (
+    AzureCostSummary,
+    AzureCostSummaryByAccount,
+    AzureCostSummaryByLocation,
+    AzureCostSummaryByService,
+    AzureComputeSummary,
+    AzureStorageSummary,
+    AzureNetworkSummary,
+    AzureDatabaseSummary,
+)
+
 OCP_MATERIALIZED_VIEWS = (
     OCPPodSummary,
     OCPPodSummaryByProject,
@@ -128,15 +147,15 @@ OCP_MATERIALIZED_VIEWS = (
     OCPCostSummaryByNode,
 )
 
-AZURE_MATERIALIZED_VIEWS = (
-    AzureCostSummary,
-    AzureCostSummaryByAccount,
-    AzureCostSummaryByLocation,
-    AzureCostSummaryByService,
-    AzureComputeSummary,
-    AzureStorageSummary,
-    AzureNetworkSummary,
-    AzureDatabaseSummary,
+OCP_ON_AWS_MATERIALIZED_VIEWS = (
+    OCPAWSCostSummary,
+    OCPAWSCostSummaryByAccount,
+    OCPAWSCostSummaryByService,
+    OCPAWSCostSummaryByRegion,
+    OCPAWSComputeSummary,
+    OCPAWSStorageSummary,
+    OCPAWSNetworkSummary,
+    OCPAWSDatabaseSummary,
 )
 
 OCP_ON_AZURE_MATERIALIZED_VIEWS = (
