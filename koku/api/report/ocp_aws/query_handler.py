@@ -16,6 +16,7 @@
 #
 """OCP Query Handling for Reports."""
 import copy
+import logging
 
 from django.db.models import F
 from django.db.models import Window
@@ -27,6 +28,8 @@ from api.models import Provider
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.ocp_aws.provider_map import OCPAWSProviderMap
 from api.report.queries import is_grouped_or_filtered_by_project
+
+LOG = logging.getLogger(__name__)
 
 
 def check_view_filter_and_group_by_criteria(filter_keys, group_by_keys):
@@ -60,14 +63,8 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
         query_sum = self.initialize_totals()
         data = []
 
-        q_table = getattr(self, "query_table", self._mapper.query_table)
-
         with tenant_context(self.tenant):
-            query = q_table.objects.filter(self.query_filter)
-            import sys
-
-            print(f"**** DEBUG SQL: {query.query}", file=sys.stderr)
-
+            query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value
@@ -161,3 +158,46 @@ class OCPAWSReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
         # super() needs to be called before _get_group_by is called
+
+    @property
+    def query_table(self):
+        """Return the database table to query against."""
+        query_table = self._mapper.query_table
+        report_type = self.parameters.report_type
+        report_group = "default"
+
+        excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
+
+        filter_keys = set(self.parameters.get("filter", {}).keys())
+        filter_keys = filter_keys.difference(excluded_filters)
+        group_by_keys = list(self.parameters.get("group_by", {}).keys())
+
+        if not check_view_filter_and_group_by_criteria(filter_keys, group_by_keys):
+            return query_table
+
+        # Special Casess for Network and Database Cards in the UI
+        service_filter = set(self.parameters.get("filter", {}).get("service", []))
+        network_services = ["AmazonVPC", "AmazonCloudFront", "AmazonRoute53", "AmazonAPIGateway"]
+        database_services = [
+            "AmazonRDS",
+            "AmazonDynamoDB",
+            "AmazonElastiCache",
+            "AmazonNeptune",
+            "AmazonRedshift",
+            "AmazonDocumentDB",
+        ]
+        if report_type == "costs" and service_filter and not service_filter.difference(network_services):
+            report_type = "network"
+        elif report_type == "costs" and service_filter and not service_filter.difference(database_services):
+            report_type = "database"
+
+        if group_by_keys:
+            report_group = group_by_keys[0]
+        elif filter_keys and not group_by_keys:
+            report_group = list(filter_keys)[0]
+        try:
+            query_table = self._mapper.views[report_type][report_group]
+        except KeyError:
+            msg = f"{report_group} for {report_type} has no entry in views. Using the default."
+            LOG.warning(msg)
+        return query_table
