@@ -65,7 +65,8 @@ class ProviderModelTest(MasuTestCase):
         }
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            manager.create(**data)
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                manager.create(**data)
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
             self.assertIsNotNone(cost_model_map)
             self.aws_provider.delete()
