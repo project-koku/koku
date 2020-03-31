@@ -22,7 +22,7 @@ from tenant_schemas.utils import tenant_context
 from api.iam.models import Customer
 from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
-from api.metrics import constants
+from api.metrics import constants as metric_constants
 from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
@@ -56,7 +56,7 @@ class CostModelManagerTest(IamTestCase):
 
     def test_create(self):
         """Test creating a cost model."""
-        metric = constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
         tiered_rates = [{"unit": "USD", "value": 0.22}]
         data = {
@@ -87,7 +87,7 @@ class CostModelManagerTest(IamTestCase):
 
         # Get Provider UUID
         provider_uuid = provider.uuid
-        metric = constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
         tiered_rates = [{"unit": "USD", "value": 0.22}]
         data = {
@@ -124,7 +124,7 @@ class CostModelManagerTest(IamTestCase):
         # Get Provider UUID
         provider_uuid = provider.uuid
         provider_names_uuids = [{"uuid": str(provider.uuid), "name": provider.name}]
-        metric = constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
         tiered_rates = [{"unit": "USD", "value": 0.22}]
         data = {
@@ -170,7 +170,7 @@ class CostModelManagerTest(IamTestCase):
             provider_2 = Provider.objects.create(name=provider_name_2, created_by=self.user, customer=self.customer)
         provider_uuid_2 = provider_2.uuid
 
-        metric = constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
         tiered_rates = [{"unit": "USD", "value": 0.22}]
         data = {
@@ -203,7 +203,7 @@ class CostModelManagerTest(IamTestCase):
 
     def test_update_provider_uuids(self):
         """Test creating a cost model then update with a provider uuid."""
-        metric = constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
         tiered_rates = [{"unit": "USD", "value": 0.22}]
         data = {

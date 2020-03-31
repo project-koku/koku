@@ -23,7 +23,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from api.metrics import constants
+from api.metrics import constants as metric_constants
 from api.metrics.serializers import SOURCE_TYPE_MAP
 from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelManager
@@ -119,7 +119,7 @@ class RateSerializer(serializers.Serializer):
     RATE_TYPES = ("tiered_rates",)
 
     metric = serializers.DictField(required=True)
-    cost_type = serializers.ChoiceField(choices=constants.COST_TYPE_CHOICES)
+    cost_type = serializers.ChoiceField(choices=metric_constants.COST_TYPE_CHOICES)
     tiered_rates = serializers.ListField(required=False)
 
     @property
@@ -221,7 +221,7 @@ class RateSerializer(serializers.Serializer):
         data["tiered_rates"] = self.validate_tiered_rates(data.get("tiered_rates", []))
 
         rate_keys_str = ", ".join(str(rate_key) for rate_key in self.RATE_TYPES)
-        if data.get("metric").get("name") not in [metric for metric, metric2 in constants.METRIC_CHOICES]:
+        if data.get("metric").get("name") not in [metric for metric, metric2 in metric_constants.METRIC_CHOICES]:
             error_msg = "{} is an invalid metric".format(data.get("metric").get("name"))
             raise serializers.ValidationError(error_msg)
 

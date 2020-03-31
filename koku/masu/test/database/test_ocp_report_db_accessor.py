@@ -25,7 +25,7 @@ from django.db.models import Min
 from django.db.models.query import QuerySet
 from tenant_schemas.utils import schema_context
 
-from api.metrics import constants
+from api.metrics import constants as metric_constants
 from api.utils import DateHelper
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -820,7 +820,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         cluster_alias = "test_cluster_alias"
         cost_type = "Node"
-        rate_type = constants.SUPPLEMENTARY_COST_TYPE
+        rate_type = metric_constants.SUPPLEMENTARY_COST_TYPE
         self.accessor.populate_monthly_cost(
             cost_type, rate_type, node_rate, start_date, end_date, self.cluster_id, cluster_alias
         )
