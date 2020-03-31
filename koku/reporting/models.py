@@ -17,8 +17,16 @@
 """Models for cost entry tables."""
 # flake8: noqa
 # pylint: disable=unused-import
+from reporting.provider.all.openshift.models import OCPAllComputeSummary
 from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummary
 from reporting.provider.all.openshift.models import OCPAllCostLineItemProjectDailySummary
+from reporting.provider.all.openshift.models import OCPAllCostSummary
+from reporting.provider.all.openshift.models import OCPAllCostSummaryByAccount
+from reporting.provider.all.openshift.models import OCPAllCostSummaryByRegion
+from reporting.provider.all.openshift.models import OCPAllCostSummaryByService
+from reporting.provider.all.openshift.models import OCPAllDatabaseSummary
+from reporting.provider.all.openshift.models import OCPAllNetworkSummary
+from reporting.provider.all.openshift.models import OCPAllStorageSummary
 from reporting.provider.aws.models import AWSAccountAlias
 from reporting.provider.aws.models import AWSComputeSummary
 from reporting.provider.aws.models import AWSComputeSummaryByAccount
@@ -69,9 +77,14 @@ from reporting.provider.azure.openshift.models import OCPAzureNetworkSummary
 from reporting.provider.azure.openshift.models import OCPAzureStorageSummary
 from reporting.provider.azure.openshift.models import OCPAzureTagsSummary
 from reporting.provider.ocp.costs.models import CostSummary
+from reporting.provider.ocp.models import OCPCostSummary
+from reporting.provider.ocp.models import OCPCostSummaryByNode
+from reporting.provider.ocp.models import OCPCostSummaryByProject
 from reporting.provider.ocp.models import OCPEnabledTagKeys
 from reporting.provider.ocp.models import OCPNodeLabelLineItem
 from reporting.provider.ocp.models import OCPNodeLabelLineItemDaily
+from reporting.provider.ocp.models import OCPPodSummary
+from reporting.provider.ocp.models import OCPPodSummaryByProject
 from reporting.provider.ocp.models import OCPStorageLineItem
 from reporting.provider.ocp.models import OCPStorageLineItemDaily
 from reporting.provider.ocp.models import OCPStorageVolumeLabelSummary
@@ -81,6 +94,8 @@ from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsagePodLabelSummary
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting.provider.ocp.models import OCPVolumeSummary
+from reporting.provider.ocp.models import OCPVolumeSummaryByProject
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemProjectDailySummary
 from reporting.provider.ocp_aws.models import OCPAWSTagsSummary
@@ -103,6 +118,16 @@ AWS_MATERIALIZED_VIEWS = (
     AWSStorageSummaryByService,
 )
 
+OCP_MATERIALIZED_VIEWS = (
+    OCPPodSummary,
+    OCPPodSummaryByProject,
+    OCPVolumeSummary,
+    OCPVolumeSummaryByProject,
+    OCPCostSummary,
+    OCPCostSummaryByProject,
+    OCPCostSummaryByNode,
+)
+
 AZURE_MATERIALIZED_VIEWS = (
     AzureCostSummary,
     AzureCostSummaryByAccount,
@@ -114,8 +139,6 @@ AZURE_MATERIALIZED_VIEWS = (
     AzureDatabaseSummary,
 )
 
-OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (OCPAllCostLineItemDailySummary, OCPAllCostLineItemProjectDailySummary)
-
 OCP_ON_AZURE_MATERIALIZED_VIEWS = (
     OCPAzureCostSummary,
     OCPAzureCostSummaryByAccount,
@@ -125,4 +148,20 @@ OCP_ON_AZURE_MATERIALIZED_VIEWS = (
     OCPAzureStorageSummary,
     OCPAzureNetworkSummary,
     OCPAzureDatabaseSummary,
+)
+
+OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (
+    OCPAllCostLineItemDailySummary,
+    OCPAllCostSummary,
+    OCPAllCostSummaryByAccount,
+    OCPAllCostSummaryByService,
+    OCPAllCostSummaryByRegion,
+    OCPAllComputeSummary,
+    OCPAllDatabaseSummary,
+    OCPAllNetworkSummary,
+    OCPAllStorageSummary,
+    OCPAllCostLineItemProjectDailySummary,
+    OCPCostSummary,
+    OCPCostSummaryByProject,
+    OCPCostSummaryByNode,
 )

@@ -17,7 +17,18 @@
 """Test the OCP on All query handler."""
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.all.openshift.query_handler import OCPAllReportQueryHandler
+from api.urls import OCPAllCostView
+from api.urls import OCPAllInstanceTypeView
 from api.urls import OCPAllStorageView
+from reporting.models import OCPAllComputeSummary
+from reporting.models import OCPAllDatabaseSummary
+from reporting.models import OCPAllNetworkSummary
+from reporting.models import OCPAllStorageSummary
+
+COMPUTE_SUMMARY = OCPAllComputeSummary
+STORAGE_SUMMARY = OCPAllStorageSummary
+NETWORK_SUMMARY = OCPAllNetworkSummary
+DATABASE_SUMMARY = OCPAllDatabaseSummary
 
 
 class OCPAllQueryHandlerTest(IamTestCase):
@@ -31,3 +42,42 @@ class OCPAllQueryHandlerTest(IamTestCase):
 
         filters = handler._set_or_filters()
         self.assertEqual(filters.connector, "OR")
+
+    def test_ocp_all_view_storage_model(self):
+        """Test that ALL storage view model is used."""
+
+        url = "/reports/openshift/infrastructures/all/storage/"
+        query_params = self.mocked_query_params(url, OCPAllStorageView)
+        handler = OCPAllReportQueryHandler(query_params)
+        self.assertTrue(handler.query_table == STORAGE_SUMMARY)
+
+    def test_ocp_all_view_compute_model(self):
+        """Test that ALL compute view model is used."""
+
+        url = "/reports/openshift/infrastructures/all/instance-types/"
+        query_params = self.mocked_query_params(url, OCPAllInstanceTypeView)
+        handler = OCPAllReportQueryHandler(query_params)
+        self.assertTrue(handler.query_table == COMPUTE_SUMMARY)
+
+    def test_ocp_all_view_network_model(self):
+        """Test that ALL network view model is used."""
+
+        url = (
+            "/reports/openshift/infrastructures/all/costs/"
+            "?filter[service]=AmazonVPC,AmazonCloudFront,AmazonRoute53,AmazonAPIGateway"
+        )
+        query_params = self.mocked_query_params(url, OCPAllCostView)
+        handler = OCPAllReportQueryHandler(query_params)
+        self.assertTrue(handler.query_table == NETWORK_SUMMARY)
+
+    def test_ocp_all_view_database_model(self):
+        """Test that ALL database view model is used."""
+
+        url = (
+            "/reports/openshift/infrastructures/all/costs/"
+            "?filter[service]=AmazonRDS,AmazonDynamoDB,AmazonElastiCache,"
+            "AmazonNeptune,AmazonRedshift,AmazonDocumentDB"
+        )
+        query_params = self.mocked_query_params(url, OCPAllCostView)
+        handler = OCPAllReportQueryHandler(query_params)
+        self.assertTrue(handler.query_table == DATABASE_SUMMARY)

@@ -60,9 +60,14 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
         query_sum = self.initialize_totals()
         data = []
 
-        q_table = self._mapper.query_table
+        q_table = getattr(self, "query_table", self._mapper.query_table)
+
         with tenant_context(self.tenant):
             query = q_table.objects.filter(self.query_filter)
+            import sys
+
+            print(f"**** DEBUG SQL: {query.query}", file=sys.stderr)
+
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value
@@ -115,7 +120,6 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                 groups.remove("date")
                 data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
-
         init_order_keys = []
         query_sum["cost_units"] = cost_units_value
         if self._mapper.usage_units_key and usage_units_value:

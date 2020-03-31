@@ -116,7 +116,7 @@ class OCPAWSReportViewTest(IamTestCase):
         data = response.json()
         dates = sorted([item.get("date") for item in data.get("data")])
         self.assertEqual(dates[0], expected_date)
-
+        self.assertNotEqual(data.get("data")[0].get("values", []), [])
         values = data.get("data")[0].get("values")[0]
         self.assertTrue("usage" in values)
         self.assertTrue("cost" in values)
@@ -163,7 +163,8 @@ class OCPAWSReportViewTest(IamTestCase):
 
         dates = sorted([item.get("date") for item in data.get("data")])
         self.assertEqual(dates[0], expected_date)
-
+        self.assertIsNotNone(data.get("data")[0].get("values"))
+        self.assertNotEqual(data.get("data")[0].get("values"), [])
         values = data.get("data")[0].get("values")[0]
         self.assertTrue("usage" in values)
         self.assertTrue("cost" in values)
@@ -326,6 +327,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .annotate(project_count=Count("namespace"))
                 .all()
             )
+            self.assertNotEqual(len(projects), 0)
             project_of_interest = projects[0].get("namespace")
 
         url = reverse("reports-openshift-aws-storage")
@@ -352,6 +354,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .annotate(cluster_count=Count("cluster_id"))
                 .all()
             )
+            self.assertNotEqual(len(clusters), 0)
             cluster_of_interest = clusters[0].get("cluster_id")
 
         url = reverse("reports-openshift-aws-storage")
@@ -389,6 +392,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .annotate(node_count=Count("node"))
                 .all()
             )
+            self.assertNotEqual(len(nodes), 0)
             node_of_interest = nodes[0].get("node")
 
         url = reverse("reports-openshift-aws-storage")
@@ -413,7 +417,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .values(*["tags"])
                 .first()
             )
-
+            self.assertIsNotNone(labels)
             tags = labels.get("tags")
             filter_key = list(tags.keys())[0]
             filter_value = tags.get(filter_key)
@@ -452,7 +456,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .values(*["tags"])
                 .first()
             )
-
+            self.assertIsNotNone(labels)
             tags = labels.get("tags")
             filter_key = list(tags.keys())[0]
 
@@ -490,7 +494,8 @@ class OCPAWSReportViewTest(IamTestCase):
                 .values(*["tags"])
                 .first()
             )
-
+            self.assertIsNotNone(labels)
+            self.assertNotEqual(len(labels), 0)
             tags = labels.get("tags")
             group_by_key = list(tags.keys())[0]
 
@@ -518,7 +523,8 @@ class OCPAWSReportViewTest(IamTestCase):
                 .values(*["tags"])
                 .first()
             )
-
+            self.assertIsNotNone(labels)
+            self.assertNotEqual(len(labels), 0)
             tags = labels.get("tags")
             group_by_key = list(tags.keys())[0]
             plural_key = group_by_key + "s"
@@ -565,6 +571,7 @@ class OCPAWSReportViewTest(IamTestCase):
         data = data.get("data", [])
         for entry in data:
             other = entry.get("nodes", [])[-1:]
+            self.assertNotEqual(other, [])
             self.assertIn("Other", other[0].get("node"))
 
     def test_execute_query_ocp_aws_storage_with_group_by_order_by_and_limit(self):
@@ -585,7 +592,11 @@ class OCPAWSReportViewTest(IamTestCase):
 
         data = response.json()
         data = data.get("data", [])
+        self.assertNotEqual(data, [])
+        self.assertNotEqual(data[0].get("nodes", []), [])
+        self.assertNotEqual(data[0].get("nodes", [])[0].get("values", []), [])
         previous_usage = data[0].get("nodes", [])[0].get("values", [])[0].get("usage", {}).get("value")
+        self.assertIsNotNone(previous_usage)
         for entry in data[0].get("nodes", []):
             current_usage = entry.get("values", [])[0].get("usage", {}).get("value")
             self.assertTrue(current_usage <= previous_usage)
@@ -674,11 +685,11 @@ class OCPAWSReportViewTest(IamTestCase):
             # Force Django to do GROUP BY to get nodes
             projects = (
                 OCPAWSCostLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago)
-                .filter(product_family__contains="Storage")
                 .values(*["namespace"])
                 .annotate(project_count=Count("namespace"))
                 .all()
             )
+            self.assertNotEqual(len(projects), 0)
             project_of_interest = projects[0].get("namespace")
 
         url = reverse("reports-openshift-aws-instance-type")
@@ -968,11 +979,10 @@ class OCPAWSReportViewTest(IamTestCase):
         with tenant_context(self.tenant):
             labels = (
                 OCPAWSCostLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago)
-                .filter(product_family__contains="Storage")
                 .values(*["tags"])
                 .first()
             )
-
+            self.assertIsNotNone(labels)
             tags = labels.get("tags")
 
         qstr = f"filter[limit]=2"
