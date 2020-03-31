@@ -35,6 +35,7 @@ OC_PARAM_DIR = $(OC_TEMPLATE_DIR)/parameters
 OC_TEMPLATES = $(wildcard $(OC_TEMPLATE_DIR))
 
 KOKU_DOCKER_HASH = $(shell docker ps -q -f name=koku_server)
+DB_DOCKER_HASH = $(shell docker ps -q -f name=koku_db)
 WORKER_DOCKER_HASH = $(shell docker ps -q -f name=koku_worker)
 
 # Platform differences
@@ -524,7 +525,9 @@ docker-up-no-build:
 	docker-compose up -d
 
 docker-up-db:
+ifeq ($(DB_DOCKER_HASH), )
 	docker-compose up -d db
+endif
 	@until pg_isready -h $$POSTGRES_SQL_SERVICE_HOST -p $$POSTGRES_SQL_SERVICE_PORT >/dev/null ; do \
 	    printf '.'; \
 	    sleep 0.5 ; \
