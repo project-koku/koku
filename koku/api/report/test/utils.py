@@ -22,7 +22,7 @@ from masu.processor.tasks import update_summary_tables
 class NiseDataLoader:
     """Loads nise generated test data for different source types."""
 
-    def __init__(self, schema, num_days=2):
+    def __init__(self, schema, num_days=4):
         """Initialize the data loader."""
         self.dh = DateHelper()
         self.schema = schema
