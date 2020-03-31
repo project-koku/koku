@@ -97,7 +97,9 @@ class ReportManifestDBAccessor(KokuDBAccess):
         result = (
             CostUsageReportStatus.objects.filter(manifest_id=manifest_id).order_by("-last_completed_datetime").first()
         )
-        return result.last_completed_datetime
+        if result:
+            return result.last_completed_datetime
+        return None
 
     def reset_manifest(self, manifest_id):
         """Return the manifest to a state as if it had not been processed.

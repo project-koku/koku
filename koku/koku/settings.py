@@ -313,6 +313,7 @@ LOGGING = {
         "django": {"handlers": LOGGING_HANDLERS, "level": DJANGO_LOGGING_LEVEL},
         "api": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "celery": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL, "propagate": False},
+        "cost_models": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "koku": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "providers": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "reporting": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
@@ -397,6 +398,9 @@ SOURCES_CLIENT_BASE_URL = "http://{}:{}{}/v1".format(
 
 # Prometheus pushgateway hostname:port
 PROMETHEUS_PUSHGATEWAY = ENVIRONMENT.get_value("PROMETHEUS_PUSHGATEWAY", default="localhost:9091")
+
+# Flag for automatic data ingest on Provider create
+AUTO_DATA_INGEST = ENVIRONMENT.get_value("AUTO_DATA_INGEST", default=True)
 
 # Demo Accounts list
 DEMO_ACCOUNTS = {}

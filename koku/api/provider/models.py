@@ -18,6 +18,7 @@
 import logging
 from uuid import uuid4
 
+from django.conf import settings
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db import transaction
@@ -163,25 +164,30 @@ class Provider(models.Model):
 
     def save(self, *args, **kwargs):
         """Save instance and start data ingest task for active Provider."""
-        # First, see what is in the DB to determine if we should check for data ingest
+
         should_ingest = False
-        try:
-            obj = Provider.objects.get(uuid=self.uuid)
-        except Provider.DoesNotExist:
+        # These values determine if a Provider is new
+        if self.created_timestamp and not self.setup_complete:
             should_ingest = True
+
+        try:
+            provider = Provider.objects.get(uuid=self.uuid)
+        except Provider.DoesNotExist:
+            pass
         else:
-            # Provider credentials have changed, we should ingest
-            if obj.authentication != self.authentication or obj.billing_source != self.billing_source:
+            # These values determine if Provider credentials have been updated:
+            if provider.authentication != self.authentication or provider.billing_source != self.billing_source:
                 should_ingest = True
 
         # Commit the new/updated Provider to the DB
         super().save(*args, **kwargs)
 
-        # Local import of task function to avoid potential import cycle.
-        from masu.celery.tasks import check_report_updates
+        if settings.AUTO_DATA_INGEST and should_ingest and self.active:
+            # Local import of task function to avoid potential import cycle.
+            from masu.celery.tasks import check_report_updates
 
-        # Start check_report_updates task after Provider has been committed.
-        if should_ingest and self.active:
+            LOG.info(f"Starting data ingest task for Provider {self.uuid}")
+            # Start check_report_updates task after Provider has been committed.
             transaction.on_commit(lambda: check_report_updates.delay(provider_uuid=self.uuid))
 
 

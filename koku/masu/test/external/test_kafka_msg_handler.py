@@ -41,6 +41,11 @@ def raise_exception():
     raise KafkaError()
 
 
+def raise_OSError(path):
+    """Raise a OSError."""
+    raise OSError()
+
+
 class KafkaMsg:
     """A Kafka Message."""
 
@@ -88,6 +93,22 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     shutil.rmtree(fake_pvc_dir)
 
     def test_extract_bad_payload(self):
+        """Test to verify extracting payload missing report files is not successful."""
+        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
+        with requests_mock.mock() as m:
+            m.get(payload_url, content=self.bad_tarball_file)
+
+            fake_dir = tempfile.mkdtemp()
+            fake_pvc_dir = tempfile.mkdtemp()
+            with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
+                with patch.object(Config, "TMP_DIR", fake_dir):
+                    with self.assertRaises(msg_handler.KafkaMsgHandlerError):
+                        msg_handler.extract_payload(payload_url)
+                    shutil.rmtree(fake_dir)
+                    shutil.rmtree(fake_pvc_dir)
+
+    @patch("masu.external.kafka_msg_handler.TarFile.extractall", side_effect=raise_OSError)
+    def test_extract_bad_payload_not_tar(self, mock_extractall):
         """Test to verify extracting payload missing report files is not successful."""
         payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
         with requests_mock.mock() as m:
