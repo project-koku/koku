@@ -1,4 +1,3 @@
-import calendar
 import os
 import pkgutil
 import shutil
@@ -23,7 +22,7 @@ from masu.processor.tasks import update_summary_tables
 class NiseDataLoader:
     """Loads nise generated test data for different source types."""
 
-    def __init__(self, schema, num_days=2):
+    def __init__(self, schema, num_days=4):
         """Initialize the data loader."""
         self.dh = DateHelper()
         self.schema = schema
@@ -40,9 +39,8 @@ class NiseDataLoader:
         if self.dh.this_month_start > n_days_ago:
             start_date = self.dh.this_month_start
 
-        prev_month = start_date - relativedelta(months=1)
-        prev_month_start = prev_month.replace(day=1)
-        prev_month_end = prev_month.replace(day=calendar.monthrange(prev_month.year, prev_month.month)[1])
+        prev_month_start = start_date - relativedelta(months=1)
+        prev_month_end = end_date - relativedelta(months=1)
 
         return [
             (prev_month_start, prev_month_end, self.dh.last_month_start),
