@@ -6,12 +6,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        (
-            "reporting",
-            "0103_azurecomputesummary_azurecostsummary_azurecostsummarybyaccount_azurecostsummarybylocation_azurecosts",
-        )
-    ]
+    dependencies = [("reporting", "0106_ocpawscostsummary")]
 
     operations = [
         migrations.CreateModel(

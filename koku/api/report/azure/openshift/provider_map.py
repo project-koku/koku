@@ -32,7 +32,7 @@ from reporting.models import OCPAzureCostLineItemDailySummary
 from reporting.models import OCPAzureCostLineItemProjectDailySummary
 from reporting.models import OCPAzureCostSummary
 from reporting.models import OCPAzureCostSummaryByAccount
-from reporting.models import OCPAzureCostSummaryByRegion
+from reporting.models import OCPAzureCostSummaryByLocation
 from reporting.models import OCPAzureCostSummaryByService
 from reporting.models import OCPAzureDatabaseSummary
 from reporting.models import OCPAzureNetworkSummary
@@ -494,7 +494,7 @@ class OCPAzureProviderMap(ProviderMap):
                 "default": OCPAzureCostSummary,
                 "account": OCPAzureCostSummaryByAccount,
                 "service": OCPAzureCostSummaryByService,
-                "region": OCPAzureCostSummaryByRegion,
+                "region": OCPAzureCostSummaryByLocation,
             },
             "instance_type": {"default": OCPAzureComputeSummary, "instance_type": OCPAzureComputeSummary},
             "storage": {"default": OCPAzureStorageSummary},

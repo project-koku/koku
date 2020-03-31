@@ -41,7 +41,7 @@ from reporting.models import OCPAzureComputeSummary
 from reporting.models import OCPAzureCostLineItemDailySummary
 from reporting.models import OCPAzureCostSummary
 from reporting.models import OCPAzureCostSummaryByAccount
-from reporting.models import OCPAzureCostSummaryByRegion
+from reporting.models import OCPAzureCostSummaryByLocation
 from reporting.models import OCPAzureCostSummaryByService
 from reporting.models import OCPAzureDatabaseSummary
 from reporting.models import OCPAzureNetworkSummary
@@ -932,7 +932,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         url = "?group_by[region]=*"
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAzureCostSummaryByRegion)
+        self.assertEqual(handler.query_table, OCPAzureCostSummaryByLocation)
 
         url = "?group_by[service]=*"
         query_params = self.mocked_query_params(url, OCPAzureCostView)

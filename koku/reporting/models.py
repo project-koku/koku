@@ -70,7 +70,7 @@ from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailyS
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
 from reporting.provider.azure.openshift.models import OCPAzureCostSummary
 from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByAccount
-from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByRegion
+from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByLocation
 from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByService
 from reporting.provider.azure.openshift.models import OCPAzureDatabaseSummary
 from reporting.provider.azure.openshift.models import OCPAzureNetworkSummary
@@ -162,7 +162,7 @@ OCP_ON_AZURE_MATERIALIZED_VIEWS = (
     OCPAzureCostSummary,
     OCPAzureCostSummaryByAccount,
     OCPAzureCostSummaryByService,
-    OCPAzureCostSummaryByRegion,
+    OCPAzureCostSummaryByLocation,
     OCPAzureComputeSummary,
     OCPAzureStorageSummary,
     OCPAzureNetworkSummary,
