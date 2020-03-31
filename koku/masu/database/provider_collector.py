@@ -44,7 +44,12 @@ class ProviderCollector(KokuDBAccess):
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
 
         """
-        objs = self._table.objects.all()
+        objs = (
+            self._table.objects.select_related("authentication")
+            .select_related("billing_source")
+            .select_related("customer")
+            .all()
+        )
         return objs
 
     def get_providers(self):
