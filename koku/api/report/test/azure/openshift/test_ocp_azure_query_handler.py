@@ -68,7 +68,7 @@ class OCPAzureQueryHandlerTestNoData(IamTestCase):
         """Test that the sum query runs properly for instance-types."""
         with tenant_context(self.tenant):
             OCPAzureCostLineItemDailySummary.objects.all().delete()
-        url = "?"
+        url = "?group_by[subscription_guid]=*"
         query_params = self.mocked_query_params(url, OCPAzureInstanceTypeView)
         handler = OCPAzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
