@@ -179,10 +179,10 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         """Update the monthly cost for a period of time."""
         try:
             with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
-                rate_type = None
-                rate = None
                 # Ex. cost_type == "Node", rate_term == "node_cost_per_month", rate == 1000
                 for cost_type, rate_term in OCPUsageLineItemDailySummary.MONTHLY_COST_RATE_MAP.items():
+                    rate_type = None
+                    rate = None
                     if self._infra_rates.get(rate_term):
                         rate_type = CostModelMetricsMap.INFRASTRUCTURE_COST_TYPE
                         rate = self._infra_rates.get(rate_term)
