@@ -40,7 +40,6 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
 
     """
 
-    # queryset = CostModelMetricsMap.objects.all()
     serializer_class = CostModelMetricMapSerializer
     permission_classes = (AllowAny,)
 

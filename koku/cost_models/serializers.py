@@ -312,13 +312,8 @@ class CostModelSerializer(serializers.Serializer):
         metric_map_by_source = defaultdict(dict)
         metric_map = get_json(os.path.join(BASE_DIR, "api/metrics/data/cost_models_metric_map.json"))
 
-        class DotDict(dict):
-            def __getattr__(self, key):
-                return self[key]
-
         for metric in metric_map:
-            metric = DotDict(metric)
-            metric_map_by_source[metric.source_type][metric.metric] = metric
+            metric_map_by_source[metric.get("source_type", None)][metric.get("metric", None)] = metric
         return metric_map_by_source
 
     @property
@@ -419,9 +414,9 @@ class CostModelSerializer(serializers.Serializer):
             display_data = self._get_metric_display_data(cost_model_obj.source_type, metric.get("name"))
             metric.update(
                 {
-                    "label_metric": display_data.label_metric,
-                    "label_measurement": display_data.label_measurement,
-                    "label_measurement_unit": display_data.label_measurement_unit,
+                    "label_metric": display_data.get("label_metric", ""),
+                    "label_measurement": display_data.get("label_measurement", ""),
+                    "label_measurement_unit": display_data.get("label_measurement_unit", ""),
                 }
             )
         rep["rates"] = rates

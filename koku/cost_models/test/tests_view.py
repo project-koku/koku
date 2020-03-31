@@ -28,7 +28,7 @@ from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.metrics.models import CostModelMetricsMap
+from api.metrics import constants
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
 from cost_models.models import CostModel
@@ -57,7 +57,7 @@ class CostModelViewTests(IamTestCase):
         if serializer.is_valid(raise_exception=True):
             self.provider = serializer.save()
 
-        self.ocp_metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        self.ocp_metric = constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         self.ocp_source_type = Provider.PROVIDER_OCP
         tiered_rates = [
             {
@@ -443,17 +443,17 @@ class CostModelViewTests(IamTestCase):
             {
                 "access": {"rate": {"read": [], "write": []}},
                 "expected_response": status.HTTP_403_FORBIDDEN,
-                "metric": {"name": CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
+                "metric": {"name": constants.OCP_METRIC_CPU_CORE_USAGE_HOUR},
             },
             {
                 "access": {"rate": {"read": ["*"], "write": ["*"]}},
                 "expected_response": status.HTTP_201_CREATED,
-                "metric": {"name": CostModelMetricsMap.OCP_METRIC_CPU_CORE_REQUEST_HOUR},
+                "metric": {"name": constants.OCP_METRIC_CPU_CORE_REQUEST_HOUR},
             },
             {
                 "access": {"rate": {"read": ["*"], "write": ["*"]}},
                 "expected_response": status.HTTP_201_CREATED,
-                "metric": {"name": CostModelMetricsMap.OCP_METRIC_MEM_GB_REQUEST_HOUR},
+                "metric": {"name": constants.OCP_METRIC_MEM_GB_REQUEST_HOUR},
             },
         ]
         client = APIClient()
@@ -587,4 +587,4 @@ class CostModelViewTests(IamTestCase):
 
         for rate in data.get("rates", []):
             self.assertIn("cost_type", rate)
-            self.assertEqual(rate["cost_type"], CostModelMetricsMap.SUPPLEMENTARY_COST_TYPE)
+            self.assertEqual(rate["cost_type"], constants.SUPPLEMENTARY_COST_TYPE)

@@ -32,7 +32,7 @@ from django.db.models.functions import Coalesce
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
-from api.metrics.models import CostModelMetricsMap
+from api.metrics import constants
 from koku.database import JSONBBuildObject
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
@@ -685,10 +685,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         monthly_cost_type="Node",
                         node=node,
                     )
-                if rate_type == CostModelMetricsMap.INFRASTRUCTURE_COST_TYPE:
+                if rate_type == constants.INFRASTRUCTURE_COST_TYPE:
                     LOG.info("Node (%s) has a monthly infrastructure cost of %s.", node, node_cost)
                     line_item.infrastructure_monthly_cost = node_cost
-                elif rate_type == CostModelMetricsMap.SUPPLEMENTARY_COST_TYPE:
+                elif rate_type == constants.SUPPLEMENTARY_COST_TYPE:
                     LOG.info("Node (%s) has a monthly supplemenarty cost of %s.", node, node_cost)
                     line_item.supplementary_monthly_cost = node_cost
                 line_item.save()
@@ -705,7 +705,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "monthly_cost_type": cost_type,
         }
 
-        for rate_type, __ in CostModelMetricsMap.COST_TYPE_CHOICES:
+        for rate_type, __ in constants.COST_TYPE_CHOICES:
             cost_filter = f"{rate_type.lower()}_monthly_cost__isnull"
             filters.update({cost_filter: False})
             LOG.info(
