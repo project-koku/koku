@@ -924,7 +924,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         handler = OCPAzureReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAzureCostSummary)
 
-        url = "?group_by[account]=*"
+        url = "?group_by[subscription_guid]=*"
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAzureCostSummaryByAccount)
@@ -934,7 +934,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         handler = OCPAzureReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAzureCostSummaryByLocation)
 
-        url = "?group_by[service]=*"
+        url = "?group_by[service_name]=*"
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAzureCostSummaryByService)
@@ -949,14 +949,15 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         handler = OCPAzureReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAzureStorageSummary)
 
-        url = "?filter[service]=AmazonVPC,AmazonCloudFront,AmazonRoute53,AmazonAPIGateway"
+        url = (
+            "?filter[service_name]=Virtual Network,VPN,DNS,Traffic Manager"
+            ",ExpressRoute,Load Balancer,Application Gateway"
+        )
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAzureNetworkSummary)
 
-        url = (
-            "?filter[service]=AmazonRDS,AmazonDynamoDB,AmazonElastiCache,AmazonNeptune,AmazonRedshift,AmazonDocumentDB"
-        )
+        url = "?filter[service_name]=Cosmos DB,Cache for Redis,Database"
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAzureDatabaseSummary)

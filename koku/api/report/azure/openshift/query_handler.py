@@ -19,7 +19,9 @@ import copy
 import logging
 
 from django.db.models import F
+from django.db.models import Value
 from django.db.models import Window
+from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
 
@@ -56,6 +58,28 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
         # super() needs to be called before _get_group_by is called
+
+    @property
+    def annotations(self):
+        """Create dictionary for query annotations.
+
+        Returns:
+            (Dict): query annotations dictionary
+
+        """
+        annotations = {"date": self.date_trunc("usage_start")}
+        # { query_param: database_field_name }
+        fields = self._mapper.provider_map.get("annotations")
+        for q_param, db_field in fields.items():
+            annotations[q_param] = Concat(db_field, Value(""))
+        if (
+            "project" in self.parameters.parameters.get("group_by", {})
+            or "and:project" in self.parameters.parameters.get("group_by", {})
+            or "or:project" in self.parameters.parameters.get("group_by", {})
+        ):
+            annotations["project"] = Concat("namespace", Value(""))
+
+        return annotations
 
     @property
     def query_table(self):

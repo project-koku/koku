@@ -48,7 +48,7 @@ class OCPAzureProviderMap(ProviderMap):
             {
                 "provider": Provider.OCP_AZURE,
                 "alias": "subscription_guid",
-                "annotations": {"cluster": "cluster_id", "project": "namespace"},
+                "annotations": {"cluster": "cluster_id"},
                 "end_date": "costentrybill__billing_period_end",
                 "filters": {
                     "project": {"field": "namespace", "operation": "icontains"},
@@ -492,13 +492,13 @@ class OCPAzureProviderMap(ProviderMap):
         self.views = {
             "costs": {
                 "default": OCPAzureCostSummary,
-                "account": OCPAzureCostSummaryByAccount,
-                "service": OCPAzureCostSummaryByService,
+                "subscription_guid": OCPAzureCostSummaryByAccount,
+                "service_name": OCPAzureCostSummaryByService,
                 "resource_location": OCPAzureCostSummaryByLocation,
             },
             "instance_type": {"default": OCPAzureComputeSummary, "instance_type": OCPAzureComputeSummary},
             "storage": {"default": OCPAzureStorageSummary},
-            "database": {"default": OCPAzureDatabaseSummary, "service": OCPAzureDatabaseSummary},
-            "network": {"default": OCPAzureNetworkSummary, "service": OCPAzureNetworkSummary},
+            "database": {"default": OCPAzureDatabaseSummary, "service_name": OCPAzureDatabaseSummary},
+            "network": {"default": OCPAzureNetworkSummary, "service_name": OCPAzureNetworkSummary},
         }
         super().__init__(provider, report_type)

@@ -18,13 +18,7 @@ class Migration(migrations.Migration):
                 ("cluster_id", models.CharField(max_length=50, null=True)),
                 ("cluster_alias", models.CharField(max_length=256, null=True)),
                 ("instance_type", models.CharField(max_length=50, null=True)),
-                (
-                    "instance_ids",
-                    django.contrib.postgres.fields.ArrayField(
-                        base_field=models.CharField(max_length=256), null=True, size=None
-                    ),
-                ),
-                ("instance_count", models.IntegerField(null=True)),
+                ("resource_id", models.CharField(max_length=253, null=True)),
                 ("usage_quantity", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
                 ("unit_of_measure", models.CharField(max_length=63, null=True)),
                 ("pretax_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
