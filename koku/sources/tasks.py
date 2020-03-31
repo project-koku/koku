@@ -23,6 +23,7 @@ from api.provider.models import Sources
 from koku.celery import app
 from sources.kafka_source_manager import KafkaSourceManager
 from sources.sources_http_client import SourcesHTTPClient
+from sources.sources_http_client import SourcesHTTPClientError
 from sources.storage import SCREEN_MAP
 
 LOG = get_task_logger(__name__)
@@ -90,4 +91,7 @@ def set_status_for_source(source_id, error_message):
 
     LOG.info(f"Setting availability status for Source ID: {source_id}")
     client = SourcesHTTPClient(instance.auth_header, source_id)
-    client.set_source_status(error_message)
+    try:
+        client.set_source_status(error_message)
+    except SourcesHTTPClientError as err:
+        LOG.error(err)
