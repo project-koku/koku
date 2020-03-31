@@ -44,15 +44,5 @@ class CloudAccountViewSet(viewsets.ReadOnlyModelViewSet):
         """ViewSet get_queryset method."""
         serializer = CloudAccountQueryParamsSerializer(data=self.request.query_params)
         serializer.is_valid(raise_exception=True)
-        data = self.get_json(CLOUD_ACCOUNTS_FILE_NAME)
+        data = json.load(CLOUD_ACCOUNTS_FILE_NAME)
         return data
-
-    def get_json(self, path):
-        """Obtain API JSON data from file path."""
-        json_data = None
-        with open(path) as json_file:
-            try:
-                json_data = json.load(json_file)
-            except (IOError, json.JSONDecodeError) as exc:
-                LOG.exception(exc)
-        return json_data

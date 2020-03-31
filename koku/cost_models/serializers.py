@@ -17,7 +17,6 @@
 """Rate serializer."""
 import json
 import logging
-import os
 from collections import defaultdict
 from decimal import Decimal
 
@@ -25,10 +24,10 @@ from rest_framework import serializers
 
 from api.metrics import constants as metric_constants
 from api.metrics.serializers import SOURCE_TYPE_MAP
+from api.metrics.views import COST_MODEL_METRICS_FILE_NAME
 from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
-from koku.settings import BASE_DIR
 
 CURRENCY_CHOICES = (("USD", "USD"),)
 MARKUP_CHOICES = (("percent", "%"),)
@@ -101,17 +100,6 @@ class TieredRateSerializer(serializers.Serializer):
             return data
 
 
-def get_json(path):
-    """Obtain API JSON data from file path."""
-    json_data = None
-    with open(path) as json_file:
-        try:
-            json_data = json.load(json_file)
-        except (IOError, json.JSONDecodeError) as exc:
-            LOG.exception(exc)
-    return json_data
-
-
 class RateSerializer(serializers.Serializer):
     """Rate Serializer."""
 
@@ -125,7 +113,8 @@ class RateSerializer(serializers.Serializer):
     @property
     def metric_map(self):
         """Return a metric map dictionary with default values."""
-        metrics = get_json(os.path.join(BASE_DIR, "api/metrics/data/cost_models_metric_map.json"))
+        with open(COST_MODEL_METRICS_FILE_NAME) as json_file:
+            metrics = json.load(json_file)
         return {metric.get("metric"): metric.get("default_cost_type") for metric in metrics}
 
     @staticmethod
@@ -310,10 +299,10 @@ class CostModelSerializer(serializers.Serializer):
     def metric_map(self):
         """Map metrics and display names."""
         metric_map_by_source = defaultdict(dict)
-        metric_map = get_json(os.path.join(BASE_DIR, "api/metrics/data/cost_models_metric_map.json"))
-
+        with open(COST_MODEL_METRICS_FILE_NAME) as json_file:
+            metric_map = json.load(json_file)
         for metric in metric_map:
-            metric_map_by_source[metric.get("source_type", None)][metric.get("metric", None)] = metric
+            metric_map_by_source[metric.get("source_type")][metric.get("metric")] = metric
         return metric_map_by_source
 
     @property

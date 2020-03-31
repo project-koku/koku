@@ -37,11 +37,11 @@ def error_obj(key, message):
     return error
 
 
-class CostModelMetricMapSerializer(serializers.ModelSerializer):
+class CostModelMetricMapSerializer(serializers.Serializer):
     """Serializer for the CostModelMetricsMap model."""
 
     def to_representation(self, instance):
         """Convert our internal source name to full source name."""
-        metric_map = super().to_representation(instance)
-        metric_map["source_type"] = SOURCE_TYPE_MAP[metric_map["source_type"]]
+        metric_map = {}
+        metric_map["source_type"] = SOURCE_TYPE_MAP[instance["source_type"]]
         return metric_map

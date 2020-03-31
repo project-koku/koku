@@ -48,7 +48,8 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
 
         Restricts the returned data to provider_uuid if supplied as a query parameter.
         """
-        queryset = self.get_json(COST_MODEL_METRICS_FILE_NAME)
+        with open(COST_MODEL_METRICS_FILE_NAME) as json_file:
+            queryset = json.load(json_file)
         source_type = self.request.query_params.get("source_type")
         if source_type:
             # Query on source type
@@ -60,13 +61,3 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
     def list(self, request, *args, **kwargs):
         """Obtain the list of CostModelMetrics for the tenant."""
         return super().list(request=request, args=args, kwargs=kwargs)
-
-    def get_json(self, path):
-        """Obtain API JSON data from file path."""
-        json_data = None
-        with open(path) as json_file:
-            try:
-                json_data = json.load(json_file)
-            except (IOError, json.JSONDecodeError) as exc:
-                LOG.exception(exc)
-        return json_data
