@@ -74,3 +74,22 @@ class CostModelMetricsMapViewTest(IamTestCase):
         url = url + "?" + urlencode(params, quote_via=quote_plus)
         response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_json_values(self):
+        """
+        Test contents of the metrics.
+
+        Test that the JSON is properly formatted and contains the required data.
+        """
+        url = reverse("metrics-list")
+        client = APIClient()
+
+        params = {"source_type": Provider.PROVIDER_OCP}
+        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers).data["data"]
+        for metric in response:
+            self.assertEqual("OpenShift Container Platform", metric.get("source_type"))
+            self.assertIsNotNone(metric.get("metric"))
+            self.assertIsNotNone(metric.get("label_metric"))
+            self.assertIsNotNone(metric.get("label_measurement_unit"))
+            self.assertIsNotNone(metric.get("default_cost_type"))
