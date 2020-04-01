@@ -19,9 +19,12 @@ import json
 import logging
 import os
 
+from django.utils.encoding import force_text
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import mixins
+from rest_framework import status
 from rest_framework import viewsets
+from rest_framework.exceptions import APIException
 from rest_framework.permissions import AllowAny
 
 from api.common import RH_IDENTITY_HEADER
@@ -48,8 +51,12 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
 
         Restricts the returned data to provider_uuid if supplied as a query parameter.
         """
-        with open(COST_MODEL_METRICS_FILE_NAME) as json_file:
-            queryset = json.load(json_file)
+        try:
+            with open(COST_MODEL_METRICS_FILE_NAME) as json_file:
+                queryset = json.load(json_file)
+        except (json.JSONDecodeError, OSError):
+            raise CostModelMetricMapJSONException("Internal Error loading JSON")
+
         source_type = self.request.query_params.get("source_type")
         if source_type:
             # Query on source type
@@ -61,3 +68,12 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
     def list(self, request, *args, **kwargs):
         """Obtain the list of CostModelMetrics for the tenant."""
         return super().list(request=request, args=args, kwargs=kwargs)
+
+
+class CostModelMetricMapJSONException(APIException):
+    """Rate query custom internal error exception."""
+
+    def __init__(self, message):
+        """Initialize with status code 500."""
+        self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        self.detail = {"detail": force_text(message)}
