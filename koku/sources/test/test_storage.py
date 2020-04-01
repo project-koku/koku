@@ -17,6 +17,7 @@
 """Test the Sources Storage access layer."""
 from base64 import b64decode
 from json import loads as json_loads
+from unittest.mock import Mock
 from unittest.mock import patch
 
 from django.db import InterfaceError
@@ -83,7 +84,7 @@ class SourcesStorageTest(TestCase):
         mock_objects.get.side_effect = InterfaceError("test_exception")
         test_source_id = 2
         with self.assertRaises(InterfaceError):
-            storage.get_source(test_source_id, "error")
+            storage.get_source(test_source_id, "error", Mock)
 
     def test_create_source_event(self):
         """Tests that a source can be created."""
