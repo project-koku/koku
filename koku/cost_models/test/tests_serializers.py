@@ -366,8 +366,8 @@ class CostModelSerializerTest(IamTestCase):
         for metric_choice in metric_constants.METRIC_CHOICES:
             response = serializer._get_metric_display_data(Provider.PROVIDER_OCP, metric_choice[0])
             self.assertIsNotNone(response.get("label_measurement_unit"))
-            self.assertIsNotNone(response.get("label_measurement", None))
-            self.assertIsNotNone(response.get("label_metric", None))
+            self.assertIsNotNone(response.get("label_measurement"))
+            self.assertIsNotNone(response.get("label_metric"))
 
     def test_check_for_duplicate_metrics(self):
         """Check that duplicate rate types for a metric are rejected."""
