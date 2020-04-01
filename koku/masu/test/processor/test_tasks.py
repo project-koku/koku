@@ -543,7 +543,8 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
     """Test cases for Processor Celery tasks."""
 
     @patch.object(ExpiredDataRemover, "remove")
-    def test_remove_expired_data(self, fake_remover):
+    @patch("masu.processor.tasks.refresh_materialized_views.delay")
+    def test_remove_expired_data(self, fake_view, fake_remover):
         """Test task."""
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
         fake_remover.return_value = expected_results
@@ -557,7 +558,8 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
             self.assertIn(expected.format(str(expected_results)), logger.output)
 
     @patch.object(ExpiredDataRemover, "remove")
-    def test_remove_expired_line_items_only(self, fake_remover):
+    @patch("masu.processor.tasks.refresh_materialized_views.delay")
+    def test_remove_expired_line_items_only(self, fake_view, fake_remover):
         """Test task."""
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
         fake_remover.return_value = expected_results

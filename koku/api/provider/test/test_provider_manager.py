@@ -39,6 +39,8 @@ from api.provider.provider_manager import ProviderManagerError
 from api.utils import DateHelper
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModelMap
+from reporting.models import AWS_MATERIALIZED_VIEWS
+from reporting.models import OCP_MATERIALIZED_VIEWS
 
 
 class MockResponse:
@@ -180,6 +182,34 @@ class ProviderManagerTest(IamTestCase):
         self.assertFalse(provider_query)
         self.assertEqual(auth_count, iniitial_auth_count)
         self.assertEqual(billing_count, initial_billing_count)
+
+    def test_remove_all_ocp_providers(self):
+        """Remove all OCP providers."""
+        provider_query = Provider.objects.all().filter(type="OCP")
+
+        customer = None
+        for provider in provider_query:
+            customer = provider.customer
+            with tenant_context(provider.customer):
+                manager = ProviderManager(provider.uuid)
+                manager.remove(self._create_delete_request(self.user, {"Sources-Client": "False"}))
+        for view in OCP_MATERIALIZED_VIEWS:
+            with tenant_context(customer):
+                self.assertFalse(view.objects.count())
+
+    def test_remove_all_aws_providers(self):
+        """Remove all AWS providers."""
+        provider_query = Provider.objects.all().filter(type="AWS-local")
+
+        customer = None
+        for provider in provider_query:
+            customer = provider.customer
+            with tenant_context(provider.customer):
+                manager = ProviderManager(provider.uuid)
+                manager.remove(self._create_delete_request(self.user, {"Sources-Client": "False"}))
+        for view in AWS_MATERIALIZED_VIEWS:
+            with tenant_context(customer):
+                self.assertFalse(view.objects.count())
 
     def test_remove_aws_auth_billing_remain(self):
         """Remove aws provider."""
