@@ -77,8 +77,7 @@ class KafkaSourceManagerTest(TestCase):
                 self.name, self.provider_type, self.authentication, self.billing_source, source_uuid
             )
 
-    @patch("masu.processor.tasks.refresh_materialized_views.delay")
-    def test_destroy_provider(self, mock_views):
+    def test_destroy_provider(self):
         """Test to destroy a provider."""
         client = KafkaSourceManager(auth_header=Config.SOURCES_FAKE_HEADER)
 
