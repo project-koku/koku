@@ -47,22 +47,25 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
     permission_classes = (AllowAny,)
 
     def get_queryset(self):
-        """Get a queryset.
+        """
+        Get JSON from the cost_model_metrics_map.json.
 
-        Restricts the returned data to provider_uuid if supplied as a query parameter.
+        Filter on source_type
         """
         try:
             with open(COST_MODEL_METRICS_FILE_NAME) as json_file:
-                queryset = json.load(json_file)
+                cost_model_metrics_map = json.load(json_file)
         except (json.JSONDecodeError, OSError):
             raise CostModelMetricMapJSONException("Internal Error loading JSON")
 
         source_type = self.request.query_params.get("source_type")
         if source_type:
             # Query on source type
-            queryset = list(filter(lambda x: x.get("source_type") == source_type, queryset))
+            cost_model_metrics_map = list(
+                filter(lambda x: x.get("source_type") == source_type, cost_model_metrics_map)
+            )
 
-        return queryset
+        return cost_model_metrics_map
 
     @vary_on_headers(RH_IDENTITY_HEADER)
     def list(self, request, *args, **kwargs):
