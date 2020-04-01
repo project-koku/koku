@@ -2723,7 +2723,8 @@
                     "metric",
                     "label_metric",
                     "label_measurement",
-                    "label_measurement_unit"
+                    "label_measurement_unit",
+                    "default_cost_type"
                 ],
                 "properties": {
                     "source_type": {
@@ -2739,6 +2740,9 @@
                         "type": "string"
                     },
                     "label_measurement_unit": {
+                        "type": "string"
+                    },
+                    "default_cost_type": {
                         "type": "string"
                     }
                 }
