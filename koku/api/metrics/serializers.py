@@ -42,6 +42,7 @@ class CostModelMetricMapSerializer(serializers.Serializer):
 
     def to_representation(self, instance):
         """Convert our internal source name to full source name."""
-        metric_map = {}
+        metric_map = instance
         metric_map["source_type"] = SOURCE_TYPE_MAP[instance["source_type"]]
+
         return metric_map

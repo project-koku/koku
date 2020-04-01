@@ -9,10 +9,8 @@ from api.metrics.views import COST_MODEL_METRICS_FILE_NAME
 
 def update_cost_model_rates(apps, schema_editor):
     """Update cost model rates with cost type."""
-    # MetricsMap = apps.get_model("api", "CostModelMetricsMap")
     CostModel = apps.get_model("cost_models", "CostModel")
 
-    # metrics = MetricsMap.objects.values("metric", "default_cost_type")
     with open(COST_MODEL_METRICS_FILE_NAME) as json_file:
         metrics = json.load(json_file)
     metric_dict = {metric.get("metric"): metric.get("default_cost_type") for metric in metrics}
