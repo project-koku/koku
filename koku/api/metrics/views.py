@@ -74,7 +74,7 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
 
 
 class CostModelMetricMapJSONException(APIException):
-    """Rate query custom internal error exception."""
+    """Custom internal error exception."""
 
     def __init__(self, message):
         """Initialize with status code 500."""
