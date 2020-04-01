@@ -415,13 +415,6 @@ class AWSReportQueryTest(IamTestCase):
 
         total = query_output.get("total")
         self.assertIsNotNone(total.get("count"))
-        dh = DateHelper()
-        if dh.today.day >= 10:
-            num_entries = 10
-        else:
-            num_entries = dh.today.day
-
-        self.assertEqual(total.get("count", {}).get("value"), num_entries)
 
         annotations = {
             "date": F("usage_start"),
@@ -443,12 +436,15 @@ class AWSReportQueryTest(IamTestCase):
                     else:
                         count_dict[str(item["date"])][item["type"]] = 1
 
+        total_count = 0
         for data_item in data:
             instance_types = data_item.get("instance_types")
             for it in instance_types:
                 expected_count = count_dict.get(data_item.get("date")).get(it["instance_type"])
-                actual_count = it["values"][0].get("count", {}).get("value")
+                actual_count = it["values"][0].get("count", {}).get("value", 0)
                 self.assertEqual(actual_count, expected_count)
+                total_count += actual_count
+        self.assertEqual(total.get("count", {}).get("value"), total_count)
 
     def test_execute_query_without_counts(self):
         """Test execute_query without counts of unique resources."""
