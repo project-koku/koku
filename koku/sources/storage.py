@@ -226,7 +226,7 @@ def clear_update_flag(source_id):
         None
 
     """
-    source = get_source(source_id, f"Unable to clear update flag.  {source_id} not found.", LOG.error)
+    source = get_source(source_id, f"Unable to clear update flag. Source ID {source_id} not found.", LOG.error)
     if source and source.koku_uuid and source.pending_update:
         source.pending_update = False
         source.save()
