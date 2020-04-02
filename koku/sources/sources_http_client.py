@@ -133,7 +133,12 @@ class SourcesHTTPClient:
         endpoint_url = "{}/endpoints?filter[source_id]={}".format(self._base_url, str(self._source_id))
         r = requests.get(endpoint_url, headers=self._identity_header)
         endpoint_response = r.json()
-        resource_id = endpoint_response.get("data")[0].get("id")
+        if endpoint_response.get("data"):
+            resource_id = endpoint_response.get("data")[0].get("id")
+        else:
+            raise SourcesHTTPClientError(
+                f"Unable to get AWS roleARN.  Endpoint not found for Source: {self._source_id}"
+            )
 
         authentications_str = "{}/authentications?filter[resource_type]=Endpoint&[authtype]=arn&[resource_id]={}"
         authentications_url = authentications_str.format(self._base_url, str(resource_id))
@@ -160,7 +165,9 @@ class SourcesHTTPClient:
         if endpoint_response.get("data"):
             resource_id = endpoint_response.get("data")[0].get("id")
         else:
-            return
+            raise SourcesHTTPClientError(
+                f"Unable to get Azure credentials.  Endpoint not found for Source: {self._source_id}"
+            )
 
         authentications_url = (
             f"{self._base_url}/authentications?filter[resource_type]=Endpoint&"
