@@ -25,7 +25,7 @@ def seed_cost_management_aws_account_id(apps, schema_editor):
 
 # api.migrations.0040_auto_20191121_2154
 def load_openshift_metric_map(apps, schema_editor):
-    """Load AWS Cost Usage report to database mapping."""
+    """Pass old migration."""
     pass
 
 
