@@ -300,7 +300,7 @@ def sources_network_info(source_id, auth_header):
 
     source_type = SOURCE_PROVIDER_MAP.get(source_type_name)
     if not source_type:
-        LOG.error(f"Unexpected source type ID: {source_type_id}")
+        LOG.warning(f"Unexpected source type ID: {source_type_id}")
         return
 
     storage.add_provider_sources_network_info(source_id, source_uuid, source_name, source_type, endpoint_id)
