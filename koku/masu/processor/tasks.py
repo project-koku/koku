@@ -173,6 +173,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, lin
     )
     LOG.info(stmt)
     _remove_expired_data(schema_name, provider, simulate, provider_uuid, line_items_only)
+    refresh_materialized_views.delay(schema_name, provider)
 
 
 @app.task(name="masu.processor.tasks.summarize_reports", queue_name="process")
