@@ -77,7 +77,7 @@ class SourceStatus:
             self.sources_client.set_source_status(status_msg)
         except SourcesHTTPClientError as error:
             err_msg = "Unable to push source status. Reason: {}".format(str(error))
-            LOG.error(err_msg)
+            LOG.warning(err_msg)
 
 
 def _get_source_id_from_request(request):
