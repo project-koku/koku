@@ -298,7 +298,7 @@ def process_report(report):
             async_id = summarize_reports.delay(reports_to_summarize)
             LOG.info("Summarization celery uuid: %s", str(async_id))
     else:
-        LOG.error("Could not find provider_uuid for cluster_id: %s", str(cluster_id))
+        LOG.warning("Could not find provider_uuid for cluster_id: %s", str(cluster_id))
 
 
 # pylint: disable=broad-except
