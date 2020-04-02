@@ -170,15 +170,27 @@ async def send_confirmation(request_id, status):  # pragma: no cover
         None
 
     """
-    producer = AIOKafkaProducer(loop=EVENT_LOOP, bootstrap_servers=Config.INSIGHTS_KAFKA_ADDRESS)
-    try:
-        await producer.start()
-    except (KafkaError, TimeoutError) as err:
-        await producer.stop()
-        LOG.exception(str(err))
-        KAFKA_CONNECTION_ERRORS_COUNTER.inc()
-        raise KafkaMsgHandlerError("Unable to connect to kafka server.  Closing producer.")
 
+    def backoff(interval, maximum=64):
+        """Exponential back-off."""
+        wait = min(maximum, (2 ** interval)) + (random.randint(0, 1000) / 1000.0)
+        LOG.info("Sleeping for %s seconds.", wait)
+        time.sleep(wait)
+
+    producer = AIOKafkaProducer(loop=EVENT_LOOP, bootstrap_servers=Config.INSIGHTS_KAFKA_ADDRESS)
+    count = 0
+    while True:
+        try:
+            await producer.start()
+        except (KafkaError, TimeoutError) as err:
+            await producer.stop()
+            LOG.exception(f"Unable to connect to kafka server.  Closing producer. {str(err)}")
+            KAFKA_CONNECTION_ERRORS_COUNTER.inc()
+            backoff(count, Config.INSIGHTS_KAFKA_CONN_RETRY_MAX)
+            count += 1
+            LOG.info("Attempting to reconnect")
+
+    LOG.debug("Producer started...")
     try:
         validation = {"request_id": request_id, "validation": status}
         msg = bytes(json.dumps(validation), "utf-8")
@@ -187,6 +199,7 @@ async def send_confirmation(request_id, status):  # pragma: no cover
         LOG.info("Validating message complete.")
     finally:
         await producer.stop()
+        LOG.debug("Producer stopped.")
 
 
 def handle_message(msg):
