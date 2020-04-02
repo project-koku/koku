@@ -24,6 +24,7 @@ from rest_framework import serializers
 
 from api.metrics import constants as metric_constants
 from api.metrics.constants import SOURCE_TYPE_MAP
+from api.metrics.views import CostModelMetricMapJSONException
 from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
@@ -112,7 +113,7 @@ class RateSerializer(serializers.Serializer):
     @property
     def metric_map(self):
         """Return a metric map dictionary with default values."""
-        metrics = copy.deepcopy(metric_constants.cost_model_metric_map)
+        metrics = copy.deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
         return {metric.get("metric"): metric.get("default_cost_type") for metric in metrics}
 
     @staticmethod
@@ -297,9 +298,13 @@ class CostModelSerializer(serializers.Serializer):
     def metric_map(self):
         """Map metrics and display names."""
         metric_map_by_source = defaultdict(dict)
-        metric_map = copy.deepcopy(metric_constants.cost_model_metric_map)
+        metric_map = copy.deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
         for metric in metric_map:
-            metric_map_by_source[metric.get("source_type")][metric.get("metric")] = metric
+            try:
+                metric_map_by_source[metric.get("source_type")][metric.get("metric")] = metric
+            except TypeError:
+                LOG.error("Invalid Cost Model Metric Map", exc_info=True)
+                raise CostModelMetricMapJSONException("Internal Server Error.")
         return metric_map_by_source
 
     @property
@@ -398,13 +403,17 @@ class CostModelSerializer(serializers.Serializer):
         for rate in rates:
             metric = rate.get("metric", {})
             display_data = self._get_metric_display_data(cost_model_obj.source_type, metric.get("name"))
-            metric.update(
-                {
-                    "label_metric": display_data.get("label_metric", ""),
-                    "label_measurement": display_data.get("label_measurement", ""),
-                    "label_measurement_unit": display_data.get("label_measurement_unit", ""),
-                }
-            )
+            try:
+                metric.update(
+                    {
+                        "label_metric": display_data["label_metric"],
+                        "label_measurement": display_data["label_measurement"],
+                        "label_measurement_unit": display_data["label_measurement"],
+                    }
+                )
+            except (KeyError, TypeError):
+                LOG.error("Invalid Cost Model Metric Map", exc_info=True)
+                raise CostModelMetricMapJSONException("Internal Error.")
         rep["rates"] = rates
 
         source_type = rep.get("source_type")

@@ -49,7 +49,7 @@ SOURCE_TYPE_MAP = {
     Provider.PROVIDER_AZURE: "Microsoft Azure",
 }
 
-cost_model_metric_map = [
+COST_MODEL_METRIC_MAP = [
     {
         "source_type": "OCP",
         "metric": "cpu_core_usage_per_hour",

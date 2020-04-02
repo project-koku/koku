@@ -10,7 +10,7 @@ from api.metrics import constants as metric_constants
 def update_cost_model_rates(apps, schema_editor):
     """Update cost model rates with cost type."""
     CostModel = apps.get_model("cost_models", "CostModel")
-    metrics = copy.deepcopy(metric_constants.cost_model_metric_map)
+    metrics = copy.deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
     metric_dict = {metric.get("metric"): metric.get("default_cost_type") for metric in metrics}
 
     cost_models = CostModel.objects.all()

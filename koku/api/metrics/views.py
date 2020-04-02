@@ -50,7 +50,7 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
         Filter on source_type
         """
         source_type = self.request.query_params.get("source_type")
-        cost_model_metric_map_copy = copy.deepcopy(metric_constants.cost_model_metric_map)
+        cost_model_metric_map_copy = copy.deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
         try:
             if source_type:
                 # Filter on source type

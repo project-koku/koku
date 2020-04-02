@@ -606,3 +606,12 @@ class CostModelViewTests(IamTestCase):
         for rate in data.get("rates", []):
             self.assertIn("cost_type", rate)
             self.assertEqual(rate["cost_type"], metric_constants.SUPPLEMENTARY_COST_TYPE)
+
+    def test_invalid_cost_metric_map_500_error(self):
+        """Test that the API returns a 500 error when there is invalid cost model metric map"""
+        url = reverse("cost-models-list")
+        client = APIClient()
+        MOCK_COST_MODEL_METRIC_MAP = [{"Invalid": "Invalid"}]
+        with patch("api.metrics.constants.COST_MODEL_METRIC_MAP", MOCK_COST_MODEL_METRIC_MAP):
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
