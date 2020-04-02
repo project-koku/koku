@@ -14,35 +14,17 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""CostModelMetricMap Model Serializer."""
+"""CostModelMetricMap Serializer."""
 import logging
 
-from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
-from api.models import Provider
-
 LOG = logging.getLogger(__name__)
-
-SOURCE_TYPE_MAP = {
-    Provider.PROVIDER_OCP: "OpenShift Container Platform",
-    Provider.PROVIDER_AWS: "Amazon Web Services",
-    Provider.PROVIDER_AZURE: "Microsoft Azure",
-}
-
-
-def error_obj(key, message):
-    """Create an error object."""
-    error = {key: [_(message)]}
-    return error
 
 
 class CostModelMetricMapSerializer(serializers.Serializer):
     """Serializer for the CostModelMetricsMap model."""
 
     def to_representation(self, instance):
-        """Convert our internal source name to full source name."""
-        metric_map = instance
-        metric_map["source_type"] = SOURCE_TYPE_MAP[instance["source_type"]]
-
-        return metric_map
+        """Return instance."""
+        return instance

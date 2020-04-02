@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Views for CostModelMetricsMap."""
-import json
 import logging
 import os
 
@@ -28,6 +27,7 @@ from rest_framework.exceptions import APIException
 from rest_framework.permissions import AllowAny
 
 from api.common import RH_IDENTITY_HEADER
+from api.metrics import constants as metric_constants
 from api.metrics.serializers import CostModelMetricMapSerializer
 from koku.settings import BASE_DIR
 
@@ -52,20 +52,21 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
 
         Filter on source_type
         """
-        try:
-            with open(COST_MODEL_METRICS_FILE_NAME) as json_file:
-                cost_model_metrics_map = json.load(json_file)
-        except (json.JSONDecodeError, OSError):
-            raise CostModelMetricMapJSONException("Internal Error loading JSON")
-
         source_type = self.request.query_params.get("source_type")
-        if source_type:
-            # Query on source type
-            cost_model_metrics_map = list(
-                filter(lambda x: x.get("source_type") == source_type, cost_model_metrics_map)
-            )
+        cost_model_metric_map_copy = metric_constants.cost_model_metric_map.copy()
+        try:
+            if source_type:
+                # Filter on source type
+                cost_model_metric_map_copy = list(
+                    filter(lambda x: x.get("source_type") == source_type, metric_constants.cost_model_metric_map)
+                )
+            # Convert source_type to human readable.
+            for metric_map in cost_model_metric_map_copy:
+                metric_map["source_type"] = metric_constants.SOURCE_TYPE_MAP[metric_map["source_type"]]
+        except KeyError:
+            raise CostModelMetricMapJSONException("Internal Error. Malformed Cost Model Metric Map.")
 
-        return cost_model_metrics_map
+        return cost_model_metric_map_copy
 
     @vary_on_headers(RH_IDENTITY_HEADER)
     def list(self, request, *args, **kwargs):

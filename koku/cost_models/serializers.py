@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Rate serializer."""
-import json
 import logging
 from collections import defaultdict
 from decimal import Decimal
@@ -23,8 +22,7 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from api.metrics import constants as metric_constants
-from api.metrics.serializers import SOURCE_TYPE_MAP
-from api.metrics.views import COST_MODEL_METRICS_FILE_NAME
+from api.metrics.constants import SOURCE_TYPE_MAP
 from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
@@ -113,8 +111,7 @@ class RateSerializer(serializers.Serializer):
     @property
     def metric_map(self):
         """Return a metric map dictionary with default values."""
-        with open(COST_MODEL_METRICS_FILE_NAME) as json_file:
-            metrics = json.load(json_file)
+        metrics = metric_constants.cost_model_metric_map.copy()
         return {metric.get("metric"): metric.get("default_cost_type") for metric in metrics}
 
     @staticmethod
@@ -299,8 +296,7 @@ class CostModelSerializer(serializers.Serializer):
     def metric_map(self):
         """Map metrics and display names."""
         metric_map_by_source = defaultdict(dict)
-        with open(COST_MODEL_METRICS_FILE_NAME) as json_file:
-            metric_map = json.load(json_file)
+        metric_map = metric_constants.cost_model_metric_map.copy()
         for metric in metric_map:
             metric_map_by_source[metric.get("source_type")][metric.get("metric")] = metric
         return metric_map_by_source
