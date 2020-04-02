@@ -61,7 +61,7 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
             for metric_map in cost_model_metric_map_copy:
                 metric_map["source_type"] = metric_constants.SOURCE_TYPE_MAP[metric_map["source_type"]]
         except KeyError:
-            LOG.debug("Malformed JSON", exc_error=True)
+            LOG.error("Malformed JSON", exc_error=True)
             raise CostModelMetricMapJSONException("Internal Error.")
 
         return cost_model_metric_map_copy
