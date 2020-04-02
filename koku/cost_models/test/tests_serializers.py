@@ -24,7 +24,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics import constants as metric_constants
-from api.metrics.serializers import SOURCE_TYPE_MAP
+from api.metrics.constants import SOURCE_TYPE_MAP
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
 from cost_models.models import CostModel
