@@ -5,7 +5,6 @@ import json
 from django.db import migrations
 
 from api.metrics import constants as metric_constants
-from api.metrics.views import COST_MODEL_METRICS_FILE_NAME
 
 
 def update_cost_model_rates(apps, schema_editor):
