@@ -19,7 +19,7 @@ from rest_framework import serializers
 
 
 class CostModelMetricMapSerializer(serializers.Serializer):
-    """Serializer for the CostModelMetricsMap model."""
+    """Serializer for the CostModelMetricsMap."""
 
     def to_representation(self, instance):
         """Return instance."""
