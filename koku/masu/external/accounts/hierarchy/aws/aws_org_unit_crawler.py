@@ -24,7 +24,6 @@ from tenant_schemas.utils import schema_context
 from masu.external.accounts.hierarchy.account_crawler import AccountCrawler
 from masu.external.date_accessor import DateAccessor
 from masu.util.aws import common as utils
-from masu.util.aws.common import get_assume_role_session
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
@@ -53,7 +52,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
         Args:
             session = aws session
         """
-        session = get_assume_role_session(utils.AwsArn(self._auth_cred))
+        session = utils.get_assume_role_session(utils.AwsArn(self._auth_cred))
         session_client = session.client("organizations")
         LOG.info("Starting aws organizations session for crawler.")
         return session_client
@@ -126,8 +125,9 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 LOG.info("Organizational unit found during crawl: %s" % (sub_ou.get("Id")))
                 self._crawl_org_for_acts(sub_ou, new_prefix)
         except Exception:
-            LOG.exception('Failure processing org unit.  Account schema %s and org_unit_id %s' %
-                          (self.schema, ou.get("Id")))
+            LOG.exception(
+                "Failure processing org unit.  Account schema {} and org_unit_id {}".format(self.schema, ou.get("Id"))
+            )
 
     def _save_aws_org_method(self, unit_name, unit_id, unit_path, account_id=None):
         """
