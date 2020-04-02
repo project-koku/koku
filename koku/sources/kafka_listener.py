@@ -296,7 +296,7 @@ def sources_network_info(source_id, auth_header):
     endpoint_id = sources_network.get_endpoint_id()
 
     if not endpoint_id and not source_type_name == SOURCES_OCP_SOURCE_NAME:
-        LOG.error(f"Unable to find endpoint for Source ID: {source_id}")
+        LOG.warning(f"Unable to find endpoint for Source ID: {source_id}")
 
     source_type = SOURCE_PROVIDER_MAP.get(source_type_name)
     if not source_type:
