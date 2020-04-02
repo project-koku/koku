@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Views for CostModelMetricsMap."""
+import copy
 import logging
 import os
 
@@ -53,18 +54,19 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
         Filter on source_type
         """
         source_type = self.request.query_params.get("source_type")
-        cost_model_metric_map_copy = metric_constants.cost_model_metric_map.copy()
+        cost_model_metric_map_copy = copy.deepcopy(metric_constants.cost_model_metric_map)
         try:
             if source_type:
                 # Filter on source type
                 cost_model_metric_map_copy = list(
-                    filter(lambda x: x.get("source_type") == source_type, metric_constants.cost_model_metric_map)
+                    filter(lambda x: x.get("source_type") == source_type, cost_model_metric_map_copy)
                 )
             # Convert source_type to human readable.
             for metric_map in cost_model_metric_map_copy:
                 metric_map["source_type"] = metric_constants.SOURCE_TYPE_MAP[metric_map["source_type"]]
         except KeyError:
-            raise CostModelMetricMapJSONException("Internal Error. Malformed Cost Model Metric Map.")
+            LOG.debug("Malformed JSON", exc_error=True)
+            raise CostModelMetricMapJSONException("Internal Error.")
 
         return cost_model_metric_map_copy
 
