@@ -297,7 +297,7 @@ class CostModelSerializer(serializers.Serializer):
     def metric_map(self):
         """Map metrics and display names."""
         metric_map_by_source = defaultdict(dict)
-        metric_map = metric_constants.cost_model_metric_map.copy()
+        metric_map = copy.deepcopy(metric_constants.cost_model_metric_map)
         for metric in metric_map:
             metric_map_by_source[metric.get("source_type")][metric.get("metric")] = metric
         return metric_map_by_source
