@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the AWSOrgUnitCrawler object."""
+# from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from faker import Faker
@@ -31,6 +32,26 @@ CUSTOMER_NAME = FAKE.word()
 BUCKET = FAKE.word()
 P_UUID = FAKE.uuid4()
 P_TYPE = Provider.PROVIDER_AWS
+
+
+def generate_accounts(self, ParentId):
+    """
+        TODO: FILL IN
+        """
+    gen_accounts_dict = {}
+    last_nxt_tkn = ParentId
+    for idx in range(self.act_num_max):
+        new_nxt_tkn = f"nxt-{ParentId}-{idx}"
+        gen_accounts_dict[last_nxt_tkn] = {
+            "Accounts": [{"Id": f"{ParentId}-id-{idx}", "Name": f"{ParentId}-name-{idx}"}],
+            "NextToken": new_nxt_tkn,
+        }
+        nxt_idx = idx + 1
+        if nxt_idx == self.act_num_max:
+            del gen_accounts_dict[last_nxt_tkn]["NextToken"]
+        else:
+            last_nxt_tkn = new_nxt_tkn
+    self.accounts = gen_accounts_dict
 
 
 class FakeClient:
@@ -124,13 +145,39 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
     def test_depaginate(self, mock_session):
         unit_crawler = AWSOrgUnitCrawler(self.account)
         unit_crawler.client = unit_crawler.get_session()
+        parent_id = "TestDepaginate"
         accounts = unit_crawler.depaginate(
-            function=unit_crawler.client.list_accounts_for_parent, resource_key="Accounts", ParentId="TestDepaginate"
+            function=unit_crawler.client.list_accounts_for_parent, resource_key="Accounts", ParentId=parent_id
         )
         self.assertIsNotNone(accounts)
-        print("Cody" * 4)
-        print(accounts)
         self.assertEqual(len(accounts), unit_crawler.client.act_num_max)
+        for idx in range(unit_crawler.client.act_num_max):
+            expected_account = {"Id": f"{parent_id}-id-{idx}", "Name": f"{parent_id}-name-{idx}"}
+            self.assertIn(expected_account, accounts)
+
+    # def test_depaginate_magic_mock(self):
+    #     unit_crawler = AWSOrgUnitCrawler(self.account)
+    #     parent_id = "TestDepaginate"
+    #     unit_crawler.client = MagicMock(name='list_accounts_for_parent', side_effect=[{
+    #             "Accounts": [{"Id": f"{parent_id}-id-1", "Name": f"{parent_id}-name-1"}],
+    #             "NextToken": '1',
+    #         },
+    #         {
+    #             "Accounts": [{"Id": f"{parent_id}-id-2", "Name": f"{parent_id}-name-2"}],
+    #             "NextToken": '2',
+    #         },
+    #         {
+    #             "Accounts": [{"Id": f"{parent_id}-id-3", "Name": f"{parent_id}-name-3"}],
+    #             "NextToken": '3',
+    #         }])
+    #     accounts = unit_crawler.depaginate(
+    #         function=unit_crawler.client.list_accounts_for_parent, resource_key="Accounts", ParentId=parent_id
+    #     )
+    #     self.assertIsNotNone(accounts)
+    #     self.assertEqual(len(accounts), unit_crawler.client.act_num_max)
+    #     for idx in range(unit_crawler.client.act_num_max):
+    #         expected_account = {"Id": f"{parent_id}-id-{idx}", "Name": f"{parent_id}-name-{idx}"}
+    #         self.assertIn(expected_account, accounts)
 
     def test_save_aws_org_method(self):
         """Test that saving to the database works."""
