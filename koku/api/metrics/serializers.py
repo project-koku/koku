@@ -21,6 +21,9 @@ from rest_framework import serializers
 class CostModelMetricMapSerializer(serializers.Serializer):
     """Serializer for the CostModelMetricsMap."""
 
-    def to_representation(self, instance):
-        """Return instance."""
-        return instance
+    source_type = serializers.CharField(required=True)
+    metric = serializers.CharField(required=True)
+    label_metric = serializers.CharField(required=True)
+    label_measurement = serializers.CharField(required=True)
+    label_measurement_unit = serializers.CharField(required=True)
+    default_cost_type = serializers.CharField(required=True)
