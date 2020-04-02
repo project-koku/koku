@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Rate serializer."""
+import copy
 import logging
 from collections import defaultdict
 from decimal import Decimal
@@ -111,7 +112,7 @@ class RateSerializer(serializers.Serializer):
     @property
     def metric_map(self):
         """Return a metric map dictionary with default values."""
-        metrics = metric_constants.cost_model_metric_map.copy()
+        metrics = copy.deepcopy(metric_constants.cost_model_metric_map)
         return {metric.get("metric"): metric.get("default_cost_type") for metric in metrics}
 
     @staticmethod
