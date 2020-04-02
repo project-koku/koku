@@ -15,11 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """CostModelMetricMap Serializer."""
-import logging
-
 from rest_framework import serializers
-
-LOG = logging.getLogger(__name__)
 
 
 class CostModelMetricMapSerializer(serializers.Serializer):
