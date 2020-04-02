@@ -17,7 +17,6 @@
 """Views for CostModelMetricsMap."""
 import copy
 import logging
-import os
 
 from django.utils.encoding import force_text
 from django.views.decorators.vary import vary_on_headers
@@ -30,11 +29,8 @@ from rest_framework.permissions import AllowAny
 from api.common import RH_IDENTITY_HEADER
 from api.metrics import constants as metric_constants
 from api.metrics.serializers import CostModelMetricMapSerializer
-from koku.settings import BASE_DIR
 
 LOG = logging.getLogger(__name__)
-
-COST_MODEL_METRICS_FILE_NAME = os.path.join(BASE_DIR, "api/metrics/data/cost_models_metric_map.json")
 
 
 class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
