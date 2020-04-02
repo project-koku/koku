@@ -8,16 +8,7 @@ from django.db import models
 
 def reload_cost_model_metric_map(apps, schema_editor):
     """Load cost model metrics."""
-    CostModelMetricsMap = apps.get_model("api", "CostModelMetricsMap")
-    CostModelMetricsMap.objects.all().delete()
-
-    data = pkgutil.get_data("api", "metrics/data/cost_models_metric_map.json")
-
-    data = json.loads(data)
-
-    for entry in data:
-        map = CostModelMetricsMap(**entry)
-        map.save()
+    pass
 
 
 class Migration(migrations.Migration):
