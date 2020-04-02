@@ -48,7 +48,7 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
 
     def get_queryset(self):
         """
-        Get JSON from the cost_model_metrics_map.json.
+        Return the Cost Model Metric Map data.
 
         Filter on source_type
         """
