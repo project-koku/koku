@@ -90,6 +90,7 @@ class DatabaseStatus:
     def collect(self):
         """Collect stats and report using Prometheus objects."""
         stats = self.schema_size()
+        LOG.debug("Collected stats: %s", stats)
         for item in stats:
             schema = item.get("schema")
             size = item.get("size")
@@ -135,4 +136,5 @@ def collect_metrics():
     db_status = DatabaseStatus()
     db_status.connection_check()
     db_status.collect()
+    LOG.debug("Pushing stats to gateway: %s", settings.PROMETHEUS_PUSHGATEWAY)
     push_to_gateway(settings.PROMETHEUS_PUSHGATEWAY, job="koku.metrics.collect_metrics", registry=REGISTRY)
