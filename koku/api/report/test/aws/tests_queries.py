@@ -424,10 +424,22 @@ class AWSReportQueryTest(IamTestCase):
 
         with tenant_context(self.tenant):
             expected_counts = (
-                AWSCostEntryLineItemDailySummary.objects.filter(instance_type__isnull=False)
+                AWSCostEntryLineItemDailySummary.objects.filter(
+                    instance_type__isnull=False, usage_start__gte=self.dh.this_month_start
+                )
                 .values(**annotations)
                 .distinct()
             )
+
+            total_count = (
+                AWSCostEntryLineItemDailySummary.objects.filter(
+                    instance_type__isnull=False, usage_start__gte=self.dh.this_month_start
+                )
+                .values(**{"resource_id": Func(F("resource_ids"), function="unnest")})
+                .distinct()
+                .count()
+            )
+
             count_dict = defaultdict(dict)
             for item in expected_counts:
                 if "i-" in item["resource_id"]:
@@ -436,14 +448,12 @@ class AWSReportQueryTest(IamTestCase):
                     else:
                         count_dict[str(item["date"])][item["type"]] = 1
 
-        total_count = 0
         for data_item in data:
             instance_types = data_item.get("instance_types")
             for it in instance_types:
                 expected_count = count_dict.get(data_item.get("date")).get(it["instance_type"])
                 actual_count = it["values"][0].get("count", {}).get("value", 0)
                 self.assertEqual(actual_count, expected_count)
-                total_count += actual_count
         self.assertEqual(total.get("count", {}).get("value"), total_count)
 
     def test_execute_query_without_counts(self):
