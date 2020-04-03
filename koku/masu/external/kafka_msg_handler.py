@@ -56,6 +56,13 @@ class KafkaMsgHandlerError(Exception):
     """Kafka mmsg handler error."""
 
 
+def backoff(interval, maximum=64):  # pragma: no cover
+    """Exponential back-off."""
+    wait = min(maximum, (2 ** interval)) + random.random()
+    LOG.info("Sleeping for %.2f seconds.", wait)
+    time.sleep(wait)
+
+
 # pylint: disable=too-many-locals
 def extract_payload(url):  # noqa: C901
     """
@@ -177,10 +184,11 @@ async def send_confirmation(request_id, status):  # pragma: no cover
         await producer.start()
     except (KafkaError, TimeoutError) as err:
         await producer.stop()
-        LOG.exception(str(err))
+        LOG.exception(f"Unable to connect to kafka server.  Closing producer. {str(err)}")
         KAFKA_CONNECTION_ERRORS_COUNTER.inc()
         raise KafkaMsgHandlerError("Unable to connect to kafka server.  Closing producer.")
 
+    LOG.debug("Producer started...")
     try:
         validation = {"request_id": request_id, "validation": status}
         msg = bytes(json.dumps(validation), "utf-8")
@@ -189,6 +197,7 @@ async def send_confirmation(request_id, status):  # pragma: no cover
         LOG.info("Validating message complete.")
     finally:
         await producer.stop()
+        LOG.debug("Producer stopped.")
 
 
 def handle_message(msg):
@@ -320,7 +329,16 @@ async def process_messages():  # pragma: no cover
         status, report_meta = handle_message(msg)
         if status:
             value = json.loads(msg.value.decode("utf-8"))
-            await send_confirmation(value["request_id"], status)
+            count = 0
+            while True:
+                try:
+                    await send_confirmation(value["request_id"], status)
+                    break
+                except KafkaMsgHandlerError as err:
+                    LOG.error(f"Resending message confirmation due to error: {err}")
+                    backoff(count, Config.INSIGHTS_KAFKA_CONN_RETRY_MAX)
+                    count += 1
+                    continue
         if report_meta:
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 try:
@@ -379,12 +397,6 @@ def asyncio_worker_thread(loop):  # pragma: no cover
         None
 
     """
-
-    def backoff(interval, maximum=64):
-        """Exponential back-off."""
-        wait = min(maximum, (2 ** interval)) + (random.randint(0, 1000) / 1000.0)
-        LOG.info("Sleeping for %s seconds.", wait)
-        time.sleep(wait)
 
     count = 0
     try:
