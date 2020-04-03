@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
     dependencies = [
         (
             "reporting",
-            "0103_azurecomputesummary_azurecostsummary_azurecostsummarybyaccount_azurecostsummarybylocation_azurecosts",
+            "0107_ocpazurecomputesummary_ocpazurecostsummary_ocpazurecostsummarybyaccount_ocpazurecostsummarybylocatio",
         )
     ]
 
