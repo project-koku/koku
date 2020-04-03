@@ -34,6 +34,8 @@ class NiseDataLoader:
     def get_test_data_dates(self, num_days):
         """Return a list of tuples with dates for nise data."""
         end_date = self.dh.today
+        if end_date.day == 1:
+            end_date += relativedelta(days=1)
         n_days_ago = self.dh.n_days_ago(end_date, num_days)
         start_date = n_days_ago
         if self.dh.this_month_start > n_days_ago:

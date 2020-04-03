@@ -120,7 +120,7 @@ def extract_payload(url):
         files = mytar.getnames()
         manifest_path = [manifest for manifest in files if "manifest.json" in manifest]
     except (ReadError, EOFError, OSError) as error:
-        LOG.error("Unable to untar file. Reason: %s", str(error))
+        LOG.warning("Unable to untar file. Reason: %s", str(error))
         shutil.rmtree(temp_dir)
         raise KafkaMsgHandlerError("Extraction failure.")
 
@@ -232,7 +232,7 @@ def handle_message(msg):
             report_meta = extract_payload(value["url"])
             return SUCCESS_CONFIRM_STATUS, report_meta
         except Exception as error:  # noqa
-            LOG.error("Unable to extract payload. Error: %s", str(error))
+            LOG.warning("Unable to extract payload. Error: %s", str(error))
             return FAILURE_CONFIRM_STATUS, None
     else:
         LOG.error("Unexpected Message")
@@ -298,7 +298,7 @@ def process_report(report):
             async_id = summarize_reports.delay(reports_to_summarize)
             LOG.info("Summarization celery uuid: %s", str(async_id))
     else:
-        LOG.error("Could not find provider_uuid for cluster_id: %s", str(cluster_id))
+        LOG.warning("Could not find provider_uuid for cluster_id: %s", str(cluster_id))
 
 
 # pylint: disable=broad-except
