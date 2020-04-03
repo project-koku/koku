@@ -5,13 +5,8 @@ import pkgutil
 from django.db import migrations
 
 
-def reload_cost_model_metric_map(apps, schema_editor):
-    """Load cost model metrics."""
-    pass
-
-
 class Migration(migrations.Migration):
 
     dependencies = [("api", "0017_delete_cloudaccount")]
 
-    operations = [migrations.RunPython(reload_cost_model_metric_map)]
+    operations = []
