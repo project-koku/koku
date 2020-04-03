@@ -29,6 +29,7 @@ from tenant_schemas.utils import tenant_context
 from api.provider.models import Provider
 from api.provider.models import Sources
 from cost_models.models import CostModelMap
+from masu.processor.tasks import refresh_materialized_views
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
@@ -189,6 +190,7 @@ class ProviderManager:
                 current_user.username, str(self.model)
             )
             raise ProviderManagerError(err_msg)
+        refresh_materialized_views(self.model.customer.schema_name, self.model.type)
 
 
 @receiver(post_delete, sender=Provider)
