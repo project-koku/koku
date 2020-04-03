@@ -64,7 +64,7 @@ def backoff(interval, maximum=64):  # pragma: no cover
 
 
 # pylint: disable=too-many-locals
-def extract_payload(url):
+def extract_payload(url):  # noqa: C901
     """
     Extract OCP usage report payload into local directory structure.
 
@@ -131,6 +131,8 @@ def extract_payload(url):
         shutil.rmtree(temp_dir)
         raise KafkaMsgHandlerError("Extraction failure.")
 
+    if not manifest_path:
+        raise KafkaMsgHandlerError("No manifest found in payload.")
     # Open manifest.json file and build the payload dictionary.
     full_manifest_path = "{}/{}".format(temp_dir, manifest_path[0])
     report_meta = utils.get_report_details(os.path.dirname(full_manifest_path))
