@@ -24,6 +24,7 @@ import random
 import shutil
 import tempfile
 import threading
+import time
 from tarfile import ReadError
 from tarfile import TarFile
 
@@ -55,7 +56,7 @@ class KafkaMsgHandlerError(Exception):
     """Kafka mmsg handler error."""
 
 
-async def backoff(interval, maximum=64):
+async def async_backoff(interval, maximum=64):
     """Exponential back-off."""
     wait = min(maximum, (2 ** interval)) + random.random()
     LOG.info("Sleeping for %.2f seconds.", wait)
@@ -335,7 +336,7 @@ async def process_messages():  # pragma: no cover
                     break
                 except KafkaMsgHandlerError as err:
                     LOG.error(f"Resending message confirmation due to error: {err}")
-                    await backoff(count, Config.INSIGHTS_KAFKA_CONN_RETRY_MAX)
+                    await async_backoff(count, Config.INSIGHTS_KAFKA_CONN_RETRY_MAX)
                     count += 1
                     continue
         if report_meta:
@@ -396,6 +397,12 @@ def asyncio_worker_thread(loop):  # pragma: no cover
         None
 
     """
+
+    def backoff(interval, maximum=64):
+        """Exponential back-off."""
+        wait = min(maximum, (2 ** interval)) + random.random()
+        LOG.info("Sleeping for %.2f seconds.", wait)
+        time.sleep(wait)
 
     count = 0
     try:
