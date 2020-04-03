@@ -668,7 +668,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
     def upsert_monthly_node_cost_line_item(
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, node_cost
     ):
-        """Update or insert a daily summary line item for node cost."""
+        """Update or insert daily summary line item for node cost."""
         unique_nodes = self.get_distinct_nodes(start_date, end_date, cluster_id)
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
         with schema_context(self.schema):
