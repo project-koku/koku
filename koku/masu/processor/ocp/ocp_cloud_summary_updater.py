@@ -34,6 +34,7 @@ from masu.util.azure.common import get_bills_from_provider as azure_get_bills_fr
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.models import OCP_ON_AWS_MATERIALIZED_VIEWS
+from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
 
 LOG = logging.getLogger(__name__)
@@ -157,6 +158,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
             # This call just sends the infrastructure cost to the
             # OCP usage daily summary table
             accessor.update_summary_infrastructure_cost(cluster_id, start_date, end_date)
+        self.refresh_openshift_on_infrastructure_views(OCP_ON_AZURE_MATERIALIZED_VIEWS)
 
     def refresh_openshift_on_infrastructure_views(self, view_set):
         """Refresh MATERIALIZED VIEWs."""
