@@ -903,12 +903,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             start_date = str(self.reporting_period.report_period_start)
             end_date = str(self.reporting_period.report_period_end)
             self.accessor.upsert_monthly_cluster_cost_line_item(
-                start_date,
-                end_date,
-                self.cluster_id,
-                "cluster_alias",
-                CostModelMetricsMap.SUPPLEMENTARY_COST_TYPE,
-                rate,
+                start_date, end_date, self.cluster_id, "cluster_alias", metric_constants.SUPPLEMENTARY_COST_TYPE, rate
             )
             summary_table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
             query = self.accessor._get_db_obj_query(summary_table_name)
@@ -928,12 +923,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
             end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
             self.accessor.upsert_monthly_cluster_cost_line_item(
-                start_date,
-                end_date,
-                self.cluster_id,
-                "cluster_alias",
-                CostModelMetricsMap.SUPPLEMENTARY_COST_TYPE,
-                rate,
+                start_date, end_date, self.cluster_id, "cluster_alias", metric_constants.SUPPLEMENTARY_COST_TYPE, rate
             )
             summary_table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
             query = self.accessor._get_db_obj_query(summary_table_name)
