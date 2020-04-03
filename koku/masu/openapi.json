@@ -15,6 +15,10 @@
         "description": "Operations about report downloads"
       },
       {
+        "name": "Enabled Tags",
+        "description": "Create or delete OCP enabled tags"
+      },
+      {
         "name": "Expired Data",
         "description": "Operations about removing expired data"
       },
@@ -56,6 +60,71 @@
           },
           "tags": [
             "Download"
+          ]
+        },
+        "parameters": []
+      },
+      "/enabled_tags/": {
+        "get": {
+          "summary": "List OCP Enabled Tags",
+          "operationId": "getEnabledTag",
+          "description": "Return tag keys.",
+          "parameters": [
+            {
+              "name": "schema",
+              "in": "query",
+              "description": "The database schema",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "example": "acct12345"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "List of tag keys",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/EnabledTagGetResponse"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Enabled Tags"
+          ]
+        },
+        "post": {
+          "summary": "Create or delete OCP Enabled Tags",
+          "operationId": "postEnabledTag",
+          "description": "Return tag keys.",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnabledTagPostData"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "List of tag keys",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/EnabledTagPostResponse"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Enabled Tags"
           ]
         },
         "parameters": []
@@ -378,6 +447,44 @@
               "type": "string",
               "format": "uuid",
               "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          }
+        },
+        "EnabledTagGetResponse": {
+          "type": "object",
+          "properties": {
+            "tag_keys": {
+              "type": "array",
+              "items": {"type": "string"},
+              "example": ["tag1", "tag2"]
+            }
+          }
+        },
+        "EnabledTagPostResponse": {
+          "type": "object",
+          "properties": {
+            "tag_keys": {
+              "type": "array",
+              "items": {"type": "string"},
+              "example": ["tag1", "tag2"]
+            }
+          }
+        },
+        "EnabledTagPostData": {
+          "type": "object",
+          "properties": {
+            "tag_keys": {
+              "type": "array",
+              "items": {"type": "string"},
+              "example": ["tag1", "tag2"]
+            },
+            "schema": {
+              "type": "string",
+              "example": "acct12345"
+            },
+            "action": {
+              "type": "string",
+              "enum": ["create", "delete"]
             }
           }
         },
