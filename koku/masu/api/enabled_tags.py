@@ -71,7 +71,7 @@ def enabled_tags(request):
             errmsg = "action is required."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-        tag_keys = request.POST.getlist("tag_keys")
+        tag_keys = data.get("tag_keys")
 
         with schema_context(schema_name):
             if action.lower() == "create":
