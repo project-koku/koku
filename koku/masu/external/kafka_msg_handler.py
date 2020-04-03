@@ -56,11 +56,11 @@ class KafkaMsgHandlerError(Exception):
     """Kafka mmsg handler error."""
 
 
-async def async_backoff(interval, maximum=64):
+def backoff(interval, maximum=64):
     """Exponential back-off."""
     wait = min(maximum, (2 ** interval)) + random.random()
     LOG.info("Sleeping for %.2f seconds.", wait)
-    await asyncio.sleep(wait)
+    time.sleep(wait)
 
 
 # pylint: disable=too-many-locals
@@ -177,8 +177,6 @@ async def send_confirmation(request_id, status):  # pragma: no cover
         None
 
     """
-    # LOG.info("SLEEPING...")
-    # await asyncio.sleep(10)
     producer = AIOKafkaProducer(loop=EVENT_LOOP, bootstrap_servers=Config.INSIGHTS_KAFKA_ADDRESS)
     try:
         await producer.start()
@@ -336,7 +334,7 @@ async def process_messages():  # pragma: no cover
                     break
                 except KafkaMsgHandlerError as err:
                     LOG.error(f"Resending message confirmation due to error: {err}")
-                    await async_backoff(count, Config.INSIGHTS_KAFKA_CONN_RETRY_MAX)
+                    backoff(count, Config.INSIGHTS_KAFKA_CONN_RETRY_MAX)
                     count += 1
                     continue
         if report_meta:
@@ -397,12 +395,6 @@ def asyncio_worker_thread(loop):  # pragma: no cover
         None
 
     """
-
-    def backoff(interval, maximum=64):
-        """Exponential back-off."""
-        wait = min(maximum, (2 ** interval)) + random.random()
-        LOG.info("Sleeping for %.2f seconds.", wait)
-        time.sleep(wait)
 
     count = 0
     try:
