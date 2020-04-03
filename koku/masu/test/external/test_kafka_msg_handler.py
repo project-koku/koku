@@ -65,11 +65,16 @@ class KafkaMsgHandlerTest(MasuTestCase):
         super().setUp()
         payload_file = open("./koku/masu/test/data/ocp/payload.tar.gz", "rb")
         bad_payload_file = open("./koku/masu/test/data/ocp/bad_payload.tar.gz", "rb")
+        no_manifest_file = open("./koku/masu/test/data/ocp/no_manifest.tar.gz", "rb")
+
         self.tarball_file = payload_file.read()
         payload_file.close()
 
         self.bad_tarball_file = bad_payload_file.read()
         bad_payload_file.close()
+
+        self.no_manifest_file = no_manifest_file.read()
+        no_manifest_file.close()
 
         self.cluster_id = "my-ocp-cluster-1"
         self.date_range = "20190201-20190301"
@@ -97,6 +102,21 @@ class KafkaMsgHandlerTest(MasuTestCase):
         payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
         with requests_mock.mock() as m:
             m.get(payload_url, content=self.bad_tarball_file)
+
+            fake_dir = tempfile.mkdtemp()
+            fake_pvc_dir = tempfile.mkdtemp()
+            with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
+                with patch.object(Config, "TMP_DIR", fake_dir):
+                    with self.assertRaises(msg_handler.KafkaMsgHandlerError):
+                        msg_handler.extract_payload(payload_url)
+                    shutil.rmtree(fake_dir)
+                    shutil.rmtree(fake_pvc_dir)
+
+    def test_extract_no_manifest(self):
+        """Test to verify extracting payload missing a manifest is not successful."""
+        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
+        with requests_mock.mock() as m:
+            m.get(payload_url, content=self.no_manifest_file)
 
             fake_dir = tempfile.mkdtemp()
             fake_pvc_dir = tempfile.mkdtemp()
