@@ -56,7 +56,7 @@ class KafkaMsgHandlerError(Exception):
     """Kafka mmsg handler error."""
 
 
-def backoff(interval, maximum=64):
+def backoff(interval, maximum=64):  # pragma: no cover
     """Exponential back-off."""
     wait = min(maximum, (2 ** interval)) + random.random()
     LOG.info("Sleeping for %.2f seconds.", wait)
