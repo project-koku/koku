@@ -58,7 +58,7 @@ class EnabledTagsTest(MasuTestCase):
             OCPEnabledTagKeys.objects.all().delete()
 
         post_data = {"schema": "acct10001", "action": "create", "tag_keys": ["tag1", "tag2"]}
-        response = self.client.post(reverse("enabled_tags"), post_data)
+        response = self.client.post(reverse("enabled_tags"), post_data, content_type="application/json")
         body = response.json()
 
         self.assertEqual(response.status_code, 200)
@@ -75,7 +75,7 @@ class EnabledTagsTest(MasuTestCase):
 
         post_data = {"schema": "acct10001", "action": "delete", "tag_keys": keys}
 
-        response = self.client.post(reverse("enabled_tags"), post_data)
+        response = self.client.post(reverse("enabled_tags"), post_data, content_type="application/json")
         body = response.json()
 
         self.assertEqual(response.status_code, 200)
