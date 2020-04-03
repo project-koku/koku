@@ -24,7 +24,6 @@ import random
 import shutil
 import tempfile
 import threading
-import time
 from tarfile import ReadError
 from tarfile import TarFile
 
@@ -54,6 +53,13 @@ FAILURE_CONFIRM_STATUS = "failure"
 
 class KafkaMsgHandlerError(Exception):
     """Kafka mmsg handler error."""
+
+
+async def backoff(interval, maximum=64):
+    """Exponential back-off."""
+    wait = min(maximum, (2 ** interval)) + random.random()
+    LOG.info("Sleeping for %.2f seconds.", wait)
+    await asyncio.sleep(wait)
 
 
 # pylint: disable=too-many-locals
@@ -170,25 +176,16 @@ async def send_confirmation(request_id, status):  # pragma: no cover
         None
 
     """
-
-    def backoff(interval, maximum=64):
-        """Exponential back-off."""
-        wait = min(maximum, (2 ** interval)) + (random.randint(0, 1000) / 1000.0)
-        LOG.info("Sleeping for %s seconds.", wait)
-        time.sleep(wait)
-
+    # LOG.info("SLEEPING...")
+    # await asyncio.sleep(10)
     producer = AIOKafkaProducer(loop=EVENT_LOOP, bootstrap_servers=Config.INSIGHTS_KAFKA_ADDRESS)
-    count = 0
-    while True:
-        try:
-            await producer.start()
-        except (KafkaError, TimeoutError) as err:
-            await producer.stop()
-            LOG.exception(f"Unable to connect to kafka server.  Closing producer. {str(err)}")
-            KAFKA_CONNECTION_ERRORS_COUNTER.inc()
-            backoff(count, Config.INSIGHTS_KAFKA_CONN_RETRY_MAX)
-            count += 1
-            LOG.info("Attempting to reconnect")
+    try:
+        await producer.start()
+    except (KafkaError, TimeoutError) as err:
+        await producer.stop()
+        LOG.exception(f"Unable to connect to kafka server.  Closing producer. {str(err)}")
+        KAFKA_CONNECTION_ERRORS_COUNTER.inc()
+        raise KafkaMsgHandlerError("Unable to connect to kafka server.  Closing producer.")
 
     LOG.debug("Producer started...")
     try:
@@ -331,7 +328,16 @@ async def process_messages():  # pragma: no cover
         status, report_meta = handle_message(msg)
         if status:
             value = json.loads(msg.value.decode("utf-8"))
-            await send_confirmation(value["request_id"], status)
+            count = 0
+            while True:
+                try:
+                    await send_confirmation(value["request_id"], status)
+                    break
+                except KafkaMsgHandlerError as err:
+                    LOG.error(f"Resending message confirmation due to error: {err}")
+                    await backoff(count, Config.INSIGHTS_KAFKA_CONN_RETRY_MAX)
+                    count += 1
+                    continue
         if report_meta:
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 try:
@@ -390,12 +396,6 @@ def asyncio_worker_thread(loop):  # pragma: no cover
         None
 
     """
-
-    def backoff(interval, maximum=64):
-        """Exponential back-off."""
-        wait = min(maximum, (2 ** interval)) + (random.randint(0, 1000) / 1000.0)
-        LOG.info("Sleeping for %s seconds.", wait)
-        time.sleep(wait)
 
     count = 0
     try:
