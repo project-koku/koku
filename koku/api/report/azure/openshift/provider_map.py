@@ -27,8 +27,16 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
+from reporting.models import OCPAzureComputeSummary
 from reporting.models import OCPAzureCostLineItemDailySummary
 from reporting.models import OCPAzureCostLineItemProjectDailySummary
+from reporting.models import OCPAzureCostSummary
+from reporting.models import OCPAzureCostSummaryByAccount
+from reporting.models import OCPAzureCostSummaryByLocation
+from reporting.models import OCPAzureCostSummaryByService
+from reporting.models import OCPAzureDatabaseSummary
+from reporting.models import OCPAzureNetworkSummary
+from reporting.models import OCPAzureStorageSummary
 
 
 class OCPAzureProviderMap(ProviderMap):
@@ -40,7 +48,7 @@ class OCPAzureProviderMap(ProviderMap):
             {
                 "provider": Provider.OCP_AZURE,
                 "alias": "subscription_guid",
-                "annotations": {"cluster": "cluster_id", "project": "namespace"},
+                "annotations": {"cluster": "cluster_id"},
                 "end_date": "costentrybill__billing_period_end",
                 "filters": {
                     "project": {"field": "namespace", "operation": "icontains"},
@@ -480,4 +488,17 @@ class OCPAzureProviderMap(ProviderMap):
                 "tables": {"query": OCPAzureCostLineItemDailySummary, "total": OCPAzureCostLineItemDailySummary},
             }
         ]
+
+        self.views = {
+            "costs": {
+                "default": OCPAzureCostSummary,
+                "subscription_guid": OCPAzureCostSummaryByAccount,
+                "service_name": OCPAzureCostSummaryByService,
+                "resource_location": OCPAzureCostSummaryByLocation,
+            },
+            "instance_type": {"default": OCPAzureComputeSummary, "instance_type": OCPAzureComputeSummary},
+            "storage": {"default": OCPAzureStorageSummary},
+            "database": {"default": OCPAzureDatabaseSummary, "service_name": OCPAzureDatabaseSummary},
+            "network": {"default": OCPAzureNetworkSummary, "service_name": OCPAzureNetworkSummary},
+        }
         super().__init__(provider, report_type)
