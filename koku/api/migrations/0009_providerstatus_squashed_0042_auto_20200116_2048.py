@@ -23,12 +23,6 @@ def seed_cost_management_aws_account_id(apps, schema_editor):
     cloud_account.save()
 
 
-# api.migrations.0040_auto_20191121_2154
-def load_openshift_metric_map(apps, schema_editor):
-    """Pass old migration."""
-    pass
-
-
 class Migration(migrations.Migration):
 
     replaces = [
@@ -234,5 +228,4 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.RunPython(code=seed_cost_management_aws_account_id),
-        migrations.RunPython(code=load_openshift_metric_map),
     ]
