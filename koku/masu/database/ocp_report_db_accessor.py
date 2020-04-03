@@ -705,31 +705,32 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
     ):
         """Update or insert a daily summary line item for cluster cost."""
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
-        with schema_context(self.schema):
-            line_item = OCPUsageLineItemDailySummary.objects.filter(
-                usage_start=start_date,
-                usage_end=start_date,
-                report_period=report_period,
-                cluster_id=cluster_id,
-                cluster_alias=cluster_alias,
-                monthly_cost_type="Cluster",
-            ).first()
-            if not line_item:
-                line_item = OCPUsageLineItemDailySummary(
+        if report_period:
+            with schema_context(self.schema):
+                line_item = OCPUsageLineItemDailySummary.objects.filter(
                     usage_start=start_date,
                     usage_end=start_date,
                     report_period=report_period,
                     cluster_id=cluster_id,
                     cluster_alias=cluster_alias,
                     monthly_cost_type="Cluster",
-                )
-            if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
-                LOG.info("Cluster (%s) has a monthly infrastructure cost of %s.", cluster_id, cluster_cost)
-                line_item.infrastructure_monthly_cost = cluster_cost
-            elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
-                LOG.info("Cluster (%s) has a monthly supplemenarty cost of %s.", cluster_id, cluster_cost)
-                line_item.supplementary_monthly_cost = cluster_cost
-            line_item.save()
+                ).first()
+                if not line_item:
+                    line_item = OCPUsageLineItemDailySummary(
+                        usage_start=start_date,
+                        usage_end=start_date,
+                        report_period=report_period,
+                        cluster_id=cluster_id,
+                        cluster_alias=cluster_alias,
+                        monthly_cost_type="Cluster",
+                    )
+                if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
+                    LOG.info("Cluster (%s) has a monthly infrastructure cost of %s.", cluster_id, cluster_cost)
+                    line_item.infrastructure_monthly_cost = cluster_cost
+                elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
+                    LOG.info("Cluster (%s) has a monthly supplemenarty cost of %s.", cluster_id, cluster_cost)
+                    line_item.supplementary_monthly_cost = cluster_cost
+                line_item.save()
 
     def remove_monthly_cost(self, start_date, end_date, cluster_id, cost_type):
         """Delete all monthly costs of a specific type over a date range."""

@@ -889,3 +889,52 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
             for column in summary_columns:
                 self.assertIsNotNone(getattr(entry, column))
+
+    def test_upsert_monthly_cluster_cost_line_item(self):
+        """Test that the cluster monthly costs are not updated."""
+        report_table_name = OCP_REPORT_TABLE_MAP["report"]
+        report_table = getattr(self.accessor.report_schema, report_table_name)
+        rate = 1000
+        with schema_context(self.schema):
+            report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
+            start_date = report_entry["interval_start__min"]
+            end_date = report_entry["interval_start__max"]
+
+            start_date = str(self.reporting_period.report_period_start)
+            end_date = str(self.reporting_period.report_period_end)
+            self.accessor.upsert_monthly_cluster_cost_line_item(
+                start_date,
+                end_date,
+                self.cluster_id,
+                "cluster_alias",
+                CostModelMetricsMap.SUPPLEMENTARY_COST_TYPE,
+                rate,
+            )
+            summary_table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+            query = self.accessor._get_db_obj_query(summary_table_name)
+            self.assertEqual(query.filter(cluster_id=self.cluster_id).first().supplementary_monthly_cost, rate)
+
+    def test_upsert_monthly_cluster_cost_line_item_no_report_period(self):
+        """Test that the cluster monthly costs are not updated when no report period  is found."""
+        report_table_name = OCP_REPORT_TABLE_MAP["report"]
+        report_table = getattr(self.accessor.report_schema, report_table_name)
+        rate = 1000
+
+        with schema_context(self.schema):
+            report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
+            start_date = report_entry["interval_start__min"]
+            end_date = report_entry["interval_start__max"]
+
+            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            self.accessor.upsert_monthly_cluster_cost_line_item(
+                start_date,
+                end_date,
+                self.cluster_id,
+                "cluster_alias",
+                CostModelMetricsMap.SUPPLEMENTARY_COST_TYPE,
+                rate,
+            )
+            summary_table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+            query = self.accessor._get_db_obj_query(summary_table_name)
+            self.assertFalse(query.filter(cluster_id=self.cluster_id).exists())
