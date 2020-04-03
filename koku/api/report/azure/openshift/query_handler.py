@@ -19,9 +19,7 @@ import copy
 import logging
 
 from django.db.models import F
-from django.db.models import Value
 from django.db.models import Window
-from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
 
@@ -71,13 +69,13 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get("annotations")
         for q_param, db_field in fields.items():
-            annotations[q_param] = Concat(db_field, Value(""))
+            annotations[q_param] = F(db_field)
         if (
             "project" in self.parameters.parameters.get("group_by", {})
             or "and:project" in self.parameters.parameters.get("group_by", {})
             or "or:project" in self.parameters.parameters.get("group_by", {})
         ):
-            annotations["project"] = Concat("namespace", Value(""))
+            annotations["project"] = F("namespace")
 
         return annotations
 
