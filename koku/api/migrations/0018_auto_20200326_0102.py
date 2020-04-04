@@ -5,22 +5,8 @@ import pkgutil
 from django.db import migrations
 
 
-def reload_cost_model_metric_map(apps, schema_editor):
-    """Load cost model metrics."""
-    CostModelMetricsMap = apps.get_model("api", "CostModelMetricsMap")
-    CostModelMetricsMap.objects.all().delete()
-
-    data = pkgutil.get_data("api", "metrics/data/cost_models_metric_map.json")
-
-    data = json.loads(data)
-
-    for entry in data:
-        map = CostModelMetricsMap(**entry)
-        map.save()
-
-
 class Migration(migrations.Migration):
 
     dependencies = [("api", "0017_delete_cloudaccount")]
 
-    operations = [migrations.RunPython(reload_cost_model_metric_map)]
+    operations = []
