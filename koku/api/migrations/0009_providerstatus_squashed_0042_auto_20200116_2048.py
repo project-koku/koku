@@ -23,23 +23,6 @@ def seed_cost_management_aws_account_id(apps, schema_editor):
     cloud_account.save()
 
 
-# api.migrations.0040_auto_20191121_2154
-def load_openshift_metric_map(apps, schema_editor):
-    """Load AWS Cost Usage report to database mapping."""
-    CostModelMetricsMap = apps.get_model("api", "CostModelMetricsMap")
-    CostModelMetricsMap.objects.all().delete()
-
-    data = pkgutil.get_data("api", "metrics/data/cost_models_metric_map.json")
-
-    data = json.loads(data)
-
-    for entry in data:
-        # Deleting this entry as it does not exist in the table/model at this point in migrations
-        del entry["default_cost_type"]
-        map = CostModelMetricsMap(**entry)
-        map.save()
-
-
 class Migration(migrations.Migration):
 
     replaces = [
@@ -245,5 +228,4 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.RunPython(code=seed_cost_management_aws_account_id),
-        migrations.RunPython(code=load_openshift_metric_map),
     ]

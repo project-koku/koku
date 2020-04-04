@@ -28,7 +28,7 @@ from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.metrics.models import CostModelMetricsMap
+from api.metrics import constants as metric_constants
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
 from cost_models.models import CostModel
@@ -57,7 +57,7 @@ class CostModelViewTests(IamTestCase):
         if serializer.is_valid(raise_exception=True):
             self.provider = serializer.save()
 
-        self.ocp_metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        self.ocp_metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         self.ocp_source_type = Provider.PROVIDER_OCP
         tiered_rates = [
             {
@@ -454,17 +454,17 @@ class CostModelViewTests(IamTestCase):
             {
                 "access": {"rate": {"read": [], "write": []}},
                 "expected_response": status.HTTP_403_FORBIDDEN,
-                "metric": {"name": CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
+                "metric": {"name": metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR},
             },
             {
                 "access": {"rate": {"read": ["*"], "write": ["*"]}},
                 "expected_response": status.HTTP_201_CREATED,
-                "metric": {"name": CostModelMetricsMap.OCP_METRIC_CPU_CORE_REQUEST_HOUR},
+                "metric": {"name": metric_constants.OCP_METRIC_CPU_CORE_REQUEST_HOUR},
             },
             {
                 "access": {"rate": {"read": ["*"], "write": ["*"]}},
                 "expected_response": status.HTTP_201_CREATED,
-                "metric": {"name": CostModelMetricsMap.OCP_METRIC_MEM_GB_REQUEST_HOUR},
+                "metric": {"name": metric_constants.OCP_METRIC_MEM_GB_REQUEST_HOUR},
             },
         ]
         client = APIClient()
@@ -605,4 +605,13 @@ class CostModelViewTests(IamTestCase):
 
         for rate in data.get("rates", []):
             self.assertIn("cost_type", rate)
-            self.assertEqual(rate["cost_type"], CostModelMetricsMap.SUPPLEMENTARY_COST_TYPE)
+            self.assertEqual(rate["cost_type"], metric_constants.SUPPLEMENTARY_COST_TYPE)
+
+    def test_invalid_cost_metric_map_500_error(self):
+        """Test that the API returns a 500 error when there is invalid cost model metric map"""
+        url = reverse("cost-models-list")
+        client = APIClient()
+        MOCK_COST_MODEL_METRIC_MAP = [{"Invalid": "Invalid"}]
+        with patch("api.metrics.constants.COST_MODEL_METRIC_MAP", MOCK_COST_MODEL_METRIC_MAP):
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)

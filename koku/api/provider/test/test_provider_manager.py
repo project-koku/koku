@@ -28,7 +28,7 @@ from api.iam.models import Customer
 from api.iam.models import User
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
-from api.metrics.models import CostModelMetricsMap
+from api.metrics import constants as metric_constants
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
@@ -280,7 +280,7 @@ class ProviderManagerTest(IamTestCase):
             other_user = user_serializer.save()
 
         with tenant_context(self.tenant):
-            ocp_metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
+            ocp_metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
             ocp_source_type = Provider.PROVIDER_OCP
             tiered_rates = [{"unit": "USD", "value": 0.22}]
             ocp_data = {

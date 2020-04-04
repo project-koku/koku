@@ -15,15 +15,19 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Views for CostModelMetricsMap."""
+import copy
 import logging
 
+from django.utils.encoding import force_text
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import mixins
+from rest_framework import status
 from rest_framework import viewsets
+from rest_framework.exceptions import APIException
 from rest_framework.permissions import AllowAny
 
 from api.common import RH_IDENTITY_HEADER
-from api.metrics.models import CostModelMetricsMap
+from api.metrics import constants as metric_constants
 from api.metrics.serializers import CostModelMetricMapSerializer
 
 LOG = logging.getLogger(__name__)
@@ -36,23 +40,42 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
 
     """
 
-    queryset = CostModelMetricsMap.objects.all()
     serializer_class = CostModelMetricMapSerializer
     permission_classes = (AllowAny,)
 
     def get_queryset(self):
-        """Get a queryset.
-
-        Restricts the returned data to provider_uuid if supplied as a query parameter.
         """
-        queryset = CostModelMetricsMap.objects.all()
-        source_type = self.request.query_params.get("source_type")
-        if source_type:
-            queryset = queryset.filter(source_type=source_type)
+        Return the Cost Model Metric Map data.
 
-        return queryset
+        Filter on source_type
+        """
+        source_type = self.request.query_params.get("source_type")
+        cost_model_metric_map_copy = copy.deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
+        try:
+            if source_type:
+                # Filter on source type
+                cost_model_metric_map_copy = list(
+                    filter(lambda x: x.get("source_type") == source_type, cost_model_metric_map_copy)
+                )
+            # Convert source_type to human readable.
+            for metric_map in cost_model_metric_map_copy:
+                metric_map["source_type"] = metric_constants.SOURCE_TYPE_MAP[metric_map["source_type"]]
+        except KeyError:
+            LOG.error("Malformed JSON", exc_error=True)
+            raise CostModelMetricMapJSONException("Internal Error.")
+
+        return cost_model_metric_map_copy
 
     @vary_on_headers(RH_IDENTITY_HEADER)
     def list(self, request, *args, **kwargs):
         """Obtain the list of CostModelMetrics for the tenant."""
         return super().list(request=request, args=args, kwargs=kwargs)
+
+
+class CostModelMetricMapJSONException(APIException):
+    """Custom internal error exception."""
+
+    def __init__(self, message):
+        """Initialize with status code 500."""
+        self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        self.detail = {"detail": force_text(message)}

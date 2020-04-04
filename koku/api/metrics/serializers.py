@@ -14,41 +14,16 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""CostModelMetricMap Model Serializer."""
-import logging
-
-from django.utils.translation import ugettext as _
+"""CostModelMetricMap Serializer."""
 from rest_framework import serializers
 
-from api.metrics.models import CostModelMetricsMap
-from api.models import Provider
 
-LOG = logging.getLogger(__name__)
+class CostModelMetricMapSerializer(serializers.Serializer):
+    """Serializer for the CostModelMetricsMap."""
 
-SOURCE_TYPE_MAP = {
-    Provider.PROVIDER_OCP: "OpenShift Container Platform",
-    Provider.PROVIDER_AWS: "Amazon Web Services",
-    Provider.PROVIDER_AZURE: "Microsoft Azure",
-}
-
-
-def error_obj(key, message):
-    """Create an error object."""
-    error = {key: [_(message)]}
-    return error
-
-
-class CostModelMetricMapSerializer(serializers.ModelSerializer):
-    """Serializer for the CostModelMetricsMap model."""
-
-    class Meta:
-        """Metadata for the serializer."""
-
-        model = CostModelMetricsMap
-        exclude = ("id",)
-
-    def to_representation(self, instance):
-        """Convert our internal source name to full source name."""
-        metric_map = super().to_representation(instance)
-        metric_map["source_type"] = SOURCE_TYPE_MAP[metric_map["source_type"]]
-        return metric_map
+    source_type = serializers.CharField(required=True)
+    metric = serializers.CharField(required=True)
+    label_metric = serializers.CharField(required=True)
+    label_measurement = serializers.CharField(required=True)
+    label_measurement_unit = serializers.CharField(required=True)
+    default_cost_type = serializers.CharField(required=True)
