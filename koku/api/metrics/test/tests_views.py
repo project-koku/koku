@@ -32,7 +32,7 @@ class CostModelMetricsMapViewTest(IamTestCase):
 
     def test_list_cost_model_metrics_maps(self):
         """Test that a list GET call works for the Metrics Map."""
-        url = reverse("metrics-list")
+        url = reverse("metrics")
         client = APIClient()
 
         response = client.get(url, **self.headers)
@@ -47,7 +47,7 @@ class CostModelMetricsMapViewTest(IamTestCase):
 
     def test_list_cost_model_metrics_maps_source_filter(self):
         """Test that a list GET call works with a source_type filter."""
-        url = reverse("metrics-list")
+        url = reverse("metrics")
         client = APIClient()
 
         params = {"source_type": Provider.PROVIDER_OCP}
@@ -57,7 +57,7 @@ class CostModelMetricsMapViewTest(IamTestCase):
 
     def test_post_cost_model_metrics_maps_source_filter(self):
         """Test that a POST call does not work for the Metrics Map."""
-        url = reverse("metrics-list")
+        url = reverse("metrics")
         client = APIClient()
 
         params = {"source_type": Provider.PROVIDER_OCP}
@@ -67,7 +67,7 @@ class CostModelMetricsMapViewTest(IamTestCase):
 
     def test_delete_cost_model_metrics_maps_source_filter(self):
         """Test that DELETE call does not work for the Metrics Map."""
-        url = reverse("metrics-list")
+        url = reverse("metrics")
         client = APIClient()
 
         params = {"source_type": Provider.PROVIDER_OCP}
@@ -81,7 +81,7 @@ class CostModelMetricsMapViewTest(IamTestCase):
 
         Test that the JSON is properly formatted and contains the required data.
         """
-        url = reverse("metrics-list")
+        url = reverse("metrics")
         client = APIClient()
 
         params = {"source_type": Provider.PROVIDER_OCP}
