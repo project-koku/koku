@@ -75,10 +75,6 @@ def metrics(request):
     offset = int(request.query_params.get("offset", 0))
     limit = int(request.query_params.get("limit", 0))
 
-    if offset > len(data) - 1:
-        offset = len(data) - 1
-    if offset < 0:
-        offset = 0
     if limit > len(data):
         limit = len(data)
     if limit < 0:
