@@ -27,3 +27,10 @@ class CostModelMetricMapSerializer(serializers.Serializer):
     label_measurement = serializers.CharField(required=True)
     label_measurement_unit = serializers.CharField(required=True)
     default_cost_type = serializers.CharField(required=True)
+
+
+class QueryParamsSerializer(serializers.Serializer):
+    """Validate the Query params limit and offset"""
+
+    limit = serializers.IntegerField(required=False, min_value=1)
+    offset = serializers.IntegerField(required=False, min_value=0)
