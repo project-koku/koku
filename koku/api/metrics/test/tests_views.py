@@ -122,8 +122,9 @@ class CostModelMetricsMapViewTest(IamTestCase):
     def test_empty_response(self):
         """Test accessing an empty page."""
         url = reverse("metrics")
+        offset = len(COST_MODEL_METRIC_MAP)
         client = APIClient()
-        data = client.get(url + "?limit=1&offset=10000000", **self.headers).data["data"]
+        data = client.get(url + "?limit=1&offset=" + offset, **self.headers).data["data"]
         self.assertEqual([], data)
 
     # def testCloudAccountPagination(self):
