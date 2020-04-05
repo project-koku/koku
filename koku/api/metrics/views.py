@@ -47,12 +47,11 @@ def get_paginator(request, count):
     return paginator
 
 
-# noqa: C901
 @api_view(["GET"])  # noqa: C901
 @permission_classes((permissions.AllowAny,))
 @renderer_classes([JSONRenderer] + api_settings.DEFAULT_RENDERER_CLASSES)
 @vary_on_headers(RH_IDENTITY_HEADER)
-def metrics(request):  # noqa: C901
+def metrics(request):
     """Provide the openapi information."""
     source_type = request.query_params.get("source_type")
     serializer = QueryParamsSerializer(data=request.query_params)
