@@ -137,3 +137,11 @@ class CostModelMetricsMapViewTest(IamTestCase):
         with patch("api.metrics.constants.COST_MODEL_METRIC_MAP", MOCK_COST_MODEL_METRIC_MAP):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def test_catch_value_error(self):
+        """Test that the API handles an invalid limit."""
+        url = reverse("metrics")
+        offset = len(COST_MODEL_METRIC_MAP)
+        client = APIClient()
+        data = client.get(url + "?limit=&offset=" + str(offset), **self.headers).data["data"]
+        self.assertEqual([], data)

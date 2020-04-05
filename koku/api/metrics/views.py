@@ -37,13 +37,23 @@ from api.metrics.serializers import QueryParamsSerializer
 LOG = logging.getLogger(__name__)
 
 
+def _get_int_query_param(request, key, default):
+    """Get query param integer value safely."""
+    result = default
+    try:
+        result = int(request.query_params.get(key, default))
+    except ValueError:
+        pass
+    return result
+
+
 def get_paginator(request, count):
     """Get Paginator."""
     paginator = StandardResultsSetPagination()
     paginator.count = count
     paginator.request = request
-    paginator.limit = int(request.GET.get("limit", 0))
-    paginator.offset = int(request.GET.get("offset", 0))
+    paginator.limit = _get_int_query_param(request, "limit", 10)
+    paginator.offset = _get_int_query_param(request, "offset", 0)
     return paginator
 
 
@@ -56,7 +66,6 @@ def metrics(request):
     source_type = request.query_params.get("source_type")
     serializer = QueryParamsSerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)
-    # TODO: validate inputs in request, limit offset and source_type.
     cost_model_metric_map_copy = copy.deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
     try:
         if source_type:
@@ -74,14 +83,10 @@ def metrics(request):
         raise CostModelMetricMapJSONException("Internal Error.")
     data = cost_model_metric_map_copy
     paginator = get_paginator(request, len(data))
-    offset = int(request.query_params.get("offset", 0))
-    limit = int(request.query_params.get("limit", 0))
+    limit = _get_int_query_param(request, "limit", 10)
+    offset = _get_int_query_param(request, "offset", 0)
 
     if limit > len(data):
-        limit = len(data)
-    if limit < 0:
-        limit = 0
-    if limit == 0:
         limit = len(data)
     try:
         data = cost_model_metric_map_copy[offset : offset + limit]  # noqa E203
