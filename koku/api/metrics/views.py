@@ -66,6 +66,8 @@ def metrics(request):
             )
         # Convert source_type to human readable.
         for metric_map in cost_model_metric_map_copy:
+            if metric_map.get("source_type") is None:
+                raise CostModelMetricMapJSONException("Internal Error.")
             metric_map["source_type"] = metric_constants.SOURCE_TYPE_MAP[metric_map["source_type"]]
     except KeyError:
         LOG.error("Malformed JSON", exc_error=True)
