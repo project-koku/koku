@@ -56,8 +56,15 @@ class KafkaMsgHandlerError(Exception):
     """Kafka mmsg handler error."""
 
 
+def backoff(interval, maximum=64):  # pragma: no cover
+    """Exponential back-off."""
+    wait = min(maximum, (2 ** interval)) + random.random()
+    LOG.info("Sleeping for %.2f seconds.", wait)
+    time.sleep(wait)
+
+
 # pylint: disable=too-many-locals
-def extract_payload(url):
+def extract_payload(url):  # noqa: C901
     """
     Extract OCP usage report payload into local directory structure.
 
@@ -120,10 +127,12 @@ def extract_payload(url):
         files = mytar.getnames()
         manifest_path = [manifest for manifest in files if "manifest.json" in manifest]
     except (ReadError, EOFError, OSError) as error:
-        LOG.error("Unable to untar file. Reason: %s", str(error))
+        LOG.warning("Unable to untar file. Reason: %s", str(error))
         shutil.rmtree(temp_dir)
         raise KafkaMsgHandlerError("Extraction failure.")
 
+    if not manifest_path:
+        raise KafkaMsgHandlerError("No manifest found in payload.")
     # Open manifest.json file and build the payload dictionary.
     full_manifest_path = "{}/{}".format(temp_dir, manifest_path[0])
     report_meta = utils.get_report_details(os.path.dirname(full_manifest_path))
@@ -175,10 +184,11 @@ async def send_confirmation(request_id, status):  # pragma: no cover
         await producer.start()
     except (KafkaError, TimeoutError) as err:
         await producer.stop()
-        LOG.exception(str(err))
+        LOG.exception(f"Unable to connect to kafka server.  Closing producer. {str(err)}")
         KAFKA_CONNECTION_ERRORS_COUNTER.inc()
         raise KafkaMsgHandlerError("Unable to connect to kafka server.  Closing producer.")
 
+    LOG.debug("Producer started...")
     try:
         validation = {"request_id": request_id, "validation": status}
         msg = bytes(json.dumps(validation), "utf-8")
@@ -187,6 +197,7 @@ async def send_confirmation(request_id, status):  # pragma: no cover
         LOG.info("Validating message complete.")
     finally:
         await producer.stop()
+        LOG.debug("Producer stopped.")
 
 
 def handle_message(msg):
@@ -232,7 +243,7 @@ def handle_message(msg):
             report_meta = extract_payload(value["url"])
             return SUCCESS_CONFIRM_STATUS, report_meta
         except Exception as error:  # noqa
-            LOG.error("Unable to extract payload. Error: %s", str(error))
+            LOG.warning("Unable to extract payload. Error: %s", str(error))
             return FAILURE_CONFIRM_STATUS, None
     else:
         LOG.error("Unexpected Message")
@@ -298,7 +309,7 @@ def process_report(report):
             async_id = summarize_reports.delay(reports_to_summarize)
             LOG.info("Summarization celery uuid: %s", str(async_id))
     else:
-        LOG.error("Could not find provider_uuid for cluster_id: %s", str(cluster_id))
+        LOG.warning("Could not find provider_uuid for cluster_id: %s", str(cluster_id))
 
 
 # pylint: disable=broad-except
@@ -318,7 +329,16 @@ async def process_messages():  # pragma: no cover
         status, report_meta = handle_message(msg)
         if status:
             value = json.loads(msg.value.decode("utf-8"))
-            await send_confirmation(value["request_id"], status)
+            count = 0
+            while True:
+                try:
+                    await send_confirmation(value["request_id"], status)
+                    break
+                except KafkaMsgHandlerError as err:
+                    LOG.error(f"Resending message confirmation due to error: {err}")
+                    backoff(count, Config.INSIGHTS_KAFKA_CONN_RETRY_MAX)
+                    count += 1
+                    continue
         if report_meta:
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 try:
@@ -377,12 +397,6 @@ def asyncio_worker_thread(loop):  # pragma: no cover
         None
 
     """
-
-    def backoff(interval, maximum=64):
-        """Exponential back-off."""
-        wait = min(maximum, (2 ** interval)) + (random.randint(0, 1000) / 1000.0)
-        LOG.info("Sleeping for %s seconds.", wait)
-        time.sleep(wait)
 
     count = 0
     try:

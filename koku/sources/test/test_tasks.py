@@ -27,6 +27,7 @@ from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
 from sources.config import Config
 from sources.kafka_listener import storage_callback
+from sources.sources_http_client import SourcesHTTPClientError
 from sources.tasks import create_or_update_provider
 from sources.tasks import set_status_for_source
 
@@ -150,5 +151,23 @@ class SourcesTasksTest(TestCase):
         self.aws_source.save()
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             create_or_update_provider(self.aws_source.source_id)
+
+        mock_call.assert_called()
+
+    @patch.object(settings, "DEVELOPMENT", False)
+    @patch("masu.celery.tasks.check_report_updates")
+    @patch("sources.tasks.set_status_for_source.delay", side_effect=MockStatus)
+    @patch(
+        "sources.sources_http_client.SourcesHTTPClient.set_source_status",
+        side_effect=SourcesHTTPClientError("mock-error"),
+    )
+    def test_set_status_error(self, mock_call, mock_status, __):
+        """Test that set status is called when source exists."""
+        self.aws_source.billing_source = BILLING_SOURCES.get(Provider.PROVIDER_AWS)
+        self.aws_source.authentication = AUTHENTICATIONS.get(Provider.PROVIDER_AWS)
+        self.aws_source.save()
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            with self.assertLogs("sources.tasks", level=logging.ERROR):
+                create_or_update_provider(self.aws_source.source_id)
 
         mock_call.assert_called()
