@@ -24,6 +24,7 @@ from django.db.models import Max
 from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
+from django.db.models.functions import Upper
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
@@ -57,25 +58,37 @@ class OCPAllProviderMap(ProviderMap):
                 },
                 "end_date": "usage_end",
                 "filters": {
-                    "project": {"field": "namespace", "operation": "icontains"},
+                    "project": {"field": Upper(F("namespace")), "operation": "icontains"},
                     "cluster": [
-                        {"field": "cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
-                        {"field": "cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
+                        {
+                            "field": Upper(F("cluster_alias")),
+                            "operation": "icontains",
+                            "composition_key": "cluster_filter",
+                        },
+                        {
+                            "field": Upper(F("cluster_id")),
+                            "operation": "icontains",
+                            "composition_key": "cluster_filter",
+                        },
                     ],
-                    "node": {"field": "node", "operation": "icontains"},
+                    "node": {"field": Upper(F("node")), "operation": "icontains"},
                     "account": [
                         {
-                            "field": "account_alias__account_alias",
+                            "field": Upper(F("account_alias__account_alias")),
                             "operation": "icontains",
                             "composition_key": "account_filter",
                         },
-                        {"field": "usage_account_id", "operation": "icontains", "composition_key": "account_filter"},
+                        {
+                            "field": Upper(F("usage_account_id")),
+                            "operation": "icontains",
+                            "composition_key": "account_filter",
+                        },
                     ],
-                    "service": {"field": "product_code", "operation": "icontains"},
-                    "product_family": {"field": "product_family", "operation": "icontains"},
-                    "az": {"field": "availability_zone", "operation": "icontains"},
-                    "region": {"field": "region", "operation": "icontains"},
-                    "source_type": {"field": "source_type", "operation": "icontains"},
+                    "service": {"field": Upper(F("product_code")), "operation": "icontains"},
+                    "product_family": {"field": Upper(F("product_family")), "operation": "icontains"},
+                    "az": {"field": Upper(F("availability_zone")), "operation": "icontains"},
+                    "region": {"field": Upper(F("region")), "operation": "icontains"},
+                    "source_type": {"field": Upper(F("source_type")), "operation": "icontains"},
                 },
                 "group_by_options": ["account", "service", "region", "cluster", "project", "node", "product_family"],
                 "tag_column": "tags",
@@ -271,8 +284,8 @@ class OCPAllProviderMap(ProviderMap):
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{}],
                         "or_filter": [
-                            {"field": "product_family", "operation": "contains", "parameter": "Storage"},
-                            {"field": "product_code", "operation": "contains", "parameter": "Storage"},
+                            {"field": Upper(F("product_family")), "operation": "icontains", "parameter": "Storage"},
+                            {"field": Upper(F("product_code")), "operation": "icontains", "parameter": "Storage"},
                         ],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
@@ -354,8 +367,8 @@ class OCPAllProviderMap(ProviderMap):
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{}],
                         "or_filter": [
-                            {"field": "product_family", "operation": "contains", "parameter": "Storage"},
-                            {"field": "product_code", "operation": "contains", "parameter": "Storage"},
+                            {"field": Upper(F("product_family")), "operation": "icontains", "parameter": "Storage"},
+                            {"field": Upper(F("product_code")), "operation": "icontains", "parameter": "Storage"},
                         ],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
