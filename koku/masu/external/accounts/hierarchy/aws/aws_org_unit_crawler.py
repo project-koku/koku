@@ -28,8 +28,6 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
 
-# TODO: define a new exception and do try catch
-
 
 class AWSOrgUnitCrawler(AccountCrawler):
     """AWS org unit crawler."""

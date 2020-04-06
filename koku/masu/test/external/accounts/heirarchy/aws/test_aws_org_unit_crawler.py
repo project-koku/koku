@@ -207,7 +207,6 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             self.assertEqual(cur_count, 1)
         # simulate an account being moved into a sub org
         unit_crawler._save_aws_org_method("unit_name", "unit_id", "unit_path&sub_org", "account_id")
-        # TODO: We need to check to make sure the timestamp was entered
         with schema_context(self.schema):
             cur_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(cur_count, 2)

@@ -125,13 +125,9 @@ if not settings.DEVELOPMENT:
 
 
 # Beat used to crawl the account hierarchy
-# app.conf.beat_schedule["crawl_account_hierarchy"] = {
-#     "task": "masu.celery.tasks.crawl_account_hierarchy",
-#     "schedule": crontab(hour=0, minute=0),
-# }
 app.conf.beat_schedule["crawl_account_hierarchy"] = {
     "task": "masu.celery.tasks.crawl_account_hierarchy",
-    "schedule": crontab(minute="*"),
+    "schedule": crontab(hour=0, minute=0),
 }
 
 
