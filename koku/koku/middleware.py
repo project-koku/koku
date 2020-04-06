@@ -252,6 +252,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         username = user.get("username")
         email = user.get("email")
         is_admin = user.get("is_org_admin")
+        req_id = None
         if username and email and account:
             # Get request ID
             req_id = request.META.get("HTTP_X_RH_INSIGHTS_REQUEST_ID")
@@ -259,11 +260,14 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             query_string = ""
             if request.META["QUERY_STRING"]:
                 query_string = "?{}".format(request.META["QUERY_STRING"])
-            stmt = (
-                f"{request.method}: {request.path}{query_string}"
-                f" -- ACCOUNT: {account} USER: {username}"
-                f" ORG_ADMIN: {is_admin} REQ_ID: {req_id}"
-            )
+            stmt = {
+                "method": request.method,
+                "path": request.path + query_string,
+                "request_id": req_id,
+                "account": account,
+                "username": username,
+                "is_admin": is_admin,
+            }
             LOG.info(stmt)
             try:
                 customer = Customer.objects.filter(account_id=account).get()
@@ -302,10 +306,9 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             response (object): The response object
 
         """
-        context = ""
         query_string = ""
         is_admin = False
-        customer = None
+        account = None
         username = None
         req_id = None
         if request.META.get("QUERY_STRING"):
@@ -313,13 +316,19 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
 
         if hasattr(request, "user") and request.user and request.user.customer:
             is_admin = request.user.admin
-            customer = request.user.customer.account_id
+            account = request.user.customer.account_id
             username = request.user.username
             req_id = request.user.req_id
-        if customer:
-            context = f" -- ACCOUNT: {customer} USER: {username}" f" ORG_ADMIN: {is_admin} REQ_ID: {req_id}"
 
-        stmt = f"{request.method}: {request.path}{query_string}" f" {response.status_code}{context}"
+        stmt = {
+            "method": request.method,
+            "path": request.path + query_string,
+            "status": response.status_code,
+            "request_id": req_id,
+            "account": account,
+            "username": username,
+            "is_admin": is_admin,
+        }
         LOG.info(stmt)
         return response
 
