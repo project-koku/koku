@@ -597,6 +597,20 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
+    def populate_markup_cost(self, markup, start_date, end_date, cluster_id):
+        """Set markup cost for OCP including infrastructure cost markup."""
+        with schema_context(self.schema):
+            OCPUsageLineItemDailySummary.objects.filter(
+                cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date
+            ).update(
+                infrastructure_markup_cost=(
+                    (Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))) * markup
+                ),
+                infrastructure_project_markup_cost=(
+                    (Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))) * markup
+                ),
+            )
+
     def get_distinct_nodes(self, start_date, end_date, cluster_id):
         """Return a list of nodes for a cluster between given dates."""
         with schema_context(self.schema):

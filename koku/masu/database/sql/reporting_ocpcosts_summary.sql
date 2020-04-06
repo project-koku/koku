@@ -8,8 +8,7 @@ CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}} AS (
         ocp_aws.node,
         ocp_aws.pod_labels,
         sum(ocp_aws.unblended_cost) AS infra_cost,
-        sum(ocp_aws.pod_cost) AS project_infra_cost,
-        sum(ocp_aws.project_markup_cost) as markup_cost
+        sum(ocp_aws.pod_cost) AS project_infra_cost
     FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary AS ocp_aws
     WHERE ocp_aws.usage_start >= {{start_date}}::date
         AND ocp_aws.usage_start <= {{end_date}}::date
@@ -34,8 +33,7 @@ CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}} AS (
         ocp_azure.node,
         ocp_azure.pod_labels,
         sum(ocp_azure.pretax_cost) AS infra_cost,
-        sum(ocp_azure.pod_cost) AS project_infra_cost,
-        sum(ocp_azure.project_markup_cost) as markup_cost
+        sum(ocp_azure.pod_cost) AS project_infra_cost
     FROM {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary AS ocp_azure
     WHERE ocp_azure.usage_start >= {{start_date}}::date
         AND ocp_azure.usage_start <= {{end_date}}::date
@@ -53,9 +51,7 @@ CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}} AS (
 
 UPDATE reporting_ocpusagelineitem_daily_summary ods
     SET infrastructure_raw_cost = ic.infra_cost,
-        infrastructure_project_raw_cost = ic.project_infra_cost,
-        infrastructure_markup_cost = ic.markup_cost,
-        infrastructure_project_markup_cost = ic.markup_cost
+        infrastructure_project_raw_cost = ic.project_infra_cost
     FROM reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}} AS ic
     WHERE ic.data_source = 'Pod'
         AND ods.report_period_id = ic.report_period_id
@@ -70,9 +66,7 @@ UPDATE reporting_ocpusagelineitem_daily_summary ods
 
 UPDATE reporting_ocpusagelineitem_daily_summary ods
     SET infrastructure_raw_cost = ic.infra_cost,
-        infrastructure_project_raw_cost = ic.project_infra_cost,
-        infrastructure_markup_cost = ic.markup_cost,
-        infrastructure_project_markup_cost = ic.markup_cost
+        infrastructure_project_raw_cost = ic.project_infra_cost
     FROM reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}} AS ic
     WHERE ic.data_source = 'Storage'
         AND ods.report_period_id = ic.report_period_id

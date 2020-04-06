@@ -29,6 +29,7 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
+from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
 from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
 from masu.util.common import date_range_pair
@@ -74,6 +75,9 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                 self.update_aws_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
             elif infra_provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
                 self.update_azure_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
+
+        # Update markup for OpenShift tables
+        OCPCostModelCostUpdater(self._schema, self._provider)._update_markup_cost(start_date, end_date)
 
         if infra_map:
             self.refresh_openshift_on_infrastructure_views(OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS)
