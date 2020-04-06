@@ -15,19 +15,23 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Rate serializer."""
+import copy
+import logging
 from collections import defaultdict
 from decimal import Decimal
 
 from rest_framework import serializers
 
-from api.metrics.models import CostModelMetricsMap
-from api.metrics.serializers import SOURCE_TYPE_MAP
+from api.metrics import constants as metric_constants
+from api.metrics.constants import SOURCE_TYPE_MAP
+from api.metrics.views import CostModelMetricMapJSONException
 from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 
 CURRENCY_CHOICES = (("USD", "USD"),)
 MARKUP_CHOICES = (("percent", "%"),)
+LOG = logging.getLogger(__name__)
 
 
 class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
@@ -103,13 +107,13 @@ class RateSerializer(serializers.Serializer):
     RATE_TYPES = ("tiered_rates",)
 
     metric = serializers.DictField(required=True)
-    cost_type = serializers.ChoiceField(choices=CostModelMetricsMap.COST_TYPE_CHOICES)
+    cost_type = serializers.ChoiceField(choices=metric_constants.COST_TYPE_CHOICES)
     tiered_rates = serializers.ListField(required=False)
 
     @property
     def metric_map(self):
         """Return a metric map dictionary with default values."""
-        metrics = CostModelMetricsMap.objects.values("metric", "default_cost_type")
+        metrics = copy.deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
         return {metric.get("metric"): metric.get("default_cost_type") for metric in metrics}
 
     @staticmethod
@@ -205,7 +209,7 @@ class RateSerializer(serializers.Serializer):
         data["tiered_rates"] = self.validate_tiered_rates(data.get("tiered_rates", []))
 
         rate_keys_str = ", ".join(str(rate_key) for rate_key in self.RATE_TYPES)
-        if data.get("metric").get("name") not in [metric for metric, metric2 in CostModelMetricsMap.METRIC_CHOICES]:
+        if data.get("metric").get("name") not in [metric for metric, metric2 in metric_constants.METRIC_CHOICES]:
             error_msg = "{} is an invalid metric".format(data.get("metric").get("name"))
             raise serializers.ValidationError(error_msg)
 
@@ -294,10 +298,13 @@ class CostModelSerializer(serializers.Serializer):
     def metric_map(self):
         """Map metrics and display names."""
         metric_map_by_source = defaultdict(dict)
-        metric_map = CostModelMetricsMap.objects.all()
-
+        metric_map = copy.deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
         for metric in metric_map:
-            metric_map_by_source[metric.source_type][metric.metric] = metric
+            try:
+                metric_map_by_source[metric.get("source_type")][metric.get("metric")] = metric
+            except TypeError:
+                LOG.error("Invalid Cost Model Metric Map", exc_info=True)
+                raise CostModelMetricMapJSONException("Internal Server Error.")
         return metric_map_by_source
 
     @property
@@ -396,13 +403,17 @@ class CostModelSerializer(serializers.Serializer):
         for rate in rates:
             metric = rate.get("metric", {})
             display_data = self._get_metric_display_data(cost_model_obj.source_type, metric.get("name"))
-            metric.update(
-                {
-                    "label_metric": display_data.label_metric,
-                    "label_measurement": display_data.label_measurement,
-                    "label_measurement_unit": display_data.label_measurement_unit,
-                }
-            )
+            try:
+                metric.update(
+                    {
+                        "label_metric": display_data["label_metric"],
+                        "label_measurement": display_data["label_measurement"],
+                        "label_measurement_unit": display_data["label_measurement"],
+                    }
+                )
+            except (KeyError, TypeError):
+                LOG.error("Invalid Cost Model Metric Map", exc_info=True)
+                raise CostModelMetricMapJSONException("Internal Error.")
         rep["rates"] = rates
 
         source_type = rep.get("source_type")

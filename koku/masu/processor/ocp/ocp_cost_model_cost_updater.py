@@ -21,7 +21,7 @@ from decimal import Decimal
 from dateutil.parser import parse
 from tenant_schemas.utils import schema_context
 
-from api.metrics.models import CostModelMetricsMap
+from api.metrics import constants as metric_constants
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -184,10 +184,10 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                     rate_type = None
                     rate = None
                     if self._infra_rates.get(rate_term):
-                        rate_type = CostModelMetricsMap.INFRASTRUCTURE_COST_TYPE
+                        rate_type = metric_constants.INFRASTRUCTURE_COST_TYPE
                         rate = self._infra_rates.get(rate_term)
                     elif self._supplementary_rates.get(rate_term):
-                        rate_type = CostModelMetricsMap.SUPPLEMENTARY_COST_TYPE
+                        rate_type = metric_constants.SUPPLEMENTARY_COST_TYPE
                         rate = self._supplementary_rates.get(rate_term)
 
                     log_msg = "Updating"

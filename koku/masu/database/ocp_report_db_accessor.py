@@ -32,7 +32,7 @@ from django.db.models.functions import Coalesce
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
-from api.metrics.models import CostModelMetricsMap
+from api.metrics import constants as metric_constants
 from koku.database import JSONBBuildObject
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
@@ -668,7 +668,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
     def upsert_monthly_node_cost_line_item(
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, node_cost
     ):
-        """Update or insert a daily summary line item for node cost."""
+        """Update or insert daily summary line item for node cost."""
         unique_nodes = self.get_distinct_nodes(start_date, end_date, cluster_id)
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
         with schema_context(self.schema):
@@ -692,10 +692,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                         monthly_cost_type="Node",
                         node=node,
                     )
-                if rate_type == CostModelMetricsMap.INFRASTRUCTURE_COST_TYPE:
+                if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
                     LOG.info("Node (%s) has a monthly infrastructure cost of %s.", node, node_cost)
                     line_item.infrastructure_monthly_cost = node_cost
-                elif rate_type == CostModelMetricsMap.SUPPLEMENTARY_COST_TYPE:
+                elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                     LOG.info("Node (%s) has a monthly supplemenarty cost of %s.", node, node_cost)
                     line_item.supplementary_monthly_cost = node_cost
                 line_item.save()
@@ -705,31 +705,32 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
     ):
         """Update or insert a daily summary line item for cluster cost."""
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
-        with schema_context(self.schema):
-            line_item = OCPUsageLineItemDailySummary.objects.filter(
-                usage_start=start_date,
-                usage_end=start_date,
-                report_period=report_period,
-                cluster_id=cluster_id,
-                cluster_alias=cluster_alias,
-                monthly_cost_type="Cluster",
-            ).first()
-            if not line_item:
-                line_item = OCPUsageLineItemDailySummary(
+        if report_period:
+            with schema_context(self.schema):
+                line_item = OCPUsageLineItemDailySummary.objects.filter(
                     usage_start=start_date,
                     usage_end=start_date,
                     report_period=report_period,
                     cluster_id=cluster_id,
                     cluster_alias=cluster_alias,
                     monthly_cost_type="Cluster",
-                )
-            if rate_type == CostModelMetricsMap.INFRASTRUCTURE_COST_TYPE:
-                LOG.info("Cluster (%s) has a monthly infrastructure cost of %s.", cluster_id, cluster_cost)
-                line_item.infrastructure_monthly_cost = cluster_cost
-            elif rate_type == CostModelMetricsMap.SUPPLEMENTARY_COST_TYPE:
-                LOG.info("Cluster (%s) has a monthly supplemenarty cost of %s.", cluster_id, cluster_cost)
-                line_item.supplementary_monthly_cost = cluster_cost
-            line_item.save()
+                ).first()
+                if not line_item:
+                    line_item = OCPUsageLineItemDailySummary(
+                        usage_start=start_date,
+                        usage_end=start_date,
+                        report_period=report_period,
+                        cluster_id=cluster_id,
+                        cluster_alias=cluster_alias,
+                        monthly_cost_type="Cluster",
+                    )
+                if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
+                    LOG.info("Cluster (%s) has a monthly infrastructure cost of %s.", cluster_id, cluster_cost)
+                    line_item.infrastructure_monthly_cost = cluster_cost
+                elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
+                    LOG.info("Cluster (%s) has a monthly supplemenarty cost of %s.", cluster_id, cluster_cost)
+                    line_item.supplementary_monthly_cost = cluster_cost
+                line_item.save()
 
     def remove_monthly_cost(self, start_date, end_date, cluster_id, cost_type):
         """Delete all monthly costs of a specific type over a date range."""
@@ -743,7 +744,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "monthly_cost_type": cost_type,
         }
 
-        for rate_type, __ in CostModelMetricsMap.COST_TYPE_CHOICES:
+        for rate_type, __ in metric_constants.COST_TYPE_CHOICES:
             cost_filter = f"{rate_type.lower()}_monthly_cost__isnull"
             filters.update({cost_filter: False})
             LOG.info(
