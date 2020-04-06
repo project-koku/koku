@@ -389,12 +389,17 @@ def crawl_account_hierarchy():
             crawler = AWSOrgUnitCrawler(account)
 
         if crawler:
-            LOG.info("Starting account hierarchy crawler for type %s with provider_uuid (%s)" % (
-                account.get('provider_type'), account.get("provider_uuid")))
+            LOG.info(
+                "Starting account hierarchy crawler for type {} with provider_uuid ({})".format(
+                    account.get("provider_type"), account.get("provider_uuid")
+                )
+            )
             crawler.crawl_account_hierarchy()
             processed += 1
         else:
-            LOG.info("No known crawler for account %s of type %s" %
-                     (account.get("provider_uuid"), account.get("provider_type")))
+            LOG.info(
+                "No known crawler for account %s of type %s"
+                % (account.get("provider_uuid"), account.get("provider_type"))
+            )
             skipped += 1
-    LOG.info("Account hierarchy crawler finished. %s processed and %s skipped" % (processed,skipped))
+    LOG.info(f"Account hierarchy crawler finished. {processed} processed and {skipped} skipped")

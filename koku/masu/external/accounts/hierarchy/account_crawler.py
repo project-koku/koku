@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Account Hierarchy Abstract class."""
-
 import logging
 
 LOG = logging.getLogger(__name__)
