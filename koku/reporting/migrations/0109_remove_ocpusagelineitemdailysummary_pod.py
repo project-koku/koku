@@ -4,11 +4,6 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        (
-            "reporting",
-            "0107_ocpazurecomputesummary_ocpazurecostsummary_ocpazurecostsummarybyaccount_ocpazurecostsummarybylocatio",
-        )
-    ]
+    dependencies = [("reporting", "0108_auto_20200405_1316")]
 
     operations = [migrations.RemoveField(model_name="ocpusagelineitemdailysummary", name="pod")]
