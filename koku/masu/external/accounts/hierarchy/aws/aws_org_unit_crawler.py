@@ -45,7 +45,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
         self._auth_cred = self.account.get("authentication")
         self.client = None
 
-    def get_session(self):
+    def _init_session(self):
         """
         Set or get a session client for aws organizations
 
@@ -55,9 +55,9 @@ class AWSOrgUnitCrawler(AccountCrawler):
         session = utils.get_assume_role_session(utils.AwsArn(self._auth_cred))
         session_client = session.client("organizations")
         LOG.info("Starting aws organizations session for crawler.")
-        return session_client
+        self.client = session_client
 
-    def depaginate(self, function, resource_key, **kwargs):
+    def _depaginate(self, function, resource_key, **kwargs):
         """
         Depaginates the results of the aws client.
 
@@ -75,7 +75,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             results = results + response[resource_key]
         return results
 
-    def get_accounts_per_id(self, ou, prefix):
+    def _crawl_accounts_per_id(self, ou, prefix):
         """
         List accounts for parents given an aws identifer.
 
@@ -89,19 +89,11 @@ class AWSOrgUnitCrawler(AccountCrawler):
         """
         parent_id = ou.get("Id")
         LOG.info("Obtaining accounts for organizational unit: %s" % parent_id)
-        child_accounts = self.depaginate(
+        child_accounts = self._depaginate(
             function=self.client.list_accounts_for_parent, resource_key="Accounts", ParentId=parent_id
         )
         for act_info in child_accounts:
             self._save_aws_org_method(ou.get("Name", ou.get("Id")), ou.get("Id"), prefix, act_info.get("Id"))
-
-    @transaction.atomic
-    def crawl_account_hierarchy(self):
-        self.client = self.get_session()
-        root_ou = self.client.list_roots()["Roots"][0]
-        LOG.info("Obtained the root identifier: %s" % (root_ou["Id"]))
-
-        self._crawl_org_for_acts(root_ou, root_ou.get("Id"))
 
     def _crawl_org_for_acts(self, ou, prefix):
         """
@@ -116,7 +108,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
         try:
 
             # process accounts for this org unit
-            self.get_accounts_per_id(ou, prefix)
+            self._crawl_accounts_per_id(ou, prefix)
 
             # recurse and look for sub org units
             ou_pager = self.client.get_paginator("list_organizational_units_for_parent")
@@ -147,3 +139,11 @@ class AWSOrgUnitCrawler(AccountCrawler):
             if created:
                 row.created_timestamp = DateAccessor().today()
                 row.save()
+
+    @transaction.atomic
+    def crawl_account_hierarchy(self):
+        self._init_session()
+        root_ou = self.client.list_roots()["Roots"][0]
+        LOG.info("Obtained the root identifier: %s" % (root_ou["Id"]))
+
+        self._crawl_org_for_acts(root_ou, root_ou.get("Id"))

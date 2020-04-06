@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the AWSOrgUnitCrawler object."""
-# from unittest.mock import MagicMock
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from faker import Faker
@@ -32,83 +32,21 @@ CUSTOMER_NAME = FAKE.word()
 BUCKET = FAKE.word()
 P_UUID = FAKE.uuid4()
 P_TYPE = Provider.PROVIDER_AWS
+GEN_NUM_ACT_DEFAULT = 2
 
 
-def generate_accounts(self, ParentId):
-    """
-        TODO: FILL IN
-        """
-    gen_accounts_dict = {}
-    last_nxt_tkn = ParentId
-    for idx in range(self.act_num_max):
-        new_nxt_tkn = f"nxt-{ParentId}-{idx}"
-        gen_accounts_dict[last_nxt_tkn] = {
-            "Accounts": [{"Id": f"{ParentId}-id-{idx}", "Name": f"{ParentId}-name-{idx}"}],
-            "NextToken": new_nxt_tkn,
+def _generate_act_for_parent_side_effect(parent_id, num_of_accounts=GEN_NUM_ACT_DEFAULT):
+    """generates the account for parent side effect list"""
+    side_effect_list = []
+    for idx in range(num_of_accounts):
+        act_dict = {
+            "Accounts": [{"Id": f"{parent_id}-id-{idx}", "Name": f"{parent_id}-name-{idx}"}],
+            "NextToken": f"{idx}",
         }
-        nxt_idx = idx + 1
-        if nxt_idx == self.act_num_max:
-            del gen_accounts_dict[last_nxt_tkn]["NextToken"]
-        else:
-            last_nxt_tkn = new_nxt_tkn
-    self.accounts = gen_accounts_dict
-
-
-class FakeClient:
-    """
-    Fake Boto Client object
-    """
-
-    def __init__(self):
-        self.act_num_max = 3
-        self.accounts = dict()
-        self.account_expected_results = []
-
-    def generate_accounts_for_parent(self, ParentId):
-        """
-        TODO: FILL IN
-        """
-        gen_accounts_dict = {}
-        last_nxt_tkn = ParentId
-        for idx in range(self.act_num_max):
-            new_nxt_tkn = f"nxt-{ParentId}-{idx}"
-            gen_accounts_dict[last_nxt_tkn] = {
-                "Accounts": [{"Id": f"{ParentId}-id-{idx}", "Name": f"{ParentId}-name-{idx}"}],
-                "NextToken": new_nxt_tkn,
-            }
-            nxt_idx = idx + 1
-            if nxt_idx == self.act_num_max:
-                del gen_accounts_dict[last_nxt_tkn]["NextToken"]
-            else:
-                last_nxt_tkn = new_nxt_tkn
-        self.accounts = gen_accounts_dict
-
-    def list_accounts_for_parent(self, ParentId, NextToken=None):
-        """
-        This method is to mock the aws list_accounts_for_parents call
-        https://docs.aws.amazon.com/cli/latest/reference/organizations/list-accounts-for-parent.html
-        """
-        if NextToken:
-            key = NextToken
-        else:
-            key = ParentId
-            if not self.accounts.get(ParentId, None):
-                self.generate_accounts_for_parent(ParentId)
-        return self.accounts.get(key)
-
-
-class FakeSession:
-    """
-    Fake Boto Session object.
-
-    This is here because Moto doesn't mock out the 'cur' endpoint yet. As soon
-    as Moto supports 'cur', this can be removed.
-    """
-
-    @staticmethod
-    def client(service):
-        """Return a fake AWS Client with a report."""
-        return FakeClient()
+        if (idx + 1) == num_of_accounts:
+            del act_dict["NextToken"]
+        side_effect_list.append(act_dict)
+    return side_effect_list
 
 
 class AWSOrgUnitCrawlerTest(MasuTestCase):
@@ -134,50 +72,126 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         self.assertEqual(result_auth_cred, expected_auth_cred)
         self.assertIsNone(unit_crawler.client)
 
-    @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
-    def test_get_session(self, mock_session):
+    @patch("masu.util.aws.common.get_assume_role_session")
+    def test_init_session(self, mock_session):
         """Test the method that retrieves of a aws client."""
         unit_crawler = AWSOrgUnitCrawler(self.account)
-        unit_crawler.get_session()
+        unit_crawler._init_session()
         mock_session.assert_called()
 
-    @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
+    @patch("masu.util.aws.common.get_assume_role_session")
     def test_depaginate(self, mock_session):
-        unit_crawler = AWSOrgUnitCrawler(self.account)
-        unit_crawler.client = unit_crawler.get_session()
+        """Test the aws account info is depaginated"""
+        mock_session.client = MagicMock()
         parent_id = "TestDepaginate"
-        accounts = unit_crawler.depaginate(
+        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler._init_session()
+        side_effect_list = _generate_act_for_parent_side_effect(parent_id, 3)
+        unit_crawler.client.list_accounts_for_parent.side_effect = side_effect_list
+        accounts = unit_crawler._depaginate(
             function=unit_crawler.client.list_accounts_for_parent, resource_key="Accounts", ParentId=parent_id
         )
         self.assertIsNotNone(accounts)
-        self.assertEqual(len(accounts), unit_crawler.client.act_num_max)
-        for idx in range(unit_crawler.client.act_num_max):
-            expected_account = {"Id": f"{parent_id}-id-{idx}", "Name": f"{parent_id}-name-{idx}"}
+        self.assertEqual(len(accounts), len(side_effect_list))
+        for side_effect in side_effect_list:
+            expected_account = side_effect["Accounts"][0]
             self.assertIn(expected_account, accounts)
 
-    # def test_depaginate_magic_mock(self):
-    #     unit_crawler = AWSOrgUnitCrawler(self.account)
-    #     parent_id = "TestDepaginate"
-    #     unit_crawler.client = MagicMock(name='list_accounts_for_parent', side_effect=[{
-    #             "Accounts": [{"Id": f"{parent_id}-id-1", "Name": f"{parent_id}-name-1"}],
-    #             "NextToken": '1',
-    #         },
-    #         {
-    #             "Accounts": [{"Id": f"{parent_id}-id-2", "Name": f"{parent_id}-name-2"}],
-    #             "NextToken": '2',
-    #         },
-    #         {
-    #             "Accounts": [{"Id": f"{parent_id}-id-3", "Name": f"{parent_id}-name-3"}],
-    #             "NextToken": '3',
-    #         }])
-    #     accounts = unit_crawler.depaginate(
-    #         function=unit_crawler.client.list_accounts_for_parent, resource_key="Accounts", ParentId=parent_id
-    #     )
-    #     self.assertIsNotNone(accounts)
-    #     self.assertEqual(len(accounts), unit_crawler.client.act_num_max)
-    #     for idx in range(unit_crawler.client.act_num_max):
-    #         expected_account = {"Id": f"{parent_id}-id-{idx}", "Name": f"{parent_id}-name-{idx}"}
-    #         self.assertIn(expected_account, accounts)
+    @patch("masu.util.aws.common.get_assume_role_session")
+    def test_crawl_accounts_per_id(self, mock_session):
+        """Test that the accounts are depaginated and saved to db."""
+        mock_session.client = MagicMock()
+        parent_id = "big_sub_org"
+        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler._init_session()
+        side_effect_list = _generate_act_for_parent_side_effect(parent_id, 3)
+        unit_crawler.client.list_accounts_for_parent.side_effect = side_effect_list
+
+        prefix = f"root&{parent_id}"
+        ou = {"Id": parent_id, "Name": "Big Org Unit"}
+        unit_crawler._crawl_accounts_per_id(ou, prefix)
+
+        with schema_context(self.schema):
+            node_count = AWSOrganizationalUnit.objects.count()
+            self.assertEqual(node_count, len(side_effect_list))
+            for side_effect in side_effect_list:
+                act_id = side_effect["Accounts"][0]["Id"]
+                acts_in_db = AWSOrganizationalUnit.objects.get(account_id=act_id)
+                self.assertIsNotNone(acts_in_db)
+
+    @patch("masu.util.aws.common.get_assume_role_session")
+    def test_crawl_account_hierarchy(self, mock_session):
+        """Test the crawling for account hierarchy."""
+        mock_session.client = MagicMock()
+        paginator_dict = {
+            "r-0": {
+                "OrganizationalUnits": [
+                    {"Id": "ou-0", "Arn": "arn-0", "Name": "Big_Org_0"},
+                    {"Id": "ou-1", "Arn": "arn-1", "Name": "Big_Org_1"},
+                    {"Id": "ou-2", "Arn": "arn-2", "Name": "Big_Org_2"},
+                ]
+            },
+            "ou-0": {"OrganizationalUnits": [{"Id": "sou-0", "Arn": "arn-0", "Name": "Sub_Org_0"}]},
+            "ou-1": {"OrganizationalUnits": []},
+            "ou-2": {"OrganizationalUnits": []},
+            "sou-0": {"OrganizationalUnits": []},
+        }
+        account_side_effect = []
+        paginator_side_effect = []
+        ou_ids = ["r-0", "ou-0", "ou-1", "ou-2", "sou-0"]
+        for ou_id in ou_ids:
+            parent_acts = _generate_act_for_parent_side_effect(ou_id)
+            account_side_effect.extend(parent_acts)
+            paginator = MagicMock()
+            paginator.paginate(ParentId=ou_id).build_full_result.return_value = paginator_dict[ou_id]
+            paginator_side_effect.append(paginator)
+        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler._init_session()
+        unit_crawler.client.list_roots.return_value = {"Roots": [{"Id": "r-0", "Arn": "arn-0", "Name": "root_0"}]}
+        unit_crawler.client.list_accounts_for_parent.side_effect = account_side_effect
+        unit_crawler.client.get_paginator.side_effect = paginator_side_effect
+        unit_crawler.crawl_account_hierarchy()
+        with schema_context(self.schema):
+            cur_count = AWSOrganizationalUnit.objects.count()
+            total_entries = (len(ou_ids) * GEN_NUM_ACT_DEFAULT) + len(ou_ids)
+            self.assertEqual(cur_count, total_entries)
+
+    @patch("masu.util.aws.common.get_assume_role_session")
+    def test_crawl_org_for_acts(self, mock_session):
+        "Test that if an exception is raised the crawl continues"
+        mock_session.client = MagicMock()
+        paginator_dict = {
+            "r-0": {
+                "OrganizationalUnits": [
+                    {"Id": "ou-0", "Arn": "arn-0", "Name": "Big_Org_0"},
+                    {"Id": "ou-1", "Arn": "arn-1", "Name": "Big_Org_1"},
+                    {"Id": "ou-2", "Arn": "arn-2", "Name": "Big_Org_2"},
+                ]
+            },
+            "ou-0": {"OrganizationalUnits": [{"Id": "sou-0", "Arn": "arn-0", "Name": "Sub_Org_0"}]},
+            "ou-1": {"OrganizationalUnits": []},
+            "ou-2": Exception("Error"),
+            "sou-0": {"OrganizationalUnits": []},
+        }
+        account_side_effect = []
+        paginator_side_effect = []
+        ou_ids = ["r-0", "ou-0", "ou-1", "ou-2", "sou-0"]
+        for ou_id in ou_ids:
+            parent_acts = _generate_act_for_parent_side_effect(ou_id)
+            account_side_effect.extend(parent_acts)
+            paginator = MagicMock()
+            paginator.paginate(ParentId=ou_id).build_full_result.return_value = paginator_dict[ou_id]
+            paginator_side_effect.append(paginator)
+        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler._init_session()
+        unit_crawler.client.list_roots.return_value = {"Roots": [{"Id": "r-0", "Arn": "arn-0", "Name": "root_0"}]}
+        unit_crawler.client.list_accounts_for_parent.side_effect = account_side_effect
+        unit_crawler.client.get_paginator.side_effect = paginator_side_effect
+        unit_crawler.crawl_account_hierarchy()
+        with schema_context(self.schema):
+            cur_count = AWSOrganizationalUnit.objects.count()
+            total_entries = (len(ou_ids) * GEN_NUM_ACT_DEFAULT) + len(ou_ids)
+            self.assertEqual(cur_count, total_entries)
 
     def test_save_aws_org_method(self):
         """Test that saving to the database works."""
