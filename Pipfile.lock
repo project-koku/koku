@@ -471,10 +471,10 @@
         },
         "msrest": {
             "hashes": [
-                "sha256:40faff88e151d393e29512e58b27d141974d6a963e63e4a340fc0ceb13c15f37",
-                "sha256:57eba26bd09d839d8f9133aea4b632d3216902efedf580b1a757c67b6538fb2c"
+                "sha256:3465494f5186a1155de8145b7c9f98c1a7e9d7181d87e2b5c5f923d9d027a4da",
+                "sha256:e17e98d0b8f1832047a2512e3b9f5d3daf33fa09abd5ad7bdf1e3c651d514034"
             ],
-            "version": "==0.6.11"
+            "version": "==0.6.12"
         },
         "msrestazure": {
             "hashes": [
@@ -1323,10 +1323,10 @@
         },
         "msrest": {
             "hashes": [
-                "sha256:40faff88e151d393e29512e58b27d141974d6a963e63e4a340fc0ceb13c15f37",
-                "sha256:57eba26bd09d839d8f9133aea4b632d3216902efedf580b1a757c67b6538fb2c"
+                "sha256:3465494f5186a1155de8145b7c9f98c1a7e9d7181d87e2b5c5f923d9d027a4da",
+                "sha256:e17e98d0b8f1832047a2512e3b9f5d3daf33fa09abd5ad7bdf1e3c651d514034"
             ],
-            "version": "==0.6.11"
+            "version": "==0.6.12"
         },
         "msrestazure": {
             "hashes": [
