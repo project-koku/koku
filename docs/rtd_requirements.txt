@@ -8,7 +8,7 @@ azure-mgmt-costmanagement==0.1.0
 azure-mgmt-resource==9.0.0
 azure-mgmt-storage==9.0.0
 azure-storage-blob==12.3.0
-beautifulsoup4==4.8.2
+beautifulsoup4==4.9.0
 billiard==3.6.3.0
 boto3==1.12.24
 botocore==1.15.24
