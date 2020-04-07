@@ -45,3 +45,5 @@ class Config:
     KOKU_API_URL = f"http://{KOKU_API_HOST}:{KOKU_API_PORT}{KOKU_API_PATH_PREFIX}/v1"
 
     RETRY_SECONDS = int(os.getenv("RETRY_SECONDS", "10"))
+
+    SOURCES_TESTING = bool(os.getenv("SOURCES_TESTING", False))
