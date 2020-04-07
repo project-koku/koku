@@ -445,7 +445,7 @@ async def process_messages(app_type_id, msg_pending_queue):  # noqa: C901; pragm
 
 @while_true
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
-async def listen_for_messages(consumer, application_source_id, msg_pending_queue):  # pragma: no cover
+async def listen_for_messages(event_loop, application_source_id, msg_pending_queue):  # pragma: no cover
     """
     Listen for Platform-Sources kafka messages.
 
@@ -459,6 +459,9 @@ async def listen_for_messages(consumer, application_source_id, msg_pending_queue
         None
 
     """
+    consumer = AIOKafkaConsumer(
+        Config.SOURCES_TOPIC, loop=event_loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id="hccm-sources"
+    )
     await consumer.start()
     LOG.info("Listener started.  Waiting for messages...")
     try:
@@ -675,13 +678,9 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
     if check_kafka_connection():  # Next, check that Kafka is running
         LOG.info("Kafka is running...")
 
-    consumer = AIOKafkaConsumer(
-        Config.SOURCES_TOPIC, loop=event_loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id="hccm-sources"
-    )
-
     load_process_queue()
     try:  # Finally, after the connections are established, start the message processing tasks
-        event_loop.create_task(listen_for_messages(consumer, cost_management_type_id, PENDING_PROCESS_QUEUE))
+        event_loop.create_task(listen_for_messages(event_loop, cost_management_type_id, PENDING_PROCESS_QUEUE))
         event_loop.create_task(process_messages(cost_management_type_id, PENDING_PROCESS_QUEUE))
         event_loop.create_task(synchronize_sources(PROCESS_QUEUE, cost_management_type_id))
         event_loop.run_forever()
