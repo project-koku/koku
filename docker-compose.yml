@@ -251,7 +251,7 @@ services:
   sources-client:
       container_name: sources_client
       image: koku_base
-      restart: always
+      restart: on-failure:25
       working_dir: /koku/
       entrypoint:
         - /koku/run_sources.sh
@@ -275,7 +275,7 @@ services:
         - prometheus_multiproc_dir=/tmp
       privileged: true
       ports:
-          - 4000:8000
+          - 4000:8080
       volumes:
         - '.:/koku'
       links:

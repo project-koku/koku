@@ -37,7 +37,7 @@ class Command(BaseCommand):
         targets = executor.loader.graph.leaf_nodes()
         return not executor.migration_plan(targets)
 
-    def handle(self, addrport="0.0.0.0:8000", *args, **options):
+    def handle(self, addrport="0.0.0.0:8080", *args, **options):
         if self.check_migrations():
             LOG.info("Starting Sources Kafka Handler")
             initialize_sources_integration()
@@ -47,3 +47,4 @@ class Command(BaseCommand):
             call_command("runserver", addrport, *args, **options)
         else:
             LOG.error("Missing database migrations, Exiting...")
+            exit(1)
