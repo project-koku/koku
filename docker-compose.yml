@@ -251,6 +251,7 @@ services:
   sources-client:
       container_name: sources_client
       image: koku_base
+      restart: always
       working_dir: /koku/
       entrypoint:
         - /koku/run_sources.sh
@@ -279,11 +280,8 @@ services:
         - '.:/koku'
       links:
         - db
-        - koku-server
       depends_on:
         - koku-base
-        - db
-        - koku-server
 
   koku-beat:
       container_name: koku_beat
