@@ -37,6 +37,8 @@ class Command(BaseCommand):
         The koku API server is responsible for running all database migrations.  This method
         will return the state of the database and whether or not all migrations have been completed.
 
+        Hat tip to the Stack Overflow contributor: https://stackoverflow.com/a/31847406
+
         Returns:
             Boolean - True if database is available and migrations have completed.  False otherwise.
 
