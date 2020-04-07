@@ -31,10 +31,6 @@ class ReportingCommonDBAccessorTest(MasuTestCase):
         self.accessor = ReportingCommonDBAccessor()
         self.report_tables = list(AWS_CUR_TABLE_MAP.values())
 
-    def test_initializer(self):
-        """Test initializer."""
-        self.assertIsInstance(self.accessor.column_map, dict)
-
     def test_add(self):
         """Test the add() function."""
         with ReportingCommonDBAccessor() as accessor:
