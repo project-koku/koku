@@ -16,11 +16,13 @@
 #
 """Account Hierarchy Abstract class."""
 import logging
+from abc import ABC
+from abc import abstractmethod
 
 LOG = logging.getLogger(__name__)
 
 
-class AccountCrawler:
+class AccountCrawler(ABC):
     """Account Crawler Abstract class."""
 
     def __init__(self, account):
@@ -33,5 +35,12 @@ class AccountCrawler:
         self.account = account
         self.schema = account.get("schema_name")
 
+    @abstractmethod
     def crawl_account_hierarchy(self):
-        LOG.warn("This method must be overriden.")
+        """
+        Crawl the account hierarchy structure to get organizational information.
+
+        Returns:
+            None
+
+        """
