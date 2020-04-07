@@ -774,4 +774,4 @@ class AWSOrganizationalUnit(models.Model):
 
     account_id = models.CharField(max_length=50, null=True, unique=False)
 
-    created_timestamp = models.DateField(null=True)
+    created_timestamp = models.DateField(auto_now_add=True)

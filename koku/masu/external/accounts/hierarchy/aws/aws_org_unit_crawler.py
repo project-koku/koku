@@ -22,7 +22,6 @@ from django.db import transaction
 from tenant_schemas.utils import schema_context
 
 from masu.external.accounts.hierarchy.account_crawler import AccountCrawler
-from masu.external.date_accessor import DateAccessor
 from masu.util.aws import common as utils
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
@@ -93,7 +92,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
         for act_info in child_accounts:
             self._save_aws_org_method(ou.get("Name", ou.get("Id")), ou.get("Id"), prefix, act_info.get("Id"))
 
-    def _crawl_org_for_acts(self, ou, prefix):
+    def _crawl_org_for_accounts(self, ou, prefix):
         """
         Recursively crawls the org units and accounts.
 
@@ -113,7 +112,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             for sub_ou in ou_pager.paginate(ParentId=ou.get("Id")).build_full_result().get("OrganizationalUnits"):
                 new_prefix = prefix + ("&%s" % sub_ou.get("Id"))
                 LOG.info("Organizational unit found during crawl: %s" % (sub_ou.get("Id")))
-                self._crawl_org_for_acts(sub_ou, new_prefix)
+                self._crawl_org_for_accounts(sub_ou, new_prefix)
         except Exception:
             LOG.exception(
                 "Failure processing org unit.  Account schema {} and org_unit_id {}".format(self.schema, ou.get("Id"))
@@ -131,12 +130,9 @@ class AWSOrgUnitCrawler(AccountCrawler):
             % (unit_name, unit_id, unit_path, account_id)
         )
         with schema_context(self.schema):
-            row, created = AWSOrganizationalUnit.objects.get_or_create(
+            AWSOrganizationalUnit.objects.get_or_create(
                 org_unit_name=unit_name, org_unit_id=unit_id, org_unit_path=unit_path, account_id=account_id
             )
-            if created:
-                row.created_timestamp = DateAccessor().today()
-                row.save()
 
     @transaction.atomic
     def crawl_account_hierarchy(self):
@@ -144,4 +140,4 @@ class AWSOrgUnitCrawler(AccountCrawler):
         root_ou = self.client.list_roots()["Roots"][0]
         LOG.info("Obtained the root identifier: %s" % (root_ou["Id"]))
 
-        self._crawl_org_for_acts(root_ou, root_ou.get("Id"))
+        self._crawl_org_for_accounts(root_ou, root_ou.get("Id"))
