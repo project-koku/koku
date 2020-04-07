@@ -37,7 +37,6 @@ from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED
 from masu.external import UNCOMPRESSED
@@ -45,6 +44,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_processor import AWSReportProcessor
 from masu.processor.aws.aws_report_processor import ProcessedReport
 from masu.test import MasuTestCase
+from reporting_common import REPORT_COLUMN_MAP
 from reporting_common.models import CostUsageReportManifest
 
 
@@ -88,8 +88,7 @@ class AWSReportProcessorTest(MasuTestCase):
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
 
-        with ReportingCommonDBAccessor() as report_common_db:
-            cls.column_map = report_common_db.column_map
+        cls.column_map = REPORT_COLUMN_MAP
 
         _report_tables = copy.deepcopy(AWS_CUR_TABLE_MAP)
         _report_tables.pop("line_item_daily", None)

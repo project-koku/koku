@@ -43,7 +43,6 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
@@ -61,6 +60,7 @@ from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.test.external.downloader.aws import fake_arn
 from reporting.models import AWS_MATERIALIZED_VIEWS
+from reporting_common import REPORT_COLUMN_MAP
 
 
 class FakeDownloader(Mock):
@@ -585,8 +585,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         cls.aws_tables = list(AWS_CUR_TABLE_MAP.values())
         cls.ocp_tables = list(OCP_REPORT_TABLE_MAP.values())
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values()) + list(OCP_REPORT_TABLE_MAP.values())
-        with ReportingCommonDBAccessor() as report_common_db:
-            cls.column_map = report_common_db.column_map
+        cls.column_map = REPORT_COLUMN_MAP
 
         cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
 

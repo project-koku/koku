@@ -30,13 +30,13 @@ from django.conf import settings
 
 from masu.config import Config
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
 from reporting.provider.ocp.models import OCPNodeLabelLineItem
 from reporting.provider.ocp.models import OCPStorageLineItem
 from reporting.provider.ocp.models import OCPUsageLineItem
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -190,9 +190,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
-
-        with ReportingCommonDBAccessor() as report_common_db:
-            self.column_map = report_common_db.column_map
+        self.column_map = REPORT_COLUMN_MAP
 
         with OCPReportDBAccessor(self._schema, self.column_map) as report_db:
             self.existing_report_periods_map = report_db.get_report_periods()

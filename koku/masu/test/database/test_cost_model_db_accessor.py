@@ -20,9 +20,9 @@ from tenant_schemas.utils import schema_context
 from api.models import Provider
 from cost_models.models import CostModel
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
+from reporting_common import REPORT_COLUMN_MAP
 
 
 class CostModelDBAccessorTest(MasuTestCase):
@@ -33,7 +33,7 @@ class CostModelDBAccessorTest(MasuTestCase):
         super().setUp()
         self.provider_uuid = self.ocp_provider_uuid
         self.schema = "acct10001"
-        self.column_map = ReportingCommonDBAccessor().column_map
+        self.column_map = REPORT_COLUMN_MAP
         self.creator = ReportObjectCreator(self.schema, self.column_map)
 
         reporting_period = self.creator.create_ocp_report_period(provider_uuid=self.provider_uuid)
@@ -162,7 +162,7 @@ class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
         """Set up a test with database objects."""
         super().setUp()
         self.provider_uuid = self.ocp_provider_uuid
-        self.column_map = ReportingCommonDBAccessor().column_map
+        self.column_map = REPORT_COLUMN_MAP
         self.creator = ReportObjectCreator(self.schema, self.column_map)
 
         reporting_period = self.creator.create_ocp_report_period(self.ocp_provider_uuid)
@@ -192,7 +192,7 @@ class CostModelDBAccessorNoCostModel(MasuTestCase):
         super().setUp()
         self.provider_uuid = "3c6e687e-1a09-4a05-970c-2ccf44b0952e"
         self.schema = "acct10001"
-        self.column_map = ReportingCommonDBAccessor().column_map
+        self.column_map = REPORT_COLUMN_MAP
 
     def test_get_rates_no_cost_model(self):
         """Test that get_rates returns empty dict when cost model does not exist."""

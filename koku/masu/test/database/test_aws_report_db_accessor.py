@@ -38,13 +38,13 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_db_accessor_base import ReportSchema
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import map_django_field_type_to_python_type
 from masu.test.database.helpers import ReportObjectCreator
 from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
+from reporting_common import REPORT_COLUMN_MAP
 
 
 class ReportSchemaTest(MasuTestCase):
@@ -53,8 +53,7 @@ class ReportSchemaTest(MasuTestCase):
     def setUp(self):
         """Set up the test class with required objects."""
         super().setUp()
-        self.common_accessor = ReportingCommonDBAccessor()
-        self.column_map = self.common_accessor.column_map
+        self.column_map = REPORT_COLUMN_MAP
         self.accessor = AWSReportDBAccessor(schema=self.schema, column_map=self.column_map)
         self.all_tables = list(AWS_CUR_TABLE_MAP.values())
         self.foreign_key_tables = [
@@ -115,8 +114,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         """Set up the test class with required objects."""
         super().setUpClass()
 
-        cls.common_accessor = ReportingCommonDBAccessor()
-        cls.column_map = cls.common_accessor.column_map
+        cls.column_map = REPORT_COLUMN_MAP
         cls.accessor = AWSReportDBAccessor(schema=cls.schema, column_map=cls.column_map)
         cls.report_schema = cls.accessor.report_schema
         cls.creator = ReportObjectCreator(cls.schema, cls.column_map)

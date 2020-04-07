@@ -21,11 +21,11 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_cost_model_cost_updater import AWSCostModelCostUpdater
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
+from reporting_common import REPORT_COLUMN_MAP
 
 
 class AWSCostModelCostUpdaterTest(MasuTestCase):
@@ -35,8 +35,7 @@ class AWSCostModelCostUpdaterTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        with ReportingCommonDBAccessor() as report_common_db:
-            cls.column_map = report_common_db.column_map
+        cls.column_map = REPORT_COLUMN_MAP
 
         cls.accessor = AWSReportDBAccessor("acct10001", cls.column_map)
 

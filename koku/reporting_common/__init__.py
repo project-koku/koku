@@ -14,11 +14,16 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Reporting Common init."""
+import logging
 import os
+from collections import defaultdict
+
+
+LOG = logging.getLogger(__name__)
 
 package_directory = os.path.dirname(os.path.abspath(__file__))
 
-REPORT_COLUMN_MAP = [
+AWS_REPORT_COLUMN_MAP = [
     {
         "database_column": "billing_resource",
         "database_table": "reporting_awscostentrybill",
@@ -348,6 +353,8 @@ REPORT_COLUMN_MAP = [
         "report_type": "AWS-CUR",
         "provider_type": "AWS",
     },
+]
+AZURE_REPORT_COLUMN_MAP = [
     {
         "database_column": "instance_id",
         "database_table": "reporting_azurecostentryproductservice",
@@ -516,6 +523,8 @@ REPORT_COLUMN_MAP = [
         "report_type": "AZURE-CUR",
         "provider_type": "AZURE",
     },
+]
+OCP_REPORT_COLUMN_MAP = [
     {
         "database_column": "cluster_id",
         "database_table": "reporting_ocpusagereportperiod",
@@ -747,6 +756,8 @@ REPORT_COLUMN_MAP = [
         "report_type": "OCP-NODE-LABELS",
         "provider_type": "OCP",
     },
+]
+GCP_REPORT_COLUMN_MAP = [
     {
         "database_column": "project_id",
         "database_table": "reporting_gcpproject",
@@ -846,3 +857,19 @@ REPORT_COLUMN_MAP = [
         "provider_type": "GCP",
     },
 ]
+
+
+def generate_column_map():
+    """Generate a mapping of provider data columns to db columns."""
+    REPORT_COLUMN_MAP = AWS_REPORT_COLUMN_MAP + OCP_REPORT_COLUMN_MAP + AZURE_REPORT_COLUMN_MAP + GCP_REPORT_COLUMN_MAP
+    column_map = defaultdict(dict)
+
+    report_column_map = REPORT_COLUMN_MAP
+
+    for row in report_column_map:
+        entry = {row.get("provider_column_name"): row.get("database_column")}
+        column_map[row.get("database_table")].update(entry)
+    return column_map
+
+
+REPORT_COLUMN_MAP = generate_column_map()

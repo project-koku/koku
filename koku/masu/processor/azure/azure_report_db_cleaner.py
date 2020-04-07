@@ -20,7 +20,7 @@ import logging
 from tenant_schemas.utils import schema_context
 
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
+from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -55,9 +55,7 @@ class AzureReportDBCleaner:
 
         """
         LOG.info("Calling purge_expired_report_data for azure")
-
-        with ReportingCommonDBAccessor() as reporting_common:
-            column_map = reporting_common.column_map
+        column_map = REPORT_COLUMN_MAP
 
         with AzureReportDBAccessor(self._schema, column_map) as accessor:
             if (expired_date is None and provider_uuid is None) or (  # noqa: W504

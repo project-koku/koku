@@ -31,11 +31,11 @@ from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.processor.azure.azure_report_processor import AzureReportProcessor
 from masu.test import MasuTestCase
+from reporting_common import REPORT_COLUMN_MAP
 
 
 class AzureReportProcessorTest(MasuTestCase):
@@ -48,9 +48,7 @@ class AzureReportProcessorTest(MasuTestCase):
         cls.test_report_path = "./koku/masu/test/data/azure/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv"
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
-
-        with ReportingCommonDBAccessor() as report_common_db:
-            cls.column_map = report_common_db.column_map
+        cls.column_map = REPORT_COLUMN_MAP
 
         _report_tables = copy.deepcopy(AZURE_REPORT_TABLE_MAP)
         _report_tables.pop("line_item_daily_summary", None)

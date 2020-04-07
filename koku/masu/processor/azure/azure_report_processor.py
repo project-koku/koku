@@ -28,13 +28,13 @@ from django.conf import settings
 from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util import common as utils
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDaily
 from reporting.provider.azure.models import AzureCostEntryProductService
 from reporting.provider.azure.models import AzureMeter
+from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -94,8 +94,7 @@ class AzureReportProcessor(ReportProcessorBase):
         self._schema = schema_name
 
         # Gather database accessors
-        with ReportingCommonDBAccessor() as report_common_db:
-            self.column_map = report_common_db.column_map
+        self.column_map = REPORT_COLUMN_MAP
 
         with AzureReportDBAccessor(self._schema, self.column_map) as report_db:
             self.report_schema = report_db.report_schema

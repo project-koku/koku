@@ -35,7 +35,6 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUpdater
 from masu.test import MasuTestCase
 from reporting.models import AWSCostEntryBill
@@ -43,6 +42,7 @@ from reporting.models import OCP_ON_AWS_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
 from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummary
 from reporting.provider.all.openshift.models import OCPAllCostLineItemProjectDailySummary
+from reporting_common import REPORT_COLUMN_MAP
 from reporting_common.models import CostUsageReportManifest
 
 
@@ -59,7 +59,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         """Set up tests."""
         super().setUp()
         self.today = self.dh.today
-        self.column_map = ReportingCommonDBAccessor().column_map
+        self.column_map = REPORT_COLUMN_MAP
 
     @patch(
         "masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views"  # noqa: E501

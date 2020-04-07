@@ -12,12 +12,12 @@ from django.conf import settings
 
 from masu.config import Config
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util import common as utils
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDaily
 from reporting.provider.gcp.models import GCPProject
+from reporting_common import REPORT_COLUMN_MAP
 
 
 LOG = logging.getLogger(__name__)
@@ -69,8 +69,7 @@ class GCPReportProcessor(ReportProcessorBase):
         self._schema = schema_name
 
         # Gather database accessors
-        with ReportingCommonDBAccessor() as report_common_db:
-            self.column_map = report_common_db.column_map
+        self.column_map = REPORT_COLUMN_MAP
 
         LOG.info("Initialized report processor for file: %s and schema: %s", report_path, self._schema)
 

@@ -22,10 +22,10 @@ import logging
 from tenant_schemas.utils import schema_context
 
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_id_from_provider
+from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -44,8 +44,7 @@ class OCPReportSummaryUpdater:
         self._provider = provider
         self._manifest = manifest
         self._cluster_id = get_cluster_id_from_provider(self._provider.uuid)
-        with ReportingCommonDBAccessor() as reporting_common:
-            self._column_map = reporting_common.column_map
+        self._column_map = REPORT_COLUMN_MAP
         self._date_accessor = DateAccessor()
 
     def update_daily_tables(self, start_date, end_date):

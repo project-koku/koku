@@ -25,11 +25,11 @@ from tenant_schemas.utils import schema_context
 from api.utils import DateHelper
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdaterError
 from masu.test import MasuTestCase
 from reporting.models import OCPUsageLineItemDailySummary
+from reporting_common import REPORT_COLUMN_MAP
 
 
 class OCPCostModelCostUpdaterTest(MasuTestCase):
@@ -39,8 +39,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        cls.common_accessor = ReportingCommonDBAccessor()
-        cls.column_map = cls.common_accessor.column_map
+        cls.column_map = REPORT_COLUMN_MAP
         cls.accessor = OCPReportDBAccessor(schema=cls.schema, column_map=cls.column_map)
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
         cls.dh = DateHelper()

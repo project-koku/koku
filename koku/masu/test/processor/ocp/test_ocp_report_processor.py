@@ -30,7 +30,6 @@ from masu.config import Config
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED
 from masu.external import UNCOMPRESSED
@@ -40,6 +39,7 @@ from masu.processor.ocp.ocp_report_processor import OCPReportProcessorError
 from masu.processor.ocp.ocp_report_processor import OCPReportTypes
 from masu.processor.ocp.ocp_report_processor import ProcessedOCPReport
 from masu.test import MasuTestCase
+from reporting_common import REPORT_COLUMN_MAP
 
 
 class ProcessedOCPReportTest(MasuTestCase):
@@ -89,8 +89,7 @@ class OCPReportProcessorTest(MasuTestCase):
 
         cls.manifest_accessor = ReportManifestDBAccessor()
 
-        with ReportingCommonDBAccessor() as report_common_db:
-            cls.column_map = report_common_db.column_map
+        cls.column_map = REPORT_COLUMN_MAP
 
         cls.accessor = OCPReportDBAccessor(cls.schema, cls.column_map)
         cls.report_schema = cls.accessor.report_schema

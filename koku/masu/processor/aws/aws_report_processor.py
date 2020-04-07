@@ -26,7 +26,6 @@ from django.conf import settings
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
 from reporting.provider.aws.models import AWSCostEntry
 from reporting.provider.aws.models import AWSCostEntryBill
@@ -34,6 +33,7 @@ from reporting.provider.aws.models import AWSCostEntryLineItem
 from reporting.provider.aws.models import AWSCostEntryPricing
 from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
+from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -94,8 +94,7 @@ class AWSReportProcessor(ReportProcessorBase):
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
 
         # Gather database accessors
-        with ReportingCommonDBAccessor() as report_common_db:
-            self.column_map = report_common_db.column_map
+        self.column_map = REPORT_COLUMN_MAP
 
         with AWSReportDBAccessor(self._schema, self.column_map) as report_db:
             self.report_schema = report_db.report_schema

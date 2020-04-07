@@ -21,7 +21,7 @@ from datetime import datetime
 from tenant_schemas.utils import schema_context
 
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
+from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -60,8 +60,7 @@ class OCPReportDBCleaner:
             err = "Parameter expired_date must be a datetime.datetime object."
             raise OCPReportDBCleanerError(err)
 
-        with ReportingCommonDBAccessor() as reporting_common:
-            column_map = reporting_common.column_map
+        column_map = REPORT_COLUMN_MAP
 
         with OCPReportDBAccessor(self._schema, column_map) as accessor:
             removed_items = []
@@ -103,8 +102,7 @@ class OCPReportDBCleaner:
         """
         LOG.info("Calling purge_expired_report_data for ocp")
 
-        with ReportingCommonDBAccessor() as reporting_common:
-            column_map = reporting_common.column_map
+        column_map = REPORT_COLUMN_MAP
 
         with OCPReportDBAccessor(self._schema, column_map) as accessor:
             if (expired_date is not None and provider_uuid is not None) or (  # noqa: W504

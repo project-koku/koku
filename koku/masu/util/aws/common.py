@@ -27,8 +27,8 @@ from tenant_schemas.utils import schema_context
 from api.models import Provider
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.util import common as utils
+from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -243,8 +243,7 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     if isinstance(end_date, (datetime.datetime, datetime.date)):
         end_date = end_date.strftime("%Y-%m-%d")
 
-    with ReportingCommonDBAccessor() as reporting_common:
-        column_map = reporting_common.column_map
+    column_map = REPORT_COLUMN_MAP
 
     with ProviderDBAccessor(provider_uuid) as provider_accessor:
         provider = provider_accessor.get_provider()

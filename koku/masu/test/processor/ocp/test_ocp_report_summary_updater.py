@@ -30,11 +30,11 @@ from api.utils import DateHelper
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_report_summary_updater import OCPReportSummaryUpdater
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
+from reporting_common import REPORT_COLUMN_MAP
 from reporting_common.models import CostUsageReportManifest
 
 
@@ -45,8 +45,8 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        with ReportingCommonDBAccessor() as report_common_db:
-            cls.column_map = report_common_db.column_map
+
+        cls.column_map = REPORT_COLUMN_MAP
 
         cls.accessor = OCPReportDBAccessor(cls.schema, cls.column_map)
         cls.report_schema = cls.accessor.report_schema
