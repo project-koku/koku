@@ -38,7 +38,7 @@ class Command(BaseCommand):
         will return the state of the database and whether or not all migrations have been completed.
 
         Returns:
-            Boolean - True if database is avaiable and migrations have completed.  False otherwise.
+            Boolean - True if database is available and migrations have completed.  False otherwise.
 
         """
         connection = connections[DEFAULT_DB_ALIAS]
@@ -50,7 +50,7 @@ class Command(BaseCommand):
     def handle(self, addrport="0.0.0.0:8080", *args, **options):
         """Sources command customization point."""
 
-        # Koku API server is responsible for running all database migrations. The Sources Client
+        # Koku API server is responsible for running all database migrations. The sources client
         # server and kafka listener thread should only be started if migration execution is
         # complete.
         if self.check_migrations():
@@ -61,7 +61,7 @@ class Command(BaseCommand):
             options["use_reloader"] = False
             call_command("runserver", addrport, *args, **options)
         else:
-            # Database is not avaiable or migrations are not complete.  Exit so the container
+            # Database is not available or migrations are not complete.  Exit so the container
             # orchestrator can restart the service to try again.
             LOG.error("Missing database migrations, Exiting...")
             exit(1)
