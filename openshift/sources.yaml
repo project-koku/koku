@@ -335,7 +335,6 @@ objects:
             limits:
               cpu: ${CPU_LIMIT}
               memory: ${MEMORY_LIMIT}
-        restartPolicy: OnFailure
         volumes:
         - name: ssl-cert
           projected:
