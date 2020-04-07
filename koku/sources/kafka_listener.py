@@ -68,7 +68,7 @@ SOURCE_PROVIDER_MAP = {
 
 
 def backoff(interval, maximum=120):
-    """Exponential back-off."""
+    """Exponential back-off sleep function."""
     wait = min(maximum, (2 ** interval)) + random.random()
     LOG.info("Sleeping for %.2f seconds.", wait)
     time.sleep(wait)
