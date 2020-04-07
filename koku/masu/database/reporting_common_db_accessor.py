@@ -20,7 +20,7 @@ from collections import defaultdict
 import django.apps
 
 from masu.database.koku_database_access import KokuDBAccess
-from reporting_common.models import ReportColumnMap
+from reporting_common import REPORT_COLUMN_MAP
 
 
 class ReportingCommonDBAccessor(KokuDBAccess):
@@ -67,11 +67,11 @@ class ReportingCommonDBAccessor(KokuDBAccess):
         """Generate a mapping of provider data columns to db columns."""
         column_map = defaultdict(dict)
 
-        report_column_map = ReportColumnMap.objects.all()
+        report_column_map = REPORT_COLUMN_MAP
 
         for row in report_column_map:
-            entry = {row.provider_column_name: row.database_column}
-            column_map[row.database_table].update(entry)
+            entry = {row.get("provider_column_name"): row.get("database_column")}
+            column_map[row.get("database_table")].update(entry)
 
         return column_map
 
