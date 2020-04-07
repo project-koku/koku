@@ -31,7 +31,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe
         max(li.resource_id) as resource_id,
         li.usage_start,
         li.usage_end,
-        fpl.pod_labels,
+        coalesce(fpl.pod_labels, '{}'::jsonb) as pod_labels,
         sum(li.pod_usage_cpu_core_seconds) / 3600 as pod_usage_cpu_core_hours,
         sum(li.pod_request_cpu_core_seconds) / 3600 as pod_request_cpu_core_hours,
         sum(li.pod_limit_cpu_core_seconds) / 3600 as pod_limit_cpu_core_hours,

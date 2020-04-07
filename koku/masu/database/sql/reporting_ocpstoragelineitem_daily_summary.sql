@@ -37,7 +37,7 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsa
         li.persistentvolumeclaim,
         li.persistentvolume,
         li.storageclass,
-        fvl.volume_labels,
+        coalesce(fvl.volume_labels, '{}'::jsonb) as volume_labels,
         max(li.persistentvolumeclaim_capacity_bytes) * POWER(2, -30) as persistentvolumeclaim_capacity_gigabyte,
         sum(li.persistentvolumeclaim_capacity_byte_seconds) /
             86400 *
