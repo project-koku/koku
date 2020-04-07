@@ -31,10 +31,7 @@ from rest_framework_csv.renderers import CSVRenderer
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Provider
-from api.provider.test import create_generic_provider
 from api.query_handler import TruncDayString
-from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummary
 
@@ -56,13 +53,6 @@ class OCPAWSReportViewTest(IamTestCase):
         super().setUpClass()
         cls.dh = DateHelper()
         cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
-
-    def setUp(self):
-        """Set up the customer view tests."""
-        super().setUp()
-        _, self.provider = create_generic_provider(Provider.PROVIDER_OCP, self.headers)
-        self.data_generator = OCPAWSReportDataGenerator(self.tenant, self.provider)
-        self.data_generator.add_data_to_tenant()
 
     def test_execute_query_ocp_aws_storage(self):
         """Test that OCP on AWS Storage endpoint works."""
@@ -126,7 +116,7 @@ class OCPAWSReportViewTest(IamTestCase):
         data = response.json()
         dates = sorted([item.get("date") for item in data.get("data")])
         self.assertEqual(dates[0], expected_date)
-
+        self.assertNotEqual(data.get("data")[0].get("values", []), [])
         values = data.get("data")[0].get("values")[0]
         self.assertTrue("usage" in values)
         self.assertTrue("cost" in values)
@@ -173,7 +163,8 @@ class OCPAWSReportViewTest(IamTestCase):
 
         dates = sorted([item.get("date") for item in data.get("data")])
         self.assertEqual(dates[0], expected_date)
-
+        self.assertIsNotNone(data.get("data")[0].get("values"))
+        self.assertNotEqual(data.get("data")[0].get("values"), [])
         values = data.get("data")[0].get("values")[0]
         self.assertTrue("usage" in values)
         self.assertTrue("cost" in values)
@@ -236,7 +227,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 projects = item.get("nodes")
                 self.assertTrue(len(projects) <= 2)
                 if len(projects) == 2:
-                    self.assertEqual(projects[1].get("node"), "1 Other")
+                    self.assertEqual(projects[1].get("node"), "2 Others")
                     usage_total = projects[0].get("values")[0].get("usage", {}).get("value") + projects[1].get(
                         "values"
                     )[0].get("usage", {}).get("value")
@@ -336,6 +327,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .annotate(project_count=Count("namespace"))
                 .all()
             )
+            self.assertNotEqual(len(projects), 0)
             project_of_interest = projects[0].get("namespace")
 
         url = reverse("reports-openshift-aws-storage")
@@ -362,6 +354,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .annotate(cluster_count=Count("cluster_id"))
                 .all()
             )
+            self.assertNotEqual(len(clusters), 0)
             cluster_of_interest = clusters[0].get("cluster_id")
 
         url = reverse("reports-openshift-aws-storage")
@@ -399,6 +392,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .annotate(node_count=Count("node"))
                 .all()
             )
+            self.assertNotEqual(len(nodes), 0)
             node_of_interest = nodes[0].get("node")
 
         url = reverse("reports-openshift-aws-storage")
@@ -423,7 +417,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .values(*["tags"])
                 .first()
             )
-
+            self.assertIsNotNone(labels)
             tags = labels.get("tags")
             filter_key = list(tags.keys())[0]
             filter_value = tags.get(filter_key)
@@ -447,7 +441,10 @@ class OCPAWSReportViewTest(IamTestCase):
         data_totals = data.get("meta", {}).get("total", {})
         for key in totals:
             expected = float(totals[key])
-            result = data_totals.get(key, {}).get("value")
+            if key == "cost":
+                result = data_totals.get(key, {}).get("total").get("value")
+            else:
+                result = data_totals.get(key, {}).get("value")
             self.assertEqual(result, expected)
 
     def test_execute_query_ocp_aws_storage_with_wildcard_tag_filter(self):
@@ -459,7 +456,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .values(*["tags"])
                 .first()
             )
-
+            self.assertIsNotNone(labels)
             tags = labels.get("tags")
             filter_key = list(tags.keys())[0]
 
@@ -482,7 +479,10 @@ class OCPAWSReportViewTest(IamTestCase):
         data_totals = data.get("meta", {}).get("total", {})
         for key in totals:
             expected = float(totals[key])
-            result = data_totals.get(key, {}).get("value")
+            if key == "cost":
+                result = data_totals.get(key, {}).get("total").get("value")
+            else:
+                result = data_totals.get(key, {}).get("value")
             self.assertEqual(result, expected)
 
     def test_execute_query_ocp_aws_storage_with_tag_group_by(self):
@@ -494,7 +494,8 @@ class OCPAWSReportViewTest(IamTestCase):
                 .values(*["tags"])
                 .first()
             )
-
+            self.assertIsNotNone(labels)
+            self.assertNotEqual(len(labels), 0)
             tags = labels.get("tags")
             group_by_key = list(tags.keys())[0]
 
@@ -522,7 +523,8 @@ class OCPAWSReportViewTest(IamTestCase):
                 .values(*["tags"])
                 .first()
             )
-
+            self.assertIsNotNone(labels)
+            self.assertNotEqual(len(labels), 0)
             tags = labels.get("tags")
             group_by_key = list(tags.keys())[0]
             plural_key = group_by_key + "s"
@@ -569,6 +571,7 @@ class OCPAWSReportViewTest(IamTestCase):
         data = data.get("data", [])
         for entry in data:
             other = entry.get("nodes", [])[-1:]
+            self.assertNotEqual(other, [])
             self.assertIn("Other", other[0].get("node"))
 
     def test_execute_query_ocp_aws_storage_with_group_by_order_by_and_limit(self):
@@ -589,7 +592,11 @@ class OCPAWSReportViewTest(IamTestCase):
 
         data = response.json()
         data = data.get("data", [])
+        self.assertNotEqual(data, [])
+        self.assertNotEqual(data[0].get("nodes", []), [])
+        self.assertNotEqual(data[0].get("nodes", [])[0].get("values", []), [])
         previous_usage = data[0].get("nodes", [])[0].get("values", [])[0].get("usage", {}).get("value")
+        self.assertIsNotNone(previous_usage)
         for entry in data[0].get("nodes", []):
             current_usage = entry.get("values", [])[0].get("usage", {}).get("value")
             self.assertTrue(current_usage <= previous_usage)
@@ -678,11 +685,11 @@ class OCPAWSReportViewTest(IamTestCase):
             # Force Django to do GROUP BY to get nodes
             projects = (
                 OCPAWSCostLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago)
-                .filter(product_family__contains="Storage")
                 .values(*["namespace"])
                 .annotate(project_count=Count("namespace"))
                 .all()
             )
+            self.assertNotEqual(len(projects), 0)
             project_of_interest = projects[0].get("namespace")
 
         url = reverse("reports-openshift-aws-instance-type")
@@ -858,7 +865,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_execute_query_with_order_by(self):
         """Test that the possible order by options work."""
-        order_by_numeric = ["cost", "derived_cost", "infrastructure_cost", "usage", "delta"]
+        order_by_numeric = ["cost", "supplementary", "infrastructure", "usage", "delta"]
         order_by_non_numeric = ["project", "cluster", "node", "account_alias", "region", "service", "product_family"]
         baseurl = reverse("reports-openshift-aws-instance-type")
         client = APIClient()
@@ -900,7 +907,12 @@ class OCPAWSReportViewTest(IamTestCase):
         baseurl = reverse("reports-openshift-aws-instance-type")
         client = APIClient()
 
-        for key, val in self.data_generator.tags.items():
+        tag_url = reverse("openshift-aws-tags")
+        tag_url = tag_url + "?filter[time_scope_value]=-1&key_only=True"
+        response = client.get(tag_url, **self.headers)
+        tag_keys = response.data.get("data", [])
+
+        for key in tag_keys:
             order_by_dict_key = f"order_by[tag:{key}]"
             params = {
                 "filter[resolution]": "monthly",
@@ -918,7 +930,12 @@ class OCPAWSReportViewTest(IamTestCase):
         baseurl = reverse("reports-openshift-aws-instance-type")
         client = APIClient()
 
-        for key, val in self.data_generator.tags.items():
+        tag_url = reverse("openshift-aws-tags")
+        tag_url = tag_url + "?filter[time_scope_value]=-1&key_only=True"
+        response = client.get(tag_url, **self.headers)
+        tag_keys = response.data.get("data", [])
+
+        for key in tag_keys:
             order_by_dict_key = f"order_by[tag:{key}]"
             params = {
                 "filter[resolution]": "monthly",
@@ -937,7 +954,12 @@ class OCPAWSReportViewTest(IamTestCase):
         baseurl = reverse("reports-openshift-aws-instance-type")
         client = APIClient()
 
-        for key, val in self.data_generator.tags.items():
+        tag_url = reverse("openshift-aws-tags")
+        tag_url = tag_url + "?filter[time_scope_value]=-1&key_only=True"
+        response = client.get(tag_url, **self.headers)
+        tag_keys = response.data.get("data", [])
+
+        for key in tag_keys:
             order_by_dict_key = f"order_by[tag:{key}]"
             group_by_dict_key = f"group_by[tag:{key}]"
             params = {
@@ -957,11 +979,10 @@ class OCPAWSReportViewTest(IamTestCase):
         with tenant_context(self.tenant):
             labels = (
                 OCPAWSCostLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago)
-                .filter(product_family__contains="Storage")
                 .values(*["tags"])
                 .first()
             )
-
+            self.assertIsNotNone(labels)
             tags = labels.get("tags")
 
         qstr = f"filter[limit]=2"

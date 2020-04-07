@@ -5,7 +5,6 @@ CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}} AS (
         ocp_aws.cluster_alias,
         ocp_aws.namespace,
         ocp_aws.data_source,
-        ocp_aws.pod,
         ocp_aws.node,
         ocp_aws.pod_labels,
         sum(ocp_aws.unblended_cost) AS infra_cost,
@@ -20,7 +19,6 @@ CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}} AS (
         ocp_aws.cluster_alias,
         ocp_aws.namespace,
         ocp_aws.data_source,
-        ocp_aws.pod,
         ocp_aws.node,
         ocp_aws.pod_labels
 
@@ -32,7 +30,6 @@ CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}} AS (
         ocp_azure.cluster_alias,
         ocp_azure.namespace,
         ocp_azure.data_source,
-        ocp_azure.pod,
         ocp_azure.node,
         ocp_azure.pod_labels,
         sum(ocp_azure.pretax_cost) AS infra_cost,
@@ -47,15 +44,14 @@ CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}} AS (
         ocp_azure.cluster_alias,
         ocp_azure.namespace,
         ocp_azure.data_source,
-        ocp_azure.pod,
         ocp_azure.node,
         ocp_azure.pod_labels
 )
 ;
 
 UPDATE reporting_ocpusagelineitem_daily_summary ods
-    SET infra_cost = ic.infra_cost,
-        project_infra_cost = ic.project_infra_cost
+    SET infrastructure_raw_cost = ic.infra_cost,
+        infrastructure_project_raw_cost = ic.project_infra_cost
     FROM reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}} AS ic
     WHERE ic.data_source = 'Pod'
         AND ods.report_period_id = ic.report_period_id
@@ -64,14 +60,13 @@ UPDATE reporting_ocpusagelineitem_daily_summary ods
         AND ods.cluster_alias = ic.cluster_alias
         AND ods.namespace = ic.namespace
         AND ods.data_source = ic.data_source
-        AND ods.pod = ic.pod
         AND ods.node = ic.node
         AND ods.pod_labels = ic.pod_labels
 ;
 
 UPDATE reporting_ocpusagelineitem_daily_summary ods
-    SET infra_cost = ic.infra_cost,
-        project_infra_cost = ic.project_infra_cost
+    SET infrastructure_raw_cost = ic.infra_cost,
+        infrastructure_project_raw_cost = ic.project_infra_cost
     FROM reporting_ocp_infrastructure_cost_{{uuid | sqlsafe}} AS ic
     WHERE ic.data_source = 'Storage'
         AND ods.report_period_id = ic.report_period_id
@@ -80,17 +75,16 @@ UPDATE reporting_ocpusagelineitem_daily_summary ods
         AND ods.cluster_alias = ic.cluster_alias
         AND ods.namespace = ic.namespace
         AND ods.data_source = ic.data_source
-        AND ods.pod = ic.pod
         AND ods.node = ic.node
         AND ods.volume_labels = ic.pod_labels
 ;
 
 UPDATE reporting_ocpusagelineitem_daily_summary ods
-    SET infra_cost = 0::decimal
-    WHERE infra_cost IS NULL
+    SET infrastructure_raw_cost = 0::decimal
+    WHERE infrastructure_raw_cost IS NULL
 ;
 
 UPDATE reporting_ocpusagelineitem_daily_summary ods
-    SET project_infra_cost = 0::decimal
-    WHERE project_infra_cost IS NULL
+    SET infrastructure_project_raw_cost = 0::decimal
+    WHERE infrastructure_project_raw_cost IS NULL
 ;

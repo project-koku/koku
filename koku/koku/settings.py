@@ -177,6 +177,8 @@ HOSTNAME = ENVIRONMENT.get_value("HOSTNAME", default="localhost")
 
 REDIS_HOST = ENVIRONMENT.get_value("REDIS_HOST", default="redis")
 REDIS_PORT = ENVIRONMENT.get_value("REDIS_PORT", default="6379")
+
+KEEPDB = ENVIRONMENT.bool("KEEPDB", default=True)
 if "test" in sys.argv:
     TEST_RUNNER = "koku.koku_test_runner.KokuTestRunner"
     CACHES = {
@@ -311,6 +313,7 @@ LOGGING = {
         "django": {"handlers": LOGGING_HANDLERS, "level": DJANGO_LOGGING_LEVEL},
         "api": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "celery": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL, "propagate": False},
+        "cost_models": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "koku": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "providers": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "reporting": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
@@ -334,6 +337,7 @@ if CW_AWS_ACCESS_KEY_ID:
         "log_group": CW_LOG_GROUP,
         "stream_name": POD_NAME,
         "formatter": LOGGING_FORMATTER,
+        "use_queues": False,
     }
     LOGGING["handlers"]["watchtower"] = WATCHTOWER_HANDLER
 
@@ -392,6 +396,12 @@ KOKU_SOURCES_CLIENT_PORT = ENVIRONMENT.get_value("KOKU_SOURCES_CLIENT_PORT", def
 SOURCES_CLIENT_BASE_URL = "http://{}:{}{}/v1".format(
     KOKU_SOURCES_CLIENT_HOST, KOKU_SOURCES_CLIENT_PORT, API_PATH_PREFIX
 )
+
+# Prometheus pushgateway hostname:port
+PROMETHEUS_PUSHGATEWAY = ENVIRONMENT.get_value("PROMETHEUS_PUSHGATEWAY", default="localhost:9091")
+
+# Flag for automatic data ingest on Provider create
+AUTO_DATA_INGEST = ENVIRONMENT.get_value("AUTO_DATA_INGEST", default=True)
 
 # Demo Accounts list
 DEMO_ACCOUNTS = {}

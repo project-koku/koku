@@ -175,7 +175,7 @@ class QueryParametersTests(TestCase):
         fake_request = Mock(
             spec=HttpRequest,
             GET=Mock(urlencode=Mock(return_value=self.fake_uri)),
-            user=Mock(access=self.test_read_access, customer=Mock(schema_name=self.FAKE.word())),
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
         )
         fake_view = Mock(
             spec=ReportView,

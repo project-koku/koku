@@ -192,6 +192,9 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     """
 
+    MONTHLY_COST_TYPES = (("Node", "Node"), ("Cluster", "Cluster"))
+    MONTHLY_COST_RATE_MAP = {"Node": "node_cost_per_month", "Cluster": "cluster_cost_per_month"}
+
     class Meta:
         """Meta for OCPUsageLineItemDailySummary."""
 
@@ -219,8 +222,6 @@ class OCPUsageLineItemDailySummary(models.Model):
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=True)
 
-    pod = models.CharField(max_length=253, null=True)
-
     node = models.CharField(max_length=253, null=True)
 
     # Another node identifier used to tie the node to an EC2 instance
@@ -237,13 +238,9 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     pod_limit_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
-    pod_charge_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
     pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
-    pod_charge_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
@@ -281,23 +278,26 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
-    persistentvolumeclaim_charge_gb_month = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    # Cost fields
 
-    # Cost columns moved in from the CostSummary table
-    # Need more precision on calculated fields, otherwise there will be
-    # Rounding errors
-    infra_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    # Infrastructure raw cost comes from a Cloud Provider
+    infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    # This field is used in place of infrastructure_cost when
-    # grouping by project
-    project_infra_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_project_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    infrastructure_usage_cost = JSONField(null=True)
 
-    project_markup_cost = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    # This is the one time monthly costs for a given user.
-    monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    infrastructure_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    supplementary_usage_cost = JSONField(null=True)
+
+    supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    monthly_cost_type = models.TextField(null=True, choices=MONTHLY_COST_TYPES)
 
 
 class OCPUsagePodLabelSummary(models.Model):
@@ -495,3 +495,336 @@ class OCPNodeLabelLineItemDaily(models.Model):
     node_labels = JSONField(null=True)
 
     total_seconds = models.IntegerField()
+
+
+class OCPEnabledTagKeys(models.Model):
+    """A collection of the current enabled tag keys."""
+
+    class Meta:
+        """Meta for OCPEnabledTagKeys."""
+
+        db_table = "reporting_ocpenabledtagkeys"
+
+    id = models.BigAutoField(primary_key=True)
+    key = models.CharField(max_length=253, unique=True)
+
+
+class OCPCostSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage.
+
+    """
+
+    class Meta:
+        """Meta for OCPCostSummary."""
+
+        db_table = "reporting_ocp_cost_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    cluster_id = models.TextField()
+
+    cluster_alias = models.TextField(null=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    infrastructure_usage_cost = JSONField(null=True)
+
+    infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    infrastructure_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    supplementary_usage_cost = JSONField(null=True)
+
+    supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+
+class OCPCostSummaryByProject(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage.
+
+    """
+
+    class Meta:
+        """Meta for OCPCostSummaryByProject."""
+
+        db_table = "reporting_ocp_cost_summary_by_project"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    cluster_id = models.TextField()
+
+    cluster_alias = models.TextField(null=True)
+
+    # Kubernetes objects by convention have a max name length of 253 chars
+    namespace = models.CharField(max_length=253)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    infrastructure_project_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    infrastructure_usage_cost = JSONField(null=True)
+
+    infrastructure_project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    infrastructure_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    supplementary_usage_cost = JSONField(null=True)
+
+    supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+
+class OCPCostSummaryByNode(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage.
+
+    """
+
+    class Meta:
+        """Meta for OCPCostSummary."""
+
+        db_table = "reporting_ocp_cost_summary_by_node"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    cluster_id = models.TextField()
+
+    cluster_alias = models.TextField(null=True)
+
+    node = models.CharField(max_length=253, null=False)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    infrastructure_usage_cost = JSONField(null=True)
+
+    infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    infrastructure_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    supplementary_usage_cost = JSONField(null=True)
+
+    supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+
+class OCPPodSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage.
+
+    """
+
+    class Meta:
+        """Meta for OCPPodSummary."""
+
+        db_table = "reporting_ocp_pod_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    cluster_id = models.TextField()
+
+    cluster_alias = models.TextField(null=True)
+
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+
+    resource_count = models.IntegerField(null=True)
+
+    data_source = models.CharField(max_length=64, null=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    infrastructure_usage_cost = JSONField(null=True)
+
+    infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    supplementary_usage_cost = JSONField(null=True)
+
+    pod_usage_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_request_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_limit_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    # Total capacity represents the sum of all of the customers clusters
+    total_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    total_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+
+class OCPPodSummaryByProject(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage.
+
+    """
+
+    class Meta:
+        """Meta for OCPPodSummaryByProject."""
+
+        db_table = "reporting_ocp_pod_summary_by_project"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    cluster_id = models.TextField()
+
+    cluster_alias = models.TextField(null=True)
+
+    namespace = models.CharField(max_length=253, null=True)
+
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+
+    resource_count = models.IntegerField(null=True)
+
+    data_source = models.CharField(max_length=64, null=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    supplementary_usage_cost = JSONField(null=True)
+
+    infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    infrastructure_usage_cost = JSONField(null=True)
+
+    infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    pod_usage_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_request_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_limit_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    # Total capacity represents the sum of all of the customers clusters
+    total_capacity_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    total_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+
+class OCPVolumeSummary(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage.
+
+    """
+
+    class Meta:
+        """Meta for OCPVolumeSummary."""
+
+        db_table = "reporting_ocp_volume_summary"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    cluster_id = models.TextField()
+
+    cluster_alias = models.TextField(null=True)
+
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+
+    resource_count = models.IntegerField(null=True)
+
+    data_source = models.CharField(max_length=64, null=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    supplementary_usage_cost = JSONField(null=True)
+
+    infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    infrastructure_usage_cost = JSONField(null=True)
+
+    infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    volume_request_storage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+
+class OCPVolumeSummaryByProject(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage.
+
+    """
+
+    class Meta:
+        """Meta for OCPVolumeSummaryByProject."""
+
+        db_table = "reporting_ocp_volume_summary_by_project"
+        managed = False
+
+    id = models.IntegerField(primary_key=True)
+
+    cluster_id = models.TextField()
+
+    cluster_alias = models.TextField(null=True)
+
+    namespace = models.CharField(max_length=253, null=True)
+
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+
+    resource_count = models.IntegerField(null=True)
+
+    data_source = models.CharField(max_length=64, null=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    supplementary_usage_cost = JSONField(null=True)
+
+    infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    infrastructure_usage_cost = JSONField(null=True)
+
+    infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    volume_request_storage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)

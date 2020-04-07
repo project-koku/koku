@@ -84,15 +84,17 @@ def _azure_provider_ready_for_create(provider):
     return False
 
 
+SCREEN_MAP = {
+    Provider.PROVIDER_AWS: _aws_provider_ready_for_create,
+    Provider.PROVIDER_OCP: _ocp_provider_ready_for_create,
+    Provider.PROVIDER_AZURE: _azure_provider_ready_for_create,
+}
+
+
 def screen_and_build_provider_sync_create_event(provider):
     """Determine if the source should be queued for synchronization."""
     provider_event = {}
-    screen_map = {
-        Provider.PROVIDER_AWS: _aws_provider_ready_for_create,
-        Provider.PROVIDER_OCP: _ocp_provider_ready_for_create,
-        Provider.PROVIDER_AZURE: _azure_provider_ready_for_create,
-    }
-    screen_fn = screen_map.get(provider.source_type)
+    screen_fn = SCREEN_MAP.get(provider.source_type)
     if screen_fn and screen_fn(provider) and not provider.pending_delete:
         provider_event = {"operation": "create", "provider": provider, "offset": provider.offset}
     return provider_event
@@ -167,12 +169,12 @@ def load_providers_to_delete():
     return providers_to_delete
 
 
-def get_source(source_id, err_msg):
+def get_source(source_id, err_msg, logger):
     """Access Sources, log err on DoesNotExist, close connection on InterfaceError."""
     try:
         return Sources.objects.get(source_id=source_id)
     except Sources.DoesNotExist:
-        LOG.error(err_msg)
+        logger(err_msg)
     except (InterfaceError, OperationalError) as error:
         LOG.error(f"Accessing sources resulted in {type(error).__name__}: {error}")
         raise error
@@ -190,7 +192,7 @@ def enqueue_source_delete(source_id):
         None
 
     """
-    source = get_source(source_id, f"Unable to enqueue source delete.  {source_id} not found.")
+    source = get_source(source_id, f"Source not enqueued for delete. Source ID {source_id} not found.", LOG.info)
     if source and not source.pending_delete:
         source.pending_delete = True
         source.save()
@@ -207,7 +209,7 @@ def enqueue_source_update(source_id):
         None
 
     """
-    source = get_source(source_id, f"Unable to enqueue source update.  {source_id} not found.")
+    source = get_source(source_id, f"Unable to enqueue source update. Source ID {source_id} not found.", LOG.error)
     if source and source.koku_uuid and not source.pending_delete and not source.pending_update:
         source.pending_update = True
         source.save(update_fields=["pending_update"])
@@ -224,7 +226,7 @@ def clear_update_flag(source_id):
         None
 
     """
-    source = get_source(source_id, f"Unable to clear update flag.  {source_id} not found.")
+    source = get_source(source_id, f"Unable to clear update flag. Source ID {source_id} not found.", LOG.error)
     if source and source.koku_uuid and source.pending_update:
         source.pending_update = False
         source.save()
@@ -293,7 +295,7 @@ def get_source_type(source_id):
     """Get Source Type from Source ID."""
     source_type = None
     source = get_source(
-        source_id, f"[get_source_type] Unable to get Source Type.  Source ID: {source_id} does not exist"
+        source_id, f"[get_source_type] Unable to get Source Type.  Source ID: {source_id} does not exist", LOG.error
     )
     if source:
         source_type = source.source_type
@@ -326,7 +328,9 @@ def add_provider_sources_auth_info(source_id, authentication):
         None
 
     """
-    source = get_source(source_id, f"Unable to add authentication details.  Source ID: {source_id} does not exist")
+    source = get_source(
+        source_id, f"Unable to add authentication details.  Source ID: {source_id} does not exist", LOG.error
+    )
     if source:
         current_auth_dict = source.authentication
         subscription_id = None
@@ -354,7 +358,7 @@ def add_provider_sources_network_info(source_id, source_uuid, name, source_type,
 
     """
     save_needed = False
-    source = get_source(source_id, f"Unable to add network details.  Source ID: {source_id} does not exist")
+    source = get_source(source_id, f"Unable to add network details.  Source ID: {source_id} does not exist", LOG.error)
     if source:
         if source.name != name:
             source.name = name
@@ -399,7 +403,7 @@ def add_provider_koku_uuid(source_id, koku_uuid):
         None
 
     """
-    source = get_source(source_id, f"Source ID {source_id} does not exist.")
+    source = get_source(source_id, f"Source ID {source_id} does not exist.", LOG.error)
     if source and source.koku_uuid != koku_uuid:
         source.koku_uuid = koku_uuid
         source.save()

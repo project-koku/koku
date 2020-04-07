@@ -64,11 +64,10 @@ class FilterSerializer(BaseFilterSerializer):
 
     INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"))
 
-    _opfields = ("project", "cluster", "node", "pod", "infrastructures")
+    _opfields = ("project", "cluster", "node", "infrastructures")
 
     project = StringOrListField(child=serializers.CharField(), required=False)
     cluster = StringOrListField(child=serializers.CharField(), required=False)
-    pod = StringOrListField(child=serializers.CharField(), required=False)
     node = StringOrListField(child=serializers.CharField(), required=False)
     infrastructures = serializers.ChoiceField(choices=INFRASTRUCTURE_CHOICES, required=False)
 
@@ -173,7 +172,7 @@ class OCPQueryParamSerializer(ParamSerializer):
 class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling inventory query parameters."""
 
-    delta_choices = ("cost", "usage", "request")
+    delta_choices = ("cost", "usage", "request", "cost_total")
 
     delta_fields = ("usage", "request", "limit", "capacity")
 
@@ -214,6 +213,8 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
                     error[value] = _("Unsupported parameter")
                     raise serializers.ValidationError(error)
         else:
+            if value == "cost":
+                return "cost_total"
             if value not in self.delta_choices:
                 error[value] = _("Unsupported parameter")
                 raise serializers.ValidationError(error)
@@ -223,7 +224,7 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
 class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling cost query parameters."""
 
-    DELTA_CHOICES = ("cost", "cost")
+    DELTA_CHOICES = (("cost", "cost"), ("cost_total", "cost_total"))
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
 
@@ -240,4 +241,17 @@ class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
         """
         super().validate_order_by(value)
         validate_field(self, "order_by", OrderBySerializer, value)
+        return value
+
+    def validate_delta(self, value):
+        """Validate incoming delta value based on path."""
+        valid_delta = "usage"
+        request = self.context.get("request")
+        if request and "costs" in request.path:
+            valid_delta = "cost_total"
+            if value == "cost":
+                return valid_delta
+        if value != valid_delta:
+            error = {"delta": f'"{value}" is not a valid choice.'}
+            raise serializers.ValidationError(error)
         return value

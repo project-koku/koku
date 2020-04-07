@@ -44,6 +44,8 @@ from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.worker_cache import WorkerCache
 from reporting.models import AWS_MATERIALIZED_VIEWS
+from reporting.models import AZURE_MATERIALIZED_VIEWS
+from reporting.models import OCP_MATERIALIZED_VIEWS
 
 LOG = get_task_logger(__name__)
 
@@ -73,7 +75,10 @@ def get_report_files(
 
     """
     worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
-    month = parser.parse(report_month)
+    month = report_month
+    if isinstance(report_month, str):
+        month = parser.parse(report_month)
+
     cache_key = f"{provider_uuid}:{month}"
     reports = _get_report_files(
         self, customer_name, authentication, billing_source, provider_type, provider_uuid, month, cache_key
@@ -168,6 +173,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, lin
     )
     LOG.info(stmt)
     _remove_expired_data(schema_name, provider, simulate, provider_uuid, line_items_only)
+    refresh_materialized_views.delay(schema_name, provider)
 
 
 @app.task(name="masu.processor.tasks.summarize_reports", queue_name="process")
@@ -327,6 +333,10 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
     materialized_views = ()
     if provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
         materialized_views = AWS_MATERIALIZED_VIEWS
+    elif provider_type in (Provider.PROVIDER_OCP):
+        materialized_views = OCP_MATERIALIZED_VIEWS
+    elif provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+        materialized_views = AZURE_MATERIALIZED_VIEWS
     with schema_context(schema_name):
         for view in materialized_views:
             table_name = view._meta.db_table

@@ -1,11 +1,15 @@
 version: '3'
 
 services:
+  koku-base:
+      image: koku_base
+      build:
+        context: .
+        dockerfile: Dockerfile-env
+
   koku-server:
       container_name: koku_server
-      build:
-          context: .
-          dockerfile: Dockerfile-env
+      image: koku_base
       working_dir: /koku
       entrypoint:
         - /koku/run_server.sh
@@ -47,13 +51,12 @@ services:
         - koku-rabbit
         - masu-server
       depends_on:
+        - koku-base
         - db
 
   masu-server:
       container_name: masu_server
-      build:
-          context: .
-          dockerfile: Dockerfile-env
+      image: koku_base
       working_dir: /koku
       entrypoint:
         - /koku/run_internal.sh
@@ -93,6 +96,7 @@ services:
         - db
         - koku-rabbit
       depends_on:
+        - koku-base
         - db
 
   redis:
@@ -111,7 +115,7 @@ services:
     ports:
       - "15432:5432"
     volumes:
-      - ./pg_data:/var/lib/postgresql/data
+      - ./pg_data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data
       - ./pg_init:/docker-entrypoint-initdb.d
 
   pgadmin:
@@ -135,6 +139,7 @@ services:
     links:
         - db
     depends_on:
+        - koku-base
         - db
 
   koku-rabbit:
@@ -150,11 +155,9 @@ services:
   koku-worker:
       container_name: koku_worker
       hostname: koku_worker
-      build:
-          context: .
-          dockerfile: Dockerfile-env
+      image: koku_base
       working_dir: /koku/koku
-      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload']
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload,sources']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
@@ -167,10 +170,14 @@ services:
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
+        - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
+        - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
+        - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
+        - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
         - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
         - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
         - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
@@ -180,6 +187,8 @@ services:
         - KOKU_CELERY_SENTRY_DSN
         - KOKU_SENTRY_ENVIRONMENT
         - DEMO_ACCOUNTS=${DEMO_ACCOUNTS-{}}
+        - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
+        - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
       privileged: true
       volumes:
         - '.:/koku'
@@ -196,13 +205,12 @@ services:
       links:
           - koku-rabbit
       depends_on:
+          - koku-base
           - koku-rabbit
 
   koku-listener:
       container_name: koku_listener
-      build:
-          context: .
-          dockerfile: Dockerfile-env
+      image: koku_base
       working_dir: /koku/
       entrypoint: ['python', 'koku/manage.py', 'listener']
       environment:
@@ -236,14 +244,13 @@ services:
         - db
         - koku-rabbit
       depends_on:
+        - koku-base
         - db
         - koku-rabbit
 
   sources-client:
       container_name: sources_client
-      build:
-          context: .
-          dockerfile: Dockerfile-env
+      image: koku_base
       working_dir: /koku/
       entrypoint:
         - /koku/run_sources.sh
@@ -258,6 +265,10 @@ services:
         - KOKU_API_HOST=${KOKU_API_HOST-koku-server}
         - KOKU_API_PORT=${KOKU_API_PORT-8000}
         - KOKU_API_PATH_PREFIX=${KOKU_API_PATH_PREFIX-/api/cost-management/v1}
+        - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
+        - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
+        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+        - RABBITMQ_PORT=5672
         - SOURCES_KAFKA_HOST=${SOURCES_KAFKA_HOST-kafka}
         - SOURCES_KAFKA_PORT=${SOURCES_KAFKA_PORT-29092}
         - prometheus_multiproc_dir=/tmp
@@ -270,15 +281,14 @@ services:
         - db
         - koku-server
       depends_on:
+        - koku-base
         - db
         - koku-server
 
   koku-beat:
       container_name: koku_beat
       hostname: koku_beat
-      build:
-          context: .
-          dockerfile: Dockerfile-env
+      image: koku_base
       working_dir: /koku/koku
       entrypoint: ['celery', '--pidfile=/opt/celeryd.pid', '-A', 'koku', 'beat', '-l', 'info']
 
@@ -307,4 +317,11 @@ services:
       links:
           - koku-rabbit
       depends_on:
+          - koku-base
           - koku-rabbit
+
+  pushgateway:
+    container_name: koku-pushgateway
+    image: prom/pushgateway
+    ports:
+      - 9091:9091

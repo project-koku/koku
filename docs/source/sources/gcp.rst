@@ -9,7 +9,7 @@ Configuring a GCP Account for Cost & Usage Reporting
 
 Follow the instructions described in the GCP article, `Export Billing Data to a File <https://cloud.google.com/billing/docs/how-to/export-data-file>`_.
 
-Make a note of the name of the storage bucket as you will need it to allow the koku service account access and to creating the provider.
+Make a note of the name of the storage bucket as you will need it to allow the koku service account access and to creating the source.
 
 
 Update Bucket to Allow Access to Koku's Service Account
@@ -53,14 +53,14 @@ Grant Access to Storage Bucket
 +-------------+----------------------------------------------------------+
 
 
-Create an GCP Account Provider
+Create an GCP Account Source
 ******************************
 
-Create a GCP account provider with the *Storage Bucket Name* above. You can optionally include a report_prefix if you used one during GCP data export setup.
+Create a GCP account source with the *Storage Bucket Name* above. You can optionally include a report_prefix if you used one during GCP data export setup.
 
 .. code-block::
 
-    http POST 0.0.0.0:8000/api/v1/providers/ name="GCP Provider" type=GCP billing_source:='{"data_source": {"bucket": "koku-billing-bucket", "report_prefix": "my-prefix"}}' authentication:='{"credentials": {"project_id": "gcp_project_id"}}'
+    http POST 0.0.0.0:8000/api/v1/sources/ name="GCP Source" type=GCP billing_source:='{"data_source": {"bucket": "koku-billing-bucket", "report_prefix": "my-prefix"}}' authentication:='{"credentials": {"project_id": "gcp_project_id"}}'
 
 
 Creating a GCP Service Account for Local Testing

@@ -17,12 +17,18 @@
 """Serializer for CloudAccount."""
 from rest_framework import serializers
 
-from api.cloud_accounts.models import CloudAccount
+
+class CloudAccountSerializer(serializers.Serializer):
+    """Serializer for Cloud Account."""
+
+    name = serializers.CharField()
+    value = serializers.CharField()
+    description = serializers.CharField()
+    updated_timestamp = serializers.DateTimeField()
 
 
-class CloudAccountSerializer(serializers.ModelSerializer):
-    """Serializer for CloudAccount."""
+class CloudAccountQueryParamsSerializer(serializers.Serializer):
+    """Serializer for the Query params on Cloud Account."""
 
-    class Meta:
-        model = CloudAccount
-        fields = ("name", "value", "description", "updated_timestamp")
+    limit = serializers.IntegerField(required=False, min_value=1)
+    offset = serializers.IntegerField(required=False, min_value=0)

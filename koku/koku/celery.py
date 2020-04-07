@@ -134,4 +134,7 @@ if settings.ENABLE_S3_ARCHIVING:
 # Celery timeout if broker is unavaiable to avoid blocking indefintely
 app.conf.broker_transport_options = {"max_retries": 4, "interval_start": 0, "interval_step": 0.5, "interval_max": 3}
 
+# Specify task routes
+app.conf.task_routes = {"sources.tasks.*": {"queue": "sources"}}
+
 app.autodiscover_tasks()

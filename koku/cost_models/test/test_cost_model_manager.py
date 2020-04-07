@@ -15,12 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Cost Model Manager."""
+from unittest.mock import patch
+
 from tenant_schemas.utils import tenant_context
 
 from api.iam.models import Customer
-from api.iam.serializers import UserSerializer
+from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
-from api.metrics.models import CostModelMetricsMap
+from api.metrics import constants as metric_constants
 from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
@@ -43,9 +45,7 @@ class CostModelManagerTest(IamTestCase):
         """Set up the cost model manager tests."""
         super().setUp()
         self.customer = Customer.objects.get(account_id=self.customer_data["account_id"])
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            self.user = serializer.save()
+        self.user = User.objects.get(username=self.user_data["username"])
 
     def tearDown(self):
         """Clean up database after test case."""
@@ -56,7 +56,7 @@ class CostModelManagerTest(IamTestCase):
 
     def test_create(self):
         """Test creating a cost model."""
-        metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
         tiered_rates = [{"unit": "USD", "value": 0.22}]
         data = {
@@ -67,7 +67,8 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            cost_model_obj = manager.create(**data)
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
                 self.assertEqual(rate.get("metric", {}).get("name"), metric)
@@ -81,11 +82,12 @@ class CostModelManagerTest(IamTestCase):
     def test_create_with_provider(self):
         """Test creating a cost model with provider uuids."""
         provider_name = "sample_provider"
-        provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
 
         # Get Provider UUID
         provider_uuid = provider.uuid
-        metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
         tiered_rates = [{"unit": "USD", "value": 0.22}]
         data = {
@@ -97,7 +99,8 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            cost_model_obj = manager.create(**data)
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
                 self.assertEqual(rate.get("metric", {}).get("name"), metric)
@@ -115,12 +118,13 @@ class CostModelManagerTest(IamTestCase):
     def test_create_second_cost_model_same_provider(self):
         """Test that the cost model map is updated for the second model."""
         provider_name = "sample_provider"
-        provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
 
         # Get Provider UUID
         provider_uuid = provider.uuid
         provider_names_uuids = [{"uuid": str(provider.uuid), "name": provider.name}]
-        metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
         tiered_rates = [{"unit": "USD", "value": 0.22}]
         data = {
@@ -132,14 +136,16 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            cost_model_obj = manager.create(**data)
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                cost_model_obj = manager.create(**data)
 
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
             self.assertIsNotNone(cost_model_map)
             self.assertEqual(cost_model_map.first().cost_model, cost_model_obj)
             self.assertEqual(CostModelManager(cost_model_obj.uuid).get_provider_names_uuids(), provider_names_uuids)
 
-            second_cost_model_obj = manager.create(**data)
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                second_cost_model_obj = manager.create(**data)
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
             self.assertIsNotNone(cost_model_map)
             # Make sure we no longer associate this provider with
@@ -153,16 +159,18 @@ class CostModelManagerTest(IamTestCase):
     def test_create_with_two_providers(self):
         """Test creating a cost model with multiple providers."""
         provider_name = "sample_provider"
-        provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
 
         # Get Provider UUID
         provider_uuid = provider.uuid
 
         provider_name_2 = "sample_provider2"
-        provider_2 = Provider.objects.create(name=provider_name_2, created_by=self.user, customer=self.customer)
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider_2 = Provider.objects.create(name=provider_name_2, created_by=self.user, customer=self.customer)
         provider_uuid_2 = provider_2.uuid
 
-        metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
         tiered_rates = [{"unit": "USD", "value": 0.22}]
         data = {
@@ -174,7 +182,8 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            cost_model_obj = manager.create(**data)
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
                 self.assertEqual(rate.get("metric", {}).get("name"), metric)
@@ -194,7 +203,7 @@ class CostModelManagerTest(IamTestCase):
 
     def test_update_provider_uuids(self):
         """Test creating a cost model then update with a provider uuid."""
-        metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
         tiered_rates = [{"unit": "USD", "value": 0.22}]
         data = {
@@ -205,13 +214,15 @@ class CostModelManagerTest(IamTestCase):
         cost_model_obj = None
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            cost_model_obj = manager.create(**data)
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                cost_model_obj = manager.create(**data)
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 0)
 
         provider_name = "sample_provider"
-        provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
 
         # Get Provider UUID
         provider_uuid = provider.uuid
@@ -219,7 +230,8 @@ class CostModelManagerTest(IamTestCase):
         # Add provider to existing cost model
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
-            manager.update_provider_uuids(provider_uuids=[provider_uuid])
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                manager.update_provider_uuids(provider_uuids=[provider_uuid])
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertIsNotNone(cost_model_map)
@@ -229,7 +241,8 @@ class CostModelManagerTest(IamTestCase):
         # Add provider again to existing cost model.  Verify there is still only 1 item in map
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
-            manager.update_provider_uuids(provider_uuids=[provider_uuid])
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                manager.update_provider_uuids(provider_uuids=[provider_uuid])
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertIsNotNone(cost_model_map)
@@ -239,7 +252,8 @@ class CostModelManagerTest(IamTestCase):
         # Remove provider from existing rate
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
-            manager.update_provider_uuids(provider_uuids=[])
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                manager.update_provider_uuids(provider_uuids=[])
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 0)

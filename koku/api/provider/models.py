@@ -18,10 +18,11 @@
 import logging
 from uuid import uuid4
 
+from django.conf import settings
 from django.contrib.postgres.fields import JSONField
 from django.db import models
+from django.db import transaction
 from django.db.models.constraints import CheckConstraint
-
 
 LOG = logging.getLogger(__name__)
 
@@ -161,6 +162,34 @@ class Provider(models.Model):
     # which (if any) cloud provider the cluster is on
     infrastructure = models.ForeignKey("ProviderInfrastructureMap", null=True, on_delete=models.SET_NULL)
 
+    def save(self, *args, **kwargs):
+        """Save instance and start data ingest task for active Provider."""
+
+        should_ingest = False
+        # These values determine if a Provider is new
+        if self.created_timestamp and not self.setup_complete:
+            should_ingest = True
+
+        try:
+            provider = Provider.objects.get(uuid=self.uuid)
+        except Provider.DoesNotExist:
+            pass
+        else:
+            # These values determine if Provider credentials have been updated:
+            if provider.authentication != self.authentication or provider.billing_source != self.billing_source:
+                should_ingest = True
+
+        # Commit the new/updated Provider to the DB
+        super().save(*args, **kwargs)
+
+        if settings.AUTO_DATA_INGEST and should_ingest and self.active:
+            # Local import of task function to avoid potential import cycle.
+            from masu.celery.tasks import check_report_updates
+
+            LOG.info(f"Starting data ingest task for Provider {self.uuid}")
+            # Start check_report_updates task after Provider has been committed.
+            transaction.on_commit(lambda: check_report_updates.delay(provider_uuid=self.uuid))
+
 
 class Sources(models.Model):
     """Platform-Sources table.
@@ -218,6 +247,9 @@ class Sources(models.Model):
     # this flag will indicate that the update needs to be picked up by the Koku-Provider synchronization
     # handler.
     pending_update = models.BooleanField(default=False)
+
+    # Availability status
+    status = JSONField(null=True, default=dict)
 
     def __str__(self):
         """Get the string representation."""

@@ -17,6 +17,7 @@
 """Test the sources view."""
 import json
 from random import randint
+from unittest.mock import Mock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 from uuid import uuid4
@@ -25,13 +26,14 @@ import requests_mock
 from django.test.utils import override_settings
 from django.urls import reverse
 
+from api.common.permissions import RESOURCE_TYPE_MAP
+from api.common.permissions.aws_access import AwsAccessPermission
 from api.iam.models import Customer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
 from api.provider.provider_manager import ProviderManagerError
 from koku.middleware import IdentityHeaderMiddleware
-from providers.provider_access import ProviderAccessor
 from sources.api.view import SourcesViewSet
 
 
@@ -45,7 +47,7 @@ class SourcesViewTests(IamTestCase):
         self.test_account = "10001"
         user_data = self._create_user_data()
         customer = self._create_customer_data(account=self.test_account)
-        self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=False)
+        self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
         self.test_source_id = 1
         name = "Test Azure Source"
         customer_obj = Customer.objects.get(account_id=customer.get("account_id"))
@@ -69,7 +71,8 @@ class SourcesViewTests(IamTestCase):
         mock_url = PropertyMock(return_value="http://www.sourcesclient.com/api/v1/sources/")
         SourcesViewSet.url = mock_url
 
-    def test_source_update(self):
+    @patch("sources.tasks.create_or_update_provider.delay")
+    def test_source_update(self, mock_delay):
         """Test the PATCH endpoint."""
         credentials = {
             "subscription_id": "12345678-1234-5678-1234-567812345678",
@@ -90,10 +93,9 @@ class SourcesViewTests(IamTestCase):
             }
             url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
 
-            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-                response = self.client.patch(
-                    url, json.dumps(params), content_type="application/json", **self.request_context["request"].META
-                )
+            response = self.client.patch(
+                url, json.dumps(params), content_type="application/json", **self.request_context["request"].META
+            )
 
             self.assertEqual(response.status_code, 200)
 
@@ -156,7 +158,7 @@ class SourcesViewTests(IamTestCase):
         other_account = "10002"
         customer = self._create_customer_data(account=other_account)
         IdentityHeaderMiddleware.create_customer(other_account)
-        request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=False)
+        request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
         with requests_mock.mock() as m:
             m.get(f"http://www.sourcesclient.com/api/v1/sources/", status_code=200)
 
@@ -190,7 +192,7 @@ class SourcesViewTests(IamTestCase):
         user_data = self._create_user_data()
 
         customer = self._create_customer_data(account="10002")
-        request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=False)
+        request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
         with requests_mock.mock() as m:
             m.get(
                 f"http://www.sourcesclient.com/api/v1/sources/{self.test_source_id}/",
@@ -284,3 +286,34 @@ class SourcesViewTests(IamTestCase):
 
             self.assertEqual(response.status_code, 404)
             self.assertIsNotNone(body)
+
+    def test_sources_access(self):
+        """Test the limiting of source type visibility."""
+        mock_user = Mock(admin=True)
+        request = Mock(user=mock_user)
+        excluded = SourcesViewSet.get_excludes(request)
+        self.assertEqual(excluded, [])
+
+        mock_user = Mock(admin=False, access=None)
+        request = Mock(user=mock_user)
+        excluded = SourcesViewSet.get_excludes(request)
+        expected = []
+        for resource_type in RESOURCE_TYPE_MAP.keys():
+            expected.extend(RESOURCE_TYPE_MAP.get(resource_type))
+        self.assertEqual(excluded, expected)
+
+        permissions = {AwsAccessPermission.resource_type: {"read": []}}
+        mock_user = Mock(admin=False, access=permissions)
+        request = Mock(user=mock_user)
+        excluded = SourcesViewSet.get_excludes(request)
+        expected = []
+        for resource_type in RESOURCE_TYPE_MAP.keys():
+            expected.extend(RESOURCE_TYPE_MAP.get(resource_type))
+        self.assertEqual(excluded, expected)
+
+        permissions = {AwsAccessPermission.resource_type: {"read": ["*"]}}
+        mock_user = Mock(admin=False, access=permissions)
+        request = Mock(user=mock_user)
+        excluded = SourcesViewSet.get_excludes(request)
+        expected = [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL, Provider.PROVIDER_OCP]
+        self.assertEqual(excluded, expected)

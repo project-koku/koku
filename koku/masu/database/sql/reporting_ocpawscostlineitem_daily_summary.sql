@@ -29,31 +29,36 @@ CREATE TEMPORARY TABLE reporting_aws_tags_{{uuid | sqlsafe}} AS (
 -- columns. We reference this split multiple times so we put it in a
 -- TEMPORARY TABLE for re-use
 CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
-    SELECT ocp.*,
-        LOWER(key) as key,
-        LOWER(value) as value
-    FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp,
-        jsonb_each_text(ocp.persistentvolume_labels) labels
-    WHERE ocp.usage_start >= {{start_date}}::date
-        AND ocp.usage_start <= {{end_date}}::date
-        --ocp_where_clause
-        {% if cluster_id %}
-        AND cluster_id = {{cluster_id}}
-        {% endif %}
+    SELECT ocp.*
+    FROM (
+        SELECT ocp.*,
+            LOWER(key) as key,
+            LOWER(value) as value
+        FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp,
+            jsonb_each_text(ocp.persistentvolume_labels) labels
+        WHERE ocp.usage_start >= {{start_date}}::date
+            AND ocp.usage_start <= {{end_date}}::date
+            --ocp_where_clause
+            {% if cluster_id %}
+            AND cluster_id = {{cluster_id}}
+            {% endif %}
 
-    UNION ALL
+        UNION ALL
 
-    SELECT ocp.*,
-        LOWER(key) as key,
-        LOWER(value) as value
-    FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp,
-        jsonb_each_text(ocp.persistentvolumeclaim_labels) labels
-    WHERE ocp.usage_start >= {{start_date}}::date
-        AND ocp.usage_start <= {{end_date}}::date
-        --ocp_where_clause
-        {% if cluster_id %}
-        AND cluster_id = {{cluster_id}}
-        {% endif %}
+        SELECT ocp.*,
+            LOWER(key) as key,
+            LOWER(value) as value
+        FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily as ocp,
+            jsonb_each_text(ocp.persistentvolumeclaim_labels) labels
+        WHERE ocp.usage_start >= {{start_date}}::date
+            AND ocp.usage_start <= {{end_date}}::date
+            --ocp_where_clause
+            {% if cluster_id %}
+            AND cluster_id = {{cluster_id}}
+            {% endif %}
+    ) AS ocp
+    INNER JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys as enabled_tags
+        ON LOWER(enabled_tags.key) = ocp.key
 )
 ;
 
@@ -61,17 +66,22 @@ CREATE TEMPORARY TABLE reporting_ocp_storage_tags_{{uuid | sqlsafe}} AS (
 -- columns. We reference this split multiple times so we put it in a
 -- TEMPORARY TABLE for re-use
 CREATE TEMPORARY TABLE reporting_ocp_pod_tags_{{uuid | sqlsafe}} AS (
-    SELECT ocp.*,
-        LOWER(key) as key,
-        LOWER(value) as value
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp,
-        jsonb_each_text(ocp.pod_labels) labels
-    WHERE ocp.usage_start >= {{start_date}}::date
-        AND ocp.usage_start <= {{end_date}}::date
-        --ocp_where_clause
-        {% if cluster_id %}
-        AND cluster_id = {{cluster_id}}
-        {% endif %}
+    SELECT ocp.*
+    FROM (
+        SELECT ocp.*,
+            LOWER(key) as key,
+            LOWER(value) as value
+        FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as ocp,
+            jsonb_each_text(ocp.pod_labels) labels
+        WHERE ocp.usage_start >= {{start_date}}::date
+            AND ocp.usage_start <= {{end_date}}::date
+            --ocp_where_clause
+            {% if cluster_id %}
+            AND cluster_id = {{cluster_id}}
+            {% endif %}
+    ) AS ocp
+    INNER JOIN {{schema | sqlsafe}}.reporting_ocpenabledtagkeys as enabled_tags
+        ON LOWER(enabled_tags.key) = ocp.key
 )
 ;
 
@@ -955,6 +965,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         li.tags,
         max(li.usage_amount) as usage_amount,
         max(li.normalized_usage_amount) as normalized_usage_amount,
+        max(li.currency_code) as currency_code,
         max(li.unblended_cost) as unblended_cost,
         max(li.shared_projects) as shared_projects,
         pc.project_costs as project_costs
@@ -995,6 +1006,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         li.tags,
         max(li.usage_amount) as usage_amount,
         max(li.normalized_usage_amount) as normalized_usage_amount,
+        max(li.currency_code) as currency_code,
         max(li.unblended_cost) as unblended_cost,
         max(li.shared_projects) as shared_projects,
         pc.project_costs
@@ -1047,6 +1059,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         max(pr.unit) as unit,
         sum(li.usage_amount / li.shared_pods) as usage_amount,
         sum(li.normalized_usage_amount / li.shared_pods) as normalized_usage_amount,
+        max(li.currency_code) as currency_code,
         sum(li.unblended_cost / li.shared_pods) as unblended_cost,
         max(li.shared_pods) as shared_pods,
         li.pod_cost
@@ -1094,6 +1107,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         max(pr.unit) as unit,
         sum(li.usage_amount / li.shared_pods) as usage_amount,
         sum(li.normalized_usage_amount / li.shared_pods) as normalized_usage_amount,
+        max(li.currency_code) as currency_code,
         sum(li.unblended_cost / li.shared_pods) as unblended_cost,
         max(li.shared_pods) as shared_pods,
         li.pod_cost
@@ -1163,6 +1177,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
     tags,
     usage_amount,
     normalized_usage_amount,
+    currency_code,
     unblended_cost,
     shared_projects,
     project_costs
@@ -1188,6 +1203,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
         tags,
         usage_amount,
         normalized_usage_amount,
+        currency_code,
         unblended_cost,
         shared_projects,
         project_costs
@@ -1234,6 +1250,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
     unit,
     usage_amount,
     normalized_usage_amount,
+    currency_code,
     unblended_cost,
     pod_cost
 )
@@ -1259,6 +1276,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
         unit,
         usage_amount,
         normalized_usage_amount,
+        currency_code,
         unblended_cost,
         pod_cost
     FROM reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}}

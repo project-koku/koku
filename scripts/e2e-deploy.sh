@@ -166,10 +166,10 @@ done
 ### deploy application
 if [[ ${DEPLOY_HCCM_OPTIONAL} ]]; then
     echo "Creating HCCM & HCCM-Optional application."
-    ${IQE} oc deploy -t templates -s hccm,hccm-optional -e dev-self-contained hccm
+    ${IQE} oc deploy -t templates -s hccm,hccm-optional -e dev-self-contained hccm --secrets-src-project ${SECRETS_PROJECT}
 else
     echo "Creating HCCM application."
-    ${IQE} oc deploy -t templates -s hccm -e dev-self-contained hccm
+    ${IQE} oc deploy -t templates -s hccm -e dev-self-contained hccm --secrets-src-project ${SECRETS_PROJECT}
 fi
 
 ### expose API route

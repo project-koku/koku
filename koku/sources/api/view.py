@@ -38,13 +38,12 @@ from rest_framework.serializers import UUIDField
 from rest_framework.serializers import ValidationError
 
 from api.common.filters import CharListFilter
+from api.common.permissions import RESOURCE_TYPE_MAP
 from api.iam.models import Tenant
 from api.iam.serializers import create_schema_name
 from api.provider.models import Sources
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
-from sources.api import get_account_from_header
-from sources.api import get_auth_header
 from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesSerializer
 from sources.kafka_source_manager import KafkaSourceManager
@@ -58,7 +57,7 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
     def destroy(self, request, *args, **kwargs):
         """Delete a source."""
         source = self.get_object()
-        manager = KafkaSourceManager(get_auth_header(request))
+        manager = KafkaSourceManager(request.user.identity_header.get("encoded"))
         manager.destroy_provider(source.koku_uuid)
         response = super().destroy(request, *args, **kwargs)
         return response
@@ -117,6 +116,27 @@ class SourcesViewSet(*MIXIN_LIST):
         else:
             return AdminSourcesSerializer
 
+    @staticmethod
+    def get_excludes(request):
+        """Get excluded source types by access.
+        """
+        excludes = []
+        if request.user.admin:
+            return excludes
+        resource_access = request.user.access
+        if resource_access is None or not isinstance(resource_access, dict):
+            for resource_type in RESOURCE_TYPE_MAP.keys():
+                excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
+            return excludes
+        for resource_type in RESOURCE_TYPE_MAP.keys():
+            access_value = resource_access.get(resource_type)
+            if access_value is None:
+                excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
+            elif not access_value.get("read", []):
+                excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
+
+        return excludes
+
     def get_queryset(self):
         """Get a queryset.
 
@@ -124,9 +144,10 @@ class SourcesViewSet(*MIXIN_LIST):
         by filtering against a `account_id` in the request.
         """
         queryset = Sources.objects.none()
-        account_id = get_account_from_header(self.request)
+        account_id = self.request.user.customer.account_id
         try:
-            queryset = Sources.objects.filter(account_id=account_id)
+            excludes = self.get_excludes(self.request)
+            queryset = Sources.objects.filter(account_id=account_id).exclude(source_type__in=excludes)
         except Sources.DoesNotExist:
             LOG.error("No sources found for account id %s.", account_id)
 
@@ -155,7 +176,7 @@ class SourcesViewSet(*MIXIN_LIST):
 
     def _get_account_and_tenant(self, request):
         """Get account_id and tenant from request."""
-        account_id = get_account_from_header(request)
+        account_id = request.user.customer.account_id
         schema_name = create_schema_name(account_id)
         tenant = tenant = Tenant.objects.get(schema_name=schema_name)
         return (account_id, tenant)
@@ -174,10 +195,14 @@ class SourcesViewSet(*MIXIN_LIST):
         response = super().list(request=request, args=args, kwargs=kwargs)
         _, tenant = self._get_account_and_tenant(request)
         for source in response.data["data"]:
+            if source.get("authentication", {}).get("credentials", {}).get("client_secret"):
+                del source["authentication"]["credentials"]["client_secret"]
             try:
                 manager = ProviderManager(source["uuid"])
             except ProviderManagerError:
                 source["provider_linked"] = False
+                source["infrastructure"] = "Unknown"
+                source["cost_models"] = []
             else:
                 source["provider_linked"] = True
                 source["infrastructure"] = manager.get_infrastructure_name()
@@ -194,10 +219,14 @@ class SourcesViewSet(*MIXIN_LIST):
         """Get a source."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
         _, tenant = self._get_account_and_tenant(request)
+        if response.data.get("authentication", {}).get("credentials", {}).get("client_secret"):
+            del response.data["authentication"]["credentials"]["client_secret"]
         try:
             manager = ProviderManager(response.data["uuid"])
         except ProviderManagerError:
             response.data["provider_linked"] = False
+            response.data["infrastructure"] = "Unknown"
+            response.data["cost_models"] = []
         else:
             response.data["provider_linked"] = True
             response.data["infrastructure"] = manager.get_infrastructure_name()
@@ -212,7 +241,7 @@ class SourcesViewSet(*MIXIN_LIST):
     @action(methods=["get"], detail=True, permission_classes=[AllowAny])
     def stats(self, request, pk=None):
         """Get source stats."""
-        account_id = get_account_from_header(request)
+        account_id = request.user.customer.account_id
         schema_name = create_schema_name(account_id)
         source = self.get_object()
         stats = {}

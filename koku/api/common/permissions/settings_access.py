@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Red Hat, Inc.
+# Copyright 2020 Red Hat, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -14,17 +14,21 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Common functions for test cases to re-use."""
-from api.cloud_accounts.models import CloudAccount
+"""Defines the Settings Access Permissions class."""
+from rest_framework import permissions
 
 
-class CloudAccountCommonTestUtilities:
-    """Common functions that test cases re-use."""
+class SettingsAccessPermission(permissions.BasePermission):
+    """Determines if a user can update Settings data."""
 
-    def create_cloud_account(
-        self, name="TEST_AWS_ACCOUNT_ID", value="TEST_12345678910", description="TEST Cost Management's AWS Account ID"
-    ):
-        """Create a model for tests."""
-        cloud_account = CloudAccount.objects.create(name=name, value=value, description=description)
-        cloud_account.save()
-        return cloud_account
+    resource_type = "settings"
+
+    def has_permission(self, request, view):
+        """Check permission to view and update settings data."""
+        if request.user.admin:
+            return True
+
+        if request.method in permissions.SAFE_METHODS:
+            return True
+
+        return False

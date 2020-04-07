@@ -16,15 +16,12 @@
 #
 """Models for cost models."""
 import logging
-from functools import partial
 from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.fields import JSONField
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
-from django.db import transaction
-from django.dispatch import receiver
 
 from api.provider.models import Provider
 
@@ -61,34 +58,6 @@ class CostModel(models.Model):
     rates = JSONField(default=dict)
 
     markup = JSONField(encoder=DjangoJSONEncoder, default=dict)
-
-
-@receiver(models.signals.pre_delete, sender=CostModel)
-def cost_model_pre_delete_callback(*args, **kwargs):
-    """
-    Before deleting the cost model, queue tasks to recalculate costs associated with this.
-
-    Note: Signal receivers must accept keyword arguments (**kwargs).
-    """
-    cost_model = kwargs["instance"]
-
-    # Local import of task function to avoid potential import cycle.
-    from masu.processor.tasks import update_cost_model_costs
-
-    cost_model_maps = CostModelMap.objects.filter(cost_model=cost_model)
-    for cost_model_map in cost_model_maps:
-        try:
-            provider = Provider.objects.get(uuid=cost_model_map.provider_uuid)
-            if not provider.customer:
-                LOG.warning("Provider %s has no Customer; we cannot call update_cost_model_costs.", provider.uuid)
-                continue
-            schema_name = provider.customer.schema_name
-            delete_func = partial(update_cost_model_costs.delay, schema_name, cost_model_map.provider_uuid)
-            transaction.on_commit(delete_func)
-        except Provider.DoesNotExist:
-            LOG.warning(
-                "Cost model map %s refers to invalid provider id %s.", cost_model_map.id, cost_model_map.provider_uuid
-            )
 
 
 class CostModelAudit(models.Model):

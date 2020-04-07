@@ -43,6 +43,16 @@ All code contributions MUST come in the form of a pull-request. Pull-requests
 will be reviewed for a variety of criteria. This section attempts to capture as
 much of that criteria as possible.
 
+
+Certificate of Origin
+=====================
+
+By contributing to this project you agree to the Developer Certificate of
+Origin (DCO). This document was created by the Linux Kernel community and is a
+simple statement that you, as a contributor, have the legal right to make the
+contribution. See the `DCO <DCO>` file for details.
+
+
 Readability and Style considerations
 ------------------------------------
 
@@ -70,8 +80,8 @@ that particular check was disabled and it MUST be scoped as narrowly as
 possible. i.e. Don't disable linting on an entire class or method
 when disabling the check for a single statement will do.
 
-This repository uses [pre-commit](https://pre-commit.com) to check and enforce code style. It uses
-[Black](https://github.com/psf/black) to reformat the Python code and [Flake8](http://flake8.pycqa.org) to check it
+This repository uses `pre-commit <https://pre-commit.com />`_ to check and enforce code style. It uses
+`Black <https://github.com/psf/black />`_ to reformat the Python code and `Flake8 <http://flake8.pycqa.org />`_ to check it
 afterwards. Other formats and text files are linted as well.
 
 Install pre-commit hooks to your local repository by running:

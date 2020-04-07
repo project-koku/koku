@@ -27,9 +27,8 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
-from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
-from api.metrics.models import CostModelMetricsMap
+from api.metrics import constants as metric_constants
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
 from cost_models.models import CostModel
@@ -46,15 +45,8 @@ class CostModelViewTests(IamTestCase):
         """Initialize model data."""
         if context:
             request_context = context.get("request_context")
-            request = request_context["request"]
-            serializer = UserSerializer(data=context.get("user_data"), context=request_context)
         else:
             request_context = self.request_context
-            request = request_context["request"]
-            serializer = UserSerializer(data=self.user_data, context=request_context)
-        if serializer.is_valid(raise_exception=True):
-            user = serializer.save()
-            request.user = user
 
         provider_data = {
             "name": "test_provider",
@@ -65,28 +57,30 @@ class CostModelViewTests(IamTestCase):
         if serializer.is_valid(raise_exception=True):
             self.provider = serializer.save()
 
-        self.ocp_metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        self.ocp_metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         self.ocp_source_type = Provider.PROVIDER_OCP
         tiered_rates = [
             {
                 "value": round(Decimal(random.random()), 6),
                 "unit": "USD",
                 "usage": {"usage_start": None, "usage_end": None},
-                "cost_type": "Infrastructure",
             }
         ]
         self.fake_data = {
             "name": "Test Cost Model",
             "description": "Test",
             "source_type": self.ocp_source_type,
-            "provider_uuids": [self.provider.uuid],
-            "rates": [{"metric": {"name": self.ocp_metric}, "tiered_rates": tiered_rates}],
+            "source_uuids": [self.provider.uuid],
+            "rates": [
+                {"metric": {"name": self.ocp_metric}, "cost_type": "Infrastructure", "tiered_rates": tiered_rates}
+            ],
         }
 
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.fake_data, context=request_context)
             if serializer.is_valid(raise_exception=True):
-                serializer.save()
+                with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                    serializer.save()
 
     def setUp(self):
         """Set up the rate view tests."""
@@ -97,29 +91,31 @@ class CostModelViewTests(IamTestCase):
     def test_create_cost_model_success(self):
         """Test that we can create a cost model."""
         # create a cost model
-        url = reverse("costmodels-list")
+        url = reverse("cost-models-list")
         client = APIClient()
-        response = client.post(url, data=self.fake_data, format="json", **self.headers)
+        with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            response = client.post(url, data=self.fake_data, format="json", **self.headers)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # test that we can retrieve the cost model
-        url = reverse("costmodels-detail", kwargs={"uuid": response.data.get("uuid")})
+        url = reverse("cost-models-detail", kwargs={"uuid": response.data.get("uuid")})
         response = client.get(url, **self.headers)
         self.assertIsNotNone(response.data.get("uuid"))
-        self.assertIsNotNone(response.data.get("providers"))
+        self.assertIsNotNone(response.data.get("sources"))
         for rate in response.data.get("rates", []):
             self.assertEqual(self.fake_data["rates"][0]["metric"]["name"], rate.get("metric", {}).get("name"))
             self.assertIsNotNone(rate.get("tiered_rates"))
 
     def test_create_new_cost_model_map_association_for_provider(self):
         """Test that the CostModelMap updates for a new cost model."""
-        url = reverse("costmodels-list")
+        url = reverse("cost-models-list")
         client = APIClient()
 
         with tenant_context(self.tenant):
             original_cost_model = CostModel.objects.all()[0]
-        response = client.post(url, data=self.fake_data, format="json", **self.headers)
+        with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            response = client.post(url, data=self.fake_data, format="json", **self.headers)
         new_cost_model_uuid = response.data.get("uuid")
 
         # Test that the previous cost model for this provider is no longer
@@ -133,7 +129,7 @@ class CostModelViewTests(IamTestCase):
 
     def test_create_cost_model_invalid_rates(self):
         """Test that creating a cost model with invalid rates returns an error."""
-        url = reverse("costmodels-list")
+        url = reverse("cost-models-list")
         client = APIClient()
 
         test_data = copy.deepcopy(self.fake_data)
@@ -143,7 +139,7 @@ class CostModelViewTests(IamTestCase):
 
     def test_create_cost_model_invalid_source_type(self):
         """Test that an invalid source type is not allowed."""
-        url = reverse("costmodels-list")
+        url = reverse("cost-models-list")
         client = APIClient()
 
         test_data = copy.deepcopy(self.fake_data)
@@ -153,31 +149,24 @@ class CostModelViewTests(IamTestCase):
 
     def test_create_cost_model_invalid_cost_type(self):
         """Test that an invalid cost type causes an HTTP 400."""
-        url = reverse("costmodels-list")
+        url = reverse("cost-models-list")
         client = APIClient()
 
         test_data = copy.deepcopy(self.fake_data)
-        test_data["rates"][0]["tiered_rates"] = [
-            {
-                "unit": "USD",
-                "value": 0.22,
-                "usage": {"usage_start": None, "usage_end": None},
-                "cost_type": "Infrastructurez",
-            }
-        ]
+        test_data["rates"][0]["cost_type"] = "Infrastructurez"
         response = client.post(url, test_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_read_cost_model_success(self):
         """Test that we can read a cost model."""
         cost_model = CostModel.objects.first()
-        url = reverse("costmodels-detail", kwargs={"uuid": cost_model.uuid})
+        url = reverse("cost-models-detail", kwargs={"uuid": cost_model.uuid})
         client = APIClient()
         response = client.get(url, **self.headers)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data.get("uuid"))
-        self.assertIsNotNone(response.data.get("providers"))
+        self.assertIsNotNone(response.data.get("sources"))
         for rate in response.data.get("rates", []):
             self.assertEqual(self.ocp_metric, rate.get("metric", {}).get("name"))
             self.assertIsNotNone(rate.get("tiered_rates"))
@@ -185,21 +174,21 @@ class CostModelViewTests(IamTestCase):
     def test_filter_cost_model(self):
         """Test that we can filter a cost model."""
         client = APIClient()
-        url = "%s?name=Cost,TTTest" % reverse("costmodels-list")
+        url = "%s?name=Cost,TTTest" % reverse("cost-models-list")
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
         results = json_result.get("data")
         self.assertEqual(len(results), 0)
 
-        url = "%s?name=Cost,Test&source_type=AWS" % reverse("costmodels-list")
+        url = "%s?name=Cost,Test&source_type=AWS" % reverse("cost-models-list")
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
         results = json_result.get("data")
         self.assertEqual(len(results), 0)
 
-        url = "%s?name=Cost,Test" % reverse("costmodels-list")
+        url = "%s?name=Cost,Test" % reverse("cost-models-list")
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
@@ -207,7 +196,7 @@ class CostModelViewTests(IamTestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["name"], "Test Cost Model")
 
-        url = "%s?description=eSt" % reverse("costmodels-list")
+        url = "%s?description=eSt" % reverse("cost-models-list")
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
@@ -216,7 +205,7 @@ class CostModelViewTests(IamTestCase):
         self.assertEqual(results[0]["name"], "Test Cost Model")
         self.assertEqual(results[0]["description"], "Test")
 
-        url = "%s?description=Fo" % reverse("costmodels-list")
+        url = "%s?description=Fo" % reverse("cost-models-list")
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
@@ -225,7 +214,7 @@ class CostModelViewTests(IamTestCase):
 
     def test_read_cost_model_invalid(self):
         """Test that reading an invalid cost_model returns an error."""
-        url = reverse("costmodels-detail", kwargs={"uuid": uuid4()})
+        url = reverse("cost-models-detail", kwargs={"uuid": uuid4()})
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -236,7 +225,7 @@ class CostModelViewTests(IamTestCase):
         self.fake_data["rates"][0]["tiered_rates"][0]["value"] = new_value
 
         cost_model = CostModel.objects.first()
-        url = reverse("costmodels-detail", kwargs={"uuid": cost_model.uuid})
+        url = reverse("cost-models-detail", kwargs={"uuid": cost_model.uuid})
         client = APIClient()
         response = client.put(url, self.fake_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -249,9 +238,10 @@ class CostModelViewTests(IamTestCase):
     def test_update_cost_model_failure(self):
         """Test that we update fails with metric type duplication."""
         # create a cost model
-        url = reverse("costmodels-list")
+        url = reverse("cost-models-list")
         client = APIClient()
-        response = client.post(url, data=self.fake_data, format="json", **self.headers)
+        with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            response = client.post(url, data=self.fake_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Add another entry with tiered rates for this metric
@@ -259,8 +249,9 @@ class CostModelViewTests(IamTestCase):
         rates.append(rates[0])
 
         # Make sure the update with duplicate rate information fails
-        url = reverse("costmodels-detail", kwargs={"uuid": response.data.get("uuid")})
-        response = client.put(url, self.fake_data, format="json", **self.headers)
+        url = reverse("cost-models-detail", kwargs={"uuid": response.data.get("uuid")})
+        with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            response = client.put(url, self.fake_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_patch_failure(self):
@@ -269,7 +260,7 @@ class CostModelViewTests(IamTestCase):
         test_data["rates"][0]["tiered_rates"][0]["value"] = round(Decimal(random.random()), 6)
         with tenant_context(self.tenant):
             cost_model = CostModel.objects.first()
-            url = reverse("costmodels-detail", kwargs={"uuid": cost_model.uuid})
+            url = reverse("cost-models-detail", kwargs={"uuid": cost_model.uuid})
             client = APIClient()
 
             response = client.patch(url, test_data, format="json", **self.headers)
@@ -280,7 +271,7 @@ class CostModelViewTests(IamTestCase):
         test_data = self.fake_data
         test_data["rates"][0]["tiered_rates"][0]["value"] = round(Decimal(random.random()), 6)
 
-        url = reverse("costmodels-detail", kwargs={"uuid": uuid4()})
+        url = reverse("cost-models-detail", kwargs={"uuid": uuid4()})
         client = APIClient()
         response = client.put(url, test_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -288,9 +279,10 @@ class CostModelViewTests(IamTestCase):
     def test_delete_cost_model_success(self):
         """Test that we can delete an existing rate."""
         cost_model = CostModel.objects.first()
-        url = reverse("costmodels-detail", kwargs={"uuid": cost_model.uuid})
+        url = reverse("cost-models-detail", kwargs={"uuid": cost_model.uuid})
         client = APIClient()
-        response = client.delete(url, **self.headers)
+        with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
         # verify the cost model no longer exists
@@ -299,14 +291,15 @@ class CostModelViewTests(IamTestCase):
 
     def test_delete_cost_model_invalid(self):
         """Test that deleting an invalid cost model returns an error."""
-        url = reverse("costmodels-detail", kwargs={"uuid": uuid4()})
+        url = reverse("cost-models-detail", kwargs={"uuid": uuid4()})
         client = APIClient()
-        response = client.delete(url, **self.headers)
+        with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_read_cost_model_list_success(self):
         """Test that we can read a list of cost models."""
-        url = reverse("costmodels-list")
+        url = reverse("cost-models-list")
         client = APIClient()
         response = client.get(url, **self.headers)
 
@@ -318,7 +311,7 @@ class CostModelViewTests(IamTestCase):
 
         cost_model = response.data.get("data")[0]
         self.assertIsNotNone(cost_model.get("uuid"))
-        self.assertIsNotNone(cost_model.get("providers"))
+        self.assertIsNotNone(cost_model.get("sources"))
         self.assertEqual(
             self.fake_data["rates"][0]["metric"]["name"], cost_model.get("rates", [])[0].get("metric", {}).get("name")
         )
@@ -329,7 +322,7 @@ class CostModelViewTests(IamTestCase):
 
     def test_read_cost_model_list_success_provider_query(self):
         """Test that we can read a list of cost models for a specific provider."""
-        url = "{}?provider_uuid={}".format(reverse("costmodels-list"), self.provider.uuid)
+        url = "{}?source_uuid={}".format(reverse("cost-models-list"), self.provider.uuid)
         client = APIClient()
         response = client.get(url, **self.headers)
 
@@ -341,7 +334,7 @@ class CostModelViewTests(IamTestCase):
 
         cost_model = response.data.get("data")[0]
         self.assertIsNotNone(cost_model.get("uuid"))
-        self.assertIsNotNone(cost_model.get("providers"))
+        self.assertIsNotNone(cost_model.get("sources"))
         self.assertEqual(
             self.fake_data["rates"][0]["metric"]["name"], cost_model.get("rates", [])[0].get("metric", {}).get("name")
         )
@@ -352,7 +345,7 @@ class CostModelViewTests(IamTestCase):
 
     def test_read_cost_model_list_failure_provider_query(self):
         """Test that we throw proper error for invalid provider_uuid query."""
-        url = "{}?provider_uuid={}".format(reverse("costmodels-list"), "not_a_uuid")
+        url = "{}?provider_uuid={}".format(reverse("cost-models-list"), "not_a_uuid")
 
         client = APIClient()
         response = client.get(url, **self.headers)
@@ -362,7 +355,7 @@ class CostModelViewTests(IamTestCase):
 
     def test_return_error_on_invalid_query_field(self):
         """Test that an error is thrown when a query field is incorrect."""
-        url = "{}?wrong={}".format(reverse("costmodels-list"), "query")
+        url = "{}?wrong={}".format(reverse("cost-models-list"), "query")
 
         client = APIClient()
         response = client.get(url, **self.headers)
@@ -370,7 +363,7 @@ class CostModelViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_list_cost_model_rate_rbac_access(self):
-        """Test GET /costmodels with an rbac user."""
+        """Test GET /cost-models with an rbac user."""
         user_data = self._create_user_data()
         customer = self._create_customer_data()
         request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=False)
@@ -389,22 +382,23 @@ class CostModelViewTests(IamTestCase):
 
         for test_case in test_matrix:
             with patch.object(RbacService, "get_access_for_user", return_value=test_case.get("access")):
-                url = reverse("costmodels-list")
+                url = reverse("cost-models-list")
                 caches["rbac"].clear()
                 response = client.get(url, **request_context["request"].META)
                 self.assertEqual(response.status_code, test_case.get("expected_response"))
 
     def test_get_cost_model_rate_rbac_access(self):
-        """Test GET /costmodels/{uuid} with an rbac user."""
+        """Test GET /cost-models/{uuid} with an rbac user."""
         # create a cost model
         user_data = self._create_user_data()
         customer = self._create_customer_data()
 
         admin_request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
 
-        url = reverse("costmodels-list")
+        url = reverse("cost-models-list")
         client = APIClient()
-        response = client.post(url, data=self.fake_data, format="json", **admin_request_context["request"].META)
+        with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            response = client.post(url, data=self.fake_data, format="json", **admin_request_context["request"].META)
         cost_model_uuid = response.data.get("uuid")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
@@ -426,7 +420,7 @@ class CostModelViewTests(IamTestCase):
 
         for test_case in test_matrix:
             with patch.object(RbacService, "get_access_for_user", return_value=test_case.get("access")):
-                url = reverse("costmodels-detail", kwargs={"uuid": cost_model_uuid})
+                url = reverse("cost-models-detail", kwargs={"uuid": cost_model_uuid})
                 caches["rbac"].clear()
                 response = client.get(url, **request_context["request"].META)
                 self.assertEqual(response.status_code, test_case.get("expected_response"))
@@ -439,10 +433,13 @@ class CostModelViewTests(IamTestCase):
 
         admin_request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
         with patch.object(RbacService, "get_access_for_user", return_value=None):
-            url = reverse("costmodels-list")
+            url = reverse("cost-models-list")
             client = APIClient()
 
-            response = client.post(url, data=self.fake_data, format="json", **admin_request_context["request"].META)
+            with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                response = client.post(
+                    url, data=self.fake_data, format="json", **admin_request_context["request"].META
+                )
             cost_model_uuid = response.data.get("uuid")
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
@@ -457,17 +454,17 @@ class CostModelViewTests(IamTestCase):
             {
                 "access": {"rate": {"read": [], "write": []}},
                 "expected_response": status.HTTP_403_FORBIDDEN,
-                "metric": {"name": CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
+                "metric": {"name": metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR},
             },
             {
                 "access": {"rate": {"read": ["*"], "write": ["*"]}},
                 "expected_response": status.HTTP_201_CREATED,
-                "metric": {"name": CostModelMetricsMap.OCP_METRIC_CPU_CORE_REQUEST_HOUR},
+                "metric": {"name": metric_constants.OCP_METRIC_CPU_CORE_REQUEST_HOUR},
             },
             {
                 "access": {"rate": {"read": ["*"], "write": ["*"]}},
                 "expected_response": status.HTTP_201_CREATED,
-                "metric": {"name": CostModelMetricsMap.OCP_METRIC_MEM_GB_REQUEST_HOUR},
+                "metric": {"name": metric_constants.OCP_METRIC_MEM_GB_REQUEST_HOUR},
             },
         ]
         client = APIClient()
@@ -475,11 +472,12 @@ class CostModelViewTests(IamTestCase):
 
         for test_case in test_matrix:
             with patch.object(RbacService, "get_access_for_user", return_value=test_case.get("access")):
-                url = reverse("costmodels-list")
+                url = reverse("cost-models-list")
                 rate_data = copy.deepcopy(self.fake_data)
                 rate_data["rates"][0]["metric"] = test_case.get("metric")
                 caches["rbac"].clear()
-                response = client.post(url, data=rate_data, format="json", **request_context["request"].META)
+                with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                    response = client.post(url, data=rate_data, format="json", **request_context["request"].META)
 
                 self.assertEqual(response.status_code, test_case.get("expected_response"))
                 if response.data.get("uuid"):
@@ -507,13 +505,14 @@ class CostModelViewTests(IamTestCase):
 
         for test_case in test_matrix:
             with patch.object(RbacService, "get_access_for_user", return_value=test_case.get("access")):
-                url = reverse("costmodels-list")
+                url = reverse("cost-models-list")
                 rate_data = copy.deepcopy(self.fake_data)
                 rate_data["rates"][0].get("tiered_rates")[0]["value"] = test_case.get("value")
 
-                url = reverse("costmodels-detail", kwargs={"uuid": cost_model_uuid})
+                url = reverse("cost-models-detail", kwargs={"uuid": cost_model_uuid})
                 caches["rbac"].clear()
-                response = client.put(url, data=rate_data, format="json", **request_context["request"].META)
+                with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                    response = client.put(url, data=rate_data, format="json", **request_context["request"].META)
 
                 self.assertEqual(response.status_code, test_case.get("expected_response"))
 
@@ -543,9 +542,10 @@ class CostModelViewTests(IamTestCase):
         client = APIClient()
         for test_case in test_matrix:
             with patch.object(RbacService, "get_access_for_user", return_value=test_case.get("access")):
-                url = reverse("costmodels-detail", kwargs={"uuid": test_case.get("cost_model_uuid")})
+                url = reverse("cost-models-detail", kwargs={"uuid": test_case.get("cost_model_uuid")})
                 caches["rbac"].clear()
-                response = client.delete(url, **request_context["request"].META)
+                with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+                    response = client.delete(url, **request_context["request"].META)
                 self.assertEqual(response.status_code, test_case.get("expected_response"))
 
     def test_cost_model_audit_table(self):
@@ -561,28 +561,57 @@ class CostModelViewTests(IamTestCase):
             "name": "Test Cost Model",
             "description": "Test",
             "source_type": self.ocp_source_type,
-            "provider_uuids": [],
+            "source_uuids": [],
             "rates": [{"metric": {"name": self.ocp_metric}, "tiered_rates": tiered_rates}],
         }
 
-        url = reverse("costmodels-list")
+        url = reverse("cost-models-list")
         client = APIClient()
-        response = client.post(url, data=fake_data, format="json", **self.headers)
+        with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            response = client.post(url, data=fake_data, format="json", **self.headers)
         cost_model_uuid = response.data.get("uuid")
 
         with tenant_context(self.tenant):
             audit = CostModelAudit.objects.last()
             self.assertEqual(audit.operation, "INSERT")
 
-        fake_data["provider_uuids"] = [self.provider.uuid]
-        url = reverse("costmodels-detail", kwargs={"uuid": cost_model_uuid})
-        response = client.put(url, data=fake_data, format="json", **self.headers)
+        fake_data["source_uuids"] = [self.provider.uuid]
+        url = reverse("cost-models-detail", kwargs={"uuid": cost_model_uuid})
+        with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            response = client.put(url, data=fake_data, format="json", **self.headers)
         with tenant_context(self.tenant):
             audit = CostModelAudit.objects.last()
             self.assertEqual(audit.operation, "UPDATE")
 
-        response = client.delete(url, format="json", **self.headers)
+        with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            response = client.delete(url, format="json", **self.headers)
 
         with tenant_context(self.tenant):
             audit = CostModelAudit.objects.last()
             self.assertEqual(audit.operation, "DELETE")
+
+    def test_cost_type_returned_without_being_set(self):
+        """Test that a default cost type is returned."""
+        rates = self.fake_data.get("rates", [])
+        for rate in rates:
+            rate.pop("cost_type")
+
+        # self.fake_date["rates"] = rates
+        url = reverse("cost-models-list")
+        client = APIClient()
+        with patch("masu.processor.tasks.update_cost_model_costs.delay"):
+            response = client.post(url, data=self.fake_data, format="json", **self.headers)
+        data = response.data
+
+        for rate in data.get("rates", []):
+            self.assertIn("cost_type", rate)
+            self.assertEqual(rate["cost_type"], metric_constants.SUPPLEMENTARY_COST_TYPE)
+
+    def test_invalid_cost_metric_map_500_error(self):
+        """Test that the API returns a 500 error when there is invalid cost model metric map"""
+        url = reverse("cost-models-list")
+        client = APIClient()
+        MOCK_COST_MODEL_METRIC_MAP = [{"Invalid": "Invalid"}]
+        with patch("api.metrics.constants.COST_MODEL_METRIC_MAP", MOCK_COST_MODEL_METRIC_MAP):
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
