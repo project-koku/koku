@@ -71,6 +71,14 @@ class DatabaseStatusTest(IamTestCase):
         self.assertIsNotNone(after)
         self.assertEqual(1, after - before)
 
+    @patch("koku.metrics.push_to_gateway", side_effect=OSError)
+    @patch("koku.metrics.DatabaseStatus.collect")
+    def test_celery_task_no_pushgateway(self, _, __):
+        """Test that we handle connection issues gracefully."""
+        logging.disable(logging.NOTSET)
+        with self.assertLogs(logger="koku.metrics", level=logging.ERROR):
+            collect_metrics.s().apply()
+
     @patch("koku.metrics.DatabaseStatus.query", return_value=True)
     def test_schema_size(self, mock_status):
         """Test schema_size()."""
