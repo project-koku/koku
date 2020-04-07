@@ -75,6 +75,8 @@ def backoff(interval, maximum=120):
 
 
 def log_info(_func=None, *, msg):
+    """Log the msg when the decorated function is called."""
+
     def decorator_log_info(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -90,6 +92,11 @@ def log_info(_func=None, *, msg):
 
 
 def while_true(_func=None):
+    """Wrap a function in a `while True` loop.
+
+    If Config.SOURCES_TESTING is True, function is run once.
+    """
+
     def decorator_while_true(func):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
