@@ -24,6 +24,7 @@ import sys
 import threading
 import time
 
+import psutil
 from aiokafka import AIOKafkaConsumer
 from django.db import connection
 from django.db import InterfaceError
@@ -577,11 +578,25 @@ def check_kafka_connection():  # pragma: no cover
     return result
 
 
+def find_sources_proc():
+    "Return the sources management command proc."
+    for p in psutil.process_iter():
+        cmdline = p.cmdline()
+        if cmdline == ["python", "koku/manage.py", "sources"]:
+            return p
+    return None
+
+
 def handle_exception(EVENT_LOOP, context):
     # EVENT_LOOP.default_exception_handler(context)
     exception = context.get("exception")
     LOG.error(f"Shutting down due to exception: {str(exception)}")
     EVENT_LOOP.stop()
+    sources_command_proc = find_sources_proc()
+    if sources_command_proc:
+        sources_command_proc.terminate()
+    else:
+        LOG.error("Unable to find sources process")
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
@@ -641,4 +656,3 @@ def initialize_sources_integration():  # pragma: no cover
     event_loop_thread = threading.Thread(target=asyncio_sources_thread, args=(EVENT_LOOP,))
     event_loop_thread.start()
     LOG.info("Listening for kafka events")
-    event_loop_thread.join()
