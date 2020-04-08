@@ -130,11 +130,15 @@ class DatabaseStatus:
         return self.query(query, "DB storage consumption")
 
 
-@app.task(name="koku.metrics.collect_metrics")
-def collect_metrics():
+@app.task(name="koku.metrics.collect_metrics", bind=True)
+def collect_metrics(self):
     """Collect DB metrics with scheduled celery task."""
     db_status = DatabaseStatus()
     db_status.connection_check()
     db_status.collect()
     LOG.debug("Pushing stats to gateway: %s", settings.PROMETHEUS_PUSHGATEWAY)
-    push_to_gateway(settings.PROMETHEUS_PUSHGATEWAY, job="koku.metrics.collect_metrics", registry=REGISTRY)
+    try:
+        push_to_gateway(settings.PROMETHEUS_PUSHGATEWAY, job="koku.metrics.collect_metrics", registry=REGISTRY)
+    except OSError as exc:
+        LOG.error("Problem reaching pushgateway: %s", exc)
+        self.update_state(state="FAILURE", meta={"result": exc, "traceback": exc.__traceback__})
