@@ -28,6 +28,7 @@ from aiokafka import AIOKafkaConsumer
 from django.db import connection
 from django.db import InterfaceError
 from django.db import OperationalError
+from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from kafka.errors import KafkaError
@@ -306,7 +307,8 @@ def sources_network_info(source_id, auth_header):
     save_auth_info(auth_header, source_id)
 
 
-async def process_message(app_type_id, msg_data):  # noqa: C901; pragma: no cover
+@transaction.atomic
+async def process_message(app_type_id, msg_data):
     """
     Process message from Platform-Sources kafka service.
 
@@ -326,64 +328,47 @@ async def process_message(app_type_id, msg_data):  # noqa: C901; pragma: no cove
 
     """
     LOG.info(f"Processing Event: {str(msg_data)}")
-    try:
-        if msg_data.get("event_type") in (KAFKA_APPLICATION_CREATE,):
+    if msg_data.get("event_type") in (KAFKA_APPLICATION_CREATE,):
 
-            storage.create_source_event(msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset"))
+        storage.create_source_event(msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset"))
+
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            await EVENT_LOOP.run_in_executor(
+                pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
+            )
+
+    elif msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
+        sources_network = SourcesHTTPClient(msg_data.get("auth_header"))
+        msg_data["source_id"] = sources_network.get_source_id_from_endpoint_id(msg_data.get("resource_id"))
+        is_cost_mgmt = sources_network.get_application_type_is_cost_management(msg_data.get("source_id"))
+        if is_cost_mgmt:
+
+            if msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE,):
+                storage.create_source_event(  # this will create source _only_ if it does not exist.
+                    msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset")
+                )
 
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 await EVENT_LOOP.run_in_executor(
-                    pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
+                    pool, save_auth_info, msg_data.get("auth_header"), msg_data.get("source_id")
                 )
+        else:
+            LOG.info(f"Resource id {msg_data.get('resource_id')} not associated with cost-management.")
 
-        elif msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
-            sources_network = SourcesHTTPClient(msg_data.get("auth_header"))
-            msg_data["source_id"] = sources_network.get_source_id_from_endpoint_id(msg_data.get("resource_id"))
-            is_cost_mgmt = sources_network.get_application_type_is_cost_management(msg_data.get("source_id"))
-            if is_cost_mgmt:
+    elif msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE,):
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            if storage.is_known_source(msg_data.get("source_id")) is False:
+                LOG.info(f"Update event for unknown source id, skipping...")
+                return
+            await EVENT_LOOP.run_in_executor(
+                pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
+            )
 
-                if msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE,):
-                    storage.create_source_event(  # this will create source _only_ if it does not exist.
-                        msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset")
-                    )
+    elif msg_data.get("event_type") in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
+        storage.enqueue_source_delete(msg_data.get("source_id"))
 
-                with concurrent.futures.ThreadPoolExecutor() as pool:
-                    await EVENT_LOOP.run_in_executor(
-                        pool, save_auth_info, msg_data.get("auth_header"), msg_data.get("source_id")
-                    )
-            else:
-                LOG.info(f"Resource id {msg_data.get('resource_id')} not associated with cost-management.")
-
-        elif msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE,):
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                if storage.is_known_source(msg_data.get("source_id")) is False:
-                    LOG.info(f"Update event for unknown source id, skipping...")
-                    return
-                await EVENT_LOOP.run_in_executor(
-                    pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
-                )
-
-        elif msg_data.get("event_type") in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
-            storage.enqueue_source_delete(msg_data.get("source_id"))
-
-        if msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE, KAFKA_AUTHENTICATION_UPDATE):
-            storage.enqueue_source_update(msg_data.get("source_id"))
-    except (InterfaceError, OperationalError) as error:
-        LOG.error(
-            f"[process_message] Closing DB connection and re-queueing failed operation."
-            f" Encountered {type(error).__name__}: {error}"
-        )
-        connection.close()
-        await asyncio.sleep(Config.RETRY_SECONDS)
-        LOG.info(
-            f'Requeued failed operation: {msg_data.get("event_type")} '
-            f'for Source ID: {str(msg_data.get("source_id"))}.'
-        )
-    except Exception as error:
-        # The reason for catching all exceptions is to ensure that the event
-        # loop remains active in the event that message processing fails unexpectedly.
-        source_id = str(msg_data.get("source_id", "unknown"))
-        LOG.error(f"Source {source_id} Unexpected message processing error: {str(error)}", exc_info=True)
+    if msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE, KAFKA_AUTHENTICATION_UPDATE):
+        storage.enqueue_source_update(msg_data.get("source_id"))
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
@@ -592,6 +577,13 @@ def check_kafka_connection():  # pragma: no cover
     return result
 
 
+def handle_exception(EVENT_LOOP, context):
+    # EVENT_LOOP.default_exception_handler(context)
+    exception = context.get("exception")
+    LOG.error(f"Shutting down due to exception: {str(exception)}")
+    EVENT_LOOP.stop()
+
+
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
 def asyncio_sources_thread(event_loop):  # pragma: no cover
     """
@@ -604,6 +596,8 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
         None
 
     """
+    event_loop.set_exception_handler(handle_exception)
+
     cost_management_type_id = None
     count = 0
     while cost_management_type_id is None:
@@ -647,3 +641,4 @@ def initialize_sources_integration():  # pragma: no cover
     event_loop_thread = threading.Thread(target=asyncio_sources_thread, args=(EVENT_LOOP,))
     event_loop_thread.start()
     LOG.info("Listening for kafka events")
+    event_loop_thread.join()
