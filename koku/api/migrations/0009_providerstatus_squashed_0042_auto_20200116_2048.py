@@ -23,23 +23,6 @@ def seed_cost_management_aws_account_id(apps, schema_editor):
     cloud_account.save()
 
 
-# api.migrations.0040_auto_20191121_2154
-def load_openshift_metric_map(apps, schema_editor):
-    """Load AWS Cost Usage report to database mapping."""
-    CostModelMetricsMap = apps.get_model("api", "CostModelMetricsMap")
-    CostModelMetricsMap.objects.all().delete()
-
-    data = pkgutil.get_data("api", "metrics/data/cost_models_metric_map.json")
-
-    data = json.loads(data)
-
-    for entry in data:
-        # Deleting this entry as it does not exist in the table/model at this point in migrations
-        del entry["default_cost_type"]
-        map = CostModelMetricsMap(**entry)
-        map.save()
-
-
 class Migration(migrations.Migration):
 
     replaces = [
@@ -189,7 +172,7 @@ class Migration(migrations.Migration):
                 ("source_type", models.CharField(max_length=50)),
                 ("authentication", django.contrib.postgres.fields.jsonb.JSONField(default=dict)),
                 ("billing_source", django.contrib.postgres.fields.jsonb.JSONField(default=dict, null=True)),
-                ("koku_uuid", models.CharField(max_length=512, null=True)),
+                ("koku_uuid", models.CharField(max_length=512, null=True, unique=True)),
                 ("auth_header", models.TextField(null=True)),
                 ("pending_delete", models.BooleanField(default=False)),
                 ("offset", models.IntegerField()),
@@ -199,17 +182,6 @@ class Migration(migrations.Migration):
                 ("account_id", models.CharField(max_length=150, null=True)),
             ],
             options={"db_table": "api_sources"},
-        ),
-        # This is here to ensure that the constraint name on this ticket branch matches the
-        # name that exists on the master branch and in production
-        migrations.RunSQL(
-            sql="""
-            alter table public.api_sources
-              add constraint api_sources_koku_uuid_ed719dad_uniq unique (koku_uuid);
-
-            CREATE INDEX api_sources_koku_uuid_ed719dad_like
-                ON public.api_sources USING btree (koku_uuid varchar_pattern_ops);
-            """
         ),
         migrations.CreateModel(
             name="CloudAccount",
@@ -256,5 +228,4 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.RunPython(code=seed_cost_management_aws_account_id),
-        migrations.RunPython(code=load_openshift_metric_map),
     ]

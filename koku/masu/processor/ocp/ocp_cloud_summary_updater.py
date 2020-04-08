@@ -16,10 +16,10 @@
 #
 """Updates report summary tables in the database."""
 # pylint: skip-file
-import datetime
 import logging
 from decimal import Decimal
 
+from dateutil import parser
 from django.db import connection
 from tenant_schemas.utils import schema_context
 
@@ -28,11 +28,15 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
+from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
 from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_id_from_provider
+from reporting.models import OCP_ON_AWS_MATERIALIZED_VIEWS
+from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
 
 LOG = logging.getLogger(__name__)
@@ -73,24 +77,30 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
             elif infra_provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
                 self.update_azure_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
 
+            # Update markup for OpenShift tables
+            with ProviderDBAccessor(ocp_provider_uuid) as provider_accessor:
+                OCPCostModelCostUpdater(self._schema, provider_accessor.provider)._update_markup_cost(
+                    start_date, end_date
+                )
+
         if infra_map:
-            self.refresh_openshift_on_infrastructure_views()
+            self.refresh_openshift_on_infrastructure_views(OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS)
 
     def update_aws_summary_tables(self, openshift_provider_uuid, aws_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on AWS."""
+        if isinstance(start_date, str):
+            start_date = parser.parse(start_date)
+        if isinstance(end_date, str):
+            end_date = parser.parse(end_date)
+
         cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
-        aws_bills = aws_get_bills_from_provider(
-            aws_provider_uuid,
-            self._schema,
-            datetime.datetime.strptime(start_date, "%Y-%m-%d"),
-            datetime.datetime.strptime(end_date, "%Y-%m-%d"),
-        )
+        aws_bills = aws_get_bills_from_provider(aws_provider_uuid, self._schema, start_date, end_date)
         aws_bill_ids = []
         with schema_context(self._schema):
             aws_bill_ids = [str(bill.id) for bill in aws_bills]
 
-        with CostModelDBAccessor(self._schema, aws_provider_uuid, self._column_map) as cost_model_accessor:
-            markup = cost_model_accessor.get_markup()
+        with CostModelDBAccessor(self._schema, aws_provider_uuid) as cost_model_accessor:
+            markup = cost_model_accessor.markup
             markup_value = Decimal(markup.get("value", 0)) / 100
 
         # OpenShift on AWS
@@ -110,6 +120,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                 accessor.populate_ocp_on_aws_cost_daily_summary(start, end, cluster_id, aws_bill_ids)
             accessor.populate_ocp_on_aws_markup_cost(markup_value, aws_bill_ids)
             accessor.populate_ocp_on_aws_tags_summary_table()
+        self.refresh_openshift_on_infrastructure_views(OCP_ON_AWS_MATERIALIZED_VIEWS)
 
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             # This call just sends the infrastructure cost to the
@@ -118,19 +129,19 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
 
     def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on Azure."""
+        if isinstance(start_date, str):
+            start_date = parser.parse(start_date)
+        if isinstance(end_date, str):
+            end_date = parser.parse(end_date)
+
         cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
-        azure_bills = azure_get_bills_from_provider(
-            azure_provider_uuid,
-            self._schema,
-            datetime.datetime.strptime(start_date, "%Y-%m-%d"),
-            datetime.datetime.strptime(end_date, "%Y-%m-%d"),
-        )
+        azure_bills = azure_get_bills_from_provider(azure_provider_uuid, self._schema, start_date, end_date)
         azure_bill_ids = []
         with schema_context(self._schema):
             azure_bill_ids = [str(bill.id) for bill in azure_bills]
 
-        with CostModelDBAccessor(self._schema, azure_provider_uuid, self._column_map) as cost_model_accessor:
-            markup = cost_model_accessor.get_markup()
+        with CostModelDBAccessor(self._schema, azure_provider_uuid) as cost_model_accessor:
+            markup = cost_model_accessor.markup
             markup_value = Decimal(markup.get("value", 0)) / 100
 
         # OpenShift on Azure
@@ -155,11 +166,12 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
             # This call just sends the infrastructure cost to the
             # OCP usage daily summary table
             accessor.update_summary_infrastructure_cost(cluster_id, start_date, end_date)
+        self.refresh_openshift_on_infrastructure_views(OCP_ON_AZURE_MATERIALIZED_VIEWS)
 
-    def refresh_openshift_on_infrastructure_views(self):
+    def refresh_openshift_on_infrastructure_views(self, view_set):
         """Refresh MATERIALIZED VIEWs."""
         with schema_context(self._schema):
-            for view in OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS:
+            for view in view_set:
                 table_name = view._meta.db_table
                 with connection.cursor() as cursor:
                     cursor.execute(f"REFRESH MATERIALIZED VIEW {table_name}")

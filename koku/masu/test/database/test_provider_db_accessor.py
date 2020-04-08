@@ -33,20 +33,20 @@ class ProviderDBAccessorTest(MasuTestCase):
 
     def test_initializer_auth_id(self):
         """Test Initializer with authentication database id."""
-        auth_id = self.aws_db_auth_id
+        auth_id = self.aws_db_auth.id
         with ProviderDBAccessor(auth_id=auth_id) as accessor:
             self.assertTrue(accessor.does_db_entry_exist())
 
     def test_initializer_provider_uuid_and_auth_id(self):
         """Test Initializer with provider uuid and authentication database id."""
-        auth_id = self.aws_db_auth_id
+        auth_id = self.aws_db_auth.id
         uuid = self.aws_provider_uuid
         with ProviderDBAccessor(provider_uuid=uuid, auth_id=auth_id) as accessor:
             self.assertTrue(accessor.does_db_entry_exist())
 
     def test_initializer_provider_uuid_and_auth_id_mismatch(self):
         """Test Initializer with provider uuid and authentication database id mismatch."""
-        auth_id = self.ocp_db_auth_id
+        auth_id = self.ocp_db_auth.id
         uuid = self.aws_provider_uuid
         with ProviderDBAccessor(provider_uuid=uuid, auth_id=auth_id) as accessor:
             self.assertFalse(accessor.does_db_entry_exist())
@@ -66,18 +66,18 @@ class ProviderDBAccessorTest(MasuTestCase):
         """Test provider name getter."""
         uuid = self.aws_provider_uuid
         with ProviderDBAccessor(uuid) as accessor:
-            self.assertEqual("Test Provider", accessor.get_provider_name())
+            self.assertEqual(accessor.get_provider_name(), self.aws_provider.name)
 
     def test_get_type(self):
         """Test provider type getter."""
         uuid = self.aws_provider_uuid
         with ProviderDBAccessor(uuid) as accessor:
-            self.assertEqual(Provider.PROVIDER_AWS, accessor.get_type())
+            self.assertIn(accessor.get_type(), (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL))
 
     def test_get_authentication(self):
         """Test provider authentication getter."""
         uuid = self.aws_provider_uuid
-        expected_auth_string = self.aws_provider_resource_name
+        expected_auth_string = self.aws_db_auth.provider_resource_name
         with ProviderDBAccessor(uuid) as accessor:
             self.assertEqual(expected_auth_string, accessor.get_authentication())
 
@@ -159,12 +159,12 @@ class ProviderDBAccessorTest(MasuTestCase):
 
     def test_get_associated_openshift_providers(self):
         """Test that infrastructure provider UUID is returned."""
-        infrastructure_type = Provider.PROVIDER_AWS
-        with ProviderDBAccessor(self.ocp_provider_uuid) as accessor:
+        infrastructure_type = Provider.PROVIDER_AWS_LOCAL
+        with ProviderDBAccessor(self.ocp_on_aws_ocp_provider.uuid) as accessor:
             accessor.set_infrastructure(self.aws_provider_uuid, infrastructure_type)
 
         with ProviderDBAccessor(self.aws_provider_uuid) as accessor:
             providers = accessor.get_associated_openshift_providers()
 
         self.assertEqual(len(providers), 1)
-        self.assertEqual(str(providers[0].uuid), self.ocp_provider_uuid)
+        self.assertEqual(providers[0].uuid, self.ocp_on_aws_ocp_provider.uuid)

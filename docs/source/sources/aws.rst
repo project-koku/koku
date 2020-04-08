@@ -80,7 +80,7 @@ Creating an IAM Role
 #. Select the newly created role ``CostManagement`` to view the summary.
 #. Capture the *Role ARN* as it will be used in the provider creation.
 
-Create an AWS Account Provider
+Create an AWS Account Source
 ******************************
 
 Using the information from the steps above which included the *S3 bucket name* and the *Role ARN* you can create an AWS account provider. Once created the cost and usage data will be processed and made viewable within the system.

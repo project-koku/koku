@@ -25,7 +25,15 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
+from reporting.models import AzureComputeSummary
 from reporting.models import AzureCostEntryLineItemDailySummary
+from reporting.models import AzureCostSummary
+from reporting.models import AzureCostSummaryByAccount
+from reporting.models import AzureCostSummaryByLocation
+from reporting.models import AzureCostSummaryByService
+from reporting.models import AzureDatabaseSummary
+from reporting.models import AzureNetworkSummary
+from reporting.models import AzureStorageSummary
 
 
 class AzureProviderMap(ProviderMap):
@@ -52,27 +60,49 @@ class AzureProviderMap(ProviderMap):
                 "report_type": {
                     "costs": {
                         "aggregates": {
-                            "cost": Sum(
+                            "infra_total": Sum(
                                 Coalesce(F("pretax_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infrastructure_cost": Sum("pretax_cost"),
-                            "derived_cost": Sum(Value(0, output_field=DecimalField())),
-                            "markup_cost": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "infra_raw": Sum("pretax_cost"),
+                            "infra_usage": Sum(Value(0, output_field=DecimalField())),
+                            "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "sup_raw": Sum(Value(0, output_field=DecimalField())),
+                            "sup_usage": Sum(Value(0, output_field=DecimalField())),
+                            "sup_markup": Sum(Value(0, output_field=DecimalField())),
+                            "sup_total": Sum(Value(0, output_field=DecimalField())),
+                            "cost_total": Sum(
+                                Coalesce(F("pretax_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            "cost_raw": Sum("pretax_cost"),
+                            "cost_usage": Sum(Value(0, output_field=DecimalField())),
+                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                         },
                         "aggregate_key": "pretax_cost",
                         "annotations": {
-                            "cost": Sum(
+                            "infra_total": Sum(
                                 Coalesce(F("pretax_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infrastructure_cost": Sum("pretax_cost"),
-                            "derived_cost": Value(0, output_field=DecimalField()),
-                            "markup_cost": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "infra_raw": Sum("pretax_cost"),
+                            "infra_usage": Value(0, output_field=DecimalField()),
+                            "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "sup_raw": Value(0, output_field=DecimalField()),
+                            "sup_usage": Value(0, output_field=DecimalField()),
+                            "sup_markup": Value(0, output_field=DecimalField()),
+                            "sup_total": Value(0, output_field=DecimalField()),
+                            "cost_total": Sum(
+                                Coalesce(F("pretax_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            "cost_raw": Sum("pretax_cost"),
+                            "cost_usage": Value(0, output_field=DecimalField()),
+                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
                         },
                         "delta_key": {
-                            "cost": Sum(
+                            "cost_total": Sum(
                                 Coalesce(F("pretax_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             )
@@ -80,30 +110,52 @@ class AzureProviderMap(ProviderMap):
                         "filter": [{}],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
-                        "sum_columns": ["cost", "infrastructure_cost", "derived_cost", "markup_cost"],
-                        "default_ordering": {"cost": "desc"},
+                        "sum_columns": ["cost_total", "sup_total", "infra_total"],
+                        "default_ordering": {"cost_total": "desc"},
                     },
                     "instance_type": {
                         "aggregates": {
-                            "cost": Sum(
+                            "infra_total": Sum(
                                 Coalesce(F("pretax_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infrastructure_cost": Sum("pretax_cost"),
-                            "derived_cost": Sum(Value(0, output_field=DecimalField())),
-                            "markup_cost": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "infra_raw": Sum("pretax_cost"),
+                            "infra_usage": Sum(Value(0, output_field=DecimalField())),
+                            "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "sup_raw": Sum(Value(0, output_field=DecimalField())),
+                            "sup_usage": Sum(Value(0, output_field=DecimalField())),
+                            "sup_markup": Sum(Value(0, output_field=DecimalField())),
+                            "sup_total": Sum(Value(0, output_field=DecimalField())),
+                            "cost_total": Sum(
+                                Coalesce(F("pretax_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            "cost_raw": Sum("pretax_cost"),
+                            "cost_usage": Sum(Value(0, output_field=DecimalField())),
+                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "count": Sum(Value(0, output_field=DecimalField())),
                             "usage": Sum("usage_quantity"),
                         },
                         "aggregate_key": "usage_quantity",
                         "annotations": {
-                            "cost": Sum(
+                            "infra_total": Sum(
                                 Coalesce(F("pretax_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infrastructure_cost": Sum("pretax_cost"),
-                            "derived_cost": Value(0, output_field=DecimalField()),
-                            "markup_cost": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "infra_raw": Sum("pretax_cost"),
+                            "infra_usage": Value(0, output_field=DecimalField()),
+                            "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "sup_raw": Value(0, output_field=DecimalField()),
+                            "sup_usage": Value(0, output_field=DecimalField()),
+                            "sup_markup": Value(0, output_field=DecimalField()),
+                            "sup_total": Value(0, output_field=DecimalField()),
+                            "cost_total": Sum(
+                                Coalesce(F("pretax_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            "cost_raw": Sum("pretax_cost"),
+                            "cost_usage": Value(0, output_field=DecimalField()),
+                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
                             "count": Max("instance_count"),
                             "count_units": Value("instance_types", output_field=CharField()),
@@ -119,39 +171,53 @@ class AzureProviderMap(ProviderMap):
                         "usage_units_key": "unit_of_measure",
                         "usage_units_fallback": "Instance Type Placeholder",  # FIXME: Waiting on MSFT
                         "count_units_fallback": "instances",
-                        "sum_columns": [
-                            "usage",
-                            "cost",
-                            "infrastructure_cost",
-                            "derived_cost",
-                            "markup_cost",
-                            "count",
-                        ],
+                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total", "count"],
                         "default_ordering": {"usage": "desc"},
                     },
                     "storage": {
                         "aggregates": {
-                            "cost": Sum(
+                            "infra_total": Sum(
                                 Coalesce(F("pretax_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
+                            "infra_raw": Sum("pretax_cost"),
+                            "infra_usage": Sum(Value(0, output_field=DecimalField())),
+                            "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "sup_raw": Sum(Value(0, output_field=DecimalField())),
+                            "sup_usage": Sum(Value(0, output_field=DecimalField())),
+                            "sup_markup": Sum(Value(0, output_field=DecimalField())),
+                            "sup_total": Sum(Value(0, output_field=DecimalField())),
+                            "cost_total": Sum(
+                                Coalesce(F("pretax_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            "cost_raw": Sum("pretax_cost"),
+                            "cost_usage": Sum(Value(0, output_field=DecimalField())),
+                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "usage": Sum("usage_quantity"),
-                            "infrastructure_cost": Sum("pretax_cost"),
-                            "markup_cost": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "derived_cost": Sum(Value(0, output_field=DecimalField())),
                         },
                         "aggregate_key": "usage_quantity",
                         "annotations": {
-                            "cost": Sum(
+                            "infra_total": Sum(
                                 Coalesce(F("pretax_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infrastructure_cost": Sum("pretax_cost"),
-                            "derived_cost": Value(0, output_field=DecimalField()),
-                            "markup_cost": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "infra_raw": Sum("pretax_cost"),
+                            "infra_usage": Value(0, output_field=DecimalField()),
+                            "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "sup_raw": Value(0, output_field=DecimalField()),
+                            "sup_usage": Value(0, output_field=DecimalField()),
+                            "sup_markup": Value(0, output_field=DecimalField()),
+                            "sup_total": Value(0, output_field=DecimalField()),
+                            "cost_total": Sum(
+                                Coalesce(F("pretax_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            ),
+                            "cost_raw": Sum("pretax_cost"),
+                            "cost_usage": Value(0, output_field=DecimalField()),
+                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
                             "usage": Sum("usage_quantity"),
-                            # FIXME: Waiting on MSFT for usage_units default
                             "usage_units": Coalesce(Max("unit_of_measure"), Value("Storage Type Placeholder")),
                         },
                         "delta_key": {"usage": Sum("usage_quantity")},
@@ -160,13 +226,26 @@ class AzureProviderMap(ProviderMap):
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit_of_measure",
                         "usage_units_fallback": "Storage Type Placeholder",  # FIXME
-                        "sum_columns": ["usage", "cost", "infrastructure_cost", "derived_cost", "markup_cost"],
+                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"usage": "desc"},
                     },
-                    "tags": {"default_ordering": {"cost": "desc"}},
+                    "tags": {"default_ordering": {"cost_total": "desc"}},
                 },
                 "start_date": "costentrybill__billing_period_start",
                 "tables": {"query": AzureCostEntryLineItemDailySummary},
             }
         ]
+
+        self.views = {
+            "costs": {
+                "default": AzureCostSummary,
+                "subscription_guid": AzureCostSummaryByAccount,
+                "resource_location": AzureCostSummaryByLocation,
+                "service_name": AzureCostSummaryByService,
+            },
+            "instance_type": {"default": AzureComputeSummary, "instance_type": AzureComputeSummary},
+            "storage": {"default": AzureStorageSummary},
+            "database": {"default": AzureDatabaseSummary, "service_name": AzureDatabaseSummary},
+            "network": {"default": AzureNetworkSummary, "service_name": AzureNetworkSummary},
+        }
         super().__init__(provider, report_type)

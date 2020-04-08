@@ -21,7 +21,6 @@ from api.dataexport.models import DataExportRequest
 from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.models import User
-from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource

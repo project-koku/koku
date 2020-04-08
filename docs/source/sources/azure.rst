@@ -55,7 +55,7 @@ Follow the instructions in the azure article, `Tutorial: Create and manage expor
 Ensure that the export type is **Daily export of billing-period-to-date costs**
 
 
-Create an Azure Account Provider
+Create an Azure Account Source
 ********************************
 
 Using the information from the steps above which included the *Client ID, Directory, Tenant ID, Client Secret, Resource Group name, and storage account name* you can create an Azure account provider. Once created the cost export data will be processed and made viewable within the system.

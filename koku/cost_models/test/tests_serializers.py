@@ -22,10 +22,9 @@ import faker
 from rest_framework import serializers
 from tenant_schemas.utils import tenant_context
 
-from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
-from api.metrics.models import CostModelMetricsMap
-from api.metrics.serializers import SOURCE_TYPE_MAP
+from api.metrics import constants as metric_constants
+from api.metrics.constants import SOURCE_TYPE_MAP
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
 from cost_models.models import CostModel
@@ -42,11 +41,6 @@ class CostModelSerializerTest(IamTestCase):
     def setUp(self):
         """Set up the tests."""
         super().setUp()
-        request = self.request_context["request"]
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            user = serializer.save()
-            request.user = user
 
         provider_data = {
             "name": "test_provider",
@@ -57,7 +51,7 @@ class CostModelSerializerTest(IamTestCase):
         if serializer.is_valid(raise_exception=True):
             self.provider = serializer.save()
 
-        ocp_metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        ocp_metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         ocp_source_type = Provider.PROVIDER_OCP
         tiered_rates = [{"unit": "USD", "value": 0.22}]
         self.ocp_data = {
@@ -96,7 +90,7 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_error_on_invalid_provider(self):
         """Test error with an invalid provider id."""
-        self.ocp_data.update({"provider_uuids": ["1dd7204c-72c4-4ec4-95bc-d5c447688b27"]})
+        self.ocp_data.update({"source_uuids": ["1dd7204c-72c4-4ec4-95bc-d5c447688b27"]})
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.ocp_data)
             with self.assertRaises(serializers.ValidationError):
@@ -285,8 +279,8 @@ class CostModelSerializerTest(IamTestCase):
     def test_create_storage_tiered_rate(self):
         """Test creating a storage tiered rate."""
         storage_rates = (
-            CostModelMetricsMap.OCP_METRIC_STORAGE_GB_REQUEST_MONTH,
-            CostModelMetricsMap.OCP_METRIC_STORAGE_GB_USAGE_MONTH,
+            metric_constants.OCP_METRIC_STORAGE_GB_REQUEST_MONTH,
+            metric_constants.OCP_METRIC_STORAGE_GB_USAGE_MONTH,
         )
         for storage_rate in storage_rates:
             ocp_data = {
@@ -316,8 +310,8 @@ class CostModelSerializerTest(IamTestCase):
     def test_create_storage_no_tiers_rate(self):
         """Test creating a non tiered storage rate."""
         storage_rates = (
-            CostModelMetricsMap.OCP_METRIC_STORAGE_GB_REQUEST_MONTH,
-            CostModelMetricsMap.OCP_METRIC_STORAGE_GB_USAGE_MONTH,
+            metric_constants.OCP_METRIC_STORAGE_GB_REQUEST_MONTH,
+            metric_constants.OCP_METRIC_STORAGE_GB_USAGE_MONTH,
         )
         for storage_rate in storage_rates:
             ocp_data = {
@@ -369,11 +363,11 @@ class CostModelSerializerTest(IamTestCase):
         """Test the display data helper function for OpenShift metrics."""
         serializer = CostModelSerializer(data=None)
 
-        for metric_choice in CostModelMetricsMap.METRIC_CHOICES:
+        for metric_choice in metric_constants.METRIC_CHOICES:
             response = serializer._get_metric_display_data(Provider.PROVIDER_OCP, metric_choice[0])
-            self.assertIsNotNone(response.label_measurement_unit)
-            self.assertIsNotNone(response.label_measurement)
-            self.assertIsNotNone(response.label_metric)
+            self.assertIsNotNone(response.get("label_measurement_unit"))
+            self.assertIsNotNone(response.get("label_measurement"))
+            self.assertIsNotNone(response.get("label_metric"))
 
     def test_check_for_duplicate_metrics(self):
         """Check that duplicate rate types for a metric are rejected."""
@@ -419,14 +413,7 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_rate_cost_type_invalid(self):
         """Test that an invalid cost type is rejected."""
-        self.ocp_data["rates"][0]["tiered_rates"] = [
-            {
-                "unit": "USD",
-                "value": 0.22,
-                "usage": {"usage_start": None, "usage_end": None},
-                "cost_type": "Infrastructurez",
-            }
-        ]
+        self.ocp_data["rates"][0]["cost_type"] = "Infrastructurez"
 
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.ocp_data)

@@ -46,9 +46,11 @@ class DataExportRequestSerializerTest(MasuTestCase):
 
         self.context = {"request": mock_request}
 
+    @patch("api.dataexport.serializers.transaction.on_commit")
     @patch("api.dataexport.serializers.sync_data_to_customer")
-    def test_sync_data_to_customer_called(self, mock_sync_data_to_customer):
+    def test_sync_data_to_customer_called(self, mock_sync_data_to_customer, mock_commit):
         """Test that creating a DataExportRequest kicks off a sync_data_to_customer task."""
+        mock_commit.side_effect = mock_sync_data_to_customer.delay()
         validated_data = {"bucket_name": "fake-bucket", "start_date": "2019-11-01", "end_date": "2019-12-01"}
         serializer = DataExportRequestSerializer(context=self.context)
         result = serializer.create(validated_data)

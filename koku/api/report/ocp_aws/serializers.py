@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """OCP-on-AWS Report Serializers."""
+from rest_framework import serializers
+
 import api.report.aws.serializers as awsser
 import api.report.ocp.serializers as ocpser
 from api.report.serializers import validate_field
@@ -100,4 +102,17 @@ class OCPAWSQueryParamSerializer(awsser.QueryParamSerializer):
 
         """
         validate_field(self, "filter", OCPAWSFilterSerializer, value, tag_keys=self.tag_keys)
+        return value
+
+    def validate_delta(self, value):
+        """Validate incoming delta value based on path."""
+        valid_delta = "usage"
+        request = self.context.get("request")
+        if request and "costs" in request.path:
+            valid_delta = "cost_total"
+            if value == "cost":
+                return valid_delta
+        if value != valid_delta:
+            error = {"delta": f'"{value}" is not a valid choice.'}
+            raise serializers.ValidationError(error)
         return value

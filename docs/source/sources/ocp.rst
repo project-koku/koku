@@ -1,7 +1,7 @@
-Adding an OCP Provider
+Adding an OCP Source
 #######################
 
-This section describes how to configure your Openshift Container Platform (OCP) cluster to provide Koku operator metering usage data.  Configuring your OCP cluster involves configuring four setup steps. Obtaining a login token for your reporting-operator service account. Downloading our Ansible playbook and performing the setup step to configure connectivity to the OCP cluster and generate report resources. Create a cron job that will collect the operator metering usage data on an interval and send this data to our upload service. Create an OCP provider in Koku.
+This section describes how to configure your Openshift Container Platform (OCP) cluster to provide Koku operator metering usage data.  Configuring your OCP cluster involves configuring four setup steps. Obtaining a login token for your reporting-operator service account. Downloading our Ansible playbook and performing the setup step to configure connectivity to the OCP cluster and generate report resources. Create a cron job that will collect the operator metering usage data on an interval and send this data to our upload service. Create an OCP source in Koku.
 
 Dependencies
 ************
@@ -68,7 +68,7 @@ You will be prompted for your sudo password and the Ansible playbook will execut
 
     TASK [setup : Display New Cluster Identifier] **********************************
     ok: [localhost] => {
-        "msg": "Use the following value, <YOUR_OCP_IDENTIFIER>, for the cluster identifier when configuring an OCP provider in Cost Management."
+        "msg": "Use the following value, <YOUR_OCP_IDENTIFIER>, for the cluster identifier when configuring an OCP source in Cost Management."
     }
 
 Record the cluster identifier noted in this step. This value is also stored in a configuration file, `config.json`, located in your `~/.config/ocp_usage/` directory.
@@ -98,7 +98,7 @@ Note: The cron user will also need sudo authority to interact with the Red Hat I
 
 Note: The OCP Usage Collector defaults the OCP command line, oc, to exist at `/usr/bin/oc`. If the oc command line is installed in a different location then you can supply the `-e OCP_CLI=</path/to/oc>` when executing the `ocp_usage.sh` command.
 
-Create an OCP Provider
+Create an OCP Source
 ******************************
 
-Using the information from the steps above which included the *cluster identifier* you can create an OCP provider. Once created the cost and usage data will be processed and made viewable within the system.
+Using the information from the steps above which included the *cluster identifier* you can create an OCP source. Once created the cost and usage data will be processed and made viewable within the system.

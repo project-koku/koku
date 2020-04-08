@@ -21,8 +21,10 @@ import logging
 from django.db import transaction
 
 from api.provider.models import Provider
+from api.utils import DateHelper
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
+from masu.processor.tasks import update_cost_model_costs
 
 
 LOG = logging.getLogger(__name__)
@@ -52,13 +54,9 @@ class CostModelManager:
 
         provider_uuids = cost_model_data.pop("provider_uuids", [])
 
-        cost_model_obj = CostModel.objects.create(**cost_model_data)
-        for uuid in provider_uuids:
-            # Untie this provider to other cost models before assigning
-            # it to the new model
-            CostModelMap.objects.filter(provider_uuid=uuid).delete()
-            CostModelMap.objects.create(cost_model=cost_model_obj, provider_uuid=uuid)
-        return cost_model_obj
+        self._model = CostModel.objects.create(**cost_model_data)
+        self.update_provider_uuids(provider_uuids)
+        return self._model
 
     @transaction.atomic
     def update_provider_uuids(self, provider_uuids):
@@ -78,6 +76,18 @@ class CostModelManager:
             # it to the new model
             CostModelMap.objects.filter(provider_uuid=provider_uuid).delete()
             CostModelMap.objects.create(cost_model=self._model, provider_uuid=provider_uuid)
+
+        start_date = DateHelper().this_month_start
+        end_date = DateHelper().today
+        for provider_uuid in providers_to_delete | providers_to_create:
+            # Update cost-model costs for each provider
+            try:
+                provider = Provider.objects.get(uuid=provider_uuid)
+            except Provider.DoesNotExist:
+                LOG.info(f"Provider {provider_uuid} does not exist. Skipping cost-model update.")
+            else:
+                schema_name = provider.customer.schema_name
+                update_cost_model_costs.delay(schema_name, provider.uuid, start_date, end_date)
 
     def update(self, **data):
         """Update the cost model object."""

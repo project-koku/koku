@@ -34,11 +34,12 @@ class DownloadAPIViewTest(TestCase):
         super().setUp()
         Tenant.objects.get_or_create(schema_name="public")
 
+    @patch("koku.middleware.MASU", return_value=True)
     @patch(
         "masu.celery.tasks.check_report_updates.delay",
         return_value=AsyncResult("dc350f15-ffc7-4fcb-92d7-2a9f1275568e"),
     )
-    def test_download(self, file_list):
+    def test_download(self, file_list, _):
         """Test the download endpoint."""
         url = reverse("report_download")
         response = self.client.get(url)

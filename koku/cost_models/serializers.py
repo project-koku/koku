@@ -15,19 +15,23 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Rate serializer."""
+import copy
+import logging
 from collections import defaultdict
 from decimal import Decimal
 
 from rest_framework import serializers
 
-from api.metrics.models import CostModelMetricsMap
-from api.metrics.serializers import SOURCE_TYPE_MAP
+from api.metrics import constants as metric_constants
+from api.metrics.constants import SOURCE_TYPE_MAP
+from api.metrics.views import CostModelMetricMapJSONException
 from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 
 CURRENCY_CHOICES = (("USD", "USD"),)
 MARKUP_CHOICES = (("percent", "%"),)
+LOG = logging.getLogger(__name__)
 
 
 class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
@@ -65,9 +69,6 @@ class TieredRateSerializer(serializers.Serializer):
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
     usage = serializers.DictField(required=False)
     unit = serializers.ChoiceField(choices=CURRENCY_CHOICES)
-    cost_type = serializers.ChoiceField(
-        choices=CostModelMetricsMap.COST_TYPE_CHOICES, default=CostModelMetricsMap.COST_TYPE_CHOICES[1][0]
-    )
 
     def validate_value(self, value):
         """Check that value is a positive value."""
@@ -106,7 +107,14 @@ class RateSerializer(serializers.Serializer):
     RATE_TYPES = ("tiered_rates",)
 
     metric = serializers.DictField(required=True)
+    cost_type = serializers.ChoiceField(choices=metric_constants.COST_TYPE_CHOICES)
     tiered_rates = serializers.ListField(required=False)
+
+    @property
+    def metric_map(self):
+        """Return a metric map dictionary with default values."""
+        metrics = copy.deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
+        return {metric.get("metric"): metric.get("default_cost_type") for metric in metrics}
 
     @staticmethod
     def _convert_to_decimal(rate):
@@ -185,14 +193,28 @@ class RateSerializer(serializers.Serializer):
             validated_rates.append(serializer.validated_data)
         return validated_rates
 
+    def validate_cost_type(self, metric, cost_type):
+        """Force validation of cost_type."""
+        choices = {choice.lower(): choice for choice in self.get_fields().get("cost_type").choices}
+        if cost_type is None:
+            cost_type = self.metric_map.get(metric)
+        if cost_type.lower() not in choices:
+            error_msg = f"{cost_type} is an invalid cost type"
+            raise serializers.ValidationError(error_msg)
+        cost_type = choices[cost_type.lower()]
+        return cost_type
+
     def validate(self, data):
         """Validate that a rate must be defined."""
         data["tiered_rates"] = self.validate_tiered_rates(data.get("tiered_rates", []))
 
         rate_keys_str = ", ".join(str(rate_key) for rate_key in self.RATE_TYPES)
-        if data.get("metric").get("name") not in [metric for metric, metric2 in CostModelMetricsMap.METRIC_CHOICES]:
+        if data.get("metric").get("name") not in [metric for metric, metric2 in metric_constants.METRIC_CHOICES]:
             error_msg = "{} is an invalid metric".format(data.get("metric").get("name"))
             raise serializers.ValidationError(error_msg)
+
+        data["cost_type"] = self.validate_cost_type(data.get("metric").get("name"), data.get("cost_type"))
+
         if any(data.get(rate_key) is not None for rate_key in self.RATE_TYPES):
             tiered_rates = data.get("tiered_rates")
             if tiered_rates == []:
@@ -233,7 +255,7 @@ class RateSerializer(serializers.Serializer):
                         "unit": rates.get("unit"),
                     }
 
-        out.update({"tiered_rates": tiered_rates})
+        out.update({"tiered_rates": tiered_rates, "cost_type": rate_obj.get("cost_type")})
         return out
 
     def to_internal_value(self, data):
@@ -260,7 +282,7 @@ class CostModelSerializer(serializers.Serializer):
 
     source_type = serializers.CharField(required=True)
 
-    provider_uuids = serializers.ListField(
+    source_uuids = serializers.ListField(
         child=UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field="uuid"), required=False
     )
 
@@ -276,10 +298,13 @@ class CostModelSerializer(serializers.Serializer):
     def metric_map(self):
         """Map metrics and display names."""
         metric_map_by_source = defaultdict(dict)
-        metric_map = CostModelMetricsMap.objects.all()
-
+        metric_map = copy.deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
         for metric in metric_map:
-            metric_map_by_source[metric.source_type][metric.metric] = metric
+            try:
+                metric_map_by_source[metric.get("source_type")][metric.get("metric")] = metric
+            except TypeError:
+                LOG.error("Invalid Cost Model Metric Map", exc_info=True)
+                raise CostModelMetricMapJSONException("Internal Server Error.")
         return metric_map_by_source
 
     @property
@@ -329,11 +354,11 @@ class CostModelSerializer(serializers.Serializer):
                     err_msg = f"Duplicate {rate_type} entry found for {metric}"
                     raise serializers.ValidationError(err_msg)
 
-    def validate_provider_uuids(self, provider_uuids):
-        """Check that uuids in provider_uuids are valid identifiers."""
+    def validate_source_uuids(self, source_uuids):
+        """Check that uuids in source_uuids are valid identifiers."""
         valid_uuids = []
         invalid_uuids = []
-        for uuid in provider_uuids:
+        for uuid in source_uuids:
             if Provider.objects.filter(uuid=uuid).count() == 1:
                 valid_uuids.append(uuid)
             else:
@@ -355,13 +380,15 @@ class CostModelSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         """Create the cost model object in the database."""
+        source_uuids = validated_data.pop("source_uuids", [])
+        validated_data.update({"provider_uuids": source_uuids})
         return CostModelManager().create(**validated_data)
 
     def update(self, instance, validated_data, *args, **kwargs):
         """Update the rate object in the database."""
-        provider_uuids = validated_data.pop("provider_uuids", [])
+        source_uuids = validated_data.pop("source_uuids", [])
         new_providers_for_instance = []
-        for uuid in provider_uuids:
+        for uuid in source_uuids:
             new_providers_for_instance.append(str(Provider.objects.filter(uuid=uuid).first().uuid))
         manager = CostModelManager(cost_model_uuid=instance.uuid)
         manager.update_provider_uuids(new_providers_for_instance)
@@ -376,13 +403,17 @@ class CostModelSerializer(serializers.Serializer):
         for rate in rates:
             metric = rate.get("metric", {})
             display_data = self._get_metric_display_data(cost_model_obj.source_type, metric.get("name"))
-            metric.update(
-                {
-                    "label_metric": display_data.label_metric,
-                    "label_measurement": display_data.label_measurement,
-                    "label_measurement_unit": display_data.label_measurement_unit,
-                }
-            )
+            try:
+                metric.update(
+                    {
+                        "label_metric": display_data["label_metric"],
+                        "label_measurement": display_data["label_measurement"],
+                        "label_measurement_unit": display_data["label_measurement"],
+                    }
+                )
+            except (KeyError, TypeError):
+                LOG.error("Invalid Cost Model Metric Map", exc_info=True)
+                raise CostModelMetricMapJSONException("Internal Error.")
         rep["rates"] = rates
 
         source_type = rep.get("source_type")
@@ -390,7 +421,16 @@ class CostModelSerializer(serializers.Serializer):
             source_type = SOURCE_TYPE_MAP[source_type]
         rep["source_type"] = source_type
 
+        rep["source_uuids"] = rep.get("provider_uuids", [])
+        if rep.get("provider_uuids"):
+            del rep["provider_uuids"]
         cm_uuid = cost_model_obj.uuid
-        provider_uuids = CostModelManager(cm_uuid).get_provider_names_uuids()
-        rep.update({"providers": provider_uuids})
+        source_uuids = CostModelManager(cm_uuid).get_provider_names_uuids()
+        rep.update({"sources": source_uuids})
         return rep
+
+    def to_internal_value(self, data):
+        """ Alter source_uuids to provider_uuids."""
+        internal = super().to_internal_value(data)
+        internal["provider_uuids"] = internal.get("source_uuids", [])
+        return internal
