@@ -409,20 +409,17 @@ async def process_messages(app_type_id, msg_pending_queue):  # noqa: C901; pragm
 
         elif msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE,):
             with concurrent.futures.ThreadPoolExecutor() as pool:
-                execute = True
                 if storage.is_known_source(msg_data.get("source_id")) is False:
                     LOG.info(f"Update event for unknown source id, skipping...")
-                    execute = False
-                if execute:
-                    await EVENT_LOOP.run_in_executor(
-                        pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
-                    )
-                    storage.enqueue_source_update(msg_data.get("source_id"))
+                    return
+                await EVENT_LOOP.run_in_executor(
+                    pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
+                )
 
         elif msg_data.get("event_type") in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
             storage.enqueue_source_delete(msg_data.get("source_id"))
 
-        if msg_data.get("event_type") in (KAFKA_AUTHENTICATION_UPDATE):
+        if msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE, KAFKA_AUTHENTICATION_UPDATE):
             storage.enqueue_source_update(msg_data.get("source_id"))
     except (InterfaceError, OperationalError) as error:
         LOG.error(
