@@ -159,7 +159,6 @@ def get_sources_msg_data(msg, app_type_id):
 
     """
     msg_data = {}
-
     if msg.topic == Config.SOURCES_TOPIC:
         try:
             value = json.loads(msg.value.decode("utf-8"))
@@ -309,7 +308,7 @@ def sources_network_info(source_id, auth_header):
 
 
 @transaction.atomic
-async def process_message(app_type_id, msg_data):
+async def process_message(app_type_id, msg_data, loop=EVENT_LOOP):
     """
     Process message from Platform-Sources kafka service.
 
@@ -321,7 +320,9 @@ async def process_message(app_type_id, msg_data):
         Enqueues a source delete event which will be processed in the synchronize_sources method.
 
     Args:
+        app_type_id - application type identifier
         msg_data - kafka message
+        loop - asyncio loop for ThreadPoolExecutor
 
 
     Returns:
@@ -334,7 +335,7 @@ async def process_message(app_type_id, msg_data):
         storage.create_source_event(msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset"))
 
         with concurrent.futures.ThreadPoolExecutor() as pool:
-            await EVENT_LOOP.run_in_executor(
+            await loop.run_in_executor(
                 pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
             )
 
@@ -350,7 +351,7 @@ async def process_message(app_type_id, msg_data):
                 )
 
             with concurrent.futures.ThreadPoolExecutor() as pool:
-                await EVENT_LOOP.run_in_executor(
+                await loop.run_in_executor(
                     pool, save_auth_info, msg_data.get("auth_header"), msg_data.get("source_id")
                 )
         else:
@@ -361,7 +362,7 @@ async def process_message(app_type_id, msg_data):
             if storage.is_known_source(msg_data.get("source_id")) is False:
                 LOG.info(f"Update event for unknown source id, skipping...")
                 return
-            await EVENT_LOOP.run_in_executor(
+            await loop.run_in_executor(
                 pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
             )
 

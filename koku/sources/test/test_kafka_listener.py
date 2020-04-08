@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Sources Kafka Listener handler."""
+import asyncio
+import json
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -32,10 +34,13 @@ from api.provider.provider_manager import ProviderManagerError
 from koku.middleware import IdentityHeaderMiddleware
 from masu.prometheus_stats import WORKER_REGISTRY
 from providers.provider_access import ProviderAccessor
+from sources import storage
 from sources.config import Config
+from sources.kafka_listener import process_message
 from sources.kafka_listener import storage_callback
 from sources.kafka_source_manager import KafkaSourceManager
 from sources.kafka_source_manager import KafkaSourceManagerError
+from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 from sources.tasks import create_or_update_provider
 
@@ -80,6 +85,34 @@ class ConsumerRecord:
             ("x-rh-identity", bytes(auth_header, encoding="utf-8")),
         )
         self.value = value
+
+
+class MsgDataGenerator:
+    """Test class to create msg_data."""
+
+    def __init__(self, event_type, value=None):
+        """Initialize MsgDataGenerator."""
+        self.test_topic = "platform.sources.event-stream"
+        self.test_offset = 5
+        self.cost_management_app_type = 2
+        self.test_auth_header = Config.SOURCES_FAKE_HEADER
+        self.event_type = event_type
+        if value:
+            self.test_value = json.dumps(value)
+        else:
+            self.test_value = '{"id":1,"source_id":1,"application_type_id":2}'
+
+    def get_data(self):
+        """Generate message data."""
+        msg = ConsumerRecord(
+            topic=self.test_topic,
+            offset=self.test_offset,
+            event_type=self.event_type,
+            auth_header=self.test_auth_header,
+            value=bytes(self.test_value, encoding="utf-8"),
+        )
+        msg_data = source_integration.get_sources_msg_data(msg, self.cost_management_app_type)
+        return msg_data
 
 
 class MockTask:
@@ -748,3 +781,218 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         source_integration.check_kafka_connection()
         connection_errors_after = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
         self.assertEqual(connection_errors_after - connection_errors_before, 1)
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    @patch("sources.kafka_listener.sources_network_info", returns=None)
+    def test_process_message_application_create(self, mock_sources_network_info):
+        """Test the process_message function."""
+        test_application_id = 2
+
+        def _expected_application_create(msg_data, source_network_info_mock):
+            query_results = Sources.objects.filter(source_id=msg_data.get("source_id"))
+            self.assertTrue(query_results.exists())
+            self.assertEqual(query_results.first().auth_header, msg_data.get("auth_header"))
+            source_network_info_mock.assert_called()
+
+        test_matrix = [
+            {
+                "event": source_integration.KAFKA_APPLICATION_CREATE,
+                "value": {"id": 1, "source_id": 1, "application_type_id": test_application_id},
+                "expected_fn": _expected_application_create,
+            }
+        ]
+
+        for test in test_matrix:
+            msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
+            run_loop = asyncio.get_event_loop()
+            run_loop.run_until_complete(process_message(test_application_id, msg_data, run_loop))
+            test.get("expected_fn")(msg_data, mock_sources_network_info)
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    @patch("sources.kafka_listener.sources_network_info", returns=None)
+    @patch("sources.kafka_listener.save_auth_info", returns=None)
+    def test_process_message_authentication_create(self, mock_save_auth_info, mock_sources_network_info):
+        """Test the process_message function for authentication create."""
+        test_application_id = 2
+
+        def _expected_authentication_create(msg_data, expected_cost_mgmt_match, save_auth_info_mock):
+            query_results = Sources.objects.filter(source_id=msg_data.get("source_id"))
+            if expected_cost_mgmt_match:
+                self.assertTrue(query_results.exists())
+                self.assertEqual(query_results.first().auth_header, msg_data.get("auth_header"))
+                save_auth_info_mock.assert_called()
+            else:
+                self.assertFalse(query_results.exists())
+                save_auth_info_mock.assert_not_called()
+
+        test_matrix = [
+            {
+                "event": source_integration.KAFKA_AUTHENTICATION_CREATE,
+                "value": {
+                    "id": 1,
+                    "source_id": 1,
+                    "resource_type": "Endpoint",
+                    "resource_id": "1",
+                    "application_type_id": test_application_id,
+                },
+                "expected_cost_mgmt_match": False,
+                "expected_fn": _expected_authentication_create,
+            },
+            {
+                "event": source_integration.KAFKA_AUTHENTICATION_CREATE,
+                "value": {
+                    "id": 1,
+                    "source_id": 1,
+                    "resource_type": "Endpoint",
+                    "resource_id": "1",
+                    "application_type_id": test_application_id,
+                },
+                "expected_cost_mgmt_match": True,
+                "expected_fn": _expected_authentication_create,
+            },
+            {
+                "event": source_integration.KAFKA_AUTHENTICATION_UPDATE,
+                "value": {
+                    "id": 1,
+                    "source_id": 1,
+                    "resource_type": "Endpoint",
+                    "resource_id": "1",
+                    "application_type_id": test_application_id,
+                },
+                "expected_cost_mgmt_match": True,
+                "expected_fn": _expected_authentication_create,
+            },
+        ]
+
+        for test in test_matrix:
+            msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
+            run_loop = asyncio.get_event_loop()
+            with patch.object(
+                SourcesHTTPClient, "get_source_id_from_endpoint_id", return_value=test.get("value").get("source_id")
+            ):
+                with patch.object(
+                    SourcesHTTPClient,
+                    "get_application_type_is_cost_management",
+                    return_value=test.get("expected_cost_mgmt_match"),
+                ):
+                    run_loop.run_until_complete(process_message(test_application_id, msg_data, run_loop))
+                    test.get("expected_fn")(msg_data, test.get("expected_cost_mgmt_match"), mock_save_auth_info)
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    @patch("sources.kafka_listener.sources_network_info", returns=None)
+    @patch("sources.kafka_listener.save_auth_info", returns=None)
+    def test_process_message_source_update(self, mock_save_auth_info, mock_sources_network_info):
+        """Test the process_message function for source_update."""
+        test_application_id = 2
+
+        def _expected_source_update(msg_data, expected_known_source, sources_network_info_mock):
+            if expected_known_source:
+                sources_network_info_mock.assert_called()
+            else:
+                sources_network_info_mock.assert_not_called()
+
+        test_matrix = [
+            {
+                "event": source_integration.KAFKA_SOURCE_UPDATE,
+                "value": {"id": 1},
+                "expected_known_source": False,
+                "expected_fn": _expected_source_update,
+            },
+            {
+                "event": source_integration.KAFKA_SOURCE_UPDATE,
+                "value": {"id": 1},
+                "expected_known_source": True,
+                "expected_fn": _expected_source_update,
+            },
+        ]
+
+        for test in test_matrix:
+            msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
+            run_loop = asyncio.get_event_loop()
+            with patch(
+                "sources.kafka_listener.storage.is_known_source", return_value=test.get("expected_known_source")
+            ):
+                run_loop.run_until_complete(process_message(test_application_id, msg_data, run_loop))
+                test.get("expected_fn")(msg_data, test.get("expected_known_source"), mock_sources_network_info)
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_process_message_destroy(self):
+        """Test the process_message function for application and source destroy."""
+        test_application_id = 2
+
+        def _expected_destroy(msg_data):
+            query_results = Sources.objects.filter(source_id=msg_data.get("source_id"))
+            self.assertTrue(query_results.exists())
+            self.assertTrue(query_results.first().pending_delete)
+
+        test_matrix = [
+            {
+                "event": source_integration.KAFKA_APPLICATION_DESTROY,
+                "value": {"id": 1, "source_id": 1, "application_type_id": test_application_id},
+                "expected_fn": _expected_destroy,
+            },
+            {
+                "event": source_integration.KAFKA_SOURCE_DESTROY,
+                "value": {"id": 1, "source_id": 1, "application_type_id": test_application_id},
+                "expected_fn": _expected_destroy,
+            },
+        ]
+
+        for test in test_matrix:
+            storage.create_source_event(test.get("value").get("source_id"), Config.SOURCES_FAKE_HEADER, 3)
+            msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
+            run_loop = asyncio.get_event_loop()
+            run_loop.run_until_complete(process_message(test_application_id, msg_data, run_loop))
+            test.get("expected_fn")(msg_data)
+            Sources.objects.all().delete()
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_process_message_update(self):
+        """Test the process_message function for authentication and source update."""
+        test_application_id = 2
+
+        def _expected_update(msg_data):
+            query_results = Sources.objects.filter(source_id=msg_data.get("source_id"))
+            self.assertTrue(query_results.exists())
+            self.assertTrue(query_results.first().pending_update)
+
+        test_matrix = [
+            {
+                "event": source_integration.KAFKA_AUTHENTICATION_UPDATE,
+                "value": {
+                    "id": 1,
+                    "source_id": 1,
+                    "resource_type": "Endpoint",
+                    "resource_id": "1",
+                    "application_type_id": test_application_id,
+                },
+                "expected_fn": _expected_update,
+            },
+            {
+                "event": source_integration.KAFKA_SOURCE_UPDATE,
+                "value": {"id": 1, "source_id": 1, "application_type_id": test_application_id},
+                "expected_fn": _expected_update,
+            },
+        ]
+
+        for test in test_matrix:
+            test_source = Sources(
+                source_id=test.get("value").get("source_id"),
+                koku_uuid="testkokuid",
+                auth_header=Config.SOURCES_FAKE_HEADER,
+                offset=4,
+            )
+            test_source.save()
+            msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
+            run_loop = asyncio.get_event_loop()
+            with patch.object(
+                SourcesHTTPClient, "get_source_id_from_endpoint_id", return_value=test.get("value").get("source_id")
+            ):
+                with patch.object(
+                    SourcesHTTPClient,
+                    "get_application_type_is_cost_management",
+                    return_value=test.get("expected_cost_mgmt_match"),
+                ):
+                    run_loop.run_until_complete(process_message(test_application_id, msg_data, run_loop))
+                    test.get("expected_fn")(msg_data)
+                    Sources.objects.all().delete()
