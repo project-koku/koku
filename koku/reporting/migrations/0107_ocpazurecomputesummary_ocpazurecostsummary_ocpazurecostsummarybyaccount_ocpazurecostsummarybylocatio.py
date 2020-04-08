@@ -139,6 +139,9 @@ class Migration(migrations.Migration):
         ),
         migrations.RunSQL(
             """
+            DROP MATERIALIZED VIEW IF EXISTS reporting_ocpazure_cost_summary
+            ;
+
             CREATE MATERIALIZED VIEW reporting_ocpazure_cost_summary AS(
                 SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias) as id,
                     usage_start as usage_start,
@@ -157,6 +160,9 @@ class Migration(migrations.Migration):
 
             CREATE UNIQUE INDEX ocpazure_cost_summary
             ON reporting_ocpazure_cost_summary (usage_start, cluster_id, cluster_alias)
+            ;
+
+            DROP MATERIALIZED VIEW IF EXISTS reporting_ocpazure_cost_summary_by_account
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocpazure_cost_summary_by_account AS(
@@ -180,6 +186,9 @@ class Migration(migrations.Migration):
             ON reporting_ocpazure_cost_summary_by_account (usage_start, cluster_id, cluster_alias, subscription_guid)
             ;
 
+            DROP MATERIALIZED VIEW IF EXISTS reporting_ocpazure_cost_summary_by_location
+            ;
+
             CREATE MATERIALIZED VIEW reporting_ocpazure_cost_summary_by_location AS(
                 SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, resource_location) as id,
                     usage_start as usage_start,
@@ -199,6 +208,9 @@ class Migration(migrations.Migration):
 
             CREATE UNIQUE INDEX ocpazure_cost_summary_location
             ON reporting_ocpazure_cost_summary_by_location (usage_start, cluster_id, cluster_alias, resource_location)
+            ;
+
+            DROP MATERIALIZED VIEW IF EXISTS reporting_ocpazure_cost_summary_by_service
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocpazure_cost_summary_by_service AS(
@@ -222,6 +234,9 @@ class Migration(migrations.Migration):
             ON reporting_ocpazure_cost_summary_by_service (usage_start, cluster_id, cluster_alias, service_name)
             ;
 
+            DROP MATERIALIZED VIEW IF EXISTS reporting_ocpazure_compute_summary
+            ;
+
             CREATE MATERIALIZED VIEW reporting_ocpazure_compute_summary AS(
                 SELECT ROW_NUMBER() OVER(ORDER BY usage_start, cluster_id, cluster_alias, instance_type, resource_id) AS id,
                     usage_start,
@@ -235,7 +250,7 @@ class Migration(migrations.Migration):
                     sum(pretax_cost) as pretax_cost,
                     sum(markup_cost) as markup_cost,
                     max(currency) as currency
-                FROM acct10001.reporting_ocpazurecostlineitem_daily_summary
+                FROM reporting_ocpazurecostlineitem_daily_summary
                 WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
                     AND instance_type IS NOT NULL
                 GROUP BY usage_start, cluster_id, cluster_alias, instance_type, resource_id
@@ -245,6 +260,9 @@ class Migration(migrations.Migration):
 
             CREATE UNIQUE INDEX ocpazure_compute_summary
                 ON reporting_ocpazure_compute_summary (usage_start, cluster_id, cluster_alias, instance_type, resource_id)
+            ;
+
+            DROP MATERIALIZED VIEW IF EXISTS reporting_ocpazure_storage_summary
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocpazure_storage_summary AS(
@@ -271,6 +289,8 @@ class Migration(migrations.Migration):
             ON reporting_ocpazure_storage_summary (usage_start, cluster_id, cluster_alias, service_name)
             ;
 
+            DROP MATERIALIZED VIEW IF EXISTS reporting_ocpazure_network_summary
+            ;
 
             CREATE MATERIALIZED VIEW reporting_ocpazure_network_summary AS(
                 SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, service_name) as id,
@@ -294,6 +314,9 @@ class Migration(migrations.Migration):
 
             CREATE UNIQUE INDEX ocpazure_network_summary
             ON reporting_ocpazure_network_summary (usage_start, cluster_id, cluster_alias, service_name)
+            ;
+
+            DROP MATERIALIZED VIEW IF EXISTS reporting_ocpazure_database_summary
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocpazure_database_summary AS(
