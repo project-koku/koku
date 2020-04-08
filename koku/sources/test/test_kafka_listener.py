@@ -804,7 +804,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         for test in test_matrix:
             msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
-            run_loop = asyncio.get_event_loop()
+            run_loop = asyncio.new_event_loop()
             run_loop.run_until_complete(process_message(test_application_id, msg_data, run_loop))
             test.get("expected_fn")(msg_data, mock_sources_network_info)
 
@@ -866,7 +866,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         for test in test_matrix:
             msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
-            run_loop = asyncio.get_event_loop()
+            run_loop = asyncio.new_event_loop()
             with patch.object(
                 SourcesHTTPClient, "get_source_id_from_endpoint_id", return_value=test.get("value").get("source_id")
             ):
@@ -908,7 +908,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         for test in test_matrix:
             msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
-            run_loop = asyncio.get_event_loop()
+            run_loop = asyncio.new_event_loop()
             with patch(
                 "sources.kafka_listener.storage.is_known_source", return_value=test.get("expected_known_source")
             ):
@@ -941,7 +941,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         for test in test_matrix:
             storage.create_source_event(test.get("value").get("source_id"), Config.SOURCES_FAKE_HEADER, 3)
             msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
-            run_loop = asyncio.get_event_loop()
+            run_loop = asyncio.new_event_loop()
             run_loop.run_until_complete(process_message(test_application_id, msg_data, run_loop))
             test.get("expected_fn")(msg_data)
             Sources.objects.all().delete()
@@ -984,7 +984,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             )
             test_source.save()
             msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
-            run_loop = asyncio.get_event_loop()
+            run_loop = asyncio.new_event_loop()
             with patch.object(
                 SourcesHTTPClient, "get_source_id_from_endpoint_id", return_value=test.get("value").get("source_id")
             ):
