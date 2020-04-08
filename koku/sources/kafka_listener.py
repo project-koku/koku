@@ -374,6 +374,7 @@ async def process_message(app_type_id, msg_data, loop=EVENT_LOOP):
 
 
 def get_consumer(event_loop):
+    """Create a Kafka consumer."""
     return AIOKafkaConsumer(
         Config.SOURCES_TOPIC,
         loop=event_loop,
@@ -399,7 +400,7 @@ async def listen_for_messages(event_loop, application_source_id):  # pragma: no 
     """
     while True:
         consumer = get_consumer(event_loop)
-        LOG.warning("STARTING CONSUMER...")
+        LOG.info("Kafka consumer starting...")
         await consumer.start()
         LOG.info("Listener started.  Waiting for messages...")
         try:
@@ -424,7 +425,7 @@ async def listen_for_messages(event_loop, application_source_id):  # pragma: no 
                 f"[listen_for_messages] Unknown error encountered: {type(error).__name__}: {error}", exc_info=True
             )
         finally:
-            LOG.warning("STOPPING CONSUMER...")
+            LOG.warning("Kafka consummer stopping...")
             await consumer.stop()
 
 
@@ -603,17 +604,18 @@ def check_kafka_connection():  # pragma: no cover
     return result
 
 
-def find_process_by_command(command):
-    "Return the process for specified command."
-    for p in psutil.process_iter():
-        cmdline = p.cmdline()
-        if cmdline == command:
-            return p
-    return None
+def handle_exception(EVENT_LOOP, context):  # pragma: no cover
+    """Asyncio exception handler."""
 
+    # TODO Figure out how we can do this with appropriate privileges or by some other mechanism.
+    def find_process_by_command(command):
+        "Return the process for specified command."
+        for p in psutil.process_iter():
+            cmdline = p.cmdline()
+            if cmdline == command:
+                return p
+        return None
 
-def handle_exception(EVENT_LOOP, context):
-    # EVENT_LOOP.default_exception_handler(context)
     exception = context.get("exception")
     LOG.error(f"Shutting down due to exception: {str(exception)}")
     EVENT_LOOP.stop()
