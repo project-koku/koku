@@ -578,11 +578,11 @@ def check_kafka_connection():  # pragma: no cover
     return result
 
 
-def find_sources_proc():
-    "Return the sources management command proc."
+def find_process_by_command(command):
+    "Return the process for specified command."
     for p in psutil.process_iter():
         cmdline = p.cmdline()
-        if cmdline == ["python", "koku/manage.py", "sources"]:
+        if cmdline == command:
             return p
     return None
 
@@ -592,7 +592,7 @@ def handle_exception(EVENT_LOOP, context):
     exception = context.get("exception")
     LOG.error(f"Shutting down due to exception: {str(exception)}")
     EVENT_LOOP.stop()
-    sources_command_proc = find_sources_proc()
+    sources_command_proc = find_process_by_command(["python", "koku/manage.py", "sources"])
     if sources_command_proc:
         sources_command_proc.terminate()
     else:
