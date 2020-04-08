@@ -46,7 +46,6 @@ from sources.tasks import create_or_update_provider
 LOG = logging.getLogger(__name__)
 
 EVENT_LOOP = asyncio.new_event_loop()
-PENDING_PROCESS_QUEUE = asyncio.Queue(loop=EVENT_LOOP)
 PROCESS_QUEUE = asyncio.Queue(loop=EVENT_LOOP)
 KAFKA_APPLICATION_CREATE = "Application.create"
 KAFKA_APPLICATION_DESTROY = "Application.destroy"
@@ -307,9 +306,9 @@ def sources_network_info(source_id, auth_header):
     save_auth_info(auth_header, source_id)
 
 
-async def process_messages(app_type_id, msg_pending_queue):  # noqa: C901; pragma: no cover
+async def process_message(app_type_id, msg_data):  # noqa: C901; pragma: no cover
     """
-    Process messages from Platform-Sources kafka service.
+    Process message from Platform-Sources kafka service.
 
     Handler for various application/source create and delete events.
     'create' events:
@@ -319,83 +318,76 @@ async def process_messages(app_type_id, msg_pending_queue):  # noqa: C901; pragm
         Enqueues a source delete event which will be processed in the synchronize_sources method.
 
     Args:
-        msg_pending_queue (Asyncio queue): Queue to hold kafka messages to be filtered
+        msg_data - kafka message
 
 
     Returns:
         None
 
     """
-    LOG.info("Waiting to process incoming kafka messages...")
-    while True:
-        msg_data = await msg_pending_queue.get()
+    LOG.info(f"Processing Event: {str(msg_data)}")
+    try:
+        if msg_data.get("event_type") in (KAFKA_APPLICATION_CREATE,):
 
-        LOG.info(f"Processing Event: {str(msg_data)}")
-        try:
-            if msg_data.get("event_type") in (KAFKA_APPLICATION_CREATE,):
+            storage.create_source_event(msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset"))
 
-                storage.create_source_event(
-                    msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset")
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                await EVENT_LOOP.run_in_executor(
+                    pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
                 )
 
-                with concurrent.futures.ThreadPoolExecutor() as pool:
-                    await EVENT_LOOP.run_in_executor(
-                        pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
+        elif msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
+            sources_network = SourcesHTTPClient(msg_data.get("auth_header"))
+            msg_data["source_id"] = sources_network.get_source_id_from_endpoint_id(msg_data.get("resource_id"))
+            is_cost_mgmt = sources_network.get_application_type_is_cost_management(msg_data.get("source_id"))
+            if is_cost_mgmt:
+
+                if msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE,):
+                    storage.create_source_event(  # this will create source _only_ if it does not exist.
+                        msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset")
                     )
 
-            elif msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
-                sources_network = SourcesHTTPClient(msg_data.get("auth_header"))
-                msg_data["source_id"] = sources_network.get_source_id_from_endpoint_id(msg_data.get("resource_id"))
-                is_cost_mgmt = sources_network.get_application_type_is_cost_management(msg_data.get("source_id"))
-                if is_cost_mgmt:
-
-                    if msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE,):
-                        storage.create_source_event(  # this will create source _only_ if it does not exist.
-                            msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset")
-                        )
-
-                    with concurrent.futures.ThreadPoolExecutor() as pool:
-                        await EVENT_LOOP.run_in_executor(
-                            pool, save_auth_info, msg_data.get("auth_header"), msg_data.get("source_id")
-                        )
-                else:
-                    LOG.info(f"Resource id {msg_data.get('resource_id')} not associated with cost-management.")
-
-            elif msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE,):
                 with concurrent.futures.ThreadPoolExecutor() as pool:
-                    if storage.is_known_source(msg_data.get("source_id")) is False:
-                        LOG.info(f"Update event for unknown source id, skipping...")
-                        continue
                     await EVENT_LOOP.run_in_executor(
-                        pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
+                        pool, save_auth_info, msg_data.get("auth_header"), msg_data.get("source_id")
                     )
+            else:
+                LOG.info(f"Resource id {msg_data.get('resource_id')} not associated with cost-management.")
 
-            elif msg_data.get("event_type") in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
-                storage.enqueue_source_delete(msg_data.get("source_id"))
+        elif msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE,):
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                if storage.is_known_source(msg_data.get("source_id")) is False:
+                    LOG.info(f"Update event for unknown source id, skipping...")
+                    return
+                await EVENT_LOOP.run_in_executor(
+                    pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
+                )
 
-            if msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE, KAFKA_AUTHENTICATION_UPDATE):
-                storage.enqueue_source_update(msg_data.get("source_id"))
-        except (InterfaceError, OperationalError) as error:
-            LOG.error(
-                f"[process_messages] Closing DB connection and re-queueing failed operation."
-                f" Encountered {type(error).__name__}: {error}"
-            )
-            connection.close()
-            await asyncio.sleep(Config.RETRY_SECONDS)
-            await msg_pending_queue.put(msg_data)
-            LOG.info(
-                f'Requeued failed operation: {msg_data.get("event_type")} '
-                f'for Source ID: {str(msg_data.get("source_id"))}.'
-            )
-        except Exception as error:
-            # The reason for catching all exceptions is to ensure that the event
-            # loop remains active in the event that message processing fails unexpectedly.
-            source_id = str(msg_data.get("source_id", "unknown"))
-            LOG.error(f"Source {source_id} Unexpected message processing error: {str(error)}", exc_info=True)
+        elif msg_data.get("event_type") in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
+            storage.enqueue_source_delete(msg_data.get("source_id"))
+
+        if msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE, KAFKA_AUTHENTICATION_UPDATE):
+            storage.enqueue_source_update(msg_data.get("source_id"))
+    except (InterfaceError, OperationalError) as error:
+        LOG.error(
+            f"[process_message] Closing DB connection and re-queueing failed operation."
+            f" Encountered {type(error).__name__}: {error}"
+        )
+        connection.close()
+        await asyncio.sleep(Config.RETRY_SECONDS)
+        LOG.info(
+            f'Requeued failed operation: {msg_data.get("event_type")} '
+            f'for Source ID: {str(msg_data.get("source_id"))}.'
+        )
+    except Exception as error:
+        # The reason for catching all exceptions is to ensure that the event
+        # loop remains active in the event that message processing fails unexpectedly.
+        source_id = str(msg_data.get("source_id", "unknown"))
+        LOG.error(f"Source {source_id} Unexpected message processing error: {str(error)}", exc_info=True)
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
-async def listen_for_messages(consumer, application_source_id, msg_pending_queue):  # pragma: no cover
+async def listen_for_messages(consumer, application_source_id):  # pragma: no cover
     """
     Listen for Platform-Sources kafka messages.
 
@@ -403,7 +395,6 @@ async def listen_for_messages(consumer, application_source_id, msg_pending_queue
         consumer (AIOKafkaConsumer): Kafka consumer object
         application_source_id (Integer): Cost Management's current Application Source ID. Used for
             kafka message filtering.
-        msg_pending_queue (Asyncio queue): Queue to hold kafka messages to be filtered
 
     Returns:
         None
@@ -418,7 +409,8 @@ async def listen_for_messages(consumer, application_source_id, msg_pending_queue
                 msg = get_sources_msg_data(msg, application_source_id)
                 if msg:
                     LOG.info(f"Cost Management Message to process: {str(msg)}")
-                    await msg_pending_queue.put(msg)
+                    await process_message(application_source_id, msg)
+                    await consumer.commit()
         except KafkaError as error:
             LOG.error(f"[listen_for_messages] Kafka error encountered: {type(error).__name__}: {error}", exc_info=True)
         finally:
@@ -634,13 +626,16 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
         LOG.info("Kafka is running...")
 
     consumer = AIOKafkaConsumer(
-        Config.SOURCES_TOPIC, loop=event_loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id="hccm-sources"
+        Config.SOURCES_TOPIC,
+        loop=event_loop,
+        bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS,
+        group_id="hccm-sources",
+        enable_auto_commit=False,
     )
 
     load_process_queue()
     try:  # Finally, after the connections are established, start the message processing tasks
-        event_loop.create_task(listen_for_messages(consumer, cost_management_type_id, PENDING_PROCESS_QUEUE))
-        event_loop.create_task(process_messages(cost_management_type_id, PENDING_PROCESS_QUEUE))
+        event_loop.create_task(listen_for_messages(consumer, cost_management_type_id))
         event_loop.create_task(synchronize_sources(PROCESS_QUEUE, cost_management_type_id))
         event_loop.run_forever()
     except KeyboardInterrupt:
