@@ -144,6 +144,9 @@ class Migration(migrations.Migration):
         ),
         migrations.RunSQL(
             """
+            DROP MATERIALIZED VIEW IF EXISTS reporting_ocpaws_cost_summary
+            ;
+
             CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary AS(
                 SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias) as id,
                     usage_start as usage_start,
@@ -163,6 +166,9 @@ class Migration(migrations.Migration):
 
             CREATE UNIQUE INDEX ocpaws_cost_summary
             ON reporting_ocpaws_cost_summary (usage_start, cluster_id, cluster_alias)
+            ;
+
+            DROP MATERIALIZED VIEW IF EXISTS reporting_ocpaws_cost_summary_by_account
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary_by_account AS(
@@ -188,6 +194,9 @@ class Migration(migrations.Migration):
             ON reporting_ocpaws_cost_summary_by_account (usage_start, cluster_id, cluster_alias, usage_account_id, account_alias_id)
             ;
 
+            DROP MATERIALIZED VIEW IF EXISTS reporting_ocpaws_cost_summary_by_service
+            ;
+
             CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary_by_service AS(
                 SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, product_code, product_family) as id,
                     usage_start as usage_start,
@@ -209,6 +218,9 @@ class Migration(migrations.Migration):
 
             CREATE UNIQUE INDEX ocpaws_cost_summary_service
             ON reporting_ocpaws_cost_summary_by_service (usage_start, cluster_id, cluster_alias, product_code, product_family)
+            ;
+
+            DROP MATERIALIZED VIEW IF EXISTS reporting_ocpaws_cost_summary_by_region
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary_by_region AS(
@@ -234,6 +246,9 @@ class Migration(migrations.Migration):
             ON reporting_ocpaws_cost_summary_by_region (usage_start, cluster_id, cluster_alias, region, availability_zone)
             ;
 
+            DROP MATERIALIZED VIEW IF EXISTS reporting_ocpaws_compute_summary
+            ;
+
             CREATE MATERIALIZED VIEW reporting_ocpaws_compute_summary AS(
                 SELECT ROW_NUMBER() OVER(ORDER BY usage_start, cluster_id, cluster_alias, instance_type, resource_id) AS id,
                     usage_start,
@@ -247,7 +262,7 @@ class Migration(migrations.Migration):
                     sum(unblended_cost) as unblended_cost,
                     sum(markup_cost) as markup_cost,
                     max(currency_code) as currency_code
-                FROM acct10001.reporting_ocpawscostlineitem_daily_summary
+                FROM reporting_ocpawscostlineitem_daily_summary
                 WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
                     AND instance_type IS NOT NULL
                 GROUP BY usage_start, cluster_id, cluster_alias, instance_type, resource_id
@@ -257,6 +272,9 @@ class Migration(migrations.Migration):
 
             CREATE UNIQUE INDEX ocpaws_compute_summary
                 ON reporting_ocpaws_compute_summary (usage_start, cluster_id, cluster_alias, instance_type, resource_id)
+            ;
+
+            DROP MATERIALIZED VIEW IF EXISTS reporting_ocpaws_storage_summary
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocpaws_storage_summary AS(
@@ -285,6 +303,9 @@ class Migration(migrations.Migration):
             ON reporting_ocpaws_storage_summary (usage_start, cluster_id, cluster_alias, product_family)
             ;
 
+            DROP MATERIALIZED VIEW IF EXISTS reporting_ocpaws_network_summary
+            ;
+
             CREATE MATERIALIZED VIEW reporting_ocpaws_network_summary AS(
                 SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, product_code) as id,
                     usage_start as usage_start,
@@ -308,6 +329,9 @@ class Migration(migrations.Migration):
 
             CREATE UNIQUE INDEX ocpaws_network_summary
             ON reporting_ocpaws_network_summary (usage_start, cluster_id, cluster_alias, product_code)
+            ;
+
+            DROP MATERIALIZED VIEW IF EXISTS reporting_ocpaws_database_summary
             ;
 
             CREATE MATERIALIZED VIEW reporting_ocpaws_database_summary AS(
