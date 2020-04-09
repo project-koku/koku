@@ -35,6 +35,7 @@ from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from kafka.errors import KafkaError
+from kombu.exceptions import OperationalError as RabbitOperationalError
 from rest_framework.exceptions import ValidationError
 
 from api.provider.models import Provider
@@ -462,20 +463,40 @@ def execute_koku_provider_op(msg, cost_management_type_id):
     operation = msg.get("operation")
     source_mgr = KafkaSourceManager(provider.auth_header)
 
-    if operation == "create":
-        task = create_or_update_provider.delay(provider.source_id)
-        LOG.info(f"Creating Koku Provider for Source ID: {str(provider.source_id)} in task: {task.id}")
-    elif operation == "update":
-        task = create_or_update_provider.delay(provider.source_id)
-        LOG.info(f"Updating Koku Provider for Source ID: {str(provider.source_id)} in task: {task.id}")
-    elif operation == "destroy":
-        if provider.koku_uuid:
-            try:
-                source_mgr.destroy_provider(provider.koku_uuid)
-                LOG.info(f"Koku Provider UUID ({str(provider.koku_uuid)}) Removal Succeeded")
-            except Exception as err:
-                LOG.info(f"Koku Provider removal failed. Error: {str(err)}.")
-        storage.destroy_source_event(provider.source_id)
+    try:
+        if operation == "create":
+            task = create_or_update_provider.delay(provider.source_id)
+            LOG.info(f"Creating Koku Provider for Source ID: {str(provider.source_id)} in task: {task.id}")
+        elif operation == "update":
+            task = create_or_update_provider.delay(provider.source_id)
+            LOG.info(f"Updating Koku Provider for Source ID: {str(provider.source_id)} in task: {task.id}")
+        elif operation == "destroy":
+            if provider.koku_uuid:
+                try:
+                    source_mgr.destroy_provider(provider.koku_uuid)
+                    LOG.info(f"Koku Provider UUID ({str(provider.koku_uuid)}) Removal Succeeded")
+                except Exception as err:
+                    LOG.info(f"Koku Provider removal failed. Error: {str(err)}.")
+            storage.destroy_source_event(provider.source_id)
+    except RabbitOperationalError:
+        err_msg = f"RabbitmQ unavailable. Unable to {operation} Source ID: {provider.source_id}"
+        LOG.error(err_msg)
+        sources_network = SourcesHTTPClient(provider.auth_header, provider.source_id)
+        sources_network.set_source_status(err_msg, cost_management_type_id=cost_management_type_id)
+
+        # Re-raise exception so it can be re-queued in synchronize_sources
+        raise RabbitOperationalError(err_msg)
+
+
+async def _requeue_provider_sync_message(priority, msg, queue):
+    """Helper to requeue provider sync messages."""
+    await asyncio.sleep(Config.RETRY_SECONDS)
+    _log_process_queue_event(queue, msg)
+    await queue.put((priority, msg))
+    LOG.warning(
+        f'Requeue of failed operation: {msg.get("operation")} '
+        f'for Source ID: {str(msg.get("provider").source_id)} complete.'
+    )
 
 
 async def synchronize_sources(process_queue, cost_management_type_id):  # pragma: no cover
@@ -523,13 +544,14 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
                 f"[synchronize_sources] Closing DB connection and re-queueing failed operation."
                 f" Encountered {type(error).__name__}: {error}"
             )
-            await asyncio.sleep(Config.RETRY_SECONDS)
-            _log_process_queue_event(process_queue, msg)
-            await process_queue.put((priority, msg))
+            await _requeue_provider_sync_message(priority, msg, process_queue)
+
+        except RabbitOperationalError as error:
             LOG.warning(
-                f'Requeue of failed operation: {msg.get("operation")} '
-                f'for Source ID: {str(msg.get("provider").source_id)} complete.'
+                f"[synchronize_sources] RabbitMQ is down and re-queueing failed operation."
+                f" Encountered {type(error).__name__}: {error}"
             )
+            await _requeue_provider_sync_message(priority, msg, process_queue)
         except Exception as error:
             # The reason for catching all exceptions is to ensure that the event
             # loop remains active in the event that provider synchronization fails unexpectedly.
