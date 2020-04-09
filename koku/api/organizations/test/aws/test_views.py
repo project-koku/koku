@@ -49,9 +49,13 @@ class AWSReportViewTest(IamTestCase):
                 "account_num": 0,
             },
         }
+        self.url = reverse("aws-org-unit")
+
+    def _populate_test_db(self, tree):
+        """Populates the test database with org unit tree information."""
         unit_crawler = AWSOrgUnitCrawler(self.account)
         with schema_context(self.schema_name):
-            for _, data_info in self.data_tree.items():
+            for _, data_info in tree.items():
                 for insert_data in data_info["data"]:
                     if insert_data.get("account"):
                         unit_crawler._save_aws_org_method(
@@ -62,8 +66,8 @@ class AWSReportViewTest(IamTestCase):
 
     def test_execute(self):
         """Test that our url endpoint returns 200."""
-        url = reverse("aws-org-unit")
-        response = self.client.get(url, **self.headers)
+        self._populate_test_db(self.data_tree)
+        response = self.client.get(self.url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         result = response.data.get("data")
         self.assertIsNotNone(result)
@@ -78,3 +82,24 @@ class AWSReportViewTest(IamTestCase):
             self.assertEqual(len(accounts), self.data_tree[ou_id]["account_num"])
             self.assertEqual(path, self.data_tree[ou_id]["data"][0]["path"])
             self.assertEqual(name, self.data_tree[ou_id]["data"][0]["name"])
+
+    def test_execute_with_filter(self):
+        """Test filter with time intervals."""
+        del self.data_tree["r-id"]
+        del self.data_tree["sub_ou0"]
+        self._populate_test_db(self.data_tree)
+        url = self.url + "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_execute_query_w_delta_bad_choice(self):
+        """Test invalid delta value."""
+        bad_delta = "Invalid"
+        expected = f"Unsupported parameter or invalid value"
+        qs = f"?filter[limit]=2&delta={bad_delta}"
+        url = self.url + qs
+
+        response = self.client.get(url, **self.headers)
+        result = str(response.data.get("delta")[0])
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(result, expected)

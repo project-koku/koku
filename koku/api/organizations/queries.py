@@ -33,19 +33,6 @@ LOG = logging.getLogger(__name__)
 LOG = logging.getLogger(__name__)
 
 
-def strip_tag_prefix(tag):
-    """Remove the query tag prefix from a tag key."""
-    return tag.replace("tag:", "").replace("and:", "").replace("or:", "")
-
-
-def is_grouped_or_filtered_by_project(parameters):
-    """Determine if grouped or filtered by project."""
-    group_by = list(parameters.parameters.get("group_by", {}).keys())
-    filters = list(parameters.parameters.get("filter", {}).keys())
-    effects = group_by + filters
-    return [key for key in effects if "project" in key]
-
-
 class OrgQueryHandler(QueryHandler):
     """Handles report queries and responses."""
 
@@ -60,12 +47,10 @@ class OrgQueryHandler(QueryHandler):
         super().__init__(parameters)
 
         self._tag_keys = parameters.tag_keys
-
-        self._delta = parameters.delta
         self._offset = parameters.get_filter("offset", default=0)
         self.query_filter = self._get_filter()
 
-    def _get_filter(self, delta=False):
+    def _get_filter(self):
         """Create dictionary for filter parameters.
 
         Args:
@@ -75,13 +60,8 @@ class OrgQueryHandler(QueryHandler):
 
         """
         filters = QueryFilterCollection()
-        if delta:
-            date_delta = super()._get_date_delta()
-            start = self.start_datetime - date_delta
-            end = self.end_datetime - date_delta
-        else:
-            start = self.start_datetime
-            end = self.end_datetime
+        start = self.start_datetime
+        end = self.end_datetime
         start_filter = QueryFilter(field="created_timestamp", operation="gte", parameter=start.date())
         end_filter = QueryFilter(field="created_timestamp", operation="lte", parameter=end.date())
         filters.add(start_filter)
@@ -123,11 +103,6 @@ class OrgQueryHandler(QueryHandler):
                     for item in list_:
                         q_filter = QueryFilter(parameter=item, **filt)
                         filters.add(q_filter)
-
-        # Update filters with tag filters
-        # filters = self._set_tag_filters(filters)
-        # filters = self._set_operator_specified_tag_filters(filters, "and")
-        # filters = self._set_operator_specified_tag_filters(filters, "or")
 
         # Update filters that specifiy and or or in the query parameter
         and_composed_filters = self._set_operator_specified_filters("and")

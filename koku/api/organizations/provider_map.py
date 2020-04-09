@@ -73,25 +73,3 @@ class ProviderMap:
     def report_type_map(self):
         """Return the report-type map property."""
         return self._report_type_map
-
-    @property
-    def sum_columns(self):
-        """Return the sum column list for the report type."""
-        return self._report_type_map.get("sum_columns")
-
-    @property
-    def tag_column(self):
-        """Return the appropriate query table for the report type."""
-        report_specific_column = self._report_type_map.get("tag_column")
-        default = self._provider_map.get("tag_column")
-        return report_specific_column if report_specific_column else default
-
-    @property
-    def cost_units_key(self):
-        """Return the cost_units_key property."""
-        return self._report_type_map.get("cost_units_key")
-
-    @property
-    def usage_units_key(self):
-        """Return the usage_units_key property."""
-        return self._report_type_map.get("usage_units_key")
