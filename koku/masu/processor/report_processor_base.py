@@ -220,7 +220,7 @@ class ReportProcessorBase:
 
         date_filter = self.get_date_column_filter()
 
-        with db_accessor(self._schema, column_map) as accessor:
+        with db_accessor(self._schema) as accessor:
             bills = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
             bills = bills.filter(billing_period_start=bill_date).all()
             with schema_context(self._schema):
