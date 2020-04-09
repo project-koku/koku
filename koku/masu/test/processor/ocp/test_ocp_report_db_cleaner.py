@@ -37,7 +37,7 @@ class OCPReportDBCleanerTest(MasuTestCase):
         """Set up the test class with required objects."""
         super().setUpClass()
         cls.column_map = REPORT_COLUMN_MAP
-        cls.accessor = OCPReportDBAccessor(schema=cls.schema, column_map=cls.column_map)
+        cls.accessor = OCPReportDBAccessor(schema=cls.schema)
         cls.report_schema = cls.accessor.report_schema
         cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())

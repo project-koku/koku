@@ -151,7 +151,7 @@ class ReportObjectCreator:
 
             data["report_period_start"] = period_start
             data["report_period_end"] = period_end
-        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema) as accessor:
             return accessor.create_db_object(table_name, data)
 
     def create_ocp_report(self, reporting_period, report_datetime=None):
@@ -165,7 +165,7 @@ class ReportObjectCreator:
             start_datetime = self.fake.past_datetime(start_date="-60d")
         data["interval_start"] = start_datetime
         data["interval_end"] = start_datetime + relativedelta.relativedelta(hours=+1)
-        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema) as accessor:
             return accessor.create_db_object(table_name, data)
 
     def create_ocp_usage_line_item(
@@ -192,7 +192,7 @@ class ReportObjectCreator:
             data["namespace"] = namespace
         if node:
             data["node"] = node
-        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema) as accessor:
             return accessor.create_db_object(table_name, data)
 
     def create_ocp_storage_line_item(self, report_period, report, pod=None, namespace=None):
@@ -210,7 +210,7 @@ class ReportObjectCreator:
             data["pod"] = pod
         if namespace:
             data["namespace"] = namespace
-        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema) as accessor:
             return accessor.create_db_object(table_name, data)
 
     def create_ocp_node_label_line_item(self, report_period, report, node=None, node_labels=None):
@@ -221,7 +221,7 @@ class ReportObjectCreator:
         data["report_id"] = report.id
         if node:
             data["node"] = node
-        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema) as accessor:
             return accessor.create_db_object(table_name, data)
 
     def create_columns_for_table(self, table):
@@ -292,7 +292,7 @@ class ReportObjectCreator:
 
         with ProviderDBAccessor(provider_uuid) as accessor:
             provider_obj = accessor.get_provider()
-        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema) as accessor:
             cost_model_obj = accessor.create_db_object(table_name, data)
             data = {"provider_uuid": provider_obj.uuid, "cost_model_id": cost_model_obj.uuid}
             accessor.create_db_object(cost_model_map, data)
@@ -317,7 +317,7 @@ class ReportObjectCreator:
                 "product_code": self.fake.pystr()[:8],
                 "usage_account_id": self.fake.pystr()[:8],
             }
-        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema) as accessor:
             return accessor.create_db_object(table_name, data)
 
     def create_awscostentrylineitem_daily_summary(self, account_id, schema, cost_entry_bill, usage_date=None):
@@ -337,7 +337,7 @@ class ReportObjectCreator:
                 "usage_account_id": self.fake.pystr()[:8],
             }
 
-        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema) as accessor:
             obj = accessor.create_db_object(table_name, data)
         return obj
 

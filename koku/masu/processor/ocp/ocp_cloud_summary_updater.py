@@ -122,7 +122,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
             accessor.populate_ocp_on_aws_tags_summary_table()
         self.refresh_openshift_on_infrastructure_views(OCP_ON_AWS_MATERIALIZED_VIEWS)
 
-        with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+        with OCPReportDBAccessor(self._schema) as accessor:
             # This call just sends the infrastructure cost to the
             # OCP usage daily summary table
             accessor.update_summary_infrastructure_cost(cluster_id, start_date, end_date)
@@ -162,7 +162,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
             accessor.populate_ocp_on_azure_markup_cost(markup_value, azure_bill_ids)
             accessor.populate_ocp_on_azure_tags_summary_table()
 
-        with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+        with OCPReportDBAccessor(self._schema) as accessor:
             # This call just sends the infrastructure cost to the
             # OCP usage daily summary table
             accessor.update_summary_infrastructure_cost(cluster_id, start_date, end_date)

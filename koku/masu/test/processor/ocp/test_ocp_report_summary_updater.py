@@ -48,7 +48,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
 
         cls.column_map = REPORT_COLUMN_MAP
 
-        cls.accessor = OCPReportDBAccessor(cls.schema, cls.column_map)
+        cls.accessor = OCPReportDBAccessor(cls.schema)
         cls.report_schema = cls.accessor.report_schema
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
         cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
@@ -129,7 +129,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         mock_sum.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
         mock_storage_summary.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
 
-        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema) as accessor:
             period = accessor.get_usage_periods_by_date(bill_date).filter(provider_id=self.ocp_provider_uuid)[0]
 
             self.assertIsNotNone(period.summary_data_creation_datetime)
@@ -198,7 +198,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(mock_sum.call_args_list, expected_calls)
         self.assertEqual(mock_storage_summary.call_args_list, expected_calls)
 
-        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema) as accessor:
             period = accessor.get_usage_periods_by_date(bill_date).filter(provider_id=self.ocp_provider_uuid)[0]
             self.assertIsNotNone(period.summary_data_creation_datetime)
             self.assertIsNotNone(period.summary_data_updated_datetime)
@@ -280,7 +280,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(mock_sum.call_args_list, expected_calls)
         self.assertEqual(mock_storage_summary.call_args_list, expected_calls)
 
-        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema) as accessor:
             period = accessor.get_usage_periods_by_date(bill_date)[0]
             self.assertIsNotNone(period.summary_data_creation_datetime)
             self.assertIsNotNone(period.summary_data_updated_datetime)
@@ -325,7 +325,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         mock_sum.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
         mock_storage_summary.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
 
-        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema) as accessor:
             period = accessor.get_usage_periods_by_date(bill_date).filter(provider_id=self.ocp_provider_uuid)[0]
             self.assertIsNotNone(period.summary_data_creation_datetime)
             self.assertIsNotNone(period.summary_data_updated_datetime)
@@ -369,7 +369,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         mock_sum.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
         mock_storage_summary.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
 
-        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema) as accessor:
             period = accessor.get_usage_periods_by_date(bill_date)[0]
             self.assertIsNotNone(period.summary_data_creation_datetime)
             self.assertGreater(period.summary_data_updated_datetime, self.today)

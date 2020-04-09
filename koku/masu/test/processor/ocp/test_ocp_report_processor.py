@@ -91,7 +91,7 @@ class OCPReportProcessorTest(MasuTestCase):
 
         cls.column_map = REPORT_COLUMN_MAP
 
-        cls.accessor = OCPReportDBAccessor(cls.schema, cls.column_map)
+        cls.accessor = OCPReportDBAccessor(cls.schema)
         cls.report_schema = cls.accessor.report_schema
 
         _report_tables = copy.deepcopy(OCP_REPORT_TABLE_MAP)
@@ -379,7 +379,7 @@ class OCPReportProcessorTest(MasuTestCase):
         """Test that a report period id is returned."""
         table_name = OCP_REPORT_TABLE_MAP["report_period"]
         cluster_id = "12345"
-        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema) as accessor:
             report_period_id = self.ocp_processor._processor._create_report_period(self.row, cluster_id, accessor)
 
         self.assertIsNotNone(report_period_id)
@@ -394,7 +394,7 @@ class OCPReportProcessorTest(MasuTestCase):
         """Test that a report id is returned."""
         table_name = OCP_REPORT_TABLE_MAP["report"]
         cluster_id = "12345"
-        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema) as accessor:
             report_period_id = self.ocp_processor._processor._create_report_period(self.row, cluster_id, accessor)
 
             report_id = self.ocp_processor._processor._create_report(self.row, report_period_id, accessor)
@@ -463,7 +463,7 @@ class OCPReportProcessorTest(MasuTestCase):
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
         )
-        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema) as accessor:
             report_period_id = storage_processor._processor._create_report_period(self.row, cluster_id, accessor)
             report_id = storage_processor._processor._create_report(self.row, report_period_id, accessor)
             row = copy.deepcopy(self.row)

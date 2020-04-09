@@ -273,7 +273,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         self.assertAlmostEqual(markup_cost, pretax_cost * decimal.Decimal(markup.get("value") / 100), places=5)
 
         daily_summary_table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-        with OCPReportDBAccessor(self.schema, self.column_map) as ocp_accessor:
+        with OCPReportDBAccessor(self.schema) as ocp_accessor:
             query = ocp_accessor._get_db_obj_query(daily_summary_table_name).filter(
                 report_period__provider=self.ocp_on_azure_ocp_provider,
                 report_period__report_period_start=self.dh.this_month_start,

@@ -875,7 +875,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
             sum_aws_cost = li_table.objects.all().aggregate(Sum("unblended_cost"))["unblended_cost__sum"]
 
-        with OCPReportDBAccessor(self.schema, self.column_map) as ocp_accessor:
+        with OCPReportDBAccessor(self.schema) as ocp_accessor:
             cluster_id = "testcluster"
             with ProviderDBAccessor(provider_uuid=self.ocp_test_provider_uuid) as provider_access:
                 provider_uuid = provider_access.get_provider().uuid

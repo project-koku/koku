@@ -42,6 +42,7 @@ from masu.util.common import month_date_range_tuple
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ def create_filter(data_source, start_date, end_date, cluster_id):
 class OCPReportDBAccessor(ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
-    def __init__(self, schema, column_map):
+    def __init__(self, schema):
         """Establish the database connection.
 
         Args:
@@ -70,9 +71,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             column_map (dict): A mapping of report columns to database columns
 
         """
-        super().__init__(schema, column_map)
+        super().__init__(schema, REPORT_COLUMN_MAP)
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
-        self.column_map = column_map
+        self.column_map = REPORT_COLUMN_MAP
         self.jinja_sql = JinjaSql()
 
     def get_current_usage_report(self):

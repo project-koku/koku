@@ -192,7 +192,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
         self.column_map = REPORT_COLUMN_MAP
 
-        with OCPReportDBAccessor(self._schema, self.column_map) as report_db:
+        with OCPReportDBAccessor(self._schema) as report_db:
             self.existing_report_periods_map = report_db.get_report_periods()
             self.existing_report_map = report_db.get_reports()
 
@@ -308,7 +308,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
         row_count = 0
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode) as f:
-            with OCPReportDBAccessor(self._schema, self.column_map) as report_db:
+            with OCPReportDBAccessor(self._schema) as report_db:
                 temp_table = report_db.create_temp_table(self.table_name._meta.db_table, drop_column="id")
                 LOG.info("File %s opened for processing", str(f))
                 reader = csv.DictReader(f)

@@ -85,17 +85,17 @@ class OCPCloudUpdaterBase:
         """
         infra_map = {}
         if self._provider.type == Provider.PROVIDER_OCP:
-            with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+            with OCPReportDBAccessor(self._schema) as accessor:
                 infra_map = accessor.get_ocp_infrastructure_map(
                     start_date, end_date, ocp_provider_uuid=self._provider_uuid
                 )
         elif self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+            with OCPReportDBAccessor(self._schema) as accessor:
                 infra_map = accessor.get_ocp_infrastructure_map(
                     start_date, end_date, aws_provider_uuid=self._provider_uuid
                 )
         elif self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+            with OCPReportDBAccessor(self._schema) as accessor:
                 infra_map = accessor.get_ocp_infrastructure_map(
                     start_date, end_date, azure_provider_uuid=self._provider_uuid
                 )

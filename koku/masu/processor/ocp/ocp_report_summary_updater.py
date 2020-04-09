@@ -69,7 +69,7 @@ class OCPReportSummaryUpdater:
                 start,
                 end,
             )
-            with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+            with OCPReportDBAccessor(self._schema) as accessor:
                 accessor.populate_node_label_line_item_daily_table(start, end, self._cluster_id)
                 accessor.populate_line_item_daily_table(start, end, self._cluster_id)
                 accessor.populate_storage_line_item_daily_table(start, end, self._cluster_id)
@@ -90,7 +90,7 @@ class OCPReportSummaryUpdater:
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
         report_periods = None
-        with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+        with OCPReportDBAccessor(self._schema) as accessor:
             report_periods = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
             for start, end in date_range_pair(start_date, end_date):
                 LOG.info(
@@ -118,7 +118,7 @@ class OCPReportSummaryUpdater:
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
         # Default to this month's bill
-        with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+        with OCPReportDBAccessor(self._schema) as accessor:
             if self._manifest:
                 # Override the bill date to correspond with the manifest
                 bill_date = self._manifest.billing_period_start_datetime.date()
