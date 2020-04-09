@@ -131,14 +131,13 @@ class MockKafkaConsumer:
         self.preloaded_messages = preloaded_messages
 
     async def start(self):
-        print("Consumer Started")
+        pass
 
     async def stop(self):
-        print("Consumer Stopped")
+        pass
 
     async def commit(self):
         self.preloaded_messages.pop()
-        print("Consumer commit.")
 
     async def seek_to_committed(self):
         # This isn't realistic... But it's one way to stop the consumer for our needs.
