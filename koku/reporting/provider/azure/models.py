@@ -115,6 +115,7 @@ class AzureCostEntryLineItemDailySummary(models.Model):
         """Meta for AzureCostEntryLineItemDailySummary."""
 
         db_table = "reporting_azurecostentrylineitem_daily_summary"
+        indexes = [models.Index(fields=["usage_start"], name="ix_azurecstentrydlysumm_start")]
 
     id = models.BigAutoField(primary_key=True)
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
