@@ -17,6 +17,7 @@
 """Sources Integration Service."""
 import asyncio
 import concurrent.futures
+import itertools
 import json
 import logging
 import os
@@ -49,7 +50,8 @@ from sources.tasks import create_or_update_provider
 LOG = logging.getLogger(__name__)
 
 EVENT_LOOP = asyncio.new_event_loop()
-PROCESS_QUEUE = asyncio.Queue(loop=EVENT_LOOP)
+PROCESS_QUEUE = asyncio.PriorityQueue(loop=EVENT_LOOP)
+COUNT = (i for i in itertools.count())  # next(COUNT) returns next sequential number
 KAFKA_APPLICATION_CREATE = "Application.create"
 KAFKA_APPLICATION_DESTROY = "Application.destroy"
 KAFKA_AUTHENTICATION_CREATE = "Authentication.create"
@@ -123,7 +125,7 @@ def load_process_queue():
     pending_events = _collect_pending_items()
     for event in pending_events:
         _log_process_queue_event(PROCESS_QUEUE, event)
-        PROCESS_QUEUE.put_nowait(event)
+        PROCESS_QUEUE.put_nowait((next(COUNT), event))
 
 
 @receiver(post_save, sender=Sources)
@@ -135,19 +137,19 @@ def storage_callback(sender, instance, **kwargs):
             update_event = {"operation": "update", "provider": instance}
             _log_process_queue_event(PROCESS_QUEUE, update_event)
             LOG.debug(f"Update Event Queued for:\n{str(instance)}")
-            PROCESS_QUEUE.put_nowait(update_event)
+            PROCESS_QUEUE.put_nowait((next(COUNT), update_event))
 
     if instance.pending_delete:
         delete_event = {"operation": "destroy", "provider": instance}
         _log_process_queue_event(PROCESS_QUEUE, delete_event)
         LOG.debug(f"Delete Event Queued for:\n{str(instance)}")
-        PROCESS_QUEUE.put_nowait(delete_event)
+        PROCESS_QUEUE.put_nowait((next(COUNT), delete_event))
 
     process_event = storage.screen_and_build_provider_sync_create_event(instance)
     if process_event:
         _log_process_queue_event(PROCESS_QUEUE, process_event)
         LOG.debug(f"Create Event Queued for:\n{str(instance)}")
-        PROCESS_QUEUE.put_nowait(process_event)
+        PROCESS_QUEUE.put_nowait((next(COUNT), process_event))
 
 
 def get_sources_msg_data(msg, app_type_id):
@@ -499,8 +501,9 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
     """
     LOG.info("Processing koku provider events...")
     while True:
-        msg = await process_queue.get()
+        priority, msg = await process_queue.get()
         LOG.info(
+            f"PRIORITY: {priority} "
             f'Koku provider operation to execute: {msg.get("operation")} '
             f'for Source ID: {str(msg.get("provider").source_id)}'
         )
@@ -513,31 +516,17 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
             )
             if msg.get("operation") != "destroy":
                 storage.clear_update_flag(msg.get("provider").source_id)
-        except SourcesIntegrationError as error:
-            # requeue/retry the message once
-            if not msg.get("retried"):
-                LOG.info(f"[synchronize_sources] Re-queueing failed operation. Error: {error}")
-                await asyncio.sleep(Config.RETRY_SECONDS)
-                _log_process_queue_event(process_queue, msg)
-                await process_queue.put(msg)
-                LOG.info(
-                    f'Requeue of failed operation: {msg.get("operation")} '
-                    f'for Source ID: {str(msg.get("provider").source_id)} complete.'
-                )
-                msg["retried"] = True
-            else:
-                LOG.error(f"[synchronize_sources] Failed operation. Error: {error}")
 
         except (InterfaceError, OperationalError) as error:
             connection.close()
-            LOG.error(
+            LOG.warning(
                 f"[synchronize_sources] Closing DB connection and re-queueing failed operation."
                 f" Encountered {type(error).__name__}: {error}"
             )
             await asyncio.sleep(Config.RETRY_SECONDS)
             _log_process_queue_event(process_queue, msg)
-            await process_queue.put(msg)
-            LOG.info(
+            await process_queue.put((priority, msg))
+            LOG.warning(
                 f'Requeue of failed operation: {msg.get("operation")} '
                 f'for Source ID: {str(msg.get("provider").source_id)} complete.'
             )
