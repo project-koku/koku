@@ -51,7 +51,7 @@ LOG = logging.getLogger(__name__)
 
 EVENT_LOOP = asyncio.new_event_loop()
 PROCESS_QUEUE = asyncio.PriorityQueue(loop=EVENT_LOOP)
-COUNT = (i for i in itertools.count())  # next(COUNT) returns next sequential number
+COUNT = itertools.count()  # next(COUNT) returns next sequential number
 KAFKA_APPLICATION_CREATE = "Application.create"
 KAFKA_APPLICATION_DESTROY = "Application.destroy"
 KAFKA_AUTHENTICATION_CREATE = "Authentication.create"
@@ -482,6 +482,17 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
     """
     Synchronize Platform Sources with Koku Providers.
 
+    This function wraps the message processor in a while loop.
+    """
+    LOG.info("Processing koku provider events...")
+    while True:
+        await process_synchronize_sources_msg(process_queue, cost_management_type_id)
+
+
+async def process_synchronize_sources_msg(process_queue, cost_management_type_id):
+    """
+    Synchronize Platform Sources with Koku Providers.
+
     Task will process the process_queue which contains filtered
     events (Cost Management Platform-Sources).
 
@@ -499,47 +510,44 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
         None
 
     """
-    LOG.info("Processing koku provider events...")
-    while True:
-        priority, msg = await process_queue.get()
+    priority, msg = await process_queue.get()
+    LOG.info(
+        f'Koku provider operation to execute: {msg.get("operation")} '
+        f'for Source ID: {str(msg.get("provider").source_id)}'
+    )
+    try:
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            await EVENT_LOOP.run_in_executor(pool, execute_koku_provider_op, msg, cost_management_type_id)
         LOG.info(
-            f"PRIORITY: {priority} "
             f'Koku provider operation to execute: {msg.get("operation")} '
-            f'for Source ID: {str(msg.get("provider").source_id)}'
+            f'for Source ID: {str(msg.get("provider").source_id)} complete.'
         )
-        try:
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                await EVENT_LOOP.run_in_executor(pool, execute_koku_provider_op, msg, cost_management_type_id)
-            LOG.info(
-                f'Koku provider operation to execute: {msg.get("operation")} '
-                f'for Source ID: {str(msg.get("provider").source_id)} complete.'
-            )
-            if msg.get("operation") != "destroy":
-                storage.clear_update_flag(msg.get("provider").source_id)
+        if msg.get("operation") != "destroy":
+            storage.clear_update_flag(msg.get("provider").source_id)
 
-        except (InterfaceError, OperationalError) as error:
-            connection.close()
-            LOG.warning(
-                f"[synchronize_sources] Closing DB connection and re-queueing failed operation."
-                f" Encountered {type(error).__name__}: {error}"
-            )
-            await asyncio.sleep(Config.RETRY_SECONDS)
-            _log_process_queue_event(process_queue, msg)
-            await process_queue.put((priority, msg))
-            LOG.warning(
-                f'Requeue of failed operation: {msg.get("operation")} '
-                f'for Source ID: {str(msg.get("provider").source_id)} complete.'
-            )
-        except Exception as error:
-            # The reason for catching all exceptions is to ensure that the event
-            # loop remains active in the event that provider synchronization fails unexpectedly.
-            provider = msg.get("provider")
-            source_id = provider.source_id if provider else "unknown"
-            LOG.error(
-                f"[synchronize_sources] Unexpected synchronization error for Source ID {source_id} "
-                f"encountered: {type(error).__name__}: {error}",
-                exc_info=True,
-            )
+    except (InterfaceError, OperationalError) as error:
+        connection.close()
+        LOG.warning(
+            f"[synchronize_sources] Closing DB connection and re-queueing failed operation."
+            f" Encountered {type(error).__name__}: {error}"
+        )
+        await asyncio.sleep(Config.RETRY_SECONDS)
+        _log_process_queue_event(process_queue, msg)
+        await process_queue.put((priority, msg))
+        LOG.warning(
+            f'Requeue of failed operation: {msg.get("operation")} '
+            f'for Source ID: {str(msg.get("provider").source_id)} complete.'
+        )
+    except Exception as error:
+        # The reason for catching all exceptions is to ensure that the event
+        # loop remains active in the event that provider synchronization fails unexpectedly.
+        provider = msg.get("provider")
+        source_id = provider.source_id if provider else "unknown"
+        LOG.error(
+            f"[synchronize_sources] Unexpected synchronization error for Source ID {source_id} "
+            f"encountered: {type(error).__name__}: {error}",
+            exc_info=True,
+        )
 
 
 def backoff(interval, maximum=120):
