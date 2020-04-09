@@ -26,6 +26,7 @@ from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
+from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ class ReportSchema:
 class ReportDBAccessorBase(KokuDBAccess):
     """Class to interact with customer reporting tables."""
 
-    def __init__(self, schema, column_map):
+    def __init__(self, schema):
         """Establish the database connection.
 
         Args:
@@ -70,8 +71,7 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         """
         super().__init__(schema)
-        self.column_map = column_map
-        self.report_schema = ReportSchema(django.apps.apps.get_models(), self.column_map)
+        self.report_schema = ReportSchema(django.apps.apps.get_models(), REPORT_COLUMN_MAP)
 
     @property
     def decimal_precision(self):

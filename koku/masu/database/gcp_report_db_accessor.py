@@ -16,5 +16,5 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         Args:
             schema (str): The customer schema to associate with
         """
-        super().__init__(schema, REPORT_COLUMN_MAP)
+        super().__init__(schema)
         self.column_map = REPORT_COLUMN_MAP

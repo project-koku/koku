@@ -69,7 +69,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         Args:
             schema (str): The customer schema to associate with
         """
-        super().__init__(schema, REPORT_COLUMN_MAP)
+        super().__init__(schema)
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self.column_map = REPORT_COLUMN_MAP
         self.jinja_sql = JinjaSql()
