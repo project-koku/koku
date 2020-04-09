@@ -25,7 +25,6 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.aws.common import get_bills_from_provider
 from masu.util.common import date_range_pair
-from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -44,7 +43,6 @@ class AWSReportSummaryUpdater:
         self._schema = schema
         self._provider = provider
         self._manifest = manifest
-        self._column_map = REPORT_COLUMN_MAP
         self._date_accessor = DateAccessor()
 
     def update_daily_tables(self, start_date, end_date):

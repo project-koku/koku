@@ -94,7 +94,6 @@ class AWSReportProcessor(ReportProcessorBase):
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
 
         # Gather database accessors
-        self.column_map = REPORT_COLUMN_MAP
 
         with AWSReportDBAccessor(self._schema) as report_db:
             self.report_schema = report_db.report_schema
@@ -134,7 +133,7 @@ class AWSReportProcessor(ReportProcessorBase):
 
         is_finalized_data = self._check_for_finalized_bill()
         is_full_month = self._should_process_full_month()
-        self._delete_line_items(AWSReportDBAccessor, self.column_map, is_finalized=is_finalized_data)
+        self._delete_line_items(AWSReportDBAccessor, REPORT_COLUMN_MAP, is_finalized=is_finalized_data)
         opener, mode = self._get_file_opener(self._compression)
         # pylint: disable=invalid-name
         with opener(self._report_path, mode) as f:
@@ -231,7 +230,7 @@ class AWSReportProcessor(ReportProcessorBase):
             row["product/memory"] = memory
             row["product/memory_unit"] = unit
 
-        column_map = self.column_map[table_name]
+        column_map = REPORT_COLUMN_MAP[table_name]
 
         return {column_map[key]: value for key, value in row.items() if key in column_map}
 

@@ -53,7 +53,6 @@ class ReportSchemaTest(MasuTestCase):
     def setUp(self):
         """Set up the test class with required objects."""
         super().setUp()
-        self.column_map = REPORT_COLUMN_MAP
         self.accessor = AWSReportDBAccessor(schema=self.schema)
         self.all_tables = list(AWS_CUR_TABLE_MAP.values())
         self.foreign_key_tables = [
@@ -66,7 +65,7 @@ class ReportSchemaTest(MasuTestCase):
     def test_init(self):
         """Test the initializer."""
         tables = django.apps.apps.get_models()
-        report_schema = ReportSchema(tables, self.column_map)
+        report_schema = ReportSchema(tables, REPORT_COLUMN_MAP)
 
         for table_name in self.all_tables:
             self.assertIsNotNone(getattr(report_schema, table_name))
@@ -76,7 +75,7 @@ class ReportSchemaTest(MasuTestCase):
     def test_get_reporting_tables(self):
         """Test that the report schema is populated with a column map."""
         tables = django.apps.apps.get_models()
-        report_schema = ReportSchema(tables, self.column_map)
+        report_schema = ReportSchema(tables, REPORT_COLUMN_MAP)
 
         report_schema._set_reporting_tables(tables, self.accessor.column_map)
 
