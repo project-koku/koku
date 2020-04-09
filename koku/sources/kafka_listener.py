@@ -486,10 +486,11 @@ async def synchronize_sources(process_queue, cost_management_type_id):  # pragma
     """
     LOG.info("Processing koku provider events...")
     while True:
-        await process_synchronize_sources_msg(process_queue, cost_management_type_id)
+        msg_tuple = await process_queue.get()
+        await process_synchronize_sources_msg(msg_tuple, process_queue, cost_management_type_id)
 
 
-async def process_synchronize_sources_msg(process_queue, cost_management_type_id):
+async def process_synchronize_sources_msg(msg_tuple, process_queue, cost_management_type_id, loop=EVENT_LOOP):
     """
     Synchronize Platform Sources with Koku Providers.
 
@@ -510,14 +511,14 @@ async def process_synchronize_sources_msg(process_queue, cost_management_type_id
         None
 
     """
-    priority, msg = await process_queue.get()
+    priority, msg = msg_tuple
     LOG.info(
         f'Koku provider operation to execute: {msg.get("operation")} '
         f'for Source ID: {str(msg.get("provider").source_id)}'
     )
     try:
         with concurrent.futures.ThreadPoolExecutor() as pool:
-            await EVENT_LOOP.run_in_executor(pool, execute_koku_provider_op, msg, cost_management_type_id)
+            await loop.run_in_executor(pool, execute_koku_provider_op, msg, cost_management_type_id)
         LOG.info(
             f'Koku provider operation to execute: {msg.get("operation")} '
             f'for Source ID: {str(msg.get("provider").source_id)} complete.'
