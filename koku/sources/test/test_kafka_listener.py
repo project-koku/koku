@@ -372,7 +372,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             auth_header=test_auth_header,
             value=test_value,
         )
-        with self.assertRaises(source_integration.SourcesIntegrationError):
+        with self.assertRaises(source_integration.SourcesMessageError):
             source_integration.get_sources_msg_data(msg, cost_management_app_type)
 
     @patch("sources.tasks.create_or_update_provider.delay")
