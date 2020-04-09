@@ -996,3 +996,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                     run_loop.run_until_complete(process_message(test_application_id, msg_data, run_loop))
                     test.get("expected_fn")(msg_data)
                     Sources.objects.all().delete()
+
+    def test_listen_for_messages(self):
+        """Test to listen for kafka messages."""
+        pass

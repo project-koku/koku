@@ -19,6 +19,7 @@ import asyncio
 import concurrent.futures
 import json
 import logging
+import os
 import random
 import sys
 import threading
@@ -69,6 +70,10 @@ SOURCE_PROVIDER_MAP = {
 
 class SourcesIntegrationError(ValidationError):
     """Sources Integration error."""
+
+
+class SourcesMessageError(ValidationError):
+    """Sources Message error."""
 
 
 def _extract_from_header(headers, header_type):
@@ -186,8 +191,8 @@ def get_sources_msg_data(msg, app_type_id):
             else:
                 LOG.debug("Other Message: %s", str(msg))
         except (AttributeError, ValueError, TypeError) as error:
-            LOG.error("Unable load message. Error: %s", str(error))
-            raise SourcesIntegrationError("Unable to load message")
+            LOG.error("Unable load message: %s. Error: %s", str(msg.value), str(error))
+            raise SourcesMessageError("Unable to load message")
 
     return msg_data
 
@@ -385,7 +390,7 @@ def get_consumer(event_loop):
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
-async def listen_for_messages(event_loop, application_source_id):  # pragma: no cover
+async def listen_for_messages(consumer, application_source_id):
     """
     Listen for Platform-Sources kafka messages.
 
@@ -398,35 +403,33 @@ async def listen_for_messages(event_loop, application_source_id):  # pragma: no 
         None
 
     """
-    while True:
-        consumer = get_consumer(event_loop)
-        LOG.info("Kafka consumer starting...")
-        await consumer.start()
-        LOG.info("Listener started.  Waiting for messages...")
-        try:
-            async for msg in consumer:
-                LOG.debug(f"Filtering Message: {str(msg)}")
+    LOG.info("Kafka consumer starting...")
+    await consumer.start()
+    LOG.info("Listener started.  Waiting for messages...")
+    try:
+        async for msg in consumer:
+            LOG.debug(f"Filtering Message: {str(msg)}")
+            try:
                 msg = get_sources_msg_data(msg, application_source_id)
-                if msg:
-                    LOG.info(f"Cost Management Message to process: {str(msg)}")
-                    try:
-                        await process_message(application_source_id, msg)
-                    except (InterfaceError, OperationalError) as err:
-                        connection.close()
-                        LOG.error(err)
-                        await asyncio.sleep(Config.RETRY_SECONDS)
-                        await consumer.seek_to_committed()
-                    else:
-                        await consumer.commit()
-        except KafkaError as error:
-            LOG.error(f"[listen_for_messages] Kafka error encountered: {type(error).__name__}: {error}", exc_info=True)
-        except Exception as error:
-            LOG.error(
-                f"[listen_for_messages] Unknown error encountered: {type(error).__name__}: {error}", exc_info=True
-            )
-        finally:
-            LOG.warning("Kafka consummer stopping...")
-            await consumer.stop()
+            except SourcesMessageError:
+                await consumer.commit()
+                continue
+            if msg:
+                LOG.info(f"Cost Management Message to process: {str(msg)}")
+                try:
+                    await process_message(application_source_id, msg)
+                except (InterfaceError, OperationalError) as err:
+                    connection.close()
+                    LOG.error(err)
+                    await asyncio.sleep(Config.RETRY_SECONDS)
+                    await consumer.seek_to_committed()
+                else:
+                    await consumer.commit()
+    except KafkaError as error:
+        LOG.error(f"[listen_for_messages] Kafka error encountered: {type(error).__name__}: {error}", exc_info=True)
+    finally:
+        LOG.warning("Kafka consummer stopping...")
+        await consumer.stop()
 
 
 def execute_koku_provider_op(msg, cost_management_type_id):
@@ -606,24 +609,15 @@ def check_kafka_connection():  # pragma: no cover
 
 def handle_exception(EVENT_LOOP, context):  # pragma: no cover
     """Asyncio exception handler."""
-
-    # TODO Figure out how we can do this with appropriate privileges or by some other mechanism.
-    def find_process_by_command(command):
-        "Return the process for specified command."
-        for p in psutil.process_iter():
-            cmdline = p.cmdline()
-            if cmdline == command:
-                return p
-        return None
-
     exception = context.get("exception")
     LOG.error(f"Shutting down due to exception: {str(exception)}")
+
+    # Stop asyncio event loop
     EVENT_LOOP.stop()
-    sources_command_proc = find_process_by_command(["python", "koku/manage.py", "sources"])
-    if sources_command_proc:
-        sources_command_proc.terminate()
-    else:
-        LOG.error("Unable to find sources process")
+
+    # Shutdown server
+    sources_command_proc = psutil.Process(os.getpid())
+    sources_command_proc.terminate()
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
@@ -662,8 +656,11 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
         LOG.info("Kafka is running...")
 
     load_process_queue()
+
+    consumer = get_consumer(event_loop)
+
     try:  # Finally, after the connections are established, start the message processing tasks
-        event_loop.create_task(listen_for_messages(event_loop, cost_management_type_id))
+        event_loop.create_task(listen_for_messages(consumer, cost_management_type_id))
         event_loop.create_task(synchronize_sources(PROCESS_QUEUE, cost_management_type_id))
         event_loop.run_forever()
     except KeyboardInterrupt:
