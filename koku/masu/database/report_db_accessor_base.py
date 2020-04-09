@@ -45,8 +45,6 @@ class ReportSchema:
         Args:
             report_schema (ReportSchema): A schema struct object with all
                 report tables
-            column_map (dict): A mapping of report columns to database columns
-
         """
         column_types = {}
         for model in models:

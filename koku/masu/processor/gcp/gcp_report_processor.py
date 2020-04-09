@@ -68,7 +68,6 @@ class GCPReportProcessor(ReportProcessorBase):
 
         self._schema = schema_name
 
-        # Gather database accessors
         self.column_map = REPORT_COLUMN_MAP
 
         LOG.info("Initialized report processor for file: %s and schema: %s", report_path, self._schema)
@@ -188,7 +187,7 @@ class GCPReportProcessor(ReportProcessorBase):
         # Read the csv in batched chunks.
         report_csv = pandas.read_csv(self._report_path, chunksize=self._batch_size, compression="infer")
 
-        with GCPReportDBAccessor(self._schema, self.column_map) as report_db:
+        with GCPReportDBAccessor(self._schema) as report_db:
 
             for chunk in report_csv:
 

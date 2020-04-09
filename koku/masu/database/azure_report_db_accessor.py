@@ -50,8 +50,6 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
 
         Args:
             schema (str): The customer schema to associate with
-            column_map (dict): A mapping of report columns to database columns
-
         """
         super().__init__(schema, REPORT_COLUMN_MAP)
         self._datetime_format = Config.AZURE_DATETIME_STR_FORMAT

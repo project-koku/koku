@@ -89,7 +89,7 @@ class GCPReportProcessorTest(MasuTestCase):
             provider_uuid=self.gcp_provider.uuid,
             manifest_id=self.manifest.id,
         )
-        self.accessor = GCPReportDBAccessor(self.schema, self.column_map)
+        self.accessor = GCPReportDBAccessor(self.schema)
 
     def tearDown(self):
         """Tear down test case."""
