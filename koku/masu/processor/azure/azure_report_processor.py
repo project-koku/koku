@@ -93,9 +93,6 @@ class AzureReportProcessor(ReportProcessorBase):
 
         self._schema = schema_name
 
-        # Gather database accessors
-        self.column_map = REPORT_COLUMN_MAP
-
         with AzureReportDBAccessor(self._schema) as report_db:
             self.report_schema = report_db.report_schema
             self.existing_bill_map = report_db.get_cost_entry_bills()
@@ -276,7 +273,7 @@ class AzureReportProcessor(ReportProcessorBase):
         """
         row_count = 0
         is_full_month = self._should_process_full_month()
-        self._delete_line_items(AzureReportDBAccessor, self.column_map)
+        self._delete_line_items(AzureReportDBAccessor, REPORT_COLUMN_MAP)
         # pylint: disable=invalid-name
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode, encoding="utf-8-sig") as f:

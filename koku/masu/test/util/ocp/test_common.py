@@ -37,11 +37,10 @@ class OCPUtilTests(MasuTestCase):
     def setUp(self):
         """Shared variables used by ocp common tests."""
         super().setUp()
-        self.column_map = REPORT_COLUMN_MAP
         self.accessor = OCPReportDBAccessor(schema=self.schema)
         self.provider_accessor = ProviderDBAccessor(provider_uuid=self.ocp_test_provider_uuid)
         self.report_schema = self.accessor.report_schema
-        self.creator = ReportObjectCreator(self.schema, self.column_map)
+        self.creator = ReportObjectCreator(self.schema, REPORT_COLUMN_MAP)
         self.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
         self.provider_uuid = self.provider_accessor.get_provider().uuid

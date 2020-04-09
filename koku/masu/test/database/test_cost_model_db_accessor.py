@@ -33,8 +33,7 @@ class CostModelDBAccessorTest(MasuTestCase):
         super().setUp()
         self.provider_uuid = self.ocp_provider_uuid
         self.schema = "acct10001"
-        self.column_map = REPORT_COLUMN_MAP
-        self.creator = ReportObjectCreator(self.schema, self.column_map)
+        self.creator = ReportObjectCreator(self.schema, REPORT_COLUMN_MAP)
 
         reporting_period = self.creator.create_ocp_report_period(provider_uuid=self.provider_uuid)
         report = self.creator.create_ocp_report(reporting_period)
@@ -162,8 +161,7 @@ class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
         """Set up a test with database objects."""
         super().setUp()
         self.provider_uuid = self.ocp_provider_uuid
-        self.column_map = REPORT_COLUMN_MAP
-        self.creator = ReportObjectCreator(self.schema, self.column_map)
+        self.creator = ReportObjectCreator(self.schema, REPORT_COLUMN_MAP)
 
         reporting_period = self.creator.create_ocp_report_period(self.ocp_provider_uuid)
         report = self.creator.create_ocp_report(reporting_period)
@@ -192,7 +190,6 @@ class CostModelDBAccessorNoCostModel(MasuTestCase):
         super().setUp()
         self.provider_uuid = "3c6e687e-1a09-4a05-970c-2ccf44b0952e"
         self.schema = "acct10001"
-        self.column_map = REPORT_COLUMN_MAP
 
     def test_get_rates_no_cost_model(self):
         """Test that get_rates returns empty dict when cost model does not exist."""

@@ -29,7 +29,6 @@ from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdat
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdaterError
 from masu.test import MasuTestCase
 from reporting.models import OCPUsageLineItemDailySummary
-from reporting_common import REPORT_COLUMN_MAP
 
 
 class OCPCostModelCostUpdaterTest(MasuTestCase):
@@ -39,7 +38,6 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        cls.column_map = REPORT_COLUMN_MAP
         cls.accessor = OCPReportDBAccessor(schema=cls.schema)
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
         cls.dh = DateHelper()

@@ -17,7 +17,6 @@ from masu.util import common as utils
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDaily
 from reporting.provider.gcp.models import GCPProject
-from reporting_common import REPORT_COLUMN_MAP
 
 
 LOG = logging.getLogger(__name__)
@@ -67,8 +66,6 @@ class GCPReportProcessor(ReportProcessorBase):
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
 
         self._schema = schema_name
-
-        self.column_map = REPORT_COLUMN_MAP
 
         LOG.info("Initialized report processor for file: %s and schema: %s", report_path, self._schema)
 

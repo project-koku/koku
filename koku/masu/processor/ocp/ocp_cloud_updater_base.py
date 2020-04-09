@@ -22,7 +22,6 @@ from api.provider.models import Provider
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.date_accessor import DateAccessor
-from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -46,7 +45,6 @@ class OCPCloudUpdaterBase:
         self._provider = provider
         self._provider_uuid = str(self._provider.uuid)
         self._manifest = manifest
-        self._column_map = REPORT_COLUMN_MAP
         self._date_accessor = DateAccessor()
 
     def get_infra_map(self):

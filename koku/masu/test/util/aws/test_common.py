@@ -37,7 +37,6 @@ from masu.test.external.downloader.aws import fake_aws_account_id
 from masu.test.external.downloader.aws.test_aws_report_downloader import FakeSession
 from masu.util.aws import common as utils
 from reporting.models import AWSCostEntryBill
-from reporting_common import REPORT_COLUMN_MAP
 
 # the cn endpoints aren't supported by moto, so filter them out
 AWS_REGIONS = list(filter(lambda reg: not reg.startswith("cn-"), AWS_REGIONS))
@@ -80,7 +79,6 @@ class TestAWSUtils(MasuTestCase):
         super().setUp()
         self.account_id = fake_aws_account_id()
         self.arn = fake_arn(account_id=self.account_id, region=REGION, service="iam")
-        self.column_map = REPORT_COLUMN_MAP
 
     @patch("masu.util.aws.common.boto3.client", return_value=MOCK_BOTO_CLIENT)
     def test_get_assume_role_session(self, mock_boto_client):

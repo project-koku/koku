@@ -39,7 +39,6 @@ from masu.processor.ocp.ocp_report_processor import OCPReportProcessorError
 from masu.processor.ocp.ocp_report_processor import OCPReportTypes
 from masu.processor.ocp.ocp_report_processor import ProcessedOCPReport
 from masu.test import MasuTestCase
-from reporting_common import REPORT_COLUMN_MAP
 
 
 class ProcessedOCPReportTest(MasuTestCase):
@@ -88,8 +87,6 @@ class OCPReportProcessorTest(MasuTestCase):
         cls.assembly_id = "1234"
 
         cls.manifest_accessor = ReportManifestDBAccessor()
-
-        cls.column_map = REPORT_COLUMN_MAP
 
         cls.accessor = OCPReportDBAccessor(cls.schema)
         cls.report_schema = cls.accessor.report_schema

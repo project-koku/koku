@@ -31,8 +31,7 @@ class TestReportingCommon(unittest.TestCase):
 
     def test_generate_column_map(self):
         """Assert all tables are in the column map."""
-        column_map = REPORT_COLUMN_MAP
-        keys = column_map.keys()
+        keys = REPORT_COLUMN_MAP.keys()
 
         tables = copy.deepcopy(self.report_tables)
         tables.remove(AWS_CUR_TABLE_MAP["cost_entry"])

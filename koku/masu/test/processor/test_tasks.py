@@ -585,9 +585,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         cls.aws_tables = list(AWS_CUR_TABLE_MAP.values())
         cls.ocp_tables = list(OCP_REPORT_TABLE_MAP.values())
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values()) + list(OCP_REPORT_TABLE_MAP.values())
-        cls.column_map = REPORT_COLUMN_MAP
 
-        cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
+        cls.creator = ReportObjectCreator(cls.schema, REPORT_COLUMN_MAP)
 
     def setUp(self):
         """Set up each test."""

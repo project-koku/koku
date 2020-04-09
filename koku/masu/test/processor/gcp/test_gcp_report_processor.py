@@ -25,7 +25,6 @@ from masu.util import common as utils
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDaily
 from reporting.provider.gcp.models import GCPProject
-from reporting_common import REPORT_COLUMN_MAP
 
 fake = Faker()
 
@@ -41,8 +40,6 @@ class GCPReportProcessorTest(MasuTestCase):
 
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
-
-        cls.column_map = REPORT_COLUMN_MAP
 
     def setUp(self):
         """Set up GCP tests."""

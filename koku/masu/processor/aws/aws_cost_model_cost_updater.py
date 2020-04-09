@@ -23,7 +23,6 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.aws.common import get_bills_from_provider
-from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -45,7 +44,6 @@ class AWSCostModelCostUpdater:
         """
         self._provider = provider
         self._schema = schema
-        self._column_map = REPORT_COLUMN_MAP
 
     def _update_markup_cost(self, start_date, end_date):
         """Store markup costs."""

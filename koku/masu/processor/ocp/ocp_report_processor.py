@@ -36,7 +36,6 @@ from reporting.provider.ocp.models import OCPStorageLineItem
 from reporting.provider.ocp.models import OCPUsageLineItem
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
-from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -190,7 +189,6 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
-        self.column_map = REPORT_COLUMN_MAP
 
         with OCPReportDBAccessor(self._schema) as report_db:
             self.existing_report_periods_map = report_db.get_report_periods()

@@ -345,8 +345,7 @@ class TestUploadTaskWithData(MasuTestCase):
         """Set up initial data for tests."""
         super().setUp()
 
-        self.column_map = REPORT_COLUMN_MAP
-        self.creator = ReportObjectCreator(self.schema, self.column_map)
+        self.creator = ReportObjectCreator(self.schema, REPORT_COLUMN_MAP)
 
         timezone = pytz.timezone("UTC")
         # Arbitrary date as "today" so we don't drift around with `now`.

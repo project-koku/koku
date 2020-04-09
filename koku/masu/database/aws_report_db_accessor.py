@@ -38,7 +38,6 @@ from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemProjectDailySummary
-from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -55,7 +54,6 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         """
         super().__init__(schema)
         self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
-        self.column_map = REPORT_COLUMN_MAP
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
 

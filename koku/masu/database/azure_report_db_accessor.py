@@ -36,7 +36,6 @@ from reporting.provider.azure.models import AzureCostEntryProductService
 from reporting.provider.azure.models import AzureMeter
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
-from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -53,7 +52,6 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         """
         super().__init__(schema)
         self._datetime_format = Config.AZURE_DATETIME_STR_FORMAT
-        self.column_map = REPORT_COLUMN_MAP
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
 
