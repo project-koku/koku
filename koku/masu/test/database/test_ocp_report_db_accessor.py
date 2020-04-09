@@ -138,7 +138,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
     def test_get_db_obj_query_with_columns(self):
         """Test that a query is returned with limited columns."""
         table_name = OCP_REPORT_TABLE_MAP["line_item"]
-        columns = list(self.column_map[table_name].values())
+        columns = list(REPORT_COLUMN_MAP[table_name].values())
 
         selected_columns = [random.choice(columns) for _ in range(2)]
         missing_columns = set(columns).difference(selected_columns)

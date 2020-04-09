@@ -77,7 +77,7 @@ class ReportSchemaTest(MasuTestCase):
         tables = django.apps.apps.get_models()
         report_schema = ReportSchema(tables, REPORT_COLUMN_MAP)
 
-        report_schema._set_reporting_tables(tables, self.accessor.column_map)
+        report_schema._set_reporting_tables(tables, REPORT_COLUMN_MAP)
 
         for table in self.all_tables:
             self.assertIsNotNone(getattr(report_schema, table))
@@ -182,7 +182,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
     def test_get_db_obj_query_with_columns(self):
         """Test that a query is returned with limited columns."""
         table_name = random.choice(self.foreign_key_tables)
-        columns = list(self.column_map[table_name].values())
+        columns = list(REPORT_COLUMN_MAP[table_name].values())
 
         selected_columns = [random.choice(columns) for _ in range(2)]
         missing_columns = set(columns).difference(selected_columns)
