@@ -92,6 +92,16 @@ class AWSReportViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_time_filters_errors(self):
+        """Test time filter errors with time intervals"""
+        self._populate_test_db(self.data_tree)
+        url = self.url + "?filter[time_scope_units]=day&filter[time_scope_value]=-1&filter[resolution]=daily"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        url = self.url + "?filter[time_scope_units]=month&filter[time_scope_value]=-10&filter[resolution]=daily"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_execute_query_w_delta_bad_choice(self):
         """Test invalid delta value."""
         bad_delta = "Invalid"

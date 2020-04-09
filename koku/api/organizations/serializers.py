@@ -15,8 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Common serializer logic."""
-import copy
-
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
@@ -63,12 +61,6 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
     """
     field_param = this.initial_data.get(field)
 
-    # extract tag_keys from field_params and recreate the tag_keys param
-    tag_keys = None
-    if not kwargs.get("tag_keys") and getattr(serializer_cls, "_tagkey_support", False):
-        tag_keys = list(filter(lambda x: "tag:" in x, field_param))
-        kwargs["tag_keys"] = tag_keys
-
     serializer = serializer_cls(data=field_param, **kwargs)
 
     # Handle validation of multi-inherited classes.
@@ -94,19 +86,6 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
 
     serializer.is_valid(raise_exception=True)
     return value
-
-
-def add_operator_specified_fields(fields, field_list):
-    """Add the specified and: and or: fields to the serialzer."""
-    and_fields = {
-        "and:" + field: StringOrListField(child=serializers.CharField(), required=False) for field in field_list
-    }
-    or_fields = {
-        "or:" + field: StringOrListField(child=serializers.CharField(), required=False) for field in field_list
-    }
-    fields.update(and_fields)
-    fields.update(or_fields)
-    return fields
 
 
 class StringOrListField(serializers.ListField):
@@ -146,13 +125,6 @@ class BaseSerializer(serializers.Serializer):
         self.tag_keys = kwargs.pop("tag_keys", None)
         super().__init__(*args, **kwargs)
 
-        if self.tag_keys is not None:
-            fkwargs = {"child": serializers.CharField(), "required": False}
-            self._init_tag_keys(StringOrListField, fkwargs=fkwargs)
-
-        if self._opfields:
-            add_operator_specified_fields(self.fields, self._opfields)
-
     def validate(self, data):
         """Validate incoming data.
 
@@ -166,34 +138,6 @@ class BaseSerializer(serializers.Serializer):
         """
         handle_invalid_fields(self, data)
         return data
-
-    def _init_tag_keys(self, field, fargs=None, fkwargs=None):
-        """Initialize tag-based fields.
-
-        Args:
-            field (Serializer)
-            fargs (list) Serializer's positional args
-            fkwargs (dict) Serializer's keyword args
-
-        """
-        if fargs is None:
-            fargs = []
-
-        if fkwargs is None:
-            fkwargs = {}
-
-        tag_fields = {}
-        for key in self.tag_keys:
-            if len(self.tag_keys) > 1 and "child" in fkwargs.keys():
-                # when there are multiple filters, each filter needs its own
-                # instantiated copy of the child field.
-                fkwargs["child"] = copy.deepcopy(fkwargs.get("child"))
-            tag_fields[key] = field(*fargs, **fkwargs)
-
-        # Add tag keys to allowable fields
-        for key, val in tag_fields.items():
-            setattr(self, key, val)
-            self.fields.update({key: val})
 
 
 class FilterSerializer(BaseSerializer):
@@ -265,10 +209,6 @@ class OrderSerializer(BaseSerializer):
         """Initialize the OrderSerializer."""
         super().__init__(*args, **kwargs)
 
-        if self.tag_keys is not None:
-            fkwargs = {"choices": OrderSerializer.ORDER_CHOICES, "required": False}
-            self._init_tag_keys(serializers.ChoiceField, fkwargs=fkwargs)
-
 
 class ParamSerializer(BaseSerializer):
     """A base serializer for query parameter operations."""
@@ -303,34 +243,3 @@ class ParamSerializer(BaseSerializer):
             inst = val(required=False, tag_keys=self.tag_keys, data=data)
             setattr(self, key, inst)
             self.fields[key] = inst
-
-
-def validate_order_by(self, value):
-    """Validate incoming order_by data.
-
-        Args:
-            value    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if order_by field inputs are invalid
-
-        """
-    error = {}
-
-    for key, val in value.items():
-        if key in self.order_by_whitelist:
-            continue  # fields that do not require a group-by
-
-        if "group_by" in self.initial_data:
-            group_keys = self.initial_data.get("group_by").keys()
-            if key in group_keys:
-                continue  # found matching group-by
-
-            # special case: we order by account_alias, but we group by account.
-            if key == "account_alias" and "account" in group_keys:
-                continue
-
-        error[key] = _(f'Order-by "{key}" requires matching Group-by.')
-        raise serializers.ValidationError(error)
-    return value
