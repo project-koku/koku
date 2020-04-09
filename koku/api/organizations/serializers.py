@@ -199,6 +199,19 @@ class BaseSerializer(serializers.Serializer):
 class FilterSerializer(BaseSerializer):
     """A base serializer for filter operations."""
 
+    _tagkey_support = True
+
+    RESOLUTION_CHOICES = (("daily", "daily"), ("monthly", "monthly"))
+    TIME_CHOICES = (("-10", "-10"), ("-30", "-30"), ("-1", "1"), ("-2", "-2"))
+    TIME_UNIT_CHOICES = (("day", "day"), ("month", "month"))
+
+    resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
+    time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)
+    time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)
+    resource_scope = StringOrListField(child=serializers.CharField(), required=False)
+    limit = serializers.IntegerField(required=False, min_value=1)
+    offset = serializers.IntegerField(required=False, min_value=0)
+
     def validate(self, data):
         """Validate incoming data.
 
@@ -210,6 +223,28 @@ class FilterSerializer(BaseSerializer):
             (ValidationError): if filter inputs are invalid
 
         """
+        handle_invalid_fields(self, data)
+        resolution = data.get("resolution")
+        time_scope_value = data.get("time_scope_value")
+        time_scope_units = data.get("time_scope_units")
+
+        if time_scope_units and time_scope_value:
+            msg = "Valid values are {} when time_scope_units is {}"
+            if time_scope_units == "day" and (time_scope_value == "-1" or time_scope_value == "-2"):  # noqa: W504
+                valid_values = ["-10", "-30"]
+                valid_vals = ", ".join(valid_values)
+                error = {"time_scope_value": msg.format(valid_vals, "day")}
+                raise serializers.ValidationError(error)
+            if time_scope_units == "day" and resolution == "monthly":
+                valid_values = ["daily"]
+                valid_vals = ", ".join(valid_values)
+                error = {"resolution": msg.format(valid_vals, "day")}
+                raise serializers.ValidationError(error)
+            if time_scope_units == "month" and (time_scope_value == "-10" or time_scope_value == "-30"):  # noqa: W504
+                valid_values = ["-1", "-2"]
+                valid_vals = ", ".join(valid_values)
+                error = {"time_scope_value": msg.format(valid_vals, "month")}
+                raise serializers.ValidationError(error)
         return data
 
 
@@ -268,3 +303,34 @@ class ParamSerializer(BaseSerializer):
             inst = val(required=False, tag_keys=self.tag_keys, data=data)
             setattr(self, key, inst)
             self.fields[key] = inst
+
+
+def validate_order_by(self, value):
+    """Validate incoming order_by data.
+
+        Args:
+            value    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if order_by field inputs are invalid
+
+        """
+    error = {}
+
+    for key, val in value.items():
+        if key in self.order_by_whitelist:
+            continue  # fields that do not require a group-by
+
+        if "group_by" in self.initial_data:
+            group_keys = self.initial_data.get("group_by").keys()
+            if key in group_keys:
+                continue  # found matching group-by
+
+            # special case: we order by account_alias, but we group by account.
+            if key == "account_alias" and "account" in group_keys:
+                continue
+
+        error[key] = _(f'Order-by "{key}" requires matching Group-by.')
+        raise serializers.ValidationError(error)
+    return value

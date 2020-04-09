@@ -24,10 +24,22 @@ from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
 from api.common import RH_IDENTITY_HEADER
+from api.common.pagination import ReportPagination
+from api.common.pagination import ReportRankedPagination
 from api.query_params import QueryParameters
 
 
 LOG = logging.getLogger(__name__)
+
+
+def get_paginator(filter_query_params, count):
+    """Determine which paginator to use based on query params."""
+    if "offset" in filter_query_params:
+        paginator = ReportRankedPagination()
+        paginator.count = count
+    else:
+        paginator = ReportPagination()
+    return paginator
 
 
 class OrganizationView(APIView):
@@ -59,4 +71,8 @@ class OrganizationView(APIView):
             return Response(data=exc.detail, status=status.HTTP_400_BAD_REQUEST)
         handler = self.query_handler(params)
         output = handler.execute_query()
-        return Response(output)
+        max_rank = handler.max_rank
+        paginator = get_paginator(params.parameters.get("filter", {}), max_rank)
+        paginated_result = paginator.paginate_queryset(output, request)
+        LOG.debug(f"DATA: {output}")
+        return paginator.get_paginated_response(paginated_result)

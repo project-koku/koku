@@ -46,6 +46,8 @@ class AWSOrgQueryHandler(OrgQueryHandler):
             self._mapper = AWSOrgProviderMap(provider=self.provider, report_type="organizations")
 
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
+        self._limit = parameters.get_filter("limit")
+        self._data_value_list = ["org_unit_id", "org_unit_name", "org_unit_path"]
 
         super().__init__(parameters)
 
@@ -78,16 +80,13 @@ class AWSOrgQueryHandler(OrgQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-
+        data = []
         with tenant_context(self.tenant):
             query_table = self.query_table
-            query = query_table.objects.values("org_unit_id").filter()
+            query = query_table.objects.values().filter(self.query_filter)
             query_data = query.annotate()
-            query_group_by = ["org_unit_id", "org_unit_name", "org_unit_path"]
-
             annotations = copy.deepcopy(self._mapper.report_type_map.get("annotations", {}))
-            query_data = query_data.values(*query_group_by).annotate(**annotations)
+            query_data = query_data.values(*self._data_value_list).annotate(**annotations)
             data = list(query_data)
-
         self.query_data = data
         return self._format_query_response()

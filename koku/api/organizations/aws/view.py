@@ -18,7 +18,7 @@
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.models import Provider
 from api.organizations.aws.query_handler import AWSOrgQueryHandler
-from api.organizations.serializers import ParamSerializer
+from api.organizations.aws.serializers import QueryParamSerializer
 from api.organizations.view import OrganizationView
 
 
@@ -28,6 +28,6 @@ class AWSOrgView(OrganizationView):
     permission_classes = [AwsAccessPermission]
     provider = Provider.PROVIDER_AWS
     query_handler = AWSOrgQueryHandler
-    serializer = ParamSerializer
+    serializer = QueryParamSerializer
     report = "organizations"
     tag_handler = []
