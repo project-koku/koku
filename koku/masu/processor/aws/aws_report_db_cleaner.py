@@ -21,7 +21,6 @@ from datetime import datetime
 from tenant_schemas.utils import schema_context
 
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
-from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -60,9 +59,7 @@ class AWSReportDBCleaner:
             err = "Parameter expired_date must be a datetime.datetime object."
             raise AWSReportDBCleanerError(err)
 
-        column_map = REPORT_COLUMN_MAP
-
-        with AWSReportDBAccessor(self._schema, column_map) as accessor:
+        with AWSReportDBAccessor(self._schema) as accessor:
             removed_items = []
             if provider_uuid is not None:
                 bill_objects = accessor.get_bill_query_before_date(expired_date, provider_uuid)
@@ -105,9 +102,8 @@ class AWSReportDBCleaner:
 
         """
         LOG.info("Calling purge_expired_report_data for aws")
-        column_map = REPORT_COLUMN_MAP
 
-        with AWSReportDBAccessor(self._schema, column_map) as accessor:
+        with AWSReportDBAccessor(self._schema) as accessor:
             if (expired_date is None and provider_uuid is None) or (  # noqa: W504
                 expired_date is not None and provider_uuid is not None
             ):

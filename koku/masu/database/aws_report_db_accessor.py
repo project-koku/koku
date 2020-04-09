@@ -38,6 +38,7 @@ from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
 from reporting.provider.ocp_aws.models import OCPAWSCostLineItemProjectDailySummary
+from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ LOG = logging.getLogger(__name__)
 class AWSReportDBAccessor(ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
-    def __init__(self, schema, column_map):
+    def __init__(self, schema):
         """Establish the database connection.
 
         Args:
@@ -54,9 +55,9 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             column_map (dict): A mapping of report columns to database columns
 
         """
-        super().__init__(schema, column_map)
+        super().__init__(schema, REPORT_COLUMN_MAP)
         self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
-        self.column_map = column_map
+        self.column_map = REPORT_COLUMN_MAP
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
 

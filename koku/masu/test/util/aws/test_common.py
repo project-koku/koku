@@ -251,7 +251,7 @@ class TestAWSUtils(MasuTestCase):
 
         with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with AWSReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
+        with AWSReportDBAccessor(schema=self.schema) as accessor:
 
             end_date = date_accessor.today_with_timezone("utc").replace(day=1)
             start_date = end_date
@@ -275,7 +275,7 @@ class TestAWSUtils(MasuTestCase):
 
         with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with AWSReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
+        with AWSReportDBAccessor(schema=self.schema) as accessor:
 
             end_date = date_accessor.today_with_timezone("utc").replace(day=1)
             start_date = end_date
@@ -299,7 +299,7 @@ class TestAWSUtils(MasuTestCase):
 
         with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with AWSReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
+        with AWSReportDBAccessor(schema=self.schema) as accessor:
 
             end_date = date_accessor.today_with_timezone("utc").replace(day=1)
             start_date = end_date

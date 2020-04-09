@@ -130,7 +130,7 @@ class AWSReportProcessorTest(MasuTestCase):
             "provider_uuid": self.aws_provider_uuid,
         }
 
-        self.accessor = AWSReportDBAccessor(self.schema, self.column_map)
+        self.accessor = AWSReportDBAccessor(self.schema)
         self.report_schema = self.accessor.report_schema
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 

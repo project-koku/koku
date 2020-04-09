@@ -67,7 +67,7 @@ class ReportObjectCreator:
             start_datetime = self.fake.past_datetime(start_date="-60d")
         end_datetime = start_datetime + datetime.timedelta(hours=1)
         data = {"bill_id": bill.id, "interval_start": start_datetime, "interval_end": end_datetime}
-        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AWSReportDBAccessor(self.schema) as accessor:
             return accessor.create_db_object(table_name, data)
 
     def create_cost_entry_bill(self, provider_uuid, bill_date=None):
@@ -82,14 +82,14 @@ class ReportObjectCreator:
             data["billing_period_start"] = bill_start
             data["billing_period_end"] = bill_end
 
-        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AWSReportDBAccessor(self.schema) as accessor:
             return accessor.create_db_object(table_name, data)
 
     def create_cost_entry_pricing(self):
         """Create a cost entry pricing database object for test."""
         table_name = AWS_CUR_TABLE_MAP["pricing"]
         data = self.create_columns_for_table(table_name)
-        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AWSReportDBAccessor(self.schema) as accessor:
             return accessor.create_db_object(table_name, data)
 
     def create_cost_entry_product(self, product_family=None):
@@ -98,14 +98,14 @@ class ReportObjectCreator:
         data = self.create_columns_for_table(table_name)
         prod_fam = {"product_family": product_family if product_family else random.choice(AWS_PRODUCT_FAMILY)}
         data.update(prod_fam)
-        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AWSReportDBAccessor(self.schema) as accessor:
             return accessor.create_db_object(table_name, data)
 
     def create_cost_entry_reservation(self, schema=None):
         """Create a cost entry reservation database object for test."""
         table_name = AWS_CUR_TABLE_MAP["reservation"]
         data = self.create_columns_for_table(table_name)
-        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AWSReportDBAccessor(self.schema) as accessor:
             return accessor.create_db_object(table_name, data)
 
     def create_cost_entry_line_item(self, bill, cost_entry, product, pricing, reservation, resource_id=None):
@@ -129,7 +129,7 @@ class ReportObjectCreator:
         }
 
         data.update(extra_data)
-        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AWSReportDBAccessor(self.schema) as accessor:
             return accessor.create_db_object(table_name, data)
 
     def create_ocp_report_period(self, provider_uuid, period_date=None, cluster_id=None):

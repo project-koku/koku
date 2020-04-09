@@ -159,7 +159,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             schema=self.schema, provider=self.ocp_on_aws_ocp_provider, manifest=None
         )
 
-        with AWSReportDBAccessor(self.schema, self.column_map) as aws_accessor:
+        with AWSReportDBAccessor(self.schema) as aws_accessor:
             summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
             query = aws_accessor._get_db_obj_query(summary_table_name)
             query.delete()
@@ -167,7 +167,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
 
         updater.update_summary_tables(start_date, end_date)
 
-        with AWSReportDBAccessor(self.schema, self.column_map) as aws_accessor:
+        with AWSReportDBAccessor(self.schema) as aws_accessor:
             query = aws_accessor._get_db_obj_query(summary_table_name)
             self.assertNotEqual(query.count(), initial_count)
 
@@ -192,7 +192,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         updater.update_summary_tables(start_date, end_date)
 
         summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
-        with AWSReportDBAccessor(self.schema, self.column_map) as aws_accessor:
+        with AWSReportDBAccessor(self.schema) as aws_accessor:
             query = (
                 aws_accessor._get_db_obj_query(summary_table_name)
                 .filter(cost_entry_bill__billing_period_start=start_date)
@@ -217,7 +217,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         updater.update_summary_tables(start_date, end_date)
 
         summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"]
-        with AWSReportDBAccessor(self.schema, self.column_map) as aws_accessor:
+        with AWSReportDBAccessor(self.schema) as aws_accessor:
             query = (
                 aws_accessor._get_db_obj_query(summary_table_name)
                 .filter(cost_entry_bill__billing_period_start=start_date, data_source="Pod")
@@ -320,7 +320,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             query = azure_accessor._get_db_obj_query(summary_table_name)
             azure_project_count = query.count()
 
-        with AWSReportDBAccessor(self.schema, self.column_map) as aws_accessor:
+        with AWSReportDBAccessor(self.schema) as aws_accessor:
             summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
             query = aws_accessor._get_db_obj_query(summary_table_name)
             aws_count = query.count()

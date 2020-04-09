@@ -37,7 +37,7 @@ class AWSCostModelCostUpdaterTest(MasuTestCase):
         super().setUpClass()
         cls.column_map = REPORT_COLUMN_MAP
 
-        cls.accessor = AWSReportDBAccessor("acct10001", cls.column_map)
+        cls.accessor = AWSReportDBAccessor("acct10001")
 
         cls.report_schema = cls.accessor.report_schema
 
@@ -83,6 +83,6 @@ class AWSCostModelCostUpdaterTest(MasuTestCase):
         bill_date = start_date.replace(day=1).date()
 
         self.updater.update_summary_cost_model_costs()
-        with AWSReportDBAccessor("acct10001", self.column_map) as accessor:
+        with AWSReportDBAccessor("acct10001") as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             self.assertIsNotNone(bill.derived_cost_datetime)

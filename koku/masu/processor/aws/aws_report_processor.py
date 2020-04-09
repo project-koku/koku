@@ -96,7 +96,7 @@ class AWSReportProcessor(ReportProcessorBase):
         # Gather database accessors
         self.column_map = REPORT_COLUMN_MAP
 
-        with AWSReportDBAccessor(self._schema, self.column_map) as report_db:
+        with AWSReportDBAccessor(self._schema) as report_db:
             self.report_schema = report_db.report_schema
             self.existing_bill_map = report_db.get_cost_entry_bills()
             self.existing_cost_entry_map = report_db.get_cost_entries()
@@ -138,7 +138,7 @@ class AWSReportProcessor(ReportProcessorBase):
         opener, mode = self._get_file_opener(self._compression)
         # pylint: disable=invalid-name
         with opener(self._report_path, mode) as f:
-            with AWSReportDBAccessor(self._schema, self.column_map) as report_db:
+            with AWSReportDBAccessor(self._schema) as report_db:
                 LOG.info("File %s opened for processing", str(f))
                 reader = csv.DictReader(f)
                 for row in reader:

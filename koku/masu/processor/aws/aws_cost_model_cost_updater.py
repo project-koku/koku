@@ -55,7 +55,7 @@ class AWSCostModelCostUpdater:
                 markup = cost_model_accessor.markup
                 markup_value = float(markup.get("value", 0)) / 100
 
-            with AWSReportDBAccessor(self._schema, self._column_map) as report_accessor:
+            with AWSReportDBAccessor(self._schema) as report_accessor:
                 with schema_context(self._schema):
                     bill_ids = [str(bill.id) for bill in bills]
                 report_accessor.populate_markup_cost(markup_value, bill_ids)
@@ -82,7 +82,7 @@ class AWSCostModelCostUpdater:
 
         self._update_markup_cost(start_date, end_date)
 
-        with AWSReportDBAccessor(self._schema, self._column_map) as accessor:
+        with AWSReportDBAccessor(self._schema) as accessor:
             LOG.debug(
                 "Updating AWS derived cost summary for schema: %s and provider: %s", self._schema, self._provider.uuid
             )

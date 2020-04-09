@@ -592,7 +592,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     def setUp(self):
         """Set up each test."""
         super().setUp()
-        self.aws_accessor = AWSReportDBAccessor(schema=self.schema, column_map=self.column_map)
+        self.aws_accessor = AWSReportDBAccessor(schema=self.schema)
         self.ocp_accessor = OCPReportDBAccessor(schema=self.schema, column_map=self.column_map)
 
         # Populate some line item data so that the summary tables
