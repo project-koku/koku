@@ -21,6 +21,8 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import requests_mock
+from django.db import InterfaceError
+from django.db import OperationalError
 from django.db.models.signals import post_save
 from django.test import TestCase
 from faker import Faker
@@ -122,6 +124,36 @@ class MockTask:
         """Initialize the task."""
         self.id = uuid4()
         create_or_update_provider(*args)
+
+
+class MockKafkaConsumer:
+    def __init__(self, preloaded_messages=["hi", "world"]):
+        self.preloaded_messages = preloaded_messages
+
+    async def start(self):
+        print("Consumer Started")
+
+    async def stop(self):
+        print("Consumer Stopped")
+
+    async def commit(self):
+        self.preloaded_messages.pop()
+        print("Consumer commit.")
+
+    async def seek_to_committed(self):
+        # This isn't realistic... But it's one way to stop the consumer for our needs.
+        raise KafkaError("Seek to commited. Closing...")
+
+    async def getone(self):
+        for msg in self.preloaded_messages:
+            return msg
+        raise KafkaError("Closing Mock Consumer")
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        return await self.getone()
 
 
 class SourcesKafkaMsgHandlerTest(TestCase):
@@ -997,6 +1029,76 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                     test.get("expected_fn")(msg_data)
                     Sources.objects.all().delete()
 
-    def test_listen_for_messages(self):
+    @patch("sources.kafka_listener.process_message")
+    def test_listen_for_messages(self, mock_process_message):
         """Test to listen for kafka messages."""
-        pass
+        future_mock = asyncio.Future()
+        future_mock.set_result("test result")
+        mock_process_message.return_value = future_mock
+
+        run_loop = asyncio.new_event_loop()
+
+        cost_management_app_type = 2
+
+        test_matrix = [
+            {"test_value": '{"id": 1, "source_id": 1, "application_type_id": 2', "expected_process": False},
+            {"test_value": json.dumps({"id": 1, "source_id": 1, "application_type_id": 2}), "expected_process": True},
+        ]
+        for test in test_matrix:
+            msg = ConsumerRecord(
+                topic="platform.sources.event-stream",
+                offset=5,
+                event_type="Application.create",
+                auth_header="testheader",
+                value=bytes(test.get("test_value"), encoding="utf-8"),
+            )
+
+            mock_consumer = MockKafkaConsumer([msg])
+
+            run_loop.run_until_complete(
+                source_integration.listen_for_messages(mock_consumer, cost_management_app_type)
+            )
+            if test.get("expected_process"):
+                mock_process_message.assert_called()
+            else:
+                mock_process_message.assert_not_called()
+
+    @patch("sources.kafka_listener.process_message")
+    def test_listen_for_messages_db_error(self, mock_process_message):
+        """Test to listen for kafka messages with database errors."""
+        future_mock = asyncio.Future()
+        future_mock.set_result("test result")
+
+        run_loop = asyncio.new_event_loop()
+
+        cost_management_app_type = 2
+
+        test_matrix = [
+            {
+                "test_value": json.dumps({"id": 1, "source_id": 1, "application_type_id": 2}),
+                "side_effect": InterfaceError,
+            },
+            {
+                "test_value": json.dumps({"id": 1, "source_id": 1, "application_type_id": 2}),
+                "side_effect": OperationalError,
+            },
+        ]
+
+        for test in test_matrix:
+            msg = ConsumerRecord(
+                topic="platform.sources.event-stream",
+                offset=5,
+                event_type="Application.create",
+                auth_header="testheader",
+                value=bytes(test.get("test_value"), encoding="utf-8"),
+            )
+
+            mock_consumer = MockKafkaConsumer([msg])
+
+            mock_process_message.side_effect = test.get("side_effect")
+            with patch("sources.kafka_listener.connection.close") as close_mock:
+                with patch.object(Config, "RETRY_SECONDS", 0):
+                    run_loop.run_until_complete(
+                        source_integration.listen_for_messages(mock_consumer, cost_management_app_type)
+                    )
+                    close_mock.assert_called()
