@@ -31,6 +31,7 @@ from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.processor import ALLOWED_COMPRESSIONS
+from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -85,7 +86,7 @@ class ReportProcessorBase:
             (dict): The data from the row keyed on the DB table's column names
 
         """
-        column_map = self.column_map[table_name]
+        column_map = REPORT_COLUMN_MAP[table_name]
 
         result = {column_map[key]: value for key, value in row.items() if key in column_map}
         return result

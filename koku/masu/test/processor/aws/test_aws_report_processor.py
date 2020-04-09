@@ -44,6 +44,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_processor import AWSReportProcessor
 from masu.processor.aws.aws_report_processor import ProcessedReport
 from masu.test import MasuTestCase
+from reporting_common import REPORT_COLUMN_MAP
 from reporting_common.models import CostUsageReportManifest
 
 
@@ -593,10 +594,9 @@ class AWSReportProcessorTest(MasuTestCase):
 
     def test_get_data_for_table(self):
         """Test that a row is disected into appropriate data structures."""
-        column_map = self.column_map
 
         for table_name in self.report_tables:
-            expected_columns = sorted(column_map[table_name].values())
+            expected_columns = sorted(REPORT_COLUMN_MAP[table_name].values())
             data = self.processor._get_data_for_table(self.row, table_name)
 
             for key in data:
@@ -940,7 +940,7 @@ class AWSReportProcessorTest(MasuTestCase):
         for bill_id in bill_ids:
             with schema_context(self.schema):
                 before_count = self.accessor.get_lineitem_query_for_billid(bill_id).count()
-            result = processor._delete_line_items(AWSReportDBAccessor, self.column_map)
+            result = processor._delete_line_items(AWSReportDBAccessor, REPORT_COLUMN_MAP)
 
             with schema_context(self.schema):
                 line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
@@ -959,7 +959,7 @@ class AWSReportProcessorTest(MasuTestCase):
             manifest_id=self.manifest.id,
         )
         processor.process()
-        result = processor._delete_line_items(AWSReportDBAccessor, self.column_map)
+        result = processor._delete_line_items(AWSReportDBAccessor, REPORT_COLUMN_MAP)
         with schema_context(self.schema):
             bills = self.accessor.get_cost_entry_bills()
             for bill_id in bills.values():
@@ -976,7 +976,7 @@ class AWSReportProcessorTest(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
         )
         processor.process()
-        result = processor._delete_line_items(AWSReportDBAccessor, self.column_map)
+        result = processor._delete_line_items(AWSReportDBAccessor, REPORT_COLUMN_MAP)
         with schema_context(self.schema):
             bills = self.accessor.get_cost_entry_bills()
             for bill_id in bills.values():
@@ -1017,7 +1017,7 @@ class AWSReportProcessorTest(MasuTestCase):
                 undeleted_max_date = line_item_query.aggregate(max_date=Max("usage_start"))
 
             mock_should_process.return_value = False
-            processor._delete_line_items(AWSReportDBAccessor, self.column_map, is_finalized=False)
+            processor._delete_line_items(AWSReportDBAccessor, REPORT_COLUMN_MAP, is_finalized=False)
 
             with schema_context(self.schema):
                 # bills = self.accessor.get_cost_entry_bills()
