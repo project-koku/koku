@@ -145,7 +145,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
             markup_value = Decimal(markup.get("value", 0)) / 100
 
         # OpenShift on Azure
-        with AzureReportDBAccessor(self._schema, self._column_map) as accessor:
+        with AzureReportDBAccessor(self._schema) as accessor:
             for start, end in date_range_pair(start_date, end_date):
                 LOG.info(
                     "Updating OpenShift on Azure summary table for "

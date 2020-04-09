@@ -19,7 +19,6 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.azure.azure_cost_model_cost_updater import AzureCostModelCostUpdater
 from masu.test import MasuTestCase
-from reporting_common import REPORT_COLUMN_MAP
 
 
 class AzureCostModelCostUpdaterTest(MasuTestCase):
@@ -33,8 +32,6 @@ class AzureCostModelCostUpdaterTest(MasuTestCase):
 
         updater.update_summary_cost_model_costs()
 
-        column_map = REPORT_COLUMN_MAP
-
-        with AzureReportDBAccessor(self.schema, column_map) as accessor:
+        with AzureReportDBAccessor(self.schema) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             self.assertIsNotNone(bill.derived_cost_datetime)

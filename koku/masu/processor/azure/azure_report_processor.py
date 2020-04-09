@@ -96,7 +96,7 @@ class AzureReportProcessor(ReportProcessorBase):
         # Gather database accessors
         self.column_map = REPORT_COLUMN_MAP
 
-        with AzureReportDBAccessor(self._schema, self.column_map) as report_db:
+        with AzureReportDBAccessor(self._schema) as report_db:
             self.report_schema = report_db.report_schema
             self.existing_bill_map = report_db.get_cost_entry_bills()
             self.existing_product_map = report_db.get_products()
@@ -280,7 +280,7 @@ class AzureReportProcessor(ReportProcessorBase):
         # pylint: disable=invalid-name
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode, encoding="utf-8-sig") as f:
-            with AzureReportDBAccessor(self._schema, self.column_map) as report_db:
+            with AzureReportDBAccessor(self._schema) as report_db:
                 LOG.info("File %s opened for processing", str(f))
                 reader = csv.DictReader(f)
                 for row in reader:

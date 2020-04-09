@@ -45,7 +45,7 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         super().setUpClass()
         cls.column_map = REPORT_COLUMN_MAP
 
-        cls.accessor = AzureReportDBAccessor("acct10001", cls.column_map)
+        cls.accessor = AzureReportDBAccessor("acct10001")
         cls.report_schema = cls.accessor.report_schema
         cls.all_tables = list(AZURE_REPORT_TABLE_MAP.values())
         cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
@@ -90,7 +90,7 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
 
-        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AzureReportDBAccessor(self.schema) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             bill.summary_data_creation_datetime = start_date
             bill.save()
@@ -107,7 +107,7 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         self.updater.update_summary_tables(start_date_str, end_date_str)
         mock_summary.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
 
-        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AzureReportDBAccessor(self.schema) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             self.assertIsNotNone(bill.summary_data_creation_datetime)
             self.assertIsNotNone(bill.summary_data_updated_datetime)
@@ -153,7 +153,7 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         self.updater.update_summary_tables(start_date_str, end_date_str)
         self.assertEqual(mock_summary.call_args_list, expected_calls)
 
-        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AzureReportDBAccessor(self.schema) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             self.assertIsNotNone(bill.summary_data_creation_datetime)
             self.assertIsNotNone(bill.summary_data_updated_datetime)

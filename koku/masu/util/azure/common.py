@@ -24,7 +24,6 @@ from tenant_schemas.utils import schema_context
 from api.models import Provider
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -90,8 +89,6 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     if isinstance(end_date, (datetime.datetime, datetime.date)):
         end_date = end_date.strftime("%Y-%m-%d")
 
-    column_map = REPORT_COLUMN_MAP
-
     with ProviderDBAccessor(provider_uuid) as provider_accessor:
         provider = provider_accessor.get_provider()
 
@@ -100,7 +97,7 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
         LOG.warning(err_msg)
         return []
 
-    with AzureReportDBAccessor(schema, column_map) as report_accessor:
+    with AzureReportDBAccessor(schema) as report_accessor:
         with schema_context(schema):
             bills = report_accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
             if start_date:

@@ -357,7 +357,7 @@ class ReportObjectCreator:
             data["billing_period_start"] = self.make_datetime_aware(parser.parse(bill_start))
             data["billing_period_end"] = self.make_datetime_aware(parser.parse(bill_end))
 
-        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AzureReportDBAccessor(self.schema) as accessor:
             return accessor.create_db_object(table_name, data)
 
     def create_azure_cost_entry_product(self, provider_uuid, instance_id=None):
@@ -368,7 +368,7 @@ class ReportObjectCreator:
         if instance_id:
             data["instance_id"] = instance_id
 
-        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AzureReportDBAccessor(self.schema) as accessor:
             return accessor.create_db_object(table_name, data)
 
     def create_azure_meter(self, provider_uuid):
@@ -377,7 +377,7 @@ class ReportObjectCreator:
         data = self.create_columns_for_table(table_name)
         data["provider_id"] = provider_uuid
 
-        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AzureReportDBAccessor(self.schema) as accessor:
             return accessor.create_db_object(table_name, data)
 
     def create_azure_cost_entry_line_item(self, bill, product, meter, usage_date=None):
@@ -402,7 +402,7 @@ class ReportObjectCreator:
         }
 
         data.update(extra_data)
-        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AzureReportDBAccessor(self.schema) as accessor:
             return accessor.create_db_object(table_name, data)
 
 

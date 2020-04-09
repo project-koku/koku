@@ -55,7 +55,7 @@ class AzureCostModelCostUpdater:
                 markup = cost_model_accessor.markup
                 markup_value = float(markup.get("value", 0)) / 100
 
-            with AzureReportDBAccessor(self._schema, self._column_map) as report_accessor:
+            with AzureReportDBAccessor(self._schema) as report_accessor:
                 with schema_context(self._schema):
                     bill_ids = [str(bill.id) for bill in bills]
                 report_accessor.populate_markup_cost(markup_value, bill_ids)
@@ -82,7 +82,7 @@ class AzureCostModelCostUpdater:
 
         self._update_markup_cost(start_date, end_date)
 
-        with AzureReportDBAccessor(self._schema, self._column_map) as accessor:
+        with AzureReportDBAccessor(self._schema) as accessor:
             LOG.debug(
                 "Updating Azure derived cost summary for schema: %s and provider: %s",
                 self._schema,

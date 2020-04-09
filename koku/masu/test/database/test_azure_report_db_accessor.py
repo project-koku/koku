@@ -42,7 +42,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         super().setUpClass()
 
         cls.column_map = REPORT_COLUMN_MAP
-        cls.accessor = AzureReportDBAccessor(schema=cls.schema, column_map=cls.column_map)
+        cls.accessor = AzureReportDBAccessor(schema=cls.schema)
         cls.report_schema = cls.accessor.report_schema
         cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
         cls.dh = DateHelper()
@@ -275,7 +275,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
                 "project_markup_cost__sum"
             ]
 
-        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AzureReportDBAccessor(self.schema) as accessor:
             accessor.populate_ocp_on_azure_markup_cost(markup_value, bill_ids=bill_ids)
 
         with schema_context(self.schema):
@@ -309,7 +309,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
                 "project_markup_cost__sum"
             ]
 
-        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AzureReportDBAccessor(self.schema) as accessor:
             accessor.populate_ocp_on_azure_markup_cost(markup_value)
 
         with schema_context(self.schema):

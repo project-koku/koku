@@ -89,7 +89,7 @@ class AzureReportProcessorTest(MasuTestCase):
             "provider_uuid": self.azure_provider_uuid,
         }
 
-        self.accessor = AzureReportDBAccessor(self.schema, self.column_map)
+        self.accessor = AzureReportDBAccessor(self.schema)
         self.report_schema = self.accessor.report_schema
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 

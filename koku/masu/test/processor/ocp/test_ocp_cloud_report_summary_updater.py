@@ -263,7 +263,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         updater.update_summary_tables(start_date, end_date)
 
         summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
-        with AzureReportDBAccessor(self.schema, self.column_map) as azure_accessor:
+        with AzureReportDBAccessor(self.schema) as azure_accessor:
             query = azure_accessor._get_db_obj_query(summary_table_name).filter(
                 cost_entry_bill__billing_period_start=start_date
             )
@@ -312,7 +312,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         expected_calls = [call(OCP_ON_AWS_MATERIALIZED_VIEWS), call(OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS)]
         mock_view_refresh.assert_has_calls(expected_calls)
 
-        with AzureReportDBAccessor(self.schema, self.column_map) as azure_accessor:
+        with AzureReportDBAccessor(self.schema) as azure_accessor:
             summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
             query = azure_accessor._get_db_obj_query(summary_table_name)
             azure_count = query.count()
