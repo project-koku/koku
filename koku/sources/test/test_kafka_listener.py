@@ -278,8 +278,9 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         mock_delay.side_effect = mock_error
         msg = {"operation": "create", "provider": provider, "offset": provider.offset}
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            with self.assertRaises(RabbitOperationalError):
-                source_integration.execute_koku_provider_op(msg, application_type_id)
+            with patch("sources.kafka_listener.SourcesHTTPClient.set_source_status"):
+                with self.assertRaises(RabbitOperationalError):
+                    source_integration.execute_koku_provider_op(msg, application_type_id)
 
     def test_get_sources_msg_data(self):
         """Test to get sources details from msg."""
