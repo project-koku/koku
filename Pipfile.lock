@@ -82,11 +82,11 @@
         },
         "beautifulsoup4": {
             "hashes": [
-                "sha256:05fd825eb01c290877657a56df4c6e4c311b3965bda790c613a3d6fb01a5462a",
-                "sha256:9fbb4d6e48ecd30bcacc5b63b94088192dcda178513b2ae3c394229f8911b887",
-                "sha256:e1505eeed31b0f4ce2dbb3bc8eb256c04cc2b3b72af7d551a4ab6efd5cbe5dae"
+                "sha256:594ca51a10d2b3443cbac41214e12dbb2a1cd57e1a7344659849e2e20ba6a8d8",
+                "sha256:a4bbe77fd30670455c5296242967a123ec28c37e9702a8a81bd2f20a4baf0368",
+                "sha256:d4e96ac9b0c3a6d3f0caae2e4124e6055c5dcafde8e2f831ff194c104f0775a0"
             ],
-            "version": "==4.8.2"
+            "version": "==4.9.0"
         },
         "billiard": {
             "hashes": [
