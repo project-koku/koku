@@ -25,22 +25,28 @@ CREATE INDEX ocpall_product_family_ilike ON reporting_ocpallcostlineitem_daily_s
             sql="""
 DROP INDEX IF EXISTS aws_summ_usage_pfam_ilike;
 CREATE INDEX aws_summ_usage_pfam_ilike ON reporting_awscostentrylineitem_daily_summary USING GIN (upper(product_family) gin_trgm_ops);
+
+DROP INDEX IF EXISTS aws_summ_usage_pcode_ilike;
+CREATE INDEX aws_summ_usage_pcode_ilike ON reporting_awscostentrylineitem_daily_summary USING GIN (upper(product_family) gin_trgm_ops);
             """
         ),
         migrations.RunSQL(
             sql="""
 DROP INDEX IF EXISTS ix_azure_costentrydlysumm_service_name;
 CREATE INDEX ix_azure_costentrydlysumm_service_name ON reporting_azurecostentrylineitem_daily_summary USING GIN (upper(service_name) gin_trgm_ops);
-
-DROP INDEX IF EXISTS ix_ocp_aws_product_family_ilike;
-CREATE INDEX ix_ocp_aws_product_family_ilike ON reporting_ocpawscostlineitem_daily_summary USING GIN (upper(product_family) gin_trgm_ops);
             """
         ),
         migrations.RunSQL(
             sql="""
+DROP INDEX IF EXISTS ix_ocp_aws_product_family_ilike;
+CREATE INDEX ix_ocp_aws_product_family_ilike ON reporting_ocpawscostlineitem_daily_summary USING GIN (upper(product_family) gin_trgm_ops);
+
 DROP INDEX IF EXISTS ix_ocp_aws_product_code_ilike;
 CREATE INDEX ix_ocp_aws_product_code_ilike ON reporting_ocpawscostlineitem_daily_summary USING GIN (upper(product_code) gin_trgm_ops);
-
+            """
+        ),
+        migrations.RunSQL(
+            sql="""
 DROP INDEX IF EXISTS ix_ocpazure_service_name_ilike;
 CREATE INDEX ix_ocpazure_service_name_ilike ON reporting_ocpazurecostlineitem_daily_summary USING GIN (upper(service_name) gin_trgm_ops);
             """

@@ -116,6 +116,9 @@ class AzureCostEntryLineItemDailySummary(models.Model):
 
         db_table = "reporting_azurecostentrylineitem_daily_summary"
         indexes = [models.Index(fields=["usage_start"], name="ix_azurecstentrydlysumm_start")]
+        # A GIN functional index named "ix_azure_costentrydlysumm_service_name" was created manually
+        # via RunSQL migration operation
+        # Function: (upper(service_name) gin_trgm_ops)
 
     id = models.BigAutoField(primary_key=True)
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)

@@ -38,8 +38,12 @@ class OCPAllCostLineItemDailySummary(models.Model):
             GinIndex(fields=["tags"], name="ocpall_tags_idx"),
             models.Index(fields=["product_family"], name="ocpall_product_family_idx"),
             models.Index(fields=["instance_type"], name="ocpall_instance_type_idx"),
-            # A functional index named "ocpall_product_code_ilike" was created manually via RunSQL migration operation
-            # A functional index named "ocpall_product_family_ilike" was created manually via RunSQL migration operation
+            # A GIN functional index named "ocpall_product_code_ilike" was created manually
+            # via RunSQL migration operation
+            # Function: (upper(product_code) gin_trgm_ops)
+            # A GIN functional index named "ocpall_product_family_ilike" was created manually
+            # via RunSQL migration operation
+            # Function: (upper(product_family) gin_trgm_ops)
         ]
 
     id = models.IntegerField(primary_key=True)
