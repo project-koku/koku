@@ -40,6 +40,7 @@ from providers.provider_access import ProviderAccessor
 from sources import storage
 from sources.config import Config
 from sources.kafka_listener import process_message
+from sources.kafka_listener import process_synchronize_sources_msg
 from sources.kafka_listener import storage_callback
 from sources.kafka_source_manager import KafkaSourceManager
 from sources.kafka_source_manager import KafkaSourceManagerError
@@ -1152,3 +1153,72 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                         source_integration.listen_for_messages(mock_consumer, cost_management_app_type)
                     )
                     close_mock.assert_called()
+
+    @patch("sources.kafka_listener.execute_koku_provider_op")
+    def test_process_synchronize_sources_msg_db_error(self, mock_process_message):
+        """Test processing synchronize messages with database errors."""
+        provider = Sources.objects.create(**self.aws_source)
+        provider.save()
+        future_mock = asyncio.Future()
+        future_mock.set_result("test result")
+
+        run_loop = asyncio.new_event_loop()
+        test_queue = asyncio.PriorityQueue(loop=run_loop)
+
+        cost_management_app_type = 2
+
+        test_matrix = [
+            {"test_value": {"operation": "update", "provider": provider}, "side_effect": InterfaceError},
+            {"test_value": {"operation": "update", "provider": provider}, "side_effect": OperationalError},
+        ]
+
+        for i, test in enumerate(test_matrix):
+            mock_process_message.side_effect = test.get("side_effect")
+            with patch("sources.kafka_listener.connection.close") as close_mock:
+                with patch.object(Config, "RETRY_SECONDS", 0):
+                    run_loop.run_until_complete(
+                        process_synchronize_sources_msg(
+                            (i, test["test_value"]), test_queue, cost_management_app_type, run_loop
+                        )
+                    )
+                    close_mock.assert_called()
+        for i in range(2):
+            priority, _ = test_queue.get_nowait()
+            self.assertEqual(priority, i)
+
+    @patch("sources.storage.destroy_source_event")
+    def test_process_synchronize_sources_msg(self, mock_destroy):
+        """Test processing synchronize messages."""
+        provider = Sources(**self.aws_source)
+
+        run_loop = asyncio.new_event_loop()
+        test_queue = asyncio.PriorityQueue(loop=run_loop)
+
+        cost_management_app_type = 2
+
+        messages = [
+            {"operation": "create", "provider": provider, "offset": provider.offset},
+            {"operation": "update", "provider": provider},
+        ]
+
+        for msg in messages:
+            with patch("sources.storage.clear_update_flag") as mock_clear_flag, patch(
+                "sources.tasks.create_or_update_provider.delay"
+            ) as mock_delay:
+                run_loop.run_until_complete(
+                    process_synchronize_sources_msg((0, msg), test_queue, cost_management_app_type, run_loop)
+                )
+                mock_delay.assert_called()
+                mock_clear_flag.assert_called()
+                mock_destroy.assert_not_called()
+
+        msg = {"operation": "destroy", "provider": provider}
+        with patch("sources.storage.clear_update_flag") as mock_clear_flag, patch(
+            "sources.tasks.create_or_update_provider.delay"
+        ) as mock_delay:
+            run_loop.run_until_complete(
+                process_synchronize_sources_msg((0, msg), test_queue, cost_management_app_type, run_loop)
+            )
+            mock_delay.assert_not_called()
+            mock_clear_flag.assert_not_called()
+        mock_destroy.assert_called()
