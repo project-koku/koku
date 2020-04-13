@@ -646,6 +646,39 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         )
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_sources_network_info_sync_unsupported(self):
+        """Test to get additional Source context from Sources API for an unsupported source type."""
+        test_source_id = 3
+        test_auth_header = Config.SOURCES_FAKE_HEADER
+        source_name = "Ansible Tower Source"
+        source_uid = faker.uuid4()
+        ansible_source = Sources(source_id=test_source_id, auth_header=test_auth_header, offset=1)
+        ansible_source.save()
+        source_type_id = 3
+        mock_source_name = "ansible-tower"
+        resource_id = 3
+
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sources.com/api/v1.0/sources/{test_source_id}",
+                status_code=200,
+                json={"name": source_name, "source_type_id": source_type_id, "uid": source_uid},
+            )
+            m.get(
+                f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
+                status_code=200,
+                json={"data": [{"name": mock_source_name}]},
+            )
+            m.get(
+                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
+                status_code=200,
+                json={"data": [{"id": resource_id}]},
+            )
+
+            source_integration.sources_network_info(test_source_id, test_auth_header)
+        self.assertFalse(Sources.objects.filter(source_id=test_source_id).exists())
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_sources_network_info_sync_connection_error(self):
         """Test to get additional Source context from Sources API with connection_error."""
         test_source_id = 1
@@ -667,7 +700,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
     def test_sources_network_info_no_endpoint(self):
         """Test to get additional Source context from Sources API with no endpoint found."""
         test_source_id = 1
-        mock_source_name = "source name"
+        mock_source_name = "amazon"
         source_type_id = 1
         source_uid = faker.uuid4()
         test_auth_header = Config.SOURCES_FAKE_HEADER
@@ -690,6 +723,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 status_code=200,
                 json={"data": []},
             )
+
             source_integration.sources_network_info(test_source_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)

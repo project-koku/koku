@@ -300,11 +300,18 @@ def sources_network_info(source_id, auth_header):
     source_name = source_details.get("name")
     source_type_id = int(source_details.get("source_type_id"))
     source_uuid = source_details.get("uid")
+
     source_type_name = sources_network.get_source_type_name(source_type_id)
+    if source_type_name not in (SOURCES_OCP_SOURCE_NAME, SOURCES_AWS_SOURCE_NAME, SOURCES_AZURE_SOURCE_NAME):
+        LOG.warning(f"Unexpected source type {source_type_name}. Removing...")
+        storage.destroy_source_event(source_id)
+        return
+
     endpoint_id = sources_network.get_endpoint_id()
 
     if not endpoint_id and not source_type_name == SOURCES_OCP_SOURCE_NAME:
         LOG.warning(f"Unable to find endpoint for Source ID: {source_id}")
+        return
 
     source_type = SOURCE_PROVIDER_MAP.get(source_type_name)
     if not source_type:
