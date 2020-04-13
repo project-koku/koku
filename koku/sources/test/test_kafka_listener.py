@@ -27,6 +27,7 @@ from django.db.models.signals import post_save
 from django.test import TestCase
 from faker import Faker
 from kafka.errors import KafkaError
+from kombu.exceptions import OperationalError as RabbitOperationalError
 from rest_framework.exceptions import ValidationError
 
 import sources.kafka_listener as source_integration
@@ -265,6 +266,22 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         response = Provider.objects.get(uuid=uuid)
         self.assertEqual(response.billing_source.bucket, "new-bucket")
+
+    @patch("sources.tasks.set_status_for_source.delay")
+    @patch("sources.tasks.create_or_update_provider.delay")
+    def test_execute_koku_provider_op_create_rabbit_down(self, mock_delay, mock_status):
+        """Test to execute Koku Operations to sync with Sources for creation with rabbit down."""
+        application_type_id = 2
+        provider = Sources(**self.aws_source)
+        provider.save()
+
+        mock_error = RabbitOperationalError()
+        mock_delay.side_effect = mock_error
+        msg = {"operation": "create", "provider": provider, "offset": provider.offset}
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            with patch("sources.kafka_listener.SourcesHTTPClient.set_source_status"):
+                with self.assertRaises(RabbitOperationalError):
+                    source_integration.execute_koku_provider_op(msg, application_type_id)
 
     def test_get_sources_msg_data(self):
         """Test to get sources details from msg."""
