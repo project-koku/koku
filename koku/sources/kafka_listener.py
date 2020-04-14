@@ -17,6 +17,7 @@
 """Sources Integration Service."""
 import asyncio
 import concurrent.futures
+import copy
 import itertools
 import json
 import logging
@@ -300,13 +301,7 @@ def sources_network_info(source_id, auth_header):
     source_name = source_details.get("name")
     source_type_id = int(source_details.get("source_type_id"))
     source_uuid = source_details.get("uid")
-
     source_type_name = sources_network.get_source_type_name(source_type_id)
-    if source_type_name not in (SOURCES_OCP_SOURCE_NAME, SOURCES_AWS_SOURCE_NAME, SOURCES_AZURE_SOURCE_NAME):
-        LOG.warning(f"Unexpected source type {source_type_name}. Removing...")
-        storage.destroy_source_event(source_id)
-        return
-
     endpoint_id = sources_network.get_endpoint_id()
 
     if not endpoint_id and not source_type_name == SOURCES_OCP_SOURCE_NAME:
@@ -322,8 +317,34 @@ def sources_network_info(source_id, auth_header):
     save_auth_info(auth_header, source_id)
 
 
+def cost_mgmt_msg_filter(msg):
+    """Verify that message is for cost management."""
+    msg_data = copy.deepcopy(msg)
+    event_type = msg_data.get("event_type")
+    auth_header = msg_data.get("auth_header")
+    if event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
+        sources_network = SourcesHTTPClient(auth_header)
+        source_id = sources_network.get_source_id_from_endpoint_id(msg_data.get("resource_id"))
+        msg_data["source_id"] = source_id
+        if not sources_network.get_application_type_is_cost_management(source_id):
+            LOG.error(f"Resource id {msg_data.get('resource_id')} not associated with cost-management.")
+            return None
+    else:
+        source_id = msg_data.get("source_id")
+
+    sources_network = SourcesHTTPClient(auth_header, source_id=source_id)
+    source_details = sources_network.get_source_details()
+    source_type_id = int(source_details.get("source_type_id"))
+    source_type_name = sources_network.get_source_type_name(source_type_id)
+
+    if source_type_name not in (SOURCES_OCP_SOURCE_NAME, SOURCES_AWS_SOURCE_NAME, SOURCES_AZURE_SOURCE_NAME):
+        LOG.warning(f"Filtering unexpected source type {source_type_name}.")
+        return None
+    return msg_data
+
+
 @transaction.atomic
-async def process_message(app_type_id, msg_data, loop=EVENT_LOOP):
+async def process_message(app_type_id, msg, loop=EVENT_LOOP):
     """
     Process message from Platform-Sources kafka service.
 
@@ -336,7 +357,7 @@ async def process_message(app_type_id, msg_data, loop=EVENT_LOOP):
 
     Args:
         app_type_id - application type identifier
-        msg_data - kafka message
+        msg - kafka message
         loop - asyncio loop for ThreadPoolExecutor
 
 
@@ -344,7 +365,12 @@ async def process_message(app_type_id, msg_data, loop=EVENT_LOOP):
         None
 
     """
-    LOG.info(f"Processing Event: {str(msg_data)}")
+    LOG.info(f"Processing Event: {str(msg)}")
+    msg_data = cost_mgmt_msg_filter(msg)
+    if not msg_data:
+        LOG.warning(f"Message not intended for cost management: {str(msg)}")
+        return
+
     if msg_data.get("event_type") in (KAFKA_APPLICATION_CREATE,):
 
         storage.create_source_event(msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset"))
@@ -355,22 +381,13 @@ async def process_message(app_type_id, msg_data, loop=EVENT_LOOP):
             )
 
     elif msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
-        sources_network = SourcesHTTPClient(msg_data.get("auth_header"))
-        msg_data["source_id"] = sources_network.get_source_id_from_endpoint_id(msg_data.get("resource_id"))
-        is_cost_mgmt = sources_network.get_application_type_is_cost_management(msg_data.get("source_id"))
-        if is_cost_mgmt:
+        if msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE,):
+            storage.create_source_event(  # this will create source _only_ if it does not exist.
+                msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset")
+            )
 
-            if msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE,):
-                storage.create_source_event(  # this will create source _only_ if it does not exist.
-                    msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset")
-                )
-
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                await loop.run_in_executor(
-                    pool, save_auth_info, msg_data.get("auth_header"), msg_data.get("source_id")
-                )
-        else:
-            LOG.info(f"Resource id {msg_data.get('resource_id')} not associated with cost-management.")
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            await loop.run_in_executor(pool, save_auth_info, msg_data.get("auth_header"), msg_data.get("source_id"))
 
     elif msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE,):
         with concurrent.futures.ThreadPoolExecutor() as pool:
@@ -430,6 +447,10 @@ async def listen_for_messages(consumer, application_source_id):
                     await process_message(application_source_id, msg)
                 except (InterfaceError, OperationalError) as err:
                     connection.close()
+                    LOG.error(err)
+                    await asyncio.sleep(Config.RETRY_SECONDS)
+                    await consumer.seek_to_committed()
+                except SourcesHTTPClientError as err:
                     LOG.error(err)
                     await asyncio.sleep(Config.RETRY_SECONDS)
                     await consumer.seek_to_committed()
