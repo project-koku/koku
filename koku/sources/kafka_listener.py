@@ -365,6 +365,8 @@ async def process_message(app_type_id, msg, loop=EVENT_LOOP):
         None
 
     """
+    # if msg.get("source_id") == 1:
+    #     raise Exception("TESTING")
     LOG.info(f"Processing Event: {str(msg)}")
     msg_data = cost_mgmt_msg_filter(msg)
     if not msg_data:
@@ -423,8 +425,8 @@ async def listen_for_messages_loop(event_loop, application_source_id):
         await listen_for_messages(consumer, application_source_id)
 
 
-@KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
-async def listen_for_messages(consumer, application_source_id):
+@KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()  # noqa: C901
+async def listen_for_messages(consumer, application_source_id):  # noqa: C901
     """
     Listen for Platform-Sources kafka messages.
 
@@ -465,6 +467,8 @@ async def listen_for_messages(consumer, application_source_id):
                     await consumer.commit()
     except KafkaError as error:
         LOG.error(f"[listen_for_messages] Kafka error encountered: {type(error).__name__}: {error}", exc_info=True)
+    except Exception as error:
+        LOG.error(f"[listen_for_messages] UNKNOWN error encountered: {type(error).__name__}: {error}", exc_info=True)
     finally:
         LOG.warning("Kafka consummer stopping...")
         await consumer.stop()
