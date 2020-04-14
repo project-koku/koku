@@ -319,7 +319,7 @@ def cost_mgmt_msg_filter(msg_data):
     event_type = msg_data.get("event_type")
     auth_header = msg_data.get("auth_header")
 
-    if event_type in ((KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY)):
+    if event_type in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
         return msg_data
 
     if event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
