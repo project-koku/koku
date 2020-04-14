@@ -292,8 +292,8 @@ def sources_network_info(source_id, auth_header):
     try:
         source_details = sources_network.get_source_details()
     except SourcesHTTPClientError as conn_err:
-        err_msg = f"Unable to get for Source {source_id} information. Reason: {str(conn_err)}"
-        LOG.error(err_msg)
+        err_msg = f"Unable to get information for Source {source_id}. Reason: {str(conn_err)}"
+        LOG.warning(err_msg)
         return
     source_name = source_details.get("name")
     source_type_id = int(source_details.get("source_type_id"))
