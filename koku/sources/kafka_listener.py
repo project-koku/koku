@@ -416,8 +416,14 @@ def get_consumer(event_loop):
     )
 
 
+async def listen_for_messages_loop(event_loop, application_source_id):
+    """Wrap listen_for_messages in while true."""
+    while True:
+        await listen_for_messages(event_loop, application_source_id)
+
+
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
-async def listen_for_messages(consumer, application_source_id):
+async def listen_for_messages(event_loop, application_source_id):
     """
     Listen for Platform-Sources kafka messages.
 
@@ -430,6 +436,7 @@ async def listen_for_messages(consumer, application_source_id):
         None
 
     """
+    consumer = get_consumer(event_loop)
     LOG.info("Kafka consumer starting...")
     await consumer.start()
     LOG.info("Listener started.  Waiting for messages...")
@@ -702,10 +709,8 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
 
     load_process_queue()
 
-    consumer = get_consumer(event_loop)
-
     try:  # Finally, after the connections are established, start the message processing tasks
-        event_loop.create_task(listen_for_messages(consumer, cost_management_type_id))
+        event_loop.create_task(listen_for_messages_loop(event_loop, cost_management_type_id))
         event_loop.create_task(synchronize_sources(PROCESS_QUEUE, cost_management_type_id))
         event_loop.run_forever()
     except KeyboardInterrupt:
