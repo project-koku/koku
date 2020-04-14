@@ -17,61 +17,28 @@
 """Test the AWS Organization views."""
 from django.urls import reverse
 from rest_framework import status
-from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
-from masu.test.external.downloader.aws import fake_arn
+from api.organizations.test.utils import GenerateOrgTestData
 
 
 class AWSReportViewTest(IamTestCase):
-    """Tests the report view."""
+    """Tests the organizations view."""
 
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        self.account = {
-            "authentication": fake_arn(service="iam", generate_account_id=True),
-            "schema_name": self.schema_name,
-        }
-        self.data_tree = {
-            "r-id": {"data": [{"name": "root", "id": "r-id", "path": "r-id"}], "account_num": 0},
-            "big_ou0": {
-                "data": [
-                    {"name": "big_ou", "id": "big_ou0", "path": "r-id&big_ou0"},
-                    {"name": "big_ou", "id": "big_ou0", "path": "r-id&big_ou0", "account": "0"},
-                    {"name": "big_ou", "id": "big_ou0", "path": "r-id&big_ou0", "account": "1"},
-                ],
-                "account_num": 2,
-            },
-            "sub_ou0": {
-                "data": [{"name": "sub_ou", "id": "sub_ou0", "path": "r-id&big_ou0&sub_ou0"}],
-                "account_num": 0,
-            },
-        }
+        self.generate_data = GenerateOrgTestData(self.schema_name)
         self.url = reverse("aws-org-unit")
-
-    def _populate_test_db(self, tree):
-        """Populates the test database with org unit tree information."""
-        unit_crawler = AWSOrgUnitCrawler(self.account)
-        with schema_context(self.schema_name):
-            for _, data_info in tree.items():
-                for insert_data in data_info["data"]:
-                    if insert_data.get("account"):
-                        unit_crawler._save_aws_org_method(
-                            insert_data["name"], insert_data["id"], insert_data["path"], insert_data["account"]
-                        )
-                    else:
-                        unit_crawler._save_aws_org_method(insert_data["name"], insert_data["id"], insert_data["path"])
 
     def test_execute(self):
         """Test that our url endpoint returns 200."""
-        self._populate_test_db(self.data_tree)
+        expected = self.generate_data.insert_data()
         response = self.client.get(self.url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         result = response.data.get("data")
         self.assertIsNotNone(result)
-        self.assertEqual(len(result), len(self.data_tree))
+        self.assertEqual(len(result), len(expected.keys()))
         for ou in result:
             accounts = ou.get("accounts")
             ou_id = ou.get("org_unit_id")
@@ -79,22 +46,24 @@ class AWSReportViewTest(IamTestCase):
             name = ou.get("org_unit_name")
             self.assertIsNotNone(accounts)
             self.assertIsNotNone(ou_id)
-            self.assertEqual(len(accounts), self.data_tree[ou_id]["account_num"])
-            self.assertEqual(path, self.data_tree[ou_id]["data"][0]["path"])
-            self.assertEqual(name, self.data_tree[ou_id]["data"][0]["name"])
+            self.assertEqual(len(accounts), expected[ou_id]["account_num"])
+            self.assertEqual(path, expected[ou_id]["data"][0]["path"])
+            self.assertEqual(name, expected[ou_id]["data"][0]["name"])
 
     def test_execute_with_filter(self):
         """Test filter with time intervals."""
-        del self.data_tree["r-id"]
-        del self.data_tree["sub_ou0"]
-        self._populate_test_db(self.data_tree)
+        self.generate_data.data_list = [
+            {"name": "big_ou", "id": "big_ou0", "path": "r-id&big_ou0", "account": "0"},
+            {"name": "big_ou", "id": "big_ou0", "path": "r-id&big_ou0", "account": "1"},
+        ]
+        expected = self.generate_data.insert_data()
         url = self.url + "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data.get("data")), len(expected))
 
     def test_time_filters_errors(self):
         """Test time filter errors with time intervals"""
-        self._populate_test_db(self.data_tree)
         url = self.url + "?filter[time_scope_units]=day&filter[time_scope_value]=-1&filter[resolution]=daily"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -113,3 +82,9 @@ class AWSReportViewTest(IamTestCase):
         result = str(response.data.get("delta")[0])
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(result, expected)
+
+    def test_with_limit_params(self):
+        """Test the _get_group_by method with limit and group by params."""
+        url = self.url + "?filter[limit]=1"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
