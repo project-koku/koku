@@ -419,11 +419,12 @@ def get_consumer(event_loop):
 async def listen_for_messages_loop(event_loop, application_source_id):
     """Wrap listen_for_messages in while true."""
     while True:
-        await listen_for_messages(event_loop, application_source_id)
+        consumer = get_consumer(event_loop)
+        await listen_for_messages(consumer, application_source_id)
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
-async def listen_for_messages(event_loop, application_source_id):
+async def listen_for_messages(consumer, application_source_id):
     """
     Listen for Platform-Sources kafka messages.
 
@@ -436,7 +437,6 @@ async def listen_for_messages(event_loop, application_source_id):
         None
 
     """
-    consumer = get_consumer(event_loop)
     LOG.info("Kafka consumer starting...")
     await consumer.start()
     LOG.info("Listener started.  Waiting for messages...")
