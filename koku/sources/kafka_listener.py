@@ -17,7 +17,6 @@
 """Sources Integration Service."""
 import asyncio
 import concurrent.futures
-import copy
 import itertools
 import json
 import logging
@@ -315,17 +314,20 @@ def sources_network_info(source_id, auth_header):
     save_auth_info(auth_header, source_id)
 
 
-def cost_mgmt_msg_filter(msg):
+def cost_mgmt_msg_filter(msg_data):
     """Verify that message is for cost management."""
-    msg_data = copy.deepcopy(msg)
     event_type = msg_data.get("event_type")
     auth_header = msg_data.get("auth_header")
+
+    if event_type in ((KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY)):
+        return msg_data
+
     if event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
         sources_network = SourcesHTTPClient(auth_header)
         source_id = sources_network.get_source_id_from_endpoint_id(msg_data.get("resource_id"))
         msg_data["source_id"] = source_id
         if not sources_network.get_application_type_is_cost_management(source_id):
-            LOG.error(f"Resource id {msg_data.get('resource_id')} not associated with cost-management.")
+            LOG.info(f"Resource id {msg_data.get('resource_id')} not associated with cost-management.")
             return None
     else:
         source_id = msg_data.get("source_id")
