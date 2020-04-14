@@ -24,12 +24,6 @@ from django.conf.urls import include
 from django.conf.urls import url
 from django.urls import path
 
-from koku.env import ENVIRONMENT
-from sources.kafka_listener import initialize_sources_integration
-
-IS_SOURCES = ENVIRONMENT.bool("SOURCES", default=False)
-if IS_SOURCES:
-    initialize_sources_integration()
 
 API_PATH_PREFIX = settings.API_PATH_PREFIX
 if API_PATH_PREFIX != "":
