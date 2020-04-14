@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 from celery.utils.log import get_task_logger
-from django.conf import settings
 from rest_framework.exceptions import ValidationError
 
 from api.provider.models import Provider
@@ -79,10 +78,6 @@ def create_or_update_provider(source_id):
 
 @app.task(name="sources.tasks.set_status_for_source", queue_name="sources")
 def set_status_for_source(source_id, error_message):
-    if settings.DEVELOPMENT:
-        LOG.info(f"Development enabled. Source ID {source_id} status not set.")
-        return
-
     try:
         instance = Sources.objects.get(source_id=source_id)
     except Exception as e:

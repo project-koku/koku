@@ -73,7 +73,8 @@ class SourceStatus:
     def push_status(self):
         """Push status_msg to platform sources."""
         try:
-            status_msg = self.status()
+            status_obj = self.status()
+            status_msg = status_obj.get("availability_status_error", "Status unavailable")
             self.sources_client.set_source_status(status_msg)
         except SourcesHTTPClientError as error:
             err_msg = "Unable to push source status. Reason: {}".format(str(error))
