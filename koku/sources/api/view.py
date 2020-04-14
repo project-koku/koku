@@ -45,6 +45,7 @@ from api.provider.models import Sources
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
 from sources.api.serializers import AdminSourcesSerializer
+from sources.api.serializers import SourcesDependencyError
 from sources.api.serializers import SourcesSerializer
 from sources.kafka_source_manager import KafkaSourceManager
 from sources.storage import SourcesStorageError
@@ -92,6 +93,16 @@ class SourcesException(APIException):
         """Initialize with status code 400."""
         super().__init__()
         self.status_code = status.HTTP_400_BAD_REQUEST
+        self.detail = {"detail": force_text(error_msg)}
+
+
+class SourcesDependencyException(APIException):
+    """Dependency error exception."""
+
+    def __init__(self, error_msg):
+        """Initialize with status code 424."""
+        super().__init__()
+        self.status_code = status.HTTP_424_FAILED_DEPENDENCY
         self.detail = {"detail": force_text(error_msg)}
 
 
@@ -188,6 +199,8 @@ class SourcesViewSet(*MIXIN_LIST):
             return super().update(request=request, args=args, kwargs=kwargs)
         except (SourcesStorageError, ParseError) as error:
             raise SourcesException(str(error))
+        except SourcesDependencyError as error:
+            raise SourcesDependencyException(str(error))
 
     @never_cache
     def list(self, request, *args, **kwargs):

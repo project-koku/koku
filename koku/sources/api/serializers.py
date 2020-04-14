@@ -21,6 +21,7 @@ from uuid import uuid4
 
 from django.db import transaction
 from django.utils.translation import ugettext as _
+from kombu.exceptions import OperationalError
 from rest_framework import serializers
 
 from api.provider.models import Provider
@@ -42,6 +43,10 @@ ALLOWED_BILLING_SOURCE_PROVIDERS = (
 )
 
 ALLOWED_AUTHENTICATION_PROVIDERS = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL)
+
+
+class SourcesDependencyError(Exception):
+    """General Exception for sources dependency errors."""
 
 
 def error_obj(key, message):
@@ -149,8 +154,13 @@ class SourcesSerializer(serializers.ModelSerializer):
         instance.save(update_fields=update_fields)
 
         # create provider with celery task
-        create_or_update_provider.delay(instance.source_id)
-
+        try:
+            create_or_update_provider.delay(instance.source_id)
+        except OperationalError:
+            key = "sources"
+            message = f"RabbitMQ unavailable. Unable to update Source ID {instance.source_id}."
+            LOG.error(message)
+            raise SourcesDependencyError(error_obj(key, message))
         return instance
 
 
