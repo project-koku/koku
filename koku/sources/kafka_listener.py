@@ -21,13 +21,11 @@ import copy
 import itertools
 import json
 import logging
-import os
 import random
 import sys
 import threading
 import time
 
-import psutil
 from aiokafka import AIOKafkaConsumer
 from django.db import connection
 from django.db import InterfaceError
@@ -663,10 +661,6 @@ def handle_exception(EVENT_LOOP, context):  # pragma: no cover
 
     # Stop asyncio event loop
     EVENT_LOOP.stop()
-
-    # Shutdown server
-    sources_command_proc = psutil.Process(os.getpid())
-    sources_command_proc.terminate()
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
