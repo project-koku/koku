@@ -365,8 +365,6 @@ async def process_message(app_type_id, msg, loop=EVENT_LOOP):
         None
 
     """
-    # if msg.get("source_id") == 1:
-    #     raise Exception("TESTING")
     LOG.info(f"Processing Event: {str(msg)}")
     msg_data = cost_mgmt_msg_filter(msg)
     if not msg_data:
