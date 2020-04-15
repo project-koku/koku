@@ -203,7 +203,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     region = models.CharField(max_length=50, null=True)
     instance_type = models.CharField(max_length=50, null=True)
     unit = models.CharField(max_length=63, null=True)
-    organizational_unit = models.ForeignKey("AWSOrganizationalUnit",  on_delete=models.SET_NULL, null=True)
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
 
     # The following fields are aggregates
     resource_ids = ArrayField(models.CharField(max_length=256), null=True)
@@ -781,18 +781,22 @@ class AWSOrganizationalUnit(models.Model):
     deleted_timestamp = models.DateField(null=True)
 
     def __str__(self):
-            """Convert to string."""
-            return '{ id : %s, '\
-                'org_unit_name : %s, '\
-                'org_unit_id : %s, '\
-                'org_unit_path : %s, '\
-                'account_id : %s, '\
-                'created_timestamp : %s, '\
-                'deleted_timestamp : %s}' %\
-                (self.id,
+        """Convert to string."""
+        return (
+            "{ id : %s, "
+            "org_unit_name : %s, "
+            "org_unit_id : %s, "
+            "org_unit_path : %s, "
+            "account_id : %s, "
+            "created_timestamp : %s, "
+            "deleted_timestamp : %s}"
+            % (
+                self.id,
                 self.org_unit_name,
                 self.org_unit_id,
                 self.org_unit_path,
                 self.account_id,
                 self.created_timestamp,
-                self.deleted_timestamp)
+                self.deleted_timestamp,
+            )
+        )

@@ -86,7 +86,7 @@ class OCPAWSCostLineItemDailySummary(models.Model):
 
     currency_code = models.CharField(max_length=10, null=True)
 
-    organizational_unit = models.ForeignKey("AWSOrganizationalUnit",  on_delete=models.SET_NULL, null=True)
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
 
     # Cost breakdown can be done by cluster, node, project, and pod.
     # Cluster and node cost can be determined by summing the AWS unblended_cost

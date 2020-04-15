@@ -15,8 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the AWSOrgUnitCrawler object."""
-from datetime import datetime, timedelta
-
+from datetime import timedelta
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -225,36 +224,54 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             cur_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(cur_count, 0)
 
-        print('#' * 1200)
-
         # Add root node with 1 account
-        original_nodes = []
-        original_nodes.append(unit_crawler._save_aws_org_method("root", "root_id", "root", None))
-        original_nodes.append(unit_crawler._save_aws_org_method("root", "root_id", "root", "account_1"))
+        created_nodes = []
+        created_nodes.append(unit_crawler._save_aws_org_method("root", "R_001", "R_001", None))
+        created_nodes.append(unit_crawler._save_aws_org_method("root", "R_001", "R_001", "A_001"))
 
         # Add sub_org_unit_1 with 2 accounts
-        original_nodes.append(unit_crawler._save_aws_org_method("sub_org_unit_1", "sub_org_unit_1_id", "root.sub_org_unit_1", None))
-        original_nodes.append(unit_crawler._save_aws_org_method("sub_org_unit_1", "sub_org_unit_1_id", "root.sub_org_unit_1", "account_2"))
-        original_nodes.append(unit_crawler._save_aws_org_method("sub_org_unit_1", "sub_org_unit_1_id", "root.sub_org_unit_1", "account_3"))
+        created_nodes.append(unit_crawler._save_aws_org_method("sub_org_unit_1", "OU_1000", "R_001&OU_1000", None))
+        created_nodes.append(unit_crawler._save_aws_org_method("sub_org_unit_1", "OU_1000", "R_001&OU_1000", "A_002"))
+        created_nodes.append(unit_crawler._save_aws_org_method("sub_org_unit_1", "OU_1000", "R_001&OU_1000", "A_003"))
 
-        # Change created date to yesterday
+        # Change created date to day_1
         with schema_context(self.schema):
-            yesterday = (unit_crawler._date_accessor.today() - timedelta(1)).strftime('%Y-%m-%d')
-            for node in original_nodes:
-                node.created_timestamp = yesterday
+            day_1 = (unit_crawler._date_accessor.today() - timedelta(2)).strftime("%Y-%m-%d")
+            for node in created_nodes:
+                node.created_timestamp = day_1
                 node.save()
-            curr_count = AWSOrganizationalUnit.objects.filter(created_timestamp__lte=yesterday).count()
+            curr_count = AWSOrganizationalUnit.objects.filter(created_timestamp__lte=day_1).count()
             self.assertEqual(curr_count, 5)
 
         # # Add sub_org_unit_2 and move sub_org_unit_1 2 accounts here
-        unit_crawler._save_aws_org_method("sub_org_unit_2", "sub_org_unit_2_id", "root.sub_org_unit_2", None)
-        unit_crawler._save_aws_org_method("sub_org_unit_2", "sub_org_unit_2_id", "root.sub_org_unit_2", "account_2")
-        unit_crawler._save_aws_org_method("sub_org_unit_2", "sub_org_unit_2_id", "root.sub_org_unit_2", "account_3")
-        unit_crawler._delete_aws_org_method("sub_org_unit_1", "sub_org_unit_1_id", "root.sub_org_unit_1", None)
-        unit_crawler._delete_aws_org_method("sub_org_unit_Fake", "sub_org_unit_1_Fake", "root.sub_org_unit_Fake", None)
+        created_nodes = []
+        created_nodes.append(unit_crawler._save_aws_org_method("sub_org_unit_2", "OU_2000", "R_001&OU_2000", None))
+        created_nodes.append(unit_crawler._save_aws_org_method("sub_org_unit_2", "OU_2000", "R_001&OU_2000", "A_002"))
+        created_nodes.append(unit_crawler._save_aws_org_method("sub_org_unit_2", "OU_2000", "R_001&OU_2000", "A_003"))
+        deleted_nodes = unit_crawler._delete_aws_org_unit("OU_1000")
+
+        # Test fake node delete
+        unit_crawler._delete_aws_org_unit("sub_org_unit_1_Fake")
+
+        with schema_context(self.schema):
+            day_2 = (unit_crawler._date_accessor.today() - timedelta(1)).strftime("%Y-%m-%d")
+            for node in created_nodes:
+                node.created_timestamp = day_2
+                node.save()
+            for node in deleted_nodes:
+                node.deleted_timestamp = day_2
+                node.save()
+            curr_count = AWSOrganizationalUnit.objects.filter(created_timestamp__lte=day_2).count()
+            self.assertEqual(curr_count, 8)
+
+        unit_crawler._delete_aws_account("A_002")
 
         with schema_context(self.schema):
             curr_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(curr_count, 8)
 
-        unit_crawler._compute_org_structure_for_day(None)
+        today = unit_crawler._date_accessor.today().strftime("%Y-%m-%d")
+        unit_crawler._compute_org_structure_for_day(day_1)
+        unit_crawler._compute_org_structure_for_day(day_2)
+        unit_crawler._compute_org_structure_for_day(today)
+        unit_crawler._compute_org_structure_for_day(day_1, today)

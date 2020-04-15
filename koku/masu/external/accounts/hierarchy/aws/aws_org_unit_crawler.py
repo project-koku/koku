@@ -18,12 +18,11 @@
 # from tenant_schemas.utils import schema_context
 import logging
 
-
 from django.db import transaction
 from tenant_schemas.utils import schema_context
 
-from masu.external.date_accessor import DateAccessor
 from masu.external.accounts.hierarchy.account_crawler import AccountCrawler
+from masu.external.date_accessor import DateAccessor
 from masu.util.aws import common as utils
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
@@ -148,33 +147,41 @@ class AWSOrgUnitCrawler(AccountCrawler):
             )
             return node[0]
 
-    def _delete_aws_org_method(self, unit_name, unit_id, unit_path, account_id=None):
+    def _delete_aws_account(self, account_id):
         """
-        Recursively crawls the org units and accounts.
+        Marks an account deleted.
 
         Args:
-            unit_name (str): The human readable org unit name
-            unit_id (str): The AWS unique org unit id
-            unit_path (str): The tree path to the org unit
-            account_id (str): The AWS account number.  If internal node, None
+            account_id (str): The AWS account number.
         Returns:
-            (AWSOrganizationalUnit): That was marked deleted
+            QuerySet(AWSOrganizationalUnit): That were marked deleted
         """
-        LOG.info(
-            "Marking account or org unit deleted: unit_name=%s, unit_id=%s, unit_path=%s, account_id=%s"
-            % (unit_name, unit_id, unit_path, account_id)
-        )
+        LOG.info("Marking account deleted: account_id=%s" % (account_id))
         with schema_context(self.schema):
-            try:
-                org_unit = AWSOrganizationalUnit.objects.get(
-                    org_unit_name=unit_name, org_unit_id=unit_id, org_unit_path=unit_path, account_id=account_id
-                )
-                org_unit.deleted_timestamp = self._date_accessor.today().strftime('%Y-%m-%d')
-                org_unit.save()
-                return org_unit
-            except AWSOrganizationalUnit.DoesNotExist:
-                LOG.warn("Request to delete non-existent org-unit or account:  unit_name=%s, unit_id=%s, unit_path=%s, account_id=%s" %
-                         (unit_name, unit_id, unit_path, account_id))
+            accounts = AWSOrganizationalUnit.objects.filter(account_id=account_id)
+            # The can be multiple records for a single accounts due to changes in org structure
+            for account in accounts:
+                account.deleted_timestamp = self._date_accessor.today().strftime("%Y-%m-%d")
+                account.save()
+            return accounts
+
+    def _delete_aws_org_unit(self, org_unit_id):
+        """
+        Marks an account deleted.
+
+        Args:
+            org_unit_id (str): The AWS organization unit id.
+        Returns:
+            QuerySet(AWSOrganizationalUnit): That were marked deleted
+        """
+        LOG.info("Marking org unit deleted deleted: org_unit_id=%s" % (org_unit_id))
+        with schema_context(self.schema):
+            accounts = AWSOrganizationalUnit.objects.filter(org_unit_id=org_unit_id)
+            # The can be multiple records for a single accounts due to changes in org structure
+            for account in accounts:
+                account.deleted_timestamp = self._date_accessor.today().strftime("%Y-%m-%d")
+                account.save()
+            return accounts
 
     @transaction.atomic
     def crawl_account_hierarchy(self):
@@ -184,7 +191,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
 
         self._crawl_org_for_accounts(root_ou, root_ou.get("Id"))
 
-    def _compute_org_structure_for_day(self, date):
+    def _compute_org_structure_for_day(self, start_date, end_date=None):
         """Compute the org structure for a day."""
         # On a particular day (e.g. March 1, 2020)
         # 1. Filter out nodes deleted on OR before date (e.g on or before March 1, 2020)
@@ -192,7 +199,31 @@ class AWSOrgUnitCrawler(AccountCrawler):
         # 3. Build a dictionary where key= org_id+account_id (empty string for account_id if internal node)
         #    and value = django record (so we can do updates if needed)
         # AWSOrganizationalUnit.objects.filter(deleted_timestamp__gte=date)
+        if not end_date:
+            end_date = start_date
         with schema_context(self.schema):
-            LOG.info('#' * 1200)
-            for org_unit in AWSOrganizationalUnit.objects.all():
+            LOG.info("#" * 120)
+            LOG.info(f"Tree for {start_date} to {end_date}")
+            # Remove org units delete on date or before
+            aws_node_qs = AWSOrganizationalUnit.objects.exclude(deleted_timestamp__lte=start_date)
+
+            # Remove org units created after date
+            aws_node_qs = aws_node_qs.exclude(created_timestamp__gt=end_date)
+
+            aws_org_units = (
+                aws_node_qs.filter(account_id__isnull=True)
+                .order_by("org_unit_id", "-created_timestamp")
+                .distinct("org_unit_id")
+            )
+            aws_accounts = (
+                aws_node_qs.filter(account_id__isnull=False)
+                .order_by("account_id", "-created_timestamp")
+                .distinct("account_id")
+            )
+
+            LOG.info("$$$$ BEGIN PRINT TREE $$$$")
+            for org_unit in aws_org_units:
                 LOG.info(org_unit)
+            for org_unit in aws_accounts:
+                LOG.info(org_unit)
+            LOG.info("$$$$ END PRINT TREE $$$$")
