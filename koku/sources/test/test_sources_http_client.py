@@ -27,6 +27,7 @@ from faker import Faker
 from api.provider.models import Sources
 from sources.config import Config
 from sources.kafka_listener import storage_callback
+from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 
@@ -62,7 +63,7 @@ class SourcesHTTPClientTest(TestCase):
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             m.get(f"http://www.sources.com/api/v1.0/sources/{self.source_id}", status_code=404)
-            with self.assertRaises(SourcesHTTPClientError):
+            with self.assertRaises(SourceNotFoundError):
                 client.get_source_details()
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
@@ -100,7 +101,7 @@ class SourcesHTTPClientTest(TestCase):
                 status_code=404,
                 json={"data": [{"id": self.application_type}]},
             )
-            with self.assertRaises(SourcesHTTPClientError):
+            with self.assertRaises(SourceNotFoundError):
                 client.get_cost_management_application_type_id()
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
@@ -141,6 +142,15 @@ class SourcesHTTPClientTest(TestCase):
             m.get(
                 f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
                 status_code=404,
+                json={"data": [{"name": mock_source_name}]},
+            )
+            with self.assertRaises(SourceNotFoundError):
+                client.get_source_type_name(source_type_id)
+
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
+                status_code=401,
                 json={"data": [{"name": mock_source_name}]},
             )
             with self.assertRaises(SourcesHTTPClientError):
@@ -356,7 +366,7 @@ class SourcesHTTPClientTest(TestCase):
                 status_code=404,
                 json={"data": [{"id": resource_id}]},
             )
-            with self.assertRaises(SourcesHTTPClientError):
+            with self.assertRaises(SourceNotFoundError):
                 client.get_endpoint_id()
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
@@ -403,7 +413,7 @@ class SourcesHTTPClientTest(TestCase):
                 status_code=404,
                 json={"data": [{"id": resource_id}]},
             )
-            with self.assertRaises(SourcesHTTPClientError):
+            with self.assertRaises(SourceNotFoundError):
                 client.get_source_id_from_endpoint_id(resource_id)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
@@ -538,7 +548,7 @@ class SourcesHTTPClientCheckAppTypeTest(TestCase):
             status=200,
         )
 
-        with self.assertRaises(SourcesHTTPClientError):
+        with self.assertRaises(SourceNotFoundError):
             client.get_application_type_is_cost_management(source_id)
 
     @responses.activate
