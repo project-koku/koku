@@ -42,6 +42,7 @@ from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from sources import storage
 from sources.config import Config
 from sources.kafka_source_manager import KafkaSourceManager
+from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 from sources.tasks import create_or_update_provider
@@ -248,27 +249,6 @@ def save_auth_info(auth_header, source_id):
         sources_network.set_source_status(str(error))
 
 
-def sources_network_auth_info(resource_id, auth_header):
-    """
-    Store Sources Authentication information given an endpoint (Resource ID).
-
-    Convenience method when a Resource ID (Endpoint) is known and the Source ID
-    is not.  This happens when from an Authentication.create message.
-
-    Args:
-        resource_id (Integer): Platform Sources Endpoint ID, aka resource_id.
-        auth_header (String): Authentication Header.
-
-    Returns:
-        None
-
-    """
-    # check db for source. If exists, add authentication info.
-    source_id = storage.get_source_from_endpoint(resource_id)
-    if source_id:
-        save_auth_info(auth_header, source_id)
-
-
 def sources_network_info(source_id, auth_header):
     """
     Get additional sources context from Sources REST API.
@@ -343,8 +323,8 @@ def cost_mgmt_msg_filter(msg_data):
     return msg_data
 
 
-@transaction.atomic
-async def process_message(app_type_id, msg, loop=EVENT_LOOP):
+@transaction.atomic  # noqa: C901
+async def process_message(app_type_id, msg, loop=EVENT_LOOP):  # noqa: C901
     """
     Process message from Platform-Sources kafka service.
 
@@ -365,10 +345,15 @@ async def process_message(app_type_id, msg, loop=EVENT_LOOP):
         None
 
     """
-    LOG.info(f"Processing Event: {str(msg)}")
-    msg_data = cost_mgmt_msg_filter(msg)
+    LOG.info(f"Processing Event: {msg}")
+    msg_data = None
+    try:
+        msg_data = cost_mgmt_msg_filter(msg)
+    except SourceNotFoundError:
+        LOG.warning(f"Source not found in platform sources. Skipping msg: {msg}")
+        return
     if not msg_data:
-        LOG.warning(f"Message not intended for cost management: {str(msg)}")
+        LOG.warning(f"Message not intended for cost management: {msg}")
         return
 
     if msg_data.get("event_type") in (KAFKA_APPLICATION_CREATE,):
@@ -461,6 +446,9 @@ async def listen_for_messages(consumer, application_source_id):  # noqa: C901
                     LOG.error(err)
                     await asyncio.sleep(Config.RETRY_SECONDS)
                     await consumer.seek_to_committed()
+                except SourceNotFoundError:
+                    LOG.warning(f"Source not found in platform sources. Skipping msg: {msg}")
+                    await consumer.commit()
                 else:
                     await consumer.commit()
     except KafkaError as error:
@@ -703,6 +691,9 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
             backoff(count)
             count += 1
             LOG.info("Reattempting connection to Sources REST API.")
+        except SourceNotFoundError as err:
+            LOG.error(f"Cost Management application not found: {err}. Exiting...")
+            sys.exit(1)
         except KeyboardInterrupt:
             sys.exit(0)
 
