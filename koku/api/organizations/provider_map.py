@@ -15,10 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider Mapper for AWS Organizations."""
-from django.contrib.postgres.aggregates import ArrayAgg
-
-from api.models import Provider
-from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
 class ProviderMap:
@@ -55,52 +51,3 @@ class ProviderMap:
         # this data should be considered static and read-only.
         if not getattr(self, "_mapping"):
             self._mapping = [{}]
-
-    @property
-    def count(self):
-        """Return the count property."""
-        return self._report_type_map.get("count")
-
-    @property
-    def provider_map(self):
-        """Return the provider map property."""
-        return self._provider_map
-
-    @property
-    def query_table(self):
-        """Return the appropriate query table for the report type."""
-        report_table = self._report_type_map.get("tables", {}).get("query")
-        default = self._provider_map.get("tables").get("query")
-        return report_table if report_table else default
-
-    @property
-    def report_type_map(self):
-        """Return the report-type map property."""
-        return self._report_type_map
-
-
-class AWSOrgProviderMap(ProviderMap):
-    """AWS Provider Map."""
-
-    def __init__(self, provider, report_type):
-        """Constructor."""
-        self._mapping = [
-            {
-                "provider": Provider.PROVIDER_AWS,
-                "annotations": {},
-                "filters": {},
-                "group_by_options": ["org_unit_id"],
-                "report_type": {
-                    "organizations": {
-                        "annotations": {"accounts": ArrayAgg("account_id", distinct=True)},
-                        "filter": [{}],
-                        "default_ordering": {},
-                    },
-                    "tags": {},
-                },
-                "tables": {"query": AWSOrganizationalUnit},
-            }
-        ]
-
-        self.views = {"organizations": {"default": AWSOrganizationalUnit}}
-        super().__init__(provider, report_type)

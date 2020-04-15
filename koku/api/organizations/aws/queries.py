@@ -18,9 +18,36 @@
 from django.contrib.postgres.aggregates import ArrayAgg
 
 from api.models import Provider
-from api.organizations.aws.provider_map import AWSOrgProviderMap
+from api.organizations.provider_map import ProviderMap
 from api.organizations.queries import OrgQueryHandler
 from reporting.provider.aws.models import AWSOrganizationalUnit
+
+
+class AWSOrgProviderMap(ProviderMap):
+    """AWS Provider Map."""
+
+    def __init__(self, provider, report_type):
+        """Constructor."""
+        self._mapping = [
+            {
+                "provider": Provider.PROVIDER_AWS,
+                #     "annotations": {},
+                #     "filters": {},
+                #     "group_by_options": ["org_unit_id"],
+                "report_type": {
+                    "organizations": {
+                        "annotations": {"accounts": ArrayAgg("account_id", distinct=True)},
+                        "filter": [{}],
+                        "default_ordering": {},
+                    },
+                    "tags": {},
+                },
+                #     "tables": {"query": AWSOrganizationalUnit},
+            }
+        ]
+
+        self.views = {"organizations": {"default": AWSOrganizationalUnit}}
+        super().__init__(provider, report_type)
 
 
 class AWSOrgQueryHandler(OrgQueryHandler):

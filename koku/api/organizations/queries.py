@@ -109,12 +109,11 @@ class OrgQueryHandler(QueryHandler):
 
         """
         output = copy.deepcopy(self.parameters.parameters)
-        LOG.info(self.query_data)
         for data in self.query_data:
-            accounts = data["accounts"]
+            accounts = data.get("accounts", [])
             if None in accounts:
                 accounts = list(filter(None, accounts))
-            data["accounts"] = accounts
+                data["accounts"] = accounts
         output["data"] = self.query_data
         return output
 
@@ -231,41 +230,30 @@ class OrgQueryHandler(QueryHandler):
     def get_org_units(self, filters=True):
         """Get a list of org keys to validate filters."""
         type_filter = self.parameters.get_filter("type")
-        tag_keys = set()
+        org_units = list()
+        value_list = ["org_unit_id", "org_unit_name", "org_unit_path"]
         with tenant_context(self.tenant):
             for source in self.data_sources:
-                tag_keys_query = source.get("db_table").objects
+                org_unit_query = source.get("db_table").objects
                 annotations = source.get("annotations")
                 if annotations:
-                    tag_keys_query = tag_keys_query.annotate(**annotations)
+                    org_unit_query = org_unit_query.annotate(**annotations)
                 if filters is True:
-                    tag_keys_query = tag_keys_query.filter(self.query_filter)
+                    org_unit_query = org_unit_query.filter(self.query_filter)
 
                 if type_filter and type_filter != source.get("type"):
                     continue
-                exclusion = self._get_exclusions("key")
-                tag_keys_query = tag_keys_query.exclude(exclusion).values("key").distinct().all()
+                # TODO: Work the exclusions back in
+                # exclusion = self._get_exclusions("key")
+                # tag_keys_query = tag_keys_query.exclude(exclusion).values("key").distinct().all()
+                query_data = org_unit_query.values(*value_list).filter(account_id=None).distinct().all()
 
-                tag_keys.update({tag.get("key") for tag in tag_keys_query})
+                org_units.extend(query_data)
 
-        return list(tag_keys)
+        return org_units
 
     def get_org_tree(self):
-        """Get a list of tags and values to validate filters.
-
-        Return a list of dictionaries containing the org keys.
-        If OCP, these dicationaries will return as:
-            [
-                {"key": key1, "values": [value1, value2], "type": "storage" (or "pod")},
-                {"key": key2, "values": [value1, value2], "type": "storage" (or "pod")},
-                etc.
-            ]
-        If cloud provider, dicitonaries will be:
-            [
-                {"key": key1, "values": [value1, value2]},
-                {"key": key2, "values": [value1, value2]},
-                etc.
-            ]
+        """Returns the organizational data tree.
         """
         type_filter = self.parameters.get_filter("type")
         type_filter_array = []
@@ -288,13 +276,11 @@ class OrgQueryHandler(QueryHandler):
                 query_table = source.get("db_table")
                 query = query_table.objects.values().filter(self.query_filter)
                 annotations = source.get("annotations")
-                LOG.info("annotations")
-                LOG.info(annotations)
-                LOG.info(source)
                 if annotations:
                     query = query.annotate(**annotations)
                     for annotation_key in annotations.keys():
                         value_list.append(annotation_key)
+                # TODO: Work the exclusions back in
                 query_data = list(query.values(*value_list).annotate(accounts=ArrayAgg("account_id", distinct=True)))
                 final_data.extend(query_data)
         return final_data
