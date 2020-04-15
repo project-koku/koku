@@ -350,7 +350,7 @@ async def process_message(app_type_id, msg, loop=EVENT_LOOP):  # noqa: C901
     try:
         msg_data = cost_mgmt_msg_filter(msg)
     except SourceNotFoundError:
-        LOG.warning(f"Source not found in platform sources: {msg}")
+        LOG.warning(f"Source not found in platform sources. Skipping msg: {msg}")
         return
     if not msg_data:
         LOG.warning(f"Message not intended for cost management: {msg}")
@@ -446,6 +446,9 @@ async def listen_for_messages(consumer, application_source_id):  # noqa: C901
                     LOG.error(err)
                     await asyncio.sleep(Config.RETRY_SECONDS)
                     await consumer.seek_to_committed()
+                except SourceNotFoundError:
+                    LOG.warning(f"Source not found in platform sources. Skipping msg: {msg}")
+                    await consumer.commit()
                 else:
                     await consumer.commit()
     except KafkaError as error:
