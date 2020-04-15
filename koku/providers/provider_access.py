@@ -49,7 +49,7 @@ class ProviderAccessor:
         valid_services = Provider.PROVIDER_CHOICES
 
         if not [service for service in valid_services if service_name in service]:
-            LOG.error("%s is not a valid provider", service_name)
+            LOG.warning("%s is not a valid provider", service_name)
 
         services = {
             Provider.PROVIDER_AWS: AWSProvider,
@@ -127,6 +127,9 @@ class ProviderAccessor:
                             'availability_status_error': ValidationError-detail}
 
         """
+        if self.service is None:
+            return {"availability_status": "unavailable", "availability_status_error": "Unknown source."}
+
         error_msg = ""
         try:
             self.cost_usage_source_ready(credential, source_name)

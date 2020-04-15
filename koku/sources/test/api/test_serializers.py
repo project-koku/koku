@@ -31,6 +31,7 @@ from providers.provider_access import ProviderAccessor
 from sources.api import get_account_from_header
 from sources.api import HEADER_X_RH_IDENTITY
 from sources.api.serializers import AdminSourcesSerializer
+from sources.api.serializers import SourcesDependencyError
 from sources.api.serializers import SourcesSerializer
 from sources.config import Config
 from sources.storage import SourcesStorageError
@@ -121,6 +122,19 @@ class SourcesSerializerTests(IamTestCase):
         serializer = SourcesSerializer(context=self.request_context)
         validated_data = {"authentication": {"credentials": {"subscription_id": "subscription-uuid"}}}
         with self.assertRaises(SourcesStorageError):
+            serializer.update(self.azure_obj, validated_data)
+
+    @patch("sources.tasks.create_or_update_provider.delay")
+    def test_source_update_rabbit_down(self, mock_delay):
+        """Test the updating a source with rabbit down."""
+        self.azure_obj.source_type = Provider.PROVIDER_AZURE
+        self.azure_obj.save()
+
+        serializer = SourcesSerializer(context=self.request_context)
+        validated_data = {"authentication": {"credentials": {"subscription_id": "subscription-uuid"}}}
+        mock_side_effect = SourcesDependencyError("Where's Rabbit")
+        mock_delay.side_effect = mock_side_effect
+        with self.assertRaises(SourcesDependencyError):
             serializer.update(self.azure_obj, validated_data)
 
     @patch("sources.tasks.create_or_update_provider.delay")
