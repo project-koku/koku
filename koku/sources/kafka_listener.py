@@ -249,27 +249,6 @@ def save_auth_info(auth_header, source_id):
         sources_network.set_source_status(str(error))
 
 
-def sources_network_auth_info(resource_id, auth_header):
-    """
-    Store Sources Authentication information given an endpoint (Resource ID).
-
-    Convenience method when a Resource ID (Endpoint) is known and the Source ID
-    is not.  This happens when from an Authentication.create message.
-
-    Args:
-        resource_id (Integer): Platform Sources Endpoint ID, aka resource_id.
-        auth_header (String): Authentication Header.
-
-    Returns:
-        None
-
-    """
-    # check db for source. If exists, add authentication info.
-    source_id = storage.get_source_from_endpoint(resource_id)
-    if source_id:
-        save_auth_info(auth_header, source_id)
-
-
 def sources_network_info(source_id, auth_header):
     """
     Get additional sources context from Sources REST API.
@@ -366,7 +345,7 @@ async def process_message(app_type_id, msg, loop=EVENT_LOOP):  # noqa: C901
         None
 
     """
-    LOG.info(f"Processing Event: {str(msg)}")
+    LOG.info(f"Processing Event: {msg}")
     msg_data = None
     try:
         msg_data = cost_mgmt_msg_filter(msg)
@@ -374,7 +353,7 @@ async def process_message(app_type_id, msg, loop=EVENT_LOOP):  # noqa: C901
         LOG.warning(f"Source not found in platform sources: {msg}")
         return
     if not msg_data:
-        LOG.warning(f"Message not intended for cost management: {str(msg)}")
+        LOG.warning(f"Message not intended for cost management: {msg}")
         return
 
     if msg_data.get("event_type") in (KAFKA_APPLICATION_CREATE,):
