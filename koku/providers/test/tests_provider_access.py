@@ -155,3 +155,16 @@ class ProviderAccessorTestCase(TestCase):
         with self.assertRaises(ProviderAccessorError):
             with patch.object(OCPProvider, "infra_key_list_implementation", side_effect=Exception("test")):
                 interface.infrastructure_type(None, None)
+
+    def test_availability_status_bad_provider(self):
+        """Test availability_status for bad provider."""
+        provider_name = "BAD"
+        interface = ProviderAccessor(provider_name)
+        self.assertIsNone(interface.service)
+
+        credential = "arn:aws:s3:::my_s3_bucket"
+        source_name = "my_s3_bucket"
+        error_msg = "Unknown source."
+        status = interface.availability_status(credential, source_name)
+        self.assertEquals(status.get("availability_status"), "unavailable")
+        self.assertEquals(status.get("availability_status_error"), error_msg)

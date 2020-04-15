@@ -44,6 +44,7 @@ from sources.kafka_listener import process_synchronize_sources_msg
 from sources.kafka_listener import storage_callback
 from sources.kafka_source_manager import KafkaSourceManager
 from sources.kafka_source_manager import KafkaSourceManagerError
+from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 from sources.tasks import create_or_update_provider
@@ -699,131 +700,6 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         self.assertEquals(source_obj.source_type, "")
         self.assertEquals(source_obj.authentication, {})
 
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_sources_network_auth_info(self):
-        """Test to get authentication information from Sources backend."""
-        test_source_id = 2
-        test_resource_id = 1
-        application_type_id = 2
-        app_id = 1
-        source_uid = faker.uuid4()
-        test_auth_header = Config.SOURCES_FAKE_HEADER
-        ocp_source = Sources(
-            source_id=test_source_id,
-            auth_header=test_auth_header,
-            endpoint_id=test_resource_id,
-            source_type=Provider.PROVIDER_OCP,
-            offset=1,
-        )
-        ocp_source.save()
-
-        with requests_mock.mock() as m:
-            m.get(
-                f"http://www.sources.com/api/v1.0/sources/{test_source_id}", status_code=200, json={"uid": source_uid}
-            )
-            m.get(
-                SOURCES_APPS.format(application_type_id, test_source_id),
-                status_code=200,
-                json={"data": [{"id": app_id}]},
-            )
-            m.get(
-                f"http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
-                status_code=200,
-                json={"data": [{"id": application_type_id}]},
-            )
-            m.patch(f"http://www.sources.com/api/v1.0/applications/{app_id}", status_code=204)
-            source_integration.sources_network_auth_info(test_resource_id, test_auth_header)
-
-        source_obj = Sources.objects.get(source_id=test_source_id)
-        self.assertEquals(source_obj.authentication, {})
-
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_sources_network_auth_info_ocp_with_cluster_id(self):
-        """Test to get authentication information from Sources backend for OCP with cluster_id."""
-        test_source_id = 2
-        test_resource_id = 1
-        application_type = 2
-        cluster_id = faker.uuid4()
-        test_auth_header = Config.SOURCES_FAKE_HEADER
-        ocp_source = Sources(
-            source_id=test_source_id,
-            auth_header=test_auth_header,
-            endpoint_id=test_resource_id,
-            source_type=Provider.PROVIDER_OCP,
-            offset=1,
-        )
-        ocp_source.save()
-
-        with requests_mock.mock() as m:
-            m.get(
-                f"http://www.sources.com/api/v1.0/sources/{test_source_id}",
-                status_code=200,
-                json={"source_ref": cluster_id},
-            )
-            m.get(
-                f"http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
-                status_code=200,
-                json={"data": [{"id": application_type}]},
-            )
-
-            source_integration.sources_network_auth_info(test_resource_id, test_auth_header)
-
-        source_obj = Sources.objects.get(source_id=test_source_id)
-        self.assertEquals(source_obj.authentication, {"resource_name": cluster_id})
-
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_sources_network_auth_info_error(self):
-        """Test to get authentication information from Sources backend with error."""
-        test_source_id = 2
-        test_resource_id = 1
-        application_type_id = 2
-        app_id = 1
-        test_auth_header = Config.SOURCES_FAKE_HEADER
-        ocp_source = Sources(
-            source_id=test_source_id,
-            auth_header=test_auth_header,
-            endpoint_id=test_resource_id,
-            source_type=Provider.PROVIDER_OCP,
-            offset=1,
-        )
-        ocp_source.save()
-
-        with requests_mock.mock() as m:
-            m.get(f"http://www.sources.com/api/v1.0/sources/{test_source_id}", status_code=400)
-            m.get(
-                SOURCES_APPS.format(application_type_id, test_source_id),
-                status_code=200,
-                json={"data": [{"id": app_id}]},
-            )
-            m.get(
-                f"http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
-                status_code=200,
-                json={"data": [{"id": application_type_id}]},
-            )
-            m.patch(f"http://www.sources.com/api/v1.0/applications/{app_id}", status_code=204)
-            source_integration.sources_network_auth_info(test_resource_id, test_auth_header)
-        source_obj = Sources.objects.get(source_id=test_source_id)
-        self.assertEquals(source_obj.authentication, {})
-
-    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
-    def test_sources_network_auth_info_unknown_provider(self):
-        """Test to get authentication information from Sources backend with error."""
-        test_source_id = 2
-        test_resource_id = 1
-        test_auth_header = Config.SOURCES_FAKE_HEADER
-        ocp_source = Sources(
-            source_id=test_source_id,
-            auth_header=test_auth_header,
-            endpoint_id=test_resource_id,
-            source_type="UNKNOWN",
-            offset=1,
-        )
-        ocp_source.save()
-
-        source_integration.sources_network_auth_info(test_resource_id, test_auth_header)
-        source_obj = Sources.objects.get(source_id=test_source_id)
-        self.assertEquals(source_obj.authentication, {})
-
     @patch("sources.kafka_listener.AIOKafkaConsumer.start", side_effect=[raise_exception(), dont_raise_exception()])
     def test_kafka_connection_metrics_listen_for_messages(self, mock_start):
         """Test check_kafka_connection increments kafka connection errors on KafkaError."""
@@ -870,6 +746,21 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 with patch.object(SourcesHTTPClient, "get_source_type_name", return_value=test.get("source_name")):
                     run_loop.run_until_complete(process_message(test_application_id, msg_data, run_loop))
                     test.get("expected_fn")(msg_data, test, mock_sources_network_info)
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_process_message_application_create_source_not_found(self):
+        """Test the process_message function."""
+        test_application_id = 2
+
+        test = {
+            "event": source_integration.KAFKA_APPLICATION_CREATE,
+            "value": {"id": 1, "source_id": 1, "application_type_id": test_application_id},
+        }
+        msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
+        run_loop = asyncio.new_event_loop()
+        with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError("NOT FOUND TEST")):
+            result = run_loop.run_until_complete(process_message(test_application_id, msg_data, run_loop))
+            self.assertIsNone(result)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     @patch("sources.kafka_listener.sources_network_info", returns=None)
