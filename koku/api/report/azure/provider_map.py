@@ -221,7 +221,7 @@ class AzureProviderMap(ProviderMap):
                             "usage_units": Coalesce(Max("unit_of_measure"), Value("Storage Type Placeholder")),
                         },
                         "delta_key": {"usage": Sum("usage_quantity")},
-                        "filter": [{"field": "service_name", "operation": "contains", "parameter": "Storage"}],
+                        "filter": [{"field": "service_name", "operation": "icontains", "parameter": "Storage"}],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit_of_measure",
