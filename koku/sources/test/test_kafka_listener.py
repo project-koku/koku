@@ -44,6 +44,7 @@ from sources.kafka_listener import process_synchronize_sources_msg
 from sources.kafka_listener import storage_callback
 from sources.kafka_source_manager import KafkaSourceManager
 from sources.kafka_source_manager import KafkaSourceManagerError
+from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 from sources.tasks import create_or_update_provider
@@ -870,6 +871,21 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 with patch.object(SourcesHTTPClient, "get_source_type_name", return_value=test.get("source_name")):
                     run_loop.run_until_complete(process_message(test_application_id, msg_data, run_loop))
                     test.get("expected_fn")(msg_data, test, mock_sources_network_info)
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_process_message_application_create_source_not_found(self):
+        """Test the process_message function."""
+        test_application_id = 2
+
+        test = {
+            "event": source_integration.KAFKA_APPLICATION_CREATE,
+            "value": {"id": 1, "source_id": 1, "application_type_id": test_application_id},
+        }
+        msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
+        run_loop = asyncio.new_event_loop()
+        with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError("NOT FOUND TEST")):
+            result = run_loop.run_until_complete(process_message(test_application_id, msg_data, run_loop))
+            self.assertIsNone(result)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     @patch("sources.kafka_listener.sources_network_info", returns=None)
