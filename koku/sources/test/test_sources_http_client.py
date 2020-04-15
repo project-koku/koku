@@ -101,7 +101,7 @@ class SourcesHTTPClientTest(TestCase):
                 status_code=404,
                 json={"data": [{"id": self.application_type}]},
             )
-            with self.assertRaises(SourcesHTTPClientError):
+            with self.assertRaises(SourceNotFoundError):
                 client.get_cost_management_application_type_id()
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
