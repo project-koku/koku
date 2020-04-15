@@ -434,7 +434,7 @@ async def listen_for_messages(consumer, application_source_id):  # noqa: C901
                 await consumer.commit()
                 continue
             if msg:
-                LOG.info(f"Cost Management Message to process: {str(msg)}")
+                LOG.debug(f"Cost Management Message to process: {str(msg)}")
                 try:
                     await process_message(application_source_id, msg)
                 except (InterfaceError, OperationalError) as err:
