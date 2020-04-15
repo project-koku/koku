@@ -31,6 +31,7 @@ import sys
 from json import JSONDecodeError
 
 from boto3.session import Session
+from botocore.exceptions import ClientError
 from corsheaders.defaults import default_headers
 
 from . import database
@@ -290,7 +291,40 @@ DEFAULT_LOG_FILE = os.path.join(LOG_DIRECTORY, "app.log")
 LOGGING_FILE = os.getenv("DJANGO_LOG_FILE", DEFAULT_LOG_FILE)
 
 if CW_AWS_ACCESS_KEY_ID:
-    LOGGING_HANDLERS += ["watchtower"]
+    try:
+        POD_NAME = ENVIRONMENT.get_value("APP_POD_NAME", default="local")
+        BOTO3_SESSION = Session(
+            aws_access_key_id=CW_AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=CW_AWS_SECRET_ACCESS_KEY,
+            region_name=CW_AWS_REGION,
+        )
+        watchtower = BOTO3_SESSION.client("logs")
+        watchtower.create_log_stream(logGroupName=CW_LOG_GROUP, logStreamName=POD_NAME)
+        LOGGING_HANDLERS += ["watchtower"]
+        WATCHTOWER_HANDLER = {
+            "level": KOKU_LOGGING_LEVEL,
+            "class": "watchtower.CloudWatchLogHandler",
+            "boto3_session": BOTO3_SESSION,
+            "log_group": CW_LOG_GROUP,
+            "stream_name": POD_NAME,
+            "formatter": LOGGING_FORMATTER,
+            "use_queues": False,
+        }
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") == "ResourceAlreadyExistsException":
+            LOGGING_HANDLERS += ["watchtower"]
+            WATCHTOWER_HANDLER = {
+                "level": KOKU_LOGGING_LEVEL,
+                "class": "watchtower.CloudWatchLogHandler",
+                "boto3_session": BOTO3_SESSION,
+                "log_group": CW_LOG_GROUP,
+                "stream_name": POD_NAME,
+                "formatter": LOGGING_FORMATTER,
+                "use_queues": False,
+            }
+        else:
+            print("CloudWatch not configured.")
+
 
 LOGGING = {
     "version": 1,
@@ -323,23 +357,9 @@ LOGGING = {
     },
 }
 
-if CW_AWS_ACCESS_KEY_ID:
-    POD_NAME = ENVIRONMENT.get_value("APP_POD_NAME", default="local")
-    BOTO3_SESSION = Session(
-        aws_access_key_id=CW_AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=CW_AWS_SECRET_ACCESS_KEY,
-        region_name=CW_AWS_REGION,
-    )
-    WATCHTOWER_HANDLER = {
-        "level": KOKU_LOGGING_LEVEL,
-        "class": "watchtower.CloudWatchLogHandler",
-        "boto3_session": BOTO3_SESSION,
-        "log_group": CW_LOG_GROUP,
-        "stream_name": POD_NAME,
-        "formatter": LOGGING_FORMATTER,
-        "use_queues": False,
-    }
+if "watchtower" in LOGGING_HANDLERS:
     LOGGING["handlers"]["watchtower"] = WATCHTOWER_HANDLER
+    print("CloudWatch configured.")
 
 KOKU_DEFAULT_CURRENCY = ENVIRONMENT.get_value("KOKU_DEFAULT_CURRENCY", default="USD")
 KOKU_DEFAULT_TIMEZONE = ENVIRONMENT.get_value("KOKU_DEFAULT_TIMEZONE", default="UTC")
