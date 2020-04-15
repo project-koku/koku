@@ -318,7 +318,7 @@ def cost_mgmt_msg_filter(msg_data):
     source_type_name = sources_network.get_source_type_name(source_type_id)
 
     if source_type_name not in (SOURCES_OCP_SOURCE_NAME, SOURCES_AWS_SOURCE_NAME, SOURCES_AZURE_SOURCE_NAME):
-        LOG.warning(f"Filtering unexpected source type {source_type_name}.")
+        LOG.debug(f"Filtering unexpected source type {source_type_name}.")
         return None
     return msg_data
 
@@ -353,7 +353,7 @@ async def process_message(app_type_id, msg, loop=EVENT_LOOP):  # noqa: C901
         LOG.warning(f"Source not found in platform sources. Skipping msg: {msg}")
         return
     if not msg_data:
-        LOG.warning(f"Message not intended for cost management: {msg}")
+        LOG.debug(f"Message not intended for cost management: {msg}")
         return
 
     if msg_data.get("event_type") in (KAFKA_APPLICATION_CREATE,):
