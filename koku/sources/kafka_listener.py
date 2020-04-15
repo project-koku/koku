@@ -42,6 +42,7 @@ from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from sources import storage
 from sources.config import Config
 from sources.kafka_source_manager import KafkaSourceManager
+from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 from sources.tasks import create_or_update_provider
@@ -343,8 +344,8 @@ def cost_mgmt_msg_filter(msg_data):
     return msg_data
 
 
-@transaction.atomic
-async def process_message(app_type_id, msg, loop=EVENT_LOOP):
+@transaction.atomic  # noqa: C901
+async def process_message(app_type_id, msg, loop=EVENT_LOOP):  # noqa: C901
     """
     Process message from Platform-Sources kafka service.
 
@@ -366,7 +367,12 @@ async def process_message(app_type_id, msg, loop=EVENT_LOOP):
 
     """
     LOG.info(f"Processing Event: {str(msg)}")
-    msg_data = cost_mgmt_msg_filter(msg)
+    msg_data = None
+    try:
+        msg_data = cost_mgmt_msg_filter(msg)
+    except SourceNotFoundError:
+        LOG.warning(f"Source not found in platform sources: {msg}")
+        return
     if not msg_data:
         LOG.warning(f"Message not intended for cost management: {str(msg)}")
         return
