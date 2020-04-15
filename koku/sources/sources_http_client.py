@@ -120,9 +120,7 @@ class SourcesHTTPClient:
                 f"Unable to get cost management application ID Type. Reason: {str(conn_error)}"
             )
 
-        if r.status_code == 404:
-            raise SourceNotFoundError(f"Status Code: {r.status_code}")
-        elif r.status_code != 200:
+        if r.status_code != 200:
             raise SourcesHTTPClientError(f"Status Code: {r.status_code}. Response: {r.text}")
 
         endpoint_response = r.json()
