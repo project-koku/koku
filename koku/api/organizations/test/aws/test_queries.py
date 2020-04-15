@@ -60,15 +60,15 @@ class AWSOrgQueryHandlerTest(IamTestCase):
         self.assertEqual(handler.time_scope_units, "day")
         self.assertEqual(handler.time_scope_value, -30)
 
-    # def test_execute_query_10_day_parameters_only_keys(self):
-    #     """Test that the execute query runs properly with 10 day query."""
-    #     url = "?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&key_only=True"
-    #     query_params = self.mocked_query_params(url, AWSOrgView)
-    #     handler = AWSOrgQueryHandler(query_params)
-    #     query_output = handler.execute_query()
-    #     self.assertIsNotNone(query_output.get("data"))
-    #     self.assertEqual(handler.time_scope_units, "day")
-    #     self.assertEqual(handler.time_scope_value, -10)
+    def test_execute_query_10_day_parameters_only_keys(self):
+        """Test that the execute query runs properly with 10 day query."""
+        url = "?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&key_only=True"
+        query_params = self.mocked_query_params(url, AWSOrgView)
+        handler = AWSOrgQueryHandler(query_params)
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get("data"))
+        self.assertEqual(handler.time_scope_units, "day")
+        self.assertEqual(handler.time_scope_value, -10)
 
     def test_execute_query_month_parameters(self):
         """Test that the execute query runs properly with single month query."""
@@ -89,13 +89,3 @@ class AWSOrgQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertEqual(handler.time_scope_units, "month")
         self.assertEqual(handler.time_scope_value, -2)
-
-    # def test_execute_query_for_account(self):
-    #     """Test that the execute query runs properly with account query."""
-    #     url = f"?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&filter[account]={self.fake.ean8()}"  # noqa: E501
-    #     query_params = self.mocked_query_params(url, AWSOrgView)
-    #     handler = AWSOrgQueryHandler(query_params)
-    #     query_output = handler.execute_query()
-    #     self.assertIsNotNone(query_output.get("data"))
-    #     self.assertEqual(handler.time_scope_units, "day")
-    #     self.assertEqual(handler.time_scope_value, -10)

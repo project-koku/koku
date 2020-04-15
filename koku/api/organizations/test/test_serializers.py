@@ -81,7 +81,7 @@ class AWSFilterSerializerTest(TestCase):
             "resolution": "daily",
             "time_scope_value": "-10",
             "time_scope_units": "day",
-            "account": "myaccount",
+            "account_id": "myaccount",
         }
         serializer = AWSOrgFilterSerializer(data=filter_params)
         self.assertTrue(serializer.is_valid())
