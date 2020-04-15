@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the AWSOrgUnitCrawler object."""
+from datetime import datetime, timedelta
+
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -215,3 +217,44 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         with schema_context(self.schema):
             cur_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(cur_count, 3)
+
+    def test_compute_org_structure_for_day(self):
+        """Test function that computes org structure for a day."""
+        unit_crawler = AWSOrgUnitCrawler(self.account)
+        with schema_context(self.schema):
+            cur_count = AWSOrganizationalUnit.objects.count()
+            self.assertEqual(cur_count, 0)
+
+        print('#' * 1200)
+
+        # Add root node with 1 account
+        original_nodes = []
+        original_nodes.append(unit_crawler._save_aws_org_method("root", "root_id", "root", None))
+        original_nodes.append(unit_crawler._save_aws_org_method("root", "root_id", "root", "account_1"))
+
+        # Add sub_org_unit_1 with 2 accounts
+        original_nodes.append(unit_crawler._save_aws_org_method("sub_org_unit_1", "sub_org_unit_1_id", "root.sub_org_unit_1", None))
+        original_nodes.append(unit_crawler._save_aws_org_method("sub_org_unit_1", "sub_org_unit_1_id", "root.sub_org_unit_1", "account_2"))
+        original_nodes.append(unit_crawler._save_aws_org_method("sub_org_unit_1", "sub_org_unit_1_id", "root.sub_org_unit_1", "account_3"))
+
+        # Change created date to yesterday
+        with schema_context(self.schema):
+            yesterday = (unit_crawler._date_accessor.today() - timedelta(1)).strftime('%Y-%m-%d')
+            for node in original_nodes:
+                node.created_timestamp = yesterday
+                node.save()
+            curr_count = AWSOrganizationalUnit.objects.filter(created_timestamp__lte=yesterday).count()
+            self.assertEqual(curr_count, 5)
+
+        # # Add sub_org_unit_2 and move sub_org_unit_1 2 accounts here
+        unit_crawler._save_aws_org_method("sub_org_unit_2", "sub_org_unit_2_id", "root.sub_org_unit_2", None)
+        unit_crawler._save_aws_org_method("sub_org_unit_2", "sub_org_unit_2_id", "root.sub_org_unit_2", "account_2")
+        unit_crawler._save_aws_org_method("sub_org_unit_2", "sub_org_unit_2_id", "root.sub_org_unit_2", "account_3")
+        unit_crawler._delete_aws_org_method("sub_org_unit_1", "sub_org_unit_1_id", "root.sub_org_unit_1", None)
+        unit_crawler._delete_aws_org_method("sub_org_unit_Fake", "sub_org_unit_1_Fake", "root.sub_org_unit_Fake", None)
+
+        with schema_context(self.schema):
+            curr_count = AWSOrganizationalUnit.objects.count()
+            self.assertEqual(curr_count, 8)
+
+        unit_crawler._compute_org_structure_for_day(None)

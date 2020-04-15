@@ -777,3 +777,22 @@ class AWSOrganizationalUnit(models.Model):
     account_id = models.CharField(max_length=50, null=True, unique=False)
 
     created_timestamp = models.DateField(auto_now_add=True)
+
+    deleted_timestamp = models.DateField(null=True)
+
+    def __str__(self):
+            """Convert to string."""
+            return '{ id : %s, '\
+                'org_unit_name : %s, '\
+                'org_unit_id : %s, '\
+                'org_unit_path : %s, '\
+                'account_id : %s, '\
+                'created_timestamp : %s, '\
+                'deleted_timestamp : %s}' %\
+                (self.id,
+                self.org_unit_name,
+                self.org_unit_id,
+                self.org_unit_path,
+                self.account_id,
+                self.created_timestamp,
+                self.deleted_timestamp)

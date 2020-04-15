@@ -18,9 +18,11 @@
 # from tenant_schemas.utils import schema_context
 import logging
 
+
 from django.db import transaction
 from tenant_schemas.utils import schema_context
 
+from masu.external.date_accessor import DateAccessor
 from masu.external.accounts.hierarchy.account_crawler import AccountCrawler
 from masu.util.aws import common as utils
 from reporting.provider.aws.models import AWSOrganizationalUnit
@@ -36,10 +38,11 @@ class AWSOrgUnitCrawler(AccountCrawler):
         Object to crawl the org unit structure for accounts to org units.
 
         Args:
-            role_arn (String): AWS IAM RoleArn
+            account (String): AWS IAM RoleArn
         """
         super().__init__(account)
         self._auth_cred = self.account.get("authentication")
+        self._date_accessor = DateAccessor()
         self.client = None
 
     def _init_session(self):
@@ -62,6 +65,8 @@ class AWSOrgUnitCrawler(AccountCrawler):
             function (AwsFunction): Amazon function name
             resource_key (DataKey): Key to grab from results
             kwargs: Parameters to pass to amazon function
+        Returns:
+            (list): List of accounts
 
         See: https://gist.github.com/lukeplausin/a3670cd8f115a783a822aa0094015781
         """
@@ -77,8 +82,10 @@ class AWSOrgUnitCrawler(AccountCrawler):
         List accounts for parents given an aws identifer.
 
         Args:
-            parent_id: unique id for org unit you want to list.
+            ou: org unit you want to list.
             prefix: The org unit tree path
+        Returns:
+            (list): List of accounts for an org unit
 
         See:
         [1] https://docs.aws.amazon.com/cli/latest/reference/organizations/list-accounts-for-parent.html
@@ -98,6 +105,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
 
         Args:
             ou (dict): A return from aws client that includes the Id
+            prefix (str): The org unit path prefix
         """
 
         # Save entry for current OU
@@ -123,16 +131,50 @@ class AWSOrgUnitCrawler(AccountCrawler):
         Recursively crawls the org units and accounts.
 
         Args:
-            ou (dict): A return from aws client that includes the Id
+            unit_name (str): The human readable org unit name
+            unit_id (str): The AWS unique org unit id
+            unit_path (str): The tree path to the org unit
+            account_id (str): The AWS account number.  If internal node, None
+        Returns:
+            (AWSOrganizationalUnit): That was created or looked up
         """
         LOG.info(
             "Saving account or org unit: unit_name=%s, unit_id=%s, unit_path=%s, account_id=%s"
             % (unit_name, unit_id, unit_path, account_id)
         )
         with schema_context(self.schema):
-            AWSOrganizationalUnit.objects.get_or_create(
+            node = AWSOrganizationalUnit.objects.get_or_create(
                 org_unit_name=unit_name, org_unit_id=unit_id, org_unit_path=unit_path, account_id=account_id
             )
+            return node[0]
+
+    def _delete_aws_org_method(self, unit_name, unit_id, unit_path, account_id=None):
+        """
+        Recursively crawls the org units and accounts.
+
+        Args:
+            unit_name (str): The human readable org unit name
+            unit_id (str): The AWS unique org unit id
+            unit_path (str): The tree path to the org unit
+            account_id (str): The AWS account number.  If internal node, None
+        Returns:
+            (AWSOrganizationalUnit): That was marked deleted
+        """
+        LOG.info(
+            "Marking account or org unit deleted: unit_name=%s, unit_id=%s, unit_path=%s, account_id=%s"
+            % (unit_name, unit_id, unit_path, account_id)
+        )
+        with schema_context(self.schema):
+            try:
+                org_unit = AWSOrganizationalUnit.objects.get(
+                    org_unit_name=unit_name, org_unit_id=unit_id, org_unit_path=unit_path, account_id=account_id
+                )
+                org_unit.deleted_timestamp = self._date_accessor.today().strftime('%Y-%m-%d')
+                org_unit.save()
+                return org_unit
+            except AWSOrganizationalUnit.DoesNotExist:
+                LOG.warn("Request to delete non-existent org-unit or account:  unit_name=%s, unit_id=%s, unit_path=%s, account_id=%s" %
+                         (unit_name, unit_id, unit_path, account_id))
 
     @transaction.atomic
     def crawl_account_hierarchy(self):
@@ -141,3 +183,16 @@ class AWSOrgUnitCrawler(AccountCrawler):
         LOG.info("Obtained the root identifier: %s" % (root_ou["Id"]))
 
         self._crawl_org_for_accounts(root_ou, root_ou.get("Id"))
+
+    def _compute_org_structure_for_day(self, date):
+        """Compute the org structure for a day."""
+        # On a particular day (e.g. March 1, 2020)
+        # 1. Filter out nodes deleted on OR before date (e.g on or before March 1, 2020)
+        # 2. From that set, find the newest (using created timestamp) nodes
+        # 3. Build a dictionary where key= org_id+account_id (empty string for account_id if internal node)
+        #    and value = django record (so we can do updates if needed)
+        # AWSOrganizationalUnit.objects.filter(deleted_timestamp__gte=date)
+        with schema_context(self.schema):
+            LOG.info('#' * 1200)
+            for org_unit in AWSOrganizationalUnit.objects.all():
+                LOG.info(org_unit)
