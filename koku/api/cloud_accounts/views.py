@@ -16,7 +16,6 @@
 #
 """View for Cloud Account."""
 import copy
-import json
 import logging
 
 from rest_framework import permissions
@@ -74,14 +73,3 @@ def cloud_accounts(request):
         data = []
     page_obj = paginator.get_paginated_response(data)
     return page_obj
-
-
-def get_json(path):
-    """Obtain API JSON data from file path."""
-    json_data = None
-    with open(path) as json_file:
-        try:
-            json_data = json.load(json_file)
-        except (IOError, json.JSONDecodeError) as exc:
-            LOG.exception(exc)
-    return json_data
