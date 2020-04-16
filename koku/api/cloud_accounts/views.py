@@ -15,9 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for Cloud Account."""
+import copy
 import json
 import logging
-import os
 
 from rest_framework import permissions
 from rest_framework.decorators import api_view
@@ -26,13 +26,12 @@ from rest_framework.decorators import renderer_classes
 from rest_framework.renderers import JSONRenderer
 from rest_framework.settings import api_settings
 
+from api.cloud_accounts import CLOUD_ACCOUNTS
 from api.common.pagination import StandardResultsSetPagination
 from api.metrics.serializers import QueryParamsSerializer
-from koku.settings import BASE_DIR
 
 
 LOG = logging.getLogger(__name__)
-CLOUD_ACCOUNTS_FILE_NAME = os.path.join(BASE_DIR, "api/cloud_accounts/data/cloud_accounts.json")
 """View for Cloud Accounts."""
 
 
@@ -63,7 +62,7 @@ def cloud_accounts(request):
     """View for cloud accounts."""
     serializer = QueryParamsSerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)
-    data = get_json(CLOUD_ACCOUNTS_FILE_NAME)
+    data = copy.deepcopy(CLOUD_ACCOUNTS)
     paginator = get_paginator(request, len(data))
     limit = _get_int_query_param(request, "limit", 10)
     offset = _get_int_query_param(request, "offset", 0)
