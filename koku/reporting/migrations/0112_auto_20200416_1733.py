@@ -5,7 +5,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0110_summary_indexes")]
+    dependencies = [("reporting", "0111_drop_azure_service_not_null")]
 
     operations = [
         migrations.AddField(
