@@ -109,8 +109,8 @@ class SourcesStorageTest(TestCase):
         """Tests creating a source db record with invalid auth_header."""
         test_source_id = 2
         test_offset = 3
-        with patch("sources.storage.Sources.objects") as mock_objects:
-            mock_objects.get.side_effect = InterfaceError("Test exception")
+        with patch.object(Sources, "save") as mock_object:
+            mock_object.side_effect = InterfaceError("Error")
             with self.assertRaises(InterfaceError):
                 storage.create_source_event(test_source_id, Config.SOURCES_FAKE_HEADER, test_offset)
 
@@ -422,10 +422,11 @@ class SourcesStorageTest(TestCase):
     def test_enqueue_source_delete(self):
         """Test for enqueuing source delete."""
         test_source_id = 3
+        test_offset = 3
         aws_obj = Sources(
             source_id=test_source_id,
             auth_header=self.test_header,
-            offset=3,
+            offset=test_offset,
             endpoint_id=4,
             source_type=Provider.PROVIDER_AWS,
             name="Test AWS Source",
@@ -433,17 +434,18 @@ class SourcesStorageTest(TestCase):
         )
         aws_obj.save()
 
-        storage.enqueue_source_delete(test_source_id)
+        storage.enqueue_source_delete(test_source_id, test_offset)
         response = Sources.objects.get(source_id=test_source_id)
         self.assertTrue(response.pending_delete)
 
     def test_enqueue_source_delete_in_pending(self):
         """Test for enqueuing source delete while pending delete."""
         test_source_id = 3
+        test_offset = 4
         aws_obj = Sources(
             source_id=test_source_id,
             auth_header=self.test_header,
-            offset=3,
+            offset=test_offset,
             endpoint_id=4,
             source_type=Provider.PROVIDER_AWS,
             name="Test AWS Source",
@@ -452,7 +454,7 @@ class SourcesStorageTest(TestCase):
         )
         aws_obj.save()
 
-        storage.enqueue_source_delete(test_source_id)
+        storage.enqueue_source_delete(test_source_id, test_offset)
         response = Sources.objects.get(source_id=test_source_id)
         self.assertTrue(response.pending_delete)
 

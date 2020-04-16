@@ -266,14 +266,15 @@ def create_source_event(source_id, auth_header, offset):
 
     try:
         source = Sources.objects.filter(source_id=source_id).first()
-        LOG.debug(f"Source ID {str(source_id)} already exists.")
-        if source.out_of_order_delete:
-            LOG.info(f"Source ID: {source_id} destroy event already occurred.")
-            source.delete()
-    except Sources.DoesNotExist:
-        new_event = Sources(source_id=source_id, auth_header=auth_header, offset=offset, account_id=account_id)
-        new_event.save()
-        LOG.info(f"source.storage.create_source_event created Source ID: {source_id}")
+        if source:
+            LOG.debug(f"Source ID {str(source_id)} already exists.")
+            if source.out_of_order_delete:
+                LOG.info(f"Source ID: {source_id} destroy event already occurred.")
+                source.delete()
+        else:
+            new_event = Sources(source_id=source_id, auth_header=auth_header, offset=offset, account_id=account_id)
+            new_event.save()
+            LOG.info(f"source.storage.create_source_event created Source ID: {source_id}")
     except (InterfaceError, OperationalError) as error:
         LOG.error(f"source.storage.create_provider_event {type(error).__name__}: {error}")
         raise error
