@@ -408,7 +408,7 @@ class CostModelSerializer(serializers.Serializer):
                     {
                         "label_metric": display_data["label_metric"],
                         "label_measurement": display_data["label_measurement"],
-                        "label_measurement_unit": display_data["label_measurement"],
+                        "label_measurement_unit": display_data["label_measurement_unit"],
                     }
                 )
             except (KeyError, TypeError):
