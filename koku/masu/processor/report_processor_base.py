@@ -202,7 +202,7 @@ class ReportProcessorBase:
 
         return True
 
-    def _delete_line_items(self, db_accessor, column_map, is_finalized=None):
+    def _delete_line_items(self, db_accessor, is_finalized=None):
         """Delete stale data for the report being processed, if necessary."""
         if not self._manifest_id:
             return False

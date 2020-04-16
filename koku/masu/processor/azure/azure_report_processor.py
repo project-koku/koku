@@ -34,7 +34,6 @@ from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDaily
 from reporting.provider.azure.models import AzureCostEntryProductService
 from reporting.provider.azure.models import AzureMeter
-from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -273,7 +272,7 @@ class AzureReportProcessor(ReportProcessorBase):
         """
         row_count = 0
         is_full_month = self._should_process_full_month()
-        self._delete_line_items(AzureReportDBAccessor, REPORT_COLUMN_MAP)
+        self._delete_line_items(AzureReportDBAccessor)
         # pylint: disable=invalid-name
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode, encoding="utf-8-sig") as f:

@@ -133,7 +133,7 @@ class AWSReportProcessor(ReportProcessorBase):
 
         is_finalized_data = self._check_for_finalized_bill()
         is_full_month = self._should_process_full_month()
-        self._delete_line_items(AWSReportDBAccessor, REPORT_COLUMN_MAP, is_finalized=is_finalized_data)
+        self._delete_line_items(AWSReportDBAccessor, is_finalized=is_finalized_data)
         opener, mode = self._get_file_opener(self._compression)
         # pylint: disable=invalid-name
         with opener(self._report_path, mode) as f:

@@ -940,7 +940,7 @@ class AWSReportProcessorTest(MasuTestCase):
         for bill_id in bill_ids:
             with schema_context(self.schema):
                 before_count = self.accessor.get_lineitem_query_for_billid(bill_id).count()
-            result = processor._delete_line_items(AWSReportDBAccessor, REPORT_COLUMN_MAP)
+            result = processor._delete_line_items(AWSReportDBAccessor)
 
             with schema_context(self.schema):
                 line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
@@ -959,7 +959,7 @@ class AWSReportProcessorTest(MasuTestCase):
             manifest_id=self.manifest.id,
         )
         processor.process()
-        result = processor._delete_line_items(AWSReportDBAccessor, REPORT_COLUMN_MAP)
+        result = processor._delete_line_items(AWSReportDBAccessor)
         with schema_context(self.schema):
             bills = self.accessor.get_cost_entry_bills()
             for bill_id in bills.values():
@@ -976,7 +976,7 @@ class AWSReportProcessorTest(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
         )
         processor.process()
-        result = processor._delete_line_items(AWSReportDBAccessor, REPORT_COLUMN_MAP)
+        result = processor._delete_line_items(AWSReportDBAccessor)
         with schema_context(self.schema):
             bills = self.accessor.get_cost_entry_bills()
             for bill_id in bills.values():
@@ -1017,7 +1017,7 @@ class AWSReportProcessorTest(MasuTestCase):
                 undeleted_max_date = line_item_query.aggregate(max_date=Max("usage_start"))
 
             mock_should_process.return_value = False
-            processor._delete_line_items(AWSReportDBAccessor, REPORT_COLUMN_MAP, is_finalized=False)
+            processor._delete_line_items(AWSReportDBAccessor, is_finalized=False)
 
             with schema_context(self.schema):
                 # bills = self.accessor.get_cost_entry_bills()
