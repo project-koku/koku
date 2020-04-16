@@ -40,6 +40,7 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_db_accessor_base import ReportSchema
 from masu.external.date_accessor import DateAccessor
 from masu.util import common as azure_utils
+from reporting_common import REPORT_COLUMN_MAP
 
 # A subset of AWS product family values
 AWS_PRODUCT_FAMILY = ["Storage", "Compute Instance", "Database Storage", "Database Instance"]
@@ -50,12 +51,10 @@ class ReportObjectCreator:
 
     fake = Faker()
 
-    def __init__(self, schema, column_map):
+    def __init__(self, schema):
         """Initialize the report object creation helpler."""
         self.schema = schema
-        self.column_map = column_map
-
-        self.report_schema = ReportSchema(django.apps.apps.get_models(), self.column_map)
+        self.report_schema = ReportSchema(django.apps.apps.get_models(), REPORT_COLUMN_MAP)
         self.column_types = self.report_schema.column_types
 
     def create_cost_entry(self, bill, entry_datetime=None):
@@ -227,7 +226,7 @@ class ReportObjectCreator:
     def create_columns_for_table(self, table):
         """Generate data for a table."""
         data = {}
-        columns = self.column_map[table].values()
+        columns = REPORT_COLUMN_MAP[table].values()
         column_types = self.column_types[table]
 
         for column in columns:

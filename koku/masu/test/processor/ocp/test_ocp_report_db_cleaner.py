@@ -26,7 +26,6 @@ from masu.processor.ocp.ocp_report_db_cleaner import OCPReportDBCleaner
 from masu.processor.ocp.ocp_report_db_cleaner import OCPReportDBCleanerError
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from reporting_common import REPORT_COLUMN_MAP
 
 
 class OCPReportDBCleanerTest(MasuTestCase):
@@ -38,7 +37,7 @@ class OCPReportDBCleanerTest(MasuTestCase):
         super().setUpClass()
         cls.accessor = OCPReportDBAccessor(schema=cls.schema)
         cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(cls.schema, REPORT_COLUMN_MAP)
+        cls.creator = ReportObjectCreator(cls.schema)
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
     def test_initializer(self):

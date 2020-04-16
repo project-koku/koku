@@ -25,7 +25,6 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_cost_model_cost_updater import AWSCostModelCostUpdater
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from reporting_common import REPORT_COLUMN_MAP
 
 
 class AWSCostModelCostUpdaterTest(MasuTestCase):
@@ -42,7 +41,7 @@ class AWSCostModelCostUpdaterTest(MasuTestCase):
 
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
 
-        cls.creator = ReportObjectCreator(cls.schema, REPORT_COLUMN_MAP)
+        cls.creator = ReportObjectCreator(cls.schema)
 
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()

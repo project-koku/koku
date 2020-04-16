@@ -34,7 +34,6 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_report_summary_updater import OCPReportSummaryUpdater
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from reporting_common import REPORT_COLUMN_MAP
 from reporting_common.models import CostUsageReportManifest
 
 
@@ -49,7 +48,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         cls.accessor = OCPReportDBAccessor(cls.schema)
         cls.report_schema = cls.accessor.report_schema
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
-        cls.creator = ReportObjectCreator(cls.schema, REPORT_COLUMN_MAP)
+        cls.creator = ReportObjectCreator(cls.schema)
         cls.date_accessor = DateHelper()
         cls.manifest_accessor = ReportManifestDBAccessor()
         cls.dh = DateHelper()

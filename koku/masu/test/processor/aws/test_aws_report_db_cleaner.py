@@ -26,7 +26,6 @@ from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleaner
 from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleanerError
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from reporting_common import REPORT_COLUMN_MAP
 
 
 class AWSReportDBCleanerTest(MasuTestCase):
@@ -38,7 +37,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
         super().setUpClass()
         cls.accessor = AWSReportDBAccessor(schema=cls.schema)
         cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(cls.schema, REPORT_COLUMN_MAP)
+        cls.creator = ReportObjectCreator(cls.schema)
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
         cls.foreign_key_tables = [
             AWS_CUR_TABLE_MAP["bill"],

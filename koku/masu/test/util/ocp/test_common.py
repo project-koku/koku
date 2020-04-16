@@ -28,7 +28,6 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.util.ocp import common as utils
-from reporting_common import REPORT_COLUMN_MAP
 
 
 class OCPUtilTests(MasuTestCase):
@@ -40,7 +39,7 @@ class OCPUtilTests(MasuTestCase):
         self.accessor = OCPReportDBAccessor(schema=self.schema)
         self.provider_accessor = ProviderDBAccessor(provider_uuid=self.ocp_test_provider_uuid)
         self.report_schema = self.accessor.report_schema
-        self.creator = ReportObjectCreator(self.schema, REPORT_COLUMN_MAP)
+        self.creator = ReportObjectCreator(self.schema)
         self.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
         self.provider_uuid = self.provider_accessor.get_provider().uuid

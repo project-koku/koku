@@ -60,7 +60,6 @@ from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.test.external.downloader.aws import fake_arn
 from reporting.models import AWS_MATERIALIZED_VIEWS
-from reporting_common import REPORT_COLUMN_MAP
 
 
 class FakeDownloader(Mock):
@@ -586,7 +585,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         cls.ocp_tables = list(OCP_REPORT_TABLE_MAP.values())
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values()) + list(OCP_REPORT_TABLE_MAP.values())
 
-        cls.creator = ReportObjectCreator(cls.schema, REPORT_COLUMN_MAP)
+        cls.creator = ReportObjectCreator(cls.schema)
 
     def setUp(self):
         """Set up each test."""

@@ -32,7 +32,6 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor.azure.azure_report_summary_updater import AzureReportSummaryUpdater
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from reporting_common import REPORT_COLUMN_MAP
 from reporting_common.models import CostUsageReportManifest
 
 
@@ -47,7 +46,7 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         cls.accessor = AzureReportDBAccessor("acct10001")
         cls.report_schema = cls.accessor.report_schema
         cls.all_tables = list(AZURE_REPORT_TABLE_MAP.values())
-        cls.creator = ReportObjectCreator(cls.schema, REPORT_COLUMN_MAP)
+        cls.creator = ReportObjectCreator(cls.schema)
         cls.date_accessor = DateHelper()
         cls.manifest_accessor = ReportManifestDBAccessor()
 

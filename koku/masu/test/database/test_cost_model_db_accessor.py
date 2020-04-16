@@ -22,7 +22,6 @@ from cost_models.models import CostModel
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from reporting_common import REPORT_COLUMN_MAP
 
 
 class CostModelDBAccessorTest(MasuTestCase):
@@ -33,7 +32,7 @@ class CostModelDBAccessorTest(MasuTestCase):
         super().setUp()
         self.provider_uuid = self.ocp_provider_uuid
         self.schema = "acct10001"
-        self.creator = ReportObjectCreator(self.schema, REPORT_COLUMN_MAP)
+        self.creator = ReportObjectCreator(self.schema)
 
         reporting_period = self.creator.create_ocp_report_period(provider_uuid=self.provider_uuid)
         report = self.creator.create_ocp_report(reporting_period)
@@ -161,7 +160,7 @@ class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
         """Set up a test with database objects."""
         super().setUp()
         self.provider_uuid = self.ocp_provider_uuid
-        self.creator = ReportObjectCreator(self.schema, REPORT_COLUMN_MAP)
+        self.creator = ReportObjectCreator(self.schema)
 
         reporting_period = self.creator.create_ocp_report_period(self.ocp_provider_uuid)
         report = self.creator.create_ocp_report(reporting_period)

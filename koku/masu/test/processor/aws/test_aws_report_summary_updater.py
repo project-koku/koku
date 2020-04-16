@@ -34,7 +34,6 @@ from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdate
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from reporting_common import REPORT_COLUMN_MAP
 
 
 class AWSReportSummaryUpdaterTest(MasuTestCase):
@@ -48,7 +47,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         cls.accessor = AWSReportDBAccessor(cls.schema)
         cls.report_schema = cls.accessor.report_schema
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
-        cls.creator = ReportObjectCreator(cls.schema, REPORT_COLUMN_MAP)
+        cls.creator = ReportObjectCreator(cls.schema)
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
 

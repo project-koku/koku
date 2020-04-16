@@ -30,7 +30,6 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.util.common import dictify_table_export_settings
-from reporting_common import REPORT_COLUMN_MAP
 
 fake = faker.Faker()
 DummyS3Object = namedtuple("DummyS3Object", "key")
@@ -345,7 +344,7 @@ class TestUploadTaskWithData(MasuTestCase):
         """Set up initial data for tests."""
         super().setUp()
 
-        self.creator = ReportObjectCreator(self.schema, REPORT_COLUMN_MAP)
+        self.creator = ReportObjectCreator(self.schema)
 
         timezone = pytz.timezone("UTC")
         # Arbitrary date as "today" so we don't drift around with `now`.

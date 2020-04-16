@@ -30,7 +30,6 @@ from masu.processor.azure.azure_report_db_cleaner import AzureReportDBCleaner
 from masu.processor.azure.azure_report_db_cleaner import AzureReportDBCleanerError
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from reporting_common import REPORT_COLUMN_MAP
 
 
 class AzureReportDBCleanerTest(MasuTestCase):
@@ -42,7 +41,7 @@ class AzureReportDBCleanerTest(MasuTestCase):
         super().setUpClass()
         cls.accessor = AzureReportDBAccessor(schema=cls.schema)
         cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(cls.schema, REPORT_COLUMN_MAP)
+        cls.creator = ReportObjectCreator(cls.schema)
         cls.all_tables = list(AZURE_REPORT_TABLE_MAP.values())
         cls.foreign_key_tables = [
             AZURE_REPORT_TABLE_MAP["bill"],

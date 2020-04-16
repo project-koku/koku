@@ -30,7 +30,6 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from reporting_common import REPORT_COLUMN_MAP
 
 
 class AzureReportDBAccessorTest(MasuTestCase):
@@ -43,7 +42,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
         cls.accessor = AzureReportDBAccessor(schema=cls.schema)
         cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(cls.schema, REPORT_COLUMN_MAP)
+        cls.creator = ReportObjectCreator(cls.schema)
         cls.dh = DateHelper()
 
         cls.all_tables = list(AZURE_REPORT_TABLE_MAP.values())
