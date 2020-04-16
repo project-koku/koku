@@ -164,7 +164,7 @@ def load_providers_to_delete():
     providers_to_delete = []
     all_providers = Sources.objects.all()
     for provider in all_providers:
-        if provider.pending_delete and provider.auth_header:
+        if provider.pending_delete:
             providers_to_delete.append({"operation": "destroy", "provider": provider, "offset": provider.offset})
     return providers_to_delete
 
@@ -194,14 +194,14 @@ def enqueue_source_delete(source_id, offset):
     """
     try:
         source = Sources.objects.get(source_id=source_id)
-        if not source.pending_delete:
+        if not source.pending_delete and not source.out_of_order_delete:
             source.pending_delete = True
             source.save()
     except Sources.DoesNotExist:
         LOG.info(
             f"Source ID: {source_id} not known.  Marking as pending delete for when Application.create comes in later."
         )
-        new_event = Sources(source_id=source_id, offset=offset, pending_delete=True)
+        new_event = Sources(source_id=source_id, offset=offset, out_of_order_delete=True)
         new_event.save()
         LOG.info(f"source.storage.create_source_event created Source ID as pending delete: {source_id}")
     except (InterfaceError, OperationalError) as error:
@@ -267,7 +267,7 @@ def create_source_event(source_id, auth_header, offset):
     try:
         source = Sources.objects.filter(source_id=source_id).first()
         LOG.debug(f"Source ID {str(source_id)} already exists.")
-        if source.pending_delete:
+        if source.out_of_order_delete:
             LOG.info(f"Source ID: {source_id} destroy event already occurred.")
             source.delete()
     except Sources.DoesNotExist:

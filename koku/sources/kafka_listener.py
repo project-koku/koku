@@ -139,7 +139,7 @@ def storage_callback(sender, instance, **kwargs):
             LOG.debug(f"Update Event Queued for:\n{str(instance)}")
             PROCESS_QUEUE.put_nowait((next(COUNT), update_event))
 
-    if instance.pending_delete and instance.auth_header:
+    if instance.pending_delete:
         delete_event = {"operation": "destroy", "provider": instance}
         _log_process_queue_event(PROCESS_QUEUE, delete_event)
         LOG.debug(f"Delete Event Queued for:\n{str(instance)}")
