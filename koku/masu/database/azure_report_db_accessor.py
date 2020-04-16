@@ -34,8 +34,6 @@ from reporting.provider.azure.models import AzureCostEntryLineItemDaily
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import AzureCostEntryProductService
 from reporting.provider.azure.models import AzureMeter
-from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
-from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
 
 LOG = logging.getLogger(__name__)
 
@@ -193,7 +191,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             summary_item_query = base_query.filter(cost_entry_bill_id=bill_id)
             return summary_item_query
 
-    def populate_ocp_on_azure_cost_daily_summary(self, start_date, end_date, cluster_id, bill_ids):
+    def populate_ocp_on_azure_cost_daily_summary(self, start_date, end_date, cluster_id, bill_ids, markup_value):
         """Populate the daily cost aggregated summary for OCP on AWS.
 
         Args:
@@ -214,6 +212,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             "bill_ids": bill_ids,
             "cluster_id": cluster_id,
             "schema": self.schema,
+            "markup": markup_value,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
@@ -230,18 +229,3 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         agg_sql_params = {"schema": self.schema}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
-
-    def populate_ocp_on_azure_markup_cost(self, markup, bill_ids=None):
-        """Set markup costs in the database."""
-        with schema_context(self.schema):
-            if bill_ids:
-                for bill_id in bill_ids:
-                    OCPAzureCostLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
-                        markup_cost=(F("pretax_cost") * markup)
-                    )
-                    OCPAzureCostLineItemProjectDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
-                        project_markup_cost=(F("pretax_cost") * markup)
-                    )
-            else:
-                OCPAzureCostLineItemDailySummary.objects.update(markup_cost=(F("pretax_cost") * markup))
-                OCPAzureCostLineItemProjectDailySummary.objects.update(project_markup_cost=(F("pretax_cost") * markup))
