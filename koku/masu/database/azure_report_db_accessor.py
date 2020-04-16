@@ -139,13 +139,13 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
 
-    def populate_tags_summary_table(self):
+    def populate_tags_summary_table(self, bill_ids):
         """Populate the line item aggregated totals data table."""
         table_name = AZURE_REPORT_TABLE_MAP["tags_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_azuretags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema}
+        agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
