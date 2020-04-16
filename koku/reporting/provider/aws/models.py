@@ -184,8 +184,12 @@ class AWSCostEntryLineItemDailySummary(models.Model):
             models.Index(fields=["account_alias"], name="summary_account_alias_idx"),
             models.Index(fields=["product_family"], name="summary_product_family_idx"),
             models.Index(fields=["instance_type"], name="summary_instance_type_idx"),
-            GinIndex(fields=["product_code"], name="aws_summ_usage_pcode_like", opclasses=["gin_trgm_ops"]),
-            GinIndex(fields=["product_family"], name="aws_summ_usage_pfam_like", opclasses=["gin_trgm_ops"]),
+            # A GIN functional index named "aws_summ_usage_pfam_ilike" was created manually
+            # via RunSQL migration operation
+            # Function: (upper(product_family) gin_trgm_ops)
+            # A GIN functional index named "aws_summ_usage_pcode_ilike" was created manually
+            # via RunSQL migration operation
+            # Function: (upper(product_code) gin_trgm_ops)
         ]
 
     id = models.BigAutoField(primary_key=True)
