@@ -198,9 +198,7 @@ def enqueue_source_delete(source_id, offset):
             source.pending_delete = True
             source.save()
     except Sources.DoesNotExist:
-        LOG.info(
-            f"Source ID: {source_id} not known.  Marking as pending delete for when Application.create comes in later."
-        )
+        LOG.info(f"Source ID: {source_id} not known.  Marking as out of order delete.")
         new_event = Sources(source_id=source_id, offset=offset, out_of_order_delete=True)
         new_event.save()
         LOG.info(f"source.storage.create_source_event created Source ID as pending delete: {source_id}")
