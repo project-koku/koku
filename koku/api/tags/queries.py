@@ -113,7 +113,7 @@ class TagQueryHandler(QueryHandler):
 
         return output
 
-    def _slice_tag_values_list(self, n=49):
+    def _slice_tag_values_list(self, n=50):
         """Slice the values list to the first n values."""
         for entry in self.query_data:
             entry["values"] = entry.get("values", [])[0:n]
