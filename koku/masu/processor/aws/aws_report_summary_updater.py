@@ -117,7 +117,7 @@ class AWSReportSummaryUpdater:
                     end,
                 )
                 accessor.populate_line_item_daily_summary_table(start, end, bill_ids)
-            accessor.populate_tags_summary_table()
+            accessor.populate_tags_summary_table(bill_ids)
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
                     bill.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
