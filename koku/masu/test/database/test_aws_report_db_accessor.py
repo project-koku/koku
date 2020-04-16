@@ -65,7 +65,7 @@ class ReportSchemaTest(MasuTestCase):
     def test_init(self):
         """Test the initializer."""
         tables = django.apps.apps.get_models()
-        report_schema = ReportSchema(tables, REPORT_COLUMN_MAP)
+        report_schema = ReportSchema(tables)
 
         for table_name in self.all_tables:
             self.assertIsNotNone(getattr(report_schema, table_name))
@@ -75,9 +75,9 @@ class ReportSchemaTest(MasuTestCase):
     def test_get_reporting_tables(self):
         """Test that the report schema is populated with a column map."""
         tables = django.apps.apps.get_models()
-        report_schema = ReportSchema(tables, REPORT_COLUMN_MAP)
+        report_schema = ReportSchema(tables)
 
-        report_schema._set_reporting_tables(tables, REPORT_COLUMN_MAP)
+        report_schema._set_reporting_tables(tables)
 
         for table in self.all_tables:
             self.assertIsNotNone(getattr(report_schema, table))

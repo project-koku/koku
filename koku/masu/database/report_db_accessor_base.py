@@ -35,12 +35,12 @@ LOG = logging.getLogger(__name__)
 class ReportSchema:
     """A container for the reporting table objects."""
 
-    def __init__(self, tables, column_map):
+    def __init__(self, tables):
         """Initialize the report schema."""
         self.column_types = {}
-        self._set_reporting_tables(tables, column_map)
+        self._set_reporting_tables(tables)
 
-    def _set_reporting_tables(self, models, column_map):
+    def _set_reporting_tables(self, models):
         """Load table objects for reference and creation.
 
         Args:
@@ -52,7 +52,7 @@ class ReportSchema:
             if "django" in model._meta.db_table:
                 continue
             setattr(self, model._meta.db_table, model)
-            columns = column_map[model._meta.db_table].values()
+            columns = REPORT_COLUMN_MAP[model._meta.db_table].values()
             types = {column: model._meta.get_field(column).get_internal_type() for column in columns}
             column_types.update({model._meta.db_table: types})
             self.column_types = column_types
@@ -67,11 +67,9 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         Args:
             schema (str): The customer schema to associate with
-            column_map (dict): A mapping of report columns to database columns
-
         """
         super().__init__(schema)
-        self.report_schema = ReportSchema(django.apps.apps.get_models(), REPORT_COLUMN_MAP)
+        self.report_schema = ReportSchema(django.apps.apps.get_models())
 
     @property
     def decimal_precision(self):

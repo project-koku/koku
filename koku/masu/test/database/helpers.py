@@ -54,7 +54,7 @@ class ReportObjectCreator:
     def __init__(self, schema):
         """Initialize the report object creation helpler."""
         self.schema = schema
-        self.report_schema = ReportSchema(django.apps.apps.get_models(), REPORT_COLUMN_MAP)
+        self.report_schema = ReportSchema(django.apps.apps.get_models())
         self.column_types = self.report_schema.column_types
 
     def create_cost_entry(self, bill, entry_datetime=None):
