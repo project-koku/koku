@@ -27,6 +27,12 @@ class SourcesHTTPClientError(Exception):
     pass
 
 
+class SourceNotFoundError(Exception):
+    """SourceNotFound Error."""
+
+    pass
+
+
 class SourcesHTTPClient:
     """Sources HTTP client for Sources API service."""
 
@@ -44,7 +50,9 @@ class SourcesHTTPClient:
         """Get details on source_id."""
         url = "{}/{}/{}".format(self._base_url, "sources", str(self._source_id))
         r = requests.get(url, headers=self._identity_header)
-        if r.status_code != 200:
+        if r.status_code == 404:
+            raise SourceNotFoundError(f"Status Code: {r.status_code}")
+        elif r.status_code != 200:
             raise SourcesHTTPClientError("Status Code: ", r.status_code)
         response = r.json()
         return response
@@ -54,7 +62,9 @@ class SourcesHTTPClient:
         endpoint_url = f"{self._base_url}/endpoints?filter[source_id]={self._source_id}"
         r = requests.get(endpoint_url, headers=self._identity_header)
 
-        if r.status_code != 200:
+        if r.status_code == 404:
+            raise SourceNotFoundError(f"Status Code: {r.status_code}")
+        elif r.status_code != 200:
             raise SourcesHTTPClientError("Status Code: ", r.status_code)
         endpoint_response = r.json()
 
@@ -69,7 +79,9 @@ class SourcesHTTPClient:
         endpoint_url = f"{self._base_url}/endpoints?filter[id]={resource_id}"
         r = requests.get(endpoint_url, headers=self._identity_header)
 
-        if r.status_code != 200:
+        if r.status_code == 404:
+            raise SourceNotFoundError(f"Status Code: {r.status_code}")
+        elif r.status_code != 200:
             raise SourcesHTTPClientError("Status Code: ", r.status_code)
         endpoint_response = r.json()
 
@@ -84,7 +96,9 @@ class SourcesHTTPClient:
         cost_mgmt_id = self.get_cost_management_application_type_id()
         endpoint_url = f"{self._base_url}/application_types/{cost_mgmt_id}/sources?&filter[id][]={source_id}"
         r = requests.get(endpoint_url, headers=self._identity_header)
-        if r.status_code != 200:
+        if r.status_code == 404:
+            raise SourceNotFoundError(f"Status Code: {r.status_code}")
+        elif r.status_code != 200:
             raise SourcesHTTPClientError("Status Code: ", r.status_code)
         endpoint_response = r.json()
 
@@ -106,7 +120,9 @@ class SourcesHTTPClient:
                 f"Unable to get cost management application ID Type. Reason: {str(conn_error)}"
             )
 
-        if r.status_code != 200:
+        if r.status_code == 404:
+            raise SourceNotFoundError(f"Status Code: {r.status_code}. Response: {r.text}")
+        elif r.status_code != 200:
             raise SourcesHTTPClientError(f"Status Code: {r.status_code}. Response: {r.text}")
 
         endpoint_response = r.json()
@@ -121,7 +137,9 @@ class SourcesHTTPClient:
         except RequestException as conn_error:
             raise SourcesHTTPClientError("Unable to get source name. Reason: ", str(conn_error))
 
-        if r.status_code != 200:
+        if r.status_code == 404:
+            raise SourceNotFoundError(f"Status Code: {r.status_code}")
+        elif r.status_code != 200:
             raise SourcesHTTPClientError(f"Status Code: {r.status_code}. Response: {r.text}")
 
         endpoint_response = r.json()
