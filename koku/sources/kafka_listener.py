@@ -364,9 +364,10 @@ async def process_message(app_type_id, msg, loop=EVENT_LOOP):  # noqa: C901
         storage.create_source_event(msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset"))
 
         with concurrent.futures.ThreadPoolExecutor() as pool:
-            await loop.run_in_executor(
-                pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
-            )
+            if storage.is_known_source(msg_data.get("source_id")):
+                await loop.run_in_executor(
+                    pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
+                )
 
     elif msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
         if msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE,):

@@ -97,6 +97,26 @@ class SourcesStorageTest(TestCase):
         self.assertEqual(db_obj.offset, test_offset)
         self.assertEqual(db_obj.account_id, self.account_id)
 
+    def test_create_source_event_out_of_order(self):
+        """Tests that a source entry is cleaned up when following an out of order destroy."""
+        test_source_id = 3
+        test_offset = 4
+        test_obj = Sources(source_id=test_source_id, offset=3, out_of_order_delete=True)
+        test_obj.save()
+
+        storage.create_source_event(test_source_id, Config.SOURCES_FAKE_HEADER, test_offset)
+        self.assertFalse(Sources.objects.filter(source_id=test_source_id).exists())
+
+    def test_create_source_event_out_of_order_unexpected_entry(self):
+        """Tests that a source entry is not cleaned up when unexpected entry is found."""
+        test_source_id = 3
+        test_offset = 4
+        test_obj = Sources(source_id=test_source_id, offset=3)
+        test_obj.save()
+
+        storage.create_source_event(test_source_id, Config.SOURCES_FAKE_HEADER, test_offset)
+        self.assertTrue(Sources.objects.filter(source_id=test_source_id).exists())
+
     def test_create_source_event_invalid_auth_header(self):
         """Tests creating a source db record with invalid auth_header."""
         test_source_id = 2
@@ -457,6 +477,15 @@ class SourcesStorageTest(TestCase):
         storage.enqueue_source_delete(test_source_id, test_offset)
         response = Sources.objects.get(source_id=test_source_id)
         self.assertTrue(response.pending_delete)
+
+    def test_enqueue_source_delete_out_of_order(self):
+        """Test for enqueuing source delete before receving create."""
+        test_source_id = 3
+        test_offset = 4
+
+        storage.enqueue_source_delete(test_source_id, test_offset)
+        response = Sources.objects.get(source_id=test_source_id)
+        self.assertTrue(response.out_of_order_delete)
 
     def test_enqueue_source_update(self):
         """Test for enqueuing source updating."""
