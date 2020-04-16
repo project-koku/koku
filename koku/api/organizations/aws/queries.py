@@ -31,9 +31,6 @@ class AWSOrgProviderMap(ProviderMap):
         self._mapping = [
             {
                 "provider": Provider.PROVIDER_AWS,
-                #     "annotations": {},
-                #     "filters": {},
-                #     "group_by_options": ["org_unit_id"],
                 "report_type": {
                     "organizations": {
                         "annotations": {"accounts": ArrayAgg("account_id", distinct=True)},
@@ -42,7 +39,6 @@ class AWSOrgProviderMap(ProviderMap):
                     },
                     "tags": {},
                 },
-                #     "tables": {"query": AWSOrganizationalUnit},
             }
         ]
 
@@ -57,8 +53,13 @@ class AWSOrgQueryHandler(OrgQueryHandler):
     data_sources = [
         {
             "db_table": AWSOrganizationalUnit,
-            "db_column_period": "created_timestamp",
-            "annotatsions": {"accounts": ArrayAgg("account_id", distinct=True)},
+            "created_db_column": "created_timestamp",
+            "deleted_db_column": "deleted_timestamp",
+            "annotations": {"accounts": ArrayAgg("account_id", distinct=True)},
+            "query_values": ["org_unit_id", "org_unit_name", "org_unit_path"],
+            "key_only_filter_column": "account_id",
+            "org_id_column": "org_unit_id",
+            "primary_key_column": "id",
         }
     ]
     SUPPORTED_FILTERS = ["account"]

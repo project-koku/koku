@@ -18,7 +18,6 @@
 import copy
 import logging
 
-from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import Q
 from tenant_schemas.utils import tenant_context
 
@@ -109,33 +108,10 @@ class OrgQueryHandler(QueryHandler):
 
         """
         output = copy.deepcopy(self.parameters.parameters)
-        for data in self.query_data:
-            accounts = data.get("accounts", [])
-            if None in accounts:
-                accounts = list(filter(None, accounts))
-                data["accounts"] = accounts
         output["data"] = self.query_data
         return output
 
-    def _get_time_based_filters(self, source, delta=False):
-        if delta:
-            date_delta = self._get_date_delta()
-            start = self.start_datetime - date_delta
-            end = self.end_datetime - date_delta
-        else:
-            start = self.start_datetime
-            end = self.end_datetime
-
-        # replace start/end with beginning/end of given month
-        start = self.dh.month_start(start)
-        end = self.dh.month_end(end)
-
-        field_prefix = source.get("db_column_period")
-        start_filter = QueryFilter(field=f"{field_prefix}", operation="gte", parameter=start)
-        end_filter = QueryFilter(field=f"{field_prefix}", operation="lte", parameter=end)
-        return start_filter, end_filter
-
-    def _get_filter(self, delta=False):
+    def _get_filter(self, delta=False):  # noqa: C901
         """Create dictionary for filter parameters.
 
         Args:
@@ -145,10 +121,17 @@ class OrgQueryHandler(QueryHandler):
 
         """
         filters = QueryFilterCollection()
-        for source in self.data_sources:
-            start_filter, end_filter = self._get_time_based_filters(source, delta)
-            filters.add(query_filter=start_filter)
-            filters.add(query_filter=end_filter)
+
+        if self.parameters.get("key_only"):
+            for source in self.data_sources:
+                key_only_filter_field = source.get("key_only_filter_column")
+                no_accounts = QueryFilter(field=f"{key_only_filter_field}", operation="isnull", parameter=True)
+                filters.add(no_accounts)
+        else:
+            for source in self.data_sources:
+                key_only_filter_field = source.get("key_only_filter_column")
+                no_accounts = QueryFilter(field=f"{key_only_filter_field}", operation="isnull", parameter=False)
+                filters.add(no_accounts)
 
         for filter_key in self.SUPPORTED_FILTERS:
             filter_value = self.parameters.get_filter(filter_key)
@@ -171,7 +154,8 @@ class OrgQueryHandler(QueryHandler):
         or_composed_filters = self._set_operator_specified_filters("or")
 
         composed_filters = filters.compose()
-        composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        if composed_filters:
+            composed_filters = composed_filters & and_composed_filters & or_composed_filters
 
         LOG.debug(f"_get_filter: {composed_filters}")
         return composed_filters
@@ -204,7 +188,7 @@ class OrgQueryHandler(QueryHandler):
 
         return composed_filter
 
-    def _get_exclusions(self, column):
+    def _get_exclusions(self):
         """Create dictionary for filter parameters for exclude clause.
 
         For tags this is to filter items that have null values for the
@@ -218,38 +202,38 @@ class OrgQueryHandler(QueryHandler):
 
         """
         exclusions = QueryFilterCollection()
-        filt = {"field": column, "operation": "isnull", "parameter": True}
-        q_filter = QueryFilter(**filt)
-        exclusions.add(q_filter)
-
+        for source in self.data_sources:
+            # Remove org units delete on date or before
+            created_field = source.get("created_db_column")
+            created_filter = QueryFilter(field=f"{created_field}", operation="gte", parameter=self.end_datetime)
+            exclusions.add(created_filter)
+            # Remove org units created after date
+            deleted_field = source.get("deleted_db_column")
+            deleted_filter = QueryFilter(field=f"{deleted_field}", operation="lte", parameter=self.start_datetime)
+            exclusions.add(deleted_filter)
         composed_exclusions = exclusions.compose()
-
         LOG.debug(f"_get_exclusions: {composed_exclusions}")
         return composed_exclusions
 
-    def get_org_units(self, filters=True):
+    def get_org_units(self):
         """Get a list of org keys to validate filters."""
-        type_filter = self.parameters.get_filter("type")
         org_units = list()
-        value_list = ["org_unit_id", "org_unit_name", "org_unit_path"]
         with tenant_context(self.tenant):
+            exclusion = self._get_exclusions()
             for source in self.data_sources:
+                org_id = source.get("db_org_column")
+                primary_key = source.get("primary_key_column")
+                created_field = source.get("created_db_column")
                 org_unit_query = source.get("db_table").objects
-                annotations = source.get("annotations")
-                if annotations:
-                    org_unit_query = org_unit_query.annotate(**annotations)
-                if filters is True:
+                value_list = source.get("query_values")
+                org_unit_query = org_unit_query.exclude(exclusion)
+                if value_list:
+                    org_unit_query = org_unit_query.values(*value_list)
+                if self.query_filter:
                     org_unit_query = org_unit_query.filter(self.query_filter)
-
-                if type_filter and type_filter != source.get("type"):
-                    continue
-                # TODO: Work the exclusions back in
-                # exclusion = self._get_exclusions("key")
-                # tag_keys_query = tag_keys_query.exclude(exclusion).values("key").distinct().all()
-                query_data = org_unit_query.values(*value_list).filter(account_id=None).distinct().all()
-
-                org_units.extend(query_data)
-
+                org_unit_query.order_by(f"{org_id}", f"-{created_field}").distinct(f"{org_id}")
+                org_unit_query.order_by(f"+{primary_key}")
+                org_units.extend(org_unit_query)
         return org_units
 
     def get_org_tree(self):
@@ -270,19 +254,20 @@ class OrgQueryHandler(QueryHandler):
             type_filter_array.append(type_filter)
 
         final_data = []
-        value_list = ["org_unit_id", "org_unit_name", "org_unit_path"]
         with tenant_context(self.tenant):
+            exclusion = self._get_exclusions()
             for source in sources:
-                query_table = source.get("db_table")
-                query = query_table.objects.values().filter(self.query_filter)
+                query = source.get("db_table").objects
                 annotations = source.get("annotations")
+                value_list = source.get("query_values")
+                query = query.exclude(exclusion)
+                if value_list:
+                    query = query.values(*value_list)
+                if self.query_filter:
+                    query = query.filter(self.query_filter)
                 if annotations:
                     query = query.annotate(**annotations)
-                    for annotation_key in annotations.keys():
-                        value_list.append(annotation_key)
-                # TODO: Work the exclusions back in
-                query_data = list(query.values(*value_list).annotate(accounts=ArrayAgg("account_id", distinct=True)))
-                final_data.extend(query_data)
+                final_data.extend(query)
         return final_data
 
     def execute_query(self):

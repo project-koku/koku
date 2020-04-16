@@ -137,15 +137,17 @@ class AWSOrgUnitCrawler(AccountCrawler):
         Returns:
             (AWSOrganizationalUnit): That was created or looked up
         """
-        LOG.info(
-            "Saving account or org unit: unit_name=%s, unit_id=%s, unit_path=%s, account_id=%s"
-            % (unit_name, unit_id, unit_path, account_id)
-        )
         with schema_context(self.schema):
-            node = AWSOrganizationalUnit.objects.get_or_create(
+            obj, created = AWSOrganizationalUnit.objects.get_or_create(
                 org_unit_name=unit_name, org_unit_id=unit_id, org_unit_path=unit_path, account_id=account_id
             )
-            return node[0]
+            if created:
+                # only log it was saved if was created to reduce logging on everyday calls
+                LOG.info(
+                    "Saving account or org unit: unit_name=%s, unit_id=%s, unit_path=%s, account_id=%s"
+                    % (unit_name, unit_id, unit_path, account_id)
+                )
+            return obj
 
     def _delete_aws_account(self, account_id):
         """
