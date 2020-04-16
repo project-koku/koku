@@ -85,18 +85,3 @@ def get_json(path):
         except (IOError, json.JSONDecodeError) as exc:
             LOG.exception(exc)
     return json_data
-
-
-# class CloudAccountViewSet(viewsets.ReadOnlyModelViewSet):
-#     """View for Cloud Accounts."""
-
-#     serializer_class = CloudAccountSerializer
-#     permission_classes = (AllowAny,)
-#     renderer_classes = [JSONRenderer] + api_settings.DEFAULT_RENDERER_CLASSES
-
-#     def get_queryset(self):
-#         """ViewSet get_queryset method."""
-#         serializer = CloudAccountQueryParamsSerializer(data=self.request.query_params)
-#         serializer.is_valid(raise_exception=True)
-#         data = self.get_json(CLOUD_ACCOUNTS_FILE_NAME)
-#         return data

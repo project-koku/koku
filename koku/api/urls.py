@@ -56,7 +56,6 @@ from sources.api.views import SourcesViewSet
 ROUTER = DefaultRouter()
 ROUTER.register(r"dataexportrequests", DataExportRequestViewSet, basename="dataexportrequests")
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
-# ROUTER.register(r"cloud-accounts", CloudAccountViewSet, basename="cloud_accounts")
 # pylint: disable=invalid-name
 urlpatterns = [
     url(r"^cloud-accounts/$", cloud_accounts, name="cloud-accounts"),
