@@ -139,7 +139,7 @@ def storage_callback(sender, instance, **kwargs):
             LOG.debug(f"Update Event Queued for:\n{str(instance)}")
             PROCESS_QUEUE.put_nowait((next(COUNT), update_event))
 
-    if instance.pending_delete:
+    if instance.pending_delete and instance.auth_header:
         delete_event = {"operation": "destroy", "provider": instance}
         _log_process_queue_event(PROCESS_QUEUE, delete_event)
         LOG.debug(f"Delete Event Queued for:\n{str(instance)}")
@@ -175,6 +175,7 @@ def get_sources_msg_data(msg, app_type_id):
                     LOG.debug("Application Message: %s", str(msg))
                     msg_data["event_type"] = event_type
                     msg_data["offset"] = msg.offset
+                    msg_data["partition"] = msg.partition
                     msg_data["source_id"] = int(value.get("source_id"))
                     msg_data["auth_header"] = _extract_from_header(msg.headers, KAFKA_HDR_RH_IDENTITY)
             elif event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
@@ -182,12 +183,14 @@ def get_sources_msg_data(msg, app_type_id):
                 if value.get("resource_type") == "Endpoint":
                     msg_data["event_type"] = event_type
                     msg_data["offset"] = msg.offset
+                    msg_data["partition"] = msg.partition
                     msg_data["resource_id"] = int(value.get("resource_id"))
                     msg_data["auth_header"] = _extract_from_header(msg.headers, KAFKA_HDR_RH_IDENTITY)
             elif event_type in (KAFKA_SOURCE_DESTROY, KAFKA_SOURCE_UPDATE):
                 LOG.debug("Source Message: %s", str(msg))
                 msg_data["event_type"] = event_type
                 msg_data["offset"] = msg.offset
+                msg_data["partition"] = msg.partition
                 msg_data["source_id"] = int(value.get("id"))
                 msg_data["auth_header"] = _extract_from_header(msg.headers, KAFKA_HDR_RH_IDENTITY)
             else:
@@ -384,7 +387,7 @@ async def process_message(app_type_id, msg, loop=EVENT_LOOP):  # noqa: C901
             )
 
     elif msg_data.get("event_type") in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
-        storage.enqueue_source_delete(msg_data.get("source_id"))
+        storage.enqueue_source_delete(msg_data.get("source_id"), msg_data.get("offset"))
 
     if msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE, KAFKA_AUTHENTICATION_UPDATE):
         storage.enqueue_source_update(msg_data.get("source_id"))

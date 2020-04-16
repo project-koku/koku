@@ -164,7 +164,7 @@ def load_providers_to_delete():
     providers_to_delete = []
     all_providers = Sources.objects.all()
     for provider in all_providers:
-        if provider.pending_delete:
+        if provider.pending_delete and provider.auth_header:
             providers_to_delete.append({"operation": "destroy", "provider": provider, "offset": provider.offset})
     return providers_to_delete
 
@@ -180,7 +180,7 @@ def get_source(source_id, err_msg, logger):
         raise error
 
 
-def enqueue_source_delete(source_id):
+def enqueue_source_delete(source_id, offset):
     """
     Queues a source destroy event to be processed by the synchronize_sources method.
 
@@ -192,10 +192,21 @@ def enqueue_source_delete(source_id):
         None
 
     """
-    source = get_source(source_id, f"Source not enqueued for delete. Source ID {source_id} not found.", LOG.info)
-    if source and not source.pending_delete:
-        source.pending_delete = True
-        source.save()
+    try:
+        source = Sources.objects.get(source_id=source_id)
+        if not source.pending_delete:
+            source.pending_delete = True
+            source.save()
+    except Sources.DoesNotExist:
+        LOG.info(
+            f"Source ID: {source_id} not known.  Marking as pending delete for when Application.create comes in later."
+        )
+        new_event = Sources(source_id=source_id, offset=offset, pending_delete=True)
+        new_event.save()
+        LOG.info(f"source.storage.create_source_event created Source ID as pending delete: {source_id}")
+    except (InterfaceError, OperationalError) as error:
+        LOG.error(f"Accessing sources resulted in {type(error).__name__}: {error}")
+        raise error
 
 
 def enqueue_source_update(source_id):
@@ -254,8 +265,11 @@ def create_source_event(source_id, auth_header, offset):
         return
 
     try:
-        Sources.objects.get(source_id=source_id)
+        source = Sources.objects.filter(source_id=source_id).first()
         LOG.debug(f"Source ID {str(source_id)} already exists.")
+        if source.pending_delete:
+            LOG.info(f"Source ID: {source_id} destroy event already occurred.")
+            source.delete()
     except Sources.DoesNotExist:
         new_event = Sources(source_id=source_id, auth_header=auth_header, offset=offset, account_id=account_id)
         new_event.save()
