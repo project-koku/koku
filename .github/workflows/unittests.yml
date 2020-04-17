@@ -55,7 +55,7 @@ jobs:
         DATABASE_ENGINE: postgresql
         DATABASE_USER: koku_tester
         DATABASE_ADMIN: postgres
-        DATABASE_PASSWORD: ''
+        DATABASE_PASSWORD: postgres
         POSTGRES_SQL_SERVICE_HOST: localhost
         POSTGRES_SQL_SERVICE_PORT: 15432
         prometheus_multiproc_dir: /tmp
