@@ -223,8 +223,8 @@ class KafkaSourceManager:
         connection.set_tenant(tenant)
         try:
             manager = ProviderManager(provider_uuid)
-        except ProviderManagerError:
-            LOG.info("Provider does not exist, skipping Provider delete.")
+        except ProviderManagerError as err:
+            LOG.warning(f"[destroy_provider]: {err}")
         else:
             manager.remove(user=user, from_sources=True)
         connection.set_schema_to_public()
