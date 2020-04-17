@@ -116,7 +116,12 @@ class TagQueryHandler(QueryHandler):
     def _slice_tag_values_list(self, n=50):
         """Slice the values list to the first n values."""
         for entry in self.query_data:
-            entry["values"] = entry.get("values", [])[0:n]
+            values = entry.get("values", [])
+            value_length = len(values)
+            values = values[0:n]
+            if value_length > n:
+                values.append(f"{value_length - n} more...")
+            entry["values"] = values
 
     def _get_time_based_filters(self, source, delta=False):
         if delta:
