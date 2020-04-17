@@ -37,10 +37,6 @@ jobs:
         sed -ri 's/python_version = ".+"/python_version = "${{ matrix.python }}"/g' Pipfile
         pipenv install --dev --ignore-pipfile
 
-    - name: Lint with flake8 and pylint
-      run: |
-        pipenv run flake8 koku
-        pipenv run pylint -j 0 --ignore=test --disable=R0801 --load-plugins=pylint_django koku/koku koku/masu/database
     - name: Test with pytest
       run: |
         /bin/sh ./scripts/check_postgres_running.sh |
