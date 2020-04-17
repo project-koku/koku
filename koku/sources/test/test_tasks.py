@@ -124,7 +124,7 @@ class SourcesTasksTest(TestCase):
     def test_create_with_nonexistent_source(self):
         """Test that provider is not created when source is not real."""
         logging.disable(logging.NOTSET)
-        with self.assertLogs(logger="sources.tasks", level="ERROR"):
+        with self.assertLogs(logger="sources.tasks", level="WARN"):
             create_or_update_provider(3)
 
     @patch("masu.celery.tasks.check_report_updates")
