@@ -1,0 +1,55 @@
+name: Unit Tests
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-16.04
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: [3.6, 3.7]
+
+    services:
+      postgres:
+        image: postgres:9.6
+        options: --name=postgres --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        ports:
+          - 5432/tcp
+
+    #     # needed because the postgres container does not provide a healthcheck
+    #     options: --name post_serve --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+    - uses: actions/checkout@v1
+    - name: Display build environment
+      run: printenv
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip pipenv
+        sed -ri 's/python_version = ".+"/python_version = "${{ matrix.python }}"/g' Pipfile
+        pipenv install --dev --ignore-pipfile
+
+    - name: Lint with flake8 and pylint
+      run: |
+        pipenv run flake8 koku
+        pipenv run pylint -j 0 --ignore=test --disable=R0801 --load-plugins=pylint_django koku/koku koku/masu/database
+    - name: Test with pytest
+      run: |
+        /bin/sh ./scripts/check_postgres_running.sh |
+        pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/ |
+        pipenv run coverage report --show-missing
+      env:
+        DATABASE_USER: koku_tester
+        DATABASE_ADMIN: postgres
+        DATABASE_PASSWORD: ''
+        POSTGRES_SQL_SERVICE_HOST: localhost
+        POSTGRES_SQL_SERVICE_PORT: 5432
+        prometheus_multiproc_dir: /tmp
