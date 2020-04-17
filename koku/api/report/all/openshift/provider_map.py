@@ -271,8 +271,8 @@ class OCPAllProviderMap(ProviderMap):
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{}],
                         "or_filter": [
-                            {"field": "product_family", "operation": "contains", "parameter": "Storage"},
-                            {"field": "product_code", "operation": "contains", "parameter": "Storage"},
+                            {"field": "product_family", "operation": "icontains", "parameter": "Storage"},
+                            {"field": "product_code", "operation": "icontains", "parameter": "Storage"},
                         ],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
@@ -354,8 +354,8 @@ class OCPAllProviderMap(ProviderMap):
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{}],
                         "or_filter": [
-                            {"field": "product_family", "operation": "contains", "parameter": "Storage"},
-                            {"field": "product_code", "operation": "contains", "parameter": "Storage"},
+                            {"field": "product_family", "operation": "icontains", "parameter": "Storage"},
+                            {"field": "product_code", "operation": "icontains", "parameter": "Storage"},
                         ],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",

@@ -1,5 +1,28 @@
 -- Place our query in a temporary table
 CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe}} AS (
+    WITH cte_array_agg_keys AS (
+        SELECT array_agg(key) as key_array
+        FROM {{schema | sqlsafe}}.reporting_ocpenabledtagkeys
+    ),
+    cte_filtered_pod_labels AS (
+        SELECT id,
+            jsonb_object_agg(key,value) as pod_labels
+        FROM (
+            SELECT lid.id,
+                lid.pod_labels,
+                aak.key_array
+            FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily lid
+            JOIN cte_array_agg_keys aak
+                ON 1=1
+            WHERE lid.usage_start >= {{start_date}}
+                AND lid.usage_start <= {{end_date}}
+                AND lid.cluster_id = {{cluster_id}}
+                AND lid.pod_labels ?| aak.key_array
+        ) AS lid,
+        jsonb_each_text(lid.pod_labels) AS labels
+        WHERE key = ANY (key_array)
+        GROUP BY id
+    )
     SELECT li.report_period_id,
         li.cluster_id,
         li.cluster_alias,
@@ -8,7 +31,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe
         max(li.resource_id) as resource_id,
         li.usage_start,
         li.usage_end,
-        li.pod_labels,
+        coalesce(fpl.pod_labels, '{}'::jsonb) as pod_labels,
         sum(li.pod_usage_cpu_core_seconds) / 3600 as pod_usage_cpu_core_hours,
         sum(li.pod_request_cpu_core_seconds) / 3600 as pod_request_cpu_core_hours,
         sum(li.pod_limit_cpu_core_seconds) / 3600 as pod_limit_cpu_core_hours,
@@ -24,6 +47,8 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe
         max(li.total_capacity_cpu_core_seconds) / 3600 as total_capacity_cpu_core_hours,
         max(li.total_capacity_memory_byte_seconds) / 3600 * POWER(2, -30) as total_capacity_memory_gigabyte_hours
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily AS li
+    LEFT JOIN cte_filtered_pod_labels AS fpl
+        ON li.id = fpl.id
     WHERE usage_start >= {{start_date}}
         AND usage_start <= {{end_date}}
         AND cluster_id = {{cluster_id}}
@@ -34,7 +59,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe
         li.usage_end,
         li.namespace,
         li.node,
-        li.pod_labels
+        fpl.pod_labels
 )
 ;
 

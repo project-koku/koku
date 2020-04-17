@@ -107,9 +107,21 @@ class TagQueryHandler(QueryHandler):
 
         """
         output = copy.deepcopy(self.parameters.parameters)
+        if not self.parameters.parameters.get("key_only"):
+            self._slice_tag_values_list()
         output["data"] = self.query_data
 
         return output
+
+    def _slice_tag_values_list(self, n=50):
+        """Slice the values list to the first n values."""
+        for entry in self.query_data:
+            values = entry.get("values", [])
+            value_length = len(values)
+            values = values[0:n]
+            if value_length > n:
+                values.append(f"{value_length - n} more...")
+            entry["values"] = values
 
     def _get_time_based_filters(self, source, delta=False):
         if delta:
