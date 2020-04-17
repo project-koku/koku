@@ -117,6 +117,18 @@ services:
     volumes:
       - ./pg_data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data
       - ./pg_init:/docker-entrypoint-initdb.d
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - autovacuum_max_workers=8
+      - -c
+      - autovacuum_vacuum_cost_limit=4800
+      - -c
+      - autovacuum_vacuum_cost_delay=10
+      - -c
+      - idle_in_transaction_session_timeout=30000
 
   pgadmin:
     container_name: pgAdmin
