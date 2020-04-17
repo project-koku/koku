@@ -23,6 +23,7 @@ from koku.celery import app
 from sources.kafka_source_manager import KafkaSourceManager
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
+from sources.storage import destroy_source_event
 from sources.storage import SCREEN_MAP
 
 LOG = get_task_logger(__name__)
@@ -90,3 +91,21 @@ def set_status_for_source(source_id, error_message):
         client.set_source_status(error_message)
     except SourcesHTTPClientError as err:
         LOG.error(err)
+
+
+@app.task(name="sources.tasks.delete_source_and_provider", queue_name="sources")
+def delete_source_and_provider(source_id):
+    try:
+        instance = Sources.objects.get(source_id=source_id)
+    except Exception as e:
+        LOG.error(f"[set_status_for_source] This Source ID {source_id} should exist. error: {e}")
+        return
+
+    source_mgr = KafkaSourceManager(instance.auth_header)
+    if instance.koku_uuid:
+        try:
+            source_mgr.destroy_provider(instance.koku_uuid)
+            LOG.info(f"Koku Provider UUID ({instance.koku_uuid}) Removal Succeeded")
+        except Exception as err:
+            LOG.info(f"Koku Provider removal failed. Error: {err}.")
+    destroy_source_event(instance.source_id)
