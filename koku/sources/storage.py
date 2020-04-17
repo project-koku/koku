@@ -180,13 +180,14 @@ def get_source(source_id, err_msg, logger):
         raise error
 
 
-def enqueue_source_delete(source_id, offset):
+def enqueue_source_delete(source_id, offset, allow_out_of_order=False):
     """
     Queues a source destroy event to be processed by the synchronize_sources method.
 
     Args:
         queue (Asyncio Queue) - process_queue containing all pending Souces-koku events.
         source_id (Integer) - Platform-Sources identifier.
+        allow_out_of_order (Bool) - Allow for out of order delete events (Application or Source).
 
     Returns:
         None
@@ -198,10 +199,11 @@ def enqueue_source_delete(source_id, offset):
             source.pending_delete = True
             source.save()
     except Sources.DoesNotExist:
-        LOG.info(f"Source ID: {source_id} not known.  Marking as out of order delete.")
-        new_event = Sources(source_id=source_id, offset=offset, out_of_order_delete=True)
-        new_event.save()
-        LOG.info(f"source.storage.create_source_event created Source ID as pending delete: {source_id}")
+        if allow_out_of_order:
+            LOG.info(f"Source ID: {source_id} not known.  Marking as out of order delete.")
+            new_event = Sources(source_id=source_id, offset=offset, out_of_order_delete=True)
+            new_event.save()
+            LOG.info(f"source.storage.create_source_event created Source ID as pending delete: {source_id}")
     except (InterfaceError, OperationalError) as error:
         LOG.error(f"Accessing sources resulted in {type(error).__name__}: {error}")
         raise error

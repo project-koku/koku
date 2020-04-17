@@ -387,7 +387,10 @@ async def process_message(app_type_id, msg, loop=EVENT_LOOP):  # noqa: C901
                 pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
             )
 
-    elif msg_data.get("event_type") in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
+    elif msg_data.get("event_type") in (KAFKA_APPLICATION_DESTROY,):
+        storage.enqueue_source_delete(msg_data.get("source_id"), msg_data.get("offset"), allow_out_of_order=True)
+
+    elif msg_data.get("event_type") in (KAFKA_SOURCE_DESTROY,):
         storage.enqueue_source_delete(msg_data.get("source_id"), msg_data.get("offset"))
 
     if msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE, KAFKA_AUTHENTICATION_UPDATE):

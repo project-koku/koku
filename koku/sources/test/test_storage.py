@@ -129,7 +129,9 @@ class SourcesStorageTest(TestCase):
         """Tests creating a source db record with invalid auth_header."""
         test_source_id = 2
         test_offset = 3
-        with patch.object(Sources, "save") as mock_object:
+        ocp_obj = Sources(source_id=test_source_id, offset=3, out_of_order_delete=True, pending_delete=False)
+        ocp_obj.save()
+        with patch.object(Sources, "delete") as mock_object:
             mock_object.side_effect = InterfaceError("Error")
             with self.assertRaises(InterfaceError):
                 storage.create_source_event(test_source_id, Config.SOURCES_FAKE_HEADER, test_offset)
@@ -483,9 +485,17 @@ class SourcesStorageTest(TestCase):
         test_source_id = 3
         test_offset = 4
 
-        storage.enqueue_source_delete(test_source_id, test_offset)
+        storage.enqueue_source_delete(test_source_id, test_offset, allow_out_of_order=True)
         response = Sources.objects.get(source_id=test_source_id)
         self.assertTrue(response.out_of_order_delete)
+
+    def test_enqueue_source_delete_out_of_order_source_destroy(self):
+        """Test for enqueuing source delete before receving create for Source.destroy."""
+        test_source_id = 3
+        test_offset = 4
+
+        storage.enqueue_source_delete(test_source_id, test_offset, allow_out_of_order=False)
+        self.assertFalse(Sources.objects.filter(source_id=test_source_id).exists())
 
     def test_enqueue_source_update(self):
         """Test for enqueuing source updating."""
