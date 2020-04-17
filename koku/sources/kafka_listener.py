@@ -175,6 +175,7 @@ def get_sources_msg_data(msg, app_type_id):
                     LOG.debug("Application Message: %s", str(msg))
                     msg_data["event_type"] = event_type
                     msg_data["offset"] = msg.offset
+                    msg_data["partition"] = msg.partition
                     msg_data["source_id"] = int(value.get("source_id"))
                     msg_data["auth_header"] = _extract_from_header(msg.headers, KAFKA_HDR_RH_IDENTITY)
             elif event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
@@ -182,12 +183,14 @@ def get_sources_msg_data(msg, app_type_id):
                 if value.get("resource_type") == "Endpoint":
                     msg_data["event_type"] = event_type
                     msg_data["offset"] = msg.offset
+                    msg_data["partition"] = msg.partition
                     msg_data["resource_id"] = int(value.get("resource_id"))
                     msg_data["auth_header"] = _extract_from_header(msg.headers, KAFKA_HDR_RH_IDENTITY)
             elif event_type in (KAFKA_SOURCE_DESTROY, KAFKA_SOURCE_UPDATE):
                 LOG.debug("Source Message: %s", str(msg))
                 msg_data["event_type"] = event_type
                 msg_data["offset"] = msg.offset
+                msg_data["partition"] = msg.partition
                 msg_data["source_id"] = int(value.get("id"))
                 msg_data["auth_header"] = _extract_from_header(msg.headers, KAFKA_HDR_RH_IDENTITY)
             else:
@@ -361,9 +364,10 @@ async def process_message(app_type_id, msg, loop=EVENT_LOOP):  # noqa: C901
         storage.create_source_event(msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset"))
 
         with concurrent.futures.ThreadPoolExecutor() as pool:
-            await loop.run_in_executor(
-                pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
-            )
+            if storage.is_known_source(msg_data.get("source_id")):
+                await loop.run_in_executor(
+                    pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
+                )
 
     elif msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
         if msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE,):
@@ -383,8 +387,11 @@ async def process_message(app_type_id, msg, loop=EVENT_LOOP):  # noqa: C901
                 pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
             )
 
-    elif msg_data.get("event_type") in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
-        storage.enqueue_source_delete(msg_data.get("source_id"))
+    elif msg_data.get("event_type") in (KAFKA_APPLICATION_DESTROY,):
+        storage.enqueue_source_delete(msg_data.get("source_id"), msg_data.get("offset"), allow_out_of_order=True)
+
+    elif msg_data.get("event_type") in (KAFKA_SOURCE_DESTROY,):
+        storage.enqueue_source_delete(msg_data.get("source_id"), msg_data.get("offset"))
 
     if msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE, KAFKA_AUTHENTICATION_UPDATE):
         storage.enqueue_source_update(msg_data.get("source_id"))
