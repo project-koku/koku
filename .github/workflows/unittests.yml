@@ -52,6 +52,7 @@ jobs:
         pipenv run coverage report --show-missing
       env:
         DATABASE_SERVICE_NAME: POSTGRES_SQL
+        DATABASE_ENGINE: postgresql
         DATABASE_USER: koku_tester
         DATABASE_ADMIN: postgres
         DATABASE_PASSWORD: ''
