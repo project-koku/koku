@@ -34,7 +34,7 @@ def create_or_update_provider(source_id):
     try:
         instance = Sources.objects.get(source_id=source_id)
     except Sources.DoesNotExist as e:
-        LOG.warning(f"[create_or_update_provider] This Source ID {source_id} does not exist. error: {e}")
+        LOG.warning(f"[create_or_update_provider] This Source ID {source_id} does not exist. {e}")
         return
 
     uuid = instance.source_uuid
@@ -82,7 +82,7 @@ def set_status_for_source(source_id, error_message):
     try:
         instance = Sources.objects.get(source_id=source_id)
     except Sources.DoesNotExist as e:
-        LOG.warning(f"[set_status_for_source] This Source ID {source_id} does not exist. error: {e}")
+        LOG.warning(f"[set_status_for_source] This Source ID {source_id} does not exist. {e}")
         return
 
     LOG.info(f"Setting availability status for Source ID: {source_id}")
@@ -98,7 +98,7 @@ def delete_source_and_provider(source_id):
     try:
         instance = Sources.objects.get(source_id=source_id)
     except Sources.DoesNotExist as e:
-        LOG.warning(f"[set_status_for_source] This Source ID {source_id} does not exist. error: {e}")
+        LOG.warning(f"[set_status_for_source] This Source ID {source_id} does not exist. {e}")
         return
 
     source_mgr = KafkaSourceManager(instance.auth_header)
@@ -107,5 +107,6 @@ def delete_source_and_provider(source_id):
             source_mgr.destroy_provider(instance.koku_uuid)
             LOG.info(f"Koku Provider UUID ({instance.koku_uuid}) Removal Succeeded")
         except Exception as err:
-            LOG.info(f"Koku Provider removal failed. Error: {err}.")
+            LOG.error(f"Koku Provider removal failed. Error: {err}.")
+            raise err
     destroy_source_event(instance.source_id)

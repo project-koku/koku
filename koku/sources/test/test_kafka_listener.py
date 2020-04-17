@@ -195,7 +195,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         }
 
     @patch("sources.tasks.set_status_for_source.delay")
-    @patch("sources.tasks.delete_source_and_provider.delay", side_effect=MockDestroyTask)
+    @patch("sources.tasks.create_or_update_provider.delay", side_effect=MockCreateUpdateTask)
     def test_execute_koku_provider_op_create(self, mock_delay, mock_status):
         """Test to execute Koku Operations to sync with Sources for creation."""
         source_id = self.aws_source.get("source_id")
@@ -210,7 +210,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         self.assertFalse(Sources.objects.get(source_id=source_id).pending_update)
         self.assertEqual(Sources.objects.get(source_id=source_id).koku_uuid, str(provider.source_uuid))
 
-    @patch("sources.tasks.create_or_update_provider.delay", side_effect=MockCreateUpdateTask)
+    @patch("sources.tasks.delete_source_and_provider.delay", side_effect=MockDestroyTask)
     def test_execute_koku_provider_op_destroy(self, mock_delete):
         """Test to execute Koku Operations to sync with Sources for destruction."""
         source_id = self.aws_source.get("source_id")
