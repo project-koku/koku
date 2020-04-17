@@ -118,6 +118,12 @@ curl --header "Content-Type: application/json" \
   --data "$COST_MODEL_JSON" \
   http://$KOKU_API$API_PATH_PREFIX/v1/cost-models/
 
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data '{"schema": "acct10001","action": "create","tag_keys": ["environment", "app", "version", "storageclass"]}' \
+  http://$MASU_API$API_PATH_PREFIX/v1/enabled_tags/
+
+
 cd "$NISE_REPO_PATH"
 git checkout -- "$NISE_REPO_PATH/examples/ocp_on_aws/aws_static_data.yml"
 git checkout -- "$NISE_REPO_PATH/examples/ocp_on_aws/ocp_static_data.yml"

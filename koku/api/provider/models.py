@@ -248,6 +248,10 @@ class Sources(models.Model):
     # handler.
     pending_update = models.BooleanField(default=False)
 
+    # When a source delete occurs before a source create.  Messages can be out of order when arriving
+    # on different kafka partitions.
+    out_of_order_delete = models.BooleanField(default=False)
+
     # Availability status
     status = JSONField(null=True, default=dict)
 

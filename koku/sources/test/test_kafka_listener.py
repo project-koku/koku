@@ -81,10 +81,11 @@ def raise_provider_manager_error(param_a):
 class ConsumerRecord:
     """Test class for kafka msg."""
 
-    def __init__(self, topic, offset, event_type, auth_header, value):
+    def __init__(self, topic, offset, event_type, auth_header, value, partition=0):
         """Initialize Msg."""
         self.topic = topic
         self.offset = offset
+        self.partition = partition
         self.headers = (
             ("event_type", bytes(event_type, encoding="utf-8")),
             ("x-rh-identity", bytes(auth_header, encoding="utf-8")),
@@ -359,6 +360,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         """Test to get sources details from other message."""
         test_topic = "platform.sources.event-stream"
         test_offset = 5
+        test_partition = 1
         cost_management_app_type = 2
         test_auth_header = "testheader"
         test_value = '{"id":1,"source_id":1,"application_type_id":2}'
@@ -369,6 +371,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 "expected_response": {
                     "source_id": 1,
                     "offset": test_offset,
+                    "partition": test_partition,
                     "event_type": "Source.update",
                     "auth_header": test_auth_header,
                 },
@@ -378,6 +381,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             msg = ConsumerRecord(
                 topic=test_topic,
                 offset=test_offset,
+                partition=1,
                 event_type=test.get("event"),
                 auth_header=test_auth_header,
                 value=bytes(test_value, encoding="utf-8"),
