@@ -460,6 +460,17 @@ class SourcesStorageTest(TestCase):
         response = Sources.objects.get(source_id=test_source_id)
         self.assertTrue(response.pending_delete)
 
+    def test_enqueue_source_delete_db_down(self):
+        """Tests enqueues source_delete with database error."""
+        test_source_id = 2
+        test_offset = 3
+        ocp_obj = Sources(source_id=test_source_id, offset=3, out_of_order_delete=False, pending_delete=False)
+        ocp_obj.save()
+        with patch.object(Sources, "save") as mock_object:
+            mock_object.side_effect = InterfaceError("Error")
+            with self.assertRaises(InterfaceError):
+                storage.enqueue_source_delete(test_source_id, Config.SOURCES_FAKE_HEADER, test_offset)
+
     def test_enqueue_source_delete_in_pending(self):
         """Test for enqueuing source delete while pending delete."""
         test_source_id = 3
