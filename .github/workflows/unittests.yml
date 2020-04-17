@@ -48,6 +48,7 @@ jobs:
     - name: Test with pytest
       run: |
         /bin/sh ./scripts/check_postgres_running.sh |
+        /bin/sh ./scripts/create_test_db_user.sh |
         pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/ |
         pipenv run coverage report --show-missing
       env:
