@@ -18,7 +18,7 @@ jobs:
         image: postgres:9.6
         options: --name=postgres
         ports:
-          - 5432/tcp
+          - 15432:5432
 
     #     # needed because the postgres container does not provide a healthcheck
     #     options: --name post_serve --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
