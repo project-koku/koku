@@ -33,8 +33,8 @@ LOG = get_task_logger(__name__)
 def create_or_update_provider(source_id):
     try:
         instance = Sources.objects.get(source_id=source_id)
-    except Exception as e:
-        LOG.error(f"[create_or_update_provider] This Source ID {source_id} should exist. error: {e}")
+    except Sources.DoesNotExist as e:
+        LOG.warning(f"[create_or_update_provider] This Source ID {source_id} does not exist. error: {e}")
         return
 
     uuid = instance.source_uuid
@@ -81,8 +81,8 @@ def create_or_update_provider(source_id):
 def set_status_for_source(source_id, error_message):
     try:
         instance = Sources.objects.get(source_id=source_id)
-    except Exception as e:
-        LOG.error(f"[set_status_for_source] This Source ID {source_id} should exist. error: {e}")
+    except Sources.DoesNotExist as e:
+        LOG.warning(f"[set_status_for_source] This Source ID {source_id} does not exist. error: {e}")
         return
 
     LOG.info(f"Setting availability status for Source ID: {source_id}")
@@ -97,8 +97,8 @@ def set_status_for_source(source_id, error_message):
 def delete_source_and_provider(source_id):
     try:
         instance = Sources.objects.get(source_id=source_id)
-    except Exception as e:
-        LOG.error(f"[set_status_for_source] This Source ID {source_id} should exist. error: {e}")
+    except Sources.DoesNotExist as e:
+        LOG.warning(f"[set_status_for_source] This Source ID {source_id} does not exist. error: {e}")
         return
 
     source_mgr = KafkaSourceManager(instance.auth_header)
