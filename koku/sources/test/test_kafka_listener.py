@@ -200,7 +200,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         self.assertFalse(Sources.objects.get(source_id=source_id).pending_update)
         self.assertEqual(Sources.objects.get(source_id=source_id).koku_uuid, str(provider.source_uuid))
 
-    def test_execute_koku_provider_op_destroy(self):
+    @patch("sources.tasks.delete_source_and_provider.delay", side_effect=MockTask)
+    def test_execute_koku_provider_op_destroy(self, mock_destroy):
         """Test to execute Koku Operations to sync with Sources for destruction."""
         source_id = self.aws_source.get("source_id")
         application_type_id = 2
@@ -212,7 +213,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         self.assertEqual(Sources.objects.filter(source_id=source_id).exists(), False)
 
     @patch("sources.tasks.set_status_for_source.delay")
-    def test_execute_koku_provider_op_destroy_provider_not_found(self, mock_status):
+    @patch("sources.tasks.delete_source_and_provider.delay", side_effect=MockTask)
+    def test_execute_koku_provider_op_destroy_provider_not_found(self, mock_destroy, mock_status):
         """Test to execute Koku Operations to sync with Sources for destruction with provider missing.
 
         First, raise ProviderManagerError. Check that provider still exists, but source was removed.

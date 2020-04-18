@@ -126,6 +126,10 @@ class AWSProvider(ProviderInterface):
 
     def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
         """Verify that the S3 bucket exists and is reachable."""
+        LOG.info("SLEEPING IN IN AWS CREDS CHECK")
+        # import time
+
+        # time.sleep(30)
         if not credential_name or credential_name.isspace():
             key = "authentication.provider_resource_name"
             message = "Provider resource name is a required parameter for AWS and must not be blank."
