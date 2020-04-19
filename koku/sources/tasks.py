@@ -31,7 +31,7 @@ from sources.storage import SCREEN_MAP
 LOG = get_task_logger(__name__)
 
 
-@app.task(name="sources.tasks.create_or_update_provider", queue_name="sources")
+@app.task(name="sources.tasks.create_or_update_provider", queue_name="sources")  # noqa: C901
 def create_or_update_provider(source_id):
     LOG.info(f"Running Sources create/update provider for Source ID: {source_id}")
     try:
@@ -64,6 +64,7 @@ def create_or_update_provider(source_id):
         provider.insert(0, instance.koku_uuid)
         operation = "update"
 
+    obj = None
     try:
         LOG.info(f"Running provider operation: {operation}")
         obj = provider_func(*provider)
@@ -73,8 +74,6 @@ def create_or_update_provider(source_id):
         err_msg = str(err)
     else:
         LOG.info(f"Provider operation: {operation} complete")
-        instance.koku_uuid = obj.uuid
-        instance.pending_update = False
         LOG.info(f"Provider {operation}d: {obj.uuid}")
 
     try:
@@ -82,6 +81,9 @@ def create_or_update_provider(source_id):
         instance = Sources.objects.get(source_id=source_id)
         status_info = {"availability_status": status, "availability_status_error": str(err_msg)}
         instance.status = status_info
+        if obj:
+            instance.koku_uuid = obj.uuid
+            instance.pending_update = False
         instance.save()
         set_status_for_source.delay(source_id, err_msg)
     except Sources.DoesNotExist:
@@ -97,12 +99,13 @@ def delete_source_and_provider(source_id, source_uuid, auth_header):
     source_instance = None
     try:
         provider_instance = Provider.objects.get(uuid=source_uuid)
-        try:
-            source_instance = Sources.objects.get(source_id=source_id)
-        except Sources.DoesNotExist:
-            LOG.info(f"delete_source_and_provider: Source ID: {source_id} does not exist")
     except Provider.DoesNotExist:
         LOG.info(f"delete_source_and_provider: Provider UUID: {source_uuid} does not exist")
+
+    try:
+        source_instance = Sources.objects.get(source_id=source_id)
+    except Sources.DoesNotExist:
+        LOG.info(f"delete_source_and_provider: Source ID: {source_id} does not exist")
 
     if provider_instance:
         try:
