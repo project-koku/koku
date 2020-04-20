@@ -56,7 +56,7 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.local/share/virtualenvs
-          key: ${{ runner.os }}-venv-${{ matrix.python-version }}-${{ hashFiles('**/Pipfile.lock') }}  
+          key: ${{ runner.os }}-venv-${{ matrix.python-version }}-${{ hashFiles('**/Pipfile.lock') }}
 
       - name: Install dependencies
         if: steps.cache-dependencies.outputs.cache-hit != 'true' || steps.cache-virtualenv.outputs.cache-hit != 'true'
@@ -67,7 +67,7 @@ jobs:
 
       - name: Run Unittests
         run: |
-          pipenv run ./koku/manage.py migrate |
+          pipenv run ./koku/manage.py migrate_schemas |
           pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/ |
           pipenv run coverage report --show-missing
         env:
