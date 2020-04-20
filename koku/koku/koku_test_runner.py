@@ -96,7 +96,7 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         tenant.save()
                         Customer.objects.get_or_create(account_id=account[0], schema_name=account[1])
                 except Exception as err:
-                    LOG.warning(f"Test runner exception: {err}")
+                    LOG.warning(f"Test runner exception: {err}", exc_info=True)
                     pass
 
                 if parallel > 1:
