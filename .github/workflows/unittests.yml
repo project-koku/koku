@@ -20,7 +20,7 @@ jobs:
         # Provide the password for postgres
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: ''
           POSTGRES_DB: postgres
         # Set health checks to wait until postgres has started
         options: >-
@@ -33,17 +33,14 @@ jobs:
     steps:
       - name: Checkout repsository
         uses: actions/checkout@v1
+
       - name: Display build environment
         run: printenv
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-          
-      - name: Before Install
-        run: |
-          sudo rm -f /etc/boto.cfg |
-          sudo mount -o remount,size=25% /var/ramfs
 
       - name: Install dependencies
         run: |
@@ -53,7 +50,6 @@ jobs:
 
       - name: Run Unittests
         run: |
-          /bin/sh ./scripts/check_postgres_running.sh |
           /bin/sh ./scripts/create_test_db_user.sh |
           pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/ |
           pipenv run coverage report --show-missing
@@ -62,7 +58,7 @@ jobs:
           DATABASE_ENGINE: postgresql
           DATABASE_USER: koku_tester
           DATABASE_ADMIN: postgres
-          DATABASE_PASSWORD: postgres
+          DATABASE_PASSWORD: ''
           POSTGRES_SQL_SERVICE_HOST: localhost
           POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
           prometheus_multiproc_dir: /tmp
