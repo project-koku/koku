@@ -68,7 +68,8 @@ jobs:
       - name: Run Unittests
         run: |
           pipenv run ./koku/manage.py migrate_schemas |
-          pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/
+          pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/ |
+          pipenv run coverage xml
         env:
           DATABASE_SERVICE_NAME: POSTGRES_SQL
           DATABASE_ENGINE: postgresql
@@ -82,7 +83,7 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
-          # token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./.coverage
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.xml
           flags: unittests
           fail_ci_if_error: true
