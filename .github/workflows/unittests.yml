@@ -51,15 +51,16 @@ jobs:
             ${{ runner.os }}-pipenv-
 
       - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           python -m pip install --upgrade pip pipenv
           sed -ri 's/python_version = ".+"/python_version = "${{ matrix.python }}"/g' Pipfile
           pipenv install --dev --ignore-pipfile
-        if: steps.cache.outputs.cache-hit != 'true'
 
       - name: Create DB User
         run: |
-          PGPASSWORD=postgres psql -U postgres -c "alter role postgres password null;" |
+          PGPASSWORD=postgres psql -U postgres -h localhost -p ${{ job.services.postgres.ports[5432] }} \
+          -c "alter role postgres password null;" |
           /bin/sh ./scripts/create_test_db_user.sh
         env:
           DATABASE_USER: koku_tester
