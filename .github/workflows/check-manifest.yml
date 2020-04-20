@@ -1,0 +1,16 @@
+name: Check manifest
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v1
+    - name: Setup Python
+      uses: actions/setup-python@v1
+    - name: Check manifest
+      run: bash .travis/check_manifest.sh
