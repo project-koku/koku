@@ -16,11 +16,11 @@ jobs:
     services:
       postgres:
         # Docker Hub image
-        image: postgres
+        image: postgres:9.6
         # Provide the password for postgres
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: ''
           POSTGRES_DB: postgres
         # Set health checks to wait until postgres has started
         options: >-
@@ -42,11 +42,20 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Cache dependencies
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/pipenv
+          key: ${{ runner.os }}-pipenv-${{ hashFiles('**/Pipfile') }}
+          restore-keys: |
+            ${{ runner.os }}-pipenv-
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip pipenv
           sed -ri 's/python_version = ".+"/python_version = "${{ matrix.python }}"/g' Pipfile
           pipenv install --dev --ignore-pipfile
+        if: steps.cache.outputs.cache-hit != 'true'
 
       - name: Create DB User
         run: |
