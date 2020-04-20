@@ -50,8 +50,6 @@ jobs:
         with:
           path: ~/.cache/pipenv
           key: pipenv|${{ env.PY }}|${{ hashFiles('Pipfile') }}
-          restore-keys: |
-            ${{ runner.os }}-pipenv-
 
       - name: Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'
@@ -63,9 +61,8 @@ jobs:
       - name: Create DB User
         run: |
           PGPASSWORD=postgres psql -U postgres -h localhost -p ${{ job.services.postgres.ports[5432] }} \
-          -c " \
-          DROP USER IF EXISTS koku_tester; \
-          CREATE USER koku_tester PASSWORD ''; |
+          -c "DROP USER IF EXISTS koku_tester; \
+          CREATE USER koku_tester PASSWORD '';" |
           createdb postgres
         env:
           DATABASE_USER: koku_tester
