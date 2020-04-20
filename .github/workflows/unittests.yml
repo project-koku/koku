@@ -60,15 +60,17 @@ jobs:
       - name: Create DB User
         run: |
           PGPASSWORD=postgres psql -U postgres -h localhost -p ${{ job.services.postgres.ports[5432] }} \
-          -c "alter role postgres password null; DROP USER IF EXISTS koku_tester;" |
-          createuser -w -s "${DATABASE_USER}" 
+          -c " \
+          alter role postgres password null; \
+          DROP USER IF EXISTS koku_tester; \
+          CREATE USER koku_tester PASSWORD '';"
         env:
           DATABASE_USER: koku_tester
           DATABASE_PASSWORD: ''
           POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
           POSTGRES_SQL_SERVICE_HOST: localhost
           DATABASE_ADMIN: postgres
-          
+
       - name: Run Unittests
         run: |
           pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/ |
