@@ -20,7 +20,7 @@ jobs:
         # Provide the password for postgres
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: ''
+          POSTGRES_PASSWORD: postgres
           POSTGRES_DB: postgres
         # Set health checks to wait until postgres has started
         options: >-
@@ -59,6 +59,7 @@ jobs:
 
       - name: Create DB User
         run: |
+          alter role postgres password null |
           /bin/sh ./scripts/create_test_db_user.sh
         env:
           DATABASE_USER: koku_tester
