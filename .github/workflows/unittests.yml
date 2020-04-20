@@ -42,17 +42,24 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           
-      - name: set PY
-        run: echo "::set-env name=PY::$(python -c 'import hashlib, sys;print(hashlib.sha256(sys.version.encode()+sys.executable.encode()).hexdigest())')"
+      - name: Install Pipenv
+        run: python -m pip install --upgrade pip pipenv
 
       - name: Cache dependencies
+        id: cache-dependencies
         uses: actions/cache@v1
         with:
           path: ~/.cache/pipenv
-          key: pipenv|${{ env.PY }}|${{ hashFiles('Pipfile') }}
+          key: ${{ runner.os }}-pipenv-${{ matrix.python-version }}-${{ hashFiles('**/Pipfile.lock') }}
+      - name: Cache virtualenv
+        id: cache-virtualenv
+        uses: actions/cache@v1
+        with:
+          path: ~/.local/share/virtualenvs
+          key: ${{ runner.os }}-venv-${{ matrix.python-version }}-${{ hashFiles('**/Pipfile.lock') }}  
 
       - name: Install dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: steps.cache-dependencies.outputs.cache-hit != 'true' || steps.cache-virtualenv.outputs.cache-hit != 'true'
         run: |
           python -m pip install --upgrade pip pipenv
           sed -ri 's/python_version = ".+"/python_version = "${{ matrix.python }}"/g' Pipfile
@@ -62,7 +69,7 @@ jobs:
         run: |
           PGPASSWORD=postgres psql -U postgres -h localhost -p ${{ job.services.postgres.ports[5432] }} \
           -c "DROP USER IF EXISTS koku_tester; \
-          CREATE USER koku_tester PASSWORD postgres;"
+          CREATE USER koku_tester PASSWORD 'postgres';"
 
       - name: Run Unittests
         run: |
