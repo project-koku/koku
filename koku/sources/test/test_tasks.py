@@ -152,7 +152,7 @@ class SourcesTasksTest(TestCase):
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             create_or_update_provider(self.aws_source.source_id)
 
-        mock_call.assert_called()
+        mock_call.assert_not_called()
 
     @patch.object(settings, "DEVELOPMENT", False)
     @patch("masu.celery.tasks.check_report_updates")
