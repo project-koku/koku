@@ -29,7 +29,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
         ports:
-          - 15432:5432
+          - 5432:5432
     steps:
       - name: Checkout repsository
         uses: actions/checkout@v1
@@ -55,9 +55,9 @@ jobs:
         env:
           DATABASE_SERVICE_NAME: POSTGRES_SQL
           DATABASE_ENGINE: postgresql
-          DATABASE_USER: postgres
+          DATABASE_USER: koku_tester
           DATABASE_ADMIN: postgres
           DATABASE_PASSWORD: postgres
           POSTGRES_SQL_SERVICE_HOST: localhost
-          POSTGRES_SQL_SERVICE_PORT: 15432
+          POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
           prometheus_multiproc_dir: /tmp
