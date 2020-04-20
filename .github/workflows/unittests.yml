@@ -65,11 +65,11 @@ jobs:
           sed -ri 's/python_version = ".+"/python_version = "${{ matrix.python }}"/g' Pipfile
           pipenv install --dev --ignore-pipfile
 
-      - name: Create DB User
-        run: |
-          PGPASSWORD=postgres psql -U postgres -h localhost -p ${{ job.services.postgres.ports[5432] }} \
-          -c "DROP USER IF EXISTS koku_tester; \
-          CREATE USER koku_tester PASSWORD 'postgres';"
+#       - name: Create DB User
+#         run: |
+#           PGPASSWORD=postgres psql -U postgres -h localhost -p ${{ job.services.postgres.ports[5432] }} \
+#           -c "DROP USER IF EXISTS koku_tester; \
+#           CREATE USER koku_tester PASSWORD 'postgres';"
 
       - name: Run Unittests
         run: |
@@ -77,10 +77,6 @@ jobs:
           pipenv run coverage report --show-missing
         env:
           DATABASE_SERVICE_NAME: POSTGRES_SQL
-          DATABASE_ENGINE: postgresql
-          DATABASE_USER: koku_tester
-          DATABASE_ADMIN: postgres
-          DATABASE_PASSWORD: postgres
           POSTGRES_SQL_SERVICE_HOST: postgres
           POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
           prometheus_multiproc_dir: /tmp
