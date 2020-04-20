@@ -80,6 +80,7 @@ class AWSOrgFilterSerializer(FilterSerializer):
     """Serializer for handling org query parameter filter."""
 
     account_id = StringOrListField(child=serializers.CharField(), required=False)
+    org_id = StringOrListField(child=serializers.CharField(), required=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the AWSOrgFilterSerializer."""

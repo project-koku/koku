@@ -60,6 +60,7 @@ class AWSOrgQueryHandler(OrgQueryHandler):
             "key_only_filter_column": "account_id",
             "org_id_column": "org_unit_id",
             "primary_key_column": "id",
+            "parent_org_column": "parent_id",
         }
     ]
     SUPPORTED_FILTERS = ["account"]

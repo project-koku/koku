@@ -52,10 +52,6 @@ class AWSReportViewTest(IamTestCase):
 
     def test_execute_with_filter(self):
         """Test filter with time intervals."""
-        self.generate_data.data_list = [
-            {"name": "big_ou", "id": "big_ou0", "path": "r-id&big_ou0", "account": "0"},
-            {"name": "big_ou", "id": "big_ou0", "path": "r-id&big_ou0", "account": "1"},
-        ]
         expected = self.generate_data.insert_data()
         url = self.url + "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
         response = self.client.get(url, **self.headers)

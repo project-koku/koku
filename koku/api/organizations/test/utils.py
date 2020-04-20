@@ -43,11 +43,11 @@ class GenerateOrgTestData:
             "provider_uuid": P_UUID,
         }
         self.data_list = [
-            {"name": "root", "id": "r-id", "path": "r-id"},
-            {"name": "big_ou", "id": "big_ou0", "path": "r-id&big_ou0"},
-            {"name": "big_ou", "id": "big_ou0", "path": "r-id&big_ou0", "account": "0"},
-            {"name": "big_ou", "id": "big_ou0", "path": "r-id&big_ou0", "account": "1"},
-            {"name": "sub_ou", "id": "sub_ou0", "path": "r-id&big_ou0&sub_ou0"},
+            {"name": "root", "id": "r-id", "parent": None, "path": "r-id"},
+            {"name": "big_ou", "id": "big_ou0", "parent": "r-id", "path": "r-id&big_ou0"},
+            {"name": "big_ou", "id": "big_ou0", "parent": "r-id", "path": "r-id&big_ou0", "account": "0"},
+            {"name": "big_ou", "id": "big_ou0", "parent": "r-id", "path": "r-id&big_ou0", "account": "1"},
+            {"name": "sub_ou", "id": "sub_ou0", "parent": "big_ou0", "path": "r-id&big_ou0&sub_ou0"},
         ]
 
     def _generate_results_metadata(self):
@@ -70,9 +70,15 @@ class GenerateOrgTestData:
         for insert_data in self.data_list:
             if insert_data.get("account"):
                 unit_crawler._save_aws_org_method(
-                    insert_data["name"], insert_data["id"], insert_data["path"], insert_data["account"]
+                    insert_data["name"],
+                    insert_data["id"],
+                    insert_data["path"],
+                    insert_data["parent"],
+                    insert_data["account"],
                 )
             else:
-                unit_crawler._save_aws_org_method(insert_data["name"], insert_data["id"], insert_data["path"])
+                unit_crawler._save_aws_org_method(
+                    insert_data["name"], insert_data["id"], insert_data["path"], insert_data["parent"]
+                )
         metadata = self._generate_results_metadata()
         return metadata

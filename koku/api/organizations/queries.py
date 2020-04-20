@@ -122,17 +122,6 @@ class OrgQueryHandler(QueryHandler):
         """
         filters = QueryFilterCollection()
 
-        if self.parameters.get("key_only"):
-            for source in self.data_sources:
-                key_only_filter_field = source.get("key_only_filter_column")
-                no_accounts = QueryFilter(field=f"{key_only_filter_field}", operation="isnull", parameter=True)
-                filters.add(no_accounts)
-        else:
-            for source in self.data_sources:
-                key_only_filter_field = source.get("key_only_filter_column")
-                no_accounts = QueryFilter(field=f"{key_only_filter_field}", operation="isnull", parameter=False)
-                filters.add(no_accounts)
-
         for filter_key in self.SUPPORTED_FILTERS:
             filter_value = self.parameters.get_filter(filter_key)
             if filter_value and not OrgQueryHandler.has_wildcard(filter_value):
@@ -215,13 +204,69 @@ class OrgQueryHandler(QueryHandler):
         LOG.debug(f"_get_exclusions: {composed_exclusions}")
         return composed_exclusions
 
+    def _get_sub_ou_list(self, parent_id_value):
+        """Get a list of the sub org units for a org unit."""
+        sub_ou = list()
+        with tenant_context(self.tenant):
+            exclusion = self._get_exclusions()
+            for source in self.data_sources:
+                # Build filters
+                filters = QueryFilterCollection()
+                key_only_filter_field = source.get("key_only_filter_column")
+                no_accounts = QueryFilter(field=f"{key_only_filter_field}", operation="isnull", parameter=True)
+                filters.add(no_accounts)
+                parent_org_column = source.get("parent_org_column")
+                exact_parent_id = QueryFilter(
+                    field=f"{parent_org_column}", operation="exact", parameter=parent_id_value
+                )
+                filters.add(exact_parent_id)
+                composed_filters = filters.compose()
+                # Start quering
+                sub_org_query = source.get("db_table").objects
+                sub_org_query = sub_org_query.exclude(exclusion)
+                if self.query_filter:
+                    sub_org_query = sub_org_query.filter(self.query_filter)
+                sub_org_query = sub_org_query.filter(composed_filters)
+                sub_org_query = sub_org_query.values("org_unit_id")
+            for sub_org in sub_org_query:
+                sub_ou.append(sub_org.get("org_unit_id"))
+        return set(sub_ou)
+
+    def _get_accounts_list(self, org_id):
+        """Returns an account list for given org_id."""
+        accounts = list()
+        with tenant_context(self.tenant):
+            exclusion = self._get_exclusions()
+            for source in self.data_sources:
+                filters = QueryFilterCollection()
+                key_only_filter_field = source.get("key_only_filter_column")
+                no_org_units = QueryFilter(field=f"{key_only_filter_field}", operation="isnull", parameter=False)
+                filters.add(no_org_units)
+                exact_org_id = QueryFilter(field="org_unit_id", operation="exact", parameter=org_id)
+                filters.add(exact_org_id)
+                composed_filters = filters.compose()
+                sub_org_query = source.get("db_table").objects
+                sub_org_query = sub_org_query.exclude(exclusion)
+                if self.query_filter:
+                    sub_org_query = sub_org_query.filter(self.query_filter)
+                sub_org_query = sub_org_query.filter(composed_filters)
+                sub_org_query = sub_org_query.values("account_id").order_by("account_id")
+            for account in sub_org_query:
+                accounts.append(account.get("account_id"))
+        return set(accounts)
+
     def get_org_units(self):
-        """Get a list of org keys to validate filters."""
+        """Get a list of org keys to build upon."""
         org_units = list()
         with tenant_context(self.tenant):
             exclusion = self._get_exclusions()
             for source in self.data_sources:
-                org_id = source.get("db_org_column")
+                filters = QueryFilterCollection()
+                key_only_filter_field = source.get("key_only_filter_column")
+                no_accounts = QueryFilter(field=f"{key_only_filter_field}", operation="isnull", parameter=True)
+                filters.add(no_accounts)
+                composed_filters = filters.compose()
+                org_id = source.get("org_id_column")
                 primary_key = source.get("primary_key_column")
                 created_field = source.get("created_db_column")
                 org_unit_query = source.get("db_table").objects
@@ -231,44 +276,11 @@ class OrgQueryHandler(QueryHandler):
                     org_unit_query = org_unit_query.values(*value_list)
                 if self.query_filter:
                     org_unit_query = org_unit_query.filter(self.query_filter)
+                org_unit_query = org_unit_query.filter(composed_filters)
                 org_unit_query.order_by(f"{org_id}", f"-{created_field}").distinct(f"{org_id}")
                 org_unit_query.order_by(f"+{primary_key}")
                 org_units.extend(org_unit_query)
         return org_units
-
-    def get_org_tree(self):
-        """Returns the organizational data tree.
-        """
-        type_filter = self.parameters.get_filter("type")
-        type_filter_array = []
-
-        # Sort the data_sources so that those with a "type" go first
-        sources = sorted(self.data_sources, key=lambda dikt: dikt.get("type", ""), reverse=True)
-
-        if type_filter and type_filter == "*":
-            for source in sources:
-                source_type = source.get("type")
-                if source_type:
-                    type_filter_array.append(source_type)
-        elif type_filter:
-            type_filter_array.append(type_filter)
-
-        final_data = []
-        with tenant_context(self.tenant):
-            exclusion = self._get_exclusions()
-            for source in sources:
-                query = source.get("db_table").objects
-                annotations = source.get("annotations")
-                value_list = source.get("query_values")
-                query = query.exclude(exclusion)
-                if value_list:
-                    query = query.values(*value_list)
-                if self.query_filter:
-                    query = query.filter(self.query_filter)
-                if annotations:
-                    query = query.annotate(**annotations)
-                final_data.extend(query)
-        return final_data
 
     def execute_query(self):
         """Execute query and return provided data.
@@ -277,10 +289,15 @@ class OrgQueryHandler(QueryHandler):
             (Dict): Dictionary response of query params and data
 
         """
-        if self.parameters.get("key_only"):
-            query_data = self.get_org_units()
-        else:
-            query_data = self.get_org_tree()
+        query_data = self.get_org_units()
+        if not self.parameters.get("key_only"):
+            for data in query_data:
+                org_id = data.get("org_unit_id")
+                sub_ou_list = self._get_sub_ou_list(org_id)
+                accounts_list = self._get_accounts_list(org_id)
+                print(accounts_list)
+                data["accounts"] = accounts_list
+                data["sub_orgs"] = sub_ou_list
 
         self.query_data = query_data
         return self._format_query_response()
