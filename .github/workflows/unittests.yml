@@ -62,14 +62,7 @@ jobs:
         run: |
           PGPASSWORD=postgres psql -U postgres -h localhost -p ${{ job.services.postgres.ports[5432] }} \
           -c "DROP USER IF EXISTS koku_tester; \
-          CREATE USER koku_tester PASSWORD '';" |
-          PGPASSWORD=postgres createdb -U postgres -h localhost -p ${{ job.services.postgres.ports[5432] }} postgres
-        env:
-          DATABASE_USER: koku_tester
-          DATABASE_PASSWORD: ''
-          POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
-          POSTGRES_SQL_SERVICE_HOST: localhost
-          DATABASE_ADMIN: postgres
+          CREATE USER koku_tester PASSWORD postgres;"
 
       - name: Run Unittests
         run: |
@@ -80,7 +73,7 @@ jobs:
           DATABASE_ENGINE: postgresql
           DATABASE_USER: koku_tester
           DATABASE_ADMIN: postgres
-          DATABASE_PASSWORD: ''
-          POSTGRES_SQL_SERVICE_HOST: localhost
+          DATABASE_PASSWORD: postgres
+          POSTGRES_SQL_SERVICE_HOST: postgres
           POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
           prometheus_multiproc_dir: /tmp
