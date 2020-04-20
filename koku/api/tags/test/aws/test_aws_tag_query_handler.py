@@ -99,3 +99,16 @@ class AWSTagQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertEqual(handler.time_scope_units, "day")
         self.assertEqual(handler.time_scope_value, -10)
+
+    def test_slice_tag_values_list(self):
+        """Test that long tag value lists are sliced."""
+        slice_limit = 2
+        url = "?filter[time_scope_value]=-1"
+        query_params = self.mocked_query_params(url, AWSTagView)
+        handler = AWSTagQueryHandler(query_params)
+        handler.execute_query()
+        handler._slice_tag_values_list(n=slice_limit)
+        for entry in handler.query_data:
+            values = entry.get("values")
+            if len(values) > slice_limit:
+                self.assertIn("more...", values[-1])
