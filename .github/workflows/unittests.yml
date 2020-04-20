@@ -67,6 +67,7 @@ jobs:
 
       - name: Run Unittests
         run: |
+          pipenv run ./koku/manage.py migrate |
           pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/ |
           pipenv run coverage report --show-missing
         env:
