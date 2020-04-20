@@ -124,28 +124,27 @@ SELECT s.schemaname,
 
     with conn.cursor(cursor_factory=NamedTupleCursor) as cur:
         cur.execute(sql)
-        res = cur.fetchall()
         rowcount = cur.rowcount
 
-    for rec in res:
-        if rec.n_live_tup >= 10000000:
-            if Decimal(rec.options.get("autovacuum_vacuum_scale_factor", 0.0)) < v_over_10_million_scale:
-                alter_count += 1
-                alter_table_autovacuum_scale(conn, rec.schemaname, rec.relname, v_over_10_million_scale)
-        elif rec.n_live_tup >= 1000000:
-            if Decimal(rec.options.get("autovacuum_vacuum_scale_factor", 0.0)) < v_over_1_million_scale:
-                alter_count += 1
-                alter_table_autovacuum_scale(conn, rec.schemaname, rec.relname, v_over_1_million_scale)
-        elif rec.n_live_tup >= 100000:
-            if Decimal(rec.options.get("autovacuum_vacuum_scale_factor", 0.0)) < v_over_100_thousand_scale:
-                alter_count += 1
-                alter_table_autovacuum_scale(conn, rec.schemaname, rec.relname, v_over_100_thousand_scale)
-        else:
-            # Reset to defalt any previously-set table autovacuum_vacuum_scale_factor
-            # if live tuples < 100000
-            if "autovacuum_vacuum_scale_factor" in rec.options:
-                alter_count += 1
-                reset_table_autovacuum_scale(conn, rec.schemaname, rec.relname)
+        for rec in cur:
+            if rec.n_live_tup >= 10000000:
+                if Decimal(rec.options.get("autovacuum_vacuum_scale_factor", 0.0)) < v_over_10_million_scale:
+                    alter_count += 1
+                    alter_table_autovacuum_scale(conn, rec.schemaname, rec.relname, v_over_10_million_scale)
+            elif rec.n_live_tup >= 1000000:
+                if Decimal(rec.options.get("autovacuum_vacuum_scale_factor", 0.0)) < v_over_1_million_scale:
+                    alter_count += 1
+                    alter_table_autovacuum_scale(conn, rec.schemaname, rec.relname, v_over_1_million_scale)
+            elif rec.n_live_tup >= 100000:
+                if Decimal(rec.options.get("autovacuum_vacuum_scale_factor", 0.0)) < v_over_100_thousand_scale:
+                    alter_count += 1
+                    alter_table_autovacuum_scale(conn, rec.schemaname, rec.relname, v_over_100_thousand_scale)
+            else:
+                # Reset to defalt any previously-set table autovacuum_vacuum_scale_factor
+                # if live tuples < 100000
+                if "autovacuum_vacuum_scale_factor" in rec.options:
+                    alter_count += 1
+                    reset_table_autovacuum_scale(conn, rec.schemaname, rec.relname)
 
     LOG.info(f"Altered {alter_count}/{rowcount} tables ({round(float(alter_count)/float(rowcount) * 100.0, 2)}%)")
 
