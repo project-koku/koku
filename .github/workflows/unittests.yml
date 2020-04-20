@@ -60,8 +60,7 @@ jobs:
       - name: Create DB User
         run: |
           PGPASSWORD=postgres psql -U postgres -h localhost -p ${{ job.services.postgres.ports[5432] }} \
-          -c "alter role postgres password null;" \
-          -c "DROP USER IF EXISTS ${{ DATABASE_USER }};" |
+          -c "alter role postgres password null; DROP USER IF EXISTS ${{ DATABASE_USER }};" |
           createuser -w -s "${DATABASE_USER}" 
         env:
           DATABASE_USER: koku_tester
