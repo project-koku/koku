@@ -59,7 +59,7 @@ jobs:
 
       - name: Create DB User
         run: |
-          alter role postgres password null |
+          psql -U postgres -p postgres -c "alter role postgres password null;" |
           /bin/sh ./scripts/create_test_db_user.sh
         env:
           DATABASE_USER: koku_tester
