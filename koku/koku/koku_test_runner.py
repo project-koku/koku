@@ -17,9 +17,8 @@
 # flake8: noqa
 """Koku Test Runner."""
 import logging
-from signal import SIG_DFL
-from signal import signal
-from signal import SIGPIPE
+import os
+import sys
 
 from django.conf import settings
 from django.db import connections
@@ -34,7 +33,7 @@ from reporting.models import OCPEnabledTagKeys
 
 LOG = logging.getLogger(__name__)
 OCP_ENABLED_TAGS = ["app", "storageclass", "environment", "version"]
-signal(SIGPIPE, SIG_DFL)
+sys.stdout = open(os.devnull, 'w')
 
 
 class KokuTestRunner(DiscoverRunner):
