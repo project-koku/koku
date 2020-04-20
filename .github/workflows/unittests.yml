@@ -68,8 +68,7 @@ jobs:
       - name: Run Unittests
         run: |
           pipenv run ./koku/manage.py migrate_schemas |
-          pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/ |
-          pipenv run coverage report --show-missing
+          pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/
         env:
           DATABASE_SERVICE_NAME: POSTGRES_SQL
           DATABASE_ENGINE: postgresql
@@ -79,3 +78,12 @@ jobs:
           POSTGRES_SQL_SERVICE_HOST: localhost
           POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
           prometheus_multiproc_dir: /tmp
+          
+      - name: Upload coverage to Codecov  
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./blahcoverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: true
