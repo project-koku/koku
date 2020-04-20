@@ -19,7 +19,7 @@ jobs:
         image: postgres
         # Provide the password for postgres
         env:
-          POSTGRES_USER: koku_tester
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: postgres
         # Set health checks to wait until postgres has started
@@ -54,7 +54,7 @@ jobs:
       env:
         DATABASE_SERVICE_NAME: POSTGRES_SQL
         DATABASE_ENGINE: postgresql
-        DATABASE_USER: koku_tester
+        DATABASE_USER: postgres
         DATABASE_ADMIN: postgres
         DATABASE_PASSWORD: postgres
         POSTGRES_SQL_SERVICE_HOST: localhost
