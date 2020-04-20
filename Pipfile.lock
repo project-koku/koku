@@ -1161,10 +1161,10 @@
         },
         "identify": {
             "hashes": [
-                "sha256:1222b648251bdcb8deb240b294f450fbf704c7984e08baa92507e4ea10b436d5",
-                "sha256:d824ebe21f38325c771c41b08a95a761db1982f1fc0eee37c6c97df3f1636b96"
+                "sha256:2bb8760d97d8df4408f4e805883dad26a2d076f04be92a10a3e43f09c6060742",
+                "sha256:faffea0fd8ec86bb146ac538ac350ed0c73908326426d387eded0bcc9d077522"
             ],
-            "version": "==1.4.11"
+            "version": "==1.4.14"
         },
         "idna": {
             "hashes": [
