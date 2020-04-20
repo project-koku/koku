@@ -136,6 +136,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             unit_name (str): The human readable org unit name
             unit_id (str): The AWS unique org unit id
             unit_path (str): The tree path to the org unit
+            parent_id (str): The AWSOrganizationalUnit.id of the node's parent
             account_id (str): The AWS account number.  If internal node, None
         Returns:
             (AWSOrganizationalUnit): That was created or looked up

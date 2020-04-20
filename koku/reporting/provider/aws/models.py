@@ -789,18 +789,18 @@ class AWSOrganizationalUnit(models.Model):
             "org_unit_name : %s, "
             "org_unit_id : %s, "
             "org_unit_path : %s, "
+            "parent_id : %s, "
             "account_id : %s, "
             "created_timestamp : %s, "
-            "deleted_timestamp : %s, "
-            "parent_id : %s }"
+            "deleted_timestamp : %s }"
             % (
                 self.id,
                 self.org_unit_name,
                 self.org_unit_id,
                 self.org_unit_path,
+                self.parent_id,
                 self.account_id,
                 self.created_timestamp,
                 self.deleted_timestamp,
-                self.parent_id,
             )
         )

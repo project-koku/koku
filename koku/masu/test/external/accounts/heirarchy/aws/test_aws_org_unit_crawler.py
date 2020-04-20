@@ -226,13 +226,19 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
 
         # Add root node with 1 account
         created_nodes = []
-        created_nodes.append(unit_crawler._save_aws_org_method("root", "R_001", "R_001", None))
-        created_nodes.append(unit_crawler._save_aws_org_method("root", "R_001", "R_001", "A_001"))
+        created_nodes.append(unit_crawler._save_aws_org_method("root", "R_001", "R_001", None, None))
+        created_nodes.append(unit_crawler._save_aws_org_method("root", "R_001", "R_001", None, "A_001"))
 
         # Add sub_org_unit_1 with 2 accounts
-        created_nodes.append(unit_crawler._save_aws_org_method("sub_org_unit_1", "OU_1000", "R_001&OU_1000", None))
-        created_nodes.append(unit_crawler._save_aws_org_method("sub_org_unit_1", "OU_1000", "R_001&OU_1000", "A_002"))
-        created_nodes.append(unit_crawler._save_aws_org_method("sub_org_unit_1", "OU_1000", "R_001&OU_1000", "A_003"))
+        created_nodes.append(
+            unit_crawler._save_aws_org_method("sub_org_unit_1", "OU_1000", "R_001&OU_1000", "R_001", None)
+        )
+        created_nodes.append(
+            unit_crawler._save_aws_org_method("sub_org_unit_1", "OU_1000", "R_001&OU_1000", "R_001", "A_002")
+        )
+        created_nodes.append(
+            unit_crawler._save_aws_org_method("sub_org_unit_1", "OU_1000", "R_001&OU_1000", "R_001", "A_003")
+        )
 
         # Change created date to day_1
         with schema_context(self.schema):
@@ -245,9 +251,15 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
 
         # # Add sub_org_unit_2 and move sub_org_unit_1 2 accounts here
         created_nodes = []
-        created_nodes.append(unit_crawler._save_aws_org_method("sub_org_unit_2", "OU_2000", "R_001&OU_2000", None))
-        created_nodes.append(unit_crawler._save_aws_org_method("sub_org_unit_2", "OU_2000", "R_001&OU_2000", "A_002"))
-        created_nodes.append(unit_crawler._save_aws_org_method("sub_org_unit_2", "OU_2000", "R_001&OU_2000", "A_003"))
+        created_nodes.append(
+            unit_crawler._save_aws_org_method("sub_org_unit_2", "OU_2000", "R_001&OU_2000", "R_001", None)
+        )
+        created_nodes.append(
+            unit_crawler._save_aws_org_method("sub_org_unit_2", "OU_2000", "R_001&OU_2000", "R_001", "A_002")
+        )
+        created_nodes.append(
+            unit_crawler._save_aws_org_method("sub_org_unit_2", "OU_2000", "R_001&OU_2000", "R_001", "A_003")
+        )
         deleted_nodes = unit_crawler._delete_aws_org_unit("OU_1000")
 
         # Test fake node delete
