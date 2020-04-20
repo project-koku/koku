@@ -48,9 +48,18 @@ jobs:
           sed -ri 's/python_version = ".+"/python_version = "${{ matrix.python }}"/g' Pipfile
           pipenv install --dev --ignore-pipfile
 
+      - name: Create DB User
+        run: |
+          /bin/sh ./scripts/create_test_db_user.sh
+        env:
+          DATABASE_USER: koku_tester
+          DATABASE_PASSWORD: ''
+          POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
+          POSTGRES_SQL_SERVICE_HOST: localhost
+          DATABASE_ADMIN: postgres
+          
       - name: Run Unittests
         run: |
-          /bin/sh ./scripts/create_test_db_user.sh |
           pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/ |
           pipenv run coverage report --show-missing
         env:
