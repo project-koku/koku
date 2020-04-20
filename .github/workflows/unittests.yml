@@ -90,5 +90,5 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.xml
           flags: unittests
-          name: Python ${{ matrix.python }}
+          name: Python-${{ matrix.python-version }}
           fail_ci_if_error: true
