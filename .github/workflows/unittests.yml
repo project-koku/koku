@@ -79,16 +79,10 @@ jobs:
           POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
           prometheus_multiproc_dir: /tmp
 
-      - name: Show Coverage Report
-        run: |
-          pipenv run coverage report -m |
-          pipenv run coverage xml
-
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./coverage.xml
+          file: ./.coverage
           flags: unittests
           name: Python-${{ matrix.python-version }}
           fail_ci_if_error: true
