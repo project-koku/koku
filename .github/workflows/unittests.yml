@@ -78,8 +78,8 @@ jobs:
           POSTGRES_SQL_SERVICE_HOST: localhost
           POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
           prometheus_multiproc_dir: /tmp
-          
-#      - name: Upload coverage to Codecov  
+
+#      - name: Upload coverage to Codecov
 #        uses: codecov/codecov-action@v1
 #        with:
 #          token: ${{ secrets.CODECOV_TOKEN }}
