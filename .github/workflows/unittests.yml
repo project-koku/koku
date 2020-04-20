@@ -41,12 +41,15 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
+          
+      - name: set PY
+        run: echo "::set-env name=PY::$(python -c 'import hashlib, sys;print(hashlib.sha256(sys.version.encode()+sys.executable.encode()).hexdigest())')"
 
       - name: Cache dependencies
         uses: actions/cache@v1
         with:
           path: ~/.cache/pipenv
-          key: ${{ runner.os }}-pipenv-${{ hashFiles('**/Pipfile') }}
+          key: ${{ runner.os }}-pipenv-|${{ env.PY }}|${{ hashFiles('**/Pipfile') }}
           restore-keys: |
             ${{ runner.os }}-pipenv-
 
@@ -61,9 +64,9 @@ jobs:
         run: |
           PGPASSWORD=postgres psql -U postgres -h localhost -p ${{ job.services.postgres.ports[5432] }} \
           -c " \
-          alter role postgres password null; \
           DROP USER IF EXISTS koku_tester; \
-          CREATE USER koku_tester PASSWORD '';"
+          CREATE USER koku_tester PASSWORD ''; \
+          CREATE DATABASE postgres;"
         env:
           DATABASE_USER: koku_tester
           DATABASE_PASSWORD: ''
