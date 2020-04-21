@@ -505,7 +505,7 @@ def execute_koku_provider_op(msg, cost_management_type_id):
             task = delete_source_and_provider.delay(provider.source_id, provider.source_uuid, provider.auth_header)
             LOG.info(f"Deleting Koku Provider/Source for Source ID: {str(provider.source_id)} in task: {task.id}")
         else:
-            LOG.info("unknown operation")
+            LOG.error(f"unknown operation: {operation}")
 
     except RabbitOperationalError:
         err_msg = f"RabbitmQ unavailable. Unable to {operation} Source ID: {provider.source_id}"

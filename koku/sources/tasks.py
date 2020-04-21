@@ -93,33 +93,27 @@ def create_or_update_provider(source_id):
     return
 
 
-@app.task(name="sources.tasks.delete_source_and_provider", queue_name="sources")  # noqa: C901
+@app.task(name="sources.tasks.delete_source_and_provider", queue_name="sources")
 def delete_source_and_provider(source_id, source_uuid, auth_header):
-    provider_instance = None
-    source_instance = None
     try:
-        provider_instance = Provider.objects.get(uuid=source_uuid)
+        Provider.objects.get(uuid=source_uuid)
+        source_mgr = KafkaSourceManager(auth_header)
+        source_mgr.destroy_provider(source_uuid)
     except Provider.DoesNotExist:
         LOG.info(f"delete_source_and_provider: Provider UUID: {source_uuid} does not exist")
+    except Exception as err:
+        LOG.info(f"Koku Provider removal failed. Error: {err}.")
 
     try:
         source_instance = Sources.objects.get(source_id=source_id)
+        destroy_source_event(source_instance.source_id)
     except Sources.DoesNotExist:
         LOG.info(f"delete_source_and_provider: Source ID: {source_id} does not exist")
-
-    if provider_instance:
-        try:
-            source_mgr = KafkaSourceManager(auth_header)
-            source_mgr.destroy_provider(source_uuid)
-        except Exception as err:
-            LOG.info(f"Koku Provider removal failed. Error: {err}.")
-
-    if source_instance:
-        try:
-            destroy_source_event(source_instance.source_id)
-        except (InterfaceError, OperationalError) as error:
-            # TODO: WE CANT RECOVER FROM THIS AS IS, SINCE WE ARE IN THE WORKER GRRRR
-            LOG.error(f"Koku Source removal failed. Error: {error}.")
+    except (InterfaceError, OperationalError) as error:
+        # The source is marked as pending_delete=True at this point.
+        # In the event of a database error, the sourcewill be cleaned up on next
+        # boot of the sources client.
+        LOG.error(f"Koku Source removal failed. Error: {error}.")
 
 
 @app.task(name="sources.tasks.set_status_for_source", queue_name="sources")
