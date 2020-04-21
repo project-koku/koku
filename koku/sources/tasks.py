@@ -102,6 +102,9 @@ def delete_source_and_provider(source_id, source_uuid, auth_header):
         LOG.info(f"delete_source_and_provider: Provider UUID: {source_uuid} does not exist")
     except Exception as err:
         LOG.info(f"Koku Provider removal failed. Error: {err}.")
+        # An error has occurred while removing the Provider.  Return now so that the
+        # Source will remain linked with the Provider
+        return
 
     try:
         source_instance = Sources.objects.get(source_id=source_id)

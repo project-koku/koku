@@ -227,8 +227,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
     def test_execute_koku_provider_op_destroy_provider_not_found(self, mock_destroy, mock_status):
         """Test to execute Koku Operations to sync with Sources for destruction with provider missing.
 
-        First, raise ProviderManagerError. Check that provider still exists, but source was removed.
-        Then, re-call provider destroy without exception, then see provider is gone.
+        First, raise ProviderManagerError. Check that provider and source still exists.
+        Then, re-call provider destroy without exception, then see both source and provider are gone.
 
         """
         source_id = self.aws_source.get("source_id")
@@ -246,7 +246,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with patch.object(KafkaSourceManager, "destroy_provider", side_effect=raise_provider_manager_error):
             source_integration.execute_koku_provider_op(msg, application_type_id)
             self.assertTrue(Provider.objects.filter(uuid=provider.source_uuid).exists())
-            self.assertFalse(Sources.objects.filter(source_uuid=provider.source_uuid).exists())
+            self.assertTrue(Sources.objects.filter(source_uuid=provider.source_uuid).exists())
 
         source_integration.execute_koku_provider_op(msg, application_type_id)
         self.assertFalse(Provider.objects.filter(uuid=provider.source_uuid).exists())
