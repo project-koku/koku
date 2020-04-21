@@ -8,14 +8,49 @@ local:
       port: 5000
       hostname: localhost
       scheme: http
+    sources:
+      path: api/cost-management/v1
+      port: 5000
+      hostname: localhost
+      scheme: http
+  SOURCES:
+    base_url: "http://localhost:3000/api/sources/v1"
+    http:
+      path: "api/v1.0"
+      hostname: localhost
+      port: 3000
+      scheme: http
   main:
     hostname: localhost:8000
     scheme: http
-    default_user: default
-    api_path: api/cost-management/v1
   http:
-    default_auth_type: basic
+    default_auth_type: identity
   users:
     default:
-      username: user_dev@foo.com
-      password: password
+      identity:
+        account_number: "10001"
+        type: "User"
+        user:
+          username: "user_dev"
+          email: "user_dev@foo.com"
+          first_name: "User"
+          last_name: "Dev"
+          is_active: true
+          is_org_admin: true
+          is_internal: false
+          locale: "en_US"
+        internal:
+          org_id: "10001"
+          auth_type: "basic-auth"
+          auth_time: 6300
+      entitlements:
+        hybrid_cloud:
+          is_entitled: true
+        insights:
+          is_entitled: true
+        openshift:
+          is_entitled: true
+        smart_management:
+          is_entitled: true
+        cost_management:
+          is_entitled: true
