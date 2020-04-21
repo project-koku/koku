@@ -155,7 +155,8 @@ class SourcesSerializer(serializers.ModelSerializer):
 
         # create provider with celery task
         try:
-            create_or_update_provider.delay(instance.source_id)
+            task = create_or_update_provider.delay(instance.source_id)
+            LOG.info(f"Updating Koku Provider for Source ID: {str(instance.source_id)} in task: {task.id}")
         except OperationalError:
             key = "sources"
             message = f"RabbitMQ unavailable. Unable to update Source ID {instance.source_id}."
