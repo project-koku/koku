@@ -65,7 +65,7 @@ jobs:
           sed -ri 's/python_version = ".+"/python_version = "${{ matrix.python }}"/g' Pipfile
           pipenv install --dev --ignore-pipfile
 
-      - name: Run Unittests
+      - name: Run unit tests
         run: pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/
         env:
           DATABASE_SERVICE_NAME: POSTGRES_SQL
