@@ -81,4 +81,4 @@ jobs:
         run: pipenv run coverage xml
 
       - name: Upload coverage to Codecov
-        run: pipenv run codecov --required -f coverage.xml -n Python-${{ matrix.python-version }}
+        run: pipenv run codecov --required -f coverage.xml -n Python-${{ matrix.python-version }} -t ${{ secrets.CODECOV_TOKEN }}
