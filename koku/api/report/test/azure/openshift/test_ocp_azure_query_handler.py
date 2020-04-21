@@ -56,12 +56,12 @@ class OCPAzureQueryHandlerTestNoData(IamTestCase):
         super().setUp()
         self.dh = DateHelper()
 
-        self.this_month_filter = {"usage_start__gte": self.dh.this_month_start}
-        self.ten_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 9)}
-        self.thirty_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 29)}
+        self.this_month_filter = {"usage_start__gte": self.dh.this_month_start.date()}
+        self.ten_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 9).date()}
+        self.thirty_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 29).date()}
         self.last_month_filter = {
-            "usage_start__gte": self.dh.last_month_start,
-            "usage_end__lte": self.dh.last_month_end,
+            "usage_start__gte": self.dh.last_month_start.date(),
+            "usage_end__lte": self.dh.last_month_end.date(),
         }
 
     def test_execute_sum_query_instance_types(self):
@@ -419,7 +419,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filters = {**self.this_month_filter, "resource_location": location}
+        filters = {**self.this_month_filter, "resource_location__icontains": location}
         current_totals = self.get_totals_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
@@ -508,7 +508,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filters = {**self.this_month_filter, "resource_location": location}
+        filters = {**self.this_month_filter, "resource_location__icontains": location}
         current_totals = self.get_totals_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
@@ -539,7 +539,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filters = {**self.this_month_filter, "resource_location": location}
+        filters = {**self.this_month_filter, "resource_location__icontains": location}
         current_totals = self.get_totals_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
