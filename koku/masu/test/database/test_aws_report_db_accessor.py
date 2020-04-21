@@ -908,7 +908,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             query = self.accessor._get_db_obj_query(summary_table_name)
             initial_count = query.count()
 
-        self.accessor.populate_ocp_on_aws_cost_daily_summary(last_month, today, cluster_id, bill_ids)
+        self.accessor.populate_ocp_on_aws_cost_daily_summary(last_month, today, cluster_id, bill_ids, 0)
         with schema_context(self.schema):
             self.assertNotEqual(query.count(), initial_count)
 
