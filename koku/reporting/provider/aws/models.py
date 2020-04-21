@@ -780,7 +780,7 @@ class AWSOrganizationalUnit(models.Model):
 
     deleted_timestamp = models.DateField(null=True)
 
-    parent_id = models.CharField(max_length=50, null=True, unique=False)
+    level = models.IntegerField(null=False)
 
     def __str__(self):
         """Convert to string."""
@@ -792,7 +792,8 @@ class AWSOrganizationalUnit(models.Model):
             "parent_id : %s, "
             "account_id : %s, "
             "created_timestamp : %s, "
-            "deleted_timestamp : %s }"
+            "deleted_timestamp : %s, "
+            "level : %s }"
             % (
                 self.id,
                 self.org_unit_name,
@@ -802,5 +803,6 @@ class AWSOrganizationalUnit(models.Model):
                 self.account_id,
                 self.created_timestamp,
                 self.deleted_timestamp,
+                self.level,
             )
         )

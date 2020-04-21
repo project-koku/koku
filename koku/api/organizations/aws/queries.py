@@ -56,7 +56,7 @@ class AWSOrgQueryHandler(OrgQueryHandler):
             "created_db_column": "created_timestamp",
             "deleted_db_column": "deleted_timestamp",
             "annotations": {"accounts": ArrayAgg("account_id", distinct=True)},
-            "query_values": ["org_unit_id", "org_unit_name", "org_unit_path"],
+            "query_values": ["org_unit_id", "org_unit_name", "org_unit_path", "level"],
             "key_only_filter_column": "account_id",
             "org_id_column": "org_unit_id",
             "primary_key_column": "id",

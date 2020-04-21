@@ -204,8 +204,11 @@ class OrgQueryHandler(QueryHandler):
         LOG.debug(f"_get_exclusions: {composed_exclusions}")
         return composed_exclusions
 
-    def _get_sub_ou_list(self, parent_id_value):
+    def _get_sub_ou_list(self, data):
         """Get a list of the sub org units for a org unit."""
+        level = data.get("level")
+        level = level + 1
+        unit_path = data.get("org_unit_path")
         sub_ou = list()
         with tenant_context(self.tenant):
             exclusion = self._get_exclusions()
@@ -215,11 +218,10 @@ class OrgQueryHandler(QueryHandler):
                 key_only_filter_field = source.get("key_only_filter_column")
                 no_accounts = QueryFilter(field=f"{key_only_filter_field}", operation="isnull", parameter=True)
                 filters.add(no_accounts)
-                parent_org_column = source.get("parent_org_column")
-                exact_parent_id = QueryFilter(
-                    field=f"{parent_org_column}", operation="exact", parameter=parent_id_value
-                )
+                exact_parent_id = QueryFilter(field="level", operation="exact", parameter=level)
                 filters.add(exact_parent_id)
+                path_on_like = QueryFilter(field="org_unit_path", operation="icontains", parameter=unit_path)
+                filters.add(path_on_like)
                 composed_filters = filters.compose()
                 # Start quering
                 sub_org_query = source.get("db_table").objects
@@ -293,9 +295,8 @@ class OrgQueryHandler(QueryHandler):
         if not self.parameters.get("key_only"):
             for data in query_data:
                 org_id = data.get("org_unit_id")
-                sub_ou_list = self._get_sub_ou_list(org_id)
+                sub_ou_list = self._get_sub_ou_list(data)
                 accounts_list = self._get_accounts_list(org_id)
-                print(accounts_list)
                 data["accounts"] = accounts_list
                 data["sub_orgs"] = sub_ou_list
 

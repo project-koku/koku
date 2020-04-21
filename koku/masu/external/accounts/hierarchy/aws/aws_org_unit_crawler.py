@@ -76,7 +76,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             results = results + response[resource_key]
         return results
 
-    def _crawl_accounts_per_id(self, ou, prefix):
+    def _crawl_accounts_per_id(self, ou, prefix, level):
         """
         List accounts for parents given an aws identifer.
 
@@ -96,64 +96,64 @@ class AWSOrgUnitCrawler(AccountCrawler):
             function=self.client.list_accounts_for_parent, resource_key="Accounts", ParentId=parent_id
         )
         for act_info in child_accounts:
-            self._save_aws_org_method(
-                ou.get("Name", ou.get("Id")), ou.get("Id"), prefix, parent_id, act_info.get("Id")
-            )
+            self._save_aws_org_method(ou, prefix, level, act_info.get("Id"))
 
-    def _crawl_org_for_accounts(self, ou, prefix, parent_id):
+    def _crawl_org_for_accounts(self, ou, prefix, level):
         """
         Recursively crawls the org units and accounts.
 
         Args:
             ou (dict): A return from aws client that includes the Id
             prefix (str): The org unit path prefix
+            level (int): The level of the tree
         """
 
         # Save entry for current OU
-        self._save_aws_org_method(ou.get("Name", ou.get("Id")), ou.get("Id"), prefix, parent_id)
+        self._save_aws_org_method(ou, prefix, level)
         try:
 
             # process accounts for this org unit
-            self._crawl_accounts_per_id(ou, prefix)
-
+            self._crawl_accounts_per_id(ou, prefix, level)
+            level = level + 1
             # recurse and look for sub org units
             ou_pager = self.client.get_paginator("list_organizational_units_for_parent")
-            parent_id = ou.get("Id")
             for sub_ou in ou_pager.paginate(ParentId=ou.get("Id")).build_full_result().get("OrganizationalUnits"):
                 new_prefix = prefix + ("&%s" % sub_ou.get("Id"))
                 LOG.info("Organizational unit found during crawl: %s" % (sub_ou.get("Id")))
-                self._crawl_org_for_accounts(sub_ou, new_prefix, parent_id)
+                self._crawl_org_for_accounts(sub_ou, new_prefix, level)
+
         except Exception:
             LOG.exception(
                 "Failure processing org unit.  Account schema {} and org_unit_id {}".format(self.schema, ou.get("Id"))
             )
 
-    def _save_aws_org_method(self, unit_name, unit_id, unit_path, parent_id, account_id=None):
+    def _save_aws_org_method(self, ou, unit_path, level, account_id=None):
         """
         Recursively crawls the org units and accounts.
 
         Args:
-            unit_name (str): The human readable org unit name
-            unit_id (str): The AWS unique org unit id
+            ou (dict): The aws organizational unit dictionary
             unit_path (str): The tree path to the org unit
-            parent_id (str): The AWSOrganizationalUnit.id of the node's parent
+            level (int): The level of the node in the org data tree
             account_id (str): The AWS account number.  If internal node, None
         Returns:
             (AWSOrganizationalUnit): That was created or looked up
         """
+        unit_name = ou.get("Name", ou.get("Id"))
+        unit_id = ou.get("Id")
         with schema_context(self.schema):
             obj, created = AWSOrganizationalUnit.objects.get_or_create(
                 org_unit_name=unit_name,
                 org_unit_id=unit_id,
                 org_unit_path=unit_path,
                 account_id=account_id,
-                parent_id=parent_id,
+                level=level,
             )
             if created:
                 # only log it was saved if was created to reduce logging on everyday calls
                 LOG.info(
-                    "Saving account or org unit: unit_name=%s, unit_id=%s, unit_path=%s, account_id=%s, parent_id=%s"
-                    % (unit_name, unit_id, unit_path, account_id, parent_id)
+                    "Saving account or org unit: unit_name=%s, unit_id=%s, unit_path=%s, account_id=%s, level=%s"
+                    % (unit_name, unit_id, unit_path, account_id, level)
                 )
             return obj
 
@@ -198,8 +198,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
         self._init_session()
         root_ou = self.client.list_roots()["Roots"][0]
         LOG.info("Obtained the root identifier: %s" % (root_ou["Id"]))
-        # the parent_id will always be none for the root_ou
-        self._crawl_org_for_accounts(root_ou, root_ou.get("Id"), parent_id=None)
+        self._crawl_org_for_accounts(root_ou, root_ou.get("Id"), level=0)
 
     def _compute_org_structure_for_day(self, start_date, end_date=None):
         """Compute the org structure for a day."""
