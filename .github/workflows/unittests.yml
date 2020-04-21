@@ -81,9 +81,4 @@ jobs:
         run: pipenv run coverage xml
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
-        with:
-          file: ./coverage.xml
-          flags: unittests
-          name: Python-${{ matrix.python-version }}
-          fail_ci_if_error: true
+        run: pipenv run codecov --required -f coverage.xml -n Python-${{ matrix.python-version }}
