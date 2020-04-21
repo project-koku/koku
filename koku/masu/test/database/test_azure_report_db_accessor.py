@@ -31,6 +31,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
+from masu.util.azure.common import get_bills_from_provider
 
 
 class AzureReportDBAccessorTest(MasuTestCase):
@@ -244,8 +245,19 @@ class AzureReportDBAccessorTest(MasuTestCase):
         """Test the method to run OpenShift on Azure SQL."""
         summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
         project_summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_project_daily_summary"]
+        markup_value = decimal.Decimal(0.1)
+
         summary_table = getattr(self.accessor.report_schema, summary_table_name)
         project_table = getattr(self.accessor.report_schema, project_summary_table_name)
+
+        today = DateHelper().today
+        last_month = DateHelper().last_month_start
+        azure_bills = get_bills_from_provider(self.azure_provider_uuid, self.schema, last_month, today)
+        with schema_context(self.schema):
+            bill_ids = [str(bill.id) for bill in azure_bills]
+        cluster_id = self.ocp_on_azure_ocp_provider.authentication.provider_resource_name
+
+        self.accessor.populate_ocp_on_azure_cost_daily_summary(last_month, today, cluster_id, bill_ids, markup_value)
 
         li_table_name = AZURE_REPORT_TABLE_MAP["line_item"]
         with schema_context(self.schema):
@@ -258,3 +270,29 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.assertNotEqual(sum_cost, 0)
             self.assertAlmostEqual(sum_cost, sum_project_cost, 4)
             self.assertLessEqual(sum_cost, sum_azure_cost)
+
+        with schema_context(self.schema):
+            sum_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("pretax_cost"))[
+                "pretax_cost__sum"
+            ]
+            sum_project_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("pretax_cost"))[
+                "pretax_cost__sum"
+            ]
+            sum_pod_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("pod_cost"))[
+                "pod_cost__sum"
+            ]
+            sum_markup_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("markup_cost"))[
+                "markup_cost__sum"
+            ]
+            sum_markup_cost_project = project_table.objects.filter(cluster_id=cluster_id).aggregate(
+                Sum("markup_cost")
+            )["markup_cost__sum"]
+            sum_project_markup_cost_project = project_table.objects.filter(cluster_id=cluster_id).aggregate(
+                Sum("project_markup_cost")
+            )["project_markup_cost__sum"]
+
+            self.assertLessEqual(sum_cost, sum_azure_cost)
+            self.assertAlmostEqual(sum_cost, sum_project_cost, 6)
+            self.assertAlmostEqual(sum_markup_cost, sum_cost * markup_value, 6)
+            self.assertAlmostEqual(sum_markup_cost_project, sum_cost * markup_value, 6)
+            self.assertAlmostEqual(sum_project_markup_cost_project, sum_pod_cost * markup_value, 6)
