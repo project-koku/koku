@@ -312,6 +312,12 @@ objects:
           ports:
             - containerPort: 8080
               protocol: TCP
+          command:
+            - /bin/bash
+            - -c
+            - >
+              PYTHONPATH=. scl enable rh-python36 --
+              python koku/manage.py sources
           readinessProbe:
             httpGet:
               path: ${API_PATH_PREFIX}/v1/status/

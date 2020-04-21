@@ -56,8 +56,8 @@ class AzureCostEntryProductService(models.Model):
     resource_type = models.TextField(null=False)
     resource_group = models.TextField(null=False)
     additional_info = JSONField(null=True)
-    service_tier = models.TextField(null=False)
-    service_name = models.TextField(null=False)
+    service_tier = models.TextField(null=True)
+    service_name = models.TextField(null=True)
     service_info1 = models.TextField(null=True)
     service_info2 = models.TextField(null=True)
     instance_type = models.TextField(null=True)
@@ -115,6 +115,10 @@ class AzureCostEntryLineItemDailySummary(models.Model):
         """Meta for AzureCostEntryLineItemDailySummary."""
 
         db_table = "reporting_azurecostentrylineitem_daily_summary"
+        indexes = [models.Index(fields=["usage_start"], name="ix_azurecstentrydlysumm_start")]
+        # A GIN functional index named "ix_azure_costentrydlysumm_service_name" was created manually
+        # via RunSQL migration operation
+        # Function: (upper(service_name) gin_trgm_ops)
 
     id = models.BigAutoField(primary_key=True)
     cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)

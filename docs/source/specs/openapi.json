@@ -1831,6 +1831,16 @@
                             }
                         }
                     },
+                    "424": {
+                        "description": "Dependency not available",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DependencyError"
+                                }
+                            }
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "content": {
@@ -2636,6 +2646,24 @@
                             "example": {
                                 "detail": "Not Found.",
                                 "status": 404
+                            }
+                        }
+                    }
+                }
+            },
+            "DependencyError": {
+                "required": [
+                    "errors"
+                ],
+                "properties": {
+                    "errors": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "example": {
+                                "detail": "{'sources': ['RabbitMQ unavailable. Unable to update Source ID 1.']}",
+                                "source": "detail",
+                                "status": 424
                             }
                         }
                     }
