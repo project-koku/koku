@@ -61,7 +61,7 @@ UPDATE reporting_ocpusagelineitem_daily_summary ods
         AND ods.namespace = ic.namespace
         AND ods.data_source = ic.data_source
         AND ods.node = ic.node
-        AND ods.pod_labels = ic.pod_labels
+        AND ic.pod_labels @> ods.pod_labels
 ;
 
 UPDATE reporting_ocpusagelineitem_daily_summary ods
@@ -76,7 +76,7 @@ UPDATE reporting_ocpusagelineitem_daily_summary ods
         AND ods.namespace = ic.namespace
         AND ods.data_source = ic.data_source
         AND ods.node = ic.node
-        AND ods.volume_labels = ic.pod_labels
+        AND ic.pod_labels @> ods.volume_labels
 ;
 
 UPDATE reporting_ocpusagelineitem_daily_summary ods
