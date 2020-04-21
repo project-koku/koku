@@ -90,7 +90,6 @@ def create_or_update_provider(source_id):
         LOG.info(f"Source ID: {source_id} already removing.  Rolling back provider creation")
         source_mgr.destroy_provider(obj.uuid)
         LOG.info(f"Destroying Provider {obj.uuid} since source was already removed")
-    return
 
 
 @app.task(name="sources.tasks.delete_source_and_provider", queue_name="sources")
