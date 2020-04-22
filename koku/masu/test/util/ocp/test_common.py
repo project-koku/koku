@@ -25,7 +25,6 @@ from masu.config import Config
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.util.ocp import common as utils
@@ -37,12 +36,10 @@ class OCPUtilTests(MasuTestCase):
     def setUp(self):
         """Shared variables used by ocp common tests."""
         super().setUp()
-        self.common_accessor = ReportingCommonDBAccessor()
-        self.column_map = self.common_accessor.column_map
-        self.accessor = OCPReportDBAccessor(schema=self.schema, column_map=self.column_map)
+        self.accessor = OCPReportDBAccessor(schema=self.schema)
         self.provider_accessor = ProviderDBAccessor(provider_uuid=self.ocp_test_provider_uuid)
         self.report_schema = self.accessor.report_schema
-        self.creator = ReportObjectCreator(self.schema, self.column_map)
+        self.creator = ReportObjectCreator(self.schema)
         self.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
         self.provider_uuid = self.provider_accessor.get_provider().uuid
