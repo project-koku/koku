@@ -17,7 +17,6 @@ from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.processor.gcp.gcp_report_processor import GCPReportProcessor
@@ -41,9 +40,6 @@ class GCPReportProcessorTest(MasuTestCase):
 
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
-
-        with ReportingCommonDBAccessor() as report_common_db:
-            cls.column_map = report_common_db.column_map
 
     def setUp(self):
         """Set up GCP tests."""
@@ -90,7 +86,7 @@ class GCPReportProcessorTest(MasuTestCase):
             provider_uuid=self.gcp_provider.uuid,
             manifest_id=self.manifest.id,
         )
-        self.accessor = GCPReportDBAccessor(self.schema, self.column_map)
+        self.accessor = GCPReportDBAccessor(self.schema)
 
     def tearDown(self):
         """Tear down test case."""
