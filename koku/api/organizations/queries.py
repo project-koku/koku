@@ -19,6 +19,7 @@ import copy
 import logging
 
 from django.db.models import Q
+from django.db.models.functions import Coalesce
 from tenant_schemas.utils import tenant_context
 
 from api.query_filter import QueryFilter
@@ -252,9 +253,12 @@ class OrgQueryHandler(QueryHandler):
                 if self.query_filter:
                     sub_org_query = sub_org_query.filter(self.query_filter)
                 sub_org_query = sub_org_query.filter(composed_filters)
-                sub_org_query = sub_org_query.values("account_id").order_by("account_id")
+                sub_org_query = sub_org_query.values("account_id")
+                sub_org_query = sub_org_query.order_by("account_id", "-created_timestamp").distinct("account_id")
+                sub_org_query = sub_org_query.annotate(alias=Coalesce("account_alias__account_alias", "account_id"))
+
             for account in sub_org_query:
-                accounts.append(account.get("account_id"))
+                accounts.append(account.get("alias"))
         return set(accounts)
 
     def get_org_units(self):
@@ -268,9 +272,9 @@ class OrgQueryHandler(QueryHandler):
                 no_accounts = QueryFilter(field=f"{key_only_filter_field}", operation="isnull", parameter=True)
                 filters.add(no_accounts)
                 composed_filters = filters.compose()
-                org_id = source.get("org_id_column")
-                primary_key = source.get("primary_key_column")
-                created_field = source.get("created_db_column")
+                # org_id = source.get("org_id_column")
+                # primary_key = source.get("primary_key_column")
+                # created_field = source.get("created_db_column")
                 org_unit_query = source.get("db_table").objects
                 value_list = source.get("query_values")
                 org_unit_query = org_unit_query.exclude(exclusion)
@@ -279,8 +283,8 @@ class OrgQueryHandler(QueryHandler):
                 if self.query_filter:
                     org_unit_query = org_unit_query.filter(self.query_filter)
                 org_unit_query = org_unit_query.filter(composed_filters)
-                org_unit_query.order_by(f"{org_id}", f"-{created_field}").distinct(f"{org_id}")
-                org_unit_query.order_by(f"+{primary_key}")
+                # org_unit_query.order_by(f"{org_id}", f"-{created_field}").distinct(f"{org_id}")
+                # org_unit_query.order_by(f"+{primary_key}")
                 org_units.extend(org_unit_query)
         return org_units
 

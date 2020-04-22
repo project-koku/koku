@@ -17,8 +17,11 @@
 """AWS org unit crawler."""
 # from tenant_schemas.utils import schema_context
 import logging
+import pkgutil
 
+from django.db import connection
 from django.db import transaction
+from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 from masu.external.accounts.hierarchy.account_crawler import AccountCrawler
@@ -43,6 +46,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
         self._auth_cred = self.account.get("authentication")
         self._date_accessor = DateAccessor()
         self.client = None
+        self.jinja_sql = JinjaSql()
 
     def _init_session(self):
         """
@@ -193,12 +197,24 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 account.save()
             return accounts
 
+    def _attach_account_alias_foreign_key(self):
+        """Attaches the account alias foreign key after crawler has finished."""
+        LOG.info("Setting the account alias for crawler results.")
+        daily_sql = pkgutil.get_data("masu.database", "sql/reporting_awsorganizationalunit.sql")
+        daily_sql = daily_sql.decode("utf-8")
+        daily_sql_params = {"schema": self.schema}
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(summary_sql, params=list(summary_sql_params))
+
     @transaction.atomic
     def crawl_account_hierarchy(self):
         self._init_session()
         root_ou = self.client.list_roots()["Roots"][0]
         LOG.info("Obtained the root identifier: %s" % (root_ou["Id"]))
         self._crawl_org_for_accounts(root_ou, root_ou.get("Id"), level=0)
+        self._attach_account_alias_foreign_key()
 
     def _compute_org_structure_for_day(self, start_date, end_date=None):
         """Compute the org structure for a day."""
