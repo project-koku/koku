@@ -49,7 +49,7 @@ BROKER_CONNECTION_ERROR = "Unable to establish connection with broker."
 CELERY_WORKER_NOT_FOUND = "No running Celery workers were found."
 
 
-def check_kafka_connection():
+def check_kafka_connection():  # pragma: no cover
     """Check connectability of Kafka Broker."""
     conn = BrokerConnection(SourcesConfig.SOURCES_KAFKA_HOST, int(SourcesConfig.SOURCES_KAFKA_PORT), socket.AF_UNSPEC)
     connected = conn.connect_blocking(timeout=1)
