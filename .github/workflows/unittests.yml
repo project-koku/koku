@@ -32,7 +32,7 @@ jobs:
           - 5432:5432
     steps:
       - name: Checkout repsository
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
 
       - name: Display build environment
         run: printenv
