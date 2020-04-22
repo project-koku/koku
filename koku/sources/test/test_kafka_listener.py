@@ -54,16 +54,6 @@ faker = Faker()
 SOURCES_APPS = "http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}"
 
 
-def return_true():
-    """Raise KafkaError"""
-    return True
-
-
-def return_false():
-    """Return None"""
-    return False
-
-
 def raise_source_manager_error(param_a, param_b, param_c, param_d, param_e):
     """Raise KafkaSourceManagerError"""
     raise KafkaSourceManagerError()
