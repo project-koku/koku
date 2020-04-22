@@ -41,11 +41,11 @@ from api.provider.models import Sources
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from sources import storage
 from sources.config import Config
-from sources.kafka_source_manager import KafkaSourceManager
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 from sources.tasks import create_or_update_provider
+from sources.tasks import delete_source_and_provider
 
 LOG = logging.getLogger(__name__)
 
@@ -493,7 +493,6 @@ def execute_koku_provider_op(msg, cost_management_type_id):
     """
     provider = msg.get("provider")
     operation = msg.get("operation")
-    source_mgr = KafkaSourceManager(provider.auth_header)
 
     try:
         if operation == "create":
@@ -503,13 +502,11 @@ def execute_koku_provider_op(msg, cost_management_type_id):
             task = create_or_update_provider.delay(provider.source_id)
             LOG.info(f"Updating Koku Provider for Source ID: {str(provider.source_id)} in task: {task.id}")
         elif operation == "destroy":
-            if provider.koku_uuid:
-                try:
-                    source_mgr.destroy_provider(provider.koku_uuid)
-                    LOG.info(f"Koku Provider UUID ({str(provider.koku_uuid)}) Removal Succeeded")
-                except Exception as err:
-                    LOG.info(f"Koku Provider removal failed. Error: {str(err)}.")
-            storage.destroy_source_event(provider.source_id)
+            task = delete_source_and_provider.delay(provider.source_id, provider.source_uuid, provider.auth_header)
+            LOG.info(f"Deleting Koku Provider/Source for Source ID: {str(provider.source_id)} in task: {task.id}")
+        else:
+            LOG.error(f"unknown operation: {operation}")
+
     except RabbitOperationalError:
         err_msg = f"RabbitmQ unavailable. Unable to {operation} Source ID: {provider.source_id}"
         LOG.error(err_msg)

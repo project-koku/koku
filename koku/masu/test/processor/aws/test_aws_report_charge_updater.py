@@ -21,7 +21,6 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_cost_model_cost_updater import AWSCostModelCostUpdater
 from masu.test import MasuTestCase
@@ -35,16 +34,14 @@ class AWSCostModelCostUpdaterTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        with ReportingCommonDBAccessor() as report_common_db:
-            cls.column_map = report_common_db.column_map
 
-        cls.accessor = AWSReportDBAccessor("acct10001", cls.column_map)
+        cls.accessor = AWSReportDBAccessor("acct10001")
 
         cls.report_schema = cls.accessor.report_schema
 
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
 
-        cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
+        cls.creator = ReportObjectCreator(cls.schema)
 
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
@@ -84,6 +81,6 @@ class AWSCostModelCostUpdaterTest(MasuTestCase):
         bill_date = start_date.replace(day=1).date()
 
         self.updater.update_summary_cost_model_costs()
-        with AWSReportDBAccessor("acct10001", self.column_map) as accessor:
+        with AWSReportDBAccessor("acct10001") as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             self.assertIsNotNone(bill.derived_cost_datetime)
