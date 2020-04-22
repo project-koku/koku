@@ -32,7 +32,6 @@ from django.db import InterfaceError
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
-from rest_framework.test import APIClient
 
 from sources.api.status import ApplicationStatus
 from sources.sources_http_client import SourcesHTTPClientError
@@ -49,7 +48,8 @@ class StatusAPITest(TestCase):
 
     def test_status(self):
         """Test the status endpoint."""
-        response = self.client.get(reverse("server-status"))
+        with patch("sources.api.status.check_kafka_connection", return_value=True):
+            response = self.client.get(reverse("server-status"))
         body = response.data
 
         self.assertEqual(response.status_code, 200)
@@ -72,20 +72,10 @@ class StatusAPITest(TestCase):
         self.assertIsNotNone(body["python_version"])
         self.assertIsNotNone(body["sources_status"])
 
-    def test_status_liveness_kafka_error(self):
-        """Test kafka connection failure during liveness returns 424."""
-        url = reverse("server-status")
-        client = APIClient()
-        with patch("sources.api.status.check_kafka_connection", return_value=False):
-            response = client.get(url + "?liveness")
-        self.assertEqual(response.status_code, HTTPStatus.FAILED_DEPENDENCY)
-
     def test_status_readiness_kafka_error(self):
         """Test kafka connection failure during readiness returns 424."""
-        url = reverse("server-status")
-        client = APIClient()
         with patch("sources.api.status.check_kafka_connection", return_value=False):
-            response = client.get(url)
+            response = self.client.get(reverse("server-status"))
         self.assertEqual(response.status_code, HTTPStatus.FAILED_DEPENDENCY)
 
     @patch.dict(os.environ, {"OPENSHIFT_BUILD_COMMIT": "fake_commit_hash"})

@@ -63,12 +63,12 @@ def check_kafka_connection():
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def get_status(request):
     """Packages response for class-based view."""
+    if "liveness" in request.query_params:
+        return Response({"alive": True})
+
     if not check_kafka_connection():
         status = HTTPStatus.FAILED_DEPENDENCY
         return Response(data={"error": BROKER_CONNECTION_ERROR, "status": status}, status=status)
-
-    if "liveness" in request.query_params:
-        return Response({"alive": True})
 
     app_status = ApplicationStatus()
     response = {
