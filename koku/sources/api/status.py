@@ -50,6 +50,7 @@ CELERY_WORKER_NOT_FOUND = "No running Celery workers were found."
 
 
 def check_kafka_connection():
+    """Check connectability of Kafka Broker."""
     conn = BrokerConnection(SourcesConfig.SOURCES_KAFKA_HOST, int(SourcesConfig.SOURCES_KAFKA_PORT), socket.AF_UNSPEC)
     connected = conn.connect_blocking(timeout=1)
     if connected:
