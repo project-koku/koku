@@ -18,14 +18,17 @@
 import logging
 import os
 import platform
+import socket
 import subprocess
 import sys
+from http import HTTPStatus
 
 from django.db import connection
 from django.db import InterfaceError
 from django.db import NotSupportedError
 from django.db import OperationalError
 from django.db import ProgrammingError
+from kafka import BrokerConnection
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
@@ -46,12 +49,23 @@ BROKER_CONNECTION_ERROR = "Unable to establish connection with broker."
 CELERY_WORKER_NOT_FOUND = "No running Celery workers were found."
 
 
+def check_kafka_connection():
+    conn = BrokerConnection(SourcesConfig.SOURCES_KAFKA_HOST, int(SourcesConfig.SOURCES_KAFKA_PORT), socket.AF_UNSPEC)
+    connected = conn.connect_blocking(timeout=1)
+    if connected:
+        conn.close()
+    return connected
+
+
 @api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def get_status(request):
     """Packages response for class-based view."""
     if "liveness" in request.query_params:
+        if not check_kafka_connection():
+            status = HTTPStatus.FAILED_DEPENDENCY
+            return Response(data={"error": BROKER_CONNECTION_ERROR, "status": status}, status=status)
         return Response({"alive": True})
 
     app_status = ApplicationStatus()
