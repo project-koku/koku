@@ -16,7 +16,6 @@
 #
 """Test the AzureCostModelCostUpdater object."""
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.azure.azure_cost_model_cost_updater import AzureCostModelCostUpdater
 from masu.test import MasuTestCase
@@ -33,9 +32,6 @@ class AzureCostModelCostUpdaterTest(MasuTestCase):
 
         updater.update_summary_cost_model_costs()
 
-        with ReportingCommonDBAccessor() as report_common_db:
-            column_map = report_common_db.column_map
-
-        with AzureReportDBAccessor(self.schema, column_map) as accessor:
+        with AzureReportDBAccessor(self.schema) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             self.assertIsNotNone(bill.derived_cost_datetime)
