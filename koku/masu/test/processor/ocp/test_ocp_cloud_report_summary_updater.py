@@ -35,7 +35,6 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUpdater
 from masu.test import MasuTestCase
 from reporting.models import AWSCostEntryBill
@@ -59,7 +58,6 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         """Set up tests."""
         super().setUp()
         self.today = self.dh.today
-        self.column_map = ReportingCommonDBAccessor().column_map
 
     @patch(
         "masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views"  # noqa: E501
@@ -163,7 +161,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             schema=self.schema, provider=self.ocp_on_aws_ocp_provider, manifest=None
         )
 
-        with AWSReportDBAccessor(self.schema, self.column_map) as aws_accessor:
+        with AWSReportDBAccessor(self.schema) as aws_accessor:
             summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
             query = aws_accessor._get_db_obj_query(summary_table_name)
             query.delete()
@@ -171,7 +169,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
 
         updater.update_summary_tables(start_date, end_date)
 
-        with AWSReportDBAccessor(self.schema, self.column_map) as aws_accessor:
+        with AWSReportDBAccessor(self.schema) as aws_accessor:
             query = aws_accessor._get_db_obj_query(summary_table_name)
             self.assertNotEqual(query.count(), initial_count)
 
@@ -196,7 +194,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         updater.update_summary_tables(start_date, end_date)
 
         summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
-        with AWSReportDBAccessor(self.schema, self.column_map) as aws_accessor:
+        with AWSReportDBAccessor(self.schema) as aws_accessor:
             query = (
                 aws_accessor._get_db_obj_query(summary_table_name)
                 .filter(cost_entry_bill__billing_period_start=start_date)
@@ -221,7 +219,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         updater.update_summary_tables(start_date, end_date)
 
         summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"]
-        with AWSReportDBAccessor(self.schema, self.column_map) as aws_accessor:
+        with AWSReportDBAccessor(self.schema) as aws_accessor:
             query = (
                 aws_accessor._get_db_obj_query(summary_table_name)
                 .filter(cost_entry_bill__billing_period_start=start_date, data_source="Pod")
@@ -267,7 +265,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         updater.update_summary_tables(start_date, end_date)
 
         summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
-        with AzureReportDBAccessor(self.schema, self.column_map) as azure_accessor:
+        with AzureReportDBAccessor(self.schema) as azure_accessor:
             query = azure_accessor._get_db_obj_query(summary_table_name).filter(
                 cost_entry_bill__billing_period_start=start_date
             )
@@ -277,7 +275,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         self.assertAlmostEqual(markup_cost, pretax_cost * decimal.Decimal(markup.get("value") / 100), places=5)
 
         daily_summary_table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-        with OCPReportDBAccessor(self.schema, self.column_map) as ocp_accessor:
+        with OCPReportDBAccessor(self.schema) as ocp_accessor:
             query = ocp_accessor._get_db_obj_query(daily_summary_table_name).filter(
                 report_period__provider=self.ocp_on_azure_ocp_provider,
                 report_period__report_period_start=self.dh.this_month_start,
@@ -316,7 +314,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         expected_calls = [call(OCP_ON_AWS_MATERIALIZED_VIEWS), call(OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS)]
         mock_view_refresh.assert_has_calls(expected_calls)
 
-        with AzureReportDBAccessor(self.schema, self.column_map) as azure_accessor:
+        with AzureReportDBAccessor(self.schema) as azure_accessor:
             summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
             query = azure_accessor._get_db_obj_query(summary_table_name)
             azure_count = query.count()
@@ -324,7 +322,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             query = azure_accessor._get_db_obj_query(summary_table_name)
             azure_project_count = query.count()
 
-        with AWSReportDBAccessor(self.schema, self.column_map) as aws_accessor:
+        with AWSReportDBAccessor(self.schema) as aws_accessor:
             summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
             query = aws_accessor._get_db_obj_query(summary_table_name)
             aws_count = query.count()

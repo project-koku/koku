@@ -44,17 +44,14 @@ LOG = logging.getLogger(__name__)
 class AWSReportDBAccessor(ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
-    def __init__(self, schema, column_map):
+    def __init__(self, schema):
         """Establish the database connection.
 
         Args:
             schema (str): The customer schema to associate with
-            column_map (dict): A mapping of report columns to database columns
-
         """
-        super().__init__(schema, column_map)
+        super().__init__(schema)
         self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
-        self.column_map = column_map
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
 

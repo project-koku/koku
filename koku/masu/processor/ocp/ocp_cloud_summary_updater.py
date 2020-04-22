@@ -104,7 +104,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
             markup_value = Decimal(markup.get("value", 0)) / 100
 
         # OpenShift on AWS
-        with AWSReportDBAccessor(self._schema, self._column_map) as accessor:
+        with AWSReportDBAccessor(self._schema) as accessor:
             for start, end in date_range_pair(start_date, end_date):
                 LOG.info(
                     "Updating OpenShift on AWS summary table for "
@@ -121,7 +121,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
             accessor.populate_ocp_on_aws_tags_summary_table()
         self.refresh_openshift_on_infrastructure_views(OCP_ON_AWS_MATERIALIZED_VIEWS)
 
-        with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+        with OCPReportDBAccessor(self._schema) as accessor:
             # This call just sends the infrastructure cost to the
             # OCP usage daily summary table
             accessor.update_summary_infrastructure_cost(cluster_id, start_date, end_date)
@@ -144,7 +144,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
             markup_value = Decimal(markup.get("value", 0)) / 100
 
         # OpenShift on Azure
-        with AzureReportDBAccessor(self._schema, self._column_map) as accessor:
+        with AzureReportDBAccessor(self._schema) as accessor:
             for start, end in date_range_pair(start_date, end_date):
                 LOG.info(
                     "Updating OpenShift on Azure summary table for "
@@ -160,7 +160,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                 accessor.populate_ocp_on_azure_cost_daily_summary(start, end, cluster_id, azure_bill_ids, markup_value)
             accessor.populate_ocp_on_azure_tags_summary_table()
 
-        with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+        with OCPReportDBAccessor(self._schema) as accessor:
             # This call just sends the infrastructure cost to the
             # OCP usage daily summary table
             accessor.update_summary_infrastructure_cost(cluster_id, start_date, end_date)
