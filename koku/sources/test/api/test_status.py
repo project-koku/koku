@@ -20,6 +20,7 @@ import os
 import re
 from collections import namedtuple
 from datetime import datetime
+from http import HTTPStatus
 from subprocess import CompletedProcess
 from subprocess import PIPE
 from unittest.mock import ANY
@@ -31,6 +32,7 @@ from django.db import InterfaceError
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
+from rest_framework.test import APIClient
 
 from sources.api.status import ApplicationStatus
 from sources.sources_http_client import SourcesHTTPClientError
@@ -69,6 +71,22 @@ class StatusAPITest(TestCase):
         self.assertIsNotNone(body["platform_info"])
         self.assertIsNotNone(body["python_version"])
         self.assertIsNotNone(body["sources_status"])
+
+    def test_status_liveness_kafka_error(self):
+        """Test kafka connection failure during liveness returns 424."""
+        url = reverse("server-status")
+        client = APIClient()
+        with patch("sources.api.status.check_kafka_connection", return_value=False):
+            response = client.get(url + "?liveness")
+        self.assertEqual(response.status_code, HTTPStatus.FAILED_DEPENDENCY)
+
+    def test_status_readiness_kafka_error(self):
+        """Test kafka connection failure during readiness returns 424."""
+        url = reverse("server-status")
+        client = APIClient()
+        with patch("sources.api.status.check_kafka_connection", return_value=False):
+            response = client.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.FAILED_DEPENDENCY)
 
     @patch.dict(os.environ, {"OPENSHIFT_BUILD_COMMIT": "fake_commit_hash"})
     def test_commit_with_env(self):
