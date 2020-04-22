@@ -292,7 +292,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             )["project_markup_cost__sum"]
 
             self.assertLessEqual(sum_cost, sum_azure_cost)
-            self.assertAlmostEqual(sum_cost, sum_project_cost, 6)
-            self.assertAlmostEqual(sum_markup_cost, sum_cost * markup_value, 6)
-            self.assertAlmostEqual(sum_markup_cost_project, sum_cost * markup_value, 6)
-            self.assertAlmostEqual(sum_project_markup_cost_project, sum_pod_cost * markup_value, 6)
+            self.assertAlmostEqual(sum_cost, sum_project_cost, 4)
+            self.assertAlmostEqual(sum_markup_cost, sum_cost * markup_value, 4)
+            self.assertAlmostEqual(sum_markup_cost_project, sum_cost * markup_value, 4)
+            self.assertAlmostEqual(sum_project_markup_cost_project, sum_pod_cost * markup_value, 4)

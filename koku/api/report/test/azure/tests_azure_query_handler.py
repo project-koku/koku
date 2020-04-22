@@ -473,8 +473,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_execute_query_curr_month_by_filtered_resource_location(self):
         """Test execute_query for current month on monthly breakdown by filtered resource_location."""
         with tenant_context(self.tenant):
-            location = AzureCostEntryLineItemDailySummary.objects.values("resource_location")[0].get(
-                "resource_location"
+            location = (
+                AzureCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
+                .values("resource_location")[0]
+                .get("resource_location")
             )
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[resource_location]={location}"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -562,8 +564,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_filter_resource_location(self):
         """Test execute_query for current month on monthly filtered by resource_location."""
         with tenant_context(self.tenant):
-            location = AzureCostEntryLineItemDailySummary.objects.values("resource_location")[0].get(
-                "resource_location"
+            location = (
+                AzureCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
+                .values("resource_location")[0]
+                .get("resource_location")
             )
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[resource_location]={location}"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -590,8 +594,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_filter_resource_location_csv(self, mock_accept):
         """Test execute_query on monthly filtered by resource_location for csv."""
         with tenant_context(self.tenant):
-            location = AzureCostEntryLineItemDailySummary.objects.values("resource_location")[0].get(
-                "resource_location"
+            location = (
+                AzureCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
+                .values("resource_location")[0]
+                .get("resource_location")
             )
         mock_accept.return_value = "text/csv"
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[resource_location]={location}"  # noqa: E501
