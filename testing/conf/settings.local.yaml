@@ -1,5 +1,6 @@
 local:
   hccm:
+    use_sources: True
     ocp_dir: /var/tmp/masu/insights_local
     aws_dir: /tmp/local_bucket
     azure_dir: /tmp/local_container
@@ -14,7 +15,6 @@ local:
       hostname: localhost
       scheme: http
   SOURCES:
-    base_url: "http://localhost:3000/api/sources/v1"
     http:
       path: "api/v1.0"
       hostname: localhost
