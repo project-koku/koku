@@ -618,8 +618,8 @@ def is_kafka_connected():  # pragma: no cover
     This method will block sources integration initialization until
     Kafka is connected.
     """
+    count = 0
     result = False
-    count = 1
     while not result:
         result = check_kafka_connection()
         if result:
