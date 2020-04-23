@@ -103,7 +103,10 @@ class ProviderAccessor:
             ValidationError: Error string
 
         """
-        return self.service.cost_usage_source_is_reachable(credential, source_name)
+        LOG.info(f"Provider account validation started for {str(credential)}")
+        reachable_status = self.service.cost_usage_source_is_reachable(credential, source_name)
+        LOG.info(f"Provider account validation complete for {str(credential)}")
+        return reachable_status
 
     def availability_status(self, credential, source_name):
         """

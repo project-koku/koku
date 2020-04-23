@@ -19,6 +19,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from django.conf import settings
+from django.db import InterfaceError
 from django.db.models.signals import post_save
 from django.test import TestCase
 
@@ -29,6 +30,7 @@ from sources.config import Config
 from sources.kafka_listener import storage_callback
 from sources.sources_http_client import SourcesHTTPClientError
 from sources.tasks import create_or_update_provider
+from sources.tasks import delete_source_and_provider
 from sources.tasks import set_status_for_source
 
 AUTHENTICATIONS = {
@@ -171,3 +173,94 @@ class SourcesTasksTest(TestCase):
                 create_or_update_provider(self.aws_source.source_id)
 
         mock_call.assert_called()
+
+    @patch("sources.tasks.KafkaSourceManager.destroy_provider")
+    def test_destroy_source_and_provider(self, mock_destory_provider):
+        """Test that destroys source."""
+        aws_source = Sources.objects.get(source_type="AWS")
+        aws_provider = Provider.objects.get(type="AWS-local")
+
+        # Associate models
+        aws_source.source_uuid = aws_provider.uuid
+        aws_source.koku_uuid = aws_provider.uuid
+        aws_source.save()
+
+        source_id = aws_source.source_id
+        source_uuid = aws_source.source_uuid
+
+        delete_source_and_provider(source_id, source_uuid, aws_source.auth_header)
+        self.assertFalse(Sources.objects.filter(source_id=source_id).exists())
+        mock_destory_provider.assert_called()
+
+    @patch("sources.tasks.KafkaSourceManager.destroy_provider")
+    def test_destroy_source_and_provider_no_provider(self, mock_destory_provider):
+        """Test that destroys source with no provider."""
+        aws_source = Sources.objects.get(source_type="AWS")
+        aws_provider = Provider.objects.get(type="AWS-local")
+
+        # Associate models
+        aws_source.koku_uuid = aws_provider.uuid
+        aws_source.save()
+
+        source_id = aws_source.source_id
+        source_uuid = uuid4()  # Use incorrect UUID to simulate no provider.
+
+        delete_source_and_provider(source_id, source_uuid, aws_source.auth_header)
+        self.assertFalse(Sources.objects.filter(source_id=source_id).exists())
+        mock_destory_provider.assert_not_called()
+
+    @patch("sources.tasks.KafkaSourceManager.destroy_provider", side_effect=Exception("test error"))
+    def test_destroy_source_and_provider_exception(self, mock_destory_provider):
+        """Test that destroys source with provider exception."""
+        aws_source = Sources.objects.get(source_type="AWS")
+        aws_provider = Provider.objects.get(type="AWS-local")
+
+        # Associate models
+        aws_source.source_uuid = aws_provider.uuid
+        aws_source.koku_uuid = aws_provider.uuid
+        aws_source.save()
+
+        source_id = aws_source.source_id
+        source_uuid = aws_source.source_uuid
+
+        delete_source_and_provider(source_id, source_uuid, aws_source.auth_header)
+        self.assertTrue(Sources.objects.filter(source_id=source_id).exists())
+
+    @patch("sources.tasks.KafkaSourceManager.destroy_provider")
+    def test_destroy_source_and_provider_source_does_not_exist(self, mock_destory_provider):
+        """Test that destroys source where source does not exist."""
+        aws_source = Sources.objects.get(source_type="AWS")
+        aws_provider = Provider.objects.get(type="AWS-local")
+
+        # Associate models
+        aws_source.source_uuid = aws_provider.uuid
+        aws_source.koku_uuid = aws_provider.uuid
+        aws_source.save()
+
+        non_existent_source_id = 1
+        while Sources.objects.filter(source_id=non_existent_source_id).exists():
+            non_existent_source_id += 1
+
+        source_id = non_existent_source_id
+        source_uuid = aws_source.source_uuid
+
+        delete_source_and_provider(source_id, source_uuid, aws_source.auth_header)
+        mock_destory_provider.assert_called()
+
+    @patch("sources.tasks.destroy_source_event", side_effect=InterfaceError)
+    @patch("sources.tasks.KafkaSourceManager.destroy_provider")
+    def test_destroy_source_and_provider_source_db_errort(self, mock_destory_provider, mock_destroy_source):
+        """Test that destroys source where database error occurs."""
+        aws_source = Sources.objects.get(source_type="AWS")
+        aws_provider = Provider.objects.get(type="AWS-local")
+
+        # Associate models
+        aws_source.source_uuid = aws_provider.uuid
+        aws_source.koku_uuid = aws_provider.uuid
+        aws_source.save()
+
+        source_id = aws_source.source_id
+        source_uuid = aws_source.source_uuid
+
+        delete_source_and_provider(source_id, source_uuid, aws_source.auth_header)
+        self.assertTrue(Sources.objects.filter(source_id=source_id).exists())
