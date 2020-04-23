@@ -34,7 +34,6 @@ class CostModelDBAccessor(KokuDBAccess):
 
         Args:
             schema (str): The customer schema to associate with
-            column_map (dict): A mapping of report columns to database columns
             provider_uuid (str): Provider uuid
 
         """

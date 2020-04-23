@@ -29,7 +29,6 @@ from tenant_schemas.utils import schema_context
 
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import AWS_REGIONS
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
@@ -80,8 +79,6 @@ class TestAWSUtils(MasuTestCase):
         super().setUp()
         self.account_id = fake_aws_account_id()
         self.arn = fake_arn(account_id=self.account_id, region=REGION, service="iam")
-        with ReportingCommonDBAccessor() as common_accessor:
-            self.column_map = common_accessor.column_map
 
     @patch("masu.util.aws.common.boto3.client", return_value=MOCK_BOTO_CLIENT)
     def test_get_assume_role_session(self, mock_boto_client):
@@ -252,7 +249,7 @@ class TestAWSUtils(MasuTestCase):
 
         with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with AWSReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
+        with AWSReportDBAccessor(schema=self.schema) as accessor:
 
             end_date = date_accessor.today_with_timezone("utc").replace(day=1)
             start_date = end_date
@@ -276,7 +273,7 @@ class TestAWSUtils(MasuTestCase):
 
         with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with AWSReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
+        with AWSReportDBAccessor(schema=self.schema) as accessor:
 
             end_date = date_accessor.today_with_timezone("utc").replace(day=1)
             start_date = end_date
@@ -300,7 +297,7 @@ class TestAWSUtils(MasuTestCase):
 
         with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with AWSReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
+        with AWSReportDBAccessor(schema=self.schema) as accessor:
 
             end_date = date_accessor.today_with_timezone("utc").replace(day=1)
             start_date = end_date
