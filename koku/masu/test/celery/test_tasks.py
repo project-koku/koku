@@ -27,7 +27,6 @@ from api.utils import DateHelper
 from masu.celery import tasks
 from masu.celery.export import TableExportSetting
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.util.common import dictify_table_export_settings
@@ -345,9 +344,7 @@ class TestUploadTaskWithData(MasuTestCase):
         """Set up initial data for tests."""
         super().setUp()
 
-        with ReportingCommonDBAccessor(self.schema) as common_accessor:
-            self.column_map = common_accessor.column_map
-        self.creator = ReportObjectCreator(self.schema, self.column_map)
+        self.creator = ReportObjectCreator(self.schema)
 
         timezone = pytz.timezone("UTC")
         # Arbitrary date as "today" so we don't drift around with `now`.

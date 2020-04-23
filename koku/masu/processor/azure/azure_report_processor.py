@@ -28,7 +28,6 @@ from django.conf import settings
 from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util import common as utils
 from reporting.provider.azure.models import AzureCostEntryBill
@@ -93,11 +92,7 @@ class AzureReportProcessor(ReportProcessorBase):
 
         self._schema = schema_name
 
-        # Gather database accessors
-        with ReportingCommonDBAccessor() as report_common_db:
-            self.column_map = report_common_db.column_map
-
-        with AzureReportDBAccessor(self._schema, self.column_map) as report_db:
+        with AzureReportDBAccessor(self._schema) as report_db:
             self.report_schema = report_db.report_schema
             self.existing_bill_map = report_db.get_cost_entry_bills()
             self.existing_product_map = report_db.get_products()
@@ -277,11 +272,11 @@ class AzureReportProcessor(ReportProcessorBase):
         """
         row_count = 0
         is_full_month = self._should_process_full_month()
-        self._delete_line_items(AzureReportDBAccessor, self.column_map)
+        self._delete_line_items(AzureReportDBAccessor)
         # pylint: disable=invalid-name
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode, encoding="utf-8-sig") as f:
-            with AzureReportDBAccessor(self._schema, self.column_map) as report_db:
+            with AzureReportDBAccessor(self._schema) as report_db:
                 LOG.info("File %s opened for processing", str(f))
                 reader = csv.DictReader(f)
                 for row in reader:

@@ -22,7 +22,6 @@ from tenant_schemas.utils import schema_context
 
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.ocp.ocp_report_db_cleaner import OCPReportDBCleaner
 from masu.processor.ocp.ocp_report_db_cleaner import OCPReportDBCleanerError
 from masu.test import MasuTestCase
@@ -36,11 +35,9 @@ class OCPReportDBCleanerTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        cls.common_accessor = ReportingCommonDBAccessor()
-        cls.column_map = cls.common_accessor.column_map
-        cls.accessor = OCPReportDBAccessor(schema=cls.schema, column_map=cls.column_map)
+        cls.accessor = OCPReportDBAccessor(schema=cls.schema)
         cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
+        cls.creator = ReportObjectCreator(cls.schema)
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
     def test_initializer(self):
