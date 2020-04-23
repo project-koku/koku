@@ -26,7 +26,6 @@ from django.conf import settings
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
 from reporting.provider.aws.models import AWSCostEntry
 from reporting.provider.aws.models import AWSCostEntryBill
@@ -34,6 +33,7 @@ from reporting.provider.aws.models import AWSCostEntryLineItem
 from reporting.provider.aws.models import AWSCostEntryPricing
 from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
+from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -94,10 +94,8 @@ class AWSReportProcessor(ReportProcessorBase):
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
 
         # Gather database accessors
-        with ReportingCommonDBAccessor() as report_common_db:
-            self.column_map = report_common_db.column_map
 
-        with AWSReportDBAccessor(self._schema, self.column_map) as report_db:
+        with AWSReportDBAccessor(self._schema) as report_db:
             self.report_schema = report_db.report_schema
             self.existing_bill_map = report_db.get_cost_entry_bills()
             self.existing_cost_entry_map = report_db.get_cost_entries()
@@ -135,11 +133,11 @@ class AWSReportProcessor(ReportProcessorBase):
 
         is_finalized_data = self._check_for_finalized_bill()
         is_full_month = self._should_process_full_month()
-        self._delete_line_items(AWSReportDBAccessor, self.column_map, is_finalized=is_finalized_data)
+        self._delete_line_items(AWSReportDBAccessor, is_finalized=is_finalized_data)
         opener, mode = self._get_file_opener(self._compression)
         # pylint: disable=invalid-name
         with opener(self._report_path, mode) as f:
-            with AWSReportDBAccessor(self._schema, self.column_map) as report_db:
+            with AWSReportDBAccessor(self._schema) as report_db:
                 LOG.info("File %s opened for processing", str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
@@ -232,7 +230,7 @@ class AWSReportProcessor(ReportProcessorBase):
             row["product/memory"] = memory
             row["product/memory_unit"] = unit
 
-        column_map = self.column_map[table_name]
+        column_map = REPORT_COLUMN_MAP[table_name]
 
         return {column_map[key]: value for key, value in row.items() if key in column_map}
 

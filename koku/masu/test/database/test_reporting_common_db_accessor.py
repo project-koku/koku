@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the ReportingCommonDBAccessor utility object."""
-import copy
 from unittest.mock import Mock
 
 from masu.database import AWS_CUR_TABLE_MAP
@@ -31,28 +30,6 @@ class ReportingCommonDBAccessorTest(MasuTestCase):
         super().setUp()
         self.accessor = ReportingCommonDBAccessor()
         self.report_tables = list(AWS_CUR_TABLE_MAP.values())
-
-    def test_initializer(self):
-        """Test initializer."""
-        report_common_schema = self.accessor.report_common_schema
-        self.assertIsInstance(self.accessor.column_map, dict)
-        self.assertTrue(hasattr(report_common_schema, "reporting_common_reportcolumnmap"))
-
-    def test_generate_column_map(self):
-        """Assert all tables are in the column map."""
-        column_map = self.accessor.generate_column_map()
-        keys = column_map.keys()
-
-        tables = copy.deepcopy(self.report_tables)
-        tables.remove(AWS_CUR_TABLE_MAP["cost_entry"])
-        tables.remove(AWS_CUR_TABLE_MAP["line_item_daily"])
-        tables.remove(AWS_CUR_TABLE_MAP["line_item_daily_summary"])
-        tables.remove(AWS_CUR_TABLE_MAP["tags_summary"])
-        tables.remove(AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"])
-        tables.remove(AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"])
-        tables.remove(AWS_CUR_TABLE_MAP["ocp_on_aws_tags_summary"])
-        for table in tables:
-            self.assertIn(table, keys)
 
     def test_add(self):
         """Test the add() function."""
