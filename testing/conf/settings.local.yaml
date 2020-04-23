@@ -9,11 +9,6 @@ local:
       port: 5000
       hostname: localhost
       scheme: http
-#    sources:
-#      path: api/cost-management/v1
-#      port: 4000
-#      hostname: localhost
-#      scheme: http
   SOURCES:
     http:
       path: "api/v1.0"
