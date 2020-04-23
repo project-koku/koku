@@ -41,21 +41,35 @@ class SourcesErrorMessage:
         return err_msg
 
     def azure_client_errors(self, message):
-        """Azure invalid credentials messages."""
+        """Azure client error messages."""
+        message = ProviderErrors.AZURE_GENERAL_CLIENT_ERROR_MESSAGE
         if "http error: 401" in message:
-            return "Incorrect Azure client secret"
+            message = ProviderErrors.AZURE_INCORRECT_CLIENT_SECRET_MESSAGE
         if "http error: 400" in message:
-            return "Incorrect Azure client id."
+            message = ProviderErrors.AZURE_INCORRECT_CLIENT_ID_MESSAGE
         if "ResourceGroupNotFound" in message:
-            return "Incorrect Azure storage resource group."
+            message = ProviderErrors.AZURE_INCORRECT_RESOURCE_GROUP_MESSAGE
         if "ResourceNotFound" in message:
-            return "Incorrect Azure storage account."
+            message = ProviderErrors.AZURE_INCORRECT_STORAGE_ACCOUNT_MESSAGE
         if "SubscriptionNotFound" in message:
-            return "Incorrect Azure subscription id."
+            message = ProviderErrors.AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE
+        return message
+
+    def aws_client_errors(self, message):
+        """AWS client error messages."""
+        return ProviderErrors.AWS_RESOURCE_NAME_UNREACHABLE_MESSAGE
+
+    def aws_no_billing_source(self, message):
+        """AWS no bucket message."""
+        return ProviderErrors.AWS_BILLING_SOURCE_NOT_FOUND_MESSAGE
 
     def _display_string_function(self, key):
         """Return function to get user facing string."""
-        ui_function_map = {ProviderErrors.AZURE_CLIENT_ERROR: self.azure_client_errors}
+        ui_function_map = {
+            ProviderErrors.AZURE_CLIENT_ERROR: self.azure_client_errors,
+            ProviderErrors.AWS_RESOURCE_NAME_UNREACHABLE: self.aws_client_errors,
+            ProviderErrors.AWS_BILLING_SOURCE_NOT_FOUND: self.aws_no_billing_source,
+        }
         string_function = ui_function_map.get(key)
         return string_function
 

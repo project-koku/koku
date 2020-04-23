@@ -64,27 +64,27 @@ class AzureProvider(ProviderInterface):
         LOG.error(f"verify patch: {subscription_id}, {resource_group}, {storage_account}")
         if subscription_id and not (resource_group and storage_account):
             key = ProviderErrors.AZURE_MISSING_PATCH
-            message = "Missing resource group and storage account."
+            message = ProviderErrors.AZURE_MISSING_RESOURCE_GROUP_AND_STORAGE_ACCOUNT_MESSAGE
             raise ValidationError(error_obj(key, message))
 
         if subscription_id and resource_group and not storage_account:
             key = ProviderErrors.AZURE_MISSING_PATCH
-            message = "Missing storage account."
+            message = ProviderErrors.AZURE_MISSING_STORAGE_ACCOUNT_MESSAGE
             raise ValidationError(error_obj(key, message))
 
         if subscription_id and storage_account and not resource_group:
             key = ProviderErrors.AZURE_MISSING_PATCH
-            message = "Missing resource group."
+            message = ProviderErrors.AZURE_MISSING_RESOURCE_GROUP_MESSAGE
             raise ValidationError(error_obj(key, message))
 
         if storage_account and resource_group and not subscription_id:
             key = ProviderErrors.AZURE_MISSING_PATCH
-            message = "Missing subscription ID."
+            message = ProviderErrors.AZURE_MISSING_SUBSCRIPTION_ID_MESSAGE
             raise ValidationError(error_obj(key, message))
 
         if not resource_group and not storage_account and not subscription_id:
             key = ProviderErrors.AZURE_MISSING_PATCH
-            message = "Missing subscription ID, resource group and storage account."
+            message = ProviderErrors.AZURE_MISSING_ALL_PATCH_VALUES_MESSAGE
             raise ValidationError(error_obj(key, message))
 
     def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
@@ -136,8 +136,8 @@ class AzureProvider(ProviderInterface):
             storage_accounts = azure_client.storage_client.storage_accounts
             storage_account = storage_accounts.get_properties(resource_group, storage_account)
             if azure_service and not azure_service.describe_cost_management_exports():
-                key = ProviderErrors.AZURE_CREDENTAL_NOT_FOUND
-                message = "Cost management export was not found."
+                key = ProviderErrors.AZURE_NO_REPORT_FOUND
+                message = ProviderErrors.AZURE_MISSING_EXPORT_MESSAGE
                 raise ValidationError(error_obj(key, message))
         except AzureCostReportNotFound as costreport_err:
             key = ProviderErrors.AZURE_BILLING_SOURCE_NOT_FOUND
