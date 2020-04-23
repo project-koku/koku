@@ -19,7 +19,7 @@ import logging
 
 from rest_framework.serializers import ValidationError
 
-# from providers.provider_errors import ProviderErrors
+from providers.provider_errors import ProviderErrors
 
 LOG = logging.getLogger(__name__)
 
@@ -40,6 +40,25 @@ class SourcesErrorMessage:
             err_msg = str(self._error)
         return err_msg
 
+    def azure_client_errors(self, message):
+        """Azure invalid credentials messages."""
+        if "http error: 401" in message:
+            return "Incorrect Azure client secret"
+        if "http error: 400" in message:
+            return "Incorrect Azure client id."
+        if "ResourceGroupNotFound" in message:
+            return "Incorrect Azure storage resource group."
+        if "ResourceNotFound" in message:
+            return "Incorrect Azure storage account."
+        if "SubscriptionNotFound" in message:
+            return "Incorrect Azure subscription id."
+
+    def _display_string_function(self, key):
+        """Return function to get user facing string."""
+        ui_function_map = {ProviderErrors.AZURE_CLIENT_ERROR: self.azure_client_errors}
+        string_function = ui_function_map.get(key)
+        return string_function
+
     def _extract_from_validation_error(self):
         """Extract key and message from ValidationError."""
         err_key = None
@@ -56,6 +75,9 @@ class SourcesErrorMessage:
         if isinstance(self._error, ValidationError):
             key, msg = self._extract_from_validation_error()
             LOG.info(f"Error Status key: {str(key)} msg: {str(msg)}")
+            display_fn = self._display_string_function(key)
+            if display_fn:
+                msg = display_fn(msg)
         else:
             msg = str(self._error)
         return msg

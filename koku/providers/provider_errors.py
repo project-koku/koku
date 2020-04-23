@@ -32,3 +32,4 @@ class ProviderErrors:
     AZURE_CREDENTAL_NOT_FOUND = "authentication.credential.noreportfound"
     AZURE_BILLING_SOURCE_NOT_FOUND = "billing_source.data_source.notfound"
     AZURE_CREDENTAL_UNREACHABLE = "authentication.credentials.unreachable"
+    AZURE_CLIENT_ERROR = "azure.exception"

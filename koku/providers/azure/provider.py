@@ -59,6 +59,33 @@ class AzureProvider(ProviderInterface):
         """
         return Provider.PROVIDER_AZURE
 
+    def _verify_patch_entries(self, subscription_id, resource_group, storage_account):
+        """Raise Validation Error for missing."""
+        if subscription_id and not (resource_group and storage_account):
+            key = ProviderErrors.AZURE_MISSING_PATCH
+            message = "Missing resource group and storage account."
+            raise ValidationError(error_obj(key, message))
+
+        if subscription_id and resource_group and not storage_account:
+            key = ProviderErrors.AZURE_MISSING_PATCH
+            message = "Missing storage account."
+            raise ValidationError(error_obj(key, message))
+
+        if subscription_id and storage_account and not resource_group:
+            key = ProviderErrors.AZURE_MISSING_PATCH
+            message = "Missing resource group."
+            raise ValidationError(error_obj(key, message))
+
+        if subscription_id and not storage_account and not resource_group:
+            key = ProviderErrors.AZURE_MISSING_PATCH
+            message = "Missing subscription ID."
+            raise ValidationError(error_obj(key, message))
+
+        if not (resource_group and storage_account and subscription_id):
+            key = ProviderErrors.AZURE_MISSING_PATCH
+            message = "Missing subscription ID, resource group and storage account."
+            raise ValidationError(error_obj(key, message))
+
     def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
         """
         Verify that the cost usage report source is reachable by Koku.
@@ -96,16 +123,9 @@ class AzureProvider(ProviderInterface):
 
         resource_group = storage_resource_name.get("resource_group")
         storage_account = storage_resource_name.get("storage_account")
+        subscription_id = credential_name.get("subscription_id")
 
-        if not (resource_group and storage_account and credential_name.get("subscription_id")):
-            key = ProviderErrors.AZURE_MISSING_PATCH
-            message = "Missing subscription id, resource group and storage account."
-            raise ValidationError(error_obj(key, message))
-
-        if not (resource_group and storage_account):
-            key = ProviderErrors.AZURE_MISSING_DATA_SOURCE
-            message = "Missing resource group and storage account."
-            raise ValidationError(error_obj(key, message))
+        self._verify_patch_entries(subscription_id, resource_group, storage_account)
 
         try:
             azure_service = AzureService(
@@ -123,7 +143,7 @@ class AzureProvider(ProviderInterface):
             raise ValidationError(error_obj(key, str(costreport_err)))
         except (AdalError, AzureException, AzureServiceError, ClientException, TypeError) as exc:
             LOG.error(f"Error type: {str(exc)}")
-            key = ProviderErrors.AZURE_CREDENTAL_UNREACHABLE
+            key = ProviderErrors.AZURE_CLIENT_ERROR
             raise ValidationError(error_obj(key, str(exc)))
 
         return True
