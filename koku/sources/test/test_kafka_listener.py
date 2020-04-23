@@ -568,7 +568,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_sources_network_info_sync_aws_local(self):
-        """Test to get additional Source context from Sources API for AWS."""
+        """Test to get additional Source context from Sources API for AWS-local."""
         test_source_id = self.aws_local_source.get("source_id")
         local_source = Sources(**self.aws_local_source)
         local_source.save()
