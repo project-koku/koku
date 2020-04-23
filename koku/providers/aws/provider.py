@@ -116,7 +116,7 @@ def _check_cost_report_access(credential_name, credentials, region="us-east-1", 
                 key = "report_configuration"
                 msg = (
                     f"{report.get('Compression')} compression is not supported. "
-                    f"Reports must use any of these compression formats: {ALLOWED_COMPRESSIONS}"
+                    f"Reports must use GZIP compression format."
                 )
                 raise serializers.ValidationError(error_obj(key, msg))
             if "RESOURCES" not in report.get("AdditionalSchemaElements"):
