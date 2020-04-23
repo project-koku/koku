@@ -61,6 +61,18 @@ objects:
           - name: POSTGRESQL_DATABASE
             value: ${DATABASE_NAME}
           image: postgresql:latest
+          command:
+            - postgres
+            - -c
+            - shared_preload_libraries=pg_stat_statements
+            - -c
+            - autovacuum_max_workers=8
+            - -c
+            - autovacuum_vacuum_cost_limit=4800
+            - -c
+            - autovacuum_vacuum_cost_delay=10
+            - -c
+            - idle_in_transaction_session_timeout=30000
           imagePullPolicy: IfNotPresent
           livenessProbe:
             exec:
