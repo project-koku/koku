@@ -29,6 +29,7 @@ from faker import Faker
 
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
+from masu.external.downloader.azure.azure_service import AzureServiceError
 from masu.test import MasuTestCase
 from providers.azure.client import AzureClientFactory
 
@@ -111,12 +112,12 @@ class AzureServiceTest(MasuTestCase):
                 subscription_id=self.subscription_id,
             )
             client = AzureService(
-                self.subscription_id,
                 self.tenant_id,
                 self.client_id,
                 self.client_secret,
                 self.resource_group_name,
                 self.storage_account_name,
+                self.subscription_id,
             )
         return client
 
@@ -124,6 +125,20 @@ class AzureServiceTest(MasuTestCase):
         """Test the AzureService initializer."""
         svc = self.get_mock_client()
         self.assertIsInstance(svc, AzureService)
+
+    @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
+    def test_init_no_subscription_id(self, mock_factory):
+        """Test that exception is raized with no subscription id provided."""
+
+        class MockAzureFactory:
+            subscription_id = None
+
+        factory = MockAzureFactory()
+        mock_factory.return_value = factory
+        with self.assertRaises(AzureServiceError):
+            AzureService(
+                self.tenant_id, self.client_id, self.client_secret, self.resource_group_name, self.storage_account_name
+            )
 
     def test_get_cost_export_for_key(self):
         """Test that a cost export is retrieved by a key."""

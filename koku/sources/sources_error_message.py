@@ -31,29 +31,20 @@ class SourcesErrorMessage:
         """Initialize the message generator."""
         self._error = error
 
-    @property
-    def error_msg(self):
-        err_msg = None
-        if isinstance(self._error, ValidationError):
-            _, err_msg = self._extract_from_validation_error()
-        else:
-            err_msg = str(self._error)
-        return err_msg
-
     def azure_client_errors(self, message):
         """Azure client error messages."""
-        message = ProviderErrors.AZURE_GENERAL_CLIENT_ERROR_MESSAGE
+        scrubbed_message = ProviderErrors.AZURE_GENERAL_CLIENT_ERROR_MESSAGE
         if "http error: 401" in message:
-            message = ProviderErrors.AZURE_INCORRECT_CLIENT_SECRET_MESSAGE
+            scrubbed_message = ProviderErrors.AZURE_INCORRECT_CLIENT_SECRET_MESSAGE
         if "http error: 400" in message:
-            message = ProviderErrors.AZURE_INCORRECT_CLIENT_ID_MESSAGE
+            scrubbed_message = ProviderErrors.AZURE_INCORRECT_CLIENT_ID_MESSAGE
         if "ResourceGroupNotFound" in message:
-            message = ProviderErrors.AZURE_INCORRECT_RESOURCE_GROUP_MESSAGE
+            scrubbed_message = ProviderErrors.AZURE_INCORRECT_RESOURCE_GROUP_MESSAGE
         if "ResourceNotFound" in message:
-            message = ProviderErrors.AZURE_INCORRECT_STORAGE_ACCOUNT_MESSAGE
+            scrubbed_message = ProviderErrors.AZURE_INCORRECT_STORAGE_ACCOUNT_MESSAGE
         if "SubscriptionNotFound" in message:
-            message = ProviderErrors.AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE
-        return message
+            scrubbed_message = ProviderErrors.AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE
+        return scrubbed_message
 
     def aws_client_errors(self, message):
         """AWS client error messages."""
