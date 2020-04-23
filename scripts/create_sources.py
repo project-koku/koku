@@ -219,7 +219,7 @@ def main(args):  # noqa
             print(f"Associating S3 bucket: {billing_source_response.content}")
             return
 
-        source_id = generator.create_source(name, "amazon-local")
+        source_id = generator.create_source(name, "amazon")
         print(f"Creating AWS Source. Source ID: {source_id}")
 
         endpoint_id = generator.create_endpoint(source_id)
