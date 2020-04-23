@@ -54,16 +54,6 @@ faker = Faker()
 SOURCES_APPS = "http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}"
 
 
-async def raise_exception():
-    """Raise KafkaError"""
-    raise KafkaError()
-
-
-async def dont_raise_exception():
-    """Return None"""
-    return None
-
-
 def raise_source_manager_error(param_a, param_b, param_c, param_d, param_e):
     """Raise KafkaSourceManagerError"""
     raise KafkaSourceManagerError()
@@ -862,11 +852,12 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         self.assertEquals(source_obj.source_type, "")
         self.assertEquals(source_obj.authentication, {})
 
-    @patch("sources.kafka_listener.AIOKafkaConsumer.start", side_effect=[raise_exception(), dont_raise_exception()])
-    def test_kafka_connection_metrics_listen_for_messages(self, mock_start):
+    @patch("time.sleep", side_effect=None)
+    @patch("sources.kafka_listener.check_kafka_connection", side_effect=[bool(0), bool(1)])
+    def test_kafka_connection_metrics_listen_for_messages(self, mock_start, mock_sleep):
         """Test check_kafka_connection increments kafka connection errors on KafkaError."""
         connection_errors_before = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
-        source_integration.check_kafka_connection()
+        source_integration.is_kafka_connected()
         connection_errors_after = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
         self.assertEqual(connection_errors_after - connection_errors_before, 1)
 
