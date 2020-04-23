@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for OCP-on-AWS tags."""
+from api.common.permissions.aws_access import AwsAccessPermission
+from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.tags.ocp_aws.queries import OCPAWSTagQueryHandler
 from api.tags.serializers import OCPAWSTagsQueryParamSerializer
 from api.tags.view import TagView
@@ -28,3 +30,4 @@ class OCPAWSTagView(TagView):
     serializer = OCPAWSTagsQueryParamSerializer
     query_handler = OCPAWSTagQueryHandler
     tag_handler = [AWSTagsSummary]
+    permission_classes = [AwsAccessPermission & OpenShiftAccessPermission]

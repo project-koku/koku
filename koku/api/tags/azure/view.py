@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for AWS tags."""
+from api.common.permissions.azure_access import AzureAccessPermission
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.serializers import AzureTagsQueryParamSerializer
 from api.tags.view import TagView
@@ -28,3 +29,4 @@ class AzureTagView(TagView):
     serializer = AzureTagsQueryParamSerializer
     query_handler = AzureTagQueryHandler
     tag_handler = [AzureTagsSummary]
+    permission_classes = [AzureAccessPermission]
