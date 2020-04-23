@@ -15,18 +15,23 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Azure provider."""
+import logging
+
 from adal.adal_error import AdalError
 from azure.common import AzureException
 from django.utils.translation import ugettext as _
 from msrest.exceptions import ClientException
 from rest_framework.serializers import ValidationError
 
+from ..provider_errors import ProviderErrors
 from ..provider_interface import ProviderInterface
 from .client import AzureClientFactory
 from api.models import Provider
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.azure.azure_service import AzureServiceError
+
+LOG = logging.getLogger(__name__)
 
 
 def error_obj(key, message):
@@ -81,7 +86,7 @@ class AzureProvider(ProviderInterface):
             ValidationError: Error string
 
         """
-        key = "billing_source.data_source"
+        key = "azure.error"
 
         azure_service = None
 
@@ -91,8 +96,15 @@ class AzureProvider(ProviderInterface):
 
         resource_group = storage_resource_name.get("resource_group")
         storage_account = storage_resource_name.get("storage_account")
+
+        if not (resource_group and storage_account and credential_name.get("subscription_id")):
+            key = ProviderErrors.AZURE_MISSING_PATCH
+            message = "Missing subscription id, resource group and storage account."
+            raise ValidationError(error_obj(key, message))
+
         if not (resource_group and storage_account):
-            message = "resource_group or storage_account is undefined."
+            key = ProviderErrors.AZURE_MISSING_DATA_SOURCE
+            message = "Missing resource group and storage account."
             raise ValidationError(error_obj(key, message))
 
         try:
@@ -103,11 +115,15 @@ class AzureProvider(ProviderInterface):
             storage_accounts = azure_client.storage_client.storage_accounts
             storage_account = storage_accounts.get_properties(resource_group, storage_account)
             if azure_service and not azure_service.describe_cost_management_exports():
+                key = ProviderErrors.AZURE_CREDENTAL_NOT_FOUND
                 message = "Cost management export was not found."
                 raise ValidationError(error_obj(key, message))
         except AzureCostReportNotFound as costreport_err:
+            key = ProviderErrors.AZURE_BILLING_SOURCE_NOT_FOUND
             raise ValidationError(error_obj(key, str(costreport_err)))
         except (AdalError, AzureException, AzureServiceError, ClientException, TypeError) as exc:
+            LOG.error(f"Error type: {str(exc)}")
+            key = ProviderErrors.AZURE_CREDENTAL_UNREACHABLE
             raise ValidationError(error_obj(key, str(exc)))
 
         return True

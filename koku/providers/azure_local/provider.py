@@ -75,7 +75,7 @@ class AzureLocalProvider(AzureProvider):
         resource_group = storage_resource_name.get("resource_group")
         storage_account = storage_resource_name.get("storage_account")
         if not (resource_group and storage_account):
-            message = "resource_group or storage_account is undefined."
+            message = "Missing resource group and storage account."
             raise ValidationError(error_obj(key, message))
 
         return True

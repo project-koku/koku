@@ -25,6 +25,7 @@ from django.utils.translation import ugettext as _
 from requests.exceptions import ConnectionError as BotoConnectionError
 from rest_framework import serializers  # meh
 
+from ..provider_errors import ProviderErrors
 from ..provider_interface import ProviderInterface
 from api.models import Provider
 
@@ -101,7 +102,7 @@ def _check_cost_report_access(credential_name, credentials, region="us-east-1", 
         response = cur_client.describe_report_definitions()
         reports = response.get("ReportDefinitions")
     except (ClientError, BotoConnectionError) as boto_error:
-        key = "authentication.provider_resource_name"
+        key = ProviderErrors.AWS_NO_REPORT_FOUND
         message = f"Unable to obtain cost and usage report definition data with {credential_name}."
         LOG.warn(msg=message, exc_info=boto_error)
         raise serializers.ValidationError(error_obj(key, message))
@@ -112,7 +113,7 @@ def _check_cost_report_access(credential_name, credentials, region="us-east-1", 
 
         for report in bucket_matched:
             if "RESOURCES" not in report.get("AdditionalSchemaElements"):
-                key = "report_configuration"
+                key = ProviderErrors.AWS_REPORT_CONFIG
                 msg = f"Required Resource IDs are not included in report {report.get('ReportName')}"
                 raise serializers.ValidationError(error_obj(key, msg))
 
@@ -127,25 +128,25 @@ class AWSProvider(ProviderInterface):
     def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
         """Verify that the S3 bucket exists and is reachable."""
         if not credential_name or credential_name.isspace():
-            key = "authentication.provider_resource_name"
+            key = ProviderErrors.AWS_MISSING_RESOURCE_NAME
             message = "Provider resource name is a required parameter for AWS and must not be blank."
             raise serializers.ValidationError(error_obj(key, message))
 
         creds = _get_sts_access(credential_name)
         # if any values in creds are None, the dict won't be empty
         if bool({k: v for k, v in creds.items() if not v}):
-            key = "provider_resource_name"
+            key = ProviderErrors.AWS_RESOURCE_NAME_UNREACHABLE
             message = f"Unable to access account resources with ARN {credential_name}."
             raise serializers.ValidationError(error_obj(key, message))
 
         if not storage_resource_name or storage_resource_name.isspace():
-            key = "billing_source.bucket"
+            key = ProviderErrors.AWS_BUCKET_MISSING
             message = "Bucket is a required parameter for AWS and must not be blank."
             raise serializers.ValidationError(error_obj(key, message))
 
         s3_exists = _check_s3_access(storage_resource_name, creds)
         if not s3_exists:
-            key = "billing_source.bucket"
+            key = ProviderErrors.AWS_BILLING_SOURCE_NOT_FOUND
             message = f"Bucket {storage_resource_name} could not be found with {credential_name}."
             raise serializers.ValidationError(error_obj(key, message))
 

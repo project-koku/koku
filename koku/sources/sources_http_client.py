@@ -19,6 +19,7 @@ import requests
 from requests.exceptions import RequestException
 
 from sources.config import Config
+from sources.sources_error_message import SourcesErrorMessage
 
 
 class SourcesHTTPClientError(Exception):
@@ -232,7 +233,8 @@ class SourcesHTTPClient:
                 status = "available"
                 error_msg = ""
 
-            json_data = {"availability_status": status, "availability_status_error": str(error_msg)}
+            user_facing_string = SourcesErrorMessage(error_msg).display()
+            json_data = {"availability_status": status, "availability_status_error": user_facing_string}
 
             application_response = requests.patch(application_url, json=json_data, headers=self._identity_header)
             if application_response.status_code != 204:

@@ -39,18 +39,22 @@ class AzureService:
 
     def __init__(
         self,
-        subscription_id,
         tenant_id,
         client_id,
         client_secret,
         resource_group_name,
         storage_account_name,
         cloud="public",
+        subscription_id=None,
     ):
         """Establish connection information."""
         self._resource_group_name = resource_group_name
         self._storage_account_name = storage_account_name
         self._factory = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret, cloud)
+
+        if not self._factory.subscription_id:
+            raise AzureServiceError("Azure Service missing subscription id.")
+
         self._cloud_storage_account = self._factory.cloud_storage_account(resource_group_name, storage_account_name)
 
         if not self._factory.credentials:
