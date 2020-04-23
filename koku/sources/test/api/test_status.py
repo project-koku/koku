@@ -117,7 +117,7 @@ class StatusAPITest(TestCase):
             side_effect=SourceNotFoundError("test source not found exception"),
         ):
             result = check_sources_connection()
-            self.assertIsNotNone(result)
+            self.assertIsNone(result)
 
     @patch.dict(os.environ, {"OPENSHIFT_BUILD_COMMIT": "fake_commit_hash"})
     def test_commit_with_env(self):
