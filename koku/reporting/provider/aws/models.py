@@ -774,15 +774,13 @@ class AWSOrganizationalUnit(models.Model):
 
     org_unit_path = models.TextField(null=False, unique=False)
 
-    account_id = models.CharField(max_length=50, null=True, unique=False)
+    level = models.PositiveSmallIntegerField(null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.PROTECT, null=True)
 
     created_timestamp = models.DateField(auto_now_add=True)
 
     deleted_timestamp = models.DateField(null=True)
-
-    level = models.PositiveSmallIntegerField(null=False)
-
-    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.PROTECT, null=True)
 
     def __str__(self):
         """Convert to string."""
@@ -791,20 +789,19 @@ class AWSOrganizationalUnit(models.Model):
             "org_unit_name : %s, "
             "org_unit_id : %s, "
             "org_unit_path : %s, "
-            "account_id : %s, "
+            "account_alias : %s, "
             "created_timestamp : %s, "
             "deleted_timestamp : %s, "
-            "account_alias : %s, "
             "level : %s }"
             % (
                 self.id,
                 self.org_unit_name,
                 self.org_unit_id,
+                self.level,
                 self.org_unit_path,
-                self.account_id,
+                self.account_alias,
                 self.created_timestamp,
                 self.deleted_timestamp,
-                self.account_alias,
                 self.level,
             )
         )
