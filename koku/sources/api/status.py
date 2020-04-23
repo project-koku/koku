@@ -18,14 +18,17 @@
 import logging
 import os
 import platform
+import socket
 import subprocess
 import sys
+from http import HTTPStatus
 
 from django.db import connection
 from django.db import InterfaceError
 from django.db import NotSupportedError
 from django.db import OperationalError
 from django.db import ProgrammingError
+from kafka import BrokerConnection
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
@@ -36,6 +39,7 @@ from rest_framework.settings import api_settings
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
 from sources.config import Config as SourcesConfig
+from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 
@@ -46,6 +50,26 @@ BROKER_CONNECTION_ERROR = "Unable to establish connection with broker."
 CELERY_WORKER_NOT_FOUND = "No running Celery workers were found."
 
 
+def check_kafka_connection():
+    """Check connectability of Kafka Broker."""
+    conn = BrokerConnection(SourcesConfig.SOURCES_KAFKA_HOST, int(SourcesConfig.SOURCES_KAFKA_PORT), socket.AF_UNSPEC)
+    connected = conn.connect_blocking(timeout=1)
+    if connected:
+        conn.close()
+    return connected
+
+
+def check_sources_connection():
+    """Check sources-backend connection."""
+    try:
+        cost_management_type_id = SourcesHTTPClient(
+            SourcesConfig.SOURCES_FAKE_HEADER
+        ).get_cost_management_application_type_id()
+        return cost_management_type_id
+    except (SourcesHTTPClientError, SourceNotFoundError):
+        return
+
+
 @api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
@@ -53,6 +77,14 @@ def get_status(request):
     """Packages response for class-based view."""
     if "liveness" in request.query_params:
         return Response({"alive": True})
+
+    if not check_kafka_connection():
+        status = HTTPStatus.FAILED_DEPENDENCY
+        return Response(data={"error": BROKER_CONNECTION_ERROR, "status": status}, status=status)
+
+    if not check_sources_connection():
+        status = HTTPStatus.FAILED_DEPENDENCY
+        return Response(data={"error": "Sources backend not connected.", "status": status}, status=status)
 
     app_status = ApplicationStatus()
     response = {
@@ -173,13 +205,10 @@ class ApplicationStatus:
     @property
     def sources_backend(self):
         """Return Sources Backend connection status."""
-        try:
-            cost_management_type_id = SourcesHTTPClient(
-                SourcesConfig.SOURCES_FAKE_HEADER
-            ).get_cost_management_application_type_id()
+        cost_management_type_id = check_sources_connection()
+        if cost_management_type_id:
             return f"Cost Management Application ID: {cost_management_type_id}"
-
-        except SourcesHTTPClientError:
+        else:
             return "Not connected"
 
     def startup(self):
