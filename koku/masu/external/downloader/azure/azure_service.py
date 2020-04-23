@@ -44,8 +44,8 @@ class AzureService:
         client_secret,
         resource_group_name,
         storage_account_name,
-        cloud="public",
         subscription_id=None,
+        cloud="public",
     ):
         """Establish connection information."""
         self._resource_group_name = resource_group_name

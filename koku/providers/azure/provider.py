@@ -61,6 +61,7 @@ class AzureProvider(ProviderInterface):
 
     def _verify_patch_entries(self, subscription_id, resource_group, storage_account):
         """Raise Validation Error for missing."""
+        LOG.error(f"verify patch: {subscription_id}, {resource_group}, {storage_account}")
         if subscription_id and not (resource_group and storage_account):
             key = ProviderErrors.AZURE_MISSING_PATCH
             message = "Missing resource group and storage account."
@@ -76,12 +77,12 @@ class AzureProvider(ProviderInterface):
             message = "Missing resource group."
             raise ValidationError(error_obj(key, message))
 
-        if subscription_id and not storage_account and not resource_group:
+        if storage_account and resource_group and not subscription_id:
             key = ProviderErrors.AZURE_MISSING_PATCH
             message = "Missing subscription ID."
             raise ValidationError(error_obj(key, message))
 
-        if not (resource_group and storage_account and subscription_id):
+        if not resource_group and not storage_account and not subscription_id:
             key = ProviderErrors.AZURE_MISSING_PATCH
             message = "Missing subscription ID, resource group and storage account."
             raise ValidationError(error_obj(key, message))
