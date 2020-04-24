@@ -13,4 +13,4 @@ jobs:
     - name: Setup Python
       uses: actions/setup-python@v1
     - name: Check manifest
-      run: bash .travis/check_manifest.sh
+      run: bash .github/scripts/check_manifest.sh
