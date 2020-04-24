@@ -112,7 +112,7 @@ class SourcesDataGenerator:
         return type_map
 
     def create_source(self, source_name, source_type, cluster_id=None):
-        json_data = {"source_type_id": self._source_type_map.get(source_type), "name": source_name}
+        json_data = {"source_type_id": str(self._source_type_map.get(source_type)), "name": source_name}
         if cluster_id:
             json_data["source_ref"] = cluster_id
 
@@ -181,7 +181,10 @@ class SourcesDataGenerator:
         return response.get("id")
 
     def create_application(self, source_id, source_type):
-        json_data = {"source_id": str(source_id), "application_type_id": self._application_type_map.get(source_type)}
+        json_data = {
+            "source_id": str(source_id),
+            "application_type_id": str(self._application_type_map.get(source_type)),
+        }
 
         url = "{}/{}".format(self._base_url, "applications")
         r = requests.post(url, headers=self._identity_header, json=json_data)
