@@ -20,6 +20,7 @@
 # we expect this situation to be temporary as we iterate on these details.
 import datetime
 import os
+from decimal import Decimal
 
 from celery import chain
 from celery.utils.log import get_task_logger
@@ -372,3 +373,81 @@ def vacuum_schema(schema_name):
                 cursor.execute(sql)
                 LOG.info(sql)
                 LOG.info(cursor.statusmessage)
+
+
+@app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name="reporting")
+def autovacuum_tune_schema(schema_name):
+    """Set the autovacuum table settings based on table size for the specified schema."""
+    table_sql = """
+SELECT s.relname as "table_name",
+       s.n_live_tup,
+       coalesce(table_options.options, '{}'::jsonb) as "options"
+  FROM pg_stat_user_tables s
+  LEFT
+  JOIN (
+         select oid,
+                jsonb_object_agg(split_part(option, '=', 1), split_part(option, '=', 2)) as options
+           from (
+                  select oid,
+                         unnest(reloptions) as "option"
+                    from pg_class
+                   where reloptions is not null
+                ) table_options_raw
+          where option ~ '^autovacuum_vacuum_scale_factor'
+          group
+             by oid
+       ) as table_options
+    ON table_options.oid = s.relid
+ WHERE s.schemaname = %s
+ ORDER
+    BY s.n_live_tup desc;
+"""
+
+    alter_count = 0
+    xlrg_scale = Decimal("0.01")
+    lrg_scale = Decimal("0.02")
+    med_scale = Decimal("0.05")
+    no_scale = Decimal("100")
+    zero = Decimal("0")
+    reset = Decimal("-1")
+    scale_factor = zero
+    xlrg_table = 10000000
+    lrg_table = 1000000
+    med_table = 100000
+
+    with schema_context(schema_name):
+        with connection.cursor() as cursor:
+            cursor.execute(table_sql, [schema_name])
+            tables = cursor.fetchall()
+
+            for table in tables:
+                scale_factor = zero
+                table_name, n_live_tup, table_options = table
+                table_scale_option = table_options.get("autovacuum_vacuum_scale_factor", no_scale)
+                if (n_live_tup >= xlrg_table) and (table_scale_option > xlrg_scale):
+                    scale_factor = xlrg_scale
+                elif (n_live_tup >= lrg_table) and (table_scale_option > lrg_scale):
+                    scale_factor = lrg_scale
+                elif (n_live_tup >= med_table) and (table_scale_option > med_scale):
+                    scale_factor = med_scale
+                elif "autovacuum_vacuum_scale_factor" in table_options:
+                    scale_factor = reset
+
+                if scale_factor > zero:
+                    value = [scale_factor]
+                    sql = f"""
+ALTER TABLE {schema_name}.{table_name} set (autovacuum_vacuum_scale_factor = %s);
+"""
+                elif scale_factor < zero:
+                    value = None
+                    sql = f"""
+ALTER TABLE {schema_name}.{table_name} reset (autovacuum_vacuum_scale_factor);
+"""
+
+                if scale_factor != zero:
+                    alter_count += 1
+                    cursor.execute(sql.format(schema_name=schema_name, table_name=table_name), value)
+                    LOG.info(sql)
+                    LOG.info(cursor.statusmessage)
+
+    LOG.info(f"Altered autovacuum_vacuum_scale_factor on {alter_count} tables")

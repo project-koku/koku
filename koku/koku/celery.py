@@ -99,14 +99,25 @@ VACUUM_HOUR, VACUUM_MINUTE = VACUUM_DATA_UTC_TIME.split(":")
 
 if VACUUM_DATA_DAY_OF_WEEK:
     schedule = crontab(day_of_week=VACUUM_DATA_DAY_OF_WEEK, hour=int(VACUUM_HOUR), minute=int(VACUUM_MINUTE))
+    autovacuum_schedule = crontab(
+        day_of_week=VACUUM_DATA_DAY_OF_WEEK, hour=int(VACUUM_HOUR - 1), minute=int(VACUUM_MINUTE)
+    )
 else:
     schedule = crontab(hour=int(VACUUM_HOUR), minute=int(VACUUM_MINUTE))
+    autovacuum_schedule = crontab(hour=int(VACUUM_HOUR - 1), minute=int(VACUUM_MINUTE))
 
 app.conf.beat_schedule["vacuum-schemas"] = {
     "task": "masu.celery.tasks.vacuum_schemas",
     "schedule": schedule,
     "args": [],
 }
+
+app.conf.beat_schedule["autovacuum-tune-schemas"] = {
+    "task": "masu.celery.tasks.autovacuum_tune_schemas",
+    "schedule": autovacuum_schedule,
+    "args": [],
+}
+
 
 # Collect prometheus metrics.
 app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(minute="*/15")}
