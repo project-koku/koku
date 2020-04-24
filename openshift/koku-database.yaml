@@ -35,41 +35,6 @@ objects:
         memory: ${MEMORY_LIMIT}
     strategy:
       type: Recreate
-      recreateParams:
-        post:
-          failurePolicy: retry
-          execNewPod:
-            containerName: ${NAME}-db
-            command:
-            - /bin/sh
-            - -c
-            - >-
-              sleep 10 && psql $POSTGRESQL_DATABASE -p
-              $POSTGRES_SQL_SERVICE_PORT -h $POSTGRES_SQL_SERVICE_HOST -U
-              $POSTGRESQL_USER -c 'CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA
-              public; CREATE EXTENSION IF NOT EXISTS pg_stat_statements;'
-            env:
-              - name: POSTGRESQL_USER
-                value: ${POSTGRES_SQL_ADMIN}
-              - name: PGPASSWORD
-                valueFrom:
-                  secretKeyRef:
-                    key: database-admin-password
-                    name: koku-secret
-              - name: POSTGRESQL_DATABASE
-                value: ${DATABASE_NAME}
-              - name: POSTGRES_SQL_SERVICE_HOST
-                valueFrom:
-                  secretKeyRef:
-                    key: db.host
-                    name: koku-db
-                    optional: false
-              - name: POSTGRES_SQL_SERVICE_PORT
-                value: ${POSTGRES_SQL_SERVICE_PORT}
-              - name: IMAGE_TAG
-                value: ${IMAGE_TAG}
-              - name: IMAGE_NAMESPACE
-                value: ${IMAGE_NAMESPACE}
     template:
       metadata:
         name: ${NAME}-db
@@ -81,12 +46,12 @@ objects:
           - name: POSTGRESQL_USER
             valueFrom:
               secretKeyRef:
-                key: db.user
+                key: database-user
                 name: ${NAME}-db
           - name: POSTGRESQL_PASSWORD
             valueFrom:
               secretKeyRef:
-                key: db.password
+                key: database-password
                 name: ${NAME}-db
           - name: POSTGRESQL_ADMIN_PASSWORD
             valueFrom:
@@ -96,26 +61,6 @@ objects:
           - name: POSTGRESQL_DATABASE
             value: ${DATABASE_NAME}
           image: postgresql:latest
-          command:
-            - postgres
-            - -c
-            - shared_preload_libraries=pg_stat_statements
-            - -c
-            - autovacuum_max_workers=8
-            - -c
-            - autovacuum_vacuum_cost_limit=4800
-            - -c
-            - autovacuum_vacuum_cost_delay=10
-            - -c
-            - idle_in_transaction_session_timeout=30000
-            - -c
-            - pg_stat_statements.max=2000
-            - -c
-            - pg_stat_statements.save=off
-            - -c
-            - pg_stat_statements.track_utility=off
-            - -c
-            - track_activity_query_size=2048
           imagePullPolicy: IfNotPresent
           livenessProbe:
             exec:
