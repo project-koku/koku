@@ -83,6 +83,8 @@ class SourcesErrorMessage:
             display_fn = self._display_string_function(key)
             if display_fn:
                 display_message = display_fn(internal_message)
+            else:
+                display_message = internal_message
         else:
             display_message = str(self._error)
         return display_message
