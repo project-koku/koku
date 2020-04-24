@@ -77,12 +77,12 @@ class SourcesErrorMessage:
 
     def display(self):
         """Generate user friendly message."""
+        display_message = None
         if isinstance(self._error, ValidationError):
-            key, msg = self._extract_from_validation_error()
-            LOG.info(f"Error Status key: {str(key)} msg: {str(msg)}")
+            key, internal_message = self._extract_from_validation_error()
             display_fn = self._display_string_function(key)
             if display_fn:
-                msg = display_fn(msg)
+                display_message = display_fn(internal_message)
         else:
-            msg = str(self._error)
-        return msg
+            display_message = str(self._error)
+        return display_message
