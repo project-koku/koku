@@ -22,7 +22,6 @@ import logging
 from tenant_schemas.utils import schema_context
 
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_id_from_provider
@@ -44,8 +43,6 @@ class OCPReportSummaryUpdater:
         self._provider = provider
         self._manifest = manifest
         self._cluster_id = get_cluster_id_from_provider(self._provider.uuid)
-        with ReportingCommonDBAccessor() as reporting_common:
-            self._column_map = reporting_common.column_map
         self._date_accessor = DateAccessor()
 
     def update_daily_tables(self, start_date, end_date):
@@ -70,7 +67,7 @@ class OCPReportSummaryUpdater:
                 start,
                 end,
             )
-            with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+            with OCPReportDBAccessor(self._schema) as accessor:
                 accessor.populate_node_label_line_item_daily_table(start, end, self._cluster_id)
                 accessor.populate_line_item_daily_table(start, end, self._cluster_id)
                 accessor.populate_storage_line_item_daily_table(start, end, self._cluster_id)
@@ -91,7 +88,7 @@ class OCPReportSummaryUpdater:
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
         report_periods = None
-        with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+        with OCPReportDBAccessor(self._schema) as accessor:
             report_periods = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
             for start, end in date_range_pair(start_date, end_date):
                 LOG.info(
@@ -119,7 +116,7 @@ class OCPReportSummaryUpdater:
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
         # Default to this month's bill
-        with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+        with OCPReportDBAccessor(self._schema) as accessor:
             if self._manifest:
                 # Override the bill date to correspond with the manifest
                 bill_date = self._manifest.billing_period_start_datetime.date()

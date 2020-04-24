@@ -29,7 +29,6 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdater
@@ -44,13 +43,11 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         super().setUpClass()
-        with ReportingCommonDBAccessor() as report_common_db:
-            cls.column_map = report_common_db.column_map
 
-        cls.accessor = AWSReportDBAccessor(cls.schema, cls.column_map)
+        cls.accessor = AWSReportDBAccessor(cls.schema)
         cls.report_schema = cls.accessor.report_schema
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
-        cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
+        cls.creator = ReportObjectCreator(cls.schema)
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
 
@@ -84,7 +81,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
 
-        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AWSReportDBAccessor(self.schema) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             bill.summary_data_creation_datetime = start_date
             bill.save()
@@ -102,7 +99,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         self.updater.update_summary_tables(start_date_str, end_date_str)
         mock_summary.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
 
-        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AWSReportDBAccessor(self.schema) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             self.assertIsNotNone(bill.summary_data_creation_datetime)
             self.assertIsNotNone(bill.summary_data_updated_datetime)
@@ -150,7 +147,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         self.updater.update_summary_tables(start_date_str, end_date_str)
         self.assertEqual(mock_summary.call_args_list, expected_calls)
 
-        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AWSReportDBAccessor(self.schema) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             self.assertIsNotNone(bill.summary_data_creation_datetime)
             self.assertIsNotNone(bill.summary_data_updated_datetime)
@@ -211,7 +208,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         self.updater.update_summary_tables(start_date_str, end_date_str)
         self.assertEqual(mock_summary.call_args_list, expected_calls)
 
-        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AWSReportDBAccessor(self.schema) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             self.assertIsNotNone(bill.summary_data_creation_datetime)
             self.assertIsNotNone(bill.summary_data_updated_datetime)
@@ -241,7 +238,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
             self.updater.update_summary_tables(start_date_str, end_date_str)
         mock_summary.assert_called()
 
-        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AWSReportDBAccessor(self.schema) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             self.assertIsNotNone(bill.summary_data_creation_datetime)
             self.assertIsNotNone(bill.summary_data_updated_datetime)
@@ -288,7 +285,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         self.updater.update_summary_tables(start_date_str, end_date_str)
         self.assertEqual(mock_summary.call_args_list, expected_calls)
 
-        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AWSReportDBAccessor(self.schema) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             self.assertIsNotNone(bill.summary_data_creation_datetime)
             self.assertIsNotNone(bill.summary_data_updated_datetime)
@@ -318,7 +315,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
             self.updater.update_summary_tables(start_date_str, end_date_str)
         mock_summary.assert_called()
 
-        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AWSReportDBAccessor(self.schema) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             self.assertIsNotNone(bill.summary_data_creation_datetime)
             self.assertIsNotNone(bill.summary_data_updated_datetime)
@@ -350,7 +347,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         self.updater.update_summary_tables(start_date_str, end_date_str)
         mock_summary.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
 
-        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AWSReportDBAccessor(self.schema) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             self.assertIsNotNone(bill.summary_data_creation_datetime)
             self.assertGreater(bill.summary_data_updated_datetime, self.today)
