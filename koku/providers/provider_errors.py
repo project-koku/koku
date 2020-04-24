@@ -37,19 +37,62 @@ class ProviderErrors:
 
     # MESSAGES
     AWS_MISSING_RESOURCE_NAME_MESSAGE = "Provider resource name is a required parameter for AWS and must not be blank."
-    AWS_RESOURCE_NAME_UNREACHABLE_MESSAGE = "Incorrect ARN."
-    AWS_BUCKET_MISSING_MESSAGE = "Missing S3 bucket."
-    AWS_BILLING_SOURCE_NOT_FOUND_MESSAGE = "S3 bucket not found."
+    AWS_RESOURCE_NAME_UNREACHABLE_MESSAGE = (
+        f"The role ARN has been entered incorrectly for this source. "
+        "Edit your AWS source and verify the name of your ARN."
+    )
+    AWS_BUCKET_MISSING_MESSAGE = (
+        f"Cost management requires an S3 bucket to store cost and usage reports. "
+        "Edit your AWS source to include the name of your S3 bucket."
+    )
+    AWS_BILLING_SOURCE_NOT_FOUND_MESSAGE = (
+        f"The S3 bucket has been entered incorrectly for this source. "
+        "Edit your AWS source and verify the name of your S3 bucket."
+    )
 
-    AZURE_MISSING_EXPORT_MESSAGE = "Cost management export was not found."
-    AZURE_MISSING_RESOURCE_GROUP_AND_STORAGE_ACCOUNT_MESSAGE = "Missing resource group and storage account."
-    AZURE_MISSING_STORAGE_ACCOUNT_MESSAGE = "Missing storage account."
-    AZURE_MISSING_RESOURCE_GROUP_MESSAGE = "Missing resource group."
-    AZURE_MISSING_SUBSCRIPTION_ID_MESSAGE = "Missing subscription ID."
-    AZURE_MISSING_ALL_PATCH_VALUES_MESSAGE = "Missing subscription ID, resource group and storage account."
-    AZURE_INCORRECT_CLIENT_SECRET_MESSAGE = "Incorrect Azure client secret"
-    AZURE_INCORRECT_CLIENT_ID_MESSAGE = "Incorrect Azure client id."
-    AZURE_INCORRECT_RESOURCE_GROUP_MESSAGE = "Incorrect Azure storage resource group."
-    AZURE_INCORRECT_STORAGE_ACCOUNT_MESSAGE = "Incorrect Azure storage account."
-    AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE = "Incorrect Azure subscription id."
-    AZURE_GENERAL_CLIENT_ERROR_MESSAGE = "Client configuration error."
+    AZURE_MISSING_EXPORT_MESSAGE = (
+        "A cost management export cannot be found. In Azure, create a daily export task for your storage account."
+    )
+    AZURE_MISSING_RESOURCE_GROUP_AND_STORAGE_ACCOUNT_MESSAGE = (
+        f"Cost management requires a resource group and "
+        "storage account for this source. Edit your Azure "
+        "source to include these details."
+    )
+    AZURE_MISSING_STORAGE_ACCOUNT_MESSAGE = (
+        f"Cost management requires a storage account for this source. "
+        "Edit your Azure source to include the storage account."
+    )
+    AZURE_MISSING_RESOURCE_GROUP_MESSAGE = (
+        f"Cost management requires a resource group for this source. "
+        "Edit your Azure source to include the resource group."
+    )
+    AZURE_MISSING_SUBSCRIPTION_ID_MESSAGE = (
+        f"Cost management requires a subscription ID for this source. "
+        "Edit your Azure source to include the subscription ID."
+    )
+    AZURE_MISSING_ALL_PATCH_VALUES_MESSAGE = (
+        f"Cost management requires more information for your Azure source. "
+        "Edit your Azure source to include the subscription ID, resource group "
+        "and storage account."
+    )
+    AZURE_INCORRECT_CLIENT_SECRET_MESSAGE = (
+        f"The client secret has been entered incorrectly for this source. "
+        "Edit your Azure source and verify the client secret."
+    )
+    AZURE_INCORRECT_CLIENT_ID_MESSAGE = (
+        f"The client ID has been entered incorrectly for this source. "
+        "Edit your Azure source and verify the client ID."
+    )
+    AZURE_INCORRECT_RESOURCE_GROUP_MESSAGE = (
+        f"The resource group has been entered incorrectly for this source. "
+        "Edit your Azure source and verify the resource group."
+    )
+    AZURE_INCORRECT_STORAGE_ACCOUNT_MESSAGE = (
+        f"The storage account has been entered incorrectly for this source. "
+        "Edit your Azure source and verify the storage account."
+    )
+    AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE = (
+        f"The subscription ID has been entered incorrectly for this source. "
+        "Edit your Azure source and verify the subscription ID."
+    )
+    AZURE_GENERAL_CLIENT_ERROR_MESSAGE = "Azure client configuration error."
