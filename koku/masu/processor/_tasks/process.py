@@ -75,9 +75,9 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
         provider_uuid=provider_uuid,
         manifest_id=manifest_id,
     )
-    processor.process()
 
     with transaction.atomic():
+        processor.process()
         with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
             stats_recorder.log_last_completed_datetime()
 
