@@ -48,6 +48,7 @@ from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.report_processor import ReportProcessorError
+from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import remove_expired_data
@@ -842,5 +843,5 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("table", 20000000, {})]
         expected = "INFO:masu.processor.tasks:ALTER TABLE acct10001.table set (autovacuum_vacuum_scale_factor = 0.01);"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            vacuum_schema(self.schema)
+            autovacuum_tune_schema(self.schema)
             self.assertIn(expected, logger.output)

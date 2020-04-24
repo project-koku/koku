@@ -435,19 +435,17 @@ SELECT s.relname as "table_name",
 
                 if scale_factor > zero:
                     value = [scale_factor]
-                    sql = f"""
-ALTER TABLE {schema_name}.{table_name} set (autovacuum_vacuum_scale_factor = %s);
-"""
+                    sql = f"""ALTER TABLE {schema_name}.{table_name} set (autovacuum_vacuum_scale_factor = %s);"""
+                    sql_log = (sql % str(scale_factor)).replace("'", "")
                 elif scale_factor < zero:
                     value = None
-                    sql = f"""
-ALTER TABLE {schema_name}.{table_name} reset (autovacuum_vacuum_scale_factor);
-"""
+                    sql = f"""ALTER TABLE {schema_name}.{table_name} reset (autovacuum_vacuum_scale_factor);"""
+                    sql_log = sql
 
                 if scale_factor != zero:
                     alter_count += 1
-                    cursor.execute(sql.format(schema_name=schema_name, table_name=table_name), value)
-                    LOG.info(sql)
+                    cursor.execute(sql, value)
+                    LOG.info(sql_log)
                     LOG.info(cursor.statusmessage)
 
     LOG.info(f"Altered autovacuum_vacuum_scale_factor on {alter_count} tables")
