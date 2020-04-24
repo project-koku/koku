@@ -15,8 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """AWS Tag Query Handling."""
-from django.contrib.postgres.aggregates import ArrayAgg
-
 from api.models import Provider
 from api.organizations.provider_map import ProviderMap
 from api.organizations.queries import OrgQueryHandler
@@ -31,17 +29,9 @@ class AWSOrgProviderMap(ProviderMap):
         self._mapping = [
             {
                 "provider": Provider.PROVIDER_AWS,
-                "report_type": {
-                    "organizations": {
-                        "annotations": {"accounts": ArrayAgg("account_id", distinct=True)},
-                        "filter": [{}],
-                        "default_ordering": {},
-                    },
-                    "tags": {},
-                },
+                "report_type": {"organizations": {"filter": [{}], "default_ordering": {}}, "tags": {}},
             }
         ]
-
         self.views = {"organizations": {"default": AWSOrganizationalUnit}}
         super().__init__(provider, report_type)
 
@@ -53,14 +43,13 @@ class AWSOrgQueryHandler(OrgQueryHandler):
     data_sources = [
         {
             "db_table": AWSOrganizationalUnit,
-            "created_db_column": "created_timestamp",
-            "deleted_db_column": "deleted_timestamp",
-            "annotations": {"accounts": ArrayAgg("account_id", distinct=True)},
-            "query_values": ["org_unit_id", "org_unit_name", "org_unit_path", "level"],
-            "key_only_filter_column": "account_id",
+            "created_time_column": "created_timestamp",
+            "deleted_time_column": "deleted_timestamp",
+            "account_alias_column": "account_alias",
             "org_id_column": "org_unit_id",
-            "primary_key_column": "id",
-            "parent_org_column": "parent_id",
+            "org_path_column": "org_unit_path",
+            "org_name_column": "org_unit_name",
+            "level_column": "level",
         }
     ]
     SUPPORTED_FILTERS = ["account"]

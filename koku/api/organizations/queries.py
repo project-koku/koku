@@ -18,6 +18,8 @@
 import copy
 import logging
 
+from django.contrib.postgres.aggregates import ArrayAgg
+from django.db.models import F
 from django.db.models import Q
 from django.db.models.functions import Coalesce
 from tenant_schemas.utils import tenant_context
@@ -194,11 +196,11 @@ class OrgQueryHandler(QueryHandler):
         exclusions = QueryFilterCollection()
         for source in self.data_sources:
             # Remove org units delete on date or before
-            created_field = source.get("created_db_column")
+            created_field = source.get("created_time_column")
             created_filter = QueryFilter(field=f"{created_field}", operation="gte", parameter=self.end_datetime)
             exclusions.add(created_filter)
             # Remove org units created after date
-            deleted_field = source.get("deleted_db_column")
+            deleted_field = source.get("deleted_time_column")
             deleted_filter = QueryFilter(field=f"{deleted_field}", operation="lte", parameter=self.start_datetime)
             exclusions.add(deleted_filter)
         composed_exclusions = exclusions.compose()
@@ -210,18 +212,21 @@ class OrgQueryHandler(QueryHandler):
         level = data.get("level")
         level = level + 1
         unit_path = data.get("org_unit_path")
-        sub_ou = list()
         with tenant_context(self.tenant):
             exclusion = self._get_exclusions()
             for source in self.data_sources:
+                # Grab columns for this query
+                account_info = source.get("account_alias_column")
+                level_column = source.get("level_column")
+                org_id = source.get("org_id_column")
+                org_path = source.get("org_path_column")
                 # Build filters
                 filters = QueryFilterCollection()
-                key_only_filter_field = source.get("key_only_filter_column")
-                no_accounts = QueryFilter(field=f"{key_only_filter_field}", operation="isnull", parameter=True)
+                no_accounts = QueryFilter(field=f"{account_info}", operation="isnull", parameter=True)
                 filters.add(no_accounts)
-                exact_parent_id = QueryFilter(field="level", operation="exact", parameter=level)
+                exact_parent_id = QueryFilter(field=f"{level_column}", operation="exact", parameter=level)
                 filters.add(exact_parent_id)
-                path_on_like = QueryFilter(field="org_unit_path", operation="icontains", parameter=unit_path)
+                path_on_like = QueryFilter(field=f"{org_path}", operation="icontains", parameter=unit_path)
                 filters.add(path_on_like)
                 composed_filters = filters.compose()
                 # Start quering
@@ -230,22 +235,29 @@ class OrgQueryHandler(QueryHandler):
                 if self.query_filter:
                     sub_org_query = sub_org_query.filter(self.query_filter)
                 sub_org_query = sub_org_query.filter(composed_filters)
-                sub_org_query = sub_org_query.values("org_unit_id")
-            for sub_org in sub_org_query:
-                sub_ou.append(sub_org.get("org_unit_id"))
-        return set(sub_ou)
+                val_list = [level_column]
+                sub_org_query = sub_org_query.values(*val_list)
+                sub_org_query = sub_org_query.annotate(subs_list=ArrayAgg(f"{org_id}", distinct=True))
+        if sub_org_query:
+            return sub_org_query[0].get("subs_list", [])
+        else:
+            return []
 
     def _get_accounts_list(self, org_id):
         """Returns an account list for given org_id."""
-        accounts = list()
         with tenant_context(self.tenant):
             exclusion = self._get_exclusions()
             for source in self.data_sources:
+                # Grab columns for this query
+                account_info = source.get("account_alias_column")
+                org_id_column = source.get("org_id_column")
+                org_name = source.get("org_name_column")
+                org_path = source.get("org_path_column")
+                # Create filters & Query
                 filters = QueryFilterCollection()
-                key_only_filter_field = source.get("key_only_filter_column")
-                no_org_units = QueryFilter(field=f"{key_only_filter_field}", operation="isnull", parameter=False)
+                no_org_units = QueryFilter(field=f"{account_info}", operation="isnull", parameter=False)
                 filters.add(no_org_units)
-                exact_org_id = QueryFilter(field="org_unit_id", operation="exact", parameter=org_id)
+                exact_org_id = QueryFilter(field=f"{org_id_column}", operation="exact", parameter=org_id)
                 filters.add(exact_org_id)
                 composed_filters = filters.compose()
                 sub_org_query = source.get("db_table").objects
@@ -253,13 +265,18 @@ class OrgQueryHandler(QueryHandler):
                 if self.query_filter:
                     sub_org_query = sub_org_query.filter(self.query_filter)
                 sub_org_query = sub_org_query.filter(composed_filters)
-                sub_org_query = sub_org_query.values("account_id")
-                sub_org_query = sub_org_query.order_by("account_id", "-created_timestamp").distinct("account_id")
-                sub_org_query = sub_org_query.annotate(alias=Coalesce("account_alias__account_alias", "account_id"))
-
-            for account in sub_org_query:
-                accounts.append(account.get("alias"))
-        return set(accounts)
+                val_list = [org_name, org_id_column, org_path]
+                sub_org_query = sub_org_query.values(*val_list)
+                # sub_org_query = sub_org_query.order_by("account_id", "-created_timestamp").distinct("account_id")
+                sub_org_query = sub_org_query.annotate(
+                    alias_list=ArrayAgg(
+                        Coalesce(F(f"{account_info}__account_alias"), F(f"{account_info}__account_id")), distinct=True
+                    )
+                )
+        if sub_org_query:
+            return sub_org_query[0].get("alias_list", [])
+        else:
+            return []
 
     def get_org_units(self):
         """Get a list of org keys to build upon."""
@@ -267,24 +284,26 @@ class OrgQueryHandler(QueryHandler):
         with tenant_context(self.tenant):
             exclusion = self._get_exclusions()
             for source in self.data_sources:
+                # Grab columns for this query
+                org_id = source.get("org_id_column")
+                org_path = source.get("org_path_column")
+                org_name = source.get("org_name_column")
+                level = source.get("level_column")
+                account_info = source.get("account_alias_column")
+                created_field = source.get("created_time_column")
+                # Create filters & Query
                 filters = QueryFilterCollection()
-                key_only_filter_field = source.get("key_only_filter_column")
-                no_accounts = QueryFilter(field=f"{key_only_filter_field}", operation="isnull", parameter=True)
+                no_accounts = QueryFilter(field=f"{account_info}", operation="isnull", parameter=True)
                 filters.add(no_accounts)
                 composed_filters = filters.compose()
-                # org_id = source.get("org_id_column")
-                # primary_key = source.get("primary_key_column")
-                # created_field = source.get("created_db_column")
                 org_unit_query = source.get("db_table").objects
-                value_list = source.get("query_values")
                 org_unit_query = org_unit_query.exclude(exclusion)
-                if value_list:
-                    org_unit_query = org_unit_query.values(*value_list)
+                val_list = [org_id, org_name, org_path, level]
+                org_unit_query = org_unit_query.values(*val_list)
                 if self.query_filter:
                     org_unit_query = org_unit_query.filter(self.query_filter)
                 org_unit_query = org_unit_query.filter(composed_filters)
-                # org_unit_query.order_by(f"{org_id}", f"-{created_field}").distinct(f"{org_id}")
-                # org_unit_query.order_by(f"+{primary_key}")
+                org_unit_query = org_unit_query.order_by(f"{org_id}", f"-{created_field}").distinct(f"{org_id}")
                 org_units.extend(org_unit_query)
         return org_units
 
@@ -296,13 +315,12 @@ class OrgQueryHandler(QueryHandler):
 
         """
         query_data = self.get_org_units()
+
         if not self.parameters.get("key_only"):
             for data in query_data:
                 org_id = data.get("org_unit_id")
-                sub_ou_list = self._get_sub_ou_list(data)
-                accounts_list = self._get_accounts_list(org_id)
-                data["accounts"] = accounts_list
-                data["sub_orgs"] = sub_ou_list
+                data["sub_orgs"] = self._get_sub_ou_list(data)
+                data["accounts"] = self._get_accounts_list(org_id)
 
         self.query_data = query_data
         return self._format_query_response()
