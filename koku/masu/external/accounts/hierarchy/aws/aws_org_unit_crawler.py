@@ -17,16 +17,14 @@
 """AWS org unit crawler."""
 # from tenant_schemas.utils import schema_context
 import logging
-import pkgutil
 
-from django.db import connection
 from django.db import transaction
-from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 from masu.external.accounts.hierarchy.account_crawler import AccountCrawler
 from masu.external.date_accessor import DateAccessor
 from masu.util.aws import common as utils
+from reporting.provider.aws.models import AWSAccountAlias
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
@@ -46,7 +44,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
         self._auth_cred = self.account.get("authentication")
         self._date_accessor = DateAccessor()
         self.client = None
-        self.jinja_sql = JinjaSql()
+        self.account_alias_map = None
 
     def _init_session(self):
         """
@@ -100,7 +98,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             function=self.client.list_accounts_for_parent, resource_key="Accounts", ParentId=parent_id
         )
         for act_info in child_accounts:
-            self._save_aws_org_method(ou, prefix, level, act_info.get("Id"))
+            self._save_aws_org_method(ou, prefix, level, act_info)
 
     def _crawl_org_for_accounts(self, ou, prefix, level):
         """
@@ -131,7 +129,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 "Failure processing org unit.  Account schema {} and org_unit_id {}".format(self.schema, ou.get("Id"))
             )
 
-    def _save_aws_org_method(self, ou, unit_path, level, account_id=None):
+    def _save_aws_org_method(self, ou, unit_path, level, account=None):
         """
         Recursively crawls the org units and accounts.
 
@@ -145,21 +143,47 @@ class AWSOrgUnitCrawler(AccountCrawler):
         """
         unit_name = ou.get("Name", ou.get("Id"))
         unit_id = ou.get("Id")
+        account_alias = None
+
         with schema_context(self.schema):
-            obj, created = AWSOrganizationalUnit.objects.get_or_create(
+            # This is a leaf node
+            if account:
+                # Look for an existing alias
+                account_id = account.get("Id")
+                account_name = account.get("Name")
+                account_alias = self.account_alias_map.get(account_id)
+                if not account_alias:
+                    # Create a new account alias (not cached
+                    account_alias, created = AWSAccountAlias.objects.get_or_create(account_id=account_id)
+                    self.account_alias_map[account_id] = account_alias
+                    LOG.info(
+                        "Saving account alias: account_id=%s, account_alias=%s, created=%s"
+                        % (account_id, account_name, created)
+                    )
+
+                if account_name and account_alias.account_alias != account_name:
+                    # The name was not set or changed since last scan.
+                    LOG.info(
+                        "Updating account alias: account_id=%s, old_account_alias=%s, new_account_alias=%s"
+                        % (account_id, account_alias.account_alias, account_name)
+                    )
+                    account_alias.account_alias = account_name
+                    account_alias.save()
+
+            org_unit, created = AWSOrganizationalUnit.objects.get_or_create(
                 org_unit_name=unit_name,
                 org_unit_id=unit_id,
                 org_unit_path=unit_path,
-                account_id=account_id,
+                account_alias=account_alias,
                 level=level,
             )
             if created:
                 # only log it was saved if was created to reduce logging on everyday calls
                 LOG.info(
-                    "Saving account or org unit: unit_name=%s, unit_id=%s, unit_path=%s, account_id=%s, level=%s"
-                    % (unit_name, unit_id, unit_path, account_id, level)
+                    "Saving account or org unit: unit_name=%s, unit_id=%s, unit_path=%s, account_alias=%s, level=%s"
+                    % (unit_name, unit_id, unit_path, account_alias, level)
                 )
-            return obj
+            return org_unit
 
     def _delete_aws_account(self, account_id):
         """
@@ -172,7 +196,8 @@ class AWSOrgUnitCrawler(AccountCrawler):
         """
         LOG.info("Marking account deleted: account_id=%s" % (account_id))
         with schema_context(self.schema):
-            accounts = AWSOrganizationalUnit.objects.filter(account_id=account_id)
+            account_alias = AWSAccountAlias.objects.filter(account_id=account_id).first()
+            accounts = AWSOrganizationalUnit.objects.filter(account_alias=account_alias)
             # The can be multiple records for a single accounts due to changes in org structure
             for account in accounts:
                 account.deleted_timestamp = self._date_accessor.today().strftime("%Y-%m-%d")
@@ -197,24 +222,25 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 account.save()
             return accounts
 
-    def _attach_account_alias_foreign_key(self):
-        """Attaches the account alias foreign key after crawler has finished."""
-        LOG.info("Setting the account alias for crawler results.")
-        daily_sql = pkgutil.get_data("masu.database", "sql/reporting_awsorganizationalunit.sql")
-        daily_sql = daily_sql.decode("utf-8")
-        daily_sql_params = {"schema": self.schema}
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
-        with connection.cursor() as cursor:
-            cursor.db.set_schema(self.schema)
-            cursor.execute(summary_sql, params=list(summary_sql_params))
-
     @transaction.atomic
     def crawl_account_hierarchy(self):
         self._init_session()
+        self._build_accout_alias_map()
         root_ou = self.client.list_roots()["Roots"][0]
         LOG.info("Obtained the root identifier: %s" % (root_ou["Id"]))
         self._crawl_org_for_accounts(root_ou, root_ou.get("Id"), level=0)
-        self._attach_account_alias_foreign_key()
+
+    def _build_accout_alias_map(self):
+        """
+        Builds a map of account_id to account alias for foreign keys
+
+        Returns:
+            dict: account_id to AWSAccountAlias
+        """
+        self.account_alias_map = {}
+        with schema_context(self.schema):
+            for alias in AWSAccountAlias.objects.all():
+                self.account_alias_map[alias.account_id] = alias
 
     def _compute_org_structure_for_day(self, start_date, end_date=None):
         """Compute the org structure for a day."""
@@ -236,14 +262,14 @@ class AWSOrgUnitCrawler(AccountCrawler):
             aws_node_qs = aws_node_qs.exclude(created_timestamp__gt=end_date)
 
             aws_org_units = (
-                aws_node_qs.filter(account_id__isnull=True)
+                aws_node_qs.filter(account_alias__isnull=True)
                 .order_by("org_unit_id", "-created_timestamp")
                 .distinct("org_unit_id")
             )
             aws_accounts = (
-                aws_node_qs.filter(account_id__isnull=False)
-                .order_by("account_id", "-created_timestamp")
-                .distinct("account_id")
+                aws_node_qs.filter(account_alias__isnull=False)
+                .order_by("account_alias", "-created_timestamp")
+                .distinct("account_alias")
             )
 
             LOG.info("$$$$ BEGIN PRINT TREE $$$$")

@@ -272,6 +272,12 @@ class AWSAccountAlias(models.Model):
     account_id = models.CharField(max_length=50, null=False, unique=True)
     account_alias = models.CharField(max_length=63, null=True)
 
+    def __str__(self):
+        """Convert to string."""
+        return (
+            "{ id : %s, " "account_id : %s, " "account_alias : %s }" % (self.id, self.account_id, self.account_alias)
+        )
+
 
 class AWSTagsSummary(models.Model):
     """A collection of all current existing tag key and values."""
@@ -789,19 +795,18 @@ class AWSOrganizationalUnit(models.Model):
             "org_unit_name : %s, "
             "org_unit_id : %s, "
             "org_unit_path : %s, "
+            "level : %s, "
             "account_alias : %s, "
             "created_timestamp : %s, "
-            "deleted_timestamp : %s, "
-            "level : %s }"
+            "deleted_timestamp : %s }"
             % (
                 self.id,
                 self.org_unit_name,
                 self.org_unit_id,
-                self.level,
                 self.org_unit_path,
+                self.level,
                 self.account_alias,
                 self.created_timestamp,
                 self.deleted_timestamp,
-                self.level,
             )
         )
