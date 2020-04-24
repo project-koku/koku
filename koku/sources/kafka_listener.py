@@ -40,12 +40,13 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from sources import storage
+from sources.api.status import check_kafka_connection
 from sources.config import Config
-from sources.kafka_source_manager import KafkaSourceManager
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 from sources.tasks import create_or_update_provider
+from sources.tasks import delete_source_and_provider
 
 LOG = logging.getLogger(__name__)
 
@@ -62,11 +63,16 @@ KAFKA_HDR_RH_IDENTITY = "x-rh-identity"
 KAFKA_HDR_EVENT_TYPE = "event_type"
 SOURCES_OCP_SOURCE_NAME = "openshift"
 SOURCES_AWS_SOURCE_NAME = "amazon"
+SOURCES_AWS_LOCAL_SOURCE_NAME = "amazon-local"
 SOURCES_AZURE_SOURCE_NAME = "azure"
+SOURCES_AZURE_LOCAL_SOURCE_NAME = "azure-local"
+
 SOURCE_PROVIDER_MAP = {
     SOURCES_OCP_SOURCE_NAME: Provider.PROVIDER_OCP,
     SOURCES_AWS_SOURCE_NAME: Provider.PROVIDER_AWS,
+    SOURCES_AWS_LOCAL_SOURCE_NAME: Provider.PROVIDER_AWS_LOCAL,
     SOURCES_AZURE_SOURCE_NAME: Provider.PROVIDER_AZURE,
+    SOURCES_AZURE_LOCAL_SOURCE_NAME: Provider.PROVIDER_AZURE_LOCAL,
 }
 
 
@@ -237,9 +243,9 @@ def save_auth_info(auth_header, source_id):
                 authentication = {"resource_name": source_details.get("source_ref")}
             else:
                 raise SourcesHTTPClientError("Unable to find Cluster ID")
-        elif source_type == Provider.PROVIDER_AWS:
+        elif source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
             authentication = {"resource_name": sources_network.get_aws_role_arn()}
-        elif source_type == Provider.PROVIDER_AZURE:
+        elif source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             authentication = {"credentials": sources_network.get_azure_credentials()}
         else:
             LOG.error(f"Unexpected source type: {source_type}")
@@ -320,7 +326,13 @@ def cost_mgmt_msg_filter(msg_data):
     source_type_id = int(source_details.get("source_type_id"))
     source_type_name = sources_network.get_source_type_name(source_type_id)
 
-    if source_type_name not in (SOURCES_OCP_SOURCE_NAME, SOURCES_AWS_SOURCE_NAME, SOURCES_AZURE_SOURCE_NAME):
+    if source_type_name not in (
+        SOURCES_OCP_SOURCE_NAME,
+        SOURCES_AWS_SOURCE_NAME,
+        SOURCES_AWS_LOCAL_SOURCE_NAME,
+        SOURCES_AZURE_SOURCE_NAME,
+        SOURCES_AZURE_LOCAL_SOURCE_NAME,
+    ):
         LOG.debug(f"Filtering unexpected source type {source_type_name}.")
         return None
     return msg_data
@@ -493,7 +505,6 @@ def execute_koku_provider_op(msg, cost_management_type_id):
     """
     provider = msg.get("provider")
     operation = msg.get("operation")
-    source_mgr = KafkaSourceManager(provider.auth_header)
 
     try:
         if operation == "create":
@@ -503,13 +514,11 @@ def execute_koku_provider_op(msg, cost_management_type_id):
             task = create_or_update_provider.delay(provider.source_id)
             LOG.info(f"Updating Koku Provider for Source ID: {str(provider.source_id)} in task: {task.id}")
         elif operation == "destroy":
-            if provider.koku_uuid:
-                try:
-                    source_mgr.destroy_provider(provider.koku_uuid)
-                    LOG.info(f"Koku Provider UUID ({str(provider.koku_uuid)}) Removal Succeeded")
-                except Exception as err:
-                    LOG.info(f"Koku Provider removal failed. Error: {str(err)}.")
-            storage.destroy_source_event(provider.source_id)
+            task = delete_source_and_provider.delay(provider.source_id, provider.source_uuid, provider.auth_header)
+            LOG.info(f"Deleting Koku Provider/Source for Source ID: {str(provider.source_id)} in task: {task.id}")
+        else:
+            LOG.error(f"unknown operation: {operation}")
+
     except RabbitOperationalError:
         err_msg = f"RabbitmQ unavailable. Unable to {operation} Source ID: {provider.source_id}"
         LOG.error(err_msg)
@@ -613,50 +622,24 @@ def backoff(interval, maximum=120):
     time.sleep(wait)
 
 
-def check_kafka_connection():  # pragma: no cover
+def is_kafka_connected():  # pragma: no cover
     """
     Check connectability to Kafka messenger.
-
-    This method runs when asyncio_sources_thread is initialized. It
-    creates a temporary thread and consumer. The consumer is started
-    to check our connection to Kafka. If the consumer starts successfully,
-    then Kafka is running. The consumer is stopped and the function
-    returns. If there is no Kafka connection, the consumer.start() will
-    fail, raising an exception. The function will retry to start the
-    consumer, and will continue until a connection is possible.
 
     This method will block sources integration initialization until
     Kafka is connected.
     """
-
-    async def test_consumer(consumer, method):
-        started = None
-        if method == "start":
-            await consumer.start()
-            started = True
-        else:
-            await consumer.stop()
-        return started
-
     count = 0
     result = False
-    temp_loop = asyncio.new_event_loop()
-    consumer = AIOKafkaConsumer(loop=temp_loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id=None)
     while not result:
-        try:
-            result = temp_loop.run_until_complete(test_consumer(consumer, "start"))
-            LOG.info(f"Test consumer connection to Kafka was successful.")
-            break
-        except KafkaError as err:
-            LOG.error(f"Unable to connect to Kafka server.  Error: {err}")
+        result = check_kafka_connection()
+        if result:
+            LOG.info(f"Test connection to Kafka was successful.")
+        else:
+            LOG.error("Unable to connect to Kafka server.")
             KAFKA_CONNECTION_ERRORS_COUNTER.inc()
             backoff(count)
             count += 1
-        finally:
-            temp_loop.run_until_complete(test_consumer(consumer, "stop"))  # stop any consumers started
-    temp_loop.stop()  # loop must be stopped before calling .close()
-    temp_loop.close()  # eliminate the temporary loop
-
     return result
 
 
@@ -704,7 +687,7 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
         except KeyboardInterrupt:
             sys.exit(0)
 
-    if check_kafka_connection():  # Next, check that Kafka is running
+    if is_kafka_connected():  # Next, check that Kafka is running
         LOG.info("Kafka is running...")
 
     load_process_queue()

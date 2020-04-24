@@ -12,7 +12,6 @@ from django.conf import settings
 
 from masu.config import Config
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util import common as utils
 from reporting.provider.gcp.models import GCPCostEntryBill
@@ -67,10 +66,6 @@ class GCPReportProcessor(ReportProcessorBase):
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
 
         self._schema = schema_name
-
-        # Gather database accessors
-        with ReportingCommonDBAccessor() as report_common_db:
-            self.column_map = report_common_db.column_map
 
         LOG.info("Initialized report processor for file: %s and schema: %s", report_path, self._schema)
 
@@ -189,7 +184,7 @@ class GCPReportProcessor(ReportProcessorBase):
         # Read the csv in batched chunks.
         report_csv = pandas.read_csv(self._report_path, chunksize=self._batch_size, compression="infer")
 
-        with GCPReportDBAccessor(self._schema, self.column_map) as report_db:
+        with GCPReportDBAccessor(self._schema) as report_db:
 
             for chunk in report_csv:
 

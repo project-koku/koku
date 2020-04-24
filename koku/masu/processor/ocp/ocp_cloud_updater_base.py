@@ -21,7 +21,6 @@ import logging
 from api.provider.models import Provider
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 
 LOG = logging.getLogger(__name__)
@@ -46,8 +45,6 @@ class OCPCloudUpdaterBase:
         self._provider = provider
         self._provider_uuid = str(self._provider.uuid)
         self._manifest = manifest
-        with ReportingCommonDBAccessor() as reporting_common:
-            self._column_map = reporting_common.column_map
         self._date_accessor = DateAccessor()
 
     def get_infra_map(self):
@@ -86,17 +83,17 @@ class OCPCloudUpdaterBase:
         """
         infra_map = {}
         if self._provider.type == Provider.PROVIDER_OCP:
-            with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+            with OCPReportDBAccessor(self._schema) as accessor:
                 infra_map = accessor.get_ocp_infrastructure_map(
                     start_date, end_date, ocp_provider_uuid=self._provider_uuid
                 )
         elif self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+            with OCPReportDBAccessor(self._schema) as accessor:
                 infra_map = accessor.get_ocp_infrastructure_map(
                     start_date, end_date, aws_provider_uuid=self._provider_uuid
                 )
         elif self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+            with OCPReportDBAccessor(self._schema) as accessor:
                 infra_map = accessor.get_ocp_infrastructure_map(
                     start_date, end_date, azure_provider_uuid=self._provider_uuid
                 )

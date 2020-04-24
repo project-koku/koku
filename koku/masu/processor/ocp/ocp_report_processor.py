@@ -30,7 +30,6 @@ from django.conf import settings
 
 from masu.config import Config
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
 from reporting.provider.ocp.models import OCPNodeLabelLineItem
 from reporting.provider.ocp.models import OCPStorageLineItem
@@ -191,10 +190,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
 
-        with ReportingCommonDBAccessor() as report_common_db:
-            self.column_map = report_common_db.column_map
-
-        with OCPReportDBAccessor(self._schema, self.column_map) as report_db:
+        with OCPReportDBAccessor(self._schema) as report_db:
             self.existing_report_periods_map = report_db.get_report_periods()
             self.existing_report_map = report_db.get_reports()
 
@@ -310,7 +306,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
         row_count = 0
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode) as f:
-            with OCPReportDBAccessor(self._schema, self.column_map) as report_db:
+            with OCPReportDBAccessor(self._schema) as report_db:
                 temp_table = report_db.create_temp_table(self.table_name._meta.db_table, drop_column="id")
                 LOG.info("File %s opened for processing", str(f))
                 reader = csv.DictReader(f)

@@ -28,7 +28,6 @@ from api.utils import DateHelper
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 
@@ -41,11 +40,9 @@ class AzureReportDBAccessorTest(MasuTestCase):
         """Set up the test class with required objects."""
         super().setUpClass()
 
-        cls.common_accessor = ReportingCommonDBAccessor()
-        cls.column_map = cls.common_accessor.column_map
-        cls.accessor = AzureReportDBAccessor(schema=cls.schema, column_map=cls.column_map)
+        cls.accessor = AzureReportDBAccessor(schema=cls.schema)
         cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
+        cls.creator = ReportObjectCreator(cls.schema)
         cls.dh = DateHelper()
 
         cls.all_tables = list(AZURE_REPORT_TABLE_MAP.values())
@@ -276,7 +273,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
                 "project_markup_cost__sum"
             ]
 
-        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AzureReportDBAccessor(self.schema) as accessor:
             accessor.populate_ocp_on_azure_markup_cost(markup_value, bill_ids=bill_ids)
 
         with schema_context(self.schema):
@@ -310,7 +307,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
                 "project_markup_cost__sum"
             ]
 
-        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+        with AzureReportDBAccessor(self.schema) as accessor:
             accessor.populate_ocp_on_azure_markup_cost(markup_value)
 
         with schema_context(self.schema):

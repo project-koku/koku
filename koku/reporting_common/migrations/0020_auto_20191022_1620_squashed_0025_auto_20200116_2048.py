@@ -6,25 +6,6 @@ import django.db.models.deletion
 from django.db import migrations
 from django.db import models
 
-# REPORTING_COMMON
-
-# Functions from the following migrations need manual copying.
-# Move them and any dependencies into this file, then update the
-# RunPython operations to refer to the local versions:
-# reporting_common.migrations.0022_add_gcp_column_maps
-def load_gcp_column_map(apps, schema_editor):
-    """Load GCP column map to database mapping."""
-    ReportColumnMap = apps.get_model("reporting_common", "ReportColumnMap")
-    ReportColumnMap.objects.filter(provider_type="GCP").delete()
-
-    data = pkgutil.get_data("reporting_common", "data/gcp_report_column_map.json")
-
-    data = json.loads(data)
-
-    for entry in data:
-        map = ReportColumnMap(**entry)
-        map.save()
-
 
 class Migration(migrations.Migration):
 
@@ -41,4 +22,4 @@ class Migration(migrations.Migration):
         ("reporting_common", "0001_initial_squashed_0007_auto_20190208_0316_squashed_0019_auto_20191022_1602")
     ]
 
-    operations = [migrations.RunPython(code=load_gcp_column_map)]
+    operations = []
