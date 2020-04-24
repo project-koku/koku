@@ -86,8 +86,10 @@ def _azure_provider_ready_for_create(provider):
 
 SCREEN_MAP = {
     Provider.PROVIDER_AWS: _aws_provider_ready_for_create,
+    Provider.PROVIDER_AWS_LOCAL: _aws_provider_ready_for_create,
     Provider.PROVIDER_OCP: _ocp_provider_ready_for_create,
     Provider.PROVIDER_AZURE: _azure_provider_ready_for_create,
+    Provider.PROVIDER_AZURE_LOCAL: _azure_provider_ready_for_create,
 }
 
 
