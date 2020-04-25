@@ -840,8 +840,31 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     def test_autovacuum_tune_schema(self, mock_conn):
         """Test that the autovacuum tuning runs."""
         logging.disable(logging.NOTSET)
-        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("table", 20000000, {})]
-        expected = "INFO:masu.processor.tasks:ALTER TABLE acct10001.table set (autovacuum_vacuum_scale_factor = 0.01);"
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 20000000, {})]
+        expected = (
+            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.01);"
+        )
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 2000000, {})]
+        expected = (
+            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.02);"
+        )
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 200000, {})]
+        expected = (
+            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.05);"
+        )
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
+            ("cost_model", 20000, {"autovacuum_vacuum_scale_factor": 0.02})
+        ]
+        expected = "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model reset (autovacuum_vacuum_scale_factor);"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
             self.assertIn(expected, logger.output)
