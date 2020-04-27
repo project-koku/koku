@@ -55,19 +55,6 @@ class ReportDownloader:
         report_name=None,
     ):
         """Set the downloader based on the backend cloud provider."""
-        LOG.warning(
-            (
-                self,
-                task,
-                customer_name,
-                access_credential,
-                report_source,
-                provider_type,
-                provider_uuid,
-                cache_key,
-                report_name,
-            )
-        )
         self.task = task
         self.customer_name = customer_name
         self.credential = access_credential
