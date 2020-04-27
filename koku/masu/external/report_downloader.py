@@ -180,10 +180,10 @@ class ReportDownloader:
         Otherwise returns False.
 
         """
-        count = CostUsageReportStatus.objects.filter(
-            report_name=report_name, last_completed_datetime__isnull=True
-        ).count()
-        return count == 0
+        report_record = CostUsageReportStatus.objects.filter(report_name=report_name)
+        if report_record:
+            return report_record.filter(last_completed_datetime__is_null=True).exists()
+        return False
 
     def download_report(self, date_time):
         """
@@ -206,6 +206,7 @@ class ReportDownloader:
             local_file_name = self._downloader.get_local_file_for_report(report)
 
             if self.is_report_processed(local_file_name):
+                LOG.info(f"File has already been processed: {local_file_name}. Skipping...")
                 break
             with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
                 stored_etag = stats_recorder.get_etag()
