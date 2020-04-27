@@ -19,6 +19,7 @@
 # disabled module-wide due to current state of task signature.
 # we expect this situation to be temporary as we iterate on these details.
 import datetime
+import json
 import os
 from decimal import Decimal
 
@@ -403,18 +404,29 @@ SELECT s.relname as "table_name",
     BY s.n_live_tup desc;
 """
 
+    # initialize settings
+    scale_table = [(10000000, Decimal("0.01")), (1000000, Decimal("0.02")), (100000, Decimal("0.05"))]
     alter_count = 0
-    xlrg_scale = Decimal("0.01")
-    lrg_scale = Decimal("0.02")
-    med_scale = Decimal("0.05")
     no_scale = Decimal("100")
     zero = Decimal("0")
     reset = Decimal("-1")
     scale_factor = zero
-    xlrg_table = 10000000
-    lrg_table = 1000000
-    med_table = 100000
 
+    # override with environment
+    # This environment vaiable's data will be a JSON string in the form of:
+    # [[threshold, scale], ...]
+    # Where:
+    #     threshold is a integer number representing the approximate number of rows (tuples)
+    #     scale is the autovacuum_vacuum_scale_factor value (deimal number as string. ex "0.05")
+    #     See: https://www.postgresql.org/docs/10/runtime-config-autovacuum.html
+    #          https://www.2ndquadrant.com/en/blog/autovacuum-tuning-basics/
+    autovacuum_settings = json.loads(os.environ.get("AUTOVACUUM_TUNING", "[]"))
+    if autovacuum_settings:
+        scale_table = [[int(e[0]), Decimal(str(e[1]))] for e in autovacuum_settings]
+
+    scale_table.sort(key=lambda e: e[0], reverse=True)
+
+    # Execute the scale based on table analyzsis
     with schema_context(schema_name):
         with connection.cursor() as cursor:
             cursor.execute(table_sql, [schema_name])
@@ -424,13 +436,17 @@ SELECT s.relname as "table_name",
                 scale_factor = zero
                 table_name, n_live_tup, table_options = table
                 table_scale_option = table_options.get("autovacuum_vacuum_scale_factor", no_scale)
-                if (n_live_tup >= xlrg_table) and (table_scale_option > xlrg_scale):
-                    scale_factor = xlrg_scale
-                elif (n_live_tup >= lrg_table) and (table_scale_option > lrg_scale):
-                    scale_factor = lrg_scale
-                elif (n_live_tup >= med_table) and (table_scale_option > med_scale):
-                    scale_factor = med_scale
-                elif "autovacuum_vacuum_scale_factor" in table_options:
+
+                for threshold, scale in scale_table:
+                    if n_live_tup >= threshold:
+                        scale_factor = scale
+                        break
+
+                # If current scale factor is the same as the table setting, then do nothing
+                # Reset if table tuples have changed
+                if scale_factor > zero and table_scale_option == scale:
+                    continue
+                elif scale_factor == zero and "autovacuum_vacuum_scale_factor" in table_options:
                     scale_factor = reset
 
                 if scale_factor > zero:
