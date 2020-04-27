@@ -184,6 +184,34 @@ class AWSProviderTestCase(TestCase):
             self.fail(exc)
 
     @patch("providers.aws.provider.boto3.client")
+    def test_check_cost_report_access_compression_error(self, mock_boto3_client):
+        """Test _check_cost_report_access success."""
+        test_bucket = "test-bucket"
+        s3_client = Mock()
+        s3_client.describe_report_definitions.return_value = {
+            "ReportDefinitions": [
+                {
+                    "ReportName": FAKE.word(),
+                    "Compression": "Parquet",
+                    "AdditionalSchemaElements": ["RESOURCES"],
+                    "S3Bucket": test_bucket,
+                    "S3Region": "us-east-1",
+                }
+            ]
+        }
+        mock_boto3_client.return_value = s3_client
+        with self.assertRaises(ValidationError):
+            _check_cost_report_access(
+                FAKE.word(),
+                {
+                    "aws_access_key_id": FAKE.md5(),
+                    "aws_secret_access_key": FAKE.md5(),
+                    "aws_session_token": FAKE.md5(),
+                },
+                bucket=test_bucket,
+            )
+
+    @patch("providers.aws.provider.boto3.client")
     def test_check_cost_report_access_fail(self, mock_boto3_client):
         """Test _check_cost_report_access fail."""
         s3_client = Mock()

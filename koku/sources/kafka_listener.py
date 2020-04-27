@@ -63,11 +63,16 @@ KAFKA_HDR_RH_IDENTITY = "x-rh-identity"
 KAFKA_HDR_EVENT_TYPE = "event_type"
 SOURCES_OCP_SOURCE_NAME = "openshift"
 SOURCES_AWS_SOURCE_NAME = "amazon"
+SOURCES_AWS_LOCAL_SOURCE_NAME = "amazon-local"
 SOURCES_AZURE_SOURCE_NAME = "azure"
+SOURCES_AZURE_LOCAL_SOURCE_NAME = "azure-local"
+
 SOURCE_PROVIDER_MAP = {
     SOURCES_OCP_SOURCE_NAME: Provider.PROVIDER_OCP,
     SOURCES_AWS_SOURCE_NAME: Provider.PROVIDER_AWS,
+    SOURCES_AWS_LOCAL_SOURCE_NAME: Provider.PROVIDER_AWS_LOCAL,
     SOURCES_AZURE_SOURCE_NAME: Provider.PROVIDER_AZURE,
+    SOURCES_AZURE_LOCAL_SOURCE_NAME: Provider.PROVIDER_AZURE_LOCAL,
 }
 
 
@@ -238,9 +243,9 @@ def save_auth_info(auth_header, source_id):
                 authentication = {"resource_name": source_details.get("source_ref")}
             else:
                 raise SourcesHTTPClientError("Unable to find Cluster ID")
-        elif source_type == Provider.PROVIDER_AWS:
+        elif source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
             authentication = {"resource_name": sources_network.get_aws_role_arn()}
-        elif source_type == Provider.PROVIDER_AZURE:
+        elif source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             authentication = {"credentials": sources_network.get_azure_credentials()}
         else:
             LOG.error(f"Unexpected source type: {source_type}")
@@ -321,7 +326,13 @@ def cost_mgmt_msg_filter(msg_data):
     source_type_id = int(source_details.get("source_type_id"))
     source_type_name = sources_network.get_source_type_name(source_type_id)
 
-    if source_type_name not in (SOURCES_OCP_SOURCE_NAME, SOURCES_AWS_SOURCE_NAME, SOURCES_AZURE_SOURCE_NAME):
+    if source_type_name not in (
+        SOURCES_OCP_SOURCE_NAME,
+        SOURCES_AWS_SOURCE_NAME,
+        SOURCES_AWS_LOCAL_SOURCE_NAME,
+        SOURCES_AZURE_SOURCE_NAME,
+        SOURCES_AZURE_LOCAL_SOURCE_NAME,
+    ):
         LOG.debug(f"Filtering unexpected source type {source_type_name}.")
         return None
     return msg_data
