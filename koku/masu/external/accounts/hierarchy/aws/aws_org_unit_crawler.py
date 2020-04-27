@@ -163,6 +163,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
         unit_name = ou.get("Name", ou.get("Id"))
         unit_id = ou.get("Id")
         account_alias = None
+        account_id = None
 
         with schema_context(self.schema):
             # This is a leaf node
