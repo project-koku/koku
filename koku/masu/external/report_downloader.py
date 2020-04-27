@@ -28,6 +28,7 @@ from masu.external.downloader.azure.azure_report_downloader import AzureReportDo
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
+from reporting_common.models import CostUsageReportStatus
 
 
 LOG = logging.getLogger(__name__)
@@ -54,6 +55,19 @@ class ReportDownloader:
         report_name=None,
     ):
         """Set the downloader based on the backend cloud provider."""
+        LOG.warning(
+            (
+                self,
+                task,
+                customer_name,
+                access_credential,
+                report_source,
+                provider_type,
+                provider_uuid,
+                cache_key,
+                report_name,
+            )
+        )
         self.task = task
         self.customer_name = customer_name
         self.credential = access_credential
@@ -171,6 +185,19 @@ class ReportDownloader:
             raise ReportDownloaderError(str(err))
         return reports
 
+    def is_report_processed(self, report_name):
+        """Check if report_name has completed processing.
+
+        Filter by the report name and then check the last_completed_datetime.
+        If the date is not null, the report has been processed, and this method returns True.
+        Otherwise returns False.
+
+        """
+        count = CostUsageReportStatus.objects.filter(
+            report_name=report_name, last_completed_datetime__isnull=True
+        ).count()
+        return count == 0
+
     def download_report(self, date_time):
         """
         Download CUR for a given date.
@@ -190,6 +217,9 @@ class ReportDownloader:
         for report in reports:
             report_dictionary = {}
             local_file_name = self._downloader.get_local_file_for_report(report)
+
+            if self.is_report_processed(local_file_name):
+                break
             with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
                 stored_etag = stats_recorder.get_etag()
                 file_name, etag = self._downloader.download_file(report, stored_etag)
