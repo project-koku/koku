@@ -22,6 +22,7 @@ import shutil
 import tempfile
 from datetime import date
 from datetime import timedelta
+from decimal import Decimal
 from unittest.mock import ANY
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -33,6 +34,7 @@ from django.db.models import Max
 from django.db.models import Min
 from tenant_schemas.utils import schema_context
 
+import koku.celery as koku_celery
 from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
@@ -871,7 +873,15 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             self.assertIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
-            ("cost_model", 20000, {"autovacuum_vacuum_scale_factor": 0.02})
+            ("cost_model", 200000, {"autovacuum_vacuum_scale_factor": Decimal("0.05")})
+        ]
+        expected = "INFO:masu.processor.tasks:Altered autovacuum_vacuum_scale_factor on 0 tables"
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
+            ("cost_model", 20000, {"autovacuum_vacuum_scale_factor": Decimal("0.02")})
         ]
         expected = "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model reset (autovacuum_vacuum_scale_factor);"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
@@ -910,7 +920,15 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             self.assertIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
-            ("cost_model", 20000, {"autovacuum_vacuum_scale_factor": 0.004})
+            ("cost_model", 200000, {"autovacuum_vacuum_scale_factor": Decimal("0.011")})
+        ]
+        expected = "INFO:masu.processor.tasks:Altered autovacuum_vacuum_scale_factor on 0 tables"
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
+            ("cost_model", 20000, {"autovacuum_vacuum_scale_factor": Decimal("0.004")})
         ]
         expected = "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model reset (autovacuum_vacuum_scale_factor);"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
@@ -918,3 +936,35 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             self.assertIn(expected, logger.output)
 
         del os.environ["AUTOVACUUM_TUNING"]
+
+    @patch("masu.processor.tasks.connection")
+    def test_autovacuum_tune_schema_manual_setting(self, mock_conn):
+        """Test that the autovacuum tuning runs."""
+        logging.disable(logging.NOTSET)
+
+        # Make sure that the AUTOVACUUM_TUNING environment variable is unset!
+        if "AUTOVACUUM_TUNING" in os.environ:
+            del os.environ["AUTOVACUUM_TUNING"]
+
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
+            ("cost_model", 200000, {"autovacuum_vacuum_scale_factor": Decimal("0.04")})
+        ]
+        expected = "INFO:masu.processor.tasks:Altered autovacuum_vacuum_scale_factor on 0 tables"
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
+            ("cost_model", 200000, {"autovacuum_vacuum_scale_factor": Decimal("0.06")})
+        ]
+        expected = (
+            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.05);"
+        )
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+
+    def test_autovacuum_tune_schedule(self):
+        vh = next(iter(koku_celery.app.conf.beat_schedule["vacuum-schemas"]["schedule"].hour))
+        avh = next(iter(koku_celery.app.conf.beat_schedule["autovacuum-tune-schemas"]["schedule"].hour))
+        self.assertTrue(avh == (23 if vh == 0 else (vh - 1)))

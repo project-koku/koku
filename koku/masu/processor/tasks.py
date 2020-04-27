@@ -444,7 +444,7 @@ SELECT s.relname as "table_name",
 
                 # If current scale factor is the same as the table setting, then do nothing
                 # Reset if table tuples have changed
-                if scale_factor > zero and table_scale_option == scale:
+                if scale_factor > zero and table_scale_option <= scale:
                     continue
                 elif scale_factor == zero and "autovacuum_vacuum_scale_factor" in table_options:
                     scale_factor = reset
