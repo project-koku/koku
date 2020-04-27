@@ -305,7 +305,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             self.assertEqual(curr_count, 8)
 
         today = unit_crawler._date_accessor.today().strftime("%Y-%m-%d")
-        unit_crawler._compute_org_structure_for_day(day_1)
-        unit_crawler._compute_org_structure_for_day(day_2)
-        unit_crawler._compute_org_structure_for_day(today)
-        unit_crawler._compute_org_structure_for_day(day_1, today)
+        unit_crawler._compute_org_structure_interval(day_1)
+        unit_crawler._compute_org_structure_interval(day_2)
+        unit_crawler._compute_org_structure_interval(today)
+        unit_crawler._compute_org_structure_interval(day_1, today)

@@ -17,6 +17,7 @@
 """AWS org unit crawler."""
 # from tenant_schemas.utils import schema_context
 import logging
+from datetime import timedelta
 
 from django.db import transaction
 from tenant_schemas.utils import schema_context
@@ -45,6 +46,53 @@ class AWSOrgUnitCrawler(AccountCrawler):
         self._date_accessor = DateAccessor()
         self.client = None
         self.account_alias_map = None
+        self.structure_yesterday = None
+
+    @transaction.atomic
+    def crawl_account_hierarchy(self):
+        self._init_session()
+        self._build_accout_alias_map()
+
+        yesterday = (self._date_accessor.today() - timedelta(1)).strftime("%Y-%m-%d")
+        self._compute_org_structure_interval(yesterday, yesterday)
+        root_ou = self.client.list_roots()["Roots"][0]
+        LOG.info("Obtained the root identifier: %s" % (root_ou["Id"]))
+        self._crawl_org_for_accounts(root_ou, root_ou.get("Id"), level=0)
+
+        # Mark everything that is dict as deleted
+        today = self._date_accessor.today()
+        for _, org_unit in self.structure_yesterday:
+            org_unit.deleted_timestamp = today
+            org_unit.save()
+
+    def _crawl_org_for_accounts(self, ou, prefix, level):
+        """
+        Recursively crawls the org units and accounts.
+
+        Args:
+            ou (dict): A return from aws client that includes the Id
+            prefix (str): The org unit path prefix
+            level (int): The level of the tree
+        """
+
+        # Save entry for current OU
+        self._save_aws_org_method(ou, prefix, level)
+        try:
+
+            # process accounts for this org unit
+            self._crawl_accounts_per_id(ou, prefix, level)
+            level = level + 1
+            # recurse and look for sub org units
+            ou_pager = self.client.get_paginator("list_organizational_units_for_parent")
+            for sub_ou in ou_pager.paginate(ParentId=ou.get("Id")).build_full_result().get("OrganizationalUnits"):
+                new_prefix = prefix + ("&%s" % sub_ou.get("Id"))
+                LOG.info("Organizational unit found during crawl: %s" % (sub_ou.get("Id")))
+                self._crawl_org_for_accounts(sub_ou, new_prefix, level)
+
+        except Exception:
+            LOG.exception(
+                "Failure processing org unit.  Account schema {} and org_unit_id {}".format(self.schema, ou.get("Id"))
+            )
 
     def _init_session(self):
         """
@@ -100,35 +148,6 @@ class AWSOrgUnitCrawler(AccountCrawler):
         for act_info in child_accounts:
             self._save_aws_org_method(ou, prefix, level, act_info)
 
-    def _crawl_org_for_accounts(self, ou, prefix, level):
-        """
-        Recursively crawls the org units and accounts.
-
-        Args:
-            ou (dict): A return from aws client that includes the Id
-            prefix (str): The org unit path prefix
-            level (int): The level of the tree
-        """
-
-        # Save entry for current OU
-        self._save_aws_org_method(ou, prefix, level)
-        try:
-
-            # process accounts for this org unit
-            self._crawl_accounts_per_id(ou, prefix, level)
-            level = level + 1
-            # recurse and look for sub org units
-            ou_pager = self.client.get_paginator("list_organizational_units_for_parent")
-            for sub_ou in ou_pager.paginate(ParentId=ou.get("Id")).build_full_result().get("OrganizationalUnits"):
-                new_prefix = prefix + ("&%s" % sub_ou.get("Id"))
-                LOG.info("Organizational unit found during crawl: %s" % (sub_ou.get("Id")))
-                self._crawl_org_for_accounts(sub_ou, new_prefix, level)
-
-        except Exception:
-            LOG.exception(
-                "Failure processing org unit.  Account schema {} and org_unit_id {}".format(self.schema, ou.get("Id"))
-            )
-
     def _save_aws_org_method(self, ou, unit_path, level, account=None):
         """
         Recursively crawls the org units and accounts.
@@ -177,6 +196,11 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 account_alias=account_alias,
                 level=level,
             )
+
+            # Remove key since we have seen it
+            lookup_key = self._create_lookup_key(unit_id, account_id)
+            self.structure_yesterday.pop(lookup_key, None)
+
             if created:
                 # only log it was saved if was created to reduce logging on everyday calls
                 LOG.info(
@@ -222,14 +246,6 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 account.save()
             return accounts
 
-    @transaction.atomic
-    def crawl_account_hierarchy(self):
-        self._init_session()
-        self._build_accout_alias_map()
-        root_ou = self.client.list_roots()["Roots"][0]
-        LOG.info("Obtained the root identifier: %s" % (root_ou["Id"]))
-        self._crawl_org_for_accounts(root_ou, root_ou.get("Id"), level=0)
-
     def _build_accout_alias_map(self):
         """
         Builds a map of account_id to account alias for foreign keys
@@ -242,14 +258,9 @@ class AWSOrgUnitCrawler(AccountCrawler):
             for alias in AWSAccountAlias.objects.all():
                 self.account_alias_map[alias.account_id] = alias
 
-    def _compute_org_structure_for_day(self, start_date, end_date=None):
+    def _compute_org_structure_interval(self, start_date, end_date=None):
         """Compute the org structure for a day."""
-        # On a particular day (e.g. March 1, 2020)
-        # 1. Filter out nodes deleted on OR before date (e.g on or before March 1, 2020)
-        # 2. From that set, find the newest (using created timestamp) nodes
-        # 3. Build a dictionary where key= org_id+account_id (empty string for account_id if internal node)
-        #    and value = django record (so we can do updates if needed)
-        # AWSOrganizationalUnit.objects.filter(deleted_timestamp__gte=date)
+
         if not end_date:
             end_date = start_date
         with schema_context(self.schema):
@@ -272,9 +283,27 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 .distinct("account_alias")
             )
 
-            LOG.info("$$$$ BEGIN PRINT TREE $$$$")
+            self.structure_yesterday = {}
             for org_unit in aws_org_units:
-                LOG.info(org_unit)
+                self.structure_yesterday[self._create_lookup_key(org_unit.org_unit_id)] = org_unit
             for org_unit in aws_accounts:
-                LOG.info(org_unit)
-            LOG.info("$$$$ END PRINT TREE $$$$")
+                self.structure_yesterday[
+                    self._create_lookup_key(org_unit.org_unit_id, org_unit.account_alias.account_id)
+                ] = org_unit
+
+    def _create_lookup_key(self, unit_id, account_id=None):
+        """
+        Construct the lookup key for the structure_yesterday tree
+
+        Args:
+            unit_id (str): The AWS organization unit id.
+            account_id (str): The AWS account id or None if it's an internal node
+        Returns:
+            str: key to lookup org units and accounts
+        """
+        if account_id:
+            lookup_key = f"{unit_id}&{account_id}"
+        else:
+            lookup_key = f"{unit_id}"
+
+        return lookup_key
