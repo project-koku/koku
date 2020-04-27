@@ -94,14 +94,23 @@ class ReportManifestDBAccessor(KokuDBAccess):
     # pylint: disable=no-self-use
     def get_last_report_completed_datetime(self, manifest_id):
         """Get the most recent report processing completion time for a manifest."""
-        result = CostUsageReportStatus.objects.filter(manifest_id=manifest_id).order_by(
-            F("last_completed_datetime").desc(nulls_last=True)
+        result = (
+            CostUsageReportStatus.objects.filter(manifest_id=manifest_id)
+            .order_by(F("last_completed_datetime").desc(nulls_last=True))
+            .first()
         )
         if result:
             return result.last_completed_datetime
         return None
 
-    def reset_manifest(self, manifest_id):
+    def is_last_completed_datetime_null(self, manifest_id):
+        """Determine if nulls exist in last_completed_datetime for manifest_id."""
+        result = CostUsageReportStatus.objects.filter(
+            manifest_id=manifest_id, last_completed_datetime__isnull=True
+        ).exists()
+        return result
+
+    def reset_manifest(self, manifest_id):  # TODO: remove?
         """Return the manifest to a state as if it had not been processed.
 
         This sets the number of processed files to zero and
