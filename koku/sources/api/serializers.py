@@ -18,6 +18,7 @@
 import copy
 import logging
 from uuid import uuid4
+import xmlrpc.client
 
 from django.db import transaction
 from django.utils.translation import ugettext as _
@@ -35,14 +36,6 @@ from sources.tasks import create_or_update_provider
 
 LOG = logging.getLogger(__name__)
 
-ALLOWED_BILLING_SOURCE_PROVIDERS = (
-    Provider.PROVIDER_AWS,
-    Provider.PROVIDER_AWS_LOCAL,
-    Provider.PROVIDER_AZURE,
-    Provider.PROVIDER_AZURE_LOCAL,
-)
-
-ALLOWED_AUTHENTICATION_PROVIDERS = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL)
 
 
 class SourcesDependencyError(Exception):
@@ -91,67 +84,17 @@ class SourcesSerializer(serializers.ModelSerializer):
         """Get the source_uuid."""
         return obj.source_uuid
 
-    def _validate_billing_source(self, provider_type, billing_source):
-        """Validate billing source parameters."""
-        if provider_type == Provider.PROVIDER_AWS:
-            if not billing_source.get("bucket"):
-                raise SourcesStorageError("Missing AWS bucket.")
-        elif provider_type == Provider.PROVIDER_AZURE:
-            data_source = billing_source.get("data_source")
-            if not data_source:
-                raise SourcesStorageError("Missing AZURE data_source.")
-            if not data_source.get("resource_group"):
-                raise SourcesStorageError("Missing AZURE resource_group")
-            if not data_source.get("storage_account"):
-                raise SourcesStorageError("Missing AZURE storage_account")
-
-    def _update_billing_source(self, instance, billing_source):
-        if instance.source_type not in ALLOWED_BILLING_SOURCE_PROVIDERS:
-            raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
-        if instance.billing_source.get("data_source"):
-            billing_copy = copy.deepcopy(instance.billing_source.get("data_source"))
-            data_source = billing_source.get("data_source", {})
-            if data_source.get("resource_group") or data_source.get("storage_account"):
-                billing_copy.update(billing_source.get("data_source"))
-                billing_source["data_source"] = billing_copy
-        self._validate_billing_source(instance.source_type, billing_source)
-        instance.billing_source = billing_source
-        update_fields = []
-        if instance.source_uuid:
-            instance.pending_update = True
-            update_fields = ["billing_source", "pending_update"]
-        return instance, update_fields
-
-    def _update_authentication(self, instance, authentication):
-        if instance.source_type not in ALLOWED_AUTHENTICATION_PROVIDERS:
-            raise SourcesStorageError(f"Option not supported by source type {instance.source_type}.")
-        auth_dict = instance.authentication
-        if not auth_dict.get("credentials"):
-            auth_dict["credentials"] = {"subscription_id": None}
-        subscription_id = authentication.get("credentials", {}).get("subscription_id")
-        auth_dict["credentials"]["subscription_id"] = subscription_id
-        instance.authentication = auth_dict
-        update_fields = []
-        if instance.source_uuid:
-            instance.pending_update = True
-            update_fields = ["authentication", "pending_update"]
-        return instance, update_fields
-
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
         billing_source = validated_data.get("billing_source")
         authentication = validated_data.get("authentication")
 
-        billing_fields = []
-        if billing_source:
-            instance, billing_fields = self._update_billing_source(instance, billing_source)
-
-        auth_fields = []
-        if authentication:
-            instance, auth_fields = self._update_authentication(instance, authentication)
-
-        update_fields = list(set(billing_fields + auth_fields))
-        instance.save(update_fields=update_fields)
+        with xmlrpc.client.ServerProxy('http://sources-client:9000') as sources_client:
+            if billing_source:
+                sources_client.update_billing_source(instance.source_id, billing_source)
+            if authentication:
+                sources_client.update_authentication(instance.source_id, authentication)
+        return instance
 
         # create provider with celery task
         try:

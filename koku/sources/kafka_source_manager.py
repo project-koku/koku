@@ -191,8 +191,11 @@ class KafkaSourceManager:
 
         connection.set_tenant(tenant)
         serializer = ProviderSerializer(data=json_data, context=context)
-        if serializer.is_valid(raise_exception=True):
-            instance = serializer.save()
+        try:
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+        except ValidationError as error:
+            raise KafkaSourceManagerNonRecoverableError
         connection.set_schema_to_public()
         return instance
 

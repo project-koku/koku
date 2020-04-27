@@ -24,6 +24,8 @@ import random
 import sys
 import threading
 import time
+from xmlrpc.server import SimpleXMLRPCServer
+from xmlrpc.server import SimpleXMLRPCRequestHandler
 
 from aiokafka import AIOKafkaConsumer
 from django.db import connection
@@ -45,6 +47,8 @@ from sources.config import Config
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
+from sources.kafka_source_manager import KafkaSourceManager
+from sources.sources_patch_handler import SourcesPatchHandler
 from sources.tasks import create_or_update_provider
 from sources.tasks import delete_source_and_provider
 
@@ -505,17 +509,26 @@ def execute_koku_provider_op(msg, cost_management_type_id):
     """
     provider = msg.get("provider")
     operation = msg.get("operation")
+    koku_client = KafkaSourceManager(provider.auth_header)
 
     try:
         if operation == "create":
-            task = create_or_update_provider.delay(provider.source_id)
-            LOG.info(f"Creating Koku Provider for Source ID: {str(provider.source_id)} in task: {task.id}")
+            LOG.info(f"Creating Koku Provider for Source ID: {str(provider.source_id)}")
+            koku_details = koku_client.create_provider(
+                provider.name,
+                provider.source_type,
+                provider.authentication,
+                provider.billing_source,
+                provider.source_uuid,
+            )
+            LOG.info(f'Koku Provider UUID {koku_details.get("uuid")} assigned to Source ID {str(provider.source_id)}.')
+            storage.add_provider_koku_uuid(provider.source_id, koku_details.get("uuid"))
         elif operation == "update":
-            task = create_or_update_provider.delay(provider.source_id)
-            LOG.info(f"Updating Koku Provider for Source ID: {str(provider.source_id)} in task: {task.id}")
+            task = create_or_update_provider(provider.source_id)
+            LOG.info(f"Updating Koku Provider for Source ID: {str(provider.source_id)}")
         elif operation == "destroy":
-            task = delete_source_and_provider.delay(provider.source_id, provider.source_uuid, provider.auth_header)
-            LOG.info(f"Deleting Koku Provider/Source for Source ID: {str(provider.source_id)} in task: {task.id}")
+            task = delete_source_and_provider(provider.source_id, provider.source_uuid, provider.auth_header)
+            LOG.info(f"Deleting Koku Provider/Source for Source ID: {str(provider.source_id)}")
         else:
             LOG.error(f"unknown operation: {operation}")
 
@@ -700,8 +713,29 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
         sys.exit(0)
 
 
+# Register an instance; all the methods of the instance are
+# published as XML-RPC methods (in this case, just 'mul').
+class MyFuncs:
+    def mul(self, x, y):
+        return x * y
+
+
+def rpc_thread():
+    # Restrict to a particular path.
+    class RequestHandler(SimpleXMLRPCRequestHandler):
+        rpc_paths = ('/RPC2',)
+
+    with SimpleXMLRPCServer(('0.0.0.0', 9000), requestHandler=RequestHandler, allow_none=True) as server:
+        server.register_introspection_functions()
+
+        server.register_instance(SourcesPatchHandler())
+        server.serve_forever()
+
 def initialize_sources_integration():  # pragma: no cover
     """Start Sources integration thread."""
     event_loop_thread = threading.Thread(target=asyncio_sources_thread, args=(EVENT_LOOP,))
     event_loop_thread.start()
     LOG.info("Listening for kafka events")
+    rpc = threading.Thread(target=rpc_thread)
+    rpc.start()
+    LOG.info("Starting RPC thread.")

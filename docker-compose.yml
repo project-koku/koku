@@ -50,6 +50,7 @@ services:
         - db
         - koku-rabbit
         - masu-server
+        - sources-client
       depends_on:
         - koku-base
         - db
@@ -115,7 +116,7 @@ services:
     ports:
       - "15432:5432"
     volumes:
-      - ./pg_data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data
+      # - ./pg_data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data
       - ./pg_init:/docker-entrypoint-initdb.d
 
   pgadmin:
@@ -170,7 +171,7 @@ services:
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
-        - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
+        - SOURCES_API_HOST=${SOURCES_API_HOST-localhost}
         - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
@@ -276,6 +277,7 @@ services:
       privileged: true
       ports:
           - 4000:8080
+          - 4050:9000
       volumes:
         - '.:/koku'
       links:
@@ -323,3 +325,8 @@ services:
     image: prom/pushgateway
     ports:
       - 9091:9091
+
+networks:
+ default:
+   external:
+     name: koku_default
