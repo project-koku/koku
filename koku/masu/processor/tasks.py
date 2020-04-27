@@ -111,7 +111,7 @@ def get_report_files(
                     )
                     continue
 
-            # Skip processing if complete.
+            # Skip processing if complete. TODO: Look into removing this piece
             if started_date and completed_date:
                 LOG.info(
                     "Skipping processing task for %s. Started on: %s and completed on: %s.",
