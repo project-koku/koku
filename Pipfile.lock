@@ -53,11 +53,10 @@
         },
         "azure-mgmt-costmanagement": {
             "hashes": [
-                "sha256:530a2aec441aa3da282b5776ad202e69513f35554fbb01ff9343170d33ccf43b",
-                "sha256:aff97e70b3f53ffb7843584a9e09a8b896503db23950085b6cf719bb56177d87"
+                "sha256:1afd6d71f21158cba69fb6e8976b48cb0342fbfa5729ef6515962836af849e14",
+                "sha256:6e4ccfebf651e5b572a3a18780f2d9078ae3d5c61f0530e7ee042dcf4832c1f0"
             ],
-            "index": "pypi",
-            "version": "==0.1.0"
+            "version": "==0.2.0"
         },
         "azure-mgmt-resource": {
             "hashes": [
@@ -886,11 +885,10 @@
         },
         "azure-mgmt-costmanagement": {
             "hashes": [
-                "sha256:530a2aec441aa3da282b5776ad202e69513f35554fbb01ff9343170d33ccf43b",
-                "sha256:aff97e70b3f53ffb7843584a9e09a8b896503db23950085b6cf719bb56177d87"
+                "sha256:1afd6d71f21158cba69fb6e8976b48cb0342fbfa5729ef6515962836af849e14",
+                "sha256:6e4ccfebf651e5b572a3a18780f2d9078ae3d5c61f0530e7ee042dcf4832c1f0"
             ],
-            "index": "pypi",
-            "version": "==0.1.0"
+            "version": "==0.2.0"
         },
         "azure-mgmt-resource": {
             "hashes": [
