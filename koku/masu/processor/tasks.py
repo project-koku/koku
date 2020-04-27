@@ -413,7 +413,7 @@ SELECT s.relname as "table_name",
     scale_factor = zero
 
     # override with environment
-    # This environment vaiable's data will be a JSON string in the form of:
+    # This environment variable's data will be a JSON string in the form of:
     # [[threshold, scale], ...]
     # Where:
     #     threshold is a integer number representing the approximate number of rows (tuples)
