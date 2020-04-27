@@ -15,12 +15,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Report Downloader."""
-import datetime
 import logging
 from tempfile import mkdtemp
 
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.processor.worker_cache import WorkerCache
 
 LOG = logging.getLogger(__name__)
@@ -88,29 +86,15 @@ class ReportDownloaderBase:
             msg = f"{self._cache_key} is currently running."
             LOG.info(msg)
             return False
-        today = DateAccessor().today_with_timezone("UTC")
-        last_completed_cutoff = today - datetime.timedelta(hours=1)
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
 
             if manifest:
-
                 manifest_id = manifest.id
-                num_processed_files = manifest.num_processed_files
-                num_total_files = manifest.num_total_files
-                if num_processed_files < num_total_files:
-                    completed_datetime = manifest_accessor.get_last_report_completed_datetime(manifest_id)
-                    if (completed_datetime and completed_datetime < last_completed_cutoff) or not completed_datetime:
-                        # It has been more than an hour since we processed a file
-                        # and we didn't finish processing. Or, if there is a
-                        # start time but no completion time recorded.
-                        # We should download and reprocess.
-                        manifest_accessor.reset_manifest(manifest_id)
-                        self.worker_cache.add_task_to_cache(self._cache_key)
-                        return True
-                # The manifest exists and we have processed all the files.
-                # We should not redownload.
-                return False
+                # check if `last_completed_datetime` is null for any report in the manifest.
+                # if nulls exist, report processing is not complete and reports should be downloaded.
+                return manifest_accessor.is_last_completed_datetime_null(manifest_id)
+
         # The manifest does not exist, this is the first time we are
         # downloading and processing it.
         self.worker_cache.add_task_to_cache(self._cache_key)
