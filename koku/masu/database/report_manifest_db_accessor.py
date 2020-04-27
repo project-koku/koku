@@ -94,8 +94,8 @@ class ReportManifestDBAccessor(KokuDBAccess):
     # pylint: disable=no-self-use
     def get_last_report_completed_datetime(self, manifest_id):
         """Get the most recent report processing completion time for a manifest."""
-        result = (
-            CostUsageReportStatus.objects.filter(manifest_id=manifest_id).order_by("-last_completed_datetime").first()
+        result = CostUsageReportStatus.objects.filter(manifest_id=manifest_id).order_by(
+            F("last_completed_datetime").desc(nulls_last=True)
         )
         if result:
             return result.last_completed_datetime
