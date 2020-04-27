@@ -20,6 +20,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from faker import Faker
+from model_bakery import baker
 
 from api.models import Provider
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
@@ -33,6 +34,8 @@ from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
+from reporting_common.models import CostUsageReportManifest
+from reporting_common.models import CostUsageReportStatus
 
 FAKE = Faker()
 
@@ -144,3 +147,20 @@ class ReportDownloaderTest(MasuTestCase):
         with patch.object(AWSReportDownloader, "get_report_context_for_date", side_effect=Exception("some error")):
             with self.assertRaises(ReportDownloaderError):
                 downloader.get_reports()
+
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
+    def test_is_report_processed(self, mock_downloader_init):
+        """Assert ReportDownloaderError is raised when get_reports raises an exception."""
+        downloader = self.create_downloader(Provider.PROVIDER_AWS)
+        report_name = FAKE.slug()
+        self.assertFalse(downloader.is_report_processed(report_name))
+
+        manifest_id = 99
+        baker.make(CostUsageReportManifest, id=manifest_id)
+        baker.make(
+            CostUsageReportStatus, report_name=report_name, manifest_id=manifest_id, last_completed_datetime=None
+        )
+        self.assertFalse(downloader.is_report_processed(report_name))
+
+        CostUsageReportStatus.objects.update(last_completed_datetime=FAKE.date())
+        self.assertTrue(downloader.is_report_processed(report_name))

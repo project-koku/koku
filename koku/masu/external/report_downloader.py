@@ -182,7 +182,7 @@ class ReportDownloader:
         """
         report_record = CostUsageReportStatus.objects.filter(report_name=report_name)
         if report_record:
-            return report_record.filter(last_completed_datetime__is_null=True).exists()
+            return report_record.filter(last_completed_datetime__isnull=False).exists()
         return False
 
     def download_report(self, date_time):
