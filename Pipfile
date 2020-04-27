@@ -43,7 +43,7 @@ ujson = ">=1.35"
 
 [dev-packages]
 astroid = ">=2.3"
-pylint = ">=2.4"
+pylint = ">=2.5"
 sphinx-rtd-theme = ">=0.3"
 sphinx = ">=1.7"
 tox = ">=3.0"
