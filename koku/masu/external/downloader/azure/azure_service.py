@@ -15,11 +15,15 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Azure Service helpers."""
+import logging
 from tempfile import NamedTemporaryFile
 
 from azure.common import AzureException
+from azure.core.exceptions import HttpResponseError
 
 from providers.azure.client import AzureClientFactory
+
+LOG = logging.getLogger(__name__)
 
 
 class AzureServiceError(Exception):
@@ -94,17 +98,34 @@ class AzureService:
     def get_latest_cost_export_for_path(self, report_path, container_name):
         """Get the latest cost export file from given storage account container."""
         latest_report = None
-        container_client = self._cloud_storage_account.get_container_client(container_name)
-        blob_list = container_client.list_blobs(name_starts_with=report_path)
-        for blob in blob_list:
-            if report_path in blob.name and not latest_report:
-                latest_report = blob
-            elif report_path in blob.name and blob.last_modified > latest_report.last_modified:
-                latest_report = blob
-        if not latest_report:
-            message = f"No cost report found in container {container_name} for " f"path {report_path}."
+        try:
+            container_client = self._cloud_storage_account.get_container_client(container_name)
+            blob_list = container_client.list_blobs(name_starts_with=report_path)
+            for blob in blob_list:
+                if report_path in blob.name and not latest_report:
+                    latest_report = blob
+                elif report_path in blob.name and blob.last_modified > latest_report.last_modified:
+                    latest_report = blob
+            if not latest_report:
+                message = f"No cost report found in container {container_name} for " f"path {report_path}."
+                raise AzureCostReportNotFound(message)
+            return latest_report
+        except HttpResponseError as httpError:
+            if httpError.status_code == 403:
+                message = (
+                    "An authorization error occurred attempting to gather latest export"
+                    f" in container {container_name} for "
+                    f"path {report_path}."
+                )
+            else:
+                message = (
+                    "Unknown error occurred attempting to gather latest export"
+                    f" in container {container_name} for "
+                    f"path {report_path}."
+                )
+            error_msg = message + f" Azure Error: {httpError}."
+            LOG.warning(error_msg)
             raise AzureCostReportNotFound(message)
-        return latest_report
 
     def describe_cost_management_exports(self):
         """List cost management export."""
