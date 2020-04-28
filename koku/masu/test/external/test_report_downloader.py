@@ -167,7 +167,13 @@ class ReportDownloaderTest(MasuTestCase):
 
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
     def test_is_report_processed(self, mock_downloader_init):
-        """Assert ReportDownloaderError is raised when get_reports raises an exception."""
+        """Test if given report_name has been processed.
+
+        1. look for non-existent report-name in DB: `is_report_processed` returns False.
+        2. look for existing report-name with null last_completed_datetime: `is_report_processed` returns False.
+        3. look for existing report-name with not null last_completed_datetime: `is_report_processed` returns True.
+
+        """
         downloader = self.create_downloader(Provider.PROVIDER_AWS)
         report_name = FAKE.slug()
         self.assertFalse(downloader.is_report_processed(report_name))
