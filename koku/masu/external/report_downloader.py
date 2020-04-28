@@ -104,7 +104,6 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 cache_key=self.cache_key,
             )
-
         if self.provider_type == Provider.PROVIDER_AZURE:
             return AzureReportDownloader(
                 task=self.task,
@@ -115,7 +114,6 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 cache_key=self.cache_key,
             )
-
         if self.provider_type == Provider.PROVIDER_AZURE_LOCAL:
             return AzureLocalReportDownloader(
                 task=self.task,
@@ -126,7 +124,6 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 cache_key=self.cache_key,
             )
-
         if self.provider_type == Provider.PROVIDER_OCP:
             return OCPReportDownloader(
                 task=self.task,
@@ -137,7 +134,6 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 cache_key=self.cache_key,
             )
-
         if self.provider_type == Provider.PROVIDER_GCP:
             return GCPReportDownloader(
                 task=self.task,
