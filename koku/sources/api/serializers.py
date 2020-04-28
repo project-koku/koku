@@ -15,27 +15,22 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Sources Model Serializers."""
-import copy
 import logging
-from uuid import uuid4
 import xmlrpc.client
+from uuid import uuid4
 
 from django.db import transaction
 from django.utils.translation import ugettext as _
-from kombu.exceptions import OperationalError
 from rest_framework import serializers
 
 from api.provider.models import Provider
 from api.provider.models import Sources
+from api.provider.provider_builder import ProviderBuilder
 from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
 from sources.api import get_account_from_header
 from sources.api import get_auth_header
-from sources.kafka_source_manager import KafkaSourceManager
-from sources.storage import SourcesStorageError
-from sources.tasks import create_or_update_provider
 
 LOG = logging.getLogger(__name__)
-
 
 
 class SourcesDependencyError(Exception):
@@ -89,22 +84,11 @@ class SourcesSerializer(serializers.ModelSerializer):
         billing_source = validated_data.get("billing_source")
         authentication = validated_data.get("authentication")
 
-        with xmlrpc.client.ServerProxy('http://sources-client:9000') as sources_client:
+        with xmlrpc.client.ServerProxy("http://sources-client:9000") as sources_client:
             if billing_source:
                 sources_client.update_billing_source(instance.source_id, billing_source)
             if authentication:
                 sources_client.update_authentication(instance.source_id, authentication)
-        return instance
-
-        # create provider with celery task
-        try:
-            task = create_or_update_provider.delay(instance.source_id)
-            LOG.info(f"Updating Koku Provider for Source ID: {str(instance.source_id)} in task: {task.id}")
-        except OperationalError:
-            key = "sources"
-            message = f"RabbitMQ unavailable. Unable to update Source ID {instance.source_id}."
-            LOG.error(message)
-            raise SourcesDependencyError(error_obj(key, message))
         return instance
 
 
@@ -152,7 +136,7 @@ class AdminSourcesSerializer(SourcesSerializer):
     def create(self, validated_data):
         """Create a source from validated data."""
         auth_header = get_auth_header(self.context.get("request"))
-        manager = KafkaSourceManager(auth_header)
+        manager = ProviderBuilder(auth_header)
         validated_data["auth_header"] = auth_header
         source = Sources.objects.create(**validated_data)
         provider = manager.create_provider(

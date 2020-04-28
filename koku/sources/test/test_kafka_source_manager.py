@@ -23,17 +23,17 @@ from faker import Faker
 from rest_framework.exceptions import ValidationError
 
 from api.models import Provider
+from api.provider.provider_builder import ProviderBuilder
+from api.provider.provider_builder import ProviderBuilderError
 from koku.middleware import IdentityHeaderMiddleware
 from providers.provider_access import ProviderAccessor
 from sources.config import Config
-from sources.kafka_source_manager import KafkaSourceManager
-from sources.kafka_source_manager import KafkaSourceManagerError
 
 faker = Faker()
 
 
-class KafkaSourceManagerTest(TestCase):
-    """Test cases for KafkaSourceManager."""
+class ProviderBuilderTest(TestCase):
+    """Test cases for ProviderBuilder."""
 
     @classmethod
     def setUpClass(cls):
@@ -52,14 +52,14 @@ class KafkaSourceManagerTest(TestCase):
 
     def test_create_provider(self):
         """Test to create a provider."""
-        client = KafkaSourceManager(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             provider = client.create_provider(self.name, self.provider_type, self.authentication, self.billing_source)
             self.assertEqual(provider.name, self.name)
 
     def test_create_provider_with_source_uuid(self):
         """Test to create a provider with source uuid ."""
-        client = KafkaSourceManager(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
         source_uuid = faker.uuid4()
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             provider = client.create_provider(
@@ -70,7 +70,7 @@ class KafkaSourceManagerTest(TestCase):
 
     def test_create_provider_exceptions(self):
         """Test to create a provider with a non-recoverable error."""
-        client = KafkaSourceManager(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
         with self.assertRaises(ValidationError):
             source_uuid = faker.uuid4()
             client.create_provider(
@@ -79,7 +79,7 @@ class KafkaSourceManagerTest(TestCase):
 
     def test_destroy_provider(self):
         """Test to destroy a provider."""
-        client = KafkaSourceManager(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
 
         source_uuid = faker.uuid4()
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
@@ -94,7 +94,7 @@ class KafkaSourceManagerTest(TestCase):
 
     def test_destroy_provider_exception(self):
         """Test to destroy a provider with a connection error."""
-        client = KafkaSourceManager(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
         source_uuid = faker.uuid4()
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             provider = client.create_provider(
@@ -103,12 +103,12 @@ class KafkaSourceManagerTest(TestCase):
             self.assertEqual(provider.name, self.name)
             self.assertEqual(str(provider.uuid), source_uuid)
             logging.disable(logging.NOTSET)
-            with self.assertLogs(logger="sources.kafka_source_manager", level=logging.INFO):
+            with self.assertLogs(logger="sources.provider_builder", level=logging.INFO):
                 client.destroy_provider(faker.uuid4())
 
     def test_update_provider(self):
         """Test to update a provider."""
-        client = KafkaSourceManager(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
         source_uuid = faker.uuid4()
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             provider = client.create_provider(
@@ -123,7 +123,7 @@ class KafkaSourceManagerTest(TestCase):
 
     def test_update_provider_exception(self):
         """Test to update a provider with a connection error."""
-        client = KafkaSourceManager(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
         expected_uuid = faker.uuid4()
         with self.assertRaises(Provider.DoesNotExist):
             client.update_provider(
@@ -132,7 +132,7 @@ class KafkaSourceManagerTest(TestCase):
 
     def test_update_provider_error(self):
         """Test to update a provider with a koku server error."""
-        client = KafkaSourceManager(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
         source_uuid = faker.uuid4()
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             client.create_provider(
@@ -162,7 +162,7 @@ class KafkaSourceManagerTest(TestCase):
                 "expected_response": {"credentials": {"foo": "bar"}},
             },
         ]
-        client = KafkaSourceManager(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
 
         for test in test_matrix:
             response = client.get_authentication_for_provider(test.get("provider_type"), test.get("authentication"))
@@ -174,20 +174,20 @@ class KafkaSourceManagerTest(TestCase):
             {
                 "provider_type": Provider.PROVIDER_AWS,
                 "authentication": {"resource_namez": "arn:fake"},
-                "expected_response": KafkaSourceManagerError,
+                "expected_response": ProviderBuilderError,
             },
             {
                 "provider_type": Provider.PROVIDER_OCP,
                 "authentication": {"resource_namez": "test-cluster-id"},
-                "expected_response": KafkaSourceManagerError,
+                "expected_response": ProviderBuilderError,
             },
             {
                 "provider_type": Provider.PROVIDER_AZURE,
                 "authentication": {"credentialz": {"foo": "bar"}},
-                "expected_response": KafkaSourceManagerError,
+                "expected_response": ProviderBuilderError,
             },
         ]
-        client = KafkaSourceManager(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
 
         for test in test_matrix:
             with self.assertRaises(test.get("expected_response")):
@@ -212,7 +212,7 @@ class KafkaSourceManagerTest(TestCase):
                 "expected_response": {"data_source": {"foo": "bar"}},
             },
         ]
-        client = KafkaSourceManager(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
 
         for test in test_matrix:
             response = client.get_billing_source_for_provider(test.get("provider_type"), test.get("billing_source"))
@@ -224,15 +224,15 @@ class KafkaSourceManagerTest(TestCase):
             {
                 "provider_type": Provider.PROVIDER_AWS,
                 "billing_source": {"data_source": "test-bucket"},
-                "expected_response": KafkaSourceManagerError,
+                "expected_response": ProviderBuilderError,
             },
             {
                 "provider_type": Provider.PROVIDER_AZURE,
                 "billing_source": {"bucket": {"foo": "bar"}},
-                "expected_response": KafkaSourceManagerError,
+                "expected_response": ProviderBuilderError,
             },
         ]
-        client = KafkaSourceManager(auth_header=Config.SOURCES_FAKE_HEADER)
+        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
 
         for test in test_matrix:
             with self.assertRaises(test.get("expected_response")):

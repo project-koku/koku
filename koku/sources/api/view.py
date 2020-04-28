@@ -43,12 +43,12 @@ from api.common.permissions import RESOURCE_TYPE_MAP
 from api.iam.models import Tenant
 from api.iam.serializers import create_schema_name
 from api.provider.models import Sources
+from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
 from sources.api.serializers import AdminSourcesSerializer
 from sources.api.serializers import SourcesDependencyError
 from sources.api.serializers import SourcesSerializer
-from sources.kafka_source_manager import KafkaSourceManager
 from sources.storage import SourcesStorageError
 
 
@@ -59,7 +59,7 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
     def destroy(self, request, *args, **kwargs):
         """Delete a source."""
         source = self.get_object()
-        manager = KafkaSourceManager(request.user.identity_header.get("encoded"))
+        manager = ProviderBuilder(request.user.identity_header.get("encoded"))
         manager.destroy_provider(source.koku_uuid)
         response = super().destroy(request, *args, **kwargs)
         return response
@@ -206,8 +206,8 @@ class SourcesViewSet(*MIXIN_LIST):
     @never_cache
     def list(self, request, *args, **kwargs):
         """Obtain the list of sources."""
-        s = xmlrpc.client.ServerProxy('http://sources-client:9000')
-        result = s.mul(5,2)
+        s = xmlrpc.client.ServerProxy("http://sources-client:9000")
+        result = s.mul(5, 2)
         LOG.info(f"RPC result: {str(result)}")
         response = super().list(request=request, args=args, kwargs=kwargs)
         _, tenant = self._get_account_and_tenant(request)

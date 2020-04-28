@@ -24,8 +24,8 @@ import random
 import sys
 import threading
 import time
-from xmlrpc.server import SimpleXMLRPCServer
 from xmlrpc.server import SimpleXMLRPCRequestHandler
+from xmlrpc.server import SimpleXMLRPCServer
 
 from aiokafka import AIOKafkaConsumer
 from django.db import connection
@@ -47,10 +47,9 @@ from sources.config import Config
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
-from sources.kafka_source_manager import KafkaSourceManager
 from sources.sources_patch_handler import SourcesPatchHandler
-from sources.tasks import create_or_update_provider
-from sources.tasks import delete_source_and_provider
+from sources.sources_provider_coordinator import SourcesProviderCoordinator
+from sources.sources_provider_coordinator import SourcesProviderCoordinatorError
 
 LOG = logging.getLogger(__name__)
 
@@ -509,33 +508,44 @@ def execute_koku_provider_op(msg, cost_management_type_id):
     """
     provider = msg.get("provider")
     operation = msg.get("operation")
-    koku_client = KafkaSourceManager(provider.auth_header)
-    source_instance = storage.get_source_instance(provider.source_id)
+    account_coordinator = SourcesProviderCoordinator(provider.source_id, provider.auth_header)
+    sources_client = SourcesHTTPClient(provider.auth_header, provider.source_id)
+
     try:
         if operation == "create":
             LOG.info(f"Creating Koku Provider for Source ID: {str(provider.source_id)}")
-            koku_details = koku_client.create_provider(
+            instance = account_coordinator.create_account(
                 provider.name,
                 provider.source_type,
                 provider.authentication,
                 provider.billing_source,
                 provider.source_uuid,
             )
-            LOG.info(f' type: {str(type(koku_details))}')
-            LOG.info(f'Koku Provider UUID {koku_details.uuid} assigned to Source ID {str(provider.source_id)}.')
-            storage.add_provider_koku_uuid(provider.source_id, koku_details.uuid)
+            LOG.info(f"Creating provider {instance.uuid} for Source ID: {provider.source_id}")
         elif operation == "update":
-            provider_instance = koku_client.update_provider(source_instance.koku_uuid,
-                                                            provider.name,
-                                                            provider.source_type,
-                                                            provider.authentication,
-                                                            provider.billing_source)
-            storage.clear_update_flag(provider.source_id)
+            instance = account_coordinator.update_account(
+                provider.koku_uuid,
+                provider.name,
+                provider.source_type,
+                provider.authentication,
+                provider.billing_source,
+            )
+            LOG.info(f"Updating provider {instance.uuid} for Source ID: {provider.source_id}")
         elif operation == "destroy":
-            koku_client.destroy_provider(source_instance.koku_uuid)
+            account_coordinator.destroy_account(provider.koku_uuid)
+            LOG.info(f"Destroying provider {provider.koku_uuid} for Source ID: {provider.source_id}")
         else:
             LOG.error(f"unknown operation: {operation}")
+        sources_client.set_source_status(None, cost_management_type_id)
 
+    except SourcesProviderCoordinatorError as account_error:
+        raise SourcesIntegrationError("Koku provider error: ", str(account_error))
+    except ValidationError as account_error:
+        err_msg = (
+            f"Unable to {operation} provider for Source ID: {str(provider.source_id)}. Reason: {str(account_error)}"
+        )
+        LOG.error(err_msg)
+        sources_client.set_source_status(str(account_error), cost_management_type_id)
     except RabbitOperationalError:
         err_msg = f"RabbitmQ unavailable. Unable to {operation} Source ID: {provider.source_id}"
         LOG.error(err_msg)
@@ -605,6 +615,9 @@ async def process_synchronize_sources_msg(msg_tuple, process_queue, cost_managem
         if msg.get("operation") != "destroy":
             storage.clear_update_flag(msg.get("provider").source_id)
 
+    except SourcesIntegrationError as error:
+        LOG.warning(f"[synchronize_sources] Re-queuing failed operation. Error: {str(error)}")
+        await _requeue_provider_sync_message(priority, msg, process_queue)
     except (InterfaceError, OperationalError) as error:
         connection.close()
         LOG.warning(
@@ -727,13 +740,14 @@ class MyFuncs:
 def rpc_thread():
     # Restrict to a particular path.
     class RequestHandler(SimpleXMLRPCRequestHandler):
-        rpc_paths = ('/RPC2',)
+        rpc_paths = ("/RPC2",)
 
-    with SimpleXMLRPCServer(('0.0.0.0', 9000), requestHandler=RequestHandler, allow_none=True) as server:
+    with SimpleXMLRPCServer(("0.0.0.0", 9000), requestHandler=RequestHandler, allow_none=True) as server:
         server.register_introspection_functions()
 
         server.register_instance(SourcesPatchHandler())
         server.serve_forever()
+
 
 def initialize_sources_integration():  # pragma: no cover
     """Start Sources integration thread."""

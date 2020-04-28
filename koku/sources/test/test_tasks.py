@@ -174,7 +174,7 @@ class SourcesTasksTest(TestCase):
 
         mock_call.assert_called()
 
-    @patch("sources.tasks.KafkaSourceManager.destroy_provider")
+    @patch("sources.tasks.ProviderBuilder.destroy_provider")
     def test_destroy_source_and_provider(self, mock_destory_provider):
         """Test that destroys source."""
         aws_source = Sources.objects.get(source_type="AWS")
@@ -192,7 +192,7 @@ class SourcesTasksTest(TestCase):
         self.assertFalse(Sources.objects.filter(source_id=source_id).exists())
         mock_destory_provider.assert_called()
 
-    @patch("sources.tasks.KafkaSourceManager.destroy_provider")
+    @patch("sources.tasks.ProviderBuilder.destroy_provider")
     def test_destroy_source_and_provider_no_provider(self, mock_destory_provider):
         """Test that destroys source with no provider."""
         aws_source = Sources.objects.get(source_type="AWS")
@@ -209,7 +209,7 @@ class SourcesTasksTest(TestCase):
         self.assertFalse(Sources.objects.filter(source_id=source_id).exists())
         mock_destory_provider.assert_not_called()
 
-    @patch("sources.tasks.KafkaSourceManager.destroy_provider", side_effect=Exception("test error"))
+    @patch("sources.tasks.ProviderBuilder.destroy_provider", side_effect=Exception("test error"))
     def test_destroy_source_and_provider_exception(self, mock_destory_provider):
         """Test that destroys source with provider exception."""
         aws_source = Sources.objects.get(source_type="AWS")
@@ -226,7 +226,7 @@ class SourcesTasksTest(TestCase):
         delete_source_and_provider(source_id, source_uuid, aws_source.auth_header)
         self.assertTrue(Sources.objects.filter(source_id=source_id).exists())
 
-    @patch("sources.tasks.KafkaSourceManager.destroy_provider")
+    @patch("sources.tasks.ProviderBuilder.destroy_provider")
     def test_destroy_source_and_provider_source_does_not_exist(self, mock_destory_provider):
         """Test that destroys source where source does not exist."""
         aws_source = Sources.objects.get(source_type="AWS")
@@ -248,7 +248,7 @@ class SourcesTasksTest(TestCase):
         mock_destory_provider.assert_called()
 
     @patch("sources.tasks.destroy_source_event", side_effect=InterfaceError)
-    @patch("sources.tasks.KafkaSourceManager.destroy_provider")
+    @patch("sources.tasks.ProviderBuilder.destroy_provider")
     def test_destroy_source_and_provider_source_db_errort(self, mock_destory_provider, mock_destroy_source):
         """Test that destroys source where database error occurs."""
         aws_source = Sources.objects.get(source_type="AWS")

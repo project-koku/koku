@@ -33,6 +33,8 @@ from rest_framework.exceptions import ValidationError
 import sources.kafka_listener as source_integration
 from api.provider.models import Provider
 from api.provider.models import Sources
+from api.provider.provider_builder import ProviderBuilder
+from api.provider.provider_builder import ProviderBuilderError
 from api.provider.provider_manager import ProviderManagerError
 from koku.middleware import IdentityHeaderMiddleware
 from masu.prometheus_stats import WORKER_REGISTRY
@@ -42,8 +44,6 @@ from sources.config import Config
 from sources.kafka_listener import process_message
 from sources.kafka_listener import process_synchronize_sources_msg
 from sources.kafka_listener import storage_callback
-from sources.kafka_source_manager import KafkaSourceManager
-from sources.kafka_source_manager import KafkaSourceManagerError
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
@@ -55,8 +55,8 @@ SOURCES_APPS = "http://www.sources.com/api/v1.0/applications?filter[application_
 
 
 def raise_source_manager_error(param_a, param_b, param_c, param_d, param_e):
-    """Raise KafkaSourceManagerError"""
-    raise KafkaSourceManagerError()
+    """Raise ProviderBuilderError"""
+    raise ProviderBuilderError()
 
 
 def raise_validation_error(param_a, param_b, param_c, param_d, param_e):
@@ -255,7 +255,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         provider = Sources.objects.get(source_id=source_id)
 
         msg = {"operation": "destroy", "provider": provider, "offset": provider.offset}
-        with patch.object(KafkaSourceManager, "destroy_provider", side_effect=raise_provider_manager_error):
+        with patch.object(ProviderBuilder, "destroy_provider", side_effect=raise_provider_manager_error):
             source_integration.execute_koku_provider_op(msg, application_type_id)
             self.assertTrue(Provider.objects.filter(uuid=provider.source_uuid).exists())
             self.assertTrue(Sources.objects.filter(source_uuid=provider.source_uuid).exists())

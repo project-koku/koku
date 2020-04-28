@@ -21,8 +21,8 @@ from rest_framework.exceptions import ValidationError
 
 from api.provider.models import Provider
 from api.provider.models import Sources
+from api.provider.provider_builder import ProviderBuilder
 from koku.celery import app
-from sources.kafka_source_manager import KafkaSourceManager
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 from sources.storage import destroy_source_event
@@ -41,7 +41,7 @@ def create_or_update_provider(source_id):
         return
     LOG.info(f"Found Source Instance: {str(instance)}")
     uuid = instance.koku_uuid
-    source_mgr = KafkaSourceManager(instance.auth_header)
+    source_mgr = ProviderBuilder(instance.auth_header)
 
     provider = [instance.name, instance.source_type, instance.authentication, instance.billing_source]
 
@@ -96,7 +96,7 @@ def create_or_update_provider(source_id):
 def delete_source_and_provider(source_id, source_uuid, auth_header):
     try:
         Provider.objects.get(uuid=source_uuid)
-        source_mgr = KafkaSourceManager(auth_header)
+        source_mgr = ProviderBuilder(auth_header)
         source_mgr.destroy_provider(source_uuid)
     except Provider.DoesNotExist:
         LOG.info(f"delete_source_and_provider: Provider UUID: {source_uuid} does not exist")

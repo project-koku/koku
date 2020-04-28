@@ -17,9 +17,10 @@
 """Sources Patch Handler."""
 import copy
 import logging
+
+from api.provider.models import Provider
 from sources import storage
 from sources.storage import SourcesStorageError
-from api.provider.models import Provider
 
 LOG = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ ALLOWED_BILLING_SOURCE_PROVIDERS = (
     Provider.PROVIDER_AZURE_LOCAL,
 )
 ALLOWED_AUTHENTICATION_PROVIDERS = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL)
+
 
 class SourcesPatchHandler:
     def mul(self, x, y):
@@ -100,4 +102,3 @@ class SourcesPatchHandler:
         update_fields = list(set(auth_fields))
         instance.save(update_fields=update_fields)
         return True
-
