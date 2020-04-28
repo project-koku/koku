@@ -510,7 +510,7 @@ def execute_koku_provider_op(msg, cost_management_type_id):
     provider = msg.get("provider")
     operation = msg.get("operation")
     koku_client = KafkaSourceManager(provider.auth_header)
-
+    source_instance = storage.get_source_instance(provider.source_id)
     try:
         if operation == "create":
             LOG.info(f"Creating Koku Provider for Source ID: {str(provider.source_id)}")
@@ -521,14 +521,18 @@ def execute_koku_provider_op(msg, cost_management_type_id):
                 provider.billing_source,
                 provider.source_uuid,
             )
-            LOG.info(f'Koku Provider UUID {koku_details.get("uuid")} assigned to Source ID {str(provider.source_id)}.')
-            storage.add_provider_koku_uuid(provider.source_id, koku_details.get("uuid"))
+            LOG.info(f' type: {str(type(koku_details))}')
+            LOG.info(f'Koku Provider UUID {koku_details.uuid} assigned to Source ID {str(provider.source_id)}.')
+            storage.add_provider_koku_uuid(provider.source_id, koku_details.uuid)
         elif operation == "update":
-            task = create_or_update_provider(provider.source_id)
-            LOG.info(f"Updating Koku Provider for Source ID: {str(provider.source_id)}")
+            provider_instance = koku_client.update_provider(source_instance.koku_uuid,
+                                                            provider.name,
+                                                            provider.source_type,
+                                                            provider.authentication,
+                                                            provider.billing_source)
+            storage.clear_update_flag(provider.source_id)
         elif operation == "destroy":
-            task = delete_source_and_provider(provider.source_id, provider.source_uuid, provider.auth_header)
-            LOG.info(f"Deleting Koku Provider/Source for Source ID: {str(provider.source_id)}")
+            koku_client.destroy_provider(source_instance.koku_uuid)
         else:
             LOG.error(f"unknown operation: {operation}")
 
