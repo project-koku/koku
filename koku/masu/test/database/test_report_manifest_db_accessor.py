@@ -16,15 +16,20 @@
 #
 """Test the ReportManifestDBAccessor."""
 import copy
-import datetime
 
 from dateutil.relativedelta import relativedelta
+from faker import Faker
+from model_bakery import baker
 from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
+from reporting_common.models import CostUsageReportManifest
+from reporting_common.models import CostUsageReportStatus
+
+
+FAKE = Faker()
 
 
 class ReportManifestDBAccessorTest(IamTestCase):
@@ -119,25 +124,6 @@ class ReportManifestDBAccessorTest(IamTestCase):
         result = self.manifest_accessor.get_manifest_list_for_provider_and_bill_date(self.provider_uuid, bill_date)
         self.assertEqual(len(result), 3)
 
-    def test_get_last_report_completed_datetime(self):
-        """Test that the last completed report datetime is returned."""
-        manifest = self.manifest_accessor.add(**self.manifest_dict)
-        earlier_time = DateAccessor().today_with_timezone("UTC")
-        later_time = earlier_time + datetime.timedelta(hours=1)
-
-        ReportStatsDBAccessor("earlier_report", manifest.id).update(last_completed_datetime=earlier_time)
-        ReportStatsDBAccessor("later_report", manifest.id).update(last_completed_datetime=later_time)
-
-        result = self.manifest_accessor.get_last_report_completed_datetime(manifest.id)
-
-        self.assertEqual(result, later_time)
-
-    def test_get_last_report_completed_datetime_none(self):
-        """Test that the last completed report datetime returns none if not found."""
-        manifest = self.manifest_accessor.add(**self.manifest_dict)
-        result = self.manifest_accessor.get_last_report_completed_datetime(manifest.id)
-        self.assertIsNone(result)
-
     def test_get_last_seen_manifest_ids(self):
         """Test that get_last_seen_manifest_ids returns the appropriate assembly_ids."""
         # test that the most recently seen manifests that haven't been processed are returned
@@ -177,3 +163,14 @@ class ReportManifestDBAccessorTest(IamTestCase):
         manifest3.save()
         assembly_ids = self.manifest_accessor.get_last_seen_manifest_ids(self.billing_start)
         self.assertEqual(assembly_ids, [manifest.assembly_id])
+
+    def test_is_last_completed_datetime_null(self):
+        """Test is last completed datetime is null."""
+        manifest_id = 123456789
+        baker.make(CostUsageReportManifest, id=manifest_id)
+        baker.make(CostUsageReportStatus, manifest_id=manifest_id, last_completed_datetime=None)
+        self.assertTrue(ReportManifestDBAccessor().is_last_completed_datetime_null(manifest_id))
+
+        CostUsageReportStatus.objects.filter(manifest_id=manifest_id).update(last_completed_datetime=FAKE.date())
+
+        self.assertFalse(ReportManifestDBAccessor().is_last_completed_datetime_null(manifest_id))

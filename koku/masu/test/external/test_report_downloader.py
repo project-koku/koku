@@ -190,9 +190,11 @@ class ReportDownloaderTest(MasuTestCase):
         """Test download_reports.
 
         The downloader will be looking for 3 files:
-            file-1.csv.gz: File is done processing -> do not return
-            file-2.csv.gz: File is not recorded in db -> return file
-            file-3.csv.gz: File is not done processing -> return file
+            file-1.csv.gz: File is done processing -> do not append file
+            file-2.csv.gz: File is not recorded in db -> append file
+            file-3.csv.gz: File is not done processing -> append file
+
+        This test checks that the 2 files are correctly returned.
 
         """
         report_context = {"files": ["file-1.csv.gz", "file-2.csv.gz", "file-3.csv.gz"]}
