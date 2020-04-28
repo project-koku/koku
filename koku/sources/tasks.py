@@ -40,7 +40,7 @@ def create_or_update_provider(source_id):  # noqa: C901
         LOG.error(f"[create_or_update_provider] This Source ID {source_id} should exist. error: {e}")
         return
     LOG.info(f"Found Source Instance: {str(instance)}")
-    uuid = instance.source_uuid
+    uuid = instance.koku_uuid
     source_mgr = KafkaSourceManager(instance.auth_header)
 
     provider = [instance.name, instance.source_type, instance.authentication, instance.billing_source]
