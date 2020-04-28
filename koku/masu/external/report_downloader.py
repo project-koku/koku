@@ -32,6 +32,14 @@ from reporting_common.models import CostUsageReportStatus
 
 
 LOG = logging.getLogger(__name__)
+PROVIDER_DOWNLOADER_MAP = {
+    Provider.PROVIDER_AWS: AWSReportDownloader,
+    Provider.PROVIDER_AWS_LOCAL: AWSLocalReportDownloader,
+    Provider.PROVIDER_AZURE: AzureReportDownloader,
+    Provider.PROVIDER_AZURE_LOCAL: AzureLocalReportDownloader,
+    Provider.PROVIDER_OCP: OCPReportDownloader,
+    Provider.PROVIDER_GCP: GCPReportDownloader,
+}
 
 
 class ReportDownloaderError(Exception):
@@ -84,8 +92,9 @@ class ReportDownloader:
             (Object) : Some object that is a child of CURAccountsInterface
 
         """
-        if self.provider_type == Provider.PROVIDER_AWS:
-            return AWSReportDownloader(
+        downlaoder = PROVIDER_DOWNLOADER_MAP.get(self.provider_type)
+        if downlaoder:
+            return downlaoder(
                 task=self.task,
                 customer_name=self.customer_name,
                 auth_credential=self.credential,
@@ -94,62 +103,6 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 cache_key=self.cache_key,
             )
-
-        if self.provider_type == Provider.PROVIDER_AWS_LOCAL:
-            return AWSLocalReportDownloader(
-                task=self.task,
-                customer_name=self.customer_name,
-                auth_credential=self.credential,
-                bucket=self.cur_source,
-                report_name=self.report_name,
-                provider_uuid=self.provider_uuid,
-                cache_key=self.cache_key,
-            )
-
-        if self.provider_type == Provider.PROVIDER_AZURE:
-            return AzureReportDownloader(
-                task=self.task,
-                customer_name=self.customer_name,
-                auth_credential=self.credential,
-                billing_source=self.cur_source,
-                report_name=self.report_name,
-                provider_uuid=self.provider_uuid,
-                cache_key=self.cache_key,
-            )
-
-        if self.provider_type == Provider.PROVIDER_AZURE_LOCAL:
-            return AzureLocalReportDownloader(
-                task=self.task,
-                customer_name=self.customer_name,
-                auth_credential=self.credential,
-                billing_source=self.cur_source,
-                report_name=self.report_name,
-                provider_uuid=self.provider_uuid,
-                cache_key=self.cache_key,
-            )
-
-        if self.provider_type == Provider.PROVIDER_OCP:
-            return OCPReportDownloader(
-                task=self.task,
-                customer_name=self.customer_name,
-                auth_credential=self.credential,
-                bucket=self.cur_source,
-                report_name=self.report_name,
-                provider_uuid=self.provider_uuid,
-                cache_key=self.cache_key,
-            )
-
-        if self.provider_type == Provider.PROVIDER_GCP:
-            return GCPReportDownloader(
-                task=self.task,
-                customer_name=self.customer_name,
-                auth_credential=self.credential,
-                billing_source=self.cur_source,
-                report_name=self.report_name,
-                provider_uuid=self.provider_uuid,
-                cache_key=self.cache_key,
-            )
-        return None
 
     def get_reports(self, number_of_months=2):
         """
