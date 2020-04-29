@@ -114,12 +114,12 @@ def _check_cost_report_access(credential_name, credentials, region="us-east-1", 
 
         for report in bucket_matched:
             if report.get("Compression") not in ALLOWED_COMPRESSIONS:
-                key = "report_configuration"
-                msg = (
+                key = ProviderErrors.AWS_COMPRESSION_REPORT_CONFIG
+                internal_msg = (
                     f"{report.get('Compression')} compression is not supported. "
                     f"Reports must use GZIP compression format."
                 )
-                raise serializers.ValidationError(error_obj(key, msg))
+                raise serializers.ValidationError(error_obj(key, internal_msg))
             if "RESOURCES" not in report.get("AdditionalSchemaElements"):
                 key = ProviderErrors.AWS_REPORT_CONFIG
                 msg = f"Required Resource IDs are not included in report {report.get('ReportName')}"

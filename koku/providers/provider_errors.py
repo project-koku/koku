@@ -23,6 +23,7 @@ class ProviderErrors:
     # KEYS
     AWS_NO_REPORT_FOUND = "authentication.provider_resource_name.noreportfound"
     AWS_REPORT_CONFIG = "aws.report.configuration"
+    AWS_COMPRESSION_REPORT_CONFIG = "aws.report.compression.configuration"
     AWS_MISSING_RESOURCE_NAME = "authentication.resource_name.missing"
     AWS_RESOURCE_NAME_UNREACHABLE = "authentication.resource_name.unreachable"
     AWS_BUCKET_MISSING = "billing_source.bucket.missing"
@@ -49,7 +50,9 @@ class ProviderErrors:
         f"The S3 bucket has been entered incorrectly for this source. "
         "Edit your AWS source and verify the name of your S3 bucket."
     )
-
+    AWS_COMPRESSION_REPORT_CONFIG_MESSAGE = (
+        f"Cost management requires that AWS Cost and Usage Reports use GZIP compression format."
+    )
     AZURE_MISSING_EXPORT_MESSAGE = (
         "A cost management export cannot be found. In Azure, create a daily export task for your storage account."
     )

@@ -45,6 +45,11 @@ class SourcesErrorMessageTest(TestCase):
                 "internal_message": "internal billing source message string",
                 "expected_message": ProviderErrors.AWS_BILLING_SOURCE_NOT_FOUND_MESSAGE,
             },
+            {
+                "key": ProviderErrors.AWS_COMPRESSION_REPORT_CONFIG,
+                "internal_message": "internal compression error message",
+                "expected_message": ProviderErrors.AWS_COMPRESSION_REPORT_CONFIG_MESSAGE,
+            },
         ]
         for test in test_matrix:
             key = test.get("key")

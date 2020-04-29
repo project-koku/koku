@@ -54,12 +54,17 @@ class SourcesErrorMessage:
         """AWS no bucket message."""
         return ProviderErrors.AWS_BILLING_SOURCE_NOT_FOUND_MESSAGE
 
+    def aws_invalid_report_compression(self, message):
+        """AWS invalid compression message."""
+        return ProviderErrors.AWS_COMPRESSION_REPORT_CONFIG_MESSAGE
+
     def _display_string_function(self, key):
         """Return function to get user facing string."""
         ui_function_map = {
             ProviderErrors.AZURE_CLIENT_ERROR: self.azure_client_errors,
             ProviderErrors.AWS_RESOURCE_NAME_UNREACHABLE: self.aws_client_errors,
             ProviderErrors.AWS_BILLING_SOURCE_NOT_FOUND: self.aws_no_billing_source,
+            ProviderErrors.AWS_COMPRESSION_REPORT_CONFIG: self.aws_invalid_report_compression,
         }
         string_function = ui_function_map.get(key)
         return string_function
