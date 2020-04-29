@@ -92,11 +92,17 @@ class ReportManifestDBAccessor(KokuDBAccess):
         return super().add(**kwargs)
 
     def is_last_completed_datetime_null(self, manifest_id):
-        """Determine if nulls exist in last_completed_datetime for manifest_id."""
-        result = CostUsageReportStatus.objects.filter(
-            manifest_id=manifest_id, last_completed_datetime__isnull=True
-        ).exists()
-        return result
+        """Determine if nulls exist in last_completed_datetime for manifest_id.
+
+        If the record does not exist, that is equivalent to a null completed dateimte.
+        Return True if record either doesn't exist or if null `last_completed_datetime`.
+        Return False otherwise.
+
+        """
+        record = CostUsageReportStatus.objects.filter(manifest_id=manifest_id)
+        if record:
+            return record.filter(last_completed_datetime__isnull=True).exists()
+        return True
 
     def get_manifest_list_for_provider_and_bill_date(self, provider_uuid, bill_date):
         """Return all manifests for a provider and bill date."""
