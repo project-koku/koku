@@ -93,7 +93,10 @@ class ReportDownloaderBase:
                 manifest_id = manifest.id
                 # check if `last_completed_datetime` is null for any report in the manifest.
                 # if nulls exist, report processing is not complete and reports should be downloaded.
-                return manifest_accessor.is_last_completed_datetime_null(manifest_id)
+                need_to_download = manifest_accessor.is_last_completed_datetime_null(manifest_id)
+                if need_to_download:
+                    self.worker_cache.add_task_to_cache(self._cache_key)
+                return need_to_download
 
         # The manifest does not exist, this is the first time we are
         # downloading and processing it.
