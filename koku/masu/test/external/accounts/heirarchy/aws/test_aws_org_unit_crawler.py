@@ -72,7 +72,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         result_auth_cred = unit_crawler._auth_cred
         expected_auth_cred = self.account.get("authentication")
         self.assertEqual(result_auth_cred, expected_auth_cred)
-        self.assertIsNone(unit_crawler.client)
+        self.assertIsNone(unit_crawler._client)
 
     @patch("masu.util.aws.common.get_assume_role_session")
     def test_init_session(self, mock_session):
@@ -90,9 +90,9 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         unit_crawler._init_session()
         side_effect_list = _generate_act_for_parent_side_effect(self.schema, parent_id, 3)
         unit_crawler._build_accout_alias_map()
-        unit_crawler.client.list_accounts_for_parent.side_effect = side_effect_list
-        accounts = unit_crawler._depaginate(
-            function=unit_crawler.client.list_accounts_for_parent, resource_key="Accounts", ParentId=parent_id
+        unit_crawler._client.list_accounts_for_parent.side_effect = side_effect_list
+        accounts = unit_crawler._depaginate_account_list(
+            function=unit_crawler._client.list_accounts_for_parent, resource_key="Accounts", ParentId=parent_id
         )
         self.assertIsNotNone(accounts)
         self.assertEqual(len(accounts), len(side_effect_list))
@@ -109,8 +109,8 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         unit_crawler._init_session()
         side_effect_list = _generate_act_for_parent_side_effect(self.schema, parent_id, 3)
         unit_crawler._build_accout_alias_map()
-        unit_crawler.client.list_accounts_for_parent.side_effect = side_effect_list
-        unit_crawler.structure_yesterday = {}
+        unit_crawler._client.list_accounts_for_parent.side_effect = side_effect_list
+        unit_crawler._structure_yesterday = {}
 
         prefix = f"root&{parent_id}"
         ou = {"Id": parent_id, "Name": "Big Org Unit"}
@@ -149,9 +149,9 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             paginator_side_effect.append(paginator)
         unit_crawler = AWSOrgUnitCrawler(self.account)
         unit_crawler._init_session()
-        unit_crawler.client.list_roots.return_value = {"Roots": [{"Id": "r-0", "Arn": "arn-0", "Name": "root_0"}]}
-        unit_crawler.client.list_accounts_for_parent.side_effect = account_side_effect
-        unit_crawler.client.get_paginator.side_effect = paginator_side_effect
+        unit_crawler._client.list_roots.return_value = {"Roots": [{"Id": "r-0", "Arn": "arn-0", "Name": "root_0"}]}
+        unit_crawler._client.list_accounts_for_parent.side_effect = account_side_effect
+        unit_crawler._client.get_paginator.side_effect = paginator_side_effect
         unit_crawler.crawl_account_hierarchy()
         with schema_context(self.schema):
             cur_count = AWSOrganizationalUnit.objects.count()
@@ -186,9 +186,9 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             paginator_side_effect.append(paginator)
         unit_crawler = AWSOrgUnitCrawler(self.account)
         unit_crawler._init_session()
-        unit_crawler.client.list_roots.return_value = {"Roots": [{"Id": "r-0", "Arn": "arn-0", "Name": "root_0"}]}
-        unit_crawler.client.list_accounts_for_parent.side_effect = account_side_effect
-        unit_crawler.client.get_paginator.side_effect = paginator_side_effect
+        unit_crawler._client.list_roots.return_value = {"Roots": [{"Id": "r-0", "Arn": "arn-0", "Name": "root_0"}]}
+        unit_crawler._client.list_accounts_for_parent.side_effect = account_side_effect
+        unit_crawler._client.get_paginator.side_effect = paginator_side_effect
         unit_crawler.crawl_account_hierarchy()
         with schema_context(self.schema):
             cur_count = AWSOrganizationalUnit.objects.count()
@@ -203,7 +203,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             self.assertEqual(cur_count, 0)
             AWSAccountAlias.objects.create(account_id="A_001", account_alias="Root Account")
         unit_crawler._build_accout_alias_map()
-        unit_crawler.structure_yesterday = {}
+        unit_crawler._structure_yesterday = {}
         # Test that we are using a get or create so only one entry should be found.
         root_ou = {"Id": "R_001", "Name": "root"}
         root_account = {"Id": "A_001", "Name": "Root Account"}
@@ -234,7 +234,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             # self.assertEqual(cur_count, 0)
             unit_crawler._build_accout_alias_map()
         print("#" * 120)
-        print(unit_crawler.account_alias_map)
+        print(unit_crawler._account_alias_map)
 
     def test_compute_org_structure_for_day(self):
         """Test function that computes org structure for a day."""
@@ -243,7 +243,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         with schema_context(self.schema):
             cur_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(cur_count, 0)
-        unit_crawler.structure_yesterday = {}
+        unit_crawler._structure_yesterday = {}
         # Add root node with 1 account
         created_nodes = []
         root = {"Id": "R_001", "Name": "root"}
@@ -312,6 +312,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
 
         today = unit_crawler._date_accessor.today().strftime("%Y-%m-%d")
         unit_crawler._compute_org_structure_interval(day_1)
+        unit_crawler._mark_nodes_deleted()
         unit_crawler._compute_org_structure_interval(day_2)
         unit_crawler._compute_org_structure_interval(today)
         unit_crawler._compute_org_structure_interval(day_1, today)

@@ -44,9 +44,9 @@ class AWSOrgUnitCrawler(AccountCrawler):
         super().__init__(account)
         self._auth_cred = self.account.get("authentication")
         self._date_accessor = DateAccessor()
-        self.client = None
-        self.account_alias_map = None
-        self.structure_yesterday = None
+        self._client = None
+        self._account_alias_map = None
+        self._structure_yesterday = None
 
     @transaction.atomic
     def crawl_account_hierarchy(self):
@@ -55,15 +55,18 @@ class AWSOrgUnitCrawler(AccountCrawler):
 
         yesterday = (self._date_accessor.today() - timedelta(1)).strftime("%Y-%m-%d")
         self._compute_org_structure_interval(yesterday, yesterday)
-        root_ou = self.client.list_roots()["Roots"][0]
+        root_ou = self._client.list_roots()["Roots"][0]
         LOG.info("Obtained the root identifier: %s" % (root_ou["Id"]))
         self._crawl_org_for_accounts(root_ou, root_ou.get("Id"), level=0)
+        self._mark_nodes_deleted()
 
-        # Mark everything that is dict as deleted
+    def _mark_nodes_deleted(self):
         today = self._date_accessor.today()
-        for _, org_unit in self.structure_yesterday:
-            org_unit.deleted_timestamp = today
-            org_unit.save()
+        # Mark everything that is dict as deleted
+        with schema_context(self.schema):
+            for _, org_unit in self._structure_yesterday.items():
+                org_unit.deleted_timestamp = today
+                org_unit.save()
 
     def _crawl_org_for_accounts(self, ou, prefix, level):
         """
@@ -83,7 +86,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             self._crawl_accounts_per_id(ou, prefix, level)
             level = level + 1
             # recurse and look for sub org units
-            ou_pager = self.client.get_paginator("list_organizational_units_for_parent")
+            ou_pager = self._client.get_paginator("list_organizational_units_for_parent")
             for sub_ou in ou_pager.paginate(ParentId=ou.get("Id")).build_full_result().get("OrganizationalUnits"):
                 new_prefix = prefix + ("&%s" % sub_ou.get("Id"))
                 LOG.info("Organizational unit found during crawl: %s" % (sub_ou.get("Id")))
@@ -104,9 +107,9 @@ class AWSOrgUnitCrawler(AccountCrawler):
         session = utils.get_assume_role_session(utils.AwsArn(self._auth_cred))
         session_client = session.client("organizations")
         LOG.info("Starting aws organizations session for crawler.")
-        self.client = session_client
+        self._client = session_client
 
-    def _depaginate(self, function, resource_key, **kwargs):
+    def _depaginate_account_list(self, function, resource_key, **kwargs):
         """
         Depaginates the results of the aws client.
 
@@ -142,8 +145,8 @@ class AWSOrgUnitCrawler(AccountCrawler):
         """
         parent_id = ou.get("Id")
         LOG.info("Obtaining accounts for organizational unit: %s" % parent_id)
-        child_accounts = self._depaginate(
-            function=self.client.list_accounts_for_parent, resource_key="Accounts", ParentId=parent_id
+        child_accounts = self._depaginate_account_list(
+            function=self._client.list_accounts_for_parent, resource_key="Accounts", ParentId=parent_id
         )
         for act_info in child_accounts:
             self._save_aws_org_method(ou, prefix, level, act_info)
@@ -171,20 +174,20 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 # Look for an existing alias
                 account_id = account.get("Id")
                 account_name = account.get("Name")
-                account_alias = self.account_alias_map.get(account_id)
+                account_alias = self._account_alias_map.get(account_id)
                 if not account_alias:
                     # Create a new account alias (not cached
                     account_alias, created = AWSAccountAlias.objects.get_or_create(account_id=account_id)
-                    self.account_alias_map[account_id] = account_alias
+                    self._account_alias_map[account_id] = account_alias
                     LOG.info(
-                        "Saving account alias: account_id=%s, account_alias=%s, created=%s"
-                        % (account_id, account_name, created)
+                        "Saving account alias %s (created=%s)"
+                        % (account_alias, created)
                     )
 
                 if account_name and account_alias.account_alias != account_name:
                     # The name was not set or changed since last scan.
                     LOG.info(
-                        "Updating account alias: account_id=%s, old_account_alias=%s, new_account_alias=%s"
+                        "Updating account alias for account_id=%s, old_account_alias=%s, new_account_alias=%s"
                         % (account_id, account_alias.account_alias, account_name)
                     )
                     account_alias.account_alias = account_name
@@ -200,7 +203,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
 
             # Remove key since we have seen it
             lookup_key = self._create_lookup_key(unit_id, account_id)
-            self.structure_yesterday.pop(lookup_key, None)
+            self._structure_yesterday.pop(lookup_key, None)
 
             if created:
                 # only log it was saved if was created to reduce logging on everyday calls
@@ -254,10 +257,10 @@ class AWSOrgUnitCrawler(AccountCrawler):
         Returns:
             dict: account_id to AWSAccountAlias
         """
-        self.account_alias_map = {}
+        self._account_alias_map = {}
         with schema_context(self.schema):
             for alias in AWSAccountAlias.objects.all():
-                self.account_alias_map[alias.account_id] = alias
+                self._account_alias_map[alias.account_id] = alias
 
     def _compute_org_structure_interval(self, start_date, end_date=None):
         """Compute the org structure for a day."""
@@ -265,7 +268,6 @@ class AWSOrgUnitCrawler(AccountCrawler):
         if not end_date:
             end_date = start_date
         with schema_context(self.schema):
-            LOG.info("#" * 120)
             LOG.info(f"Tree for {start_date} to {end_date}")
             # Remove org units delete on date or before
             aws_node_qs = AWSOrganizationalUnit.objects.exclude(deleted_timestamp__lte=start_date)
@@ -284,17 +286,17 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 .distinct("account_alias")
             )
 
-            self.structure_yesterday = {}
+            self._structure_yesterday = {}
             for org_unit in aws_org_units:
-                self.structure_yesterday[self._create_lookup_key(org_unit.org_unit_id)] = org_unit
+                self._structure_yesterday[self._create_lookup_key(org_unit.org_unit_id)] = org_unit
             for org_unit in aws_accounts:
-                self.structure_yesterday[
+                self._structure_yesterday[
                     self._create_lookup_key(org_unit.org_unit_id, org_unit.account_alias.account_id)
                 ] = org_unit
 
     def _create_lookup_key(self, unit_id, account_id=None):
         """
-        Construct the lookup key for the structure_yesterday tree
+        Construct the lookup key for the _structure_yesterday tree
 
         Args:
             unit_id (str): The AWS organization unit id.
