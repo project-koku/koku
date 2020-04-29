@@ -33,7 +33,7 @@ FAKE = Faker()
 CUSTOMER_NAME = FAKE.word()
 BUCKET = FAKE.word()
 P_UUID = FAKE.uuid4()
-P_TYPE = Provider.PROVIDER_AWS_LOCAL
+P_TYPE = Provider.PROVIDER_AWS
 GEN_NUM_ACT_DEFAULT = 2
 
 
@@ -57,6 +57,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
 
     def setUp(self):
         """Set up test case."""
+        super().setUp()
         self.account = {
             "authentication": fake_arn(service="iam", generate_account_id=True),
             "customer_name": CUSTOMER_NAME,

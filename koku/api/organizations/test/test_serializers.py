@@ -77,12 +77,7 @@ class AWSFilterSerializerTest(TestCase):
 
     def test_parse_filter_params_w_project_success(self):
         """Test parse of a filter param with project successfully."""
-        filter_params = {
-            "resolution": "daily",
-            "time_scope_value": "-10",
-            "time_scope_units": "day",
-            "account_id": "myaccount",
-        }
+        filter_params = {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day", "org_id": "r-id"}
         serializer = AWSOrgFilterSerializer(data=filter_params)
         self.assertTrue(serializer.is_valid())
 

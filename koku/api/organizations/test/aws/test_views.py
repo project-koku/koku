@@ -120,4 +120,4 @@ class AWSReportViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data.get("data"))
-        self.assertEqual(len(response.data.get("data")), 3)
+        self.assertEqual(len(response.data.get("data")), 0)

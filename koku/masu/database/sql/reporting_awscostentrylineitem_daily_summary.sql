@@ -33,8 +33,10 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sql
     LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
     LEFT JOIN {{schema | sqlsafe}}.reporting_awsorganizationalunit AS ou
-        ON li.usage_account_id = ou.account_id
+        ON aa.id = ou.account_alias_id
             AND ou.created_timestamp <= li.usage_start
+            AND (ou.deleted_timestamp is NULL
+                 OR ou.deleted_timestamp > li.usage_start)
     WHERE li.usage_start >= {{start_date}}::date
         AND li.usage_start <= {{end_date}}::date
         {% if bill_ids %}
