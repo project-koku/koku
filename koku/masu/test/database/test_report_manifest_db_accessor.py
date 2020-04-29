@@ -167,6 +167,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
     def test_is_last_completed_datetime_null(self):
         """Test is last completed datetime is null."""
         manifest_id = 123456789
+        self.assertTrue(ReportManifestDBAccessor().is_last_completed_datetime_null(manifest_id))
         baker.make(CostUsageReportManifest, id=manifest_id)
         baker.make(CostUsageReportStatus, manifest_id=manifest_id, last_completed_datetime=None)
         self.assertTrue(ReportManifestDBAccessor().is_last_completed_datetime_null(manifest_id))
