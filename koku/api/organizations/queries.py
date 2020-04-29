@@ -107,7 +107,7 @@ class OrgQueryHandler(QueryHandler):
         """Format the query response with data.
 
         Returns:
-            (Dict): Dictionary response of query params, data, and total
+            (Dict): Dictionary response of query params, data
 
         """
         output = copy.deepcopy(self.parameters.parameters)
@@ -144,13 +144,18 @@ class OrgQueryHandler(QueryHandler):
         # Update filters that specifiy and or or in the query parameter
         and_composed_filters = self._set_operator_specified_filters("and")
         or_composed_filters = self._set_operator_specified_filters("or")
-
         composed_filters = filters.compose()
-        if composed_filters:
-            composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        filter_list = [composed_filters, and_composed_filters, or_composed_filters]
+        final_filters = None
+        for filter_option in filter_list:
+            if filter_option:
+                if final_filters is not None:
+                    final_filters & filter_option
+                else:
+                    final_filters = filter_option
 
-        LOG.debug(f"_get_filter: {composed_filters}")
-        return composed_filters
+        LOG.debug(f"_get_filter: {final_filters}")
+        return final_filters
 
     def _set_operator_specified_filters(self, operator):
         """Set any filters using AND instead of OR."""
@@ -300,9 +305,9 @@ class OrgQueryHandler(QueryHandler):
                 org_unit_query = org_unit_query.exclude(exclusion)
                 val_list = [org_id, org_name, org_path, level]
                 org_unit_query = org_unit_query.values(*val_list)
+                org_unit_query = org_unit_query.filter(composed_filters)
                 if self.query_filter:
                     org_unit_query = org_unit_query.filter(self.query_filter)
-                org_unit_query = org_unit_query.filter(composed_filters)
                 org_unit_query = org_unit_query.order_by(f"{org_id}", f"-{created_field}").distinct(f"{org_id}")
                 org_units.extend(org_unit_query)
         return org_units

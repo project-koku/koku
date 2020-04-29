@@ -16,8 +16,8 @@
 #
 """AWS Tag Query Handling."""
 from api.models import Provider
-from api.organizations.provider_map import ProviderMap
 from api.organizations.queries import OrgQueryHandler
+from api.report.provider_map import ProviderMap
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
@@ -52,8 +52,11 @@ class AWSOrgQueryHandler(OrgQueryHandler):
             "level_column": "level",
         }
     ]
-    SUPPORTED_FILTERS = ["account"]
-    FILTER_MAP = {"account": {"field": "accounts", "operation": "icontains", "composition_key": "account_filter"}}
+    SUPPORTED_FILTERS = ["account", "org_id"]
+    FILTER_MAP = {
+        "account": {"field": "accounts", "operation": "icontains", "composition_key": "account_filter"},
+        "org_id": {"field": "org_unit_id", "operation": "icontains", "composition_key": "org_filter"},
+    }
 
     def __init__(self, parameters):
         """Establish AWS report query handler.

@@ -15,13 +15,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for organizatins."""
-from rest_framework.permissions import AllowAny
-
 from api.report.view import ReportView
 
 
 class OrganizationView(ReportView):
     """Base Tag View."""
 
-    permission_classes = [AllowAny]
     report = "organizations"

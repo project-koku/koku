@@ -48,7 +48,7 @@ class AWSReportViewTest(IamTestCase):
             self.assertIsNotNone(ou_id)
             self.assertEqual(len(accounts), expected[ou_id]["account_num"])
             self.assertEqual(path, expected[ou_id]["data"][0]["path"])
-            self.assertEqual(name, expected[ou_id]["data"][0]["name"])
+            self.assertEqual(name, expected[ou_id]["data"][0]["ou"]["Name"])
 
     def test_execute_with_filter(self):
         """Test filter with time intervals."""
@@ -84,3 +84,40 @@ class AWSReportViewTest(IamTestCase):
         url = self.url + "?filter[limit]=1"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_filter_by_org_id(self):
+        """Test that you can filter by org_id"""
+        metadata = self.generate_data.insert_data()
+        expected_org_id = list(metadata)[0]
+        url = self.url + f"?filter[org_id]={expected_org_id}"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNotNone(response.data.get("data"))
+        self.assertEqual(len(response.data.get("data")), 1)
+        data_row = response.data.get("data")[0]
+        self.assertEqual(data_row["org_unit_id"], expected_org_id)
+
+    def test_filter_by_or_org_id_filter(self):
+        """Test that you can filter by org_id"""
+        metadata = self.generate_data.insert_data()
+        org_id_0 = list(metadata)[0]
+        org_id_1 = list(metadata)[1]
+        url = self.url + f"?filter[or:org_id]={org_id_0}&filter[or:org_id]={org_id_1}"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNotNone(response.data.get("data"))
+        self.assertEqual(len(response.data.get("data")), 2)
+        expected_org_ids = [org_id_0, org_id_1]
+        for data_row in response.data.get("data"):
+            self.assertIn(data_row["org_unit_id"], expected_org_ids)
+
+    def test_filter_by_and_org_id_filter(self):
+        """Test that you can filter by org_id"""
+        metadata = self.generate_data.insert_data()
+        org_id_0 = list(metadata)[0]
+        org_id_1 = list(metadata)[1]
+        url = self.url + f"?filter[and:org_id]={org_id_0}&filter[and:org_id]={org_id_1}"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNotNone(response.data.get("data"))
+        self.assertEqual(len(response.data.get("data")), 3)

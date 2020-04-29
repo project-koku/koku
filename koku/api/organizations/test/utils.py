@@ -43,18 +43,28 @@ class GenerateOrgTestData:
             "provider_uuid": P_UUID,
         }
         self.data_list = [
-            {"name": "root", "id": "r-id", "parent": None, "path": "r-id"},
-            {"name": "big_ou", "id": "big_ou0", "parent": "r-id", "path": "r-id&big_ou0"},
-            {"name": "big_ou", "id": "big_ou0", "parent": "r-id", "path": "r-id&big_ou0", "account": "0"},
-            {"name": "big_ou", "id": "big_ou0", "parent": "r-id", "path": "r-id&big_ou0", "account": "1"},
-            {"name": "sub_ou", "id": "sub_ou0", "parent": "big_ou0", "path": "r-id&big_ou0&sub_ou0"},
+            {"ou": {"Name": "root", "Id": "r-id"}, "path": "r-id", "level": 0},
+            {"ou": {"Name": "big-ou", "Id": "big-ou0"}, "path": "r-id&big-ou0", "level": 1},
+            {
+                "ou": {"Name": "big-ou", "Id": "big-ou0"},
+                "path": "r-id&big-ou0",
+                "level": 1,
+                "account": {"Id": "0", "Name": "Zero"},
+            },
+            {
+                "ou": {"Name": "big-ou", "Id": "big-ou0"},
+                "path": "r-id&big-ou0",
+                "level": 1,
+                "account": {"Id": "1", "Name": "One"},
+            },
+            {"ou": {"Name": "sub-ou", "Id": "sub-ou0"}, "path": "r-id&big-ou0&sub-ou0", "level": 2},
         ]
 
     def _generate_results_metadata(self):
         """Generate metadata for data list for testing confirmation purposes"""
         metadata = dict()
         for data in self.data_list:
-            data_key = data["id"]
+            data_key = data["ou"]["Id"]
             id_exist = metadata.get(data_key)
             if not id_exist:
                 metadata[data_key] = {"data": [], "account_num": 0}
@@ -67,18 +77,14 @@ class GenerateOrgTestData:
     def insert_data(self):
         """Insert data list into the database and returns metadata for testing purposes."""
         unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler.structure_yesterday = {}
+        unit_crawler.account_alias_map = {}
         for insert_data in self.data_list:
             if insert_data.get("account"):
                 unit_crawler._save_aws_org_method(
-                    insert_data["name"],
-                    insert_data["id"],
-                    insert_data["path"],
-                    insert_data["parent"],
-                    insert_data["account"],
+                    insert_data["ou"], insert_data["path"], insert_data["level"], insert_data["account"]
                 )
             else:
-                unit_crawler._save_aws_org_method(
-                    insert_data["name"], insert_data["id"], insert_data["path"], insert_data["parent"]
-                )
+                unit_crawler._save_aws_org_method(insert_data["ou"], insert_data["path"], insert_data["level"])
         metadata = self._generate_results_metadata()
         return metadata

@@ -22,7 +22,7 @@ from api.report.serializers import handle_invalid_fields
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 
-AWS_FILTER_OP_FIELDS = ["account_id"]
+AWS_FILTER_OP_FIELDS = ["org_id"]
 
 
 class FilterSerializer(serializers.Serializer):
@@ -79,7 +79,6 @@ class FilterSerializer(serializers.Serializer):
 class AWSOrgFilterSerializer(FilterSerializer):
     """Serializer for handling org query parameter filter."""
 
-    account_id = StringOrListField(child=serializers.CharField(), required=False)
     org_id = StringOrListField(child=serializers.CharField(), required=False)
 
     def __init__(self, *args, **kwargs):

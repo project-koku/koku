@@ -18,6 +18,7 @@
 from api.iam.test.iam_test_case import IamTestCase
 from api.organizations.aws.queries import AWSOrgQueryHandler
 from api.organizations.aws.view import AWSOrgView
+from api.organizations.test.utils import GenerateOrgTestData
 from api.utils import DateHelper
 
 
@@ -29,6 +30,8 @@ class AWSOrgQueryHandlerTest(IamTestCase):
         """Set up the test class."""
         super().setUpClass()
         cls.dh = DateHelper()
+        cls.dh = DateHelper()
+        cls.generate_data = GenerateOrgTestData(cls.tenant.schema_name)
 
     def test_execute_query_no_query_parameters(self):
         """Test that the execute query runs properly with no query."""
@@ -39,6 +42,8 @@ class AWSOrgQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertEqual(handler.time_scope_units, "day")
         self.assertEqual(handler.time_scope_value, -10)
+        self.assertEqual(handler.start_datetime, self.dh.this_month_start)
+        self.assertEqual(handler.end_datetime, self.dh.today)
 
     def test_execute_query_10_day_parameters(self):
         """Test that the execute query runs properly with 10 day query."""
@@ -62,6 +67,7 @@ class AWSOrgQueryHandlerTest(IamTestCase):
 
     def test_execute_query_10_day_parameters_only_keys(self):
         """Test that the execute query runs properly with 10 day query."""
+        self.generate_data.insert_data()
         url = "?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&key_only=True"
         query_params = self.mocked_query_params(url, AWSOrgView)
         handler = AWSOrgQueryHandler(query_params)
@@ -69,6 +75,9 @@ class AWSOrgQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertEqual(handler.time_scope_units, "day")
         self.assertEqual(handler.time_scope_value, -10)
+        self.assertIsNotNone(query_output["data"][0].get("org_unit_id"))
+        self.assertIsNone(query_output["data"][0].get("sub_orgs"))
+        self.assertIsNone(query_output["data"][0].get("accounts"))
 
     def test_execute_query_month_parameters(self):
         """Test that the execute query runs properly with single month query."""
