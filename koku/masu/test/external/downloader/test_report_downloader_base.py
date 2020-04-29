@@ -15,11 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the report downloader base class."""
-import datetime
 import os.path
 from unittest.mock import Mock
 
 from faker import Faker
+from model_bakery import baker
 
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
@@ -27,6 +27,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.processor.worker_cache import WorkerCache
 from masu.test import MasuTestCase
+from reporting_common.models import CostUsageReportStatus
 
 
 class ReportDownloaderBaseTest(MasuTestCase):
@@ -66,6 +67,14 @@ class ReportDownloaderBaseTest(MasuTestCase):
             manifest = manifest_accessor.add(**self.manifest_dict)
             manifest.save()
             self.manifest_id = manifest.id
+        for i in [1, 2]:
+            baker.make(
+                CostUsageReportStatus,
+                report_name=f"{self.assembly_id}_file_{i}.csv.gz",
+                last_completed_datetime=None,
+                last_started_datetime=None,
+                manifest_id=self.manifest_id,
+            )
 
     def tearDown(self):
         """Tear down each test case."""
@@ -103,44 +112,25 @@ class ReportDownloaderBaseTest(MasuTestCase):
         result = self.downloader.check_if_manifest_should_be_downloaded("1234")
         self.assertTrue(result)
 
-    def test_check_if_manifest_should_be_downloaded_currently_processing_manifest(self):
-        """Test that a manifest being processed should not be reprocessed."""
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
-            manifest.num_processed_files = 1
-            manifest.num_total_files = 2
-            manifest.save()
-
-        with ReportStatsDBAccessor(self.report_name, self.manifest_id) as file_accessor:
-            file_accessor.log_last_started_datetime()
-            file_accessor.log_last_completed_datetime()
-
-        result = self.downloader.check_if_manifest_should_be_downloaded(self.assembly_id)
-        self.assertFalse(result)
-
     def test_check_if_manifest_should_be_downloaded_error_processing_manifest(self):
         """Test that a manifest that did not succeessfully process should be reprocessed."""
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
-            manifest.num_processed_files = 1
-            manifest.num_total_files = 2
-            manifest.save()
-
-        with ReportStatsDBAccessor(self.report_name, self.manifest_id) as file_accessor:
+        reports = CostUsageReportStatus.objects.filter(manifest_id=self.manifest_id)
+        with ReportStatsDBAccessor(reports[0].report_name, reports[0].manifest_id) as file_accessor:
             file_accessor.log_last_started_datetime()
             file_accessor.log_last_completed_datetime()
-            completed_datetime = self.date_accessor.today_with_timezone("UTC") - datetime.timedelta(hours=1)
-            file_accessor.update(last_completed_datetime=completed_datetime)
+        with ReportStatsDBAccessor(reports[1].report_name, reports[1].manifest_id) as file_accessor:
+            file_accessor.log_last_started_datetime()
+            file_accessor.update(last_completed_datetime=None)
         result = self.downloader.check_if_manifest_should_be_downloaded(self.assembly_id)
         self.assertTrue(result)
 
     def test_check_if_manifest_should_be_downloaded_done_processing_manifest(self):
         """Test that a manifest that has finished processing is not reprocessed."""
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
-            manifest.num_processed_files = 2
-            manifest.num_total_files = 2
-            manifest.save()
+        reports = CostUsageReportStatus.objects.filter(manifest_id=self.manifest_id)
+        for report in reports:
+            with ReportStatsDBAccessor(report.report_name, report.manifest_id) as file_accessor:
+                file_accessor.log_last_started_datetime()
+                file_accessor.log_last_completed_datetime()
 
         result = self.downloader.check_if_manifest_should_be_downloaded(self.assembly_id)
         self.assertFalse(result)
