@@ -204,8 +204,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         manifest_id = manifest.id
         updater = ReportSummaryUpdater(self.schema, self.ocp_test_provider_uuid, manifest_id)
 
-        # manifest_is_ready is now unconditionally returning True, so summary is expected.
-        self.assertTrue(updater.manifest_is_ready())
+        self.assertFalse(updater.manifest_is_ready())
 
     def test_no_provider_on_create(self):
         """Test that an error is raised when no provider exists."""
