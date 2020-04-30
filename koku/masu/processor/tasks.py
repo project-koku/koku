@@ -229,9 +229,10 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
     LOG.info(stmt)
 
     updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
-    if updater.manifest_is_ready():
-        start_date, end_date = updater.update_daily_tables(start_date, end_date)
-        updater.update_summary_tables(start_date, end_date)
+
+    start_date, end_date = updater.update_daily_tables(start_date, end_date)
+    updater.update_summary_tables(start_date, end_date)
+
     if provider_uuid:
         dh = DateHelper(utc=True)
         prev_month_last_day = dh.last_month_end

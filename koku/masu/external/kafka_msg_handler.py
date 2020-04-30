@@ -36,6 +36,7 @@ from kafka.errors import KafkaError
 from masu.config import Config
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
+from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
@@ -153,8 +154,8 @@ def extract_payload(url):  # noqa: C901
         payload_destination_path = f"{destination_dir}/{report_file}"
         try:
             shutil.copy(payload_source_path, payload_destination_path)
-        except FileNotFoundError as error:
-            LOG.warning("Manifest file not yet downloaded. %s", str(error))
+        except FileNotFoundError:
+            LOG.warning("Manifest file %s has not been processed.", str(report_file))
 
     LOG.info("Successfully extracted OCP for %s/%s", report_meta.get("cluster_id"), usage_month)
     # Remove temporary directory and files
@@ -305,6 +306,15 @@ def process_report(report):
             LOG.info("Processing %s report for account %s", payload_date.strftime("%B %Y"), account)
             reports_to_summarize = get_report_files(**account)
             LOG.info("Processing complete for account %s", account)
+
+            for report in reports_to_summarize:
+                schema_name = report.get("schema_name")
+                provider_uuid = report.get("provider_uuid")
+                manifest_id = report.get("manifest_id")
+                updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
+                if not updater.manifest_is_ready():
+                    LOG.info(f"All files not processed for manifest id: {str(manifest_id)}.  Skipping summary")
+                    return
 
             async_id = summarize_reports.delay(reports_to_summarize)
             LOG.info("Summarization celery uuid: %s", str(async_id))
