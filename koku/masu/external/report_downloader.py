@@ -28,6 +28,7 @@ from masu.external.downloader.azure.azure_report_downloader import AzureReportDo
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
+from reporting_common.models import CostUsageReportStatus
 
 
 LOG = logging.getLogger(__name__)
@@ -93,7 +94,6 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 cache_key=self.cache_key,
             )
-
         if self.provider_type == Provider.PROVIDER_AWS_LOCAL:
             return AWSLocalReportDownloader(
                 task=self.task,
@@ -104,7 +104,6 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 cache_key=self.cache_key,
             )
-
         if self.provider_type == Provider.PROVIDER_AZURE:
             return AzureReportDownloader(
                 task=self.task,
@@ -115,7 +114,6 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 cache_key=self.cache_key,
             )
-
         if self.provider_type == Provider.PROVIDER_AZURE_LOCAL:
             return AzureLocalReportDownloader(
                 task=self.task,
@@ -126,7 +124,6 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 cache_key=self.cache_key,
             )
-
         if self.provider_type == Provider.PROVIDER_OCP:
             return OCPReportDownloader(
                 task=self.task,
@@ -137,7 +134,6 @@ class ReportDownloader:
                 provider_uuid=self.provider_uuid,
                 cache_key=self.cache_key,
             )
-
         if self.provider_type == Provider.PROVIDER_GCP:
             return GCPReportDownloader(
                 task=self.task,
@@ -171,6 +167,19 @@ class ReportDownloader:
             raise ReportDownloaderError(str(err))
         return reports
 
+    def is_report_processed(self, report_name):
+        """Check if report_name has completed processing.
+
+        Filter by the report name and then check the last_completed_datetime.
+        If the date is not null, the report has been processed, and this method returns True.
+        Otherwise returns False.
+
+        """
+        report_record = CostUsageReportStatus.objects.filter(report_name=report_name)
+        if report_record:
+            return report_record.filter(last_completed_datetime__isnull=False).exists()
+        return False
+
     def download_report(self, date_time):
         """
         Download CUR for a given date.
@@ -190,6 +199,10 @@ class ReportDownloader:
         for report in reports:
             report_dictionary = {}
             local_file_name = self._downloader.get_local_file_for_report(report)
+
+            if self.is_report_processed(local_file_name):
+                LOG.info(f"File has already been processed: {local_file_name}. Skipping...")
+                continue
             with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
                 stored_etag = stats_recorder.get_etag()
                 file_name, etag = self._downloader.download_file(report, stored_etag)

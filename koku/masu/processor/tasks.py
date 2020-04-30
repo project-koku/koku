@@ -31,6 +31,7 @@ import masu.prometheus_stats as worker_stats
 from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.celery import app
+from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.accounts_accessor import AccountsAccessor
@@ -104,22 +105,12 @@ def get_report_files(
 
             # Skip processing if already in progress.
             if started_date and not completed_date:
-                expired_start_date = started_date + datetime.timedelta(hours=2)
+                expired_start_date = started_date + datetime.timedelta(hours=Config.REPORT_PROCESSING_TIMEOUT_HOURS)
                 if DateAccessor().today_with_timezone("UTC") < expired_start_date:
                     LOG.info(
                         "Skipping processing task for %s since it was started at: %s.", file_name, str(started_date)
                     )
                     continue
-
-            # Skip processing if complete.
-            if started_date and completed_date:
-                LOG.info(
-                    "Skipping processing task for %s. Started on: %s and completed on: %s.",
-                    file_name,
-                    str(started_date),
-                    str(completed_date),
-                )
-                continue
 
             stmt = (
                 f"Processing starting:\n"

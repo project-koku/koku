@@ -20,6 +20,7 @@ import os
 import re
 from collections import namedtuple
 from datetime import datetime
+from http import HTTPStatus
 from subprocess import CompletedProcess
 from subprocess import PIPE
 from unittest.mock import ANY
@@ -33,6 +34,9 @@ from django.test.utils import override_settings
 from django.urls import reverse
 
 from sources.api.status import ApplicationStatus
+from sources.api.status import check_kafka_connection
+from sources.api.status import check_sources_connection
+from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClientError
 
 
@@ -47,7 +51,9 @@ class StatusAPITest(TestCase):
 
     def test_status(self):
         """Test the status endpoint."""
-        response = self.client.get(reverse("server-status"))
+        with patch("sources.api.status.check_kafka_connection", return_value=True):
+            with patch("sources.api.status.check_sources_connection", return_value=2):
+                response = self.client.get(reverse("server-status"))
         body = response.data
 
         self.assertEqual(response.status_code, 200)
@@ -69,6 +75,49 @@ class StatusAPITest(TestCase):
         self.assertIsNotNone(body["platform_info"])
         self.assertIsNotNone(body["python_version"])
         self.assertIsNotNone(body["sources_status"])
+
+    def test_status_readiness_dependency_error(self):
+        """Test dependency connection failure during readiness returns 424."""
+        test_matrix = [(False, 2), (True, None), (False, None)]
+        for kafka, sources in test_matrix:
+            with self.subTest(test=f"kafka: {kafka}, source-id: {sources}"):
+                with patch("sources.api.status.check_kafka_connection", return_value=kafka):
+                    with patch("sources.api.status.check_sources_connection", return_value=sources):
+                        response = self.client.get(reverse("server-status"))
+                        self.assertEqual(response.status_code, HTTPStatus.FAILED_DEPENDENCY)
+
+    def test_check_kafka_connection(self):
+        """Test check kafka connections."""
+        with patch("kafka.BrokerConnection.connect_blocking", return_value=False):
+            result = check_kafka_connection()
+            self.assertFalse(result)
+        with patch("kafka.BrokerConnection.connect_blocking", return_value=True):
+            with patch("kafka.BrokerConnection.close") as mock_close:
+                result = check_kafka_connection()
+                mock_close.assert_called()
+                self.assertTrue(result)
+
+    def test_check_sources_connection(self):
+        """Test check sources connections."""
+        app_id = 2
+        with patch(
+            "sources.sources_http_client.SourcesHTTPClient.get_cost_management_application_type_id",
+            return_value=app_id,
+        ):
+            result = check_sources_connection()
+            self.assertEqual(result, app_id)
+        with patch(
+            "sources.sources_http_client.SourcesHTTPClient.get_cost_management_application_type_id",
+            side_effect=SourcesHTTPClientError("test exception"),
+        ):
+            result = check_sources_connection()
+            self.assertIsNone(result)
+        with patch(
+            "sources.sources_http_client.SourcesHTTPClient.get_cost_management_application_type_id",
+            side_effect=SourceNotFoundError("test source not found exception"),
+        ):
+            result = check_sources_connection()
+            self.assertIsNone(result)
 
     @patch.dict(os.environ, {"OPENSHIFT_BUILD_COMMIT": "fake_commit_hash"})
     def test_commit_with_env(self):
