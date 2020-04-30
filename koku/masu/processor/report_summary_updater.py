@@ -125,6 +125,7 @@ class ReportSummaryUpdater:
                 str(self._manifest.num_processed_files),
                 str(self._manifest.num_total_files),
             )
+            return False
         return True
 
     def update_daily_tables(self, start_date, end_date):

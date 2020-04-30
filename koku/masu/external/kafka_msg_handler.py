@@ -154,8 +154,8 @@ def extract_payload(url):  # noqa: C901
         try:
             shutil.copy(payload_source_path, payload_destination_path)
         except FileNotFoundError as error:
-            LOG.error("Unable to find file in payload. %s", str(error))
-            raise KafkaMsgHandlerError("Missing file in payload")
+            LOG.warning("Manifest file not yet downloaded. %s", str(error))
+
     LOG.info("Successfully extracted OCP for %s/%s", report_meta.get("cluster_id"), usage_month)
     # Remove temporary directory and files
     shutil.rmtree(temp_dir)
