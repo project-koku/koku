@@ -15,18 +15,23 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Azure provider."""
+import logging
+
 from adal.adal_error import AdalError
 from azure.common import AzureException
 from django.utils.translation import ugettext as _
 from msrest.exceptions import ClientException
 from rest_framework.serializers import ValidationError
 
+from ..provider_errors import ProviderErrors
 from ..provider_interface import ProviderInterface
 from .client import AzureClientFactory
 from api.models import Provider
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.azure.azure_service import AzureServiceError
+
+LOG = logging.getLogger(__name__)
 
 
 def error_obj(key, message):
@@ -53,6 +58,34 @@ class AzureProvider(ProviderInterface):
 
         """
         return Provider.PROVIDER_AZURE
+
+    def _verify_patch_entries(self, subscription_id, resource_group, storage_account):
+        """Raise Validation Error for missing."""
+        LOG.error(f"verify patch: {subscription_id}, {resource_group}, {storage_account}")
+        if subscription_id and not (resource_group and storage_account):
+            key = ProviderErrors.AZURE_MISSING_PATCH
+            message = ProviderErrors.AZURE_MISSING_RESOURCE_GROUP_AND_STORAGE_ACCOUNT_MESSAGE
+            raise ValidationError(error_obj(key, message))
+
+        if subscription_id and resource_group and not storage_account:
+            key = ProviderErrors.AZURE_MISSING_PATCH
+            message = ProviderErrors.AZURE_MISSING_STORAGE_ACCOUNT_MESSAGE
+            raise ValidationError(error_obj(key, message))
+
+        if subscription_id and storage_account and not resource_group:
+            key = ProviderErrors.AZURE_MISSING_PATCH
+            message = ProviderErrors.AZURE_MISSING_RESOURCE_GROUP_MESSAGE
+            raise ValidationError(error_obj(key, message))
+
+        if storage_account and resource_group and not subscription_id:
+            key = ProviderErrors.AZURE_MISSING_PATCH
+            message = ProviderErrors.AZURE_MISSING_SUBSCRIPTION_ID_MESSAGE
+            raise ValidationError(error_obj(key, message))
+
+        if not resource_group and not storage_account and not subscription_id:
+            key = ProviderErrors.AZURE_MISSING_PATCH
+            message = ProviderErrors.AZURE_MISSING_ALL_PATCH_VALUES_MESSAGE
+            raise ValidationError(error_obj(key, message))
 
     def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
         """
@@ -81,7 +114,7 @@ class AzureProvider(ProviderInterface):
             ValidationError: Error string
 
         """
-        key = "billing_source.data_source"
+        key = "azure.error"
 
         azure_service = None
 
@@ -91,9 +124,9 @@ class AzureProvider(ProviderInterface):
 
         resource_group = storage_resource_name.get("resource_group")
         storage_account = storage_resource_name.get("storage_account")
-        if not (resource_group and storage_account):
-            message = "resource_group or storage_account is undefined."
-            raise ValidationError(error_obj(key, message))
+        subscription_id = credential_name.get("subscription_id")
+
+        self._verify_patch_entries(subscription_id, resource_group, storage_account)
 
         try:
             azure_service = AzureService(
@@ -103,11 +136,15 @@ class AzureProvider(ProviderInterface):
             storage_accounts = azure_client.storage_client.storage_accounts
             storage_account = storage_accounts.get_properties(resource_group, storage_account)
             if azure_service and not azure_service.describe_cost_management_exports():
-                message = "Cost management export was not found."
+                key = ProviderErrors.AZURE_NO_REPORT_FOUND
+                message = ProviderErrors.AZURE_MISSING_EXPORT_MESSAGE
                 raise ValidationError(error_obj(key, message))
         except AzureCostReportNotFound as costreport_err:
+            key = ProviderErrors.AZURE_BILLING_SOURCE_NOT_FOUND
             raise ValidationError(error_obj(key, str(costreport_err)))
         except (AdalError, AzureException, AzureServiceError, ClientException, TypeError) as exc:
+            LOG.error(f"Error type: {str(exc)}")
+            key = ProviderErrors.AZURE_CLIENT_ERROR
             raise ValidationError(error_obj(key, str(exc)))
 
         return True
