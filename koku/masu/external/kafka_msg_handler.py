@@ -34,9 +34,9 @@ from aiokafka import AIOKafkaProducer
 from kafka.errors import KafkaError
 
 from masu.config import Config
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
-from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
@@ -307,14 +307,12 @@ def process_report(report):
             reports_to_summarize = get_report_files(**account)
             LOG.info("Processing complete for account %s", account)
 
-            for report in reports_to_summarize:
-                schema_name = report.get("schema_name")
-                provider_uuid = report.get("provider_uuid")
-                manifest_id = report.get("manifest_id")
-                updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
-                if not updater.manifest_is_ready():
-                    LOG.info(f"All files not processed for manifest id: {str(manifest_id)}.  Skipping summary")
-                    return
+            if reports_to_summarize:
+                manifest_id = reports_to_summarize[0].get("manifest_id")
+                with ReportManifestDBAccessor() as manifest_accessor:
+                    if manifest_accessor.is_last_completed_datetime_null(manifest_id):
+                        LOG.info(f"All files not processed for manifest id: {str(manifest_id)}.  Skipping summary")
+                        return
 
             async_id = summarize_reports.delay(reports_to_summarize)
             LOG.info("Summarization celery uuid: %s", str(async_id))
@@ -354,6 +352,8 @@ async def process_messages():  # pragma: no cover
                 try:
                     await EVENT_LOOP.run_in_executor(pool, process_report, report_meta)
                     LOG.info("Processing: %s complete.", str(report_meta))
+                except FileNotFoundError as error:
+                    LOG.info(f"test_download_bucket_no_csv_found: {str(error)}")
                 except Exception as error:
                     # The reason for catching all exceptions is to ensure that the event
                     # loop does not block if process_report fails.

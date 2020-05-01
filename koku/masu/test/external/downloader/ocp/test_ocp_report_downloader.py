@@ -59,6 +59,10 @@ class OCPReportDownloaderTest(MasuTestCase):
         self.test_file_path = os.path.join(report_path, os.path.basename(test_file_path))
         shutil.copyfile(test_file_path, os.path.join(report_path, self.test_file_path))
 
+        test_storage_file_path = "./koku/masu/test/data/ocp/e6b3701e-1e91" "-433b-b238-a31e49937558_storage.csv"
+        self.test_storage_file_path = os.path.join(report_path, os.path.basename(test_storage_file_path))
+        shutil.copyfile(test_file_path, os.path.join(report_path, self.test_storage_file_path))
+
         test_manifest_path = "./koku/masu/test/data/ocp/manifest.json"
         self.test_manifest_path = os.path.join(report_path, os.path.basename(test_manifest_path))
         shutil.copyfile(test_manifest_path, os.path.join(report_path, self.test_manifest_path))
@@ -103,8 +107,9 @@ class OCPReportDownloaderTest(MasuTestCase):
         test_report_date = datetime(year=2018, month=9, day=7)
         with patch.object(DateAccessor, "today", return_value=test_report_date):
             os.remove(self.test_file_path)
-            reports = self.report_downloader.download_report(test_report_date)
-        self.assertEqual(reports, [])
+            os.remove(self.test_storage_file_path)
+            with self.assertRaises(FileNotFoundError):
+                self.report_downloader.download_report(test_report_date)
 
     def test_download_bucket_non_csv_found(self):
         """Test to verify that basic report downloading with non .csv file in source directory."""
@@ -112,13 +117,13 @@ class OCPReportDownloaderTest(MasuTestCase):
         with patch.object(DateAccessor, "today", return_value=test_report_date):
             # Remove .csv
             os.remove(self.test_file_path)
+            os.remove(self.test_storage_file_path)
 
             # Create .txt file
             txt_file_path = "{}/{}".format(os.path.dirname(self.test_file_path), "report.txt")
             open(txt_file_path, "a").close()
-
-            reports = self.report_downloader.download_report(test_report_date)
-        self.assertEqual(reports, [])
+            with self.assertRaises(FileNotFoundError):
+                self.report_downloader.download_report(test_report_date)
 
     def test_download_bucket_source_directory_missing(self):
         """Test to verify that basic report downloading when source directory doesn't exist."""
