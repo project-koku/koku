@@ -173,39 +173,6 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         with self.assertRaises(ReportSummaryUpdaterError):
             _ = ReportSummaryUpdater(self.schema, self.unkown_test_provider_uuid)
 
-    def test_manifest_is_ready_is_ready(self):
-        """Test that True is returned when a manifest is ready to process."""
-        billing_start = DateAccessor().today_with_timezone("UTC").replace(day=1)
-        manifest_dict = {
-            "assembly_id": "1234",
-            "billing_period_start_datetime": billing_start,
-            "num_total_files": 2,
-            "num_processed_files": 2,
-            "provider_uuid": self.ocp_provider_uuid,
-        }
-        with ReportManifestDBAccessor() as accessor:
-            manifest = accessor.add(**manifest_dict)
-        manifest_id = manifest.id
-        updater = ReportSummaryUpdater(self.schema, self.ocp_test_provider_uuid, manifest_id)
-        self.assertTrue(updater.manifest_is_ready())
-
-    def test_manifest_is_ready_is_not_ready(self):
-        """Test that False is returned when a manifest is not ready to process."""
-        billing_start = DateAccessor().today_with_timezone("UTC").replace(day=1)
-        manifest_dict = {
-            "assembly_id": "1234",
-            "billing_period_start_datetime": billing_start,
-            "num_total_files": 2,
-            "num_processed_files": 1,
-            "provider_uuid": self.ocp_provider_uuid,
-        }
-        with ReportManifestDBAccessor() as accessor:
-            manifest = accessor.add(**manifest_dict)
-        manifest_id = manifest.id
-        updater = ReportSummaryUpdater(self.schema, self.ocp_test_provider_uuid, manifest_id)
-
-        self.assertFalse(updater.manifest_is_ready())
-
     def test_no_provider_on_create(self):
         """Test that an error is raised when no provider exists."""
         billing_start = DateAccessor().today_with_timezone("UTC").replace(day=1)
