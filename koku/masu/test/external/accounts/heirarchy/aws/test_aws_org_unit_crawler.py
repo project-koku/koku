@@ -225,20 +225,26 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             cur_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(cur_count, 3)
 
-    def test_build_accout_alias_map(self):
-        """Test function that builds accout alias."""
+    def test_build_account_alias_map(self):
+        """Test function that builds account alias map."""
         unit_crawler = AWSOrgUnitCrawler(self.account)
         with schema_context(self.schema):
-            AWSAccountAlias.objects.create(account_id="12345", account_alias="kevan")
-            AWSAccountAlias.objects.create(account_id="67890", account_alias="cody")
+            account_1 = AWSAccountAlias.objects.create(account_id="12345", account_alias="a1")
+            account_2 = AWSAccountAlias.objects.create(account_id="67890", account_alias="a2")
             # cur_count = AWSOrganizationalUnit.objects.count()
             # self.assertEqual(cur_count, 0)
             unit_crawler._build_accout_alias_map()
-        print("#" * 120)
-        print(unit_crawler._account_alias_map)
+        self.assertIsNotNone(unit_crawler._account_alias_map)
+    
+        self.assertIn(account_1.account_id, unit_crawler._account_alias_map.keys())
+        self.assertEqual(unit_crawler._account_alias_map.get(account_1.account_id), account_1)
+    
+        self.assertIn(account_2.account_id, unit_crawler._account_alias_map.keys())
+        self.assertEqual(unit_crawler._account_alias_map.get(account_2.account_id), account_2)
 
-    def test_compute_org_structure_for_day(self):
-        """Test function that computes org structure for a day."""
+
+    def test_compute_org_structure_interval(self):
+        """Test function that computes org structure for an interval."""
         unit_crawler = AWSOrgUnitCrawler(self.account)
         unit_crawler._build_accout_alias_map()
         with schema_context(self.schema):
@@ -266,13 +272,13 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             )
         )
 
-        # Change created date to day_1
+        # Change created date to two_days_ago
         with schema_context(self.schema):
-            day_1 = (unit_crawler._date_accessor.today() - timedelta(2)).strftime("%Y-%m-%d")
+            two_days_ago = (unit_crawler._date_accessor.today() - timedelta(2)).strftime("%Y-%m-%d")
             for node in created_nodes:
-                node.created_timestamp = day_1
+                node.created_timestamp = two_days_ago
                 node.save()
-            curr_count = AWSOrganizationalUnit.objects.filter(created_timestamp__lte=day_1).count()
+            curr_count = AWSOrganizationalUnit.objects.filter(created_timestamp__lte=two_days_ago).count()
             self.assertEqual(curr_count, 5)
 
         # # Add sub_org_unit_2 and move sub_org_unit_1 2 accounts here
@@ -291,18 +297,18 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         )
         deleted_nodes = unit_crawler._delete_aws_org_unit("OU_1000")
 
-        # # Test fake node delete
+        # Test fake node delete
         unit_crawler._delete_aws_org_unit("sub_org_unit_1_Fake")
 
         with schema_context(self.schema):
-            day_2 = (unit_crawler._date_accessor.today() - timedelta(1)).strftime("%Y-%m-%d")
+            yesterday = (unit_crawler._date_accessor.today() - timedelta(1)).strftime("%Y-%m-%d")
             for node in created_nodes:
-                node.created_timestamp = day_2
+                node.created_timestamp = yesterday
                 node.save()
             for node in deleted_nodes:
-                node.deleted_timestamp = day_2
+                node.deleted_timestamp = yesterday
                 node.save()
-            curr_count = AWSOrganizationalUnit.objects.filter(created_timestamp__lte=day_2).count()
+            curr_count = AWSOrganizationalUnit.objects.filter(created_timestamp__lte=yesterday).count()
             self.assertEqual(curr_count, 8)
 
         unit_crawler._delete_aws_account("A_002")
@@ -311,9 +317,19 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             curr_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(curr_count, 8)
 
+        print('#' * 120)
         today = unit_crawler._date_accessor.today().strftime("%Y-%m-%d")
-        unit_crawler._compute_org_structure_interval(day_1)
+        structure_2_days_ago = unit_crawler._compute_org_structure_interval(two_days_ago)
+        print(structure_2_days_ago)
+
         unit_crawler._mark_nodes_deleted()
-        unit_crawler._compute_org_structure_interval(day_2)
-        unit_crawler._compute_org_structure_interval(today)
-        unit_crawler._compute_org_structure_interval(day_1, today)
+        print(structure_2_days_ago)
+
+        structure_yesterday = unit_crawler._compute_org_structure_yesterday()
+        print(structure_yesterday)
+
+        structure_today = unit_crawler._compute_org_structure_interval(today)
+        print(structure_today)
+
+        structure_interval = unit_crawler._compute_org_structure_interval(two_days_ago, today)
+        print(structure_interval)

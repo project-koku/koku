@@ -53,8 +53,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
         self._init_session()
         self._build_accout_alias_map()
 
-        yesterday = (self._date_accessor.today() - timedelta(1)).strftime("%Y-%m-%d")
-        self._compute_org_structure_interval(yesterday, yesterday)
+        self._compute_org_structure_yesterday()
         root_ou = self._client.list_roots()["Roots"][0]
         LOG.info("Obtained the root identifier: %s" % (root_ou["Id"]))
         self._crawl_org_for_accounts(root_ou, root_ou.get("Id"), level=0)
@@ -262,8 +261,28 @@ class AWSOrgUnitCrawler(AccountCrawler):
             for alias in AWSAccountAlias.objects.all():
                 self._account_alias_map[alias.account_id] = alias
 
+    def _compute_org_structure_yesterday(self):
+        """
+        Construct the tree structure for yesterday
+
+        Returns:
+            dict: key built of org_unit (if account is none) or org_unit and account number to 
+            django AWSOrganizationalUnit model objects.
+        """
+        yesterday = (self._date_accessor.today() - timedelta(1)).strftime("%Y-%m-%d")
+        self._structure_yesterday = self._compute_org_structure_interval(yesterday)
+
     def _compute_org_structure_interval(self, start_date, end_date=None):
-        """Compute the org structure for a day."""
+        """
+        Construct the tree structure for an interval
+
+        Args:
+            start_date (datetime.datetime): Interval start time.
+            end_date (datetime.datetime): Interval end time.
+        Returns:
+            dict: key built of org_unit (if account is none) or org_unit and account number to 
+            django AWSOrganizationalUnit model objects.
+        """
 
         if not end_date:
             end_date = start_date
@@ -286,13 +305,14 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 .distinct("account_alias")
             )
 
-            self._structure_yesterday = {}
+            structure = {}
             for org_unit in aws_org_units:
-                self._structure_yesterday[self._create_lookup_key(org_unit.org_unit_id)] = org_unit
+                structure[self._create_lookup_key(org_unit.org_unit_id)] = org_unit
             for org_unit in aws_accounts:
-                self._structure_yesterday[
+                structure[
                     self._create_lookup_key(org_unit.org_unit_id, org_unit.account_alias.account_id)
                 ] = org_unit
+            return structure
 
     def _create_lookup_key(self, unit_id, account_id=None):
         """
