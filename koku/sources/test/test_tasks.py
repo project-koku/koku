@@ -144,7 +144,7 @@ class SourcesTasksTest(TestCase):
 
     @patch.object(settings, "DEVELOPMENT", False)
     @patch("masu.celery.tasks.check_report_updates")
-    @patch("sources.tasks.set_status_for_source.delay", side_effect=MockStatus)
+    @patch("sources.tasks.set_status_for_source", side_effect=MockStatus)
     @patch("sources.sources_http_client.SourcesHTTPClient.set_source_status")
     def test_set_status(self, mock_call, mock_status, __):
         """Test that set status is called when source exists."""

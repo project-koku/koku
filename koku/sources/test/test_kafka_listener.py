@@ -206,9 +206,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             "offset": 12,
         }
 
-    @patch("sources.tasks.set_status_for_source.delay")
     @patch("sources.tasks.create_or_update_provider.delay", side_effect=MockTask)
-    def test_execute_koku_provider_op_create(self, mock_delay, mock_status):
+    def test_execute_koku_provider_op_create(self, mock_delay):
         """Test to execute Koku Operations to sync with Sources for creation."""
         source_id = self.aws_source.get("source_id")
         application_type_id = 2
@@ -234,9 +233,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         source_integration.execute_koku_provider_op(msg, application_type_id)
         self.assertEqual(Sources.objects.filter(source_id=source_id).exists(), False)
 
-    @patch("sources.tasks.set_status_for_source.delay")
     @patch("sources.tasks.delete_source_and_provider.delay", side_effect=MockDestroyTask)
-    def test_execute_koku_provider_op_destroy_provider_not_found(self, mock_destroy, mock_status):
+    def test_execute_koku_provider_op_destroy_provider_not_found(self, mock_destroy):
         """Test to execute Koku Operations to sync with Sources for destruction with provider missing.
 
         First, raise ProviderManagerError. Check that provider and source still exists.
@@ -263,9 +261,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         source_integration.execute_koku_provider_op(msg, application_type_id)
         self.assertFalse(Provider.objects.filter(uuid=provider.source_uuid).exists())
 
-    @patch("sources.tasks.set_status_for_source.delay")
     @patch("sources.tasks.create_or_update_provider.delay", side_effect=MockTask)
-    def test_execute_koku_provider_op_update(self, mock_create, mock_status):
+    def test_execute_koku_provider_op_update(self, mock_create):
         """Test to execute Koku Operations to sync with Sources for update."""
         source_id = self.aws_source.get("source_id")
         application_type_id = 2
@@ -293,9 +290,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         response = Provider.objects.get(uuid=uuid)
         self.assertEqual(response.billing_source.bucket, "new-bucket")
 
-    @patch("sources.tasks.set_status_for_source.delay")
     @patch("sources.tasks.create_or_update_provider.delay")
-    def test_execute_koku_provider_op_create_rabbit_down(self, mock_delay, mock_status):
+    def test_execute_koku_provider_op_create_rabbit_down(self, mock_delay):
         """Test to execute Koku Operations to sync with Sources for creation with rabbit down."""
         application_type_id = 2
         provider = Sources(**self.aws_source)
