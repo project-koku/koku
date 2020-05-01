@@ -25,6 +25,7 @@ from celery import chain
 from celery.utils.log import get_task_logger
 from dateutil import parser
 from django.db import connection
+from django.db import transaction
 from tenant_schemas.utils import schema_context
 
 import masu.prometheus_stats as worker_stats
@@ -85,59 +86,64 @@ def get_report_files(
         self, customer_name, authentication, billing_source, provider_type, provider_uuid, month, cache_key
     )
 
-    try:
-        stmt = (
-            f"Reports to be processed:\n"
-            f" schema_name: {customer_name}\n"
-            f" provider: {provider_type}\n"
-            f" provider_uuid: {provider_uuid}\n"
-        )
-        for report in reports:
-            stmt += " file: " + str(report["file"]) + "\n"
-        LOG.info(stmt[:-1])
-        reports_to_summarize = []
-        for report_dict in reports:
-            manifest_id = report_dict.get("manifest_id")
-            file_name = os.path.basename(report_dict.get("file"))
-            with ReportStatsDBAccessor(file_name, manifest_id) as stats:
-                started_date = stats.get_last_started_datetime()
-                completed_date = stats.get_last_completed_datetime()
-
-            # Skip processing if already in progress.
-            if started_date and not completed_date:
-                expired_start_date = started_date + datetime.timedelta(hours=Config.REPORT_PROCESSING_TIMEOUT_HOURS)
-                if DateAccessor().today_with_timezone("UTC") < expired_start_date:
-                    LOG.info(
-                        "Skipping processing task for %s since it was started at: %s.", file_name, str(started_date)
-                    )
-                    continue
-
+    with transaction.atomic():
+        try:
             stmt = (
-                f"Processing starting:\n"
+                f"Reports to be processed:\n"
                 f" schema_name: {customer_name}\n"
                 f" provider: {provider_type}\n"
                 f" provider_uuid: {provider_uuid}\n"
-                f' file: {report_dict.get("file")}'
             )
-            LOG.info(stmt)
-            worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
-            _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
-            report_meta = {}
-            known_manifest_ids = [report.get("manifest_id") for report in reports_to_summarize]
-            if report_dict.get("manifest_id") not in known_manifest_ids:
-                report_meta["schema_name"] = schema_name
-                report_meta["provider_type"] = provider_type
-                report_meta["provider_uuid"] = provider_uuid
-                report_meta["manifest_id"] = report_dict.get("manifest_id")
-                reports_to_summarize.append(report_meta)
-    except ReportProcessorError as processing_error:
-        worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-        LOG.error(str(processing_error))
-        raise processing_error
-    finally:
-        WorkerCache().remove_task_from_cache(cache_key)
+            for report in reports:
+                stmt += " file: " + str(report["file"]) + "\n"
+            LOG.info(stmt[:-1])
+            reports_to_summarize = []
+            for report_dict in reports:
+                manifest_id = report_dict.get("manifest_id")
+                file_name = os.path.basename(report_dict.get("file"))
+                with ReportStatsDBAccessor(file_name, manifest_id) as stats:
+                    started_date = stats.get_last_started_datetime()
+                    completed_date = stats.get_last_completed_datetime()
 
-    return reports_to_summarize
+                # Skip processing if already in progress.
+                if started_date and not completed_date:
+                    expired_start_date = started_date + datetime.timedelta(
+                        hours=Config.REPORT_PROCESSING_TIMEOUT_HOURS
+                    )
+                    if DateAccessor().today_with_timezone("UTC") < expired_start_date:
+                        LOG.info(
+                            "Skipping processing task for %s since it was started at: %s.",
+                            file_name,
+                            str(started_date),
+                        )
+                        continue
+
+                stmt = (
+                    f"Processing starting:\n"
+                    f" schema_name: {customer_name}\n"
+                    f" provider: {provider_type}\n"
+                    f" provider_uuid: {provider_uuid}\n"
+                    f' file: {report_dict.get("file")}'
+                )
+                LOG.info(stmt)
+                worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
+                _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
+                report_meta = {}
+                known_manifest_ids = [report.get("manifest_id") for report in reports_to_summarize]
+                if report_dict.get("manifest_id") not in known_manifest_ids:
+                    report_meta["schema_name"] = schema_name
+                    report_meta["provider_type"] = provider_type
+                    report_meta["provider_uuid"] = provider_uuid
+                    report_meta["manifest_id"] = report_dict.get("manifest_id")
+                    reports_to_summarize.append(report_meta)
+        except ReportProcessorError as processing_error:
+            worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
+            LOG.error(str(processing_error))
+            raise processing_error
+        finally:
+            WorkerCache().remove_task_from_cache(cache_key)
+
+        return reports_to_summarize
 
 
 @app.task(name="masu.processor.tasks.remove_expired_data", queue_name="remove_expired")
