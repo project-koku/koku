@@ -115,18 +115,6 @@ class ReportSummaryUpdater:
             end_date = end_date.strftime("%Y-%m-%d")
         return start_date, end_date
 
-    def manifest_is_ready(self):
-        """Check if processing should continue."""
-        if self._manifest and self._manifest.num_processed_files != self._manifest.num_total_files:
-            # Bail if all manifest files have not been processed
-            LOG.info(
-                "Not all manifest files have completed processing."
-                "Summary deferred. Processed Files: %s, Total Files: %s",
-                str(self._manifest.num_processed_files),
-                str(self._manifest.num_total_files),
-            )
-        return True
-
     def update_daily_tables(self, start_date, end_date):
         """
         Update report daily rollup tables.

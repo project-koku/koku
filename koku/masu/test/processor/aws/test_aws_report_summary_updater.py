@@ -31,7 +31,6 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
-from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 
@@ -213,12 +212,8 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
             self.assertIsNotNone(bill.summary_data_creation_datetime)
             self.assertIsNotNone(bill.summary_data_updated_datetime)
 
-    @patch("masu.processor.aws.aws_report_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table")
-    @patch("masu.processor.aws.aws_report_summary_updater.AWSReportDBAccessor.populate_line_item_daily_table")
-    def test_update_summary_tables_new_bill_not_done_processing(self, mock_daily, mock_summary):
+    def test_update_summary_tables_new_bill_not_done_processing(self):
         """Test that summary tables are not run for a full month."""
-        report_updater_base = ReportSummaryUpdater(self.schema, self.aws_provider_uuid, self.manifest.id)
-
         start_date = self.date_accessor.today_with_timezone("UTC")
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
@@ -229,14 +224,9 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
 
-        # manifest_is_ready is now unconditionally returning True, so summary is expected.
-        if report_updater_base.manifest_is_ready():
-            self.updater.update_daily_tables(start_date_str, end_date_str)
-        mock_daily.assert_called()
+        self.updater.update_daily_tables(start_date_str, end_date_str)
 
-        if report_updater_base.manifest_is_ready():
-            self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_summary.assert_called()
+        self.updater.update_summary_tables(start_date_str, end_date_str)
 
         with AWSReportDBAccessor(self.schema) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
@@ -290,12 +280,8 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
             self.assertIsNotNone(bill.summary_data_creation_datetime)
             self.assertIsNotNone(bill.summary_data_updated_datetime)
 
-    @patch("masu.processor.aws.aws_report_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table")
-    @patch("masu.processor.aws.aws_report_summary_updater.AWSReportDBAccessor.populate_line_item_daily_table")
-    def test_update_summary_tables_finalized_bill_not_done_proc(self, mock_daily, mock_summary):
+    def test_update_summary_tables_finalized_bill_not_done_proc(self):
         """Test that summary tables are run for a full month."""
-        report_updater_base = ReportSummaryUpdater(self.schema, self.aws_provider_uuid, self.manifest.id)
-
         start_date = self.date_accessor.today_with_timezone("UTC")
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
@@ -307,13 +293,8 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
 
-        if report_updater_base.manifest_is_ready():
-            self.updater.update_daily_tables(start_date_str, end_date_str)
-        mock_daily.assert_called()
-
-        if report_updater_base.manifest_is_ready():
-            self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_summary.assert_called()
+        self.updater.update_daily_tables(start_date_str, end_date_str)
+        self.updater.update_summary_tables(start_date_str, end_date_str)
 
         with AWSReportDBAccessor(self.schema) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
