@@ -123,4 +123,4 @@ class SourcesErrorMessageTest(TestCase):
     def test_available_source(self):
         """Test an available source message."""
         message_obj = SourcesErrorMessage(None).display(source_id=1)
-        self.assertEquals(message_obj, "None")
+        self.assertEquals(message_obj, "")

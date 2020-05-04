@@ -83,18 +83,20 @@ class SourcesErrorMessage:
     def display(self, source_id):
         """Generate user friendly message."""
         display_message = None
-        if isinstance(self._error, ValidationError):
-            key, internal_message = self._extract_from_validation_error()
-            display_fn = self._display_string_function(key)
-            if display_fn:
-                display_message = display_fn(internal_message)
-                LOG.warning(f"Source ID: {source_id} Internal message: {internal_message}.")
+        if self._error:
+            if isinstance(self._error, ValidationError):
+                key, internal_message = self._extract_from_validation_error()
+                display_fn = self._display_string_function(key)
+                if display_fn:
+                    display_message = display_fn(internal_message)
+                    LOG.warning(f"Source ID: {source_id} Internal message: {internal_message}.")
+                else:
+                    display_message = internal_message
             else:
-                display_message = internal_message
-        else:
-            display_message = str(self._error)
-        if display_message:
+                display_message = str(self._error)
             LOG.warning(f"Source ID: {source_id} error message: {display_message}")
         else:
+            display_message = ""
             LOG.info(f"Source ID: {source_id} is available.")
+
         return display_message
