@@ -50,6 +50,11 @@ class SourcesErrorMessageTest(TestCase):
                 "internal_message": "internal compression error message",
                 "expected_message": ProviderErrors.AWS_COMPRESSION_REPORT_CONFIG_MESSAGE,
             },
+            {
+                "key": ProviderErrors.AWS_BUCKET_MISSING,
+                "internal_message": ProviderErrors.AWS_BUCKET_MISSING_MESSAGE,
+                "expected_message": ProviderErrors.AWS_BUCKET_MISSING_MESSAGE,
+            },
         ]
         for test in test_matrix:
             key = test.get("key")
