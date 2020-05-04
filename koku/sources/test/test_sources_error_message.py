@@ -114,3 +114,8 @@ class SourcesErrorMessageTest(TestCase):
         random_error_dict = {"rando": "error"}
         message_obj = SourcesErrorMessage(random_error_dict)
         self.assertEquals(message_obj.display(source_id=1), str(random_error_dict))
+
+    def test_available_source(self):
+        """Test an available source message."""
+        message_obj = SourcesErrorMessage(None).display(source_id=1)
+        self.assertEquals(message_obj, "None")
