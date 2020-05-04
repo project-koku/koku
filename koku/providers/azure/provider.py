@@ -142,7 +142,6 @@ class AzureProvider(ProviderInterface):
             key = ProviderErrors.AZURE_BILLING_SOURCE_NOT_FOUND
             raise ValidationError(error_obj(key, str(costreport_err)))
         except (AdalError, AzureException, AzureServiceError, ClientException, TypeError) as exc:
-            LOG.error(f"Error type: {str(exc)}")
             key = ProviderErrors.AZURE_CLIENT_ERROR
             raise ValidationError(error_obj(key, str(exc)))
 
