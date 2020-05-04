@@ -93,5 +93,8 @@ class SourcesErrorMessage:
                 display_message = internal_message
         else:
             display_message = str(self._error)
-        LOG.warning(f"Source ID: {source_id} error message: {display_message}")
+        if display_message:
+            LOG.warning(f"Source ID: {source_id} error message: {display_message}")
+        else:
+            LOG.info(f"Source ID: {source_id} is available.")
         return display_message
