@@ -52,11 +52,11 @@ class AWSReportViewTest(IamTestCase):
 
     def test_execute_with_filter(self):
         """Test filter with time intervals."""
-        expected = self.generate_data.insert_data()
+        metadata = self.generate_data.insert_data()
         url = self.url + "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data.get("data")), len(expected))
+        self.assertEqual(len(response.data.get("data")), len(metadata))
 
     def test_time_filters_errors(self):
         """Test time filter errors with time intervals"""

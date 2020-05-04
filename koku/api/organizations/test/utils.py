@@ -16,6 +16,7 @@
 #
 """Test utils for the organizaitons."""
 from faker import Faker
+from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
@@ -34,17 +35,18 @@ class GenerateOrgTestData:
     """Utils to generate test data for organizations."""
 
     def __init__(self, schema_name):
+        self.schema = schema_name
         self.account = {
             "authentication": fake_arn(service="iam", generate_account_id=True),
             "customer_name": CUSTOMER_NAME,
             "billing_source": BUCKET,
             "provider_type": P_TYPE,
-            "schema_name": schema_name,
+            "schema_name": self.schema,
             "provider_uuid": P_UUID,
         }
         self.data_list = [
-            {"ou": {"Name": "root", "Id": "r-id"}, "path": "r-id", "level": 0},
-            {"ou": {"Name": "big-ou", "Id": "big-ou0"}, "path": "r-id&big-ou0", "level": 1},
+            {"ou": {"Name": "root", "Id": "r-id"}, "path": "r-id", "level": 0, "account": None},
+            {"ou": {"Name": "big-ou", "Id": "big-ou0"}, "path": "r-id&big-ou0", "level": 1, "account": None},
             {
                 "ou": {"Name": "big-ou", "Id": "big-ou0"},
                 "path": "r-id&big-ou0",
@@ -57,7 +59,7 @@ class GenerateOrgTestData:
                 "level": 1,
                 "account": {"Id": "1", "Name": "One"},
             },
-            {"ou": {"Name": "sub-ou", "Id": "sub-ou0"}, "path": "r-id&big-ou0&sub-ou0", "level": 2},
+            {"ou": {"Name": "sub-ou", "Id": "sub-ou0"}, "path": "r-id&big-ou0&sub-ou0", "level": 2, "account": None},
         ]
 
     def _generate_results_metadata(self):
@@ -77,14 +79,22 @@ class GenerateOrgTestData:
     def insert_data(self):
         """Insert data list into the database and returns metadata for testing purposes."""
         unit_crawler = AWSOrgUnitCrawler(self.account)
-        unit_crawler.structure_yesterday = {}
-        unit_crawler.account_alias_map = {}
+        unit_crawler._structure_yesterday = {}
+        unit_crawler._account_alias_map = {}
         for insert_data in self.data_list:
-            if insert_data.get("account"):
-                unit_crawler._save_aws_org_method(
-                    insert_data["ou"], insert_data["path"], insert_data["level"], insert_data["account"]
-                )
-            else:
-                unit_crawler._save_aws_org_method(insert_data["ou"], insert_data["path"], insert_data["level"])
+            created_date = insert_data.get("created", None)
+            deleted_date = insert_data.get("deleted", None)
+            node = unit_crawler._save_aws_org_method(
+                insert_data["ou"], insert_data["path"], insert_data["level"], insert_data["account"]
+            )
+            with schema_context(self.schema):
+                if created_date is not None:
+                    print(node)
+                    node.created_timestamp = created_date
+                    node.save()
+                if deleted_date is not None:
+                    print(node)
+                    node.deleted_timestamp = deleted_date
+                    node.save()
         metadata = self._generate_results_metadata()
         return metadata

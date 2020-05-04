@@ -265,21 +265,21 @@ class OrgQueryHandler(QueryHandler):
                 exact_org_id = QueryFilter(field=f"{org_id_column}", operation="exact", parameter=org_id)
                 filters.add(exact_org_id)
                 composed_filters = filters.compose()
-                sub_org_query = source.get("db_table").objects
-                sub_org_query = sub_org_query.exclude(exclusion)
+                account_query = source.get("db_table").objects
+                account_query = account_query.exclude(exclusion)
                 if self.query_filter:
-                    sub_org_query = sub_org_query.filter(self.query_filter)
-                sub_org_query = sub_org_query.filter(composed_filters)
+                    account_query = account_query.filter(self.query_filter)
+                account_query = account_query.filter(composed_filters)
                 val_list = [org_name, org_id_column, org_path]
-                sub_org_query = sub_org_query.values(*val_list)
-                # sub_org_query = sub_org_query.order_by("account_id", "-created_timestamp").distinct("account_id")
-                sub_org_query = sub_org_query.annotate(
+                account_query = account_query.values(*val_list)
+                # account_query = account_query.order_by("account_id", "-created_timestamp").distinct("account_id")
+                account_query = account_query.annotate(
                     alias_list=ArrayAgg(
                         Coalesce(F(f"{account_info}__account_alias"), F(f"{account_info}__account_id")), distinct=True
                     )
                 )
-        if sub_org_query:
-            return sub_org_query[0].get("alias_list", [])
+        if account_query:
+            return account_query[0].get("alias_list", [])
         else:
             return []
 
