@@ -19,6 +19,7 @@ import requests
 from requests.exceptions import RequestException
 
 from sources.config import Config
+from sources.sources_error_message import SourcesErrorMessage
 
 
 class SourcesHTTPClientError(Exception):
@@ -212,6 +213,36 @@ class SourcesHTTPClient:
         }
         return azure_credentials
 
+    def build_source_status(self, error_obj):
+        """
+        Format the availability status for a source.
+
+        Connectivity and account validation checks are performed to
+        ensure that Koku can access a cost usage report from the provider.
+
+        This method will return the detailed error message in the event that
+        the provider fails the service provider checks in a format that
+        the platform is expecting.
+
+        Args:
+            error_obj (Object): ValidationError or String
+
+
+        Returns:
+            status (Dict): {'availability_status': 'unavailable/available',
+                            'availability_status_error': 'User facing String'}
+
+        """
+        if error_obj:
+            status = "unavailable"
+        else:
+            status = "available"
+            error_obj = ""
+
+        user_facing_string = SourcesErrorMessage(error_obj).display()
+        json_data = {"availability_status": status, "availability_status_error": user_facing_string}
+        return json_data
+
     def set_source_status(self, error_msg, cost_management_type_id=None):
         """Set the source status with error message."""
         if not cost_management_type_id:
@@ -226,13 +257,7 @@ class SourcesHTTPClient:
             application_id = response_data[0].get("id")
             application_url = f"{self._base_url}/applications/{str(application_id)}"
 
-            if error_msg:
-                status = "unavailable"
-            else:
-                status = "available"
-                error_msg = ""
-
-            json_data = {"availability_status": status, "availability_status_error": str(error_msg)}
+            json_data = self.build_source_status(error_msg)
 
             application_response = requests.patch(application_url, json=json_data, headers=self._identity_header)
             if application_response.status_code != 204:
