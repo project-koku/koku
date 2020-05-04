@@ -86,19 +86,19 @@ def get_report_files(
         self, customer_name, authentication, billing_source, provider_type, provider_uuid, month, cache_key
     )
 
-    with transaction.atomic():
-        try:
-            stmt = (
-                f"Reports to be processed:\n"
-                f" schema_name: {customer_name}\n"
-                f" provider: {provider_type}\n"
-                f" provider_uuid: {provider_uuid}\n"
-            )
-            for report in reports:
-                stmt += " file: " + str(report["file"]) + "\n"
-            LOG.info(stmt[:-1])
-            reports_to_summarize = []
-            for report_dict in reports:
+    stmt = (
+        f"Reports to be processed:\n"
+        f" schema_name: {customer_name}\n"
+        f" provider: {provider_type}\n"
+        f" provider_uuid: {provider_uuid}\n"
+    )
+    for report in reports:
+        stmt += " file: " + str(report["file"]) + "\n"
+    LOG.info(stmt[:-1])
+    reports_to_summarize = []
+    for report_dict in reports:
+        with transaction.atomic():
+            try:
                 manifest_id = report_dict.get("manifest_id")
                 file_name = os.path.basename(report_dict.get("file"))
                 with ReportStatsDBAccessor(file_name, manifest_id) as stats:
@@ -136,14 +136,14 @@ def get_report_files(
                     report_meta["provider_uuid"] = provider_uuid
                     report_meta["manifest_id"] = report_dict.get("manifest_id")
                     reports_to_summarize.append(report_meta)
-        except ReportProcessorError as processing_error:
-            worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-            LOG.error(str(processing_error))
-            raise processing_error
-        finally:
-            WorkerCache().remove_task_from_cache(cache_key)
+            except ReportProcessorError as processing_error:
+                worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
+                LOG.error(str(processing_error))
+                raise processing_error
+            finally:
+                WorkerCache().remove_task_from_cache(cache_key)
 
-        return reports_to_summarize
+    return reports_to_summarize
 
 
 @app.task(name="masu.processor.tasks.remove_expired_data", queue_name="remove_expired")
