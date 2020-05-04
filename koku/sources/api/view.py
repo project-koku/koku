@@ -16,7 +16,6 @@
 #
 """View for Sources."""
 import logging
-import xmlrpc.client
 
 from django.conf import settings
 from django.db import connection
@@ -206,9 +205,6 @@ class SourcesViewSet(*MIXIN_LIST):
     @never_cache
     def list(self, request, *args, **kwargs):
         """Obtain the list of sources."""
-        s = xmlrpc.client.ServerProxy("http://sources-client:9000")
-        result = s.mul(5, 2)
-        LOG.info(f"RPC result: {str(result)}")
         response = super().list(request=request, args=args, kwargs=kwargs)
         _, tenant = self._get_account_and_tenant(request)
         for source in response.data["data"]:

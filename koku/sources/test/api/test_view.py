@@ -72,8 +72,7 @@ class SourcesViewTests(IamTestCase):
         mock_url = PropertyMock(return_value="http://www.sourcesclient.com/api/v1/sources/")
         SourcesViewSet.url = mock_url
 
-    @patch("sources.tasks.create_or_update_provider.delay")
-    def test_source_update(self, mock_delay):
+    def test_source_update(self):
         """Test the PATCH endpoint."""
         credentials = {
             "subscription_id": "12345678-1234-5678-1234-567812345678",
@@ -81,24 +80,25 @@ class SourcesViewTests(IamTestCase):
             "client_id": "12345678-1234-5678-1234-567812345678",
         }
 
-        with requests_mock.mock() as m:
-            m.patch(
-                f"http://www.sourcesclient.com/api/v1/sources/{self.test_source_id}/",
-                status_code=200,
-                json={"credentials": credentials},
-            )
+        with patch("sources.api.serializers.ServerProxy") as mock_client:
+            with requests_mock.mock() as m:
+                m.patch(
+                    f"http://www.sourcesclient.com/api/v1/sources/{self.test_source_id}/",
+                    status_code=200,
+                    json={"credentials": credentials},
+                )
 
-            params = {
-                "authentication": {"credentials": {"subscription_id": "this-ain't-real"}},
-                "billing_source": {"data_source": {"resource_group": "group", "storage_account": "storage"}},
-            }
-            url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
+                params = {
+                    "authentication": {"credentials": {"subscription_id": "this-ain't-real"}},
+                    "billing_source": {"data_source": {"resource_group": "group", "storage_account": "storage"}},
+                }
+                url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
 
-            response = self.client.patch(
-                url, json.dumps(params), content_type="application/json", **self.request_context["request"].META
-            )
+                response = self.client.patch(
+                    url, json.dumps(params), content_type="application/json", **self.request_context["request"].META
+                )
 
-            self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.status_code, 200)
 
     def test_source_update_exception(self):
         """Test the PATCH endpoint with error."""
@@ -119,37 +119,6 @@ class SourcesViewTests(IamTestCase):
             )
 
             self.assertEqual(response.status_code, 400)
-
-    @patch("sources.tasks.create_or_update_provider.delay")
-    def test_source_update_exception_failed_dependency(self, mock_delay):
-        """Test the PATCH endpoint with error."""
-        credentials = {
-            "subscription_id": "12345678-1234-5678-1234-567812345678",
-            "tenant_id": "12345678-1234-5678-1234-567812345678",
-            "client_id": "12345678-1234-5678-1234-567812345678",
-        }
-
-        with requests_mock.mock() as m:
-            m.patch(
-                f"http://www.sourcesclient.com/api/v1/sources/{self.test_source_id}/",
-                status_code=200,
-                json={"credentials": credentials},
-            )
-
-            params = {
-                "authentication": {"credentials": {"subscription_id": "this-ain't-real"}},
-                "billing_source": {"data_source": {"resource_group": "group", "storage_account": "storage"}},
-            }
-            url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
-
-            mock_side_effect = SourcesDependencyError("Where's Rabbit")
-            mock_delay.side_effect = mock_side_effect
-
-            response = self.client.patch(
-                url, json.dumps(params), content_type="application/json", **self.request_context["request"].META
-            )
-
-            self.assertEqual(response.status_code, 424)
 
     def test_source_put(self):
         """Test the PUT endpoint."""

@@ -15,16 +15,15 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Sources-Provider Coordinator."""
-import json
 import logging
-from base64 import b64decode
 
-from django.db import connection
 from rest_framework.exceptions import ValidationError
 
-from api.provider.provider_builder import ProviderBuilder, ProviderBuilderError
-
-from sources.storage import clear_update_flag, destroy_source_event, add_provider_koku_uuid
+from api.provider.provider_builder import ProviderBuilder
+from api.provider.provider_builder import ProviderBuilderError
+from sources.storage import add_provider_koku_uuid
+from sources.storage import clear_update_flag
+from sources.storage import destroy_source_event
 
 LOG = logging.getLogger(__name__)
 
@@ -48,7 +47,9 @@ class SourcesProviderCoordinator:
     def create_account(self, name, provider_type, authentication, billing_source, source_uuid=None):
         """Call to create provider."""
         try:
-            provider = self._provider_builder.create_provider(name, provider_type, authentication, billing_source, source_uuid)
+            provider = self._provider_builder.create_provider(
+                name, provider_type, authentication, billing_source, source_uuid
+            )
             add_provider_koku_uuid(self._source_id, provider.uuid)
         except ProviderBuilderError as provider_err:
             raise SourcesProviderCoordinatorError(str(provider_err))
@@ -57,7 +58,9 @@ class SourcesProviderCoordinator:
     def update_account(self, provider_uuid, name, provider_type, authentication, billing_source):
         """Call to update provider."""
         try:
-            provider = self._provider_builder.update_provider(provider_uuid, name, provider_type, authentication, billing_source)
+            provider = self._provider_builder.update_provider(
+                provider_uuid, name, provider_type, authentication, billing_source
+            )
             clear_update_flag(self._source_id)
         except ProviderBuilderError as provider_err:
             raise SourcesProviderCoordinatorError(str(provider_err))

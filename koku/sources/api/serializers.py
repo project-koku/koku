@@ -16,8 +16,9 @@
 #
 """Sources Model Serializers."""
 import logging
-import xmlrpc.client
 from uuid import uuid4
+from xmlrpc.client import Fault
+from xmlrpc.client import ServerProxy
 
 from django.db import transaction
 from django.utils.translation import ugettext as _
@@ -29,8 +30,18 @@ from api.provider.provider_builder import ProviderBuilder
 from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
 from sources.api import get_account_from_header
 from sources.api import get_auth_header
+from sources.storage import get_source_instance
+from sources.storage import SourcesStorageError
 
 LOG = logging.getLogger(__name__)
+
+ALLOWED_BILLING_SOURCE_PROVIDERS = (
+    Provider.PROVIDER_AWS,
+    Provider.PROVIDER_AWS_LOCAL,
+    Provider.PROVIDER_AZURE,
+    Provider.PROVIDER_AZURE_LOCAL,
+)
+ALLOWED_AUTHENTICATION_PROVIDERS = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL)
 
 
 class SourcesDependencyError(Exception):
@@ -79,17 +90,36 @@ class SourcesSerializer(serializers.ModelSerializer):
         """Get the source_uuid."""
         return obj.source_uuid
 
+    def _validate_billing_source(self, provider_type, billing_source):
+        """Validate billing source parameters."""
+        if provider_type == Provider.PROVIDER_AWS:
+            if not billing_source.get("bucket"):
+                raise SourcesStorageError("Missing AWS bucket.")
+        elif provider_type == Provider.PROVIDER_AZURE:
+            data_source = billing_source.get("data_source")
+            if not data_source:
+                raise SourcesStorageError("Missing AZURE data_source.")
+            if not data_source.get("resource_group"):
+                raise SourcesStorageError("Missing AZURE resource_group")
+            if not data_source.get("storage_account"):
+                raise SourcesStorageError("Missing AZURE storage_account")
+
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
         billing_source = validated_data.get("billing_source")
         authentication = validated_data.get("authentication")
 
-        with xmlrpc.client.ServerProxy("http://sources-client:9000") as sources_client:
-            if billing_source:
-                sources_client.update_billing_source(instance.source_id, billing_source)
-            if authentication:
-                sources_client.update_authentication(instance.source_id, authentication)
-        return instance
+        try:
+            with ServerProxy("http://sources-client:9000") as sources_client:
+                if billing_source:
+                    self._validate_billing_source(instance.source_type, billing_source)
+                    sources_client.update_billing_source(instance.source_id, billing_source)
+                if authentication:
+                    sources_client.update_authentication(instance.source_id, authentication)
+        except Fault as error:
+            LOG.error(f"Sources update error: {str(error)}")
+            raise SourcesStorageError(str(error))
+        return get_source_instance(instance.source_id)
 
 
 class AdminSourcesSerializer(SourcesSerializer):

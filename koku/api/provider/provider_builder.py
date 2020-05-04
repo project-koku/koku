@@ -48,7 +48,7 @@ class ProviderBuilder:
     def __init__(self, auth_header):
         """Initialize the client."""
         self._base_url = Config.KOKU_API_URL
-        if auth_header.get("x-rh-identity"):
+        if isinstance(auth_header, dict) and auth_header.get("x-rh-identity"):
             self._identity_header = auth_header
         else:
             header = {"x-rh-identity": auth_header, "sources-client": "True"}

@@ -19,6 +19,8 @@ import asyncio
 import json
 from unittest.mock import patch
 from uuid import uuid4
+from api.provider.provider_builder import ProviderBuilder
+from api.provider.provider_manager import ProviderManager
 
 import requests_mock
 from django.db import InterfaceError
@@ -47,8 +49,6 @@ from sources.kafka_listener import storage_callback
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
-from sources.tasks import create_or_update_provider
-from sources.tasks import delete_source_and_provider
 
 faker = Faker()
 SOURCES_APPS = "http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}"
@@ -110,24 +110,6 @@ class MsgDataGenerator:
         )
         msg_data = source_integration.get_sources_msg_data(msg, self.cost_management_app_type)
         return msg_data
-
-
-class MockTask:
-    """Mock task class."""
-
-    def __init__(self, *args):
-        """Initialize the task."""
-        self.id = uuid4()
-        create_or_update_provider(*args)
-
-
-class MockDestroyTask:
-    """Mock destroy task class."""
-
-    def __init__(self, *args):
-        """Initialize the task."""
-        self.id = uuid4()
-        delete_source_and_provider(*args)
 
 
 class MockKafkaConsumer:
@@ -206,9 +188,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             "offset": 12,
         }
 
-    @patch("sources.tasks.set_status_for_source.delay")
-    @patch("sources.tasks.create_or_update_provider.delay", side_effect=MockTask)
-    def test_execute_koku_provider_op_create(self, mock_delay, mock_status):
+    def test_execute_koku_provider_op_create(self):
         """Test to execute Koku Operations to sync with Sources for creation."""
         source_id = self.aws_source.get("source_id")
         application_type_id = 2
@@ -222,8 +202,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         self.assertFalse(Sources.objects.get(source_id=source_id).pending_update)
         self.assertEqual(Sources.objects.get(source_id=source_id).koku_uuid, str(provider.source_uuid))
 
-    @patch("sources.tasks.delete_source_and_provider.delay", side_effect=MockDestroyTask)
-    def test_execute_koku_provider_op_destroy(self, mock_destroy):
+    def test_execute_koku_provider_op_destroy(self):
         """Test to execute Koku Operations to sync with Sources for destruction."""
         source_id = self.aws_source.get("source_id")
         application_type_id = 2
@@ -235,8 +214,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         self.assertEqual(Sources.objects.filter(source_id=source_id).exists(), False)
 
     @patch("sources.tasks.set_status_for_source.delay")
-    @patch("sources.tasks.delete_source_and_provider.delay", side_effect=MockDestroyTask)
-    def test_execute_koku_provider_op_destroy_provider_not_found(self, mock_destroy, mock_status):
+    def test_execute_koku_provider_op_destroy_provider_not_found(self, mock_status):
         """Test to execute Koku Operations to sync with Sources for destruction with provider missing.
 
         First, raise ProviderManagerError. Check that provider and source still exists.
@@ -250,7 +228,9 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         # check that the source exists
         self.assertTrue(Sources.objects.filter(source_id=source_id).exists())
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            create_or_update_provider(source_id)  # create the provider
+            builder = ProviderBuilder(provider.auth_header)
+            builder.create_provider(provider.name, provider.source_type, provider.authentication, provider.billing_source, provider.source_uuid)
+
         self.assertTrue(Provider.objects.filter(uuid=provider.source_uuid).exists())
         provider = Sources.objects.get(source_id=source_id)
 
@@ -263,17 +243,15 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         source_integration.execute_koku_provider_op(msg, application_type_id)
         self.assertFalse(Provider.objects.filter(uuid=provider.source_uuid).exists())
 
-    @patch("sources.tasks.set_status_for_source.delay")
-    @patch("sources.tasks.create_or_update_provider.delay", side_effect=MockTask)
-    def test_execute_koku_provider_op_update(self, mock_create, mock_status):
+    def test_execute_koku_provider_op_update(self):
         """Test to execute Koku Operations to sync with Sources for update."""
         source_id = self.aws_source.get("source_id")
         application_type_id = 2
         provider = Sources(**self.aws_source)
         provider.save()
         uuid = provider.source_uuid
-        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            create_or_update_provider(source_id)
+        # with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+        #     create_or_update_provider(source_id)
         self.assertEqual(
             Provider.objects.get(uuid=uuid).billing_source.bucket, self.aws_source.get("billing_source").get("bucket")
         )
@@ -292,22 +270,6 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         response = Provider.objects.get(uuid=uuid)
         self.assertEqual(response.billing_source.bucket, "new-bucket")
-
-    @patch("sources.tasks.set_status_for_source.delay")
-    @patch("sources.tasks.create_or_update_provider.delay")
-    def test_execute_koku_provider_op_create_rabbit_down(self, mock_delay, mock_status):
-        """Test to execute Koku Operations to sync with Sources for creation with rabbit down."""
-        application_type_id = 2
-        provider = Sources(**self.aws_source)
-        provider.save()
-
-        mock_error = RabbitOperationalError()
-        mock_delay.side_effect = mock_error
-        msg = {"operation": "create", "provider": provider, "offset": provider.offset}
-        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            with patch("sources.kafka_listener.SourcesHTTPClient.set_source_status"):
-                with self.assertRaises(RabbitOperationalError):
-                    source_integration.execute_koku_provider_op(msg, application_type_id)
 
     def test_get_sources_msg_data(self):
         """Test to get sources details from msg."""
@@ -453,8 +415,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with self.assertRaises(source_integration.SourcesMessageError):
             source_integration.get_sources_msg_data(msg, cost_management_app_type)
 
-    @patch("sources.tasks.create_or_update_provider.delay")
-    def test_collect_pending_items(self, mock_delay):
+    def test_collect_pending_items(self):
         """Test to load the in-progress queue."""
         aws_source = Sources(
             source_id=1,
@@ -1257,8 +1218,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             priority, _ = test_queue.get_nowait()
             self.assertEqual(priority, i)
 
-    @patch("sources.tasks.delete_source_and_provider.delay")
-    def test_process_synchronize_sources_msg(self, mock_destroy):
+    def test_process_synchronize_sources_msg(self):
         """Test processing synchronize messages."""
         provider = Sources(**self.aws_source)
 
@@ -1273,23 +1233,16 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         ]
 
         for msg in messages:
-            with patch("sources.storage.clear_update_flag") as mock_clear_flag, patch(
-                "sources.tasks.create_or_update_provider.delay"
-            ) as mock_delay:
+            with patch("sources.storage.clear_update_flag") as mock_clear_flag:
                 run_loop.run_until_complete(
                     process_synchronize_sources_msg((0, msg), test_queue, cost_management_app_type, run_loop)
                 )
-                mock_delay.assert_called()
                 mock_clear_flag.assert_called()
-                mock_destroy.assert_not_called()
 
         msg = {"operation": "destroy", "provider": provider}
-        with patch("sources.storage.clear_update_flag") as mock_clear_flag, patch(
-            "sources.tasks.create_or_update_provider.delay"
-        ) as mock_delay:
+        with patch("sources.storage.clear_update_flag") as mock_clear_flag:
             run_loop.run_until_complete(
                 process_synchronize_sources_msg((0, msg), test_queue, cost_management_app_type, run_loop)
             )
-            mock_delay.assert_not_called()
             mock_clear_flag.assert_not_called()
         mock_destroy.assert_called()
