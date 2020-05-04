@@ -56,7 +56,7 @@ class SourcesErrorMessageTest(TestCase):
             message = test.get("internal_message")
             error = ValidationError(error_obj(key, message))
             message_obj = SourcesErrorMessage(error)
-            self.assertEquals(message_obj.display(), test.get("expected_message"))
+            self.assertEquals(message_obj.display(source_id=1), test.get("expected_message"))
 
     def test_azure_errors(self):
         """Test Azure error types."""
@@ -107,10 +107,10 @@ class SourcesErrorMessageTest(TestCase):
             message = test.get("internal_message")
             error = ValidationError(error_obj(key, message))
             message_obj = SourcesErrorMessage(error)
-            self.assertEquals(message_obj.display(), test.get("expected_message"))
+            self.assertEquals(message_obj.display(source_id=1), test.get("expected_message"))
 
     def test_general_string_error(self):
         """Test general string error fallback."""
         random_error_dict = {"rando": "error"}
         message_obj = SourcesErrorMessage(random_error_dict)
-        self.assertEquals(message_obj.display(), str(random_error_dict))
+        self.assertEquals(message_obj.display(source_id=1), str(random_error_dict))
