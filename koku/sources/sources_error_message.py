@@ -80,7 +80,7 @@ class SourcesErrorMessage:
             err_msg = err_body.encode().decode("UTF-8")
         return err_key, err_msg
 
-    def display(self):
+    def display(self, source_id):
         """Generate user friendly message."""
         display_message = None
         if isinstance(self._error, ValidationError):
@@ -88,8 +88,10 @@ class SourcesErrorMessage:
             display_fn = self._display_string_function(key)
             if display_fn:
                 display_message = display_fn(internal_message)
+                LOG.warning(f"Source ID: {source_id} Internal message: {internal_message}.")
             else:
                 display_message = internal_message
         else:
             display_message = str(self._error)
+        LOG.warning(f"Source ID: {source_id} error message: {display_message}")
         return display_message
