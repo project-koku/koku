@@ -27,7 +27,6 @@ from rest_framework.test import APIClient
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.models import Sources
-from providers.provider_access import ProviderAccessor
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 
@@ -84,7 +83,7 @@ class SourcesStatusTest(IamTestCase):
     def test_success(self):
         """Test that the API returns status when a source is configured correctly."""
         mock_status = {"availability_status": "available", "availability_status_error": ""}
-        with patch.object(ProviderAccessor, "availability_status", return_value=mock_status):
+        with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
             url = reverse("source-status")
             client = APIClient()
             # Insert a source with ID 1
@@ -134,7 +133,7 @@ class SourcesStatusTest(IamTestCase):
         The API should return the appropriate status response.
         """
         mock_status = {"availability_status": "unavailable", "availability_status_error": "error msg"}
-        with patch.object(ProviderAccessor, "availability_status", return_value=mock_status):
+        with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
             url = reverse("source-status")
             client = APIClient()
             # Insert a source with ID 1
@@ -159,7 +158,7 @@ class SourcesStatusTest(IamTestCase):
         The API should return data=True.
         """
         mock_status = {"availability_status": "available", "availability_status_error": ""}
-        with patch.object(ProviderAccessor, "availability_status", return_value=mock_status):
+        with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
             url = reverse("source-status")
             client = APIClient()
             # Insert a source with ID 1
@@ -179,7 +178,7 @@ class SourcesStatusTest(IamTestCase):
     def test_authentication_resource_name(self):
         """Test when the authentication is named 'resource_name' instead of 'credentials'."""
         mock_status = {"availability_status": "available", "availability_status_error": ""}
-        with patch.object(ProviderAccessor, "availability_status", return_value=mock_status):
+        with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
             url = reverse("source-status")
             client = APIClient()
             # Insert a source with ID 1
@@ -199,7 +198,7 @@ class SourcesStatusTest(IamTestCase):
     def test_post_status(self):
         """Test that the API pushes sources status with POST."""
         mock_status = {"availability_status": "available", "availability_status_error": ""}
-        with patch.object(ProviderAccessor, "availability_status", return_value=mock_status):
+        with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
             url = reverse("source-status")
             client = APIClient()
             # Insert a source with ID 1
@@ -220,7 +219,7 @@ class SourcesStatusTest(IamTestCase):
     def test_post_status_error(self):
         """Test that the API pushes sources status with POST with connection error."""
         mock_status = {"availability_status": "available", "availability_status_error": ""}
-        with patch.object(ProviderAccessor, "availability_status", return_value=mock_status):
+        with patch.object(SourcesHTTPClient, "build_source_status", return_value=mock_status):
             url = reverse("source-status")
             client = APIClient()
             # Insert a source with ID 1
