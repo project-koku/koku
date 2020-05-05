@@ -15,10 +15,26 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """API application configuration module."""
+import logging
+
 from django.apps import AppConfig
+from django.db.models.signals import post_migrate
+
+from masu.processor.worker_cache import WorkerCache
+
+LOG = logging.getLogger(__name__)
+
+
+def clear_worker_cache(sender, **kwargs):
+    LOG.info("Clearing worker task cache.")
+    WorkerCache().invalidate_host()
 
 
 class ApiConfig(AppConfig):
     """API application configuration."""
 
     name = "api"
+
+    def ready(self):
+        """Determine if app is ready on application startup."""
+        post_migrate.connect(clear_worker_cache, sender=self)
