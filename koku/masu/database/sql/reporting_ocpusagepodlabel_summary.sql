@@ -15,6 +15,13 @@ FROM (
         li.namespace
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily AS li,
         jsonb_each_text(li.pod_labels) labels
+    {% if report_periods %}
+    WHERE li.report_period_id IN (
+        {%- for report_period_id in report_period_ids -%}
+        {{report_period_id}}{% if not loop.last %},{% endif %}
+        {%- endfor -%}
+    )
+    {% endif %}
 ) l
 GROUP BY l.key, l.report_period_id
 ON CONFLICT (key, report_period_id) DO UPDATE

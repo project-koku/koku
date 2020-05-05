@@ -15,6 +15,13 @@ FROM (
         li.subscription_guid
     FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily AS li,
         jsonb_each_text(li.tags) labels
+    {% if bill_ids %}
+    WHERE li.cost_entry_bill_id IN (
+        {%- for bill_id in bill_ids -%}
+        {{bill_id}}{% if not loop.last %},{% endif %}
+        {%- endfor -%}
+    )
+    {% endif %}
 ) l
 GROUP BY l.key, l.cost_entry_bill_id
 ON CONFLICT (key, cost_entry_bill_id) DO UPDATE
