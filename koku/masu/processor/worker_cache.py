@@ -18,7 +18,7 @@
 import logging
 
 from django.conf import settings
-from django.core.cache import cache
+from django.core.cache import caches
 
 LOG = logging.getLogger(__name__)
 
@@ -41,13 +41,15 @@ class WorkerCache:
 
     """
 
+    cache = caches["worker"]
+
     @property
     def worker_cache(self):
         """Return the value of the cache key."""
-        _worker_cache = cache.get(settings.WORKER_CACHE_KEY)
+        _worker_cache = self.cache.get(settings.WORKER_CACHE_KEY)
         if not _worker_cache:
             _worker_cache = {}
-            cache.set(settings.WORKER_CACHE_KEY, _worker_cache, timeout=None)
+            self.cache.set(settings.WORKER_CACHE_KEY, _worker_cache, timeout=None)
         return _worker_cache
 
     @property
@@ -59,21 +61,20 @@ class WorkerCache:
         """Invalidate the cache for a particular host."""
         _worker_cache = self.worker_cache
         _worker_cache[settings.HOSTNAME] = []
-        cache.set(settings.WORKER_CACHE_KEY, _worker_cache, timeout=None)
+        self.cache.set(settings.WORKER_CACHE_KEY, _worker_cache, timeout=None)
 
     def set_host_specific_task_list(self, task_list):
         """Set the list of tasks in the cache."""
         _worker_cache = self.worker_cache
         _worker_cache[settings.HOSTNAME] = task_list
-        cache.set(settings.WORKER_CACHE_KEY, _worker_cache, timeout=None)
+        self.cache.set(settings.WORKER_CACHE_KEY, _worker_cache, timeout=None)
 
     def add_task_to_cache(self, task_key):
         """Add an entry to the cache for a task."""
         task_list = self.host_specific_worker_cache
         task_list.append(task_key)
         self.set_host_specific_task_list(task_list)
-        msg = f"Added {task_key} to cache."
-        LOG.info(msg)
+        LOG.warning(f"Added {task_key} to cache.")
 
     def remove_task_from_cache(self, task_key):
         """Remove an entry from the cache for a task."""
@@ -84,8 +85,7 @@ class WorkerCache:
             pass
         else:
             self.set_host_specific_task_list(task_list)
-            msg = f"Removed {task_key} from cache."
-            LOG.info(msg)
+            LOG.warning(f"Removed {task_key} from cache.")
 
     def get_all_running_tasks(self):
         """Combine each host's running tasks into a single list."""
