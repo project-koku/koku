@@ -74,7 +74,7 @@ class WorkerCache:
         task_list = self.host_specific_worker_cache
         task_list.append(task_key)
         self.set_host_specific_task_list(task_list)
-        LOG.warning(f"Added {task_key} to cache.")
+        LOG.info(f"Added {task_key} to cache.")
 
     def remove_task_from_cache(self, task_key):
         """Remove an entry from the cache for a task."""
@@ -85,7 +85,7 @@ class WorkerCache:
             pass
         else:
             self.set_host_specific_task_list(task_list)
-            LOG.warning(f"Removed {task_key} from cache.")
+            LOG.info(f"Removed {task_key} from cache.")
 
     def get_all_running_tasks(self):
         """Combine each host's running tasks into a single list."""
