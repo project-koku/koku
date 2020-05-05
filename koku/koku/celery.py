@@ -141,7 +141,7 @@ app.autodiscover_tasks()
 
 
 @celeryd_after_setup.connect
-def clear_worker_cache(sender, instance, **kwargs):
+def clear_worker_cache(sender, instance, **kwargs):  # pragma: no cover
     """Clear WorkerCache after worker is up and running."""
     from .database import check_migrations
     from masu.processor.worker_cache import WorkerCache
@@ -154,7 +154,7 @@ def clear_worker_cache(sender, instance, **kwargs):
 
 
 @worker_shutting_down.connect
-def clear_worker_cache_on_shutdown(sender, **kwargs):
+def clear_worker_cache_on_shutdown(sender, **kwargs):  # pragma: no cover
     from masu.processor.worker_cache import WorkerCache
 
     LOGGER.info("Clearing worker task cache.")
