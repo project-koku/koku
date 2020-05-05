@@ -344,18 +344,20 @@ class ProcessReportFileTests(MasuTestCase):
         summarize_reports(reports_to_summarize)
         mock_update_summary.delay.assert_called()
 
-    @patch("masu.processor._tasks.process.ProviderDBAccessor.setup_complete")
-    @patch("masu.processor._tasks.process.ReportProcessor")
-    def test_process_report_files_with_transaction_atomic_error(self, mock_processor, mock_setup_complete):
+    @patch("masu.processor.tasks._process_report_file")
+    @patch("masu.processor.tasks._get_report_files")
+    def test_process_report_files_with_transaction_atomic_error(self, mock_files, mock_processor):
         """Test than an exception rolls back the atomic transaction."""
         path = "{}/{}".format("test", "file1.csv")
+        mock_files.return_value = [{"file": path, "compression": "GZIP"}]
         schema_name = self.schema
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
+        report_month = DateHelper().today
         manifest_dict = {
             "assembly_id": "12345",
-            "billing_period_start_datetime": DateHelper().today,
-            "num_total_files": 2,
+            "billing_period_start_datetime": report_month,
+            "num_total_files": 1,
             "provider_uuid": self.aws_provider_uuid,
             "task": "170653c0-3e66-4b7e-a764-336496d7ca5a",
         }
@@ -365,20 +367,28 @@ class ProcessReportFileTests(MasuTestCase):
             manifest_id = manifest.id
             initial_update_time = manifest.manifest_updated_datetime
 
+        with ReportStatsDBAccessor("file1.csv", manifest_id) as stats_accessor:
+            stats_accessor.get_last_completed_datetime
+
         with ReportStatsDBAccessor(path, manifest_id) as report_file_accessor:
             report_file_accessor.get_last_started_datetime()
 
-        report_dict = {
-            "file": path,
-            "compression": "gzip",
-            "start_date": str(DateHelper().today),
-            "manifest_id": manifest_id,
-        }
-
-        mock_setup_complete.side_effect = Exception
+        mock_processor.side_effect = Exception
 
         with self.assertRaises(Exception):
-            _process_report_file(schema_name, provider, provider_uuid, report_dict)
+            customer_name = "Fake Customer"
+            authentication = "auth"
+            billing_source = "bill"
+            provider_type = provider
+            get_report_files(
+                customer_name=customer_name,
+                authentication=authentication,
+                billing_source=billing_source,
+                provider_type=provider_type,
+                schema_name=schema_name,
+                provider_uuid=provider_uuid,
+                report_month=report_month,
+            )
 
         with ReportStatsDBAccessor(path, manifest_id) as report_file_accessor:
             self.assertIsNone(report_file_accessor.get_last_completed_datetime())

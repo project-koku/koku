@@ -239,7 +239,7 @@ class SourcesHTTPClient:
             status = "available"
             error_obj = ""
 
-        user_facing_string = SourcesErrorMessage(error_obj).display()
+        user_facing_string = SourcesErrorMessage(error_obj).display(self._source_id)
         json_data = {"availability_status": status, "availability_status_error": user_facing_string}
         return json_data
 
