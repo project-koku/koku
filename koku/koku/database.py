@@ -22,6 +22,7 @@ from django.contrib.postgres.fields.jsonb import KeyTextTransform
 from django.contrib.postgres.fields.jsonb import KeyTransform
 from django.db import connections
 from django.db import DEFAULT_DB_ALIAS
+from django.db import OperationalError
 from django.db.migrations.executor import MigrationExecutor
 from django.db.models import DecimalField
 from django.db.models.aggregates import Func
@@ -80,11 +81,14 @@ def check_migrations():
     Returns:
         Boolean - True if database is available and migrations have completed.  False otherwise.
     """
-    connection = connections[DEFAULT_DB_ALIAS]
-    connection.prepare_database()
-    executor = MigrationExecutor(connection)
-    targets = executor.loader.graph.leaf_nodes()
-    return not executor.migration_plan(targets)
+    try:
+        connection = connections[DEFAULT_DB_ALIAS]
+        connection.prepare_database()
+        executor = MigrationExecutor(connection)
+        targets = executor.loader.graph.leaf_nodes()
+        return not executor.migration_plan(targets)
+    except OperationalError:
+        return False
 
 
 class JSONBBuildObject(Func):
