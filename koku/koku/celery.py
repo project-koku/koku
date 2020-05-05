@@ -7,11 +7,14 @@ import django
 from celery import Celery
 from celery import Task
 from celery.schedules import crontab
+from celery.signals import celeryd_after_setup
 from django.conf import settings
+from django.db import connections
+from django.db import DEFAULT_DB_ALIAS
+from django.db.migrations.executor import MigrationExecutor
 
 from koku import sentry  # pylint: disable=unused-import # noqa: F401
 from koku.env import ENVIRONMENT
-from masu.processor.worker_cache import WorkerCache
 
 # We disable pylint here because we wanted to avoid duplicate code
 # in settings and celery config files, therefore we import a single
@@ -48,8 +51,6 @@ LOGGER.info("Starting celery.")
 # Setup the database for use in Celery
 django.setup()
 LOGGER.info("Database configured.")
-LOGGER.info("Clearing worker task cache.")
-WorkerCache().invalidate_host()
 
 # 'app' is the recommended convention from celery docs
 # following this for ease of comparison to reference implementation
@@ -138,3 +139,32 @@ app.conf.broker_transport_options = {"max_retries": 4, "interval_start": 0, "int
 app.conf.task_routes = {"sources.tasks.*": {"queue": "sources"}}
 
 app.autodiscover_tasks()
+
+
+@celeryd_after_setup.connect
+def clear_worker_cache(sender, instance, **kwargs):
+    """Clear WorkerCache after worker is up and running."""
+    from masu.processor.worker_cache import WorkerCache
+    import time
+
+    while not check_migrations():
+        LOGGER.warning("Migrations not done. Sleeping")
+        time.sleep(5)
+    LOGGER.info("Clearing worker task cache.")
+    WorkerCache().invalidate_host()
+
+
+def check_migrations():
+    """
+    Check the status of database migrations.
+    The koku API server is responsible for running all database migrations.  This method
+    will return the state of the database and whether or not all migrations have been completed.
+    Hat tip to the Stack Overflow contributor: https://stackoverflow.com/a/31847406
+    Returns:
+        Boolean - True if database is available and migrations have completed.  False otherwise.
+    """
+    connection = connections[DEFAULT_DB_ALIAS]
+    connection.prepare_database()
+    executor = MigrationExecutor(connection)
+    targets = executor.loader.graph.leaf_nodes()
+    return not executor.migration_plan(targets)
