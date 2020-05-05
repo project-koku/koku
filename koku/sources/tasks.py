@@ -32,7 +32,7 @@ LOG = get_task_logger(__name__)
 
 
 @app.task(name="sources.tasks.create_or_update_provider", queue_name="sources")  # noqa: C901
-def create_or_update_provider(source_id):
+def create_or_update_provider(source_id):  # noqa: C901
     LOG.info(f"Running Sources create/update provider for Source ID: {source_id}")
     try:
         instance = Sources.objects.get(source_id=source_id)
