@@ -178,10 +178,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
                     # Create a new account alias (not cached
                     account_alias, created = AWSAccountAlias.objects.get_or_create(account_id=account_id)
                     self._account_alias_map[account_id] = account_alias
-                    LOG.info(
-                        "Saving account alias %s (created=%s)"
-                        % (account_alias, created)
-                    )
+                    LOG.info(f"Saving account alias {account_alias} (created={created})")
 
                 if account_name and account_alias.account_alias != account_name:
                     # The name was not set or changed since last scan.
@@ -266,7 +263,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
         Construct the tree structure for yesterday
 
         Returns:
-            dict: key built of org_unit (if account is none) or org_unit and account number to 
+            dict: key built of org_unit (if account is none) or org_unit and account number to
             django AWSOrganizationalUnit model objects.
         """
         yesterday = (self._date_accessor.today() - timedelta(1)).strftime("%Y-%m-%d")
@@ -280,7 +277,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             start_date (datetime.datetime): Interval start time.
             end_date (datetime.datetime): Interval end time.
         Returns:
-            dict: key built of org_unit (if account is none) or org_unit and account number to 
+            dict: key built of org_unit (if account is none) or org_unit and account number to
             django AWSOrganizationalUnit model objects.
         """
 
@@ -309,9 +306,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             for org_unit in aws_org_units:
                 structure[self._create_lookup_key(org_unit.org_unit_id)] = org_unit
             for org_unit in aws_accounts:
-                structure[
-                    self._create_lookup_key(org_unit.org_unit_id, org_unit.account_alias.account_id)
-                ] = org_unit
+                structure[self._create_lookup_key(org_unit.org_unit_id, org_unit.account_alias.account_id)] = org_unit
             return structure
 
     def _create_lookup_key(self, unit_id, account_id=None):

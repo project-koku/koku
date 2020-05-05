@@ -30,7 +30,7 @@ from api.utils import UnitConverter
 class GroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
-    _opfields = ("account", "az", "instance_type", "region", "service", "storage_type", "product_family")
+    _opfields = ("account", "az", "instance_type", "region", "service", "storage_type", "product_family", "org_unit")
 
     # account field will accept both account number and account alias.
     account = StringOrListField(child=serializers.CharField(), required=False)
@@ -40,6 +40,7 @@ class GroupBySerializer(GroupSerializer):
     service = StringOrListField(child=serializers.CharField(), required=False)
     storage_type = StringOrListField(child=serializers.CharField(), required=False)
     product_family = StringOrListField(child=serializers.CharField(), required=False)
+    org_unit = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class OrderBySerializer(OrderSerializer):
@@ -59,13 +60,14 @@ class OrderBySerializer(OrderSerializer):
 class FilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
 
-    _opfields = ("account", "service", "region", "az", "product_family")
+    _opfields = ("account", "service", "region", "az", "product_family", "org_unit")
 
     account = StringOrListField(child=serializers.CharField(), required=False)
     service = StringOrListField(child=serializers.CharField(), required=False)
     region = StringOrListField(child=serializers.CharField(), required=False)
     az = StringOrListField(child=serializers.CharField(), required=False)
     product_family = StringOrListField(child=serializers.CharField(), required=False)
+    org_unit = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class QueryParamSerializer(ParamSerializer):

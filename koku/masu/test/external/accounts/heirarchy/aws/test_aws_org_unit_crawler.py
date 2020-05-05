@@ -235,13 +235,12 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             # self.assertEqual(cur_count, 0)
             unit_crawler._build_accout_alias_map()
         self.assertIsNotNone(unit_crawler._account_alias_map)
-    
+
         self.assertIn(account_1.account_id, unit_crawler._account_alias_map.keys())
         self.assertEqual(unit_crawler._account_alias_map.get(account_1.account_id), account_1)
-    
+
         self.assertIn(account_2.account_id, unit_crawler._account_alias_map.keys())
         self.assertEqual(unit_crawler._account_alias_map.get(account_2.account_id), account_2)
-
 
     def test_compute_org_structure_interval(self):
         """Test function that computes org structure for an interval."""
@@ -317,7 +316,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             curr_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(curr_count, 8)
 
-        print('#' * 120)
+        print("#" * 120)
         today = unit_crawler._date_accessor.today().strftime("%Y-%m-%d")
         structure_2_days_ago = unit_crawler._compute_org_structure_interval(two_days_ago)
         print(structure_2_days_ago)
