@@ -207,7 +207,11 @@ else:
                 "MAX_ENTRIES": 1000,
             },
         },
-        "worker": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "worker_cache_table"},
+        "worker": {
+            "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+            "LOCATION": "worker_cache_table",
+            "TIMEOUT": 86400,  # 24 hours
+        },
     }
 
 DATABASES = {"default": database.config()}
