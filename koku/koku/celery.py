@@ -2,16 +2,15 @@
 import datetime
 import logging
 import os
+import time
 
 import django
 from celery import Celery
 from celery import Task
 from celery.schedules import crontab
 from celery.signals import celeryd_after_setup
+from celery.signals import worker_shutting_down
 from django.conf import settings
-from django.db import connections
-from django.db import DEFAULT_DB_ALIAS
-from django.db.migrations.executor import MigrationExecutor
 
 from koku import sentry  # pylint: disable=unused-import # noqa: F401
 from koku.env import ENVIRONMENT
@@ -144,8 +143,8 @@ app.autodiscover_tasks()
 @celeryd_after_setup.connect
 def clear_worker_cache(sender, instance, **kwargs):
     """Clear WorkerCache after worker is up and running."""
+    from .database import check_migrations
     from masu.processor.worker_cache import WorkerCache
-    import time
 
     while not check_migrations():
         LOGGER.warning("Migrations not done. Sleeping")
@@ -154,17 +153,13 @@ def clear_worker_cache(sender, instance, **kwargs):
     WorkerCache().invalidate_host()
 
 
-def check_migrations():
-    """
-    Check the status of database migrations.
-    The koku API server is responsible for running all database migrations.  This method
-    will return the state of the database and whether or not all migrations have been completed.
-    Hat tip to the Stack Overflow contributor: https://stackoverflow.com/a/31847406
-    Returns:
-        Boolean - True if database is available and migrations have completed.  False otherwise.
-    """
-    connection = connections[DEFAULT_DB_ALIAS]
-    connection.prepare_database()
-    executor = MigrationExecutor(connection)
-    targets = executor.loader.graph.leaf_nodes()
-    return not executor.migration_plan(targets)
+@worker_shutting_down.connect
+def clear_worker_cache_on_shutdown(sender, **kwargs):
+    from masu.processor.worker_cache import WorkerCache
+
+    LOGGER.info("Clearing worker task cache.")
+    try:
+        WorkerCache().invalidate_host()
+    except Exception:
+        LOGGER.info("Cache not cleared on shutdown.")
+        pass
