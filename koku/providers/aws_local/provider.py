@@ -21,6 +21,7 @@ from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
 from ..aws.provider import AWSProvider
+from ..provider_errors import ProviderErrors
 from api.models import Provider
 
 LOG = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ class AWSLocalProvider(AWSProvider):
     def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
         """Verify that the cost usage source exists and is reachable."""
         if not storage_resource_name:
-            key = "bucket"
-            message = "Bucket is a required parameter for AWS."
+            key = ProviderErrors.AWS_BUCKET_MISSING
+            message = ProviderErrors.AWS_BUCKET_MISSING_MESSAGE
             raise serializers.ValidationError(error_obj(key, message))
         return True

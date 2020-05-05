@@ -71,7 +71,7 @@ def create_or_update_provider(source_id):  # noqa: C901
     except ValidationError as err:
         LOG.info(f"Provider {operation} ValidationError: {err}")
         status = "unavailable"
-        err_msg = str(err)
+        err_msg = err
     else:
         LOG.info(f"Provider operation: {operation} complete")
         LOG.info(f"Provider {operation}d: {obj.uuid}")
@@ -85,7 +85,7 @@ def create_or_update_provider(source_id):  # noqa: C901
             instance.koku_uuid = obj.uuid
             instance.pending_update = False
         instance.save()
-        set_status_for_source.delay(source_id, err_msg)
+        set_status_for_source(source_id, err_msg)
     except Sources.DoesNotExist:
         LOG.info(f"Source ID: {source_id} already removing.  Rolling back provider creation")
         source_mgr.destroy_provider(obj.uuid)
