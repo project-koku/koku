@@ -6,42 +6,41 @@ import requests
 import yaml
 from psycopg2 import sql
 
-FILENAME_DEFAULT = "scripts/aws_org_tree.yml"
-SCHEMA_DEFAULT = "acct10001"
-
 
 class InsertAwsOrgTree:
     """AWS org unit crawler."""
 
-    def __init__(self, filename, schema):
-        self._migrations()
-        self.filename = filename
+    def __init__(self, tree_yml_path, schema, nise_yml_path):
+        """Initialize the insert aws org tree."""
+        self.tree_yml_path = tree_yml_path
+        self.nise_yml_path = nise_yml_path
         self.schema = schema
+        self.tree_yaml_contents = self._load_yaml_file(self.tree_yml_path)
+        self.nise_yaml_contents = self._load_yaml_file(self.nise_yml_path)
         self.cursor = self._establish_db_conn()
-        self.tree_yaml_contents = self._load_yaml_file(self.filename)
         self.yesterday_accounts = []
         self.yesterday_orgs = []
         self.today_accounts = []
         self.today_orgs = []
         self.nise_accounts = []
 
-    def _migrations(self):
-        """Make sure the aws org unit migrations are run."""
-        # Without making sure the migrations are run there is a chance that the
-        # reporting_awsorganizationalunit table will not be created in the database yet.
-        url = "http://{}:{}/api/cost-management/v1/organizations/aws/".format(
-            os.getenv("KOKU_API_HOSTNAME"), os.getenv("KOKU_PORT")
-        )
-        requests.get(url)
+    def require_env(self, envvar):
+        """Require that the env var be set to move forward with script."""
+        var_value = os.getenv(envvar)
+        if var_value is None:
+            err_msg = "The variable '%s' is required in your environment."
+            print(err_msg % (envvar))
+            sys.exit(1)
+        return var_value
 
     def _establish_db_conn(self):
         """Creates a connection to the database."""
         dbinfo = {
-            "database": os.getenv("DATABASE_NAME"),
-            "user": os.getenv("DATABASE_USER"),
-            "password": os.getenv("DATABASE_PASSWORD"),
-            "port": os.getenv("POSTGRES_SQL_SERVICE_PORT"),
-            "host": os.getenv("POSTGRES_SQL_SERVICE_HOST"),
+            "database": self.require_env("DATABASE_NAME"),
+            "user": self.require_env("DATABASE_USER"),
+            "password": self.require_env("DATABASE_PASSWORD"),
+            "port": self.require_env("POSTGRES_SQL_SERVICE_PORT"),
+            "host": self.require_env("POSTGRES_SQL_SERVICE_HOST"),
         }
         with psycopg2.connect(**dbinfo) as conn:
             conn.autocommit = True
@@ -164,58 +163,72 @@ class InsertAwsOrgTree:
                         self._insert_org_sql(node["org_unit_name"], org_id, org_path, date, level)
                 self._set_deleted_timestamp(date)
         except KeyError as e:
-            print(f"Error: '{self.filename}' file is not formatted correctly, could not find the following key: {e}")
+            print(
+                f"Error: '{self.tree_yml_path}' file is not formatted correctly, could not find the following key: {e}"
+            )
             sys.exit(1)
 
-    def update_nise_yaml(self):
-        """Update the nise yaml to contain the accounts in the tree."""
-        # TODO: Allow the user to pass in their own nise_yml, for now hard code it to the nise repo stuff.
-        nise_yml_path = os.getenv("NISE_REPO_PATH")
-        nise_aws_yaml = os.path.join(nise_yml_path, "example_aws_static_data.yml")
-        nise_yaml_contents = self._load_yaml_file(nise_aws_yaml)
-        new_nise_user_accounts = nise_yaml_contents["accounts"]["user"]
+    def run_nise_command(self):
+        """Updates configures nise, creates aws source and runs download."""
+        # Updating the nise file to contain nise account info
+        new_nise_user_accounts = self.nise_yaml_contents["accounts"]["user"]
         for account in self.nise_accounts:
             if account not in new_nise_user_accounts:
                 new_nise_user_accounts.append(account)
-        nise_yaml_contents["accounts"]["user"] = new_nise_user_accounts
-        for generator in nise_yaml_contents["generators"]:
+        self.nise_yaml_contents["accounts"]["user"] = new_nise_user_accounts
+        for generator in self.nise_yaml_contents["generators"]:
             for _, metadata in generator.items():
                 metadata["start_date"] = "last_month"
-        with open(nise_aws_yaml, "w") as f:
-            yaml.dump(nise_yaml_contents, f)
+        with open(self.nise_yml_path, "w") as f:
+            yaml.dump(self.nise_yaml_contents, f)
+        # Building an running nise command
         nise_command = "nise --aws --static-report-file %s --aws-s3-bucket-name %s --aws-s3-report-name local-bucket"
         testing_path = os.getcwd() + "/testing/local_providers/aws_local_1"
-        nise_command = nise_command % (nise_aws_yaml, testing_path)
+        nise_command = nise_command % (self.nise_yml_path, testing_path)
         os.system(nise_command)
+        # Add aws source
         source_url = "http://{}:{}/api/cost-management/v1/sources/".format(
-            os.getenv("KOKU_API_HOSTNAME"), os.getenv("KOKU_PORT")
+            self.require_env("KOKU_API_HOSTNAME"), self.require_env("KOKU_PORT")
         )
         json_info = {
             "name": "aws_org_tree",
             "source_type": "AWS-local",
-            "authentication": {"resource_name": os.getenv("AWS_RESOURCE_NAME")},
+            "authentication": {"resource_name": self.require_env("AWS_RESOURCE_NAME")},
             "billing_source": {"bucket": "/tmp/local_bucket_1"},
         }
         requests.post(source_url, json=json_info)
+        # Trigger the download
         download_url = "http://{}:{}/api/cost-management/v1/download/".format(
-            os.getenv("MASU_API_HOSTNAME"), os.getenv("MASU_PORT")
+            self.require_env("MASU_API_HOSTNAME"), self.require_env("MASU_PORT")
         )
         requests.get(download_url)
-        if nise_aws_yaml == os.path.join(os.getenv("NISE_REPO_PATH"), "example_aws_static_data.yml"):
-            git_checkout_cmd = "cd {} && git checkout -- {}".format(os.getenv("NISE_REPO_PATH"), nise_aws_yaml)
+        nise_repo_path = self.require_env("NISE_REPO_PATH")
+        if nise_repo_path in self.nise_yml_path:
+            git_checkout_cmd = "cd {} && git checkout -- {}".format(nise_repo_path, "example_aws_static_data.yml")
             os.system(git_checkout_cmd)
 
 
 if "__main__" in __name__:
-    arg_list = [FILENAME_DEFAULT, SCHEMA_DEFAULT]
+    # Without making sure the migrations are run there is a chance that the
+    # reporting_awsorganizationalunit table will not be created in the database yet.
+    url = "http://{}:{}/api/cost-management/v1/organizations/aws/".format(
+        os.getenv("KOKU_API_HOSTNAME"), os.getenv("KOKU_PORT")
+    )
+    requests.get(url)
+    default_tree_yml = "scripts/aws_org_tree.yml"
+    default_nise_yml = os.path.join(os.getenv("NISE_REPO_PATH"), "example_aws_static_data.yml")
+    default_schema = "acct10001"
+    arg_list = [default_tree_yml, default_schema, default_nise_yml]
     sys_args = sys.argv
     sys_args.pop(0)
     for arg in sys_args:
         arg_key, arg_value = arg.split("=")
-        if arg_key == "tree" and arg_value != "":
+        if arg_key == "tree_yml" and arg_value != "":
             arg_list[0] = arg_value
         elif arg_key == "schema" and arg_value != "":
             arg_list[1] = arg_value
+        elif arg_key == "nise_yml" and arg_value != "":
+            arg_list[2] = arg_value
     insert_tree_obj = InsertAwsOrgTree(*arg_list)
     insert_tree_obj.insert_tree()
-    insert_tree_obj.update_nise_yaml()
+    insert_tree_obj.run_nise_command()

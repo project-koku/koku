@@ -74,6 +74,7 @@ help:
 	@echo "  load-aws-org-unit-tree                inserts aws org tree into model and runs nise command to populate cost"
 	@echo "                                          @param tree_yml - (optional) Tree yaml file. Default: 'scripts/aws_org_tree.yml'."
 	@echo "                                          @param schema - (optional) schema name. Default: 'acct10001'."
+	@echo "                                          @param nise_yml - (optional) Nise yaml file. Defaults to nise static yaml."
 	@echo "  backup-local-db-dir                   make a backup copy PostgreSQL database directory (pg_data.bak)"
 	@echo "  restore-local-db-dir                  overwrite the local PostgreSQL database directory with pg_data.bak"
 	@echo "  collect-static                        collect static files to host"
@@ -185,7 +186,7 @@ load-test-customer-data:
 	$(TOPDIR)/scripts/load_test_customer_data.sh $(TOPDIR) $(start) $(end)
 
 load-aws-org-unit-tree:
-	$(PYTHON) $(TOPDIR)/scripts/insert_aws_org_tree.py tree=$(tree_yml) schema=$(schema)
+	$(PYTHON) $(TOPDIR)/scripts/insert_aws_org_tree.py tree_yml=$(tree_yml) schema=$(schema) nise_yml=$(nise_yml)
 
 collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
