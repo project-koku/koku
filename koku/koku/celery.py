@@ -9,6 +9,7 @@ from celery import Celery
 from celery import Task
 from celery.schedules import crontab
 from celery.signals import celeryd_after_setup
+from celery.signals import worker_process_shutdown
 from celery.signals import worker_shutting_down
 from django.conf import settings
 
@@ -153,6 +154,7 @@ def clear_worker_cache(sender, instance, **kwargs):  # pragma: no cover
     WorkerCache().invalidate_host()
 
 
+@worker_process_shutdown.connect
 @worker_shutting_down.connect
 def clear_worker_cache_on_shutdown(sender, **kwargs):  # pragma: no cover
     from masu.processor.worker_cache import WorkerCache
@@ -162,4 +164,3 @@ def clear_worker_cache_on_shutdown(sender, **kwargs):  # pragma: no cover
         WorkerCache().invalidate_host()
     except Exception:
         LOGGER.info("Cache not cleared on shutdown.")
-        pass
