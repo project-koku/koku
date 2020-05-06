@@ -26,18 +26,22 @@ LOG = logging.getLogger(__name__)
 class WorkerCache:
     """A cache to track celery tasks across container/pod.
 
-    The cache exists as a single Redis key. It is a complex object that can
-    track multiple hosts running Celery and invalidate a single host's
-    information when that host restarts. The values are keyed on the provider
-    uuid and the billing month. This ensures that we are only ever running
-    a single task for a provider and billing period at one time.
+    Each worker has a cache_key in the form :{host}:worker. A set containing each
+    cache_key is stored in a separate cache entry called 'keys'. The worker cache_keys
+    store the task_key for the task the worker is running. The WorkerCache takes all the
+    entries in the 'keys' cache to build the list of currently running tasks.
 
-    Format: "worker" : {"{worker_host}": ["{provider_uuid}:{billing_month}],}
+    The task_keys are keyed on the provider uuid and the billing month. This ensures that
+    we are only ever running a single task for a provider and billing period at one time.
 
-    Example: "worker" : {
-        "koku-worker-0": ["10c0fb01-9d65-4605-bbf1-6089107ec5e5:2020-02-01 00:00:00],
-        "koku-worker-1": ["10c0fb01-9d65-4605-bbf1-6089107ec5e5:2020-01-01 00:00:00],
-    }
+    Format: ":hostworker:" : "{provider_uuid}:{billing_month}"
+
+    Example:
+
+        cache_key               |                           value                            |        expires
+        ":1:keys:               | {"koku-worker-1", "koku-worker2"}                          |        datetime
+        ":koku-worker-0:worker" | "10c0fb01-9d65-4605-bbf1-6089107ec5e5:2020-02-01 00:00:00" |        datetime
+        ":koku-worker-1:worker" | "10c0fb01-9d65-4605-bbf1-6089107ec5e5:2020-01-01 00:00:00" |        datetime
 
     """
 
@@ -61,7 +65,7 @@ class WorkerCache:
         worker_keys = self.worker_cache_keys
         if settings.HOSTNAME not in worker_keys:
             worker_keys.update((settings.HOSTNAME,))
-            self.cache.set("keys", worker_keys, timeout=None)
+            self.cache.set("keys", worker_keys)
 
     def invalidate_host(self):
         """Invalidate the cache for a particular host."""
@@ -79,11 +83,7 @@ class WorkerCache:
 
     def get_all_running_tasks(self):
         """Combine each host's running tasks into a single list."""
-        task_list = []
-        for key in self.worker_cache_keys:
-            tasks = self.cache.get(settings.WORKER_CACHE_KEY, default=[], version=key)
-            task_list.extend(tasks)
-        return task_list
+        return [self.cache.get(settings.WORKER_CACHE_KEY, version=key) for key in self.worker_cache_keys]
 
     def task_is_running(self, task_key):
         """Check if a task is in the cache."""
