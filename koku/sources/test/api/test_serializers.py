@@ -122,11 +122,10 @@ class SourcesSerializerTests(IamTestCase):
             mock_sources_client = MockSourcesClient("http://mock-soures-client")
             mock_client.return_value.__enter__.return_value = mock_sources_client
             instance = serializer.update(self.azure_obj, validated_data)
-            # TODO: Figure out why the test isn't saving instance
-            # self.assertEqual("subscription-uuid", instance.authentication.get("credentials").get("subscription_id"))
+            self.assertEqual("subscription-uuid", instance.authentication.get("credentials").get("subscription_id"))
 
-        # for field in ("client_id", "tenant_id", "client_secret"):
-        # self.assertNotIn(field, instance.authentication.get("credentials").keys())
+        for field in ("client_id", "tenant_id", "client_secret"):
+            self.assertNotIn(field, instance.authentication.get("credentials").keys())
 
     def test_azure_source_update_wrong_type(self):
         """Test the updating azure source with wrong source type."""
@@ -155,10 +154,10 @@ class SourcesSerializerTests(IamTestCase):
             mock_sources_client = MockSourcesClient("http://mock-soures-client")
             mock_client.return_value.__enter__.return_value = mock_sources_client
             instance = serializer.update(self.azure_obj, validated_data)
-        # TODO: Figure out why the test isn't saving instance
-        # self.assertIn("data_source", instance.billing_source.keys())
-        # self.assertEqual(test_resource_group, instance.billing_source.get("data_source").get("resource_group"))
-        # self.assertEqual(test_storage_account, instance.billing_source.get("data_source").get("storage_account"))
+
+        self.assertIn("data_source", instance.billing_source.keys())
+        self.assertEqual(test_resource_group, instance.billing_source.get("data_source").get("resource_group"))
+        self.assertEqual(test_storage_account, instance.billing_source.get("data_source").get("storage_account"))
 
     def test_azure_source_billing_source_resource_group_update(self):
         """Test the updating azure billing_source."""
@@ -174,10 +173,10 @@ class SourcesSerializerTests(IamTestCase):
             mock_sources_client = MockSourcesClient("http://mock-soures-client")
             mock_client.return_value.__enter__.return_value = mock_sources_client
             instance = serializer.update(self.azure_obj, validated_data)
-        # TODO: Figure out why instance isn't updated in tests
-        # self.assertIn("data_source", instance.billing_source.keys())
-        # self.assertEqual(test_resource_group, instance.billing_source.get("data_source").get("resource_group"))
-        # self.assertEqual(test_storage_account, instance.billing_source.get("data_source").get("storage_account"))
+
+        self.assertIn("data_source", instance.billing_source.keys())
+        self.assertEqual(test_resource_group, instance.billing_source.get("data_source").get("resource_group"))
+        self.assertEqual(test_storage_account, instance.billing_source.get("data_source").get("storage_account"))
 
         # Skipping until instance storage in tests are figured out
         return
@@ -205,10 +204,10 @@ class SourcesSerializerTests(IamTestCase):
             mock_sources_client = MockSourcesClient("http://mock-soures-client")
             mock_client.return_value.__enter__.return_value = mock_sources_client
             instance = serializer.update(self.azure_obj, validated_data)
-        # TODO: Figure out why instance isn't updated in tests
-        # self.assertIn("data_source", instance.billing_source.keys())
-        # self.assertEqual(test_resource_group, instance.billing_source.get("data_source").get("resource_group"))
-        # self.assertEqual(test_storage_account, instance.billing_source.get("data_source").get("storage_account"))
+
+        self.assertIn("data_source", instance.billing_source.keys())
+        self.assertEqual(test_resource_group, instance.billing_source.get("data_source").get("resource_group"))
+        self.assertEqual(test_storage_account, instance.billing_source.get("data_source").get("storage_account"))
 
         # Skipping until instance storage in tests are figured out
         return
@@ -271,8 +270,8 @@ class SourcesSerializerTests(IamTestCase):
             with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
                 instance = serializer.update(self.aws_obj, validated_data)
         # TODO: figure out why instance isn't updated in tests
-        # self.assertIn("bucket", instance.billing_source.keys())
-        # self.assertEqual(test_bucket, instance.billing_source.get("bucket"))
+        #self.assertIn("bucket", instance.billing_source.keys())
+        #self.assertEqual(test_bucket, instance.billing_source.get("bucket"))
 
     def test_aws_source_billing_source_update_missing_bucket(self):
         """Test the updating aws billing_source."""
@@ -378,5 +377,5 @@ class SourcesSerializerTests(IamTestCase):
                 mock_sources_client = MockSourcesClient("http://mock-soures-client")
                 mock_client.return_value.__enter__.return_value = mock_sources_client
                 instance2 = serializer.update(instance, validated)
-        # TODO: Figure out why instance is not updated in tests
-        # self.assertEqual(instance2.billing_source.get("bucket"), "second-bucket")
+
+        self.assertEqual(instance2.billing_source.get("bucket"), "second-bucket")

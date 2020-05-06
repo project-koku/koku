@@ -90,7 +90,7 @@ class SourcesPatchHandler:
             instance, billing_fields = self._update_billing_source(instance, billing_source)
 
         update_fields = list(set(billing_fields))
-        instance.save(update_fields=update_fields)
+        instance.save()
         return True
 
     def update_authentication(self, source_id, authentication):
@@ -100,5 +100,5 @@ class SourcesPatchHandler:
             instance, auth_fields = self._update_authentication(instance, authentication)
 
         update_fields = list(set(auth_fields))
-        instance.save(update_fields=update_fields)
+        instance.save()
         return True
