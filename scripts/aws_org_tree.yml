@@ -2,98 +2,96 @@
 account_structure:
   days:
     - day:
-        date: 4-29-2020
-        root:
-          org_unit_id: 'R_001'
-          org_unit_name: 'Root'
+        date: 05-01-2020
         nodes:
-          - account:
-            account_alias_id: '000'
-            account_alias_name: 'Root A Test'
-            parent_path: "R_001"
+          - organizational_unit:
+            org_unit_id: 'R_001'
+            org_unit_name: 'Root'
+            accounts:
+              - account_alias_id: '000'
+                account_alias_name: 'Root A Test'
           - organizational_unit:
             org_unit_id: 'OU_001'
-            org_unit_name: 'Dept A'
+            org_unit_name: 'Dept OU_001'
             parent_path: "R_001"
-          - account:
-            account_alias_id: '001'
-            account_alias_name: 'Dept A Test'
-            parent_path: "R_001&OU_001"
+            accounts:
+              - account_alias_id: '001'
+                account_alias_name: 'account 001'
+              - account_alias_id: '002'
+                account_alias_name: 'account 002'
           - organizational_unit:
             org_unit_id: 'OU_002'
-            org_unit_name: 'Dept B'
+            org_unit_name: 'Dept OU_002'
             parent_path: "R_001"
-          - account:
-            account_alias_id: '002'
-            account_alias_name: 'Dept B Test'
+            accounts:
+              - account_alias_id: '003'
+                account_alias_name: 'account 003'
+          - organizational_unit:
+            org_unit_id: 'OU_003'
+            org_unit_name: 'Dept OU_003'
+            parent_path: "R_001&OU_002"
+          - organizational_unit:
+            org_unit_id: 'OU_004'
+            org_unit_name: 'Dept OU_004'
+            parent_path: "R_001"
+            accounts:
+              - account_alias_id: '004'
+                account_alias_name: 'Dept OU_004 004'
+    - day:
+        date: 05-01-2020
+        nodes:
+          - organizational_unit:
+            org_unit_id: 'R_001'
+            org_unit_name: 'Root'
+            accounts:
+              - account_alias_id: '000'
+                account_alias_name: 'Root A Test'
+          - organizational_unit:
+            org_unit_id: 'OU_001'
+            org_unit_name: 'Dept OU_001'
+            parent_path: "R_001"
+            accounts:
+              - account_alias_id: '001'
+                account_alias_name: 'account 001'
+              - account_alias_id: '002'
+                account_alias_name: 'account 002'
+          - organizational_unit:
+            org_unit_id: 'OU_002'
+            org_unit_name: 'Dept OU_002'
+            parent_path: "R_001"
+            accounts:
+              - account_alias_id: '003'
+                account_alias_name: 'account 003'
+          - organizational_unit:
+            org_unit_id: 'OU_003'
+            org_unit_name: 'Dept OU_003'
             parent_path: "R_001&OU_002"
     - day:
-        date: 4-30-2020
-        root:
-          org_unit_id: 'R_001'
-          org_unit_name: 'Root'
+        date: 05-01-2020
         nodes:
-          - account:
-            account_alias_id: '000'
-            account_alias_name: 'Root A Test'
-            parent_path: "R_001"
+          - organizational_unit:
+            org_unit_id: 'R_001'
+            org_unit_name: 'Root'
+            accounts:
+              - account_alias_id: '000'
+                account_alias_name: 'Root A Test'
           - organizational_unit:
             org_unit_id: 'OU_001'
-            org_unit_name: 'Dept A'
+            org_unit_name: 'Dept OU_001'
             parent_path: "R_001"
-          - account:
-            account_alias_id: '001'
-            account_alias_name: 'Dept A Test'
-            parent_path: "R_001&OU_001"
-    - day:
-        date: 5-2-2020
-        root:
-          org_unit_id: 'R_001'
-          org_unit_name: 'Root'
-        nodes:
-          - account:
-            account_alias_id: '000'
-            account_alias_name: 'Root A Test'
-            parent_path: "R_001"
+            accounts:
+              - account_alias_id: '001'
+                account_alias_name: 'account 001'
+              - account_alias_id: '002'
+                account_alias_name: 'account 002'
           - organizational_unit:
-            org_unit_id: 'OU_001'
-            org_unit_name: 'Dept A'
+            org_unit_id: 'OU_002'
+            org_unit_name: 'Dept OU_002'
             parent_path: "R_001"
           - organizational_unit:
             org_unit_id: 'OU_003'
-            org_unit_name: 'Dept C'
-            parent_path: "R_001&OU_001"
-          - account:
-            account_alias_id: '001'
-            account_alias_name: 'Dept C Test'
-            parent_path: "R_001&OU_001&OU_003"
-          - organizational_unit:
-            org_unit_id: 'OU_004'
-            org_unit_name: 'Dept D'
-            parent_path: "R_001"
-    - day:
-        date: 5-2-2020
-        root:
-          org_unit_id: 'R_001'
-          org_unit_name: 'Root'
-        nodes:
-          - account:
-            account_alias_id: '000'
-            account_alias_name: 'Root A Test'
-            parent_path: "R_001"
-          - organizational_unit:
-            org_unit_id: 'OU_001'
-            org_unit_name: 'Dept A'
-            parent_path: "R_001"
-          - organizational_unit:
-            org_unit_id: 'OU_003'
-            org_unit_name: 'Dept C'
-            parent_path: "R_001&OU_001"
-          - organizational_unit:
-            org_unit_id: 'OU_004'
-            org_unit_name: 'Dept D'
-            parent_path: "R_001"
-          - account:
-            account_alias_id: '001'
-            account_alias_name: 'Dept D Test'
-            parent_path: "R_001&OU_001&OU_004"
+            org_unit_name: 'Dept OU_003'
+            parent_path: "R_001&OU_002"
+            accounts:
+              - account_alias_id: '003'
+                account_alias_name: 'account 003'

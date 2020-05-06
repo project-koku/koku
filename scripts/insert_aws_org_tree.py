@@ -10,13 +10,15 @@ from psycopg2 import sql
 class InsertAwsOrgTree:
     """AWS org unit crawler."""
 
-    def __init__(self, tree_yml_path, schema, nise_yml_path):
+    def __init__(self, tree_yml_path, schema, db_name, nise_yml_path=None):
         """Initialize the insert aws org tree."""
+        self.db_name = db_name
         self.tree_yml_path = tree_yml_path
         self.nise_yml_path = nise_yml_path
         self.schema = schema
         self.tree_yaml_contents = self._load_yaml_file(self.tree_yml_path)
-        self.nise_yaml_contents = self._load_yaml_file(self.nise_yml_path)
+        if self.nise_yml_path:
+            self.nise_yaml_contents = self._load_yaml_file(self.nise_yml_path)
         self.cursor = self._establish_db_conn()
         self.yesterday_accounts = []
         self.yesterday_orgs = []
@@ -36,7 +38,7 @@ class InsertAwsOrgTree:
     def _establish_db_conn(self):
         """Creates a connection to the database."""
         dbinfo = {
-            "database": self.require_env("DATABASE_NAME"),
+            "database": self.db_name,
             "user": self.require_env("DATABASE_USER"),
             "password": self.require_env("DATABASE_PASSWORD"),
             "port": self.require_env("POSTGRES_SQL_SERVICE_PORT"),
@@ -60,31 +62,27 @@ class InsertAwsOrgTree:
             yamlfile = yaml.safe_load(filename)
         return yamlfile
 
-    def _insert_account(self, node, date):
+    def _insert_account(self, org_node, act_info, date):
         """Inserts the account information in the database."""
         # Make sure the account alias is created and get id
         account_alias_sql = """INSERT INTO {schema}.reporting_awsaccountalias (account_id, account_alias)
                                VALUES (%s, %s) ON CONFLICT (account_id) DO NOTHING;
                                SELECT id FROM {schema}.reporting_awsaccountalias WHERE account_id = %s;"""
         account_alias_sql = sql.SQL(account_alias_sql).format(schema=sql.Identifier(self.schema))
-        values = [node["account_alias_id"], node["account_alias_name"], node["account_alias_id"]]
+        values = [act_info["account_alias_id"], act_info["account_alias_name"], act_info["account_alias_id"]]
         self.cursor.execute(account_alias_sql, values)
         account_alias_id = self.cursor.fetchone()[0]
-        # Grab org info from database
-        parent_org_id = node["parent_path"].split("&")[-1]
-        select_org_sql = """SELECT org_unit_name, org_unit_id, org_unit_path, level
-                            FROM {schema}.reporting_awsorganizationalunit WHERE
-                            id = (SELECT max(id) FROM {schema}.reporting_awsorganizationalunit
-                            WHERE org_unit_id = %s);"""
-        select_org_sql = sql.SQL(select_org_sql).format(schema=sql.Identifier(self.schema))
-        self.cursor.execute(select_org_sql, [parent_org_id])
-        org_name, org_id, org_path, level = self.cursor.fetchone()
-        # Check to see if account is created in the database if not create it
         select_sql = """SELECT * FROM {schema}.reporting_awsorganizationalunit
                         WHERE org_unit_name = %s AND org_unit_id = %s AND org_unit_path = %s
                         AND level = %s AND account_alias_id = %s"""
         select_sql = sql.SQL(select_sql).format(schema=sql.Identifier(self.schema))
-        values = [org_name, org_id, org_path, level, account_alias_id]
+        values = [
+            org_node["org_unit_name"],
+            org_node["org_unit_id"],
+            org_node["org_path"],
+            org_node["level"],
+            account_alias_id,
+        ]
         self.cursor.execute(select_sql, values)
         org_exists = self.cursor.fetchone()
         if org_exists is None:
@@ -92,15 +90,22 @@ class InsertAwsOrgTree:
                                     (org_unit_name, org_unit_id, org_unit_path, created_timestamp,
                                     level, account_alias_id) VALUES (%s, %s, %s, %s, %s, %s)"""
             insert_account_sql = sql.SQL(insert_account_sql).format(schema=sql.Identifier(self.schema))
-            values = [org_name, org_id, org_path, date, level, account_alias_id]
+            values = [
+                org_node["org_unit_name"],
+                org_node["org_unit_id"],
+                org_node["org_path"],
+                date,
+                org_node["level"],
+                account_alias_id,
+            ]
             self.cursor.execute(insert_account_sql, values)
 
-    def _insert_org_sql(self, org_name, org_id, org_path, date, level):
+    def _insert_org_sql(self, org_node, date):
         """Inserts the org unit information into the database."""
         select_sql = """SELECT * FROM {schema}.reporting_awsorganizationalunit
                         WHERE org_unit_name = %s and org_unit_id = %s and org_unit_path = %s and level = %s"""
         select_sql = sql.SQL(select_sql).format(schema=sql.Identifier(self.schema))
-        values = [org_name, org_id, org_path, level]
+        values = [org_node["org_unit_name"], org_node["org_unit_id"], org_node["org_path"], org_node["level"]]
         self.cursor.execute(select_sql, values)
         org_exists = self.cursor.fetchone()
         if org_exists is None:
@@ -108,7 +113,13 @@ class InsertAwsOrgTree:
                                 (org_unit_name, org_unit_id, org_unit_path, created_timestamp, level)
                                 VALUES (%s, %s, %s, %s, %s);"""
             org_insert_sql = sql.SQL(org_insert_sql).format(schema=sql.Identifier(self.schema))
-            values = [org_name, org_id, org_path, date, level]
+            values = [
+                org_node["org_unit_name"],
+                org_node["org_unit_id"],
+                org_node["org_path"],
+                date,
+                org_node["level"],
+            ]
             self.cursor.execute(org_insert_sql, values)
 
     def _set_deleted_timestamp(self, date):
@@ -134,33 +145,35 @@ class InsertAwsOrgTree:
         self.today_accounts = []
         self.today_orgs = []
 
-    def insert_tree(self):
+    def insert_tree(self):  # noqa: C901
         """Inserts the tree into the database."""
         try:
             day_list = self.tree_yaml_contents["account_structure"]["days"]
             for day_dict in day_list:
                 day = day_dict["day"]
                 date = day["date"]
-                root = day["root"]
-                self._insert_org_sql(root["org_unit_name"], root["org_unit_id"], root["org_unit_id"], date, 0)
                 for node in day["nodes"]:
-                    if node.get("account", False) is None:
-                        account_id = node["account_alias_id"]
-                        if account_id not in self.nise_accounts:
-                            self.nise_accounts.append(account_id)
-                        if account_id in self.yesterday_accounts:
-                            self.yesterday_accounts.remove(account_id)
-                        self.today_accounts.append(account_id)
-                        self._insert_account(node, date)
-                    elif node.get("organizational_unit", False) is None:
-                        level = node["parent_path"].count("&")
-                        level += 1
-                        org_id = node["org_unit_id"]
-                        org_path = node["parent_path"] + "&" + org_id
-                        if org_id in self.yesterday_orgs:
-                            self.yesterday_orgs.remove(org_id)
-                        self.today_orgs.append(org_id)
-                        self._insert_org_sql(node["org_unit_name"], org_id, org_path, date, level)
+                    org_id = node["org_unit_id"]
+                    parent_path = node.get("parent_path", "")
+                    if parent_path == "":
+                        node["org_path"] = org_id
+                        node["level"] = 0
+                    else:
+                        node["level"] = parent_path.count("&") + 1
+                        node["org_path"] = parent_path + "&" + org_id
+                    if org_id in self.yesterday_orgs:
+                        self.yesterday_orgs.remove(org_id)
+                    self.today_orgs.append(org_id)
+                    self._insert_org_sql(node, date)
+                    if node.get("accounts"):
+                        for account in node.get("accounts"):
+                            account_id = account["account_alias_id"]
+                            if account_id not in self.nise_accounts:
+                                self.nise_accounts.append(account_id)
+                            if account_id in self.yesterday_accounts:
+                                self.yesterday_accounts.remove(account_id)
+                            self.today_accounts.append(account_id)
+                            self._insert_account(node, account, date)
                 self._set_deleted_timestamp(date)
         except KeyError as e:
             print(
@@ -218,7 +231,8 @@ if "__main__" in __name__:
     default_tree_yml = "scripts/aws_org_tree.yml"
     default_nise_yml = os.path.join(os.getenv("NISE_REPO_PATH"), "example_aws_static_data.yml")
     default_schema = "acct10001"
-    arg_list = [default_tree_yml, default_schema, default_nise_yml]
+    default_db = os.getenv("DATABASE_NAME")
+    arg_list = [default_tree_yml, default_schema, default_db, default_nise_yml]
     sys_args = sys.argv
     sys_args.pop(0)
     for arg in sys_args:
@@ -228,7 +242,7 @@ if "__main__" in __name__:
         elif arg_key == "schema" and arg_value != "":
             arg_list[1] = arg_value
         elif arg_key == "nise_yml" and arg_value != "":
-            arg_list[2] = arg_value
+            arg_list[3] = arg_value
     insert_tree_obj = InsertAwsOrgTree(*arg_list)
     insert_tree_obj.insert_tree()
     insert_tree_obj.run_nise_command()
