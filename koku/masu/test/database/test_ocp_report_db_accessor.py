@@ -419,8 +419,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
         query = self.accessor._get_db_obj_query(agg_table_name)
-
-        self.accessor.populate_volume_label_summary_table()
+        self.accessor.populate_volume_label_summary_table([self.reporting_period.id])
 
         with schema_context(self.schema):
             tags = query.all()

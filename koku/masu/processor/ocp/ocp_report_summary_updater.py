@@ -90,6 +90,8 @@ class OCPReportSummaryUpdater:
         report_periods = None
         with OCPReportDBAccessor(self._schema) as accessor:
             report_periods = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+            with schema_context(self._schema):
+                report_period_ids = [report_period.id for report_period in report_periods]
             for start, end in date_range_pair(start_date, end_date):
                 LOG.info(
                     "Updating OpenShift report summary tables for \n\tSchema: %s "
@@ -102,8 +104,8 @@ class OCPReportSummaryUpdater:
                 )
                 accessor.populate_line_item_daily_summary_table(start, end, self._cluster_id)
                 accessor.populate_storage_line_item_daily_summary_table(start, end, self._cluster_id)
-            accessor.populate_pod_label_summary_table()
-            accessor.populate_volume_label_summary_table()
+            accessor.populate_pod_label_summary_table(report_period_ids)
+            accessor.populate_volume_label_summary_table(report_period_ids)
 
             for period in report_periods:
                 if period.summary_data_creation_datetime is None:

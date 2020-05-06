@@ -32,7 +32,7 @@ LOG = get_task_logger(__name__)
 
 
 @app.task(name="sources.tasks.create_or_update_provider", queue_name="sources")  # noqa: C901
-def create_or_update_provider(source_id):
+def create_or_update_provider(source_id):  # noqa: C901
     LOG.info(f"Running Sources create/update provider for Source ID: {source_id}")
     try:
         instance = Sources.objects.get(source_id=source_id)
@@ -40,7 +40,7 @@ def create_or_update_provider(source_id):
         LOG.error(f"[create_or_update_provider] This Source ID {source_id} should exist. error: {e}")
         return
     LOG.info(f"Found Source Instance: {str(instance)}")
-    uuid = instance.source_uuid
+    uuid = instance.koku_uuid
     source_mgr = KafkaSourceManager(instance.auth_header)
 
     provider = [instance.name, instance.source_type, instance.authentication, instance.billing_source]
@@ -71,7 +71,7 @@ def create_or_update_provider(source_id):
     except ValidationError as err:
         LOG.info(f"Provider {operation} ValidationError: {err}")
         status = "unavailable"
-        err_msg = str(err)
+        err_msg = err
     else:
         LOG.info(f"Provider operation: {operation} complete")
         LOG.info(f"Provider {operation}d: {obj.uuid}")
@@ -85,7 +85,7 @@ def create_or_update_provider(source_id):
             instance.koku_uuid = obj.uuid
             instance.pending_update = False
         instance.save()
-        set_status_for_source.delay(source_id, err_msg)
+        set_status_for_source(source_id, err_msg)
     except Sources.DoesNotExist:
         LOG.info(f"Source ID: {source_id} already removing.  Rolling back provider creation")
         source_mgr.destroy_provider(obj.uuid)
