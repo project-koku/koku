@@ -28,8 +28,8 @@ class WorkerCache:
 
     Each worker has a cache_key in the form :{host}:worker. A set containing each
     cache_key is stored in a separate cache entry called 'keys'. The worker cache_keys
-    store the task_key for the task the worker is running. The WorkerCache takes all the
-    entries in the 'keys' cache to build the list of currently running tasks.
+    stores a list of task_keys for the task the worker is running. The WorkerCache takes
+    all the entries in the 'keys' cache to build the list of currently running tasks.
 
     The task_keys are keyed on the provider uuid and the billing month. This ensures that
     we are only ever running a single task for a provider and billing period at one time.
@@ -38,10 +38,10 @@ class WorkerCache:
 
     Example:
 
-        cache_key               |                           value                            |        expires
-        ":1:keys:               | {"koku-worker-1", "koku-worker2"}                          |        datetime
-        ":koku-worker-0:worker" | "10c0fb01-9d65-4605-bbf1-6089107ec5e5:2020-02-01 00:00:00" |        datetime
-        ":koku-worker-1:worker" | "10c0fb01-9d65-4605-bbf1-6089107ec5e5:2020-01-01 00:00:00" |        datetime
+        cache_key               |                           value                              |        expires
+        ":1:keys:               | {"koku-worker-1", "koku-worker2"}                            |        datetime
+        ":koku-worker-0:worker" | ["10c0fb01-9d65-4605-bbf1-6089107ec5e5:2020-02-01 00:00:00"] |        datetime
+        ":koku-worker-1:worker" | ["10c0fb01-9d65-4605-bbf1-6089107ec5e5:2020-01-01 00:00:00"] |        datetime
 
     """
 
@@ -58,7 +58,7 @@ class WorkerCache:
     @property
     def worker_cache(self):
         """Return the value of the cache key."""
-        return self.cache.get(settings.WORKER_CACHE_KEY, version=settings.HOSTNAME)
+        return self.cache.get(settings.WORKER_CACHE_KEY, default=[], version=settings.HOSTNAME)
 
     def add_worker_keys(self):
         """Add worker key verison to list of workers."""
@@ -73,17 +73,27 @@ class WorkerCache:
 
     def add_task_to_cache(self, task_key):
         """Add an entry to the cache for a task."""
-        self.cache.set(settings.WORKER_CACHE_KEY, task_key, version=settings.HOSTNAME)
+        task_list = self.worker_cache
+        task_list.append(task_key)
+        self.cache.set(settings.WORKER_CACHE_KEY, task_list, version=settings.HOSTNAME)
         LOG.info(f"Added {task_key} to cache.")
 
     def remove_task_from_cache(self, task_key):
         """Remove an entry from the cache for a task."""
-        self.invalidate_host()
+        task_list = self.worker_cache
+        try:
+            task_list.remove(task_key)
+        except ValueError:
+            pass
+        self.cache.set(settings.WORKER_CACHE_KEY, task_list, version=settings.HOSTNAME)
         LOG.info(f"Removed {task_key} from cache.")
 
     def get_all_running_tasks(self):
         """Combine each host's running tasks into a single list."""
-        return [self.cache.get(settings.WORKER_CACHE_KEY, version=key) for key in self.worker_cache_keys]
+        tasks = []
+        for key in self.worker_cache_keys:
+            tasks.extend(self.cache.get(settings.WORKER_CACHE_KEY, default=[], version=key))
+        return tasks
 
     def task_is_running(self, task_key):
         """Check if a task is in the cache."""
