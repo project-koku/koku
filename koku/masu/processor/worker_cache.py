@@ -85,8 +85,9 @@ class WorkerCache:
             task_list.remove(task_key)
         except ValueError:
             pass
-        self.cache.set(settings.WORKER_CACHE_KEY, task_list, version=settings.HOSTNAME)
-        LOG.info(f"Removed {task_key} from cache.")
+        else:
+            self.cache.set(settings.WORKER_CACHE_KEY, task_list, version=settings.HOSTNAME)
+            LOG.info(f"Removed {task_key} from cache.")
 
     def get_all_running_tasks(self):
         """Combine each host's running tasks into a single list."""
