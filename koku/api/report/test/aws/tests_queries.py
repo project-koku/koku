@@ -45,6 +45,7 @@ from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
 from reporting.models import AWSCostEntryLineItemDailySummary
 from reporting.models import AWSCostEntryProduct
+from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
 class AWSReportQueryTest(IamTestCase):
@@ -80,6 +81,12 @@ class AWSReportQueryTest(IamTestCase):
                 .distinct()
                 .first()
                 .get("account_alias__account_alias")
+            )
+            self.organizational_unit = (
+                AWSCostEntryLineItemDailySummary.objects.values("organizational_unit__org_unit_id")
+                .distinct()
+                .first()
+                .get("organizational_unit__org_unit_id")
             )
 
     def calculate_total(self, handler):
@@ -1207,6 +1214,22 @@ class AWSReportQueryTest(IamTestCase):
         data_totals = data.get("total", {})
         result = data_totals.get("cost", {}).get("total", {}).get("value")
         self.assertEqual(result, totals["cost"])
+
+    def test_execute_query_with_org_unit_group_by(self):
+        """Test that data is grouped by org_unit."""
+        with tenant_context(self.tenant):
+            org_units = AWSOrganizationalUnit.objects.all()
+            print("\n\n\nOrg units: ")
+            print(org_units)
+        with tenant_context(self.tenant):
+            url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[org_unit]=R_001"  # noqa: E501
+            query_params = self.mocked_query_params(url, AWSCostView)
+            handler = AWSReportQueryHandler(query_params)
+            print("\n\nquery params: ")
+            print(query_params)
+            data = handler.execute_query()
+            print("\n\n\n\ndata : ")
+            print(data)
 
 
 class AWSReportQueryLogicalAndTest(IamTestCase):

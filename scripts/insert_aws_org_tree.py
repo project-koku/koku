@@ -1,5 +1,7 @@
 import os
 import sys
+from datetime import datetime
+from datetime import timedelta
 
 import psycopg2
 import requests
@@ -145,13 +147,21 @@ class InsertAwsOrgTree:
         self.today_accounts = []
         self.today_orgs = []
 
+    def calculate_date(self, day_delta):
+        """Calculate the date based off of a delta and a range start date."""
+        today = datetime.today().date()
+        range_start = today.replace(day=1)
+        date = range_start + timedelta(days=day_delta)
+        return str(date)
+
     def insert_tree(self):  # noqa: C901
         """Inserts the tree into the database."""
         try:
             day_list = self.tree_yaml_contents["account_structure"]["days"]
             for day_dict in day_list:
                 day = day_dict["day"]
-                date = day["date"]
+                date_delta = day["date"]
+                date = self.calculate_date(date_delta)
                 for node in day["nodes"]:
                     org_id = node["org_unit_id"]
                     parent_path = node.get("parent_path", "")

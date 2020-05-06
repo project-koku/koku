@@ -219,3 +219,6 @@ accounts:
   payer: {{ account_id }}
   user:
     - 9999999999999
+    - 000
+    - 001
+    - 002

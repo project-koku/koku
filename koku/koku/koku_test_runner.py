@@ -22,6 +22,7 @@ from django.conf import settings
 from django.db import connections
 from django.test.runner import DiscoverRunner
 from django.test.utils import get_unique_databases_and_mirrors
+from scripts.insert_aws_org_tree import InsertAwsOrgTree
 from tenant_schemas.utils import tenant_context
 
 from api.models import Customer
@@ -70,7 +71,7 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
             # Actually create the database for the first connection
             if first_alias is None:
                 first_alias = alias
-                connection.creation.create_test_db(
+                test_db_name = connection.creation.create_test_db(
                     verbosity=verbosity,
                     autoclobber=not interactive,
                     keepdb=keepdb,
@@ -86,6 +87,8 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                     with tenant_context(tenant):
                         for tag_key in OCP_ENABLED_TAGS:
                             OCPEnabledTagKeys.objects.get_or_create(key=tag_key)
+                    org_tree_obj = InsertAwsOrgTree("scripts/aws_org_tree.yml", KokuTestRunner.schema, test_db_name)
+                    org_tree_obj.insert_tree()
                     data_loader = NiseDataLoader(KokuTestRunner.schema)
                     data_loader.load_openshift_data(customer, "ocp_aws_static_data.yml", "OCP-on-AWS")
                     data_loader.load_openshift_data(customer, "ocp_azure_static_data.yml", "OCP-on-Azure")
