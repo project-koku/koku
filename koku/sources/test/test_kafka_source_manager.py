@@ -103,7 +103,7 @@ class ProviderBuilderTest(TestCase):
             self.assertEqual(provider.name, self.name)
             self.assertEqual(str(provider.uuid), source_uuid)
             logging.disable(logging.NOTSET)
-            with self.assertLogs(logger="sources.provider_builder", level=logging.INFO):
+            with self.assertLogs(logger="api.provider.provider_builder", level=logging.INFO):
                 client.destroy_provider(faker.uuid4())
 
     def test_update_provider(self):

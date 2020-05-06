@@ -68,5 +68,8 @@ class SourcesProviderCoordinator:
 
     def destroy_account(self, provider_uuid):
         """Call to destroy provider."""
-        self._provider_builder.destroy_provider(provider_uuid)
-        destroy_source_event(self._source_id)
+        try:
+            self._provider_builder.destroy_provider(provider_uuid)
+            destroy_source_event(self._source_id)
+        except ProviderBuilderError as provider_err:
+            LOG.error(f"Failed to remove provider. Error: {str(provider_err)}")

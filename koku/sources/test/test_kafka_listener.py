@@ -34,7 +34,6 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_builder import ProviderBuilderError
-from api.provider.provider_manager import ProviderManagerError
 from koku.middleware import IdentityHeaderMiddleware
 from masu.prometheus_stats import WORKER_REGISTRY
 from providers.provider_access import ProviderAccessor
@@ -46,6 +45,7 @@ from sources.kafka_listener import storage_callback
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
+from sources.sources_provider_coordinator import SourcesProviderCoordinator
 
 faker = Faker()
 SOURCES_APPS = "http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}"
@@ -62,8 +62,8 @@ def raise_validation_error(param_a, param_b, param_c, param_d, param_e):
 
 
 def raise_provider_manager_error(param_a):
-    """Raise ProviderManagerError"""
-    raise ProviderManagerError("test exception")
+    """Raise ProviderBuilderError"""
+    raise ProviderBuilderError("test exception")
 
 
 class ConsumerRecord:
@@ -151,6 +151,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
     def setUp(self):
         """Setup the test method."""
+        super().setUp()
         self.aws_source = {
             "source_id": 10,
             "source_uuid": uuid4(),
@@ -193,8 +194,9 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         provider.save()
 
         msg = {"operation": "create", "provider": provider, "offset": provider.offset}
-        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            source_integration.execute_koku_provider_op(msg, application_type_id)
+        with patch.object(SourcesHTTPClient, "set_source_status"):
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                source_integration.execute_koku_provider_op(msg, application_type_id)
         self.assertIsNotNone(Sources.objects.get(source_id=source_id).koku_uuid)
         self.assertFalse(Sources.objects.get(source_id=source_id).pending_update)
         self.assertEqual(Sources.objects.get(source_id=source_id).koku_uuid, str(provider.source_uuid))
@@ -207,14 +209,14 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         provider.save()
 
         msg = {"operation": "destroy", "provider": provider, "offset": provider.offset}
-        source_integration.execute_koku_provider_op(msg, application_type_id)
+        with patch.object(SourcesHTTPClient, "set_source_status"):
+            source_integration.execute_koku_provider_op(msg, application_type_id)
         self.assertEqual(Sources.objects.filter(source_id=source_id).exists(), False)
 
-    @patch("sources.tasks.set_status_for_source.delay")
-    def test_execute_koku_provider_op_destroy_provider_not_found(self, mock_status):
+    def test_execute_koku_provider_op_destroy_provider_not_found(self):
         """Test to execute Koku Operations to sync with Sources for destruction with provider missing.
 
-        First, raise ProviderManagerError. Check that provider and source still exists.
+        First, raise ProviderBuilderError. Check that provider and source still exists.
         Then, re-call provider destroy without exception, then see both source and provider are gone.
 
         """
@@ -224,9 +226,10 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         provider.save()
         # check that the source exists
         self.assertTrue(Sources.objects.filter(source_id=source_id).exists())
+
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            builder = ProviderBuilder(provider.auth_header)
-            builder.create_provider(
+            builder = SourcesProviderCoordinator(source_id, provider.auth_header)
+            builder.create_account(
                 provider.name,
                 provider.source_type,
                 provider.authentication,
@@ -238,12 +241,15 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         provider = Sources.objects.get(source_id=source_id)
 
         msg = {"operation": "destroy", "provider": provider, "offset": provider.offset}
-        with patch.object(ProviderBuilder, "destroy_provider", side_effect=raise_provider_manager_error):
-            source_integration.execute_koku_provider_op(msg, application_type_id)
-            self.assertTrue(Provider.objects.filter(uuid=provider.source_uuid).exists())
-            self.assertTrue(Sources.objects.filter(source_uuid=provider.source_uuid).exists())
+        with patch.object(SourcesHTTPClient, "set_source_status"):
+            with patch.object(ProviderBuilder, "destroy_provider", side_effect=raise_provider_manager_error):
+                source_integration.execute_koku_provider_op(msg, application_type_id)
+                self.assertTrue(Provider.objects.filter(uuid=provider.source_uuid).exists())
+                self.assertTrue(Sources.objects.filter(source_uuid=provider.source_uuid).exists())
+                self.assertTrue(Sources.objects.filter(koku_uuid=provider.source_uuid).exists())
 
-        source_integration.execute_koku_provider_op(msg, application_type_id)
+        with patch.object(SourcesHTTPClient, "set_source_status"):
+            source_integration.execute_koku_provider_op(msg, application_type_id)
         self.assertFalse(Provider.objects.filter(uuid=provider.source_uuid).exists())
 
     def test_execute_koku_provider_op_update(self):
@@ -252,9 +258,26 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         application_type_id = 2
         provider = Sources(**self.aws_source)
         provider.save()
-        uuid = provider.source_uuid
-        # with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-        #     create_or_update_provider(source_id)
+
+        msg = {"operation": "create", "provider": provider, "offset": provider.offset}
+        with patch.object(SourcesHTTPClient, "set_source_status"):
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                source_integration.execute_koku_provider_op(msg, application_type_id)
+
+        builder = SourcesProviderCoordinator(source_id, provider.auth_header)
+
+        source = storage.get_source_instance(source_id)
+        uuid = source.koku_uuid
+
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            builder.update_account(
+                provider.source_uuid,
+                provider.name,
+                provider.source_type,
+                provider.authentication,
+                provider.billing_source,
+            )
+
         self.assertEqual(
             Provider.objects.get(uuid=uuid).billing_source.bucket, self.aws_source.get("billing_source").get("bucket")
         )
@@ -265,8 +288,9 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         provider.save()
 
         msg = {"operation": "update", "provider": provider, "offset": provider.offset}
-        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            source_integration.execute_koku_provider_op(msg, application_type_id)
+        with patch.object(SourcesHTTPClient, "set_source_status"):
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                source_integration.execute_koku_provider_op(msg, application_type_id)
         response = Sources.objects.get(source_id=source_id)
         self.assertEqual(response.pending_update, False)
         self.assertEqual(response.billing_source, {"bucket": "new-bucket"})
@@ -1221,7 +1245,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             priority, _ = test_queue.get_nowait()
             self.assertEqual(priority, i)
 
-    def test_process_synchronize_sources_msg(self):
+    @patch("sources.kafka_listener.execute_koku_provider_op")
+    def test_process_synchronize_sources_msg(self, mock_process_message):
         """Test processing synchronize messages."""
         provider = Sources(**self.aws_source)
 
