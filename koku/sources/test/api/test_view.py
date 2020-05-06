@@ -34,7 +34,6 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from api.provider.provider_manager import ProviderManagerError
 from koku.middleware import IdentityHeaderMiddleware
-from sources.api.serializers import SourcesDependencyError
 from sources.api.view import SourcesViewSet
 
 
@@ -80,7 +79,7 @@ class SourcesViewTests(IamTestCase):
             "client_id": "12345678-1234-5678-1234-567812345678",
         }
 
-        with patch("sources.api.serializers.ServerProxy") as mock_client:
+        with patch("sources.api.serializers.ServerProxy"):
             with requests_mock.mock() as m:
                 m.patch(
                     f"http://www.sourcesclient.com/api/v1/sources/{self.test_source_id}/",

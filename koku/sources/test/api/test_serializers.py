@@ -178,9 +178,7 @@ class SourcesSerializerTests(IamTestCase):
         self.assertEqual(test_resource_group, instance.billing_source.get("data_source").get("resource_group"))
         self.assertEqual(test_storage_account, instance.billing_source.get("data_source").get("storage_account"))
 
-        # Skipping until instance storage in tests are figured out
-        return
-
+        self.azure_obj = instance
         new_resource_group = "NEW_RG"
         validated_data = {"billing_source": {"data_source": {"resource_group": new_resource_group}}}
         with patch("sources.api.serializers.ServerProxy") as mock_client:
@@ -209,14 +207,15 @@ class SourcesSerializerTests(IamTestCase):
         self.assertEqual(test_resource_group, instance.billing_source.get("data_source").get("resource_group"))
         self.assertEqual(test_storage_account, instance.billing_source.get("data_source").get("storage_account"))
 
-        # Skipping until instance storage in tests are figured out
-        return
-
+        self.azure_obj = instance
         new_storage_account = "NEW_SA"
         validated_data = {"billing_source": {"data_source": {"storage_account": new_storage_account}}}
-        instance = serializer.update(self.azure_obj, validated_data)
-        self.assertIn("data_source", instance.billing_source.keys())
-        self.assertEqual(new_storage_account, instance.billing_source.get("data_source").get("storage_account"))
+        with patch("sources.api.serializers.ServerProxy") as mock_client:
+            mock_sources_client = MockSourcesClient("http://mock-soures-client")
+            mock_client.return_value.__enter__.return_value = mock_sources_client
+            instance = serializer.update(self.azure_obj, validated_data)
+            self.assertIn("data_source", instance.billing_source.keys())
+            self.assertEqual(new_storage_account, instance.billing_source.get("data_source").get("storage_account"))
 
     def test_azure_source_billing_source_update_with_koku_uuid(self):
         """Test the updating azure billing_source with source_uuid."""
@@ -266,12 +265,14 @@ class SourcesSerializerTests(IamTestCase):
         serializer = SourcesSerializer(context=self.request_context)
         test_bucket = "some-new-bucket"
         validated_data = {"billing_source": {"bucket": test_bucket}}
-        with patch("sources.api.serializers.ServerProxy"):
+        with patch("sources.api.serializers.ServerProxy") as mock_client:
             with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                mock_sources_client = MockSourcesClient("http://mock-soures-client")
+                mock_client.return_value.__enter__.return_value = mock_sources_client
                 instance = serializer.update(self.aws_obj, validated_data)
-        # TODO: figure out why instance isn't updated in tests
-        #self.assertIn("bucket", instance.billing_source.keys())
-        #self.assertEqual(test_bucket, instance.billing_source.get("bucket"))
+
+        self.assertIn("bucket", instance.billing_source.keys())
+        self.assertEqual(test_bucket, instance.billing_source.get("bucket"))
 
     def test_aws_source_billing_source_update_missing_bucket(self):
         """Test the updating aws billing_source."""

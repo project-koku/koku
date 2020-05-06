@@ -19,8 +19,6 @@ import asyncio
 import json
 from unittest.mock import patch
 from uuid import uuid4
-from api.provider.provider_builder import ProviderBuilder
-from api.provider.provider_manager import ProviderManager
 
 import requests_mock
 from django.db import InterfaceError
@@ -29,7 +27,6 @@ from django.db.models.signals import post_save
 from django.test import TestCase
 from faker import Faker
 from kafka.errors import KafkaError
-from kombu.exceptions import OperationalError as RabbitOperationalError
 from rest_framework.exceptions import ValidationError
 
 import sources.kafka_listener as source_integration
@@ -229,7 +226,13 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         self.assertTrue(Sources.objects.filter(source_id=source_id).exists())
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             builder = ProviderBuilder(provider.auth_header)
-            builder.create_provider(provider.name, provider.source_type, provider.authentication, provider.billing_source, provider.source_uuid)
+            builder.create_provider(
+                provider.name,
+                provider.source_type,
+                provider.authentication,
+                provider.billing_source,
+                provider.source_uuid,
+            )
 
         self.assertTrue(Provider.objects.filter(uuid=provider.source_uuid).exists())
         provider = Sources.objects.get(source_id=source_id)
@@ -1245,4 +1248,3 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 process_synchronize_sources_msg((0, msg), test_queue, cost_management_app_type, run_loop)
             )
             mock_clear_flag.assert_not_called()
-        mock_destroy.assert_called()
