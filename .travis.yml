@@ -34,7 +34,7 @@ before_install:
   - sudo mount -o remount,size=25% /var/ramfs
 
 install:
-  - pip install tox-travis codecov python-coveralls coveralls "coverage<5.0" pre-commit
+  - pip install tox-travis python-coveralls coveralls "coverage<5.0" pre-commit
 
 before_script:
   - psql -c "create database ${DATABASE_NAME};" -U postgres
@@ -47,7 +47,6 @@ script:
   - df -h
 
 after_success:
-  - codecov --required || (sleep 5 && codecov --required) || (sleep 5 && codecov --required) || (sleep 5 && codecov --required) || (sleep 5 && codecov --required)
   - coveralls
 
 notifications:
