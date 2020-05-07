@@ -118,6 +118,10 @@ services:
       - ./pg_data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data
       - ./pg_init:/docker-entrypoint-initdb.d
     command:
+      # This command give more precise control over the parameter settings
+      # Included are loading the pg_stat_statements lib
+      # as well as autovacuum settings that are designed to make more efficient
+      # use of the autovacuum processes
       - postgres
       - -c
       - shared_preload_libraries=pg_stat_statements

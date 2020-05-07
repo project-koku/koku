@@ -374,6 +374,16 @@ def vacuum_schema(schema_name):
                 LOG.info(cursor.statusmessage)
 
 
+# The autovacuum settings should be tuned over time to account for a table's records
+# growing or shrinking. Based on the number of live tuples recorded from the latest
+# statistics run, the autovacuum_vacuum_scale_factor will be adjusted up or down.
+# More table rows will adjust the factor downward which should cause the autovacuum
+# process to run more frequently on those tables. The effect should be that the
+# process runs more frequently, but has less to do so it should overall be faster and
+# more efficient.
+# At this time, no table parameter will be lowered past the known production engine
+# setting of 0.2 by default. However this function's settings can be overridden via the
+# AUTOVACUUM_TUNING environment variable. See below.
 @app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name="reporting")
 def autovacuum_tune_schema(schema_name):
     """Set the autovacuum table settings based on table size for the specified schema."""
@@ -447,6 +457,7 @@ SELECT s.relname as "table_name",
                 elif scale_factor == zero and "autovacuum_vacuum_scale_factor" in table_options:
                     scale_factor = reset
 
+                # Determine if we adjust downward or upward due to the threshold found.
                 if scale_factor > zero:
                     value = [scale_factor]
                     sql = f"""ALTER TABLE {schema_name}.{table_name} set (autovacuum_vacuum_scale_factor = %s);"""
@@ -456,6 +467,7 @@ SELECT s.relname as "table_name",
                     sql = f"""ALTER TABLE {schema_name}.{table_name} reset (autovacuum_vacuum_scale_factor);"""
                     sql_log = sql
 
+                # Only execute the parameter change if there is something that needs to be changed
                 if scale_factor != zero:
                     alter_count += 1
                     cursor.execute(sql, value)

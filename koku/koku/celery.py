@@ -97,6 +97,7 @@ VACUUM_DATA_DAY_OF_WEEK = ENVIRONMENT.get_value("VACUUM_DATA_DAY_OF_WEEK", defau
 VACUUM_DATA_UTC_TIME = ENVIRONMENT.get_value("VACUUM_DATA_UTC_TIME", default="00:00")
 VACUUM_HOUR, VACUUM_MINUTE = VACUUM_DATA_UTC_TIME.split(":")
 
+# Set the autovacuum-tuning task 1 hour prior to the main vacuum task
 av_hour = int(VACUUM_HOUR)
 av_hour = 23 if av_hour == 0 else (av_hour - 1)
 
@@ -113,6 +114,8 @@ app.conf.beat_schedule["vacuum-schemas"] = {
     "args": [],
 }
 
+# This will automatically tune the tables (if needed) based on the number of live tuples
+# Based on the latest statistics analysis run
 app.conf.beat_schedule["autovacuum-tune-schemas"] = {
     "task": "masu.celery.tasks.autovacuum_tune_schemas",
     "schedule": autovacuum_schedule,
