@@ -186,6 +186,7 @@ if "test" in sys.argv:
     CACHES = {
         "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "unique-snowflake"},
         "rbac": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "unique-snowflake"},
+        "worker": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "unique-snowflake"},
     }
 else:
     CACHES = {
@@ -206,6 +207,11 @@ else:
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1000,
             },
+        },
+        "worker": {
+            "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+            "LOCATION": "worker_cache_table",
+            "TIMEOUT": 86400,  # 24 hours
         },
     }
 

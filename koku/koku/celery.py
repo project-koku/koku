@@ -2,16 +2,18 @@
 import datetime
 import logging
 import os
+import time
 
 import django
 from celery import Celery
 from celery import Task
 from celery.schedules import crontab
+from celery.signals import celeryd_after_setup
+from celery.signals import worker_shutting_down
 from django.conf import settings
 
 from koku import sentry  # pylint: disable=unused-import # noqa: F401
 from koku.env import ENVIRONMENT
-from masu.processor.worker_cache import WorkerCache
 
 # We disable pylint here because we wanted to avoid duplicate code
 # in settings and celery config files, therefore we import a single
@@ -47,8 +49,6 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
 LOGGER.info("Starting celery.")
 # Setup the database for use in Celery
 django.setup()
-LOGGER.info("Clearing worker task cache.")
-WorkerCache().invalidate_host()
 LOGGER.info("Database configured.")
 
 # 'app' is the recommended convention from celery docs
@@ -138,3 +138,27 @@ app.conf.broker_transport_options = {"max_retries": 4, "interval_start": 0, "int
 app.conf.task_routes = {"sources.tasks.*": {"queue": "sources"}}
 
 app.autodiscover_tasks()
+
+
+@celeryd_after_setup.connect
+def clear_worker_cache(sender, instance, **kwargs):  # pragma: no cover
+    """Clear WorkerCache after worker is up and running."""
+    from .database import check_migrations
+    from masu.processor.worker_cache import WorkerCache
+
+    while not check_migrations():
+        LOGGER.warning("Migrations not done. Sleeping")
+        time.sleep(5)
+    LOGGER.info("Clearing worker task cache.")
+    WorkerCache().invalidate_host()
+
+
+@worker_shutting_down.connect
+def clear_worker_cache_on_shutdown(sender, **kwargs):  # pragma: no cover
+    from masu.processor.worker_cache import WorkerCache
+
+    LOGGER.info("Clearing worker task cache.")
+    try:
+        WorkerCache().invalidate_host()
+    except Exception:
+        LOGGER.info("Cache not cleared on shutdown.")
