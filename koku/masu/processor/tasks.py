@@ -128,20 +128,22 @@ def get_report_files(
                 LOG.info(stmt)
                 worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
                 _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
-                report_meta = {}
                 known_manifest_ids = [report.get("manifest_id") for report in reports_to_summarize]
                 if report_dict.get("manifest_id") not in known_manifest_ids:
-                    report_meta["schema_name"] = schema_name
-                    report_meta["provider_type"] = provider_type
-                    report_meta["provider_uuid"] = provider_uuid
-                    report_meta["manifest_id"] = report_dict.get("manifest_id")
+                    report_meta = {
+                        "schema_name": schema_name,
+                        "provider_type": provider_type,
+                        "provider_uuid": provider_uuid,
+                        "manifest_id": report_dict.get("manifest_id"),
+                    }
                     reports_to_summarize.append(report_meta)
             except ReportProcessorError as processing_error:
                 worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
                 LOG.error(str(processing_error))
-                raise processing_error
-            finally:
                 WorkerCache().remove_task_from_cache(cache_key)
+                raise processing_error
+
+    WorkerCache().remove_task_from_cache(cache_key)
 
     return reports_to_summarize
 
