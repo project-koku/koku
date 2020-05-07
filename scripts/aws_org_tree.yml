@@ -8,23 +8,23 @@ account_structure:
             org_unit_id: 'R_001'
             org_unit_name: 'Root'
             accounts:
-              - account_alias_id: '000'
+              - account_alias_id: '9999999999990'
                 account_alias_name: 'Root A Test'
           - organizational_unit:
             org_unit_id: 'OU_001'
             org_unit_name: 'Dept OU_001'
             parent_path: "R_001"
             accounts:
-              - account_alias_id: '001'
+              - account_alias_id: '9999999999991'
                 account_alias_name: 'account 001'
-              - account_alias_id: '002'
+              - account_alias_id: '9999999999992'
                 account_alias_name: 'account 002'
           - organizational_unit:
             org_unit_id: 'OU_002'
             org_unit_name: 'Dept OU_002'
             parent_path: "R_001"
             accounts:
-              - account_alias_id: '003'
+              - account_alias_id: '9999999999993'
                 account_alias_name: 'account 003'
           - organizational_unit:
             org_unit_id: 'OU_003'
@@ -35,7 +35,7 @@ account_structure:
             org_unit_name: 'Dept OU_004'
             parent_path: "R_001"
             accounts:
-              - account_alias_id: '004'
+              - account_alias_id: '9999999999994'
                 account_alias_name: 'Dept OU_004 004'
     - day:
         date: -1
@@ -44,23 +44,23 @@ account_structure:
             org_unit_id: 'R_001'
             org_unit_name: 'Root'
             accounts:
-              - account_alias_id: '000'
+              - account_alias_id: '9999999999990'
                 account_alias_name: 'Root A Test'
           - organizational_unit:
             org_unit_id: 'OU_001'
             org_unit_name: 'Dept OU_001'
             parent_path: "R_001"
             accounts:
-              - account_alias_id: '001'
+              - account_alias_id: '9999999999991'
                 account_alias_name: 'account 001'
-              - account_alias_id: '002'
+              - account_alias_id: '9999999999992'
                 account_alias_name: 'account 002'
           - organizational_unit:
             org_unit_id: 'OU_002'
             org_unit_name: 'Dept OU_002'
             parent_path: "R_001"
             accounts:
-              - account_alias_id: '003'
+              - account_alias_id: '9999999999993'
                 account_alias_name: 'account 003'
           - organizational_unit:
             org_unit_id: 'OU_003'
@@ -73,16 +73,16 @@ account_structure:
             org_unit_id: 'R_001'
             org_unit_name: 'Root'
             accounts:
-              - account_alias_id: '000'
+              - account_alias_id: '9999999999990'
                 account_alias_name: 'Root A Test'
           - organizational_unit:
             org_unit_id: 'OU_001'
             org_unit_name: 'Dept OU_001'
             parent_path: "R_001"
             accounts:
-              - account_alias_id: '001'
+              - account_alias_id: '9999999999991'
                 account_alias_name: 'account 001'
-              - account_alias_id: '002'
+              - account_alias_id: '9999999999992'
                 account_alias_name: 'account 002'
           - organizational_unit:
             org_unit_id: 'OU_002'
@@ -93,5 +93,5 @@ account_structure:
             org_unit_name: 'Dept OU_003'
             parent_path: "R_001&OU_002"
             accounts:
-              - account_alias_id: '003'
+              - account_alias_id: '9999999999993'
                 account_alias_name: 'account 003'
