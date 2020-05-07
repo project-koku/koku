@@ -45,8 +45,7 @@ class SourceStatus:
         self.user = request.user
         self.source_id = source_id
         self.source = Sources.objects.get(source_id=source_id)
-        self.auth_header = request.headers.get("X-Rh-Identity")
-        self.sources_client = SourcesHTTPClient(auth_header=self.auth_header, source_id=source_id)
+        self.sources_client = SourcesHTTPClient(self.source.auth_header, source_id=source_id)
 
     @property
     def sources_response(self):
