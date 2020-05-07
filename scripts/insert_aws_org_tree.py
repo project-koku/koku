@@ -12,12 +12,13 @@ from psycopg2 import sql
 class InsertAwsOrgTree:
     """AWS org unit crawler."""
 
-    def __init__(self, tree_yml_path, schema, db_name, nise_yml_path=None):
+    def __init__(self, tree_yml_path, schema, db_name, start_date=None, nise_yml_path=None):
         """Initialize the insert aws org tree."""
         self.db_name = db_name
         self.tree_yml_path = tree_yml_path
         self.nise_yml_path = nise_yml_path
         self.schema = schema
+        self.start_date = start_date
         self.tree_yaml_contents = self._load_yaml_file(self.tree_yml_path)
         if self.nise_yml_path:
             self.nise_yaml_contents = self._load_yaml_file(self.nise_yml_path)
@@ -149,8 +150,10 @@ class InsertAwsOrgTree:
 
     def calculate_date(self, day_delta):
         """Calculate the date based off of a delta and a range start date."""
-        today = datetime.today().date()
-        range_start = today.replace(day=1)
+        range_start = self.start_date
+        if not range_start:
+            today = datetime.today().date()
+            range_start = today.replace(day=1)
         date = range_start + timedelta(days=day_delta)
         return str(date)
 

@@ -87,9 +87,13 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                     with tenant_context(tenant):
                         for tag_key in OCP_ENABLED_TAGS:
                             OCPEnabledTagKeys.objects.get_or_create(key=tag_key)
-                    org_tree_obj = InsertAwsOrgTree("scripts/aws_org_tree.yml", KokuTestRunner.schema, test_db_name)
-                    org_tree_obj.insert_tree()
                     data_loader = NiseDataLoader(KokuTestRunner.schema)
+                    # grab the dates to get the start date
+                    dates = data_loader.dates
+                    org_tree_obj = InsertAwsOrgTree(
+                        "scripts/aws_org_tree.yml", KokuTestRunner.schema, test_db_name, dates[0][0]
+                    )
+                    org_tree_obj.insert_tree()
                     data_loader.load_openshift_data(customer, "ocp_aws_static_data.yml", "OCP-on-AWS")
                     data_loader.load_openshift_data(customer, "ocp_azure_static_data.yml", "OCP-on-Azure")
                     data_loader.load_aws_data(customer, "aws_static_data.yml")
