@@ -16,6 +16,7 @@
 #
 """Test Cache of worker tasks currently running."""
 import logging
+from unittest.mock import patch
 
 from django.conf import settings
 from django.core.cache import cache
@@ -42,66 +43,51 @@ class WorkerCacheTest(MasuTestCase):
     def test_worker_cache(self):
         """Test the worker_cache property."""
         _worker_cache = WorkerCache().worker_cache
-        self.assertEqual(_worker_cache, {})
-
-    def test_host_specific_worker_cache(self):
-        """Test the host specific cache."""
-        _cache = WorkerCache()
-        self.assertEqual(_cache.host_specific_worker_cache, [])
+        self.assertEqual(_worker_cache, [])
 
     def test_invalidate_host(self):
         """Test that a host's cache is invalidated."""
         task_list = [1, 2, 3]
         _cache = WorkerCache()
 
-        _cache.set_host_specific_task_list(task_list)
-        self.assertEqual(_cache.host_specific_worker_cache, task_list)
+        for task in task_list:
+            _cache.add_task_to_cache(task)
+        self.assertEqual(_cache.worker_cache, task_list)
 
         _cache.invalidate_host()
 
-        self.assertEqual(_cache.host_specific_worker_cache, [])
-
-    def test_set_host_specific_task_list(self):
-        """Test that setting a task list works."""
-        task_list = [1, 2, 3]
-        _cache = WorkerCache()
-
-        self.assertEqual(_cache.host_specific_worker_cache, [])
-
-        _cache.set_host_specific_task_list(task_list)
-        self.assertEqual(_cache.host_specific_worker_cache, task_list)
+        self.assertEqual(_cache.worker_cache, [])
 
     def test_add_task_to_cache(self):
         """Test that a single task is added."""
-        task_list = [1, 2, 3]
-        expected = [1, 2, 3, 4]
+        task_key = "task_key"
         _cache = WorkerCache()
-        _cache.set_host_specific_task_list(task_list)
-        self.assertEqual(_cache.host_specific_worker_cache, task_list)
 
-        _cache.add_task_to_cache(4)
-        self.assertEqual(_cache.host_specific_worker_cache, expected)
+        self.assertEqual(_cache.worker_cache, [])
+
+        _cache.add_task_to_cache(task_key)
+        self.assertEqual(_cache.worker_cache, [task_key])
 
     def test_remove_task_from_cache(self):
         """Test that a task is removed."""
-        task_list = [1, 2, 3, 4]
-        expected = [1, 2, 3]
+        task_key = "task_key"
         _cache = WorkerCache()
-        _cache.set_host_specific_task_list(task_list)
-        self.assertEqual(_cache.host_specific_worker_cache, task_list)
+        _cache.add_task_to_cache(task_key)
+        self.assertEqual(_cache.worker_cache, [task_key])
 
-        _cache.remove_task_from_cache(4)
-        self.assertEqual(_cache.host_specific_worker_cache, expected)
+        _cache.remove_task_from_cache(task_key)
+        self.assertEqual(_cache.worker_cache, [])
 
     def test_remove_task_from_cache_value_not_in_cache(self):
         """Test that a task is removed."""
         task_list = [1, 2, 3, 4]
         _cache = WorkerCache()
-        _cache.set_host_specific_task_list(task_list)
-        self.assertEqual(_cache.host_specific_worker_cache, task_list)
+        for task in task_list:
+            _cache.add_task_to_cache(task)
+        self.assertEqual(_cache.worker_cache, task_list)
 
         _cache.remove_task_from_cache(5)
-        self.assertEqual(_cache.host_specific_worker_cache, task_list)
+        self.assertEqual(_cache.worker_cache, task_list)
 
     def test_get_all_running_tasks(self):
         """Test that multiple hosts' task lists are combined."""
@@ -111,19 +97,22 @@ class WorkerCacheTest(MasuTestCase):
         expected = first_host_list + second_host_list
 
         _cache = WorkerCache()
-        _cache.set_host_specific_task_list(first_host_list)
-        _worker_cache = _cache.worker_cache
+        for task in first_host_list:
+            _cache.add_task_to_cache(task)
 
-        _worker_cache[second_host] = [4, 5, 6]
-        cache.set(settings.WORKER_CACHE_KEY, _worker_cache, timeout=None)
+        with patch.object(settings, "HOSTNAME", second_host):
+            _cache = WorkerCache()
+            for task in second_host_list:
+                _cache.add_task_to_cache(task)
 
-        self.assertEqual(_cache.get_all_running_tasks(), expected)
+        self.assertEqual(sorted(_cache.get_all_running_tasks()), sorted(expected))
 
     def test_task_is_running_true(self):
         """Test that a task is running."""
         task_list = [1, 2, 3]
         _cache = WorkerCache()
-        _cache.set_host_specific_task_list(task_list)
+        for task in task_list:
+            _cache.add_task_to_cache(task)
 
         self.assertTrue(_cache.task_is_running(1))
 
@@ -131,6 +120,7 @@ class WorkerCacheTest(MasuTestCase):
         """Test that a task is not running."""
         task_list = [1, 2, 3]
         _cache = WorkerCache()
-        _cache.set_host_specific_task_list(task_list)
+        for task in task_list:
+            _cache.add_task_to_cache(task)
 
         self.assertFalse(_cache.task_is_running(4))
