@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Sources HTTP Client."""
+from base64 import b64encode
+from json import dumps as json_dumps
 from unittest.mock import patch
 
 import requests
@@ -492,6 +494,41 @@ class SourcesHTTPClientTest(TestCase):
             )
             with self.assertRaises(SourcesHTTPClientError):
                 client.set_source_status(error_msg, application_type_id)
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_set_source_status_unexpected_header(self):
+        """Test to set source status with missing account in header."""
+        test_source_id = 1
+        application_type_id = 2
+        error_msg = "my error"
+        malformed_identity_header = {
+            "not_identity": {
+                "type": "User",
+                "user": {"username": "test-cost-mgmt", "email": "cost-mgmt@redhat.com", "is_org_admin": True},
+            }
+        }
+        json_malformed_identity = json_dumps(malformed_identity_header)
+        malformed_internal_header = b64encode(json_malformed_identity.encode("utf-8"))
+        malformed_auth_header = malformed_internal_header.decode("utf-8")
+
+        missing_account_header = {
+            "identity": {
+                "type": "User",
+                "user": {"username": "test-cost-mgmt", "email": "cost-mgmt@redhat.com", "is_org_admin": True},
+            }
+        }
+        missing_account_identity = json_dumps(missing_account_header)
+        missing_account_internal_header = b64encode(missing_account_identity.encode("utf-8"))
+        missing_account_auth_header = missing_account_internal_header.decode("utf-8")
+
+        test_headers = [malformed_auth_header, missing_account_auth_header]
+        source = Sources.objects.create(source_id=test_source_id, offset=42, source_type="AWS")
+        source.save()
+
+        for header in test_headers:
+            client = SourcesHTTPClient(auth_header=header, source_id=test_source_id)
+            response = client.set_source_status(error_msg, application_type_id)
+            self.assertFalse(response)
 
 
 class SourcesHTTPClientCheckAppTypeTest(TestCase):
