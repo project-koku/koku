@@ -232,6 +232,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         if is_no_auth(request):
             request.user = User("", "")
             return
+
         try:
             rh_auth_header, json_rh_auth = extract_header(request, self.header)
         except (KeyError, JSONDecodeError):
@@ -253,6 +254,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         email = user.get("email")
         is_admin = user.get("is_org_admin")
         req_id = None
+
         if username and email and account:
             # Get request ID
             req_id = request.META.get("HTTP_X_RH_INSIGHTS_REQUEST_ID")
@@ -289,11 +291,17 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
 
             cache = caches["rbac"]
             user_access = cache.get(user.uuid)
+
             if not user_access:
-                try:
-                    user_access = self._get_access(user)
-                except RbacConnectionError as err:
-                    return HttpResponseFailedDependency({"source": "Rbac", "exception": err})
+                if settings.DEVELOPMENT and request.user.req_id == "DEVELOPMENT":
+                    # passthrough for DEVELOPMENT_IDENTITY env var.
+                    LOG.warning("DEVELOPMENT is Enabled. Bypassing access lookup for user: %s", json_rh_auth)
+                    user_access = request.user.access
+                else:
+                    try:
+                        user_access = self._get_access(user)
+                    except RbacConnectionError as err:
+                        return HttpResponseFailedDependency({"source": "Rbac", "exception": err})
                 cache.set(user.uuid, user_access, self.rbac.cache_ttl)
             user.access = user_access
             request.user = user
