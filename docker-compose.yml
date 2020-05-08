@@ -122,6 +122,7 @@ services:
       # Included are loading the pg_stat_statements lib
       # as well as autovacuum settings that are designed to make more efficient
       # use of the autovacuum processes
+      # The pg_init mount is still needed to enable the necesary extensions.
       - postgres
       - -c
       - shared_preload_libraries=pg_stat_statements
