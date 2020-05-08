@@ -2,7 +2,7 @@
 Koku README
 ===========
 
-|license| |Unittests| |Build Status| |codecov| |Updates| |Python 3| |Docs|
+|license| |Unittests| |codecov| |Updates| |Python 3| |Docs|
 
 About
 =====
@@ -265,8 +265,6 @@ Please refer to Contributing_.
    :target: https://github.com/project-koku/koku/blob/master/LICENSE
 .. |Unittests| image:: https://github.com/project-koku/koku/workflows/Unit%20Tests/badge.svg
    :target: https://github.com/project-koku/koku/actions
-.. |Build Status| image:: https://travis-ci.org/project-koku/koku.svg?branch=master
-   :target: https://travis-ci.org/project-koku/koku
 .. |codecov| image:: https://codecov.io/gh/project-koku/koku/branch/master/graph/badge.svg
    :target: https://codecov.io/gh/project-koku/koku
 .. |Updates| image:: https://pyup.io/repos/github/project-koku/koku/shield.svg?t=1524249231720
