@@ -263,7 +263,7 @@ Please refer to Contributing_.
 
 .. |license| image:: https://img.shields.io/github/license/project-koku/koku.svg
    :target: https://github.com/project-koku/koku/blob/master/LICENSE
-.. |Unittests| image:: https://github.com/project-koku/koku/workflows/Unit%20Tests/badge.svg?branch=master
+.. |Unittests| image:: https://github.com/project-koku/koku/workflows/Unit%20Tests/badge.svg
    :target: https://github.com/project-koku/koku/actions
 .. |Build Status| image:: https://travis-ci.org/project-koku/koku.svg?branch=master
    :target: https://travis-ci.org/project-koku/koku
