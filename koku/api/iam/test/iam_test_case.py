@@ -74,7 +74,14 @@ class IamTestCase(TestCase):
     @classmethod
     def _create_user_data(cls):
         """Create user data."""
-        user_data = {"username": cls.fake.user_name(), "email": cls.fake.email()}
+        access = {
+            "aws.account": {"read": ["*"]},
+            "azure.subscription_guid": {"read": ["*"]},
+            "openshift.cluster": {"read": ["*"]},
+            "openshift.project": {"read": ["*"]},
+            "openshift.node": {"read": ["*"]},
+        }
+        user_data = {"username": cls.fake.user_name(), "email": cls.fake.email(), "access": access}
         return user_data
 
     @classmethod
@@ -117,7 +124,12 @@ class IamTestCase(TestCase):
             "identity": {
                 "account_number": account,
                 "type": "User",
-                "user": {"username": user_data["username"], "email": user_data["email"], "is_org_admin": is_admin},
+                "user": {
+                    "username": user_data["username"],
+                    "email": user_data["email"],
+                    "is_org_admin": is_admin,
+                    "access": user_data["access"],
+                },
             },
             "entitlements": {"cost_management": {"is_entitled": is_cost_management}},
         }
