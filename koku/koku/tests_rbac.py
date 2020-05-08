@@ -15,16 +15,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the RBAC Service interaction."""
-import functools
 import logging
 import os
 from json.decoder import JSONDecodeError
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from django.conf import settings
 from django.test import TestCase
-from faker import Faker
 from prometheus_client import REGISTRY
 from requests.exceptions import ConnectionError  # pylint: disable=W0622
 from rest_framework import status
@@ -111,48 +108,6 @@ def mocked_requests_get_200_next(*args, **kwargs):  # pylint: disable=unused-arg
 def mocked_get_operation(access_item, res_type):  # pylint: disable=unused-argument
     """Mock value error for get operation."""
     raise ValueError("Invalid wildcard for invalid res type.")
-
-
-# pylint: disable=too-few-public-methods
-class RbacPermissions:
-    """A decorator class for running tests with a custom identity.
-
-    Example usage:
-
-        @RbacPermissions({"openshift.cluster": {"read": ["*"]}})
-        def my_unit_test(self):
-            your_test_code = here()
-
-    """
-
-    IDENTITY_STUB = {
-        "identity": {
-            "account_number": "10001",
-            "type": "User",
-            "user": {"username": Faker().user_name(), "email": Faker().email(), "is_org_admin": "False", "access": {}},
-        },
-        "entitlements": {"cost_management": {"is_entitled": "True"}},
-    }
-
-    def __init__(self, access):
-        """Class constructor."""
-        self.access = access
-
-    def __call__(self, function):
-        """Call method."""
-
-        @functools.wraps(function)
-        def wrapper(*args, **kwargs):
-            with patch.object(settings, "DEVELOPMENT", True):
-                identity = RbacPermissions.IDENTITY_STUB
-                identity["identity"]["user"]["access"] = self.access
-
-                setattr(settings, "DEVELOPMENT_IDENTITY", {})
-                with patch.object(settings, "DEVELOPMENT_IDENTITY", identity):
-                    result = function(*args, **kwargs)
-            return result
-
-        return wrapper
 
 
 class RbacServiceTest(TestCase):

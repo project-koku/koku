@@ -34,12 +34,10 @@ from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
-from koku.dev_middleware import DevelopmentIdentityHeaderMiddleware
 from koku.middleware import HttpResponseUnauthorizedRequest
 from koku.middleware import IdentityHeaderMiddleware
 from koku.middleware import KokuTenantMiddleware
 from koku.tests_rbac import mocked_requests_get_500_text
-from koku.tests_rbac import RbacPermissions
 
 
 class KokuTenantMiddlewareTest(IamTestCase):
@@ -305,13 +303,3 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         with self.assertLogs(logger="koku.middleware", level=logging.WARNING):
             middleware = IdentityHeaderMiddleware()
             middleware.process_request(mock_request)
-
-    @RbacPermissions({"openshift.cluster": {"read": ["*"]}})
-    def test_rbacpermissions_decorator(self):
-        """Test that the RbacPermissions decorator injects the given permissions."""
-        mock_request = self.request
-        middleware = DevelopmentIdentityHeaderMiddleware()
-        middleware.process_request(mock_request)
-        self.assertTrue(hasattr(mock_request, "user"))
-        self.assertTrue(hasattr(mock_request.user, "access"))
-        self.assertEqual(mock_request.user.access, {"openshift.cluster": {"read": ["*"]}})
