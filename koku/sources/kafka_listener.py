@@ -24,7 +24,6 @@ import random
 import sys
 import threading
 import time
-from xmlrpc.server import SimpleXMLRPCRequestHandler
 from xmlrpc.server import SimpleXMLRPCServer
 
 from aiokafka import AIOKafkaConsumer
@@ -730,21 +729,10 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
         sys.exit(0)
 
 
-# Register an instance; all the methods of the instance are
-# published as XML-RPC methods (in this case, just 'mul').
-class MyFuncs:
-    def mul(self, x, y):
-        return x * y
-
-
 def rpc_thread():
-    # Restrict to a particular path.
-    class RequestHandler(SimpleXMLRPCRequestHandler):
-        rpc_paths = ("/RPC2",)
-
-    with SimpleXMLRPCServer(("0.0.0.0", 9000), requestHandler=RequestHandler, allow_none=True) as server:
+    """RPC Server to serve PATCH requests."""
+    with SimpleXMLRPCServer(("0.0.0.0", 9000), allow_none=True) as server:
         server.register_introspection_functions()
-
         server.register_instance(SourcesPatchHandler())
         server.serve_forever()
 

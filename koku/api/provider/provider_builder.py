@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Kafka Source Manager."""
+"""Provider Builder."""
 import json
 import logging
 from base64 import b64decode
@@ -43,7 +43,7 @@ class ProviderBuilderError(ValidationError):
 
 
 class ProviderBuilder:
-    """Kafka Source Manager to create koku providers."""
+    """Provider Builder to create koku providers."""
 
     def __init__(self, auth_header):
         """Initialize the client."""
