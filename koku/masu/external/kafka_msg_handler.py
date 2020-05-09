@@ -17,7 +17,6 @@
 """Kafka message handler."""
 import asyncio
 import concurrent.futures
-import datetime
 import json
 import logging
 import os
@@ -45,6 +44,7 @@ from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
+from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import summarize_reports
@@ -73,47 +73,23 @@ def backoff(interval, maximum=64):  # pragma: no cover
     time.sleep(wait)
 
 
-def _process_manifest_db_record(assembly_id, billing_start, num_of_files, provider_uuid):
-    """Insert or update the manifest DB record."""
-    LOG.info("Inserting manifest database record for assembly_id: %s", assembly_id)
-
-    with ReportManifestDBAccessor() as manifest_accessor:
-        manifest_entry = manifest_accessor.get_manifest(assembly_id, provider_uuid)
-
-        if not manifest_entry:
-            LOG.info("No manifest entry found.  Adding for bill period start: %s", billing_start)
-            manifest_dict = {
-                "assembly_id": assembly_id,
-                "billing_period_start_datetime": billing_start,
-                "num_total_files": num_of_files,
-                "provider_uuid": provider_uuid,
-                "task": uuid.uuid4(),
-            }
-            manifest_entry = manifest_accessor.add(**manifest_dict)
-
-        manifest_accessor.mark_manifest_as_updated(manifest_entry)
-        manifest_id = manifest_entry.id
-
-    return manifest_id
-
-
-def _prepare_db_manifest_record(manifest, provider_uuid):
-    """Prepare to insert or update the manifest DB record."""
-    assembly_id = manifest.get("uuid")
-
-    date_range = utils.month_date_range(manifest.get("date"))
-    billing_str = date_range.split("-")[0]
-    billing_start = datetime.datetime.strptime(billing_str, "%Y%m%d")
-
-    num_of_files = len(manifest.get("files", []))
-    return _process_manifest_db_record(assembly_id, billing_start, num_of_files, provider_uuid)
-
-
 def create_manifest_entries(report_meta):
     """Create manifest statastics entries."""
-    provider_uuid = utils.get_provider_uuid_from_cluster_id(report_meta.get("cluster_id"))
-    manifest_id = _prepare_db_manifest_record(report_meta, provider_uuid)
-    return manifest_id
+
+    class Request:
+        id = uuid.uuid4()
+
+    class Task:
+        request = Request()
+
+    downloader = OCPReportDownloader(
+        Task(),
+        report_meta.get("schema_name"),
+        report_meta.get("cluster_id"),
+        None,
+        provider_uuid=report_meta.get("provider_uuid"),
+    )
+    return downloader._prepare_db_manifest_record(report_meta)
 
 
 def record_report_status(manifest_id, file_name):
