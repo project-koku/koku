@@ -245,7 +245,8 @@ if "__main__" in __name__:
     default_nise_yml = os.path.join(os.getenv("NISE_REPO_PATH"), "example_aws_static_data.yml")
     default_schema = "acct10001"
     default_db = os.getenv("DATABASE_NAME")
-    arg_list = [default_tree_yml, default_schema, default_db, default_nise_yml]
+    default_delta_start = today = datetime.today().date().replace(day=1)
+    arg_list = [default_tree_yml, default_schema, default_db, default_delta_start, default_nise_yml]
     sys_args = sys.argv
     sys_args.pop(0)
     for arg in sys_args:

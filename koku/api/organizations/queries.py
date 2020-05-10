@@ -129,17 +129,9 @@ class OrgQueryHandler(QueryHandler):
             filter_value = self.parameters.get_filter(filter_key)
             if filter_value and not OrgQueryHandler.has_wildcard(filter_value):
                 filter_obj = self.FILTER_MAP.get(filter_key)
-                if isinstance(filter_value, bool):
-                    filters.add(QueryFilter(**filter_obj))
-                elif isinstance(filter_obj, list):
-                    for _filt in filter_obj:
-                        for item in filter_value:
-                            q_filter = QueryFilter(parameter=item, **_filt)
-                            filters.add(q_filter)
-                else:
-                    for item in filter_value:
-                        q_filter = QueryFilter(parameter=item, **filter_obj)
-                        filters.add(q_filter)
+                for item in filter_value:
+                    q_filter = QueryFilter(parameter=item, **filter_obj)
+                    filters.add(q_filter)
 
         # Update filters that specifiy and or or in the query parameter
         and_composed_filters = self._set_operator_specified_filters("and")
@@ -185,40 +177,12 @@ class OrgQueryHandler(QueryHandler):
 
         return composed_filter
 
-    def _get_exclusions(self):
-        """Create dictionary for filter parameters for exclude clause.
-
-        For tags this is to filter items that have null values for the
-        specified org field.
-
-        Args:
-            column (str): The org column being queried
-
-        Returns:
-            (Dict): query filter dictionary
-
-        """
-        exclusions = QueryFilterCollection()
-        for source in self.data_sources:
-            # Remove org units delete on date or before
-            created_field = source.get("created_time_column")
-            created_filter = QueryFilter(field=f"{created_field}", operation="gte", parameter=self.end_datetime)
-            exclusions.add(created_filter)
-            # Remove org units created after date
-            deleted_field = source.get("deleted_time_column")
-            deleted_filter = QueryFilter(field=f"{deleted_field}", operation="lte", parameter=self.start_datetime)
-            exclusions.add(deleted_filter)
-        composed_exclusions = exclusions.compose()
-        LOG.debug(f"_get_exclusions: {composed_exclusions}")
-        return composed_exclusions
-
     def _get_sub_ou_list(self, data):
         """Get a list of the sub org units for a org unit."""
         level = data.get("level")
         level = level + 1
         unit_path = data.get("org_unit_path")
         with tenant_context(self.tenant):
-            exclusion = self._get_exclusions()
             for source in self.data_sources:
                 # Grab columns for this query
                 account_info = source.get("account_alias_column")
@@ -236,10 +200,11 @@ class OrgQueryHandler(QueryHandler):
                 composed_filters = filters.compose()
                 # Start quering
                 sub_org_query = source.get("db_table").objects
-                sub_org_query = sub_org_query.exclude(exclusion)
+                sub_org_query = sub_org_query.filter(composed_filters)
+                sub_org_query = sub_org_query.exclude(deleted_timestamp__lte=self.start_datetime)
+                sub_org_query = sub_org_query.exclude(created_timestamp__gte=self.end_datetime)
                 if self.query_filter:
                     sub_org_query = sub_org_query.filter(self.query_filter)
-                sub_org_query = sub_org_query.filter(composed_filters)
                 val_list = [level_column]
                 sub_org_query = sub_org_query.values(*val_list)
                 sub_org_query = sub_org_query.annotate(subs_list=ArrayAgg(f"{org_id}", distinct=True))
@@ -251,7 +216,6 @@ class OrgQueryHandler(QueryHandler):
     def _get_accounts_list(self, org_id):
         """Returns an account list for given org_id."""
         with tenant_context(self.tenant):
-            exclusion = self._get_exclusions()
             for source in self.data_sources:
                 # Grab columns for this query
                 account_info = source.get("account_alias_column")
@@ -266,13 +230,13 @@ class OrgQueryHandler(QueryHandler):
                 filters.add(exact_org_id)
                 composed_filters = filters.compose()
                 account_query = source.get("db_table").objects
-                account_query = account_query.exclude(exclusion)
+                account_query = account_query.filter(composed_filters)
+                account_query = account_query.exclude(deleted_timestamp__lte=self.start_datetime)
+                account_query = account_query.exclude(created_timestamp__gte=self.end_datetime)
                 if self.query_filter:
                     account_query = account_query.filter(self.query_filter)
-                account_query = account_query.filter(composed_filters)
                 val_list = [org_name, org_id_column, org_path]
                 account_query = account_query.values(*val_list)
-                # account_query = account_query.order_by("account_id", "-created_timestamp").distinct("account_id")
                 account_query = account_query.annotate(
                     alias_list=ArrayAgg(
                         Coalesce(F(f"{account_info}__account_alias"), F(f"{account_info}__account_id")), distinct=True
@@ -287,7 +251,6 @@ class OrgQueryHandler(QueryHandler):
         """Get a list of org keys to build upon."""
         org_units = list()
         with tenant_context(self.tenant):
-            exclusion = self._get_exclusions()
             for source in self.data_sources:
                 # Grab columns for this query
                 org_id = source.get("org_id_column")
@@ -302,12 +265,13 @@ class OrgQueryHandler(QueryHandler):
                 filters.add(no_accounts)
                 composed_filters = filters.compose()
                 org_unit_query = source.get("db_table").objects
-                org_unit_query = org_unit_query.exclude(exclusion)
-                val_list = [org_id, org_name, org_path, level]
-                org_unit_query = org_unit_query.values(*val_list)
                 org_unit_query = org_unit_query.filter(composed_filters)
+                org_unit_query = org_unit_query.exclude(deleted_timestamp__lte=self.start_datetime)
+                org_unit_query = org_unit_query.exclude(created_timestamp__gte=self.end_datetime)
+                val_list = [org_id, org_name, org_path, level]
                 if self.query_filter:
                     org_unit_query = org_unit_query.filter(self.query_filter)
+                org_unit_query = org_unit_query.values(*val_list)
                 org_unit_query = org_unit_query.order_by(f"{org_id}", f"-{created_field}").distinct(f"{org_id}")
                 org_units.extend(org_unit_query)
         return org_units

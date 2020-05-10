@@ -38,7 +38,7 @@ account_structure:
               - account_alias_id: '9999999999994'
                 account_alias_name: 'Dept OU_004 004'
     - day:
-        date: -1
+        date: -31
         nodes:
           - organizational_unit:
             org_unit_id: 'R_001'

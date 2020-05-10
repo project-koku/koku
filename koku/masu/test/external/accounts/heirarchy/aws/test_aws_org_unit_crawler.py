@@ -66,6 +66,11 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             "schema_name": self.schema,
             "provider_uuid": P_UUID,
         }
+        with schema_context(self.schema):
+            # Delete the rows created by the koku_test_runner. This next test suite
+            # is intended to test how the crawler inserts the data into the database
+            # which is easier to do without preloaded data.
+            AWSOrganizationalUnit.objects.all().delete()
 
     def test_initializer(self):
         """Test AWSOrgUnitCrawler initializer."""
@@ -231,8 +236,6 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         with schema_context(self.schema):
             account_1 = AWSAccountAlias.objects.create(account_id="12345", account_alias="a1")
             account_2 = AWSAccountAlias.objects.create(account_id="67890", account_alias="a2")
-            # cur_count = AWSOrganizationalUnit.objects.count()
-            # self.assertEqual(cur_count, 0)
             unit_crawler._build_accout_alias_map()
         self.assertIsNotNone(unit_crawler._account_alias_map)
 
@@ -316,19 +319,13 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             curr_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(curr_count, 8)
 
-        print("#" * 120)
-        today = unit_crawler._date_accessor.today().strftime("%Y-%m-%d")
-        structure_2_days_ago = unit_crawler._compute_org_structure_interval(two_days_ago)
-        print(structure_2_days_ago)
+        # today = unit_crawler._date_accessor.today().strftime("%Y-%m-%d")
+        # structure_2_days_ago = unit_crawler._compute_org_structure_interval(two_days_ago)
 
         unit_crawler._mark_nodes_deleted()
-        print(structure_2_days_ago)
 
-        structure_yesterday = unit_crawler._compute_org_structure_yesterday()
-        print(structure_yesterday)
+        # structure_yesterday = unit_crawler._compute_org_structure_yesterday()
 
-        structure_today = unit_crawler._compute_org_structure_interval(today)
-        print(structure_today)
+        # structure_today = unit_crawler._compute_org_structure_interval(today)
 
-        structure_interval = unit_crawler._compute_org_structure_interval(two_days_ago, today)
-        print(structure_interval)
+        # structure_interval = unit_crawler._compute_org_structure_interval(two_days_ago, today)

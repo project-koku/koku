@@ -19,7 +19,7 @@ from django.urls import reverse
 from rest_framework import status
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.organizations.test.utils import GenerateOrgTestData
+from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
 class AWSReportViewTest(IamTestCase):
@@ -28,35 +28,27 @@ class AWSReportViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        self.generate_data = GenerateOrgTestData(self.schema_name)
         self.url = reverse("aws-org-unit")
 
     def test_execute(self):
         """Test that our url endpoint returns 200."""
-        expected = self.generate_data.insert_data()
         response = self.client.get(self.url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         result = response.data.get("data")
         self.assertIsNotNone(result)
-        self.assertEqual(len(result), len(expected.keys()))
+        self.assertNotEqual(len(result), 0)
         for ou in result:
-            accounts = ou.get("accounts")
-            ou_id = ou.get("org_unit_id")
-            path = ou.get("org_unit_path")
-            name = ou.get("org_unit_name")
-            self.assertIsNotNone(accounts)
-            self.assertIsNotNone(ou_id)
-            self.assertEqual(len(accounts), expected[ou_id]["account_num"])
-            self.assertEqual(path, expected[ou_id]["data"][0]["path"])
-            self.assertEqual(name, expected[ou_id]["data"][0]["ou"]["Name"])
+            self.assertIsNotNone(ou.get("org_unit_id"))
+            self.assertNotEqual(ou.get("accounts"), 0)
+            self.assertIsNotNone(ou.get("org_unit_path"))
+            self.assertIsNotNone(ou.get("org_unit_name"))
 
     def test_execute_with_filter(self):
         """Test filter with time intervals."""
-        metadata = self.generate_data.insert_data()
         url = self.url + "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data.get("data")), len(metadata))
+        self.assertNotEqual(len(response.data.get("data")), 0)
 
     def test_time_filters_errors(self):
         """Test time filter errors with time intervals"""
@@ -87,21 +79,20 @@ class AWSReportViewTest(IamTestCase):
 
     def test_filter_by_org_id(self):
         """Test that you can filter by org_id"""
-        metadata = self.generate_data.insert_data()
-        expected_org_id = list(metadata)[0]
+        data_info = AWSOrganizationalUnit.objects.first()
+        expected_org_id = data_info.org_unit_id
         url = self.url + f"?filter[org_id]={expected_org_id}"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data.get("data"))
-        self.assertEqual(len(response.data.get("data")), 1)
+        self.assertNotEqual(len(response.data.get("data")), 0)
         data_row = response.data.get("data")[0]
         self.assertEqual(data_row["org_unit_id"], expected_org_id)
 
     def test_filter_by_or_org_id_filter(self):
         """Test that you can filter by org_id"""
-        metadata = self.generate_data.insert_data()
-        org_id_0 = list(metadata)[0]
-        org_id_1 = list(metadata)[1]
+        org_id_0 = "OU_001"
+        org_id_1 = "OU_002"
         url = self.url + f"?filter[or:org_id]={org_id_0}&filter[or:org_id]={org_id_1}"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -113,11 +104,15 @@ class AWSReportViewTest(IamTestCase):
 
     def test_filter_by_and_org_id_filter(self):
         """Test that you can filter by org_id"""
-        metadata = self.generate_data.insert_data()
-        org_id_0 = list(metadata)[0]
-        org_id_1 = list(metadata)[1]
+        org_id_0 = "OU_001"
+        org_id_1 = "OU_002"
         url = self.url + f"?filter[and:org_id]={org_id_0}&filter[and:org_id]={org_id_1}"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data.get("data"))
         self.assertEqual(len(response.data.get("data")), 0)
+        url = self.url + f"?filter[and:org_id]={org_id_0}&filter[and:org_id]={org_id_0}"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNotNone(response.data.get("data"))
+        self.assertEqual(len(response.data.get("data")), 1)

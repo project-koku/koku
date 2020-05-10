@@ -24,7 +24,6 @@ from rest_framework_csv.renderers import CSVRenderer
 from api.common.pagination import ReportPagination
 from api.common.pagination import ReportRankedPagination
 from api.iam.test.iam_test_case import IamTestCase
-from api.organizations.test.utils import GenerateOrgTestData
 from api.report.view import get_paginator
 
 
@@ -41,8 +40,6 @@ class ReportViewTest(IamTestCase):
 
     def test_endpoint_view(self):
         """Test endpoint runs with a customer owner."""
-        generate_data = GenerateOrgTestData(self.schema_name)
-        generate_data.insert_data()
         for endpoint in self.ENDPOINTS:
             with self.subTest(endpoint=endpoint):
                 url = reverse(endpoint)
