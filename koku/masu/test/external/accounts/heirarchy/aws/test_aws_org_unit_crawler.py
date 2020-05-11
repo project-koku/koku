@@ -282,6 +282,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
                 node.save()
             curr_count = AWSOrganizationalUnit.objects.filter(created_timestamp__lte=two_days_ago).count()
             self.assertEqual(curr_count, 5)
+            expected_count_2_days_ago = curr_count
 
         # # Add sub_org_unit_2 and move sub_org_unit_1 2 accounts here
         created_nodes = []
@@ -311,21 +312,28 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
                 node.deleted_timestamp = yesterday
                 node.save()
             curr_count = AWSOrganizationalUnit.objects.filter(created_timestamp__lte=yesterday).count()
+            deleted_count = AWSOrganizationalUnit.objects.filter(deleted_timestamp__lte=yesterday).count()
             self.assertEqual(curr_count, 8)
+            self.assertEqual(deleted_count, 3)
+            expected_yesterday_count = curr_count - deleted_count
 
         unit_crawler._delete_aws_account("A_002")
+        sub_org_unit_2 = {"Id": "OU_3000", "Name": "sub_org_unit_3"}
+        unit_crawler._save_aws_org_method(sub_org_unit_2, "R_001&OU_3000", 1, None)
 
         with schema_context(self.schema):
-            curr_count = AWSOrganizationalUnit.objects.count()
-            self.assertEqual(curr_count, 8)
+            today = unit_crawler._date_accessor.today().strftime("%Y-%m-%d")
+            curr_count = AWSOrganizationalUnit.objects.filter(created_timestamp__lte=today).count()
+            deleted_count = AWSOrganizationalUnit.objects.filter(deleted_timestamp__lte=today).count()
+            self.assertEqual(curr_count, 9)
+            expected_today_count = curr_count - deleted_count
 
-        # today = unit_crawler._date_accessor.today().strftime("%Y-%m-%d")
-        # structure_2_days_ago = unit_crawler._compute_org_structure_interval(two_days_ago)
-
-        unit_crawler._mark_nodes_deleted()
-
-        # structure_yesterday = unit_crawler._compute_org_structure_yesterday()
-
-        # structure_today = unit_crawler._compute_org_structure_interval(today)
-
-        # structure_interval = unit_crawler._compute_org_structure_interval(two_days_ago, today)
+        # 2 days ago count matches
+        structure_2_days_ago = unit_crawler._compute_org_structure_interval(two_days_ago)
+        self.assertEqual(expected_count_2_days_ago, len(structure_2_days_ago))
+        # Yesterday count matches
+        unit_crawler._compute_org_structure_yesterday()
+        self.assertEqual(expected_yesterday_count, len(unit_crawler._structure_yesterday))
+        # today
+        structure_today = unit_crawler._compute_org_structure_interval(today)
+        self.assertEqual(len(structure_today), expected_today_count)
