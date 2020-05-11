@@ -18,10 +18,10 @@ import logging
 from unittest.mock import patch
 from uuid import uuid4
 
-from django.conf import settings
 from django.db import InterfaceError
 from django.db.models.signals import post_save
 from django.test import TestCase
+from django.test.utils import override_settings
 
 from api.provider.models import Provider
 from api.provider.models import Sources
@@ -142,7 +142,7 @@ class SourcesTasksTest(TestCase):
         source = Sources.objects.get(source_id=self.aws_source_info.get("source_id"))
         self.assertEqual(source.status.get("availability_status"), "unavailable")
 
-    @patch.object(settings, "DEVELOPMENT", False)
+    @override_settings(DEVELOPMENT=False)
     @patch("masu.celery.tasks.check_report_updates")
     @patch("sources.tasks.set_status_for_source", side_effect=MockStatus)
     @patch("sources.sources_http_client.SourcesHTTPClient.set_source_status")
@@ -156,7 +156,7 @@ class SourcesTasksTest(TestCase):
 
         mock_call.assert_called()
 
-    @patch.object(settings, "DEVELOPMENT", False)
+    @override_settings(DEVELOPMENT=False)
     @patch("masu.celery.tasks.check_report_updates")
     @patch("sources.tasks.set_status_for_source.delay", side_effect=MockStatus)
     @patch(

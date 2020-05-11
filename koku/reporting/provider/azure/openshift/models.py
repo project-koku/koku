@@ -165,6 +165,8 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
 
     pretax_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
 
+    markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+
     project_markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
 
     pod_cost = models.DecimalField(max_digits=24, decimal_places=6, null=True)

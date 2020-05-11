@@ -15,15 +15,21 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the project middleware."""
+import base64
+import json
+import logging
 from unittest.mock import Mock
 from unittest.mock import patch
 
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 from django.db.utils import OperationalError
+from django.test.utils import override_settings
+from faker import Faker
 from requests.exceptions import ConnectionError  # pylint: disable=W0622
 from rest_framework import status
 
+from api.common import RH_IDENTITY_HEADER
 from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.models import User
@@ -253,3 +259,47 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         response = middleware.process_request(mock_request)
         self.assertEqual(response.status_code, status.HTTP_424_FAILED_DEPENDENCY)
         mocked_get.assert_called()
+
+    @override_settings(DEVELOPMENT=True)
+    def test_process_developer_identity(self):
+        """Test that process_request() passes-through a custom identity."""
+        fake = Faker()
+
+        identity = {
+            "identity": {
+                "account_number": str(fake.pyint()),
+                "type": "User",
+                "user": {
+                    "username": fake.word(),
+                    "email": fake.email(),
+                    "is_org_admin": False,
+                    "access": {
+                        "aws.account": {"read": ["1234567890AB", "234567890AB1"]},
+                        "azure.subscription_guid": {"read": ["*"]},
+                    },
+                },
+            },
+            "entitlements": {"cost_management": {"is_entitled": True}},
+        }
+
+        mock_request = Mock(path="/api/v1/reports/azure/costs/", META={"QUERY_STRING": ""})
+
+        user = Mock(
+            access={
+                "aws.account": {"read": ["1234567890AB", "234567890AB1"]},
+                "azure.subscription_guid": {"read": ["*"]},
+            },
+            username=fake.word(),
+            email=fake.email(),
+            admin=False,
+            customer=Mock(account_id=fake.pyint()),
+            req_id="DEVELOPMENT",
+        )
+
+        mock_request.user = user
+        mock_request.META[RH_IDENTITY_HEADER] = base64.b64encode(json.dumps(identity).encode("utf-8"))
+
+        logging.disable(logging.NOTSET)
+        with self.assertLogs(logger="koku.middleware", level=logging.WARNING):
+            middleware = IdentityHeaderMiddleware()
+            middleware.process_request(mock_request)

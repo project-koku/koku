@@ -36,8 +36,6 @@ from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import AWSCostEntryPricing
 from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
-from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
-from reporting.provider.ocp_aws.models import OCPAWSCostLineItemProjectDailySummary
 
 LOG = logging.getLogger(__name__)
 
@@ -259,7 +257,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
-    def populate_ocp_on_aws_cost_daily_summary(self, start_date, end_date, cluster_id, bill_ids):
+    def populate_ocp_on_aws_cost_daily_summary(self, start_date, end_date, cluster_id, bill_ids, markup_value):
         """Populate the daily cost aggregated summary for OCP on AWS.
 
         Args:
@@ -280,6 +278,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             "bill_ids": bill_ids,
             "cluster_id": cluster_id,
             "schema": self.schema,
+            "markup": markup_value,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
@@ -307,20 +306,3 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
                     )
             else:
                 AWSCostEntryLineItemDailySummary.objects.update(markup_cost=(F("unblended_cost") * markup))
-
-    def populate_ocp_on_aws_markup_cost(self, markup, bill_ids=None):
-        """Set markup costs in the database."""
-        with schema_context(self.schema):
-            if bill_ids:
-                for bill_id in bill_ids:
-                    OCPAWSCostLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
-                        markup_cost=(F("unblended_cost") * markup)
-                    )
-                    OCPAWSCostLineItemProjectDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
-                        project_markup_cost=(F("unblended_cost") * markup)
-                    )
-            else:
-                OCPAWSCostLineItemDailySummary.objects.update(markup_cost=(F("unblended_cost") * markup))
-                OCPAWSCostLineItemProjectDailySummary.objects.update(
-                    project_markup_cost=(F("unblended_cost") * markup)
-                )
