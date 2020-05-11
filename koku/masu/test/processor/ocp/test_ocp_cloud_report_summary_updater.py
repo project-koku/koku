@@ -87,7 +87,9 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
                 provider=self.aws_provider, billing_period_start=self.dh.this_month_start
             ).first()
 
-        mock_ocp_on_aws.assert_called_with(start_date.date(), end_date.date(), cluster_id, [str(bill.id)])
+        mock_ocp_on_aws.assert_called_with(
+            start_date.date(), end_date.date(), cluster_id, [str(bill.id)], decimal.Decimal(0)
+        )
         mock_refresh.assert_called()
 
     @patch(
@@ -117,7 +119,9 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         mock_map.return_value = {self.ocp_test_provider_uuid: (self.aws_provider_uuid, Provider.PROVIDER_AWS)}
         updater = OCPCloudReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
         updater.update_summary_tables(start_date_str, end_date_str)
-        mock_ocp_on_aws.assert_called_with(start_date.date(), end_date.date(), cluster_id, bill_ids)
+        mock_ocp_on_aws.assert_called_with(
+            start_date.date(), end_date.date(), cluster_id, bill_ids, decimal.Decimal(0)
+        )
         mock_refresh.assert_called()
 
     @patch(
@@ -199,11 +203,11 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             for item in query:
                 self.assertAlmostEqual(item.markup_cost, item.unblended_cost * markup_dec)
 
-    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.cost_model")
+    @patch("masu.processor.ocp.ocp_cloud_summary_updater.CostModelDBAccessor")
     def test_update_project_markup_cost(self, mock_cost_model):
         """Test that summary tables are updated correctly."""
         markup = {"value": 10, "unit": "percent"}
-        mock_cost_model.markup = markup
+        mock_cost_model.return_value.__enter__.return_value.markup = markup
         markup_dec = decimal.Decimal(markup.get("value") / 100)
 
         start_date = self.dh.this_month_start
@@ -222,7 +226,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
                 .all()
             )
             for item in query:
-                self.assertAlmostEqual(item.project_markup_cost, item.unblended_cost * markup_dec)
+                self.assertAlmostEqual(item.project_markup_cost, item.pod_cost * markup_dec)
 
     def test_get_infra_map(self):
         """Test that an infrastructure map is returned."""

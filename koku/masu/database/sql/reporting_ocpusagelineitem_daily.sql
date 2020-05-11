@@ -35,46 +35,6 @@ CREATE TEMPORARY TABLE ocp_capacity_{{uuid | sqlsafe}} AS (
 
 -- Place our query in a temporary table
 CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
-    WITH cte_node_inherited_labels AS (
-        SELECT report_period_id,
-            cluster_id,
-            usage_start,
-            namespace,
-            pod,
-            node,
-            pod_labels
-        FROM (
-            SELECT li.report_period_id,
-                rp.cluster_id,
-                date(ur.interval_start) as usage_start,
-                li.namespace,
-                li.pod,
-                li.node,
-                -- Setting pod labels as the second item here
-                -- allows a value for a label specifically set on the pod
-                -- to take precedence
-                COALESCE(nli.node_labels, '{}'::jsonb) || li.pod_labels AS pod_labels
-            FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem AS li
-            JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
-                ON li.report_period_id = rp.id
-            JOIN {{schema | sqlsafe}}.reporting_ocpusagereport AS ur
-                ON li.report_id = ur.id
-            LEFT JOIN {{schema | sqlsafe}}.reporting_ocpnodelabellineitem AS nli
-                ON li.report_period_id = nli.report_period_id
-                    AND li.report_id = nli.report_id
-                    AND li.node = nli.node
-            WHERE date(ur.interval_start) >= {{start_date}}
-                AND date(ur.interval_start) <= {{end_date}}
-                AND rp.cluster_id = {{cluster_id}}
-        ) AS labels
-        GROUP BY report_period_id,
-            cluster_id,
-            usage_start,
-            namespace,
-            pod,
-            node,
-            pod_labels
-    )
     SELECT  li.report_period_id,
         rp.cluster_id,
         coalesce(max(p.name), rp.cluster_id) as cluster_alias,
@@ -84,7 +44,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
         li.pod,
         li.node,
         max(li.resource_id) as resource_id,
-        cte.pod_labels,
+        COALESCE(nli.node_labels, '{}'::jsonb) || li.pod_labels AS pod_labels,
         sum(li.pod_usage_cpu_core_seconds) as pod_usage_cpu_core_seconds,
         sum(li.pod_request_cpu_core_seconds) as pod_request_cpu_core_seconds,
         sum(li.pod_limit_cpu_core_seconds) as pod_limit_cpu_core_seconds,
@@ -110,13 +70,9 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
             AND date(ur.interval_start) = cc.usage_start
     JOIN ocp_capacity_{{uuid | sqlsafe}} AS oc
         ON date(ur.interval_start) = oc.usage_start
-    JOIN cte_node_inherited_labels as cte
-        ON li.report_period_id = cte.report_period_id
-            AND rp.cluster_id = cte.cluster_id
-            AND date(ur.interval_start) = cte.usage_start
-            AND li.namespace = cte.namespace
-            AND li.pod = cte.pod
-            AND li.node = cte.node
+    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpnodelabellineitem AS nli
+            ON li.report_id = nli.report_id
+                AND li.node = nli.node
     LEFT JOIN public.api_provider AS p
         ON rp.provider_id = p.uuid
     WHERE date(ur.interval_start) >= {{start_date}}
@@ -128,9 +84,10 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
         li.namespace,
         li.pod,
         li.node,
-        cte.pod_labels
+        COALESCE(nli.node_labels, '{}'::jsonb) || li.pod_labels
 )
 ;
+
 
 -- Clear out old entries first
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily

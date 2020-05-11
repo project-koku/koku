@@ -67,7 +67,7 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=t
             }
 
         """
-        if hasattr(request, "META") and settings.DEVELOPMENT_IDENTITY:
+        if hasattr(request, "META") and (hasattr(settings, "DEVELOPMENT_IDENTITY") and settings.DEVELOPMENT_IDENTITY):
             identity_header = settings.DEVELOPMENT_IDENTITY
 
             user_dict = identity_header.get("identity", {}).get("user")

@@ -21,10 +21,10 @@ import logging
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from django.conf import settings
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 from django.db.utils import OperationalError
+from django.test.utils import override_settings
 from faker import Faker
 from requests.exceptions import ConnectionError  # pylint: disable=W0622
 from rest_framework import status
@@ -260,7 +260,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_424_FAILED_DEPENDENCY)
         mocked_get.assert_called()
 
-    @patch.object(settings, "DEVELOPMENT", True)
+    @override_settings(DEVELOPMENT=True)
     def test_process_developer_identity(self):
         """Test that process_request() passes-through a custom identity."""
         fake = Faker()
