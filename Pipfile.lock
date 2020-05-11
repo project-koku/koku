@@ -46,10 +46,10 @@
         },
         "azure-core": {
             "hashes": [
-                "sha256:8c05d67206fdd8bcdbfda9ec499fe49fad514275be93d713c459e300d675cc6d",
-                "sha256:ae43a944dd13e9ff4b090075fdf49def039fc37887f9fea63395aa263468a063"
+                "sha256:2b7613b37ff6503312e5ec7c9ce2efab8fa0dbfe4c6c1d3bf91bab51db9bd6dc",
+                "sha256:afa6a6ae577859392e1ed3acb024bf5bddeb1bbb67f3191c35c587505ff431a0"
             ],
-            "version": "==1.4.0"
+            "version": "==1.5.0"
         },
         "azure-mgmt-costmanagement": {
             "hashes": [
@@ -875,10 +875,10 @@
         },
         "azure-core": {
             "hashes": [
-                "sha256:8c05d67206fdd8bcdbfda9ec499fe49fad514275be93d713c459e300d675cc6d",
-                "sha256:ae43a944dd13e9ff4b090075fdf49def039fc37887f9fea63395aa263468a063"
+                "sha256:2b7613b37ff6503312e5ec7c9ce2efab8fa0dbfe4c6c1d3bf91bab51db9bd6dc",
+                "sha256:afa6a6ae577859392e1ed3acb024bf5bddeb1bbb67f3191c35c587505ff431a0"
             ],
-            "version": "==1.4.0"
+            "version": "==1.5.0"
         },
         "azure-mgmt-costmanagement": {
             "hashes": [
