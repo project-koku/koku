@@ -174,19 +174,19 @@ class ReportDownloaderTest(MasuTestCase):
         3. look for existing report-name with not null last_completed_datetime: `is_report_processed` returns True.
 
         """
+        manifest_id = 99
         downloader = self.create_downloader(Provider.PROVIDER_AWS)
         report_name = FAKE.slug()
-        self.assertFalse(downloader.is_report_processed(report_name))
+        self.assertFalse(downloader.is_report_processed(report_name, manifest_id))
 
-        manifest_id = 99
         baker.make(CostUsageReportManifest, id=manifest_id)
         baker.make(
             CostUsageReportStatus, report_name=report_name, manifest_id=manifest_id, last_completed_datetime=None
         )
-        self.assertFalse(downloader.is_report_processed(report_name))
+        self.assertFalse(downloader.is_report_processed(report_name, manifest_id))
 
         CostUsageReportStatus.objects.update(last_completed_datetime=FAKE.date())
-        self.assertTrue(downloader.is_report_processed(report_name))
+        self.assertTrue(downloader.is_report_processed(report_name, manifest_id))
 
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file")
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.get_local_file_for_report")
@@ -203,12 +203,12 @@ class ReportDownloaderTest(MasuTestCase):
         This test checks that the 2 files are correctly returned.
 
         """
-        report_context = {"files": ["file-1.csv.gz", "file-2.csv.gz", "file-3.csv.gz"]}
+        manifest_id = 99
+        report_context = {"files": ["file-1.csv.gz", "file-2.csv.gz", "file-3.csv.gz"], "manifest_id": manifest_id}
         mock_dl_context.return_value = report_context
         mock_dl_local_files.side_effect = lambda x: x
         mock_dl_download.side_effect = lambda x, y: (x, y)
 
-        manifest_id = 99
         baker.make(CostUsageReportManifest, id=manifest_id)
         baker.make(
             CostUsageReportStatus,
