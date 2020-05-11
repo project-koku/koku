@@ -167,7 +167,7 @@ class ReportDownloader:
             raise ReportDownloaderError(str(err))
         return reports
 
-    def is_report_processed(self, report_name):
+    def is_report_processed(self, report_name, manifest_id):
         """Check if report_name has completed processing.
 
         Filter by the report name and then check the last_completed_datetime.
@@ -175,7 +175,7 @@ class ReportDownloader:
         Otherwise returns False.
 
         """
-        report_record = CostUsageReportStatus.objects.filter(report_name=report_name)
+        report_record = CostUsageReportStatus.objects.filter(manifest_id=manifest_id, report_name=report_name)
         if report_record:
             return report_record.filter(last_completed_datetime__isnull=False).exists()
         return False
@@ -200,7 +200,7 @@ class ReportDownloader:
             report_dictionary = {}
             local_file_name = self._downloader.get_local_file_for_report(report)
 
-            if self.is_report_processed(local_file_name):
+            if self.is_report_processed(local_file_name, manifest_id):
                 LOG.info(f"File has already been processed: {local_file_name}. Skipping...")
                 continue
             with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
