@@ -37,6 +37,9 @@ class OCPAzureCostLineItemDailySummary(models.Model):
             GinIndex(fields=["tags"], name="ocpazure_tags_idx"),
             models.Index(fields=["service_name"], name="ocpazure_service_name_idx"),
             models.Index(fields=["instance_type"], name="ocpazure_instance_type_idx"),
+            # A GIN functional index named "ix_ocpazure_service_name_ilike" was created manually
+            # via RunSQL migration operation
+            # Function: (upper(service_name) gin_trgm_ops)
         ]
 
     # OCP Fields
@@ -161,6 +164,8 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
     currency = models.CharField(max_length=10, null=False, default="USD")
 
     pretax_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
 
     project_markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
 

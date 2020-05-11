@@ -30,7 +30,6 @@ from api.utils import DateHelper
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
@@ -39,6 +38,7 @@ from reporting.models import OCPUsageLineItem
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.models import OCPUsageReport
 from reporting.models import OCPUsageReportPeriod
+from reporting_common import REPORT_COLUMN_MAP
 
 
 class OCPReportDBAccessorTest(MasuTestCase):
@@ -49,11 +49,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """Set up the test class with required objects."""
         super().setUpClass()
 
-        cls.common_accessor = ReportingCommonDBAccessor()
-        cls.column_map = cls.common_accessor.column_map
-        cls.accessor = OCPReportDBAccessor(schema=cls.schema, column_map=cls.column_map)
+        cls.accessor = OCPReportDBAccessor(schema=cls.schema)
         cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
+        cls.creator = ReportObjectCreator(cls.schema)
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
     def setUp(self):
@@ -140,7 +138,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
     def test_get_db_obj_query_with_columns(self):
         """Test that a query is returned with limited columns."""
         table_name = OCP_REPORT_TABLE_MAP["line_item"]
-        columns = list(self.column_map[table_name].values())
+        columns = list(REPORT_COLUMN_MAP[table_name].values())
 
         selected_columns = [random.choice(columns) for _ in range(2)]
         missing_columns = set(columns).difference(selected_columns)
@@ -421,8 +419,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
         query = self.accessor._get_db_obj_query(agg_table_name)
-
-        self.accessor.populate_volume_label_summary_table()
+        self.accessor.populate_volume_label_summary_table([self.reporting_period.id])
 
         with schema_context(self.schema):
             tags = query.all()

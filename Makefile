@@ -15,6 +15,7 @@ KOKU_SERVER = $(shell echo "${KOKU_API_HOST:-localhost}")
 KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000}")
 MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost}")
 MASU_SERVER_PORT = $(shell echo "${MASU_SERVICE_PORT:-5000}")
+DOCKER := $(shell which docker 2>/dev/null || which podman 2>/dev/null)
 
 # Testing directories
 TESTINGDIR = $(TOPDIR)/testing
@@ -34,7 +35,6 @@ OC_TEMPLATE_DIR = $(TOPDIR)/openshift
 OC_PARAM_DIR = $(OC_TEMPLATE_DIR)/parameters
 OC_TEMPLATES = $(wildcard $(OC_TEMPLATE_DIR))
 
-KOKU_DOCKER_HASH = $(shell docker ps -q -f name=koku_server)
 
 # Platform differences
 #
@@ -508,6 +508,7 @@ docker-shell:
 docker-test-all:
 	docker-compose -f koku-test.yml up --build
 
+docker-up-koku: KOKU_DOCKER_HASH := $(shell $(DOCKER) ps -q -f name=koku_server)
 docker-up-koku:
 ifeq ($(KOKU_DOCKER_HASH), )
 	@docker-compose up $(build) -d koku-server

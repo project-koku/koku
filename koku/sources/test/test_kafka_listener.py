@@ -48,19 +48,10 @@ from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 from sources.tasks import create_or_update_provider
+from sources.tasks import delete_source_and_provider
 
 faker = Faker()
 SOURCES_APPS = "http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}"
-
-
-async def raise_exception():
-    """Raise KafkaError"""
-    raise KafkaError()
-
-
-async def dont_raise_exception():
-    """Return None"""
-    return None
 
 
 def raise_source_manager_error(param_a, param_b, param_c, param_d, param_e):
@@ -81,10 +72,11 @@ def raise_provider_manager_error(param_a):
 class ConsumerRecord:
     """Test class for kafka msg."""
 
-    def __init__(self, topic, offset, event_type, auth_header, value):
+    def __init__(self, topic, offset, event_type, auth_header, value, partition=0):
         """Initialize Msg."""
         self.topic = topic
         self.offset = offset
+        self.partition = partition
         self.headers = (
             ("event_type", bytes(event_type, encoding="utf-8")),
             ("x-rh-identity", bytes(auth_header, encoding="utf-8")),
@@ -127,6 +119,15 @@ class MockTask:
         """Initialize the task."""
         self.id = uuid4()
         create_or_update_provider(*args)
+
+
+class MockDestroyTask:
+    """Mock destroy task class."""
+
+    def __init__(self, *args):
+        """Initialize the task."""
+        self.id = uuid4()
+        delete_source_and_provider(*args)
 
 
 class MockKafkaConsumer:
@@ -182,10 +183,31 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             "account_id": "acct10001",
             "offset": 10,
         }
+        self.aws_local_source = {
+            "source_id": 11,
+            "source_uuid": uuid4(),
+            "name": "ProviderAWS Local",
+            "source_type": "AWS-local",
+            "authentication": {"resource_name": "arn:aws:iam::111111111111:role/CostManagement"},
+            "billing_source": {"bucket": "fake-local-bucket"},
+            "auth_header": Config.SOURCES_FAKE_HEADER,
+            "account_id": "acct10001",
+            "offset": 11,
+        }
+        self.azure_local_source = {
+            "source_id": 12,
+            "source_uuid": uuid4(),
+            "name": "ProviderAzure Local",
+            "source_type": "Azure-local",
+            "authentication": {"resource_name": "arn:aws:iam::111111111111:role/CostManagement"},
+            "billing_source": {"bucket": "fake-local-bucket"},
+            "auth_header": Config.SOURCES_FAKE_HEADER,
+            "account_id": "acct10001",
+            "offset": 12,
+        }
 
-    @patch("sources.tasks.set_status_for_source.delay")
     @patch("sources.tasks.create_or_update_provider.delay", side_effect=MockTask)
-    def test_execute_koku_provider_op_create(self, mock_delay, mock_status):
+    def test_execute_koku_provider_op_create(self, mock_delay):
         """Test to execute Koku Operations to sync with Sources for creation."""
         source_id = self.aws_source.get("source_id")
         application_type_id = 2
@@ -199,7 +221,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         self.assertFalse(Sources.objects.get(source_id=source_id).pending_update)
         self.assertEqual(Sources.objects.get(source_id=source_id).koku_uuid, str(provider.source_uuid))
 
-    def test_execute_koku_provider_op_destroy(self):
+    @patch("sources.tasks.delete_source_and_provider.delay", side_effect=MockDestroyTask)
+    def test_execute_koku_provider_op_destroy(self, mock_destroy):
         """Test to execute Koku Operations to sync with Sources for destruction."""
         source_id = self.aws_source.get("source_id")
         application_type_id = 2
@@ -210,12 +233,12 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         source_integration.execute_koku_provider_op(msg, application_type_id)
         self.assertEqual(Sources.objects.filter(source_id=source_id).exists(), False)
 
-    @patch("sources.tasks.set_status_for_source.delay")
-    def test_execute_koku_provider_op_destroy_provider_not_found(self, mock_status):
+    @patch("sources.tasks.delete_source_and_provider.delay", side_effect=MockDestroyTask)
+    def test_execute_koku_provider_op_destroy_provider_not_found(self, mock_destroy):
         """Test to execute Koku Operations to sync with Sources for destruction with provider missing.
 
-        First, raise ProviderManagerError. Check that provider still exists, but source was removed.
-        Then, re-call provider destroy without exception, then see provider is gone.
+        First, raise ProviderManagerError. Check that provider and source still exists.
+        Then, re-call provider destroy without exception, then see both source and provider are gone.
 
         """
         source_id = self.aws_source.get("source_id")
@@ -233,14 +256,13 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with patch.object(KafkaSourceManager, "destroy_provider", side_effect=raise_provider_manager_error):
             source_integration.execute_koku_provider_op(msg, application_type_id)
             self.assertTrue(Provider.objects.filter(uuid=provider.source_uuid).exists())
-            self.assertFalse(Sources.objects.filter(source_uuid=provider.source_uuid).exists())
+            self.assertTrue(Sources.objects.filter(source_uuid=provider.source_uuid).exists())
 
         source_integration.execute_koku_provider_op(msg, application_type_id)
         self.assertFalse(Provider.objects.filter(uuid=provider.source_uuid).exists())
 
-    @patch("sources.tasks.set_status_for_source.delay")
     @patch("sources.tasks.create_or_update_provider.delay", side_effect=MockTask)
-    def test_execute_koku_provider_op_update(self, mock_create, mock_status):
+    def test_execute_koku_provider_op_update(self, mock_create):
         """Test to execute Koku Operations to sync with Sources for update."""
         source_id = self.aws_source.get("source_id")
         application_type_id = 2
@@ -268,9 +290,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         response = Provider.objects.get(uuid=uuid)
         self.assertEqual(response.billing_source.bucket, "new-bucket")
 
-    @patch("sources.tasks.set_status_for_source.delay")
     @patch("sources.tasks.create_or_update_provider.delay")
-    def test_execute_koku_provider_op_create_rabbit_down(self, mock_delay, mock_status):
+    def test_execute_koku_provider_op_create_rabbit_down(self, mock_delay):
         """Test to execute Koku Operations to sync with Sources for creation with rabbit down."""
         application_type_id = 2
         provider = Sources(**self.aws_source)
@@ -359,6 +380,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         """Test to get sources details from other message."""
         test_topic = "platform.sources.event-stream"
         test_offset = 5
+        test_partition = 1
         cost_management_app_type = 2
         test_auth_header = "testheader"
         test_value = '{"id":1,"source_id":1,"application_type_id":2}'
@@ -369,6 +391,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 "expected_response": {
                     "source_id": 1,
                     "offset": test_offset,
+                    "partition": test_partition,
                     "event_type": "Source.update",
                     "auth_header": test_auth_header,
                 },
@@ -378,6 +401,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             msg = ConsumerRecord(
                 topic=test_topic,
                 offset=test_offset,
+                partition=1,
                 event_type=test.get("event"),
                 auth_header=test_auth_header,
                 value=bytes(test_value, encoding="utf-8"),
@@ -529,6 +553,63 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         self.assertEqual(source_obj.authentication, {"resource_name": authentication})
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_sources_network_info_sync_aws_local(self):
+        """Test to get additional Source context from Sources API for AWS-local."""
+        test_source_id = self.aws_local_source.get("source_id")
+        local_source = Sources(**self.aws_local_source)
+        local_source.save()
+
+        test_auth_header = Config.SOURCES_FAKE_HEADER
+        source_name = "AWS Local Source"
+        source_uid = faker.uuid4()
+        authentication = "roleARNhere"
+        aws_source = Sources(source_id=test_source_id, auth_header=test_auth_header, offset=1)
+        aws_source.save()
+        source_type_id = 1
+        mock_source_name = "amazon-local"
+        resource_id = 2
+        authentication_id = 3
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sources.com/api/v1.0/sources/{test_source_id}",
+                status_code=200,
+                json={"name": source_name, "source_type_id": source_type_id, "uid": source_uid},
+            )
+            m.get(
+                f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
+                status_code=200,
+                json={"data": [{"name": mock_source_name}]},
+            )
+            m.get(
+                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
+                status_code=200,
+                json={"data": [{"id": resource_id}]},
+            )
+            m.get(
+                (
+                    f"http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint"
+                    f"&[authtype]=arn&[resource_id]={resource_id}"
+                ),
+                status_code=200,
+                json={"data": [{"id": authentication_id}]},
+            )
+            m.get(
+                (
+                    f"http://www.sources.com/internal/v1.0/authentications/{authentication_id}"
+                    f"?expose_encrypted_attribute[]=password"
+                ),
+                status_code=200,
+                json={"password": authentication},
+            )
+
+            source_integration.sources_network_info(test_source_id, test_auth_header)
+
+        source_obj = Sources.objects.get(source_id=test_source_id)
+        self.assertEqual(source_obj.name, source_name)
+        self.assertEqual(source_obj.source_type, Provider.PROVIDER_AWS_LOCAL)
+        self.assertEqual(source_obj.authentication, {"resource_name": authentication})
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_sources_network_info_sync_ocp(self):
         """Test to get additional Source context from Sources API for OCP."""
         test_source_id = 1
@@ -648,6 +729,73 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         )
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_sources_network_info_sync_azure_local(self):
+        """Test to get additional Source context from Sources API for AZURE-local."""
+        test_source_id = self.azure_local_source.get("source_id")
+        local_source = Sources(**self.azure_local_source)
+        local_source.save()
+
+        test_auth_header = Config.SOURCES_FAKE_HEADER
+        source_name = "AZURE Local Source"
+        source_uid = faker.uuid4()
+        username = "test_user"
+        authentication = "testclientcreds"
+        tenent_id = "test_tenent_id"
+        azure_source = Sources(source_id=test_source_id, auth_header=test_auth_header, offset=1)
+        azure_source.save()
+        source_type_id = 2
+        mock_source_name = "azure-local"
+        resource_id = 3
+        authentication_id = 4
+        authentications_response = {
+            "id": authentication_id,
+            "username": username,
+            "extra": {"azure": {"tenant_id": tenent_id}},
+        }
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sources.com/api/v1.0/sources/{test_source_id}",
+                status_code=200,
+                json={"name": source_name, "source_type_id": source_type_id, "uid": source_uid},
+            )
+            m.get(
+                f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
+                status_code=200,
+                json={"data": [{"name": mock_source_name}]},
+            )
+            m.get(
+                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}",
+                status_code=200,
+                json={"data": [{"id": resource_id}]},
+            )
+            m.get(
+                (
+                    f"http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint"
+                    f"&[authtype]=tenant_id_client_id_client_secret&[resource_id]={resource_id}"
+                ),
+                status_code=200,
+                json={"data": [authentications_response]},
+            )
+            m.get(
+                (
+                    f"http://www.sources.com/internal/v1.0/authentications/{authentication_id}"
+                    f"?expose_encrypted_attribute[]=password"
+                ),
+                status_code=200,
+                json={"password": authentication},
+            )
+
+            source_integration.sources_network_info(test_source_id, test_auth_header)
+
+        source_obj = Sources.objects.get(source_id=test_source_id)
+        self.assertEqual(source_obj.name, source_name)
+        self.assertEqual(source_obj.source_type, Provider.PROVIDER_AZURE_LOCAL)
+        self.assertEqual(
+            source_obj.authentication,
+            {"credentials": {"client_id": username, "client_secret": authentication, "tenant_id": tenent_id}},
+        )
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_sources_network_info_sync_connection_error(self):
         """Test to get additional Source context from Sources API with connection_error."""
         test_source_id = 1
@@ -700,11 +848,12 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         self.assertEquals(source_obj.source_type, "")
         self.assertEquals(source_obj.authentication, {})
 
-    @patch("sources.kafka_listener.AIOKafkaConsumer.start", side_effect=[raise_exception(), dont_raise_exception()])
-    def test_kafka_connection_metrics_listen_for_messages(self, mock_start):
+    @patch("time.sleep", side_effect=None)
+    @patch("sources.kafka_listener.check_kafka_connection", side_effect=[bool(0), bool(1)])
+    def test_kafka_connection_metrics_listen_for_messages(self, mock_start, mock_sleep):
         """Test check_kafka_connection increments kafka connection errors on KafkaError."""
         connection_errors_before = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
-        source_integration.check_kafka_connection()
+        source_integration.is_kafka_connected()
         connection_errors_after = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
         self.assertEqual(connection_errors_after - connection_errors_before, 1)
 
@@ -1104,7 +1253,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             priority, _ = test_queue.get_nowait()
             self.assertEqual(priority, i)
 
-    @patch("sources.storage.destroy_source_event")
+    @patch("sources.tasks.delete_source_and_provider.delay")
     def test_process_synchronize_sources_msg(self, mock_destroy):
         """Test processing synchronize messages."""
         provider = Sources(**self.aws_source)

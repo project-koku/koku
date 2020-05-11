@@ -15,6 +15,13 @@ FROM (
         li.usage_account_id
     FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily AS li,
         jsonb_each_text(li.tags) labels
+    {% if bill_ids %}
+    WHERE li.cost_entry_bill_id IN (
+        {%- for bill_id in bill_ids -%}
+        {{bill_id}}{% if not loop.last %},{% endif %}
+        {%- endfor -%}
+    )
+    {% endif %}
 ) l
 LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON l.usage_account_id = aa.account_id

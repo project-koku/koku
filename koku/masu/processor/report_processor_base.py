@@ -31,6 +31,7 @@ from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.processor import ALLOWED_COMPRESSIONS
+from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -85,7 +86,7 @@ class ReportProcessorBase:
             (dict): The data from the row keyed on the DB table's column names
 
         """
-        column_map = self.column_map[table_name]
+        column_map = REPORT_COLUMN_MAP[table_name]
 
         result = {column_map[key]: value for key, value in row.items() if key in column_map}
         return result
@@ -201,7 +202,7 @@ class ReportProcessorBase:
 
         return True
 
-    def _delete_line_items(self, db_accessor, column_map, is_finalized=None):
+    def _delete_line_items(self, db_accessor, is_finalized=None):
         """Delete stale data for the report being processed, if necessary."""
         if not self._manifest_id:
             return False
@@ -220,7 +221,7 @@ class ReportProcessorBase:
 
         date_filter = self.get_date_column_filter()
 
-        with db_accessor(self._schema, column_map) as accessor:
+        with db_accessor(self._schema) as accessor:
             bills = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
             bills = bills.filter(billing_period_start=bill_date).all()
             with schema_context(self._schema):

@@ -1,0 +1,13 @@
+{
+    "name": "Cost Management Azure Cost Model",
+    "description": "A cost model for markup on Azure costs.",
+    "source_type": "Azure",
+    "source_uuids": [
+        "PROVIDER_UUID"
+    ],
+    "rates": [],
+    "markup": {
+        "value": 20,
+        "unit": "percent"
+    }
+}

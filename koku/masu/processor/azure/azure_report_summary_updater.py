@@ -22,7 +22,6 @@ import logging
 from tenant_schemas.utils import schema_context
 
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.azure.common import get_bills_from_provider
 from masu.util.common import date_range_pair
@@ -44,13 +43,11 @@ class AzureReportSummaryUpdater:
         self._schema = schema
         self._provider = provider
         self._manifest = manifest
-        with ReportingCommonDBAccessor() as reporting_common:
-            self._column_map = reporting_common.column_map
         self._date_accessor = DateAccessor()
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
-        with AzureReportDBAccessor(self._schema, self._column_map) as accessor:
+        with AzureReportDBAccessor(self._schema) as accessor:
             # This is the normal processing route
             if self._manifest:
                 # Override the bill date to correspond with the manifest
@@ -110,7 +107,7 @@ class AzureReportSummaryUpdater:
         with schema_context(self._schema):
             bill_ids = [str(bill.id) for bill in bills]
 
-        with AzureReportDBAccessor(self._schema, self._column_map) as accessor:
+        with AzureReportDBAccessor(self._schema) as accessor:
             # Need these bills on the session to update dates after processing
             bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
             for start, end in date_range_pair(start_date, end_date):
@@ -122,7 +119,7 @@ class AzureReportSummaryUpdater:
                     end,
                 )
                 accessor.populate_line_item_daily_summary_table(start, end, bill_ids)
-            accessor.populate_tags_summary_table()
+            accessor.populate_tags_summary_table(bill_ids)
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
                     bill.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
