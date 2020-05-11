@@ -69,11 +69,10 @@
         },
         "azure-mgmt-storage": {
             "hashes": [
-                "sha256:74bea608b1e191aa3f1becc65426da8093d0e08a12c98447aea165b1552819a5",
-                "sha256:d340f01867c2986ba5a00c8d4b789e13c4c70c9d0bd1770bb50ecb4de56afbe8"
+                "sha256:1f9b2f3b4d633c522a7585cb8933300fdcc58226e90a99814dd1eaaec9680780",
+                "sha256:d1edead1ad36e957c9f9b605f547ad1ff7152f8f785fa03d3c7891bb428a68ef"
             ],
-            "index": "pypi",
-            "version": "==9.0.0"
+            "version": "==10.0.0"
         },
         "azure-storage-blob": {
             "hashes": [
@@ -898,11 +897,10 @@
         },
         "azure-mgmt-storage": {
             "hashes": [
-                "sha256:74bea608b1e191aa3f1becc65426da8093d0e08a12c98447aea165b1552819a5",
-                "sha256:d340f01867c2986ba5a00c8d4b789e13c4c70c9d0bd1770bb50ecb4de56afbe8"
+                "sha256:1f9b2f3b4d633c522a7585cb8933300fdcc58226e90a99814dd1eaaec9680780",
+                "sha256:d1edead1ad36e957c9f9b605f547ad1ff7152f8f785fa03d3c7891bb428a68ef"
             ],
-            "index": "pypi",
-            "version": "==9.0.0"
+            "version": "==10.0.0"
         },
         "azure-storage-blob": {
             "hashes": [
