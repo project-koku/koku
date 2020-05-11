@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report views."""
-# from django.test import RequestFactory
 from uuid import uuid4
 
 from django.urls import reverse
@@ -67,3 +66,15 @@ class TagsViewTest(IamTestCase):
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 values = response.data["data"]
                 self.assertListEqual(values, expected)
+
+    def test_invalid_key_only(self):
+        for tag_endpoint, key_endpoint in self.TAGS.items():
+            with self.subTest(endpoint=tag_endpoint):
+                url = reverse(tag_endpoint)
+                response = self.client.get(url, **self.headers)
+                data = response.data["data"][0]
+                key = data.get("key")
+
+                url = reverse(key_endpoint, args=[key])
+                response = self.client.get(url + "?key_only=True", **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

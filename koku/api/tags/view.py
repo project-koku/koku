@@ -18,6 +18,7 @@
 import logging
 
 from django.http import Http404
+from django.utils.translation import ugettext as _
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import status
 from rest_framework.response import Response
@@ -58,6 +59,10 @@ class TagView(ReportView):
             params = QueryParameters(request=request, caller=self, **kwargs)
         except ValidationError as exc:
             return Response(data=exc.detail, status=status.HTTP_400_BAD_REQUEST)
+        if key and params.get("key_only"):
+            LOG.info("Invalid query parameter 'key_only'.")
+            error = {"details": _(f"Invalid query parameter 'key_only'.")}
+            raise ValidationError(error)
         handler = self.query_handler(params)
         output = handler.execute_query()
         if key:
