@@ -967,6 +967,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         max(li.normalized_usage_amount) as normalized_usage_amount,
         max(li.currency_code) as currency_code,
         max(li.unblended_cost) as unblended_cost,
+        max(li.unblended_cost) * {{markup}}::numeric as markup_cost,
         max(li.shared_projects) as shared_projects,
         pc.project_costs as project_costs
     FROM reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} as li
@@ -1008,6 +1009,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         max(li.normalized_usage_amount) as normalized_usage_amount,
         max(li.currency_code) as currency_code,
         max(li.unblended_cost) as unblended_cost,
+        max(li.unblended_cost) * {{markup}}::numeric as markup_cost,
         max(li.shared_projects) as shared_projects,
         pc.project_costs
     FROM reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS li
@@ -1061,8 +1063,10 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         sum(li.normalized_usage_amount / li.shared_pods) as normalized_usage_amount,
         max(li.currency_code) as currency_code,
         sum(li.unblended_cost / li.shared_pods) as unblended_cost,
+        sum(li.unblended_cost / li.shared_pods) * {{markup}}::numeric as markup_cost,
         max(li.shared_pods) as shared_pods,
-        li.pod_cost
+        li.pod_cost,
+        li.pod_cost * {{markup}}::numeric as project_markup_cost
     FROM reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} as li
     JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
         ON li.cost_entry_product_id = p.id
@@ -1109,8 +1113,10 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         sum(li.normalized_usage_amount / li.shared_pods) as normalized_usage_amount,
         max(li.currency_code) as currency_code,
         sum(li.unblended_cost / li.shared_pods) as unblended_cost,
+        sum(li.unblended_cost / li.shared_pods) * {{markup}}::numeric as markup_cost,
         max(li.shared_pods) as shared_pods,
-        li.pod_cost
+        li.pod_cost,
+        li.pod_cost * {{markup}}::numeric as project_markup_cost
     FROM reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS li
     JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
         ON li.cost_entry_product_id = p.id
@@ -1179,6 +1185,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
     normalized_usage_amount,
     currency_code,
     unblended_cost,
+    markup_cost,
     shared_projects,
     project_costs
 )
@@ -1205,6 +1212,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
         normalized_usage_amount,
         currency_code,
         unblended_cost,
+        markup_cost,
         shared_projects,
         project_costs
     FROM reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsafe}}
@@ -1252,7 +1260,9 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
     normalized_usage_amount,
     currency_code,
     unblended_cost,
-    pod_cost
+    markup_cost,
+    pod_cost,
+    project_markup_cost
 )
     SELECT report_period_id,
         cluster_id,
@@ -1278,5 +1288,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
         normalized_usage_amount,
         currency_code,
         unblended_cost,
-        pod_cost
+        markup_cost,
+        pod_cost,
+        project_markup_cost
     FROM reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}}
