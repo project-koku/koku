@@ -54,6 +54,7 @@ class TagsViewTest(IamTestCase):
                 self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_tags_key_endpoint_view(self):
+        """Test tag key endpoint return 200 and correct values for real tags."""
         for tag_endpoint, key_endpoint in self.TAGS.items():
             with self.subTest(endpoint=(tag_endpoint, key_endpoint)):
                 url = reverse(tag_endpoint)
@@ -68,6 +69,7 @@ class TagsViewTest(IamTestCase):
                 self.assertListEqual(values, expected)
 
     def test_invalid_key_only(self):
+        """Test tag key endpoint returns 400 for key_only query."""
         for tag_endpoint, key_endpoint in self.TAGS.items():
             with self.subTest(endpoint=tag_endpoint):
                 url = reverse(tag_endpoint)
