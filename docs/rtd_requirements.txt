@@ -3,7 +3,7 @@ adal==1.2.3
 aiokafka==0.5.2
 amqp==2.5.2
 azure-common==1.1.25
-azure-core==1.4.0
+azure-core==1.5.0
 azure-mgmt-costmanagement==0.2.0
 azure-mgmt-resource==9.0.0
 azure-mgmt-storage==9.0.0
