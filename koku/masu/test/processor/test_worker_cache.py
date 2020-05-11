@@ -16,10 +16,9 @@
 #
 """Test Cache of worker tasks currently running."""
 import logging
-from unittest.mock import patch
 
-from django.conf import settings
 from django.core.cache import cache
+from django.test.utils import override_settings
 
 from masu.processor.worker_cache import WorkerCache
 from masu.test import MasuTestCase
@@ -100,7 +99,7 @@ class WorkerCacheTest(MasuTestCase):
         for task in first_host_list:
             _cache.add_task_to_cache(task)
 
-        with patch.object(settings, "HOSTNAME", second_host):
+        with override_settings(HOSTNAME=second_host):
             _cache = WorkerCache()
             for task in second_host_list:
                 _cache.add_task_to_cache(task)
