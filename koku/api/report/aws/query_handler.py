@@ -192,20 +192,26 @@ class AWSReportQueryHandler(ReportQueryHandler):
                             )
         return query_data
 
-    def execute_query(self):
+    def execute_query(self):  # noqa: C901
         """Execute each query needed to return the results.
 
         If grouping by org_unit, a query will be executed to
         obtain the account results, and each sub_org results.
         Else it will return the original query.
         """
+        original_filters = copy.deepcopy(self.parameters.parameters.get("filter"))
         sub_orgs_dict = {}
         query_data_results = {}
         query_sum_results = []
         org_unit_applied = False
         if "org_unit" in self.parameters.parameters.get("group_by"):
             org_unit_applied = True
-            org_unit_group_by_data = self.parameters.parameters.get("group_by").get("org_unit")
+
+            # remove the org unit and add in group by account
+            org_unit_group_by_data = self.parameters.parameters.get("group_by").pop("org_unit")
+            if not self.parameters.parameters["group_by"].get("account"):
+                self.parameters.parameters["group_by"]["account"] = ["*"]
+
             # look up the org_unit_object so that we can get the level
             org_unit_object = (
                 AWSOrganizationalUnit.objects.filter(org_unit_id=org_unit_group_by_data[0])
@@ -230,6 +236,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
         query_data, query_sum = self.execute_individual_query()
         # Next we want to loop through each sub_org and execute the query for it
         for sub_org_name, sub_org_id in sub_orgs_dict.items():
+            if self.parameters.parameters["group_by"].get("account"):
+                self.parameters.parameters["group_by"].pop("account")
             self.parameters.parameters["filter"]["org_unit"] = [sub_org_id]
             self.query_filter = self._get_filter()
             sub_query_data, sub_query_sum = self.execute_individual_query()
@@ -247,6 +255,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 query_sum = self.total_sum(sub_query, query_sum)
         self.query_data = query_data
         self.query_sum = query_sum
+
+        # reset to the original query filters
+        self.parameters.parameters["filter"] = original_filters
         return self._format_query_response()
 
     def _format_query_response(self):
@@ -446,6 +457,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         Returns:
             (Dict): the sum result
         """
+        # Fix me ashley
         report_type = self.parameters.report_type
         if report_type == "costs":
             for key in sum2:
@@ -457,14 +469,25 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                                     sum2[key][next_key][final_key] = (
                                         sum2[key][next_key][final_key] + sum1[key][next_key][final_key]
                                     )
-                else:
-                    pass
-        else:
+        elif report_type == "instance_type":
             for key in sum2:
                 if key in sum1:
                     for next_key in sum2[key]:
                         if next_key in sum1[key] and next_key == "value":
                             sum2[key][next_key] = sum2[key][next_key] + sum1[key][next_key]
+
+        else:
+            for key, value in sum2.items():
+                if key in sum1:
+                    for next_key in value:
+                        if next_key in sum1[key] and next_key == "value":
+                            sum2[key][next_key] = sum2[key][next_key] + sum1[key][next_key]
+                        else:
+                            for final_key in sum2[key][next_key]:
+                                if final_key in sum1[key][next_key] and final_key == "value":
+                                    sum2[key][next_key][final_key] = (
+                                        sum2[key][next_key][final_key] + sum1[key][next_key][final_key]
+                                    )
         return sum2
 
     def execute_individual_query(self):  # noqa: C901
@@ -482,11 +505,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query = query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
-            if "org_unit" in query_group_by:
-                query_group_by.remove("org_unit")
-                self.parameters.parameters.get("group_by").pop("org_unit")
-                if "usage_account_id" not in query_group_by:
-                    query_group_by.append("usage_account_id")
             query_order_by = ["-date"]
             query_order_by.extend([self.order])
 

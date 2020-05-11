@@ -37,6 +37,10 @@ account_structure:
             accounts:
               - account_alias_id: '9999999999994'
                 account_alias_name: 'Dept OU_004 004'
+          - organizational_unit:
+            org_unit_id: 'OU_005'
+            org_unit_name: 'Dept OU_005'
+            parent_path: "R_001&OU_002"
     - day:
         date: -31
         nodes:
@@ -65,6 +69,10 @@ account_structure:
           - organizational_unit:
             org_unit_id: 'OU_003'
             org_unit_name: 'Dept OU_003'
+            parent_path: "R_001&OU_002"
+          - organizational_unit:
+            org_unit_id: 'OU_005'
+            org_unit_name: 'Dept OU_005'
             parent_path: "R_001&OU_002"
     - day:
         date: 0
@@ -95,3 +103,7 @@ account_structure:
             accounts:
               - account_alias_id: '9999999999993'
                 account_alias_name: 'account 003'
+          - organizational_unit:
+            org_unit_id: 'OU_005'
+            org_unit_name: 'Dept OU_005'
+            parent_path: "R_001&OU_002"
