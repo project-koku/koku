@@ -35,7 +35,7 @@ def setup_cloudwatch_logging(logger):
             region_name=Config.CW_AWS_REGION,
         )
         handler = watchtower.CloudWatchLogHandler(
-            boto3_session=session, log_group=Config.CW_LOG_GROUP, stream_name=Config.NAMESPACE
+            boto3_session=session, log_group=Config.CW_LOG_GROUP, stream_name=Config.NAMESPACE, create_log_group=False
         )
         logger.addHandler(handler)
     except ClientError as cerr:
