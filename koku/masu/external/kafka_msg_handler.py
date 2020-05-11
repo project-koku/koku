@@ -17,14 +17,17 @@
 """Kafka message handler."""
 import asyncio
 import concurrent.futures
+import functools
 import json
 import logging
 import os
 import random
 import shutil
+import signal
 import tempfile
 import threading
 import time
+import traceback
 import uuid
 from tarfile import ReadError
 from tarfile import TarFile
@@ -35,7 +38,6 @@ from aiokafka import AIOKafkaProducer
 from django.db import connection
 from django.db import InterfaceError
 from django.db import OperationalError
-from django.db import transaction
 from kafka.errors import KafkaError
 
 from masu.config import Config
@@ -46,6 +48,7 @@ from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.processor._tasks.process import _process_report_file
+from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
@@ -300,11 +303,15 @@ def handle_message(msg):
     if msg.topic == HCCM_TOPIC:
         value = json.loads(msg.value.decode("utf-8"))
         try:
-            LOG.debug(f"Extracting Payload for msg: {str(msg)}")
+            LOG.info(f"Extracting Payload for msg: {str(value)}")
             report_meta = extract_payload(value["url"])
             return SUCCESS_CONFIRM_STATUS, report_meta
+        except (OperationalError, InterfaceError):
+            LOG.error("Unable to extract payload, database is closed.  Retrying...")
+            raise KafkaMsgHandlerError("Unable to extract payload, db closed.")
         except Exception as error:  # noqa
-            LOG.warning("Unable to extract payload. Error: %s", str(error))
+            traceback.print_exc()
+            LOG.warning("Unable to extract payload. Error: %s", str(type(error)))
             return FAILURE_CONFIRM_STATUS, None
     else:
         LOG.error("Unexpected Message")
@@ -388,8 +395,7 @@ def process_report(report):
         "manifest_id": manifest_id,
         "provider_uuid": provider_uuid,
     }
-    with transaction.atomic():
-        _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
+    _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
 
 
 # pylint: disable=broad-except
@@ -407,12 +413,22 @@ async def process_messages(msg, loop=EVENT_LOOP):  # pragma: no cover
     with concurrent.futures.ThreadPoolExecutor() as pool:
         status, report_meta = await loop.run_in_executor(pool, handle_message, msg)
 
+    if report_meta:
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            await loop.run_in_executor(pool, process_report, report_meta)
+            LOG.info(f"Processing: {report_meta.get('current_file')} complete.")
+            async_id = await loop.run_in_executor(pool, summarize_manifest, report_meta)
+            if async_id:
+                LOG.info("Summarization celery uuid: %s", str(async_id))
     if status:
         value = json.loads(msg.value.decode("utf-8"))
         count = 0
         while True:
             try:
-                LOG.info(f"Sending Ingress Service confirmation for: {str(report_meta)}")
+                if report_meta:
+                    LOG.info(f"Sending Ingress Service confirmation for: {str(report_meta.get('current_file'))}")
+                else:
+                    LOG.info(f"Sending Ingress Service confirmation for: {str(value)}")
                 await send_confirmation(value["request_id"], status)
                 break
             except KafkaMsgHandlerError as err:
@@ -420,26 +436,16 @@ async def process_messages(msg, loop=EVENT_LOOP):  # pragma: no cover
                 backoff(count, Config.INSIGHTS_KAFKA_CONN_RETRY_MAX)
                 count += 1
                 continue
-    if report_meta:
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            try:
-                await loop.run_in_executor(pool, process_report, report_meta)
-                LOG.info(f"Processing: {report_meta.get('current_file')} complete.")
-                async_id = await loop.run_in_executor(pool, summarize_manifest, report_meta)
-                if async_id:
-                    LOG.info("Summarization celery uuid: %s", str(async_id))
-            except Exception as error:
-                # The reason for catching all exceptions is to ensure that the event
-                # loop does not block if process_report fails.
-                # Since this is a critical path for the listener it's not worth the
-                # risk of missing an exception in the download->process sequence.
-                LOG.error("Line item processing exception: %s", str(error))
 
 
 def get_consumer(event_loop):
     """Create a Kafka consumer."""
     return AIOKafkaConsumer(
-        HCCM_TOPIC, loop=event_loop, bootstrap_servers=Config.INSIGHTS_KAFKA_ADDRESS, group_id="hccm-group"
+        HCCM_TOPIC,
+        loop=event_loop,
+        bootstrap_servers=Config.INSIGHTS_KAFKA_ADDRESS,
+        group_id="hccm-group",
+        enable_auto_commit=False,
     )
 
 
@@ -472,7 +478,7 @@ async def listen_for_messages(consumer):  # pragma: no cover
         async for msg in consumer:
             try:
                 await process_messages(msg)
-            except (InterfaceError, OperationalError) as err:
+            except (InterfaceError, OperationalError, ReportProcessorDBError) as err:
                 connection.close()
                 LOG.error(err)
                 await asyncio.sleep(Config.RETRY_SECONDS)
@@ -480,23 +486,26 @@ async def listen_for_messages(consumer):  # pragma: no cover
             except KafkaMsgHandlerError as error:
                 LOG.error(f"Internal Error: {str(error)}")
                 await asyncio.sleep(Config.RETRY_SECONDS)
-                # FIXME: Do we really want to continiously retry processing errors?
                 await consumer.seek_to_committed()
             except ReportProcessorError as error:
                 LOG.error(f"Report processing error: {str(error)}")
-                await asyncio.sleep(Config.RETRY_SECONDS)
-                # FIXME: Do we really want to continiously retry processing errors?
-                await consumer.seek_to_committed()
+                await consumer.commit()
             else:
-                consumer.commit()
+                await consumer.commit()
+
     except KafkaError as error:
         LOG.error(f"[listen_for_messages] Kafka error encountered: {type(error).__name__}: {error}", exc_info=True)
         KAFKA_CONNECTION_ERRORS_COUNTER.inc()
     except Exception as error:
+        traceback.print_exc()
         LOG.error(f"[listen_for_messages] UNKNOWN error encountered: {type(error).__name__}: {error}", exc_info=True)
     finally:
         # Will leave consumer group; perform autocommit if enabled.
         await consumer.stop()
+
+
+def shutdown(loop):  # pragma: no cover
+    LOG.info("Received stop signal...")
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
@@ -511,9 +520,8 @@ def asyncio_worker_thread(loop):  # pragma: no cover
         None
 
     """
-
     try:
-        loop.run_until_complete(listen_for_messages_loop(loop))
+        loop.create_task(listen_for_messages_loop(loop))
         loop.run_forever()
     except KeyboardInterrupt:
         exit(0)
@@ -531,6 +539,7 @@ def initialize_kafka_handler():  # pragma: no cover
 
     """
     if Config.KAFKA_CONNECT:
+        EVENT_LOOP.add_signal_handler(signal.SIGTERM, functools.partial(shutdown, EVENT_LOOP))
         event_loop_thread = threading.Thread(target=asyncio_worker_thread, args=(EVENT_LOOP,))
         event_loop_thread.daemon = True
         event_loop_thread.start()
