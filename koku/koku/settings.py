@@ -316,7 +316,7 @@ if CW_AWS_ACCESS_KEY_ID:
             "stream_name": POD_NAME,
             "formatter": LOGGING_FORMATTER,
             "use_queues": False,
-            "create_log_group": False
+            "create_log_group": False,
         }
     except ClientError as e:
         if e.response.get("Error", {}).get("Code") == "ResourceAlreadyExistsException":
@@ -329,7 +329,7 @@ if CW_AWS_ACCESS_KEY_ID:
                 "stream_name": POD_NAME,
                 "formatter": LOGGING_FORMATTER,
                 "use_queues": False,
-                "create_log_group": False
+                "create_log_group": False,
             }
         else:
             print("CloudWatch not configured.")
