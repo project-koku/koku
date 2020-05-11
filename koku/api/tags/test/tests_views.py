@@ -16,47 +16,54 @@
 #
 """Test the Report views."""
 # from django.test import RequestFactory
+from uuid import uuid4
+
 from django.urls import reverse
 from rest_framework import status
 
 from api.iam.test.iam_test_case import IamTestCase
 
-# from rest_framework.test import APIClient
-# from api.common.pagination import ReportPagination
-# from api.common.pagination import ReportRankedPagination
-# from api.iam.test.iam_test_case import RbacPermissions
-# from api.report.view import get_paginator
-
 
 class TagsViewTest(IamTestCase):
     """Tests the report view."""
 
-    TAGS = [
+    TAGS = {
         # tags
-        "aws-tags",
-        "azure-tags",
-        "openshift-tags",
-        "openshift-aws-tags",
-        "openshift-azure-tags",
-        "openshift-all-tags",
-    ]
-
-    TAGS_KEYS = [
-        "aws-tags-key",
-        "azure-tags-key",
-        "openshift-tags-key",
-        "openshift-aws-tags-key",
-        "openshift-azure-tags-key",
-        "openshift-all-tags-key",
-    ]
+        "aws-tags": "aws-tags-key",
+        "azure-tags": "azure-tags-key",
+        "openshift-tags": "openshift-tags-key",
+        "openshift-aws-tags": "openshift-aws-tags-key",
+        "openshift-azure-tags": "openshift-azure-tags-key",
+        "openshift-all-tags": "openshift-all-tags-key",
+    }
 
     def test_tags_endpoint_view(self):
         """Test endpoint runs with a customer owner."""
-        for tag_endpoint in self.TAGS:
+        for tag_endpoint in self.TAGS.keys():
             with self.subTest(endpoint=tag_endpoint):
                 url = reverse(tag_endpoint)
                 response = self.client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_tags(self):
-        pass
+    def test_tags_key_endpoint_view_404(self):
+        """Test tag key endpoint return 404 for not-real tags."""
+        uuid = uuid4()
+        for tag_endpoint in self.TAGS.values():
+            with self.subTest(endpoint=tag_endpoint):
+                url = reverse(tag_endpoint, args=[f"this-key-isn't-real-{str(uuid)}"])
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_tags_key_endpoint_view(self):
+        for tag_endpoint, key_endpoint in self.TAGS.items():
+            with self.subTest(endpoint=(tag_endpoint, key_endpoint)):
+                url = reverse(tag_endpoint)
+                response = self.client.get(url, **self.headers)
+                data = response.data["data"][0]
+                key, expected = data.get("key"), data.get("values")
+
+                url = reverse(key_endpoint, args=[key])
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                values = response.data["data"]
+                self.assertListEqual(values, expected)
