@@ -16,6 +16,7 @@
 """Describes the urls and patterns for the API application."""
 from django.conf.urls import include
 from django.conf.urls import url
+from django.urls import path
 from django.views.generic.base import RedirectView
 from rest_framework.routers import DefaultRouter
 
@@ -68,6 +69,12 @@ urlpatterns = [
     url(r"^tags/openshift/infrastructures/all/$", OCPAllTagView.as_view(), name="openshift-all-tags"),
     url(r"^tags/openshift/infrastructures/aws/$", OCPAWSTagView.as_view(), name="openshift-aws-tags"),
     url(r"^tags/openshift/infrastructures/azure/$", OCPAzureTagView.as_view(), name="openshift-azure-tags"),
+    path("tags/aws/<key>/", AWSTagView.as_view(), name="aws-tags-key"),
+    path("tags/azure/<key>/", AzureTagView.as_view(), name="azure-tags-key"),
+    path("tags/openshift/<key>/", OCPTagView.as_view(), name="openshift-tags-key"),
+    path("tags/openshift/infrastructures/all/<key>/", OCPAllTagView.as_view(), name="openshift-all-tags-key"),
+    path("tags/openshift/infrastructures/aws/<key>/", OCPAWSTagView.as_view(), name="openshift-aws-tags-key"),
+    path("tags/openshift/infrastructures/azure/<key>/", OCPAzureTagView.as_view(), name="openshift-azure-tags-key"),
     url(r"^reports/aws/costs/$", AWSCostView.as_view(), name="reports-aws-costs"),
     url(r"^reports/aws/instance-types/$", AWSInstanceTypeView.as_view(), name="reports-aws-instance-type"),
     url(r"^reports/aws/storage/$", AWSStorageView.as_view(), name="reports-aws-storage"),

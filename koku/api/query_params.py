@@ -54,7 +54,7 @@ class QueryParameters:
         ],
     }
 
-    def __init__(self, request, caller):
+    def __init__(self, request, caller, **kwargs):
         """Constructor.
 
         Validated parameters will be set in the `parameters` attribute.
@@ -68,6 +68,7 @@ class QueryParameters:
         self._parameters = OrderedDict()
         self._display_parameters = OrderedDict()
 
+        self.kwargs = kwargs
         self.request = request
         self.report_type = caller.report
         self.serializer = caller.serializer
