@@ -6,7 +6,7 @@ azure-common==1.1.25
 azure-core==1.5.0
 azure-mgmt-costmanagement==0.2.0
 azure-mgmt-resource==9.0.0
-azure-mgmt-storage==9.0.0
+azure-mgmt-storage==10.0.0
 azure-storage-blob==12.3.0
 beautifulsoup4==4.9.0
 billiard==3.6.3.0
