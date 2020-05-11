@@ -1,5 +1,5 @@
 -i https://pypi.python.org/simple
-adal==1.2.2
+adal==1.2.3
 aiokafka==0.5.2
 amqp==2.5.2
 azure-common==1.1.25
