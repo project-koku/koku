@@ -85,6 +85,7 @@ class TagQueryHandler(QueryHandler):
             self.query_filter = self._get_key_filter()
 
     def _get_key_filter(self):
+        """Add new `exact` QueryFilter that filters on the key name."""
         filters = QueryFilterCollection()
         filters.add(QueryFilter(field="key", operation="exact", parameter=self.key))
         return self.query_filter & filters.compose()
