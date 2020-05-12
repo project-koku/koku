@@ -118,6 +118,31 @@ curl --header "Content-Type: application/json" \
   --data "$COST_MODEL_JSON" \
   http://$KOKU_API$API_PATH_PREFIX/v1/cost-models/
 
+OCP_ON_AWS_UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = 'Test OCP on AWS'" | head -1 | sed -e 's/^[ \t]*//')
+COST_MODEL_JSON=$(cat "$KOKU_PATH/scripts/openshift_on_aws_cost_model.json" | sed -e "s/PROVIDER_UUID/$OCP_ON_AWS_UUID/g")
+
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data "$COST_MODEL_JSON" \
+  http://$KOKU_API$API_PATH_PREFIX/v1/cost-models/
+
+
+AWS_UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = 'Test AWS Source'" | head -1 | sed -e 's/^[ \t]*//')
+COST_MODEL_JSON=$(cat "$KOKU_PATH/scripts/aws_cost_model.json" | sed -e "s/PROVIDER_UUID/$AWS_UUID/g")
+
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data "$COST_MODEL_JSON" \
+  http://$KOKU_API$API_PATH_PREFIX/v1/cost-models/
+
+AZURE_UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = 'Test Azure Source'" | head -1 | sed -e 's/^[ \t]*//')
+COST_MODEL_JSON=$(cat "$KOKU_PATH/scripts/azure_cost_model.json" | sed -e "s/PROVIDER_UUID/$AZURE_UUID/g")
+
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data "$COST_MODEL_JSON" \
+  http://$KOKU_API$API_PATH_PREFIX/v1/cost-models/
+
 curl --header "Content-Type: application/json" \
   --request POST \
   --data '{"schema": "acct10001","action": "create","tag_keys": ["environment", "app", "version", "storageclass"]}' \

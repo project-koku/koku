@@ -36,8 +36,6 @@ from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import AWSCostEntryPricing
 from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
-from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
-from reporting.provider.ocp_aws.models import OCPAWSCostLineItemProjectDailySummary
 
 LOG = logging.getLogger(__name__)
 
@@ -46,17 +44,14 @@ LOG = logging.getLogger(__name__)
 class AWSReportDBAccessor(ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
-    def __init__(self, schema, column_map):
+    def __init__(self, schema):
         """Establish the database connection.
 
         Args:
             schema (str): The customer schema to associate with
-            column_map (dict): A mapping of report columns to database columns
-
         """
-        super().__init__(schema, column_map)
+        super().__init__(schema)
         self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
-        self.column_map = column_map
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
 
@@ -252,17 +247,17 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
                 bill.finalized_datetime = self.date_accessor.today_with_timezone("UTC")
                 bill.save()
 
-    def populate_tags_summary_table(self):
+    def populate_tags_summary_table(self, bill_ids):
         """Populate the line item aggregated totals data table."""
         table_name = AWS_CUR_TABLE_MAP["tags_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_awstags_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_awstags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema}
+        agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
-    def populate_ocp_on_aws_cost_daily_summary(self, start_date, end_date, cluster_id, bill_ids):
+    def populate_ocp_on_aws_cost_daily_summary(self, start_date, end_date, cluster_id, bill_ids, markup_value):
         """Populate the daily cost aggregated summary for OCP on AWS.
 
         Args:
@@ -283,6 +278,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             "bill_ids": bill_ids,
             "cluster_id": cluster_id,
             "schema": self.schema,
+            "markup": markup_value,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
@@ -294,7 +290,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_tags_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpawstags_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpawstags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {"schema": self.schema}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
@@ -310,20 +306,3 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
                     )
             else:
                 AWSCostEntryLineItemDailySummary.objects.update(markup_cost=(F("unblended_cost") * markup))
-
-    def populate_ocp_on_aws_markup_cost(self, markup, bill_ids=None):
-        """Set markup costs in the database."""
-        with schema_context(self.schema):
-            if bill_ids:
-                for bill_id in bill_ids:
-                    OCPAWSCostLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
-                        markup_cost=(F("unblended_cost") * markup)
-                    )
-                    OCPAWSCostLineItemProjectDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
-                        project_markup_cost=(F("unblended_cost") * markup)
-                    )
-            else:
-                OCPAWSCostLineItemDailySummary.objects.update(markup_cost=(F("unblended_cost") * markup))
-                OCPAWSCostLineItemProjectDailySummary.objects.update(
-                    project_markup_cost=(F("unblended_cost") * markup)
-                )

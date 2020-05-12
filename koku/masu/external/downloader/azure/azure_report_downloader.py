@@ -99,7 +99,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         storage_account_name = billing_source.get("storage_account")
 
         service = AzureService(
-            subscription_id, tenant_id, client_id, client_secret, resource_group_name, storage_account_name
+            tenant_id, client_id, client_secret, resource_group_name, storage_account_name, subscription_id
         )
         return service
 
@@ -147,7 +147,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             manifest["assemblyId"] = extract_uuids_from_string(report_name).pop()
         except IndexError:
-            message = f"Unable to extract assemblyID from %s"
+            message = f"Unable to extract assemblyID from {report_name}"
             raise AzureReportDownloaderError(message)
 
         billing_period = {
@@ -242,7 +242,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             blob = self._azure_client.get_cost_export_for_key(key, self.container_name)
             etag = blob.etag
         except AzureCostReportNotFound as ex:
-            log_msg = "Error when downloading Azure report for key: %s. Error %s".format(key, str(ex))
+            log_msg = f"Error when downloading Azure report for key: {key}. Error {ex}"
             LOG.error(log_msg)
             raise AzureReportDownloaderError(log_msg)
 

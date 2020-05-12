@@ -21,6 +21,7 @@ from django.utils.translation import ugettext as _
 from rest_framework.serializers import ValidationError
 
 from ..azure.provider import AzureProvider
+from ..provider_errors import ProviderErrors
 from api.models import Provider
 
 LOG = logging.getLogger(__name__)
@@ -69,13 +70,13 @@ class AzureLocalProvider(AzureProvider):
         key = "billing_source.bucket"
 
         if not (isinstance(credential_name, dict) and isinstance(storage_resource_name, dict)):
-            message = f"Resource group and/or Storage account must be a dict"
+            message = "Resource group and/or Storage account must be a dict"
             raise ValidationError(error_obj(key, message))
 
         resource_group = storage_resource_name.get("resource_group")
         storage_account = storage_resource_name.get("storage_account")
         if not (resource_group and storage_account):
-            message = "resource_group or storage_account is undefined."
+            message = ProviderErrors.AZURE_MISSING_RESOURCE_GROUP_AND_STORAGE_ACCOUNT_MESSAGE
             raise ValidationError(error_obj(key, message))
 
         return True

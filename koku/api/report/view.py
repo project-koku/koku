@@ -112,7 +112,7 @@ def _convert_units(converter, data, to_unit):
                 total["value"] = new_value.magnitude
                 new_unit = to_unit + "-" + suffix if suffix else to_unit
                 total["units"] = new_unit
-            elif key == "total" and not isinstance(data[key], dict):
+            elif key == "total":
                 total = data[key]
                 from_unit = data.get("units", "")
                 if "-Mo" in from_unit:
@@ -136,7 +136,7 @@ class ReportView(APIView):
     """
 
     @vary_on_headers(RH_IDENTITY_HEADER)
-    def get(self, request):
+    def get(self, request, **kwargs):
         """Get Report Data.
 
         This method is responsible for passing request data to the reporting APIs.
@@ -151,7 +151,7 @@ class ReportView(APIView):
         LOG.debug(f"API: {request.path} USER: {request.user.username}")
 
         try:
-            params = QueryParameters(request=request, caller=self)
+            params = QueryParameters(request=request, caller=self, **kwargs)
         except ValidationError as exc:
             return Response(data=exc.detail, status=status.HTTP_400_BAD_REQUEST)
         handler = self.query_handler(params)

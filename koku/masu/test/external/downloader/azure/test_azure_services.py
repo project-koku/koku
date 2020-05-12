@@ -21,6 +21,7 @@ from unittest.mock import patch
 from unittest.mock import PropertyMock
 
 from azure.common import AzureException
+from azure.core.exceptions import HttpResponseError
 from azure.storage.blob import BlobClient
 from azure.storage.blob import BlobServiceClient
 from azure.storage.blob import ContainerClient
@@ -29,6 +30,7 @@ from faker import Faker
 
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
+from masu.external.downloader.azure.azure_service import AzureServiceError
 from masu.test import MasuTestCase
 from providers.azure.client import AzureClientFactory
 
@@ -38,6 +40,18 @@ FAKE = Faker()
 def throw_azure_exception(scope):
     """Raises azure exception."""
     raise AzureException()
+
+
+def throw_azure_http_error(scope):
+    """Raises azure http error."""
+    raise HttpResponseError()
+
+
+def throw_azure_http_error_403(scope):
+    """Raises azure http error."""
+    error = HttpResponseError()
+    error.status_code = 403
+    raise error
 
 
 class AzureServiceTest(MasuTestCase):
@@ -111,12 +125,12 @@ class AzureServiceTest(MasuTestCase):
                 subscription_id=self.subscription_id,
             )
             client = AzureService(
-                self.subscription_id,
                 self.tenant_id,
                 self.client_id,
                 self.client_secret,
                 self.resource_group_name,
                 self.storage_account_name,
+                self.subscription_id,
             )
         return client
 
@@ -124,6 +138,20 @@ class AzureServiceTest(MasuTestCase):
         """Test the AzureService initializer."""
         svc = self.get_mock_client()
         self.assertIsInstance(svc, AzureService)
+
+    @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
+    def test_init_no_subscription_id(self, mock_factory):
+        """Test that exception is raized with no subscription id provided."""
+
+        class MockAzureFactory:
+            subscription_id = None
+
+        factory = MockAzureFactory()
+        mock_factory.return_value = factory
+        with self.assertRaises(AzureServiceError):
+            AzureService(
+                self.tenant_id, self.client_id, self.client_secret, self.resource_group_name, self.storage_account_name
+            )
 
     def test_get_cost_export_for_key(self):
         """Test that a cost export is retrieved by a key."""
@@ -209,6 +237,32 @@ class AzureServiceTest(MasuTestCase):
             self.assertEquals(export.get("container"), self.container_name)
             self.assertEquals(export.get("directory"), self.export_directory)
             self.assertIn("{}_{}".format(self.container_name, "blob"), export.get("name"))
+
+    def test_get_latest_cost_export_http_error(self):
+        """Test that the latest cost export catches the error for Azure HttpError."""
+        report_path = "{}_{}".format(self.container_name, "blob")
+
+        mock_blob = Mock(last_modified=Mock(date=Mock(return_value=self.current_date_time.date())))
+        name_attr = PropertyMock(return_value=report_path)
+        type(mock_blob).name = name_attr  # kludge to set name attribute on Mock
+
+        svc = self.get_mock_client(blob_list=[mock_blob])
+        svc._cloud_storage_account.get_container_client.side_effect = throw_azure_http_error
+        with self.assertRaises(AzureCostReportNotFound):
+            svc.get_latest_cost_export_for_path(report_path, self.container_name)
+
+    def test_get_latest_cost_export_http_error_403(self):
+        """Test that the latest cost export catches the error for Azure HttpError 403."""
+        report_path = "{}_{}".format(self.container_name, "blob")
+
+        mock_blob = Mock(last_modified=Mock(date=Mock(return_value=self.current_date_time.date())))
+        name_attr = PropertyMock(return_value=report_path)
+        type(mock_blob).name = name_attr  # kludge to set name attribute on Mock
+
+        svc = self.get_mock_client(blob_list=[mock_blob])
+        svc._cloud_storage_account.get_container_client.side_effect = throw_azure_http_error_403
+        with self.assertRaises(AzureCostReportNotFound):
+            svc.get_latest_cost_export_for_path(report_path, self.container_name)
 
     def test_describe_cost_management_exports_wrong_account(self):
         """Test that cost management exports are not returned from incorrect account."""

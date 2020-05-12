@@ -153,9 +153,9 @@ def extract_payload(url):  # noqa: C901
         payload_destination_path = f"{destination_dir}/{report_file}"
         try:
             shutil.copy(payload_source_path, payload_destination_path)
-        except FileNotFoundError as error:
-            LOG.error("Unable to find file in payload. %s", str(error))
-            raise KafkaMsgHandlerError("Missing file in payload")
+        except FileNotFoundError:
+            LOG.warning("Manifest file %s has not been processed.", str(report_file))
+
     LOG.info("Successfully extracted OCP for %s/%s", report_meta.get("cluster_id"), usage_month)
     # Remove temporary directory and files
     shutil.rmtree(temp_dir)
@@ -344,6 +344,8 @@ async def process_messages():  # pragma: no cover
                 try:
                     await EVENT_LOOP.run_in_executor(pool, process_report, report_meta)
                     LOG.info("Processing: %s complete.", str(report_meta))
+                except FileNotFoundError as error:
+                    LOG.info(f"File not recieved from ingress service yet. {str(error)}")
                 except Exception as error:
                     # The reason for catching all exceptions is to ensure that the event
                     # loop does not block if process_report fails.

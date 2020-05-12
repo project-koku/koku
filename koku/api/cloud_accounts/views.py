@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for Cloud Account."""
-import copy
 import logging
 
 from rest_framework import permissions
@@ -54,22 +53,18 @@ def get_paginator(request, count):
     return paginator
 
 
-@api_view(["GET"])  # noqa: C901
+@api_view(["GET"])
 @permission_classes((permissions.AllowAny,))
 @renderer_classes([JSONRenderer] + api_settings.DEFAULT_RENDERER_CLASSES)
 def cloud_accounts(request):
     """View for cloud accounts."""
     serializer = QueryParamsSerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)
-    data = copy.deepcopy(CLOUD_ACCOUNTS)
-    paginator = get_paginator(request, len(data))
-    limit = _get_int_query_param(request, "limit", 10)
-    offset = _get_int_query_param(request, "offset", 0)
-    if limit > len(data):
-        limit = len(data)
+    paginator = get_paginator(request, len(CLOUD_ACCOUNTS))
+    if paginator.limit > len(CLOUD_ACCOUNTS):
+        paginator.limit = len(CLOUD_ACCOUNTS)
     try:
-        data = data[offset : offset + limit]  # noqa E203
+        data = CLOUD_ACCOUNTS[paginator.offset : paginator.offset + paginator.limit]  # noqa E203
     except IndexError:
         data = []
-    page_obj = paginator.get_paginated_response(data)
-    return page_obj
+    return paginator.get_paginated_response(data)

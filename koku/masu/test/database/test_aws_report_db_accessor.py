@@ -38,13 +38,13 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_db_accessor_base import ReportSchema
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import map_django_field_type_to_python_type
 from masu.test.database.helpers import ReportObjectCreator
 from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
+from reporting_common import REPORT_COLUMN_MAP
 
 
 class ReportSchemaTest(MasuTestCase):
@@ -53,9 +53,7 @@ class ReportSchemaTest(MasuTestCase):
     def setUp(self):
         """Set up the test class with required objects."""
         super().setUp()
-        self.common_accessor = ReportingCommonDBAccessor()
-        self.column_map = self.common_accessor.column_map
-        self.accessor = AWSReportDBAccessor(schema=self.schema, column_map=self.column_map)
+        self.accessor = AWSReportDBAccessor(schema=self.schema)
         self.all_tables = list(AWS_CUR_TABLE_MAP.values())
         self.foreign_key_tables = [
             AWS_CUR_TABLE_MAP["bill"],
@@ -67,7 +65,7 @@ class ReportSchemaTest(MasuTestCase):
     def test_init(self):
         """Test the initializer."""
         tables = django.apps.apps.get_models()
-        report_schema = ReportSchema(tables, self.column_map)
+        report_schema = ReportSchema(tables)
 
         for table_name in self.all_tables:
             self.assertIsNotNone(getattr(report_schema, table_name))
@@ -77,9 +75,9 @@ class ReportSchemaTest(MasuTestCase):
     def test_get_reporting_tables(self):
         """Test that the report schema is populated with a column map."""
         tables = django.apps.apps.get_models()
-        report_schema = ReportSchema(tables, self.column_map)
+        report_schema = ReportSchema(tables)
 
-        report_schema._set_reporting_tables(tables, self.accessor.column_map)
+        report_schema._set_reporting_tables(tables)
 
         for table in self.all_tables:
             self.assertIsNotNone(getattr(report_schema, table))
@@ -115,11 +113,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
         """Set up the test class with required objects."""
         super().setUpClass()
 
-        cls.common_accessor = ReportingCommonDBAccessor()
-        cls.column_map = cls.common_accessor.column_map
-        cls.accessor = AWSReportDBAccessor(schema=cls.schema, column_map=cls.column_map)
+        cls.accessor = AWSReportDBAccessor(schema=cls.schema)
         cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
+        cls.creator = ReportObjectCreator(cls.schema)
 
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
         cls.foreign_key_tables = [
@@ -186,7 +182,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
     def test_get_db_obj_query_with_columns(self):
         """Test that a query is returned with limited columns."""
         table_name = random.choice(self.foreign_key_tables)
-        columns = list(self.column_map[table_name].values())
+        columns = list(REPORT_COLUMN_MAP[table_name].values())
 
         selected_columns = [random.choice(columns) for _ in range(2)]
         missing_columns = set(columns).difference(selected_columns)
@@ -848,6 +844,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
         project_summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"]
         bill_ids = []
+        markup_value = Decimal(0.1)
 
         summary_table = getattr(self.accessor.report_schema, summary_table_name)
         project_table = getattr(self.accessor.report_schema, project_summary_table_name)
@@ -877,7 +874,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
             sum_aws_cost = li_table.objects.all().aggregate(Sum("unblended_cost"))["unblended_cost__sum"]
 
-        with OCPReportDBAccessor(self.schema, self.column_map) as ocp_accessor:
+        with OCPReportDBAccessor(self.schema) as ocp_accessor:
             cluster_id = "testcluster"
             with ProviderDBAccessor(provider_uuid=self.ocp_test_provider_uuid) as provider_access:
                 provider_uuid = provider_access.get_provider().uuid
@@ -908,15 +905,34 @@ class AWSReportDBAccessorTest(MasuTestCase):
             query = self.accessor._get_db_obj_query(summary_table_name)
             initial_count = query.count()
 
-        self.accessor.populate_ocp_on_aws_cost_daily_summary(last_month, today, cluster_id, bill_ids)
+        self.accessor.populate_ocp_on_aws_cost_daily_summary(last_month, today, cluster_id, bill_ids, markup_value)
         with schema_context(self.schema):
             self.assertNotEqual(query.count(), initial_count)
 
-            sum_cost = summary_table.objects.all().aggregate(Sum("unblended_cost"))["unblended_cost__sum"]
-            sum_project_cost = project_table.objects.all().aggregate(Sum("unblended_cost"))["unblended_cost__sum"]
+            sum_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("unblended_cost"))[
+                "unblended_cost__sum"
+            ]
+            sum_project_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("unblended_cost"))[
+                "unblended_cost__sum"
+            ]
+            sum_pod_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("pod_cost"))[
+                "pod_cost__sum"
+            ]
+            sum_markup_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("markup_cost"))[
+                "markup_cost__sum"
+            ]
+            sum_markup_cost_project = project_table.objects.filter(cluster_id=cluster_id).aggregate(
+                Sum("markup_cost")
+            )["markup_cost__sum"]
+            sum_project_markup_cost_project = project_table.objects.filter(cluster_id=cluster_id).aggregate(
+                Sum("project_markup_cost")
+            )["project_markup_cost__sum"]
 
             self.assertEqual(sum_cost, sum_project_cost)
             self.assertLessEqual(sum_cost, sum_aws_cost)
+            self.assertAlmostEqual(sum_markup_cost, sum_cost * markup_value, 9)
+            self.assertAlmostEqual(sum_markup_cost_project, sum_cost * markup_value, 9)
+            self.assertAlmostEqual(sum_project_markup_cost_project, sum_pod_cost * markup_value, 9)
 
     def test_bills_for_provider_uuid(self):
         """Test that bills_for_provider_uuid returns the right bills."""

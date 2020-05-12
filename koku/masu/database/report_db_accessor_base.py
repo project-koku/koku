@@ -26,6 +26,7 @@ from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
+from reporting_common import REPORT_COLUMN_MAP
 
 LOG = logging.getLogger(__name__)
 
@@ -34,26 +35,24 @@ LOG = logging.getLogger(__name__)
 class ReportSchema:
     """A container for the reporting table objects."""
 
-    def __init__(self, tables, column_map):
+    def __init__(self, tables):
         """Initialize the report schema."""
         self.column_types = {}
-        self._set_reporting_tables(tables, column_map)
+        self._set_reporting_tables(tables)
 
-    def _set_reporting_tables(self, models, column_map):
+    def _set_reporting_tables(self, models):
         """Load table objects for reference and creation.
 
         Args:
             report_schema (ReportSchema): A schema struct object with all
                 report tables
-            column_map (dict): A mapping of report columns to database columns
-
         """
         column_types = {}
         for model in models:
             if "django" in model._meta.db_table:
                 continue
             setattr(self, model._meta.db_table, model)
-            columns = column_map[model._meta.db_table].values()
+            columns = REPORT_COLUMN_MAP[model._meta.db_table].values()
             types = {column: model._meta.get_field(column).get_internal_type() for column in columns}
             column_types.update({model._meta.db_table: types})
             self.column_types = column_types
@@ -63,17 +62,14 @@ class ReportSchema:
 class ReportDBAccessorBase(KokuDBAccess):
     """Class to interact with customer reporting tables."""
 
-    def __init__(self, schema, column_map):
+    def __init__(self, schema):
         """Establish the database connection.
 
         Args:
             schema (str): The customer schema to associate with
-            column_map (dict): A mapping of report columns to database columns
-
         """
         super().__init__(schema)
-        self.column_map = column_map
-        self.report_schema = ReportSchema(django.apps.apps.get_models(), self.column_map)
+        self.report_schema = ReportSchema(django.apps.apps.get_models())
 
     @property
     def decimal_precision(self):
@@ -94,7 +90,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         """Create a temporary table and return the table name."""
         temp_table_name = table_name + "_" + str(uuid.uuid4()).replace("-", "_")
         base_sql = f"CREATE TEMPORARY TABLE {temp_table_name} "
-        column_types = f""
+        column_types = ""
         for column in columns:
             for name, column_type in column.items():
                 column_types += f"{name} {column_type}, "
