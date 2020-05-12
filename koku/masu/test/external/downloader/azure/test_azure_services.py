@@ -20,6 +20,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
+from adal.adal_error import AdalError
 from azure.common import AzureException
 from azure.core.exceptions import HttpResponseError
 from azure.storage.blob import BlobClient
@@ -305,3 +306,69 @@ class AzureServiceTest(MasuTestCase):
         client = self.get_mock_client(blob_list=[mock_blob])
         file_path = client.download_cost_export(key, self.container_name)
         self.assertTrue(file_path.endswith(".csv"))
+
+    @patch("masu.external.downloader.azure.azure_service.AzureClientFactory", spec=AzureClientFactory)
+    def test_get_cost_export_for_key_exception(self, mock_factory):
+        """Test that function handles a raised exception."""
+        mock_factory.return_value = Mock(
+            spec=AzureClientFactory,
+            cloud_storage_account=Mock(
+                return_value=Mock(
+                    spec=BlobServiceClient,
+                    get_container_client=Mock(
+                        return_value=Mock(spec=ContainerClient, list_blobs=Mock(side_effect=AdalError("test error")))
+                    ),
+                )
+            ),
+        )
+        with self.assertRaises(AzureServiceError):
+            service = AzureService(
+                self.tenant_id, self.client_id, self.client_secret, self.resource_group_name, self.storage_account_name
+            )
+            service.get_cost_export_for_key(key=FAKE.word(), container_name=FAKE.word())
+
+    @patch("masu.external.downloader.azure.azure_service.AzureClientFactory", spec=AzureClientFactory)
+    def test_download_cost_report_exception(self, mock_factory):
+        """Test that function handles a raised exception."""
+        key = FAKE.word()
+        mock_blob = Mock(last_modified=Mock(date=Mock(return_value=datetime.now())))
+        name_attr = PropertyMock(return_value=key)
+        type(mock_blob).name = name_attr  # kludge to set name attribute on Mock
+
+        mock_factory.return_value = Mock(
+            spec=AzureClientFactory,
+            cloud_storage_account=Mock(
+                return_value=Mock(
+                    spec=BlobServiceClient,
+                    get_blob_client=Mock(side_effect=AdalError("test error")),
+                    get_container_client=Mock(
+                        return_value=Mock(spec=ContainerClient, list_blobs=Mock(return_value=[mock_blob]))
+                    ),
+                )
+            ),
+        )
+        with self.assertRaises(AzureServiceError):
+            service = AzureService(
+                self.tenant_id, self.client_id, self.client_secret, self.resource_group_name, self.storage_account_name
+            )
+            service.download_cost_export(key=key, container_name=FAKE.word())
+
+    @patch("masu.external.downloader.azure.azure_service.AzureClientFactory", spec=AzureClientFactory)
+    def test_get_latest_cost_export_for_path_exception(self, mock_factory):
+        """Test that function handles a raised exception."""
+        mock_factory.return_value = Mock(
+            spec=AzureClientFactory,
+            cloud_storage_account=Mock(
+                return_value=Mock(
+                    spec=BlobServiceClient,
+                    get_container_client=Mock(
+                        return_value=Mock(spec=ContainerClient, list_blobs=Mock(side_effect=AdalError("test error")))
+                    ),
+                )
+            ),
+        )
+        with self.assertRaises(AzureServiceError):
+            service = AzureService(
+                self.tenant_id, self.client_id, self.client_secret, self.resource_group_name, self.storage_account_name
+            )
+            service.get_latest_cost_export_for_path(report_path=FAKE.word(), container_name=FAKE.word())
