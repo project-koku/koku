@@ -135,6 +135,7 @@ class ListPaginator(StandardResultsSetPagination):
 
     @property
     def paginated_response(self):
+        """Return the paginated repsonse."""
         return self.get_paginated_response(self.paginated_data_set)
 
 
