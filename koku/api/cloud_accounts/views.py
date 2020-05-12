@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for Cloud Account."""
+import copy
 import logging
 
 from rest_framework import permissions
@@ -25,32 +26,12 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.settings import api_settings
 
 from api.cloud_accounts import CLOUD_ACCOUNTS
-from api.common.pagination import StandardResultsSetPagination
+from api.common.pagination import ListPaginator
 from api.metrics.serializers import QueryParamsSerializer
 
 
 LOG = logging.getLogger(__name__)
 """View for Cloud Accounts."""
-
-
-def _get_int_query_param(request, key, default):
-    """Get query param integer value safely."""
-    result = default
-    try:
-        result = int(request.query_params.get(key, default))
-    except ValueError:
-        pass
-    return result
-
-
-def get_paginator(request, count):
-    """Get Paginator."""
-    paginator = StandardResultsSetPagination()
-    paginator.count = count
-    paginator.request = request
-    paginator.limit = _get_int_query_param(request, "limit", 10)
-    paginator.offset = _get_int_query_param(request, "offset", 0)
-    return paginator
 
 
 @api_view(["GET"])
@@ -60,11 +41,6 @@ def cloud_accounts(request):
     """View for cloud accounts."""
     serializer = QueryParamsSerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)
-    paginator = get_paginator(request, len(CLOUD_ACCOUNTS))
-    if paginator.limit > len(CLOUD_ACCOUNTS):
-        paginator.limit = len(CLOUD_ACCOUNTS)
-    try:
-        data = CLOUD_ACCOUNTS[paginator.offset : paginator.offset + paginator.limit]  # noqa E203
-    except IndexError:
-        data = []
-    return paginator.get_paginated_response(data)
+    cloud_accounts_copy = copy.deepcopy(CLOUD_ACCOUNTS)
+    paginator = ListPaginator(cloud_accounts_copy, request)
+    return paginator.paginated_response
