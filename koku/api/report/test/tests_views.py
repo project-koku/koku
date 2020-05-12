@@ -65,16 +65,6 @@ class ReportViewTest(IamTestCase):
         + ENDPOINTS_OPENSHIFT_ALL
     )
 
-    TAGS = [
-        # tags
-        "aws-tags",
-        "azure-tags",
-        "openshift-tags",
-        "openshift-aws-tags",
-        "openshift-azure-tags",
-        "openshift-all-tags",
-    ]
-
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
@@ -92,14 +82,6 @@ class ReportViewTest(IamTestCase):
                 self.assertIsNotNone(json_result.get("data"))
                 self.assertIsInstance(json_result.get("data"), list)
                 self.assertTrue(len(json_result.get("data")) > 0)
-
-    def test_tags_endpoint_view(self):
-        """Test endpoint runs with a customer owner."""
-        for tag_endpoint in self.TAGS:
-            with self.subTest(endpoint=tag_endpoint):
-                url = reverse(tag_endpoint)
-                response = self.client.get(url, **self.headers)
-                self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_endpoints_invalid_query_param(self):
         """Test endpoint runs with an invalid query param."""
