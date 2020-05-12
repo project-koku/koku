@@ -70,6 +70,8 @@ class CloudAccountViewTest(IamTestCase):
         if len(data) > 0:
             self.assertEqual(data[0].get("name"), CLOUD_ACCOUNTS[1].get("name"))
             self.assertEqual(1, len(data))
+        else:
+            self.assertFalse(data)
 
     def test_invalid_query_params(self):
         """
