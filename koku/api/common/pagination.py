@@ -27,16 +27,6 @@ PATH_INFO = "PATH_INFO"
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-def _get_int_query_param(request, key, default):
-    """Get query param integer value safely."""
-    result = default
-    try:
-        result = int(request.query_params.get(key, default))
-    except ValueError:
-        pass
-    return result
-
-
 class StandardResultsSetPagination(LimitOffsetPagination):
     """Create standard paginiation class with page size."""
 
@@ -111,18 +101,9 @@ class ListPaginator(StandardResultsSetPagination):
     def __init__(self, data_set, request):
         """Initialize the paginator."""
         self.data_set = data_set
-        self.request = request
         self.count = len(data_set)
-        self.limit = self.get_limit()
-        self.offset = self.get_offset()
-
-    def get_limit(self):
-        """Get the pagination limit."""
-        return _get_int_query_param(self.request, "limit", self.default_limit)
-
-    def get_offset(self):
-        """Get the pagination offset."""
-        return _get_int_query_param(self.request, "offset", 0)
+        self.limit = self.get_limit(request)
+        self.offset = self.get_offset(request)
 
     @property
     def paginated_data_set(self):
