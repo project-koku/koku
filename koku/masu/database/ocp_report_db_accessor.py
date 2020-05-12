@@ -577,7 +577,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = OCP_REPORT_TABLE_MAP["pod_label_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpusagepodlabel_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagepodlabel_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {"schema": self.schema, "report_period_ids": report_period_ids}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
@@ -588,7 +588,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """Populate the OCP volume label summary table."""
         table_name = OCP_REPORT_TABLE_MAP["volume_label_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpstoragevolumelabel_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpstoragevolumelabel_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {"schema": self.schema, "report_period_ids": report_period_ids}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
