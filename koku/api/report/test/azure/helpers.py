@@ -549,7 +549,7 @@ class AzureReportDataGenerator:
 
     def _tag_summary(self):
         """Populate AzureTagsSummary."""
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_azuretags_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_azuretags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {"schema": connection.schema_name}
         agg_sql, agg_sql_params = JinjaSql().prepare_query(agg_sql, agg_sql_params)

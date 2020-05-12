@@ -70,7 +70,7 @@ class AzureLocalProvider(AzureProvider):
         key = "billing_source.bucket"
 
         if not (isinstance(credential_name, dict) and isinstance(storage_resource_name, dict)):
-            message = f"Resource group and/or Storage account must be a dict"
+            message = "Resource group and/or Storage account must be a dict"
             raise ValidationError(error_obj(key, message))
 
         resource_group = storage_resource_name.get("resource_group")

@@ -985,7 +985,7 @@ class OCPAWSReportViewTest(IamTestCase):
             self.assertIsNotNone(labels)
             tags = labels.get("tags")
 
-        qstr = f"filter[limit]=2"
+        qstr = "filter[limit]=2"
 
         # pick a random subset of tags
         kval = len(tags.keys())

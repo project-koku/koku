@@ -138,7 +138,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = AZURE_REPORT_TABLE_MAP["tags_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_azuretags_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_azuretags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
@@ -221,7 +221,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_tags_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpazuretags_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazuretags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {"schema": self.schema}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
