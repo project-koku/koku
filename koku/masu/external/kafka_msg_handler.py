@@ -77,7 +77,7 @@ def backoff(interval, maximum=64):  # pragma: no cover
 
 
 def create_manifest_entries(report_meta):
-    """Create manifest statastics entries."""
+    """Create manifest statistics entries."""
 
     class Request:
         id = uuid.uuid4()
@@ -398,8 +398,7 @@ def process_report(report):
     _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
 
 
-# pylint: disable=broad-except
-async def process_messages(msg, loop=EVENT_LOOP):  # pragma: no cover
+async def process_messages(msg, loop=EVENT_LOOP):
     """
     Process asyncio MSG_PENDING_QUEUE and send validation status.
 
@@ -438,7 +437,7 @@ async def process_messages(msg, loop=EVENT_LOOP):  # pragma: no cover
                 continue
 
 
-def get_consumer(event_loop):
+def get_consumer(event_loop):  # pragma: no cover
     """Create a Kafka consumer."""
     return AIOKafkaConsumer(
         HCCM_TOPIC,
@@ -457,7 +456,7 @@ async def listen_for_messages_loop(event_loop):
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
-async def listen_for_messages(consumer):  # pragma: no cover
+async def listen_for_messages(consumer):
     """
     Listen for messages on the available and hccm topics.
 
