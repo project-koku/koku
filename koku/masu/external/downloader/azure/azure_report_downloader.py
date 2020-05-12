@@ -242,7 +242,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             blob = self._azure_client.get_cost_export_for_key(key, self.container_name)
             etag = blob.etag
         except AzureCostReportNotFound as ex:
-            log_msg = "Error when downloading Azure report for key: %s. Error %s".format(key, str(ex))
+            log_msg = f"Error when downloading Azure report for key: {key}. Error {ex}"
             LOG.error(log_msg)
             raise AzureReportDownloaderError(log_msg)
 
