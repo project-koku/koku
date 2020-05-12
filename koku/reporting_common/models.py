@@ -18,8 +18,6 @@
 from django.db import models
 from django.utils import timezone
 
-from api.provider.models import Provider
-
 
 class CostUsageReportManifest(models.Model):
     """Information gathered from a cost usage report manifest file."""
@@ -54,32 +52,6 @@ class CostUsageReportStatus(models.Model):
     last_completed_datetime = models.DateTimeField(null=True)
     last_started_datetime = models.DateTimeField(null=True)
     etag = models.CharField(max_length=64, null=True)
-
-
-class ReportColumnMap(models.Model):
-    """A mapping table for Cost Usage Reports.
-
-    This maps a column name in a report to a database table
-    and column in a customer schema.
-
-    """
-
-    class Meta:
-        """Meta for ReportColumnMap."""
-
-        unique_together = ("report_type", "provider_column_name")
-
-    report_type = models.CharField(max_length=50, null=True)
-
-    provider_type = models.CharField(
-        max_length=50, null=False, choices=Provider.PROVIDER_CHOICES, default=Provider.PROVIDER_AWS
-    )
-
-    provider_column_name = models.CharField(max_length=128, null=False, unique=False)
-
-    database_table = models.CharField(max_length=50, null=False)
-
-    database_column = models.CharField(max_length=128, null=False)
 
 
 class RegionMapping(models.Model):

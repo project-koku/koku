@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for OCP-on-All tags."""
+from api.common.permissions.openshift_all_access import OpenshiftAllAccessPermission
 from api.tags.all.openshift.queries import OCPAllTagQueryHandler
 from api.tags.serializers import OCPAllTagsQueryParamSerializer
 from api.tags.view import TagView
@@ -29,3 +30,4 @@ class OCPAllTagView(TagView):
     serializer = OCPAllTagsQueryParamSerializer
     query_handler = OCPAllTagQueryHandler
     tag_handler = [AWSTagsSummary, AzureTagsSummary]
+    permission_classes = [OpenshiftAllAccessPermission]

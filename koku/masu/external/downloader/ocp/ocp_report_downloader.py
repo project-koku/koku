@@ -98,20 +98,12 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         manifest = self._get_manifest(date_time)
         LOG.info("manifest found: %s", str(manifest))
-        latest_uuid = manifest.get("uuid")
 
         reports = []
-        try:
-            if latest_uuid:
-                for file in os.listdir(directory):
-                    if file.startswith(latest_uuid):
-                        report_full_path = os.path.join(directory, file)
-                        LOG.info("Found file %s", report_full_path)
-                        reports.append(report_full_path)
-            else:
-                LOG.error("Current UUID for report could not be found.")
-        except OSError as error:
-            LOG.error("Unable to get report. Error: %s", str(error))
+        for file in manifest.get("files", []):
+            report_full_path = os.path.join(directory, file)
+            reports.append(report_full_path)
+
         return reports
 
     def download_file(self, key, stored_etag=None):

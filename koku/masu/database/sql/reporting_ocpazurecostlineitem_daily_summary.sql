@@ -925,6 +925,7 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         li.tags,
         max(li.usage_quantity) as usage_quantity,
         max(li.pretax_cost) as pretax_cost,
+        max(li.pretax_cost) * {{markup}}::numeric as markup_cost,
         max(li.shared_projects) as shared_projects,
         max(li.offer_id) as offer_id,
         pc.project_costs as project_costs
@@ -961,6 +962,7 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         li.tags,
         max(li.usage_quantity) as usage_quantity,
         max(li.pretax_cost) as pretax_cost,
+        max(li.pretax_cost) * {{markup}}::numeric as markup_cost,
         max(li.shared_projects) as shared_projects,
         max(li.offer_id) as offer_id,
         pc.project_costs as project_costs
@@ -1009,9 +1011,11 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         max(m.unit_of_measure) as unit_of_measure,
         sum(li.usage_quantity / li.shared_pods) as usage_quantity,
         sum(li.pretax_cost / li.shared_pods) as pretax_cost,
+        sum(li.pretax_cost / li.shared_pods) * {{markup}}::numeric as markup_cost,
         max(li.offer_id) as offer_id,
         max(li.shared_pods) as shared_pods,
-        li.pod_cost
+        li.pod_cost,
+        li.pod_cost * {{markup}}::numeric as project_markup_cost
     FROM reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} as li
     JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice AS p
         ON li.cost_entry_product_id = p.id
@@ -1052,9 +1056,11 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         max(m.unit_of_measure) as unit_of_measure,
         sum(li.usage_quantity / li.shared_pods) as usage_quantity,
         sum(li.pretax_cost / li.shared_pods) as pretax_cost,
+        sum(li.pretax_cost / li.shared_pods) * {{markup}}::numeric as markup_cost,
         max(li.offer_id) as offer_id,
         max(li.shared_pods) as shared_pods,
-        li.pod_cost
+        li.pod_cost,
+        li.pod_cost * {{markup}}::numeric as project_markup_cost
     FROM reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS li
 JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice AS p
         ON li.cost_entry_product_id = p.id
@@ -1115,6 +1121,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary (
     tags,
     usage_quantity,
     pretax_cost,
+    markup_cost,
     offer_id,
     currency,
     unit_of_measure,
@@ -1138,6 +1145,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary (
         tags,
         usage_quantity,
         pretax_cost,
+        markup_cost,
         offer_id,
         currency,
         unit_of_measure,
@@ -1182,10 +1190,12 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_su
     resource_location,
     usage_quantity,
     pretax_cost,
+    markup_cost,
     offer_id,
     currency,
     unit_of_measure,
-    pod_cost
+    pod_cost,
+    project_markup_cost
 )
     SELECT report_period_id,
         cluster_id,
@@ -1205,9 +1215,11 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_su
         resource_location,
         usage_quantity,
         pretax_cost,
+        markup_cost,
         offer_id,
         currency,
         unit_of_measure,
-        pod_cost
+        pod_cost,
+        project_markup_cost
     FROM reporting_ocpazurecostlineitem_project_daily_summary_{{uuid | sqlsafe}}
 ;

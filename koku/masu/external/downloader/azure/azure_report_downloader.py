@@ -99,7 +99,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         storage_account_name = billing_source.get("storage_account")
 
         service = AzureService(
-            subscription_id, tenant_id, client_id, client_secret, resource_group_name, storage_account_name
+            tenant_id, client_id, client_secret, resource_group_name, storage_account_name, subscription_id
         )
         return service
 

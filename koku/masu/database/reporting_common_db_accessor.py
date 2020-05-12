@@ -15,12 +15,9 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Downloader for cost usage reports."""
-from collections import defaultdict
-
 import django.apps
 
 from masu.database.koku_database_access import KokuDBAccess
-from reporting_common.models import ReportColumnMap
 
 
 class ReportingCommonDBAccessor(KokuDBAccess):
@@ -35,7 +32,6 @@ class ReportingCommonDBAccessor(KokuDBAccess):
         super().__init__(schema)
         self.report_common_schema = self.ReportingCommonSchema()
         self._get_reporting_tables()
-        self.column_map = self.generate_column_map()
 
     def _get_reporting_tables(self):
         """Load table objects for reference and creation."""
@@ -61,19 +57,6 @@ class ReportingCommonDBAccessor(KokuDBAccess):
         """
         table = getattr(self.report_common_schema, table_name)
         return table.objects.all()
-
-    # pylint: disable=no-self-use
-    def generate_column_map(self):
-        """Generate a mapping of provider data columns to db columns."""
-        column_map = defaultdict(dict)
-
-        report_column_map = ReportColumnMap.objects.all()
-
-        for row in report_column_map:
-            entry = {row.provider_column_name: row.database_column}
-            column_map[row.database_table].update(entry)
-
-        return column_map
 
     def add(self, table, fields):
         """
