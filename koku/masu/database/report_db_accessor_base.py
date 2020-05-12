@@ -90,7 +90,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         """Create a temporary table and return the table name."""
         temp_table_name = table_name + "_" + str(uuid.uuid4()).replace("-", "_")
         base_sql = f"CREATE TEMPORARY TABLE {temp_table_name} "
-        column_types = f""
+        column_types = ""
         for column in columns:
             for name, column_type in column.items():
                 column_types += f"{name} {column_type}, "

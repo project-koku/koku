@@ -74,7 +74,7 @@ class SourcesHTTPClientTest(TestCase):
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
         with requests_mock.mock() as m:
             m.get(
-                f"http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
+                "http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
                 status_code=200,
                 json={"data": [{"id": self.application_type}]},
             )
@@ -87,7 +87,7 @@ class SourcesHTTPClientTest(TestCase):
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
         with requests_mock.mock() as m:
             m.get(
-                f"http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
+                "http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
                 exc=requests.exceptions.RequestException,
             )
             with self.assertRaises(SourcesHTTPClientError):
@@ -99,7 +99,7 @@ class SourcesHTTPClientTest(TestCase):
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
         with requests_mock.mock() as m:
             m.get(
-                f"http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
+                "http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
                 status_code=404,
                 json={"data": [{"id": self.application_type}]},
             )
@@ -556,7 +556,7 @@ class SourcesHTTPClientCheckAppTypeTest(TestCase):
         )
         responses.add(
             responses.GET,
-            f"http://www.sources.com/api/v1.0/application_types",
+            "http://www.sources.com/api/v1.0/application_types",
             json={"data": [{"id": self.application_type}]},
             status=200,
         )
@@ -580,7 +580,7 @@ class SourcesHTTPClientCheckAppTypeTest(TestCase):
         )
         responses.add(
             responses.GET,
-            f"http://www.sources.com/api/v1.0/application_types",
+            "http://www.sources.com/api/v1.0/application_types",
             json={"data": [{"id": self.application_type}]},
             status=200,
         )
@@ -604,7 +604,7 @@ class SourcesHTTPClientCheckAppTypeTest(TestCase):
         )
         responses.add(
             responses.GET,
-            f"http://www.sources.com/api/v1.0/application_types",
+            "http://www.sources.com/api/v1.0/application_types",
             json={"data": [{"id": self.application_type}]},
             status=200,
         )
