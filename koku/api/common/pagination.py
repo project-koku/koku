@@ -110,20 +110,22 @@ class ListPaginator(StandardResultsSetPagination):
 
     def __init__(self, data_set, request):
         """Initialize the paginator."""
-        self.count = len(data_set)
         self.data_set = data_set
         self.request = request
-        self.set_pagination_values()
-        self.paginated_data_set = self.paginate_data_set()
+        self.count = len(data_set)
+        self.limit = self.get_limit()
+        self.offset = self.get_offset()
 
-    def set_pagination_values(self):
-        """Set the pagination values."""
-        self.count = self.count
-        self.request = self.request
-        self.limit = _get_int_query_param(self.request, "limit", self.default_limit)
-        self.offset = _get_int_query_param(self.request, "offset", 0)
+    def get_limit(self):
+        """Get the pagination limit."""
+        return _get_int_query_param(self.request, "limit", self.default_limit)
 
-    def paginate_data_set(self):
+    def get_offset(self):
+        """Get the pagination offset."""
+        return _get_int_query_param(self.request, "offset", 0)
+
+    @property
+    def paginated_data_set(self):
         """Paginate the list."""
         if self.limit > len(self.data_set):
             self.limit = len(self.data_set)
