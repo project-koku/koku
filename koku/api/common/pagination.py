@@ -101,9 +101,10 @@ class ListPaginator(StandardResultsSetPagination):
     def __init__(self, data_set, request):
         """Initialize the paginator."""
         self.data_set = data_set
+        self.request = request
         self.count = len(data_set)
-        self.limit = self.get_limit(request)
-        self.offset = self.get_offset(request)
+        self.limit = self.get_limit(self.request)
+        self.offset = self.get_offset(self.request)
 
     @property
     def paginated_data_set(self):
