@@ -62,7 +62,7 @@ class AWSReportViewTest(IamTestCase):
     def test_execute_query_w_delta_bad_choice(self):
         """Test invalid delta value."""
         bad_delta = "Invalid"
-        expected = f"Unsupported parameter or invalid value"
+        expected = "Unsupported parameter or invalid value"
         qs = f"?filter[limit]=2&delta={bad_delta}"
         url = self.url + qs
 

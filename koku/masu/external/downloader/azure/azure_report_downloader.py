@@ -147,7 +147,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             manifest["assemblyId"] = extract_uuids_from_string(report_name).pop()
         except IndexError:
-            message = f"Unable to extract assemblyID from %s"
+            message = "Unable to extract assemblyID from %s"
             raise AzureReportDownloaderError(message)
 
         billing_period = {
@@ -242,7 +242,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             blob = self._azure_client.get_cost_export_for_key(key, self.container_name)
             etag = blob.etag
         except AzureCostReportNotFound as ex:
-            log_msg = "Error when downloading Azure report for key: %s. Error %s".format(key, str(ex))
+            log_msg = "Error when downloading Azure report for key: {}. Error {}".format(key, str(ex))
             LOG.error(log_msg)
             raise AzureReportDownloaderError(log_msg)
 
