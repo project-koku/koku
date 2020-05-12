@@ -479,11 +479,11 @@ async def listen_for_messages(consumer):
                 await process_messages(msg)
             except (InterfaceError, OperationalError, ReportProcessorDBError) as err:
                 connection.close()
-                LOG.error(err)
+                LOG.error(f"[listen_for_messages] database error. Seeing to committed. Error: {str(err)}")
                 await asyncio.sleep(Config.RETRY_SECONDS)
                 await consumer.seek_to_committed()
             except KafkaMsgHandlerError as error:
-                LOG.error(f"Internal Error: {str(error)}")
+                LOG.error(f"[listen_for_messages] internal error. Seeing to committed. Error: {str(error)}")
                 await asyncio.sleep(Config.RETRY_SECONDS)
                 await consumer.seek_to_committed()
             except ReportProcessorError as error:
