@@ -30,31 +30,11 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.settings import api_settings
 
 from api.common import RH_IDENTITY_HEADER
-from api.common.pagination import StandardResultsSetPagination
+from api.common.pagination import ListPaginator
 from api.metrics import constants as metric_constants
 from api.metrics.serializers import QueryParamsSerializer
 
 LOG = logging.getLogger(__name__)
-
-
-def _get_int_query_param(request, key, default):
-    """Get query param integer value safely."""
-    result = default
-    try:
-        result = int(request.query_params.get(key, default))
-    except ValueError:
-        pass
-    return result
-
-
-def get_paginator(request, count):
-    """Get Paginator."""
-    paginator = StandardResultsSetPagination()
-    paginator.count = count
-    paginator.request = request
-    paginator.limit = _get_int_query_param(request, "limit", 10)
-    paginator.offset = _get_int_query_param(request, "offset", 0)
-    return paginator
 
 
 @api_view(["GET"])  # noqa: C901
@@ -67,35 +47,21 @@ def metrics(request):
     serializer = QueryParamsSerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)
     cost_model_metric_map_copy = copy.deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
-    try:
-        if source_type:
-            # Filter on source type
-            cost_model_metric_map_copy = list(
-                filter(lambda x: x.get("source_type") == source_type, cost_model_metric_map_copy)
-            )
-        # Convert source_type to human readable.
-        for metric_map in cost_model_metric_map_copy:
-            if metric_map.get("source_type") is None:
-                raise CostModelMetricMapJSONException("Internal Error.")
-            metric_map["source_type"] = metric_constants.SOURCE_TYPE_MAP[metric_map["source_type"]]
-    except KeyError:
-        LOG.error("Malformed JSON", exc_error=True)
-        raise CostModelMetricMapJSONException("Internal Error.")
+    if source_type:
+        # Filter on source type
+        cost_model_metric_map_copy = list(
+            filter(lambda x: x.get("source_type") == source_type, cost_model_metric_map_copy)
+        )
+    # Convert source_type to human readable.
+    for metric_map in cost_model_metric_map_copy:
+        mapped_source_type = metric_map.get("source_type")
+        readable_source_type = metric_constants.SOURCE_TYPE_MAP.get(mapped_source_type)
+        if not (mapped_source_type and readable_source_type):
+            raise CostModelMetricMapJSONException("SOURCE_TYPE_MAP or COST_MODEL_METRIC_MAP is missing a source_type.")
+        metric_map["source_type"] = readable_source_type
     data = cost_model_metric_map_copy
-    paginator = get_paginator(request, len(data))
-    limit = _get_int_query_param(request, "limit", 10)
-    offset = _get_int_query_param(request, "offset", 0)
-
-    if limit > len(data):
-        limit = len(data)
-    try:
-        data = cost_model_metric_map_copy[offset : offset + limit]  # noqa E203
-    except IndexError:
-        data = []
-
-    page_obj = paginator.get_paginated_response(data)
-
-    return page_obj
+    paginator = ListPaginator(data, request)
+    return paginator.paginated_response
 
 
 class CostModelMetricMapJSONException(APIException):
