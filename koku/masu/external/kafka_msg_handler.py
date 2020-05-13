@@ -215,24 +215,27 @@ def extract_payload(url):  # noqa: C901
     report_meta["manifest_id"] = create_manifest_entries(report_meta)
 
     # Copy report payload
+    report_metas = []
     for report_file in report_meta.get("files"):
+        current_meta = report_meta.copy()
         subdirectory = os.path.dirname(full_manifest_path)
         payload_source_path = f"{subdirectory}/{report_file}"
         payload_destination_path = f"{destination_dir}/{report_file}"
         try:
             shutil.copy(payload_source_path, payload_destination_path)
-            report_meta["current_file"] = payload_destination_path
+            current_meta["current_file"] = payload_destination_path
             if not record_report_status(report_meta["manifest_id"], report_file):
                 LOG.info("Successfully extracted OCP for %s/%s", report_meta.get("cluster_id"), usage_month)
+                report_metas.append(current_meta)
             else:
                 # Report already processed
-                report_meta = None
+                pass
         except FileNotFoundError:
             LOG.debug("File %s has not downloaded yet.", str(report_file))
 
     # Remove temporary directory and files
     shutil.rmtree(temp_dir)
-    return report_meta
+    return report_metas
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
@@ -407,6 +410,18 @@ def process_report(report):
     return _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
 
 
+def report_metas_complete(report_metas):
+    """Dertmine if all reports have been processed."""
+    process_complete = False
+    for report_meta in report_metas:
+        if not report_meta.get("process_complete"):
+            process_complete = False
+            break
+        else:
+            process_complete = True
+    return process_complete
+
+
 async def process_messages(msg, loop=EVENT_LOOP):
     """
     Process asyncio MSG_PENDING_QUEUE and send validation status.
@@ -420,12 +435,14 @@ async def process_messages(msg, loop=EVENT_LOOP):
     """
     process_complete = False
     with concurrent.futures.ThreadPoolExecutor() as pool:
-        status, report_meta = await loop.run_in_executor(pool, handle_message, msg)
+        status, report_metas = await loop.run_in_executor(pool, handle_message, msg)
 
-    if report_meta:
+    if report_metas:
         with concurrent.futures.ThreadPoolExecutor() as pool:
-            process_complete = await loop.run_in_executor(pool, process_report, report_meta)
-            LOG.info(f"Processing: {report_meta.get('current_file')} complete.")
+            for report_meta in report_metas:
+                report_meta["process_complete"] = await loop.run_in_executor(pool, process_report, report_meta)
+                LOG.info(f"Processing: {report_meta.get('current_file')} complete.")
+            process_complete = report_metas_complete(report_metas)
             async_id = await loop.run_in_executor(pool, summarize_manifest, report_meta)
             if async_id:
                 LOG.info("Summarization celery uuid: %s", str(async_id))
@@ -434,8 +451,10 @@ async def process_messages(msg, loop=EVENT_LOOP):
         count = 0
         while True:
             try:
-                if report_meta:
-                    LOG.info(f"Sending Ingress Service confirmation for: {str(report_meta.get('current_file'))}")
+                if report_metas:
+                    file_list = [meta.get("current_file") for meta in report_metas]
+                    files_string = ",".join(map(str, file_list))
+                    LOG.info(f"Sending Ingress Service confirmation for: {files_string}")
                 else:
                     LOG.info(f"Sending Ingress Service confirmation for: {str(value)}")
                 await send_confirmation(value["request_id"], status)

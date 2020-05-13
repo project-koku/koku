@@ -297,7 +297,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
                     }
                 ),
-                "handle_message_returns": (msg_handler.SUCCESS_CONFIRM_STATUS, report_meta_1),
+                "handle_message_returns": (msg_handler.SUCCESS_CONFIRM_STATUS, [report_meta_1]),
                 "summarize_manifest_returns": summarize_manifest_uuid,
                 "expected_fn": _expected_success_path,
             },
@@ -336,7 +336,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
                     }
                 ),
-                "handle_message_returns": (None, report_meta_1),
+                "handle_message_returns": (None, [report_meta_1]),
                 "summarize_manifest_returns": summarize_manifest_uuid,
                 "expected_fn": _expected_fail_path,
             },
@@ -456,7 +456,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
                     ):
                         with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
-                            with patch("masu.external.kafka_msg_handler.record_report_status"):
+                            with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
                                 msg_handler.extract_payload(payload_url)
                                 expected_path = "{}/{}/{}/".format(
                                     Config.INSIGHTS_LOCAL_REPORT_DIR, self.cluster_id, self.date_range
