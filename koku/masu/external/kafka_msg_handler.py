@@ -395,7 +395,7 @@ def process_report(report):
         "manifest_id": manifest_id,
         "provider_uuid": provider_uuid,
     }
-    _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
+    return _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
 
 
 async def process_messages(msg, loop=EVENT_LOOP):
@@ -409,12 +409,13 @@ async def process_messages(msg, loop=EVENT_LOOP):
         None
 
     """
+    process_complete = False
     with concurrent.futures.ThreadPoolExecutor() as pool:
         status, report_meta = await loop.run_in_executor(pool, handle_message, msg)
 
     if report_meta:
         with concurrent.futures.ThreadPoolExecutor() as pool:
-            await loop.run_in_executor(pool, process_report, report_meta)
+            process_complete = await loop.run_in_executor(pool, process_report, report_meta)
             LOG.info(f"Processing: {report_meta.get('current_file')} complete.")
             async_id = await loop.run_in_executor(pool, summarize_manifest, report_meta)
             if async_id:
@@ -435,6 +436,8 @@ async def process_messages(msg, loop=EVENT_LOOP):
                 backoff(count, Config.INSIGHTS_KAFKA_CONN_RETRY_MAX)
                 count += 1
                 continue
+
+    return process_complete
 
 
 def get_consumer(event_loop):  # pragma: no cover
@@ -475,8 +478,11 @@ async def listen_for_messages(consumer):
     LOG.info("Listener started.  Waiting for messages...")
     try:
         async for msg in consumer:
+            process_complete = False
             try:
-                await process_messages(msg)
+                process_complete = await process_messages(msg)
+                if process_complete:
+                    await consumer.commit()
             except (InterfaceError, OperationalError, ReportProcessorDBError) as err:
                 connection.close()
                 LOG.error(f"[listen_for_messages] database error. Seeing to committed. Error: {str(err)}")
@@ -488,8 +494,6 @@ async def listen_for_messages(consumer):
                 await consumer.seek_to_committed()
             except ReportProcessorError as error:
                 LOG.error(f"Report processing error: {str(error)}")
-                await consumer.commit()
-            else:
                 await consumer.commit()
 
     except KafkaError as error:
