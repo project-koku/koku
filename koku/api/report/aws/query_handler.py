@@ -27,6 +27,8 @@ from django.db.models.expressions import Func
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
+from django.utils.translation import ugettext as _
+from rest_framework import serializers
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
@@ -205,11 +207,17 @@ class AWSReportQueryHandler(ReportQueryHandler):
         query_sum_results = []
         org_unit_applied = False
         if "org_unit" in self.parameters.parameters.get("group_by"):
-            org_unit_applied = True
+            if self.parameters.report_type != "costs":
+                # since we only have the org unit group_by available for cost reports
+                # raise a validation error if it is a different report type
+                error = {"org_unit": _("Unsupported parameter or invalid value")}
+                raise serializers.ValidationError(error)
 
+            org_unit_applied = True
             # remove the org unit and add in group by account
             org_unit_group_by_data = self.parameters.parameters.get("group_by").pop("org_unit")
             if not self.parameters.parameters["group_by"].get("account"):
+                # Fixme - implement RBAC here
                 self.parameters.parameters["group_by"]["account"] = ["*"]
 
             # look up the org_unit_object so that we can get the level
@@ -457,37 +465,15 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         Returns:
             (Dict): the sum result
         """
-        # Fix me ashley
-        report_type = self.parameters.report_type
-        if report_type == "costs":
-            for key in sum2:
-                if key in sum1:
-                    for next_key in sum2[key]:
-                        if next_key in sum1[key]:
-                            for final_key in sum2[key][next_key]:
-                                if final_key in sum1[key][next_key] and final_key == "value":
-                                    sum2[key][next_key][final_key] = (
-                                        sum2[key][next_key][final_key] + sum1[key][next_key][final_key]
-                                    )
-        elif report_type == "instance_type":
-            for key in sum2:
-                if key in sum1:
-                    for next_key in sum2[key]:
-                        if next_key in sum1[key] and next_key == "value":
-                            sum2[key][next_key] = sum2[key][next_key] + sum1[key][next_key]
-
-        else:
-            for key, value in sum2.items():
-                if key in sum1:
-                    for next_key in value:
-                        if next_key in sum1[key] and next_key == "value":
-                            sum2[key][next_key] = sum2[key][next_key] + sum1[key][next_key]
-                        else:
-                            for final_key in sum2[key][next_key]:
-                                if final_key in sum1[key][next_key] and final_key == "value":
-                                    sum2[key][next_key][final_key] = (
-                                        sum2[key][next_key][final_key] + sum1[key][next_key][final_key]
-                                    )
+        for key in sum2:
+            if key in sum1:
+                for next_key in sum2[key]:
+                    if next_key in sum1[key]:
+                        for final_key in sum2[key][next_key]:
+                            if final_key in sum1[key][next_key] and final_key == "value":
+                                sum2[key][next_key][final_key] = (
+                                    sum2[key][next_key][final_key] + sum1[key][next_key][final_key]
+                                )
         return sum2
 
     def execute_individual_query(self):  # noqa: C901

@@ -47,53 +47,32 @@ from reporting.models import AWSCostEntryLineItemDailySummary
 from reporting.models import AWSCostEntryProduct
 
 
-def total_costs(cost_values):
-    total = 0
-    for value in cost_values:
-        total += value
-    return total
-
-
-def _calculate_subtotals(data, view):  # noqa: C901
+def _calculate_subtotals(data):
     """Returns list of subtotals given data."""
+
+    def total_costs(cost_values):
+        total = 0
+        for value in cost_values:
+            total += value
+        return total
+
     cost = []
     infra = []
     sup = []
-    # Fix me ashley
-    if view == AWSCostView:
-        for dictionary in data:
-            for _, value in dictionary.items():
-                if isinstance(value, list):
-                    for item in value:
-                        if isinstance(item, dict):
-                            if "values" in item.keys():
-                                value = item["values"][0]
-                                cost.append(value["cost"]["total"]["value"])
-                                infra.append(value["infrastructure"]["total"]["value"])
-                                sup.append(value["supplementary"]["total"]["value"])
-                            else:
-                                cost.append(item["cost"]["total"]["value"])
-                                infra.append(item["infrastructure"]["total"]["value"])
-                                sup.append(item["supplementary"]["total"]["value"])
-    else:
-        for dictionary in data:
-            for _, value in dictionary.items():
-                if isinstance(value, list):
-                    for item in value:
-                        if isinstance(item, dict):
-                            if "values" in item.keys():
-                                value = item["values"][0]
-                                infra.append(value["infrastructure"]["total"]["value"])
-                                sup.append(value["supplementary"]["total"]["value"])
-                                cost.append(value["cost"]["total"]["value"])
-                            elif "instance_types" in item.keys():
-                                value = item["instance_types"]
-                                for instance_type in value:
-                                    new_value = instance_type["values"]
-                                    for each in new_value:
-                                        infra.append(each["infrastructure"]["total"]["value"])
-                                        sup.append(each["supplementary"]["total"]["value"])
-                                        cost.append(each["cost"]["total"]["value"])
+    for dictionary in data:
+        for _, value in dictionary.items():
+            if isinstance(value, list):
+                for item in value:
+                    if isinstance(item, dict):
+                        if "values" in item.keys():
+                            value = item["values"][0]
+                            cost.append(value["cost"]["total"]["value"])
+                            infra.append(value["infrastructure"]["total"]["value"])
+                            sup.append(value["supplementary"]["total"]["value"])
+                        else:
+                            cost.append(item["cost"]["total"]["value"])
+                            infra.append(item["infrastructure"]["total"]["value"])
+                            sup.append(item["supplementary"]["total"]["value"])
 
     cost_total = total_costs(cost)
     infra_total = total_costs(infra)
@@ -1326,28 +1305,24 @@ class AWSReportQueryTest(IamTestCase):
             """Check that the accounts, sub_ous, and totals are correct for each group_by."""
             with tenant_context(self.tenant):
                 url = f"?group_by[org_unit]={org_unit}"
-                # loop through each view
-                for view in [AWSCostView, AWSStorageView, AWSInstanceTypeView]:
-                    query_params = self.mocked_query_params(url, view)
-                    handler = AWSReportQueryHandler(query_params)
-                    data = handler.execute_query()
-                    # grab the accounts and sub_ous and compare with the expected results
-                    accounts, sub_ous = _calculate_accounts_and_sub_ous(data.get("data"))
-                    for account in ou_to_account_subou_map.get(org_unit).get("accounts"):
-                        self.assertIn(account, accounts)
-                    if view != AWSInstanceTypeView:
-                        # Fix me ashley
-                        for sub_ou in ou_to_account_subou_map.get(org_unit).get("org_units"):
-                            self.assertIn(sub_ou, sub_ous)
-                    # grab the expected totals for cost, infra, and sup
-                    cost_total, infra_total, sup_total = _calculate_subtotals(data.get("data"), view)
-                    # grab the actual totals & make sure they are equal
-                    actual_cost_total = data.get("total").get("cost").get("total").get("value")
-                    actual_infra_total = data.get("total").get("infrastructure").get("total").get("value")
-                    actual_sup_total = data.get("total").get("supplementary").get("total").get("value")
-                    self.assertEqual(cost_total, actual_cost_total)
-                    self.assertEqual(infra_total, actual_infra_total)
-                    self.assertEqual(sup_total, actual_sup_total)
+                query_params = self.mocked_query_params(url, AWSCostView)
+                handler = AWSReportQueryHandler(query_params)
+                data = handler.execute_query()
+                # grab the accounts and sub_ous and compare with the expected results
+                accounts, sub_ous = _calculate_accounts_and_sub_ous(data.get("data"))
+                for account in ou_to_account_subou_map.get(org_unit).get("accounts"):
+                    self.assertIn(account, accounts)
+                for sub_ou in ou_to_account_subou_map.get(org_unit).get("org_units"):
+                    self.assertIn(sub_ou, sub_ous)
+                # grab the expected totals for cost, infra, and sup
+                cost_total, infra_total, sup_total = _calculate_subtotals(data.get("data"))
+                # grab the actual totals & make sure they are equal
+                actual_cost_total = data.get("total").get("cost").get("total").get("value")
+                actual_infra_total = data.get("total").get("infrastructure").get("total").get("value")
+                actual_sup_total = data.get("total").get("supplementary").get("total").get("value")
+                self.assertEqual(cost_total, actual_cost_total)
+                self.assertEqual(infra_total, actual_infra_total)
+                self.assertEqual(sup_total, actual_sup_total)
 
         # for each org defined in our yaml file assert that everything is as expected
         orgs_to_check = ["R_001", "OU_001", "OU_002", "OU_003", "OU_004", "OU_005"]
@@ -1381,6 +1356,16 @@ class AWSReportQueryTest(IamTestCase):
             self.assertEqual(org_infra_total, overall_infra_total)
             self.assertEqual(org_sup_total, overall_sup_total)
 
+    def test_group_by_org_unit_non_costs_reports(self):
+        """Test that grouping by org unit on non costs reports raises a validation error."""
+        for view in [AWSStorageView, AWSInstanceTypeView]:
+            with tenant_context(self.tenant):
+                org_group_by_url = "?group_by[org_unit]=*"
+                query_params = self.mocked_query_params(org_group_by_url, view)
+                handler = AWSReportQueryHandler(query_params)
+                with self.assertRaises(ValidationError):
+                    handler.execute_query()
+
     def test_filter_org_unit(self):
         """Check that the total is correct when filtering by org_unit."""
         with tenant_context(self.tenant):
@@ -1390,7 +1375,7 @@ class AWSReportQueryTest(IamTestCase):
             handler = AWSReportQueryHandler(query_params)
             org_data = handler.execute_query()
             # grab the expected totals
-            cost_total, infra_total, sup_total = _calculate_subtotals(org_data.get("data"), AWSCostView)
+            cost_total, infra_total, sup_total = _calculate_subtotals(org_data.get("data"))
             # grab the actual totals for the org_unit filter
             org_cost_total = org_data.get("total").get("cost").get("total").get("value")
             org_infra_total = org_data.get("total").get("infrastructure").get("total").get("value")
