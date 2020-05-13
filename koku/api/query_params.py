@@ -54,7 +54,7 @@ class QueryParameters:
         ],
     }
 
-    def __init__(self, request, caller):
+    def __init__(self, request, caller, **kwargs):
         """Constructor.
 
         Validated parameters will be set in the `parameters` attribute.
@@ -68,6 +68,7 @@ class QueryParameters:
         self._parameters = OrderedDict()
         self._display_parameters = OrderedDict()
 
+        self.kwargs = kwargs
         self.request = request
         self.report_type = caller.report
         self.serializer = caller.serializer
@@ -238,23 +239,11 @@ class QueryParameters:
         resolution = self.get_filter("resolution")
 
         if not time_scope_value:
-            if time_scope_units == "month":
-                time_scope_value = -1
-            else:
-                time_scope_value = -10
-
+            time_scope_value = -1 if time_scope_units == "month" else -10
         if not time_scope_units:
-            if int(time_scope_value) in [-1, -2]:
-                time_scope_units = "month"
-            else:
-                time_scope_units = "day"
-
+            time_scope_units = "month" if int(time_scope_value) in [-1, -2] else "day"
         if not resolution:
-            if int(time_scope_value) in [-1, -2]:
-                resolution = "monthly"
-            else:
-                resolution = "daily"
-
+            resolution = "monthly" if int(time_scope_value) in [-1, -2] else "daily"
         self.set_filter(
             time_scope_value=str(time_scope_value), time_scope_units=str(time_scope_units), resolution=str(resolution)
         )
@@ -274,7 +263,7 @@ class QueryParameters:
             query_params = parser.parse(self.url_data)
         except parser.MalformedQueryStringError:
             LOG.info("Invalid query parameter format %s.", self.url_data)
-            error = {"details": _(f"Invalid query parameter format.")}
+            error = {"details": "Invalid query parameter format."}
             raise ValidationError(error)
 
         if self.tag_keys:
@@ -379,7 +368,7 @@ def get_replacement_result(param_res_list, access_list, raise_exception=True):
     """Adjust param list based on access list."""
     if ReportQueryHandler.has_wildcard(param_res_list):
         return access_list
-    if not access_list and not raise_exception:
+    if not (access_list or raise_exception):
         return list(param_res_list)
     intersection = param_res_list & set(access_list)
     if not intersection:

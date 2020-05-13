@@ -51,6 +51,7 @@ from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.orchestrator import Orchestrator
+from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import vacuum_schema
 from masu.util.common import dictify_table_export_settings
 from masu.util.common import NamedTemporaryGZip
@@ -327,6 +328,22 @@ def vacuum_schemas():
     for schema_name in schema_names:
         LOG.info("Scheduling VACUUM task for %s", schema_name)
         vacuum_schema.delay(schema_name)
+
+
+# This task will process the autovacuum tuning as a background process
+@app.task(name="masu.celery.tasks.autovacuum_tune_schemas", queue_name="reporting")
+def autovacuum_tune_schemas():
+    """Set the autovacuum table settings based on table size for all schemata."""
+    tenants = Tenant.objects.values("schema_name")
+    schema_names = [
+        tenant.get("schema_name")
+        for tenant in tenants
+        if (tenant.get("schema_name") and tenant.get("schema_name") != "public")
+    ]
+
+    for schema_name in schema_names:
+        LOG.info("Scheduling autovacuum tune task for %s", schema_name)
+        autovacuum_tune_schema.delay(schema_name)
 
 
 @app.task(name="masu.celery.tasks.clean_volume", queue_name="clean_volume")

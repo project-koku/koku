@@ -844,6 +844,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
         project_summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"]
         bill_ids = []
+        markup_value = Decimal(0.1)
 
         summary_table = getattr(self.accessor.report_schema, summary_table_name)
         project_table = getattr(self.accessor.report_schema, project_summary_table_name)
@@ -904,15 +905,34 @@ class AWSReportDBAccessorTest(MasuTestCase):
             query = self.accessor._get_db_obj_query(summary_table_name)
             initial_count = query.count()
 
-        self.accessor.populate_ocp_on_aws_cost_daily_summary(last_month, today, cluster_id, bill_ids)
+        self.accessor.populate_ocp_on_aws_cost_daily_summary(last_month, today, cluster_id, bill_ids, markup_value)
         with schema_context(self.schema):
             self.assertNotEqual(query.count(), initial_count)
 
-            sum_cost = summary_table.objects.all().aggregate(Sum("unblended_cost"))["unblended_cost__sum"]
-            sum_project_cost = project_table.objects.all().aggregate(Sum("unblended_cost"))["unblended_cost__sum"]
+            sum_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("unblended_cost"))[
+                "unblended_cost__sum"
+            ]
+            sum_project_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("unblended_cost"))[
+                "unblended_cost__sum"
+            ]
+            sum_pod_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("pod_cost"))[
+                "pod_cost__sum"
+            ]
+            sum_markup_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("markup_cost"))[
+                "markup_cost__sum"
+            ]
+            sum_markup_cost_project = project_table.objects.filter(cluster_id=cluster_id).aggregate(
+                Sum("markup_cost")
+            )["markup_cost__sum"]
+            sum_project_markup_cost_project = project_table.objects.filter(cluster_id=cluster_id).aggregate(
+                Sum("project_markup_cost")
+            )["project_markup_cost__sum"]
 
             self.assertEqual(sum_cost, sum_project_cost)
             self.assertLessEqual(sum_cost, sum_aws_cost)
+            self.assertAlmostEqual(sum_markup_cost, sum_cost * markup_value, 9)
+            self.assertAlmostEqual(sum_markup_cost_project, sum_cost * markup_value, 9)
+            self.assertAlmostEqual(sum_project_markup_cost_project, sum_pod_cost * markup_value, 9)
 
     def test_bills_for_provider_uuid(self):
         """Test that bills_for_provider_uuid returns the right bills."""

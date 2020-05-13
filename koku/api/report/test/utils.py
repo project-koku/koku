@@ -1,3 +1,20 @@
+#
+# Copyright 2020 Red Hat, Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+"""Test utilities."""
 import os
 import pkgutil
 import shutil
@@ -5,6 +22,7 @@ from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from django.test.utils import override_settings
 from jinja2 import Template
 from model_bakery import baker
 from nise.__main__ import run
@@ -76,7 +94,7 @@ class NiseDataLoader:
     def load_openshift_data(self, customer, static_data_file, cluster_id):
         """Load OpenShift data into the database."""
         provider_type = Provider.PROVIDER_OCP
-        with patch.object(settings, "AUTO_DATA_INGEST", False):
+        with override_settings(AUTO_DATA_INGEST=False):
             provider = baker.make(
                 "Provider",
                 type=provider_type,

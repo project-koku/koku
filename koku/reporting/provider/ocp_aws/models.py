@@ -182,6 +182,8 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
 
     unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
+    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+
     project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
     pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
