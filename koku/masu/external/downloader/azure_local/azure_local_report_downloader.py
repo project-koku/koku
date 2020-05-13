@@ -86,7 +86,7 @@ class AzureLocalReportDownloader(AzureReportDownloader):
         try:
             manifest["assemblyId"] = extract_uuids_from_string(report_name).pop()
         except IndexError:
-            message = f"Unable to extract assemblyID from %s"
+            message = f"Unable to extract assemblyID from {report_name}"
             raise AzureReportDownloaderError(message)
 
         billing_period = {
