@@ -104,6 +104,11 @@ class AzureService:
     def get_latest_cost_export_for_path(self, report_path, container_name):
         """Get the latest cost export file from given storage account container."""
         latest_report = None
+        if not container_name:
+            message = "Unable to gather latest export as container name is not provided."
+            LOG.warning(message)
+            raise AzureCostReportNotFound(message)
+
         try:
             container_client = self._cloud_storage_account.get_container_client(container_name)
             blob_list = container_client.list_blobs(name_starts_with=report_path)
