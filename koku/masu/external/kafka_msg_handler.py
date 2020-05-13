@@ -97,8 +97,14 @@ def create_manifest_entries(report_meta):
 
 def record_report_status(manifest_id, file_name):
     """Record report file status."""
-    with ReportStatsDBAccessor(file_name, manifest_id):
-        LOG.info(f"Recording stats entry for {file_name}")
+    already_processed = False
+    with ReportStatsDBAccessor(file_name, manifest_id) as db_accessor:
+        already_processed = db_accessor.get_last_completed_datetime()
+        if already_processed:
+            LOG.info(f"Report {file_name} has already been processed.")
+        else:
+            LOG.info(f"Recording stats entry for {file_name}")
+    return already_processed
 
 
 def get_account_from_cluster_id(cluster_id):
@@ -216,11 +222,14 @@ def extract_payload(url):  # noqa: C901
         try:
             shutil.copy(payload_source_path, payload_destination_path)
             report_meta["current_file"] = payload_destination_path
-            record_report_status(report_meta["manifest_id"], report_file)
+            if not record_report_status(report_meta["manifest_id"], report_file):
+                LOG.info("Successfully extracted OCP for %s/%s", report_meta.get("cluster_id"), usage_month)
+            else:
+                # Report already processed
+                report_meta = None
         except FileNotFoundError:
             LOG.debug("File %s has not downloaded yet.", str(report_file))
 
-    LOG.info("Successfully extracted OCP for %s/%s", report_meta.get("cluster_id"), usage_month)
     # Remove temporary directory and files
     shutil.rmtree(temp_dir)
     return report_meta
