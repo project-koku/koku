@@ -265,6 +265,19 @@ class AzureServiceTest(MasuTestCase):
         with self.assertRaises(AzureCostReportNotFound):
             svc.get_latest_cost_export_for_path(report_path, self.container_name)
 
+    def test_get_latest_cost_export_no_container(self):
+        """Test that the latest cost export catches the error for no container."""
+        report_path = "blob"
+        container_name = None
+
+        mock_blob = Mock(last_modified=Mock(date=Mock(return_value=self.current_date_time.date())))
+        name_attr = PropertyMock(return_value=report_path)
+        type(mock_blob).name = name_attr  # kludge to set name attribute on Mock
+
+        svc = self.get_mock_client(blob_list=[mock_blob])
+        with self.assertRaises(AzureCostReportNotFound):
+            svc.get_latest_cost_export_for_path(report_path, container_name)
+
     def test_describe_cost_management_exports_wrong_account(self):
         """Test that cost management exports are not returned from incorrect account."""
         resource_id = (
