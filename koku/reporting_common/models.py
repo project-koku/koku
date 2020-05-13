@@ -54,19 +54,6 @@ class CostUsageReportStatus(models.Model):
     etag = models.CharField(max_length=64, null=True)
 
 
-class SIUnitScale(models.Model):
-    """A range of common SI unit prefixes."""
-
-    class Meta:
-        """Meta for SIUnitScale."""
-
-        db_table = "si_unit_scale"
-
-    prefix = models.CharField(max_length=12, null=False, unique=True)
-    prefix_symbol = models.CharField(max_length=1, null=False)
-    multiplying_factor = models.DecimalField(max_digits=49, decimal_places=24)
-
-
 class RegionMapping(models.Model):
     """Mapping table of AWS region names.
 
