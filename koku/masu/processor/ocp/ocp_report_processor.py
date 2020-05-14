@@ -31,6 +31,7 @@ from django.conf import settings
 from masu.config import Config
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
+from masu.util.ocp import common as utils
 from reporting.provider.ocp.models import OCPNodeLabelLineItem
 from reporting.provider.ocp.models import OCPStorageLineItem
 from reporting.provider.ocp.models import OCPUsageLineItem
@@ -185,7 +186,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
         )
 
         self._report_name = path.basename(report_path)
-        self._cluster_id = report_path.split("/")[-2]
+        self._cluster_id = utils.get_cluster_id_from_provider(provider_uuid)
 
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE

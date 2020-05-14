@@ -27,7 +27,7 @@ from api.views import AzureCostView
 from api.views import AzureInstanceTypeView
 from api.views import AzureStorageView
 from api.views import AzureTagView
-from api.views import CloudAccountViewSet
+from api.views import cloud_accounts
 from api.views import DataExportRequestViewSet
 from api.views import metrics
 from api.views import OCPAllCostView
@@ -56,9 +56,9 @@ from sources.api.views import SourcesViewSet
 ROUTER = DefaultRouter()
 ROUTER.register(r"dataexportrequests", DataExportRequestViewSet, basename="dataexportrequests")
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
-ROUTER.register(r"cloud-accounts", CloudAccountViewSet, basename="cloud_accounts")
 # pylint: disable=invalid-name
 urlpatterns = [
+    path("cloud-accounts/", cloud_accounts, name="cloud-accounts"),
     path("status/", StatusView.as_view(), name="server-status"),
     path("openapi.json", openapi, name="openapi"),
     path("metrics/", metrics, name="metrics"),
