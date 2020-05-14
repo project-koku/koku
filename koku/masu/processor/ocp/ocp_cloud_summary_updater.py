@@ -117,8 +117,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                     cluster_id,
                     str(aws_bill_ids),
                 )
-                accessor.populate_ocp_on_aws_cost_daily_summary(start, end, cluster_id, aws_bill_ids)
-            accessor.populate_ocp_on_aws_markup_cost(markup_value, aws_bill_ids)
+                accessor.populate_ocp_on_aws_cost_daily_summary(start, end, cluster_id, aws_bill_ids, markup_value)
             accessor.populate_ocp_on_aws_tags_summary_table()
         self.refresh_openshift_on_infrastructure_views(OCP_ON_AWS_MATERIALIZED_VIEWS)
 
@@ -158,8 +157,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                     cluster_id,
                     str(azure_bill_ids),
                 )
-                accessor.populate_ocp_on_azure_cost_daily_summary(start, end, cluster_id, azure_bill_ids)
-            accessor.populate_ocp_on_azure_markup_cost(markup_value, azure_bill_ids)
+                accessor.populate_ocp_on_azure_cost_daily_summary(start, end, cluster_id, azure_bill_ids, markup_value)
             accessor.populate_ocp_on_azure_tags_summary_table()
 
         with OCPReportDBAccessor(self._schema) as accessor:
