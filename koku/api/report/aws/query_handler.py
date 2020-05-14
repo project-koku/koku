@@ -458,24 +458,21 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
     def total_sum(self, sum1, sum2):  # noqa: C901
         """
         Given two sums, add the values of identical keys.
-
         Args:
             sum1 (Dict) the sum we are adding
             sum2 (Dict) the original sum to add to
-
         Returns:
             (Dict): the sum result
         """
-        for key in sum2:
-            if key in sum1:
-                for next_key in sum2[key]:
-                    if next_key in sum1[key]:
-                        for final_key in sum2[key][next_key]:
-                            if final_key in sum1[key][next_key] and final_key == "value":
-                                sum2[key][next_key][final_key] = (
-                                    sum2[key][next_key][final_key] + sum1[key][next_key][final_key]
-                                )
-        return sum2
+        expected_keys = list(sum1)
+        if "value" in expected_keys:
+            sum2["value"] = sum1["value"] + sum2["value"]
+            return sum2
+        else:
+            for expected_key in expected_keys:
+                if sum1.get(expected_key) and sum2.get(expected_key):
+                    sum2[expected_key] = self.total_sum(sum1.get(expected_key), sum2.get(expected_key))
+            return sum2
 
     def execute_individual_query(self):  # noqa: C901
         """Execute query and return provided data.
