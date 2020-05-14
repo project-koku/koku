@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""AWS Tag Query Handling."""
+"""AWS Org Unit Query Handling."""
 from api.models import Provider
 from api.organizations.queries import OrgQueryHandler
 from api.report.provider_map import ProviderMap

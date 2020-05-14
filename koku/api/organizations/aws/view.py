@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""AWS Ogranization views."""
+"""AWS Organization views."""
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.models import Provider
 from api.organizations.aws.queries import AWSOrgQueryHandler

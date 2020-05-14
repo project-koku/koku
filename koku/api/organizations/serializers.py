@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Tag serializers."""
+"""Organizations serializers."""
 from rest_framework import serializers
 
 from api.report.serializers import add_operator_specified_fields
