@@ -623,7 +623,7 @@ async def listen_for_messages(consumer):
                     await consumer.commit()
             except (InterfaceError, OperationalError, ReportProcessorDBError) as err:
                 connection.close()
-                LOG.error(f"[listen_for_messages] database error. Seeing to committed. Error: {str(err)}")
+                LOG.error(f"[listen_for_messages] database error. Seeking to committed. Error: {str(err)}")
                 await asyncio.sleep(Config.RETRY_SECONDS)
                 await consumer.seek_to_committed()
             except KafkaMsgHandlerError as error:
