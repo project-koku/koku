@@ -57,7 +57,6 @@ from masu.util.ocp import common as utils
 LOG = logging.getLogger(__name__)
 
 EVENT_LOOP = asyncio.get_event_loop()
-MSG_PENDING_QUEUE = asyncio.Queue()
 
 HCCM_TOPIC = "platform.upload.hccm"
 VALIDATION_TOPIC = "platform.upload.validation"
@@ -66,7 +65,7 @@ FAILURE_CONFIRM_STATUS = "failure"
 
 
 class KafkaMsgHandlerError(Exception):
-    """Kafka mmsg handler error."""
+    """Kafka msg handler error."""
 
 
 def backoff(interval, maximum=64):  # pragma: no cover
@@ -77,7 +76,16 @@ def backoff(interval, maximum=64):  # pragma: no cover
 
 
 def create_manifest_entries(report_meta):
-    """Create manifest statistics entries."""
+    """
+    Creates manifest database entries for report processing tracking.
+
+    Args:
+        report_meta (dict): Report context dictionary from extract_payload.
+
+    Returns:
+        manifest_id (Integer): Manifest identifier of the created db entry.
+
+    """
 
     class Request:
         id = uuid.uuid4()
@@ -96,7 +104,22 @@ def create_manifest_entries(report_meta):
 
 
 def record_report_status(manifest_id, file_name):
-    """Record report file status."""
+    """
+    Creates initial report status database entry for new report files.
+
+    If a report has already been downloaded from the ingress service
+    there is a chance that processing has already been complete.  The
+    function returns the last completed date time to determine if the
+    report processing should continue in extract_payload.
+
+    Args:
+        manifest_id (Integer): Manifest Identifier.
+        file_name (String): Report file name
+
+    Returns:
+        DateTime - Last completed date time for a given report file.
+
+    """
     already_processed = False
     with ReportStatsDBAccessor(file_name, manifest_id) as db_accessor:
         already_processed = db_accessor.get_last_completed_datetime()
@@ -108,7 +131,22 @@ def record_report_status(manifest_id, file_name):
 
 
 def get_account_from_cluster_id(cluster_id):
-    """Lookup and filter message for known provider."""
+    """
+    Returns the provider details for a given OCP cluster id.
+
+    Args:
+        cluster_id (String): Cluster UUID.
+
+    Returns:
+        (dict) - keys: value
+                 authentication: String,
+                 customer_name: String,
+                 billing_source: String,
+                 provider_type: String,
+                 schema_name: String,
+                 provider_uuid: String
+
+    """
     account = None
     provider_uuid = utils.get_provider_uuid_from_cluster_id(cluster_id)
     if provider_uuid:
@@ -126,7 +164,7 @@ def extract_payload(url):  # noqa: C901
     1. manifest.json - dictionary containing usage report details needed
         for report processing.
         Dictionary Contains:
-            file - .csv usage report file name
+            files - names of .csv usage reports for the manifest
             date - DateTime that the payload was created
             uuid - uuid for payload
             cluster_id  - OCP cluster ID.
@@ -138,17 +176,30 @@ def extract_payload(url):  # noqa: C901
 
     Ex: /var/tmp/insights_local/my-ocp-cluster-1/20181001-20181101
 
+    Once the files are extracted:
+    1. Provider account is retrieved for the cluster id.  If no account is found we return.
+    2. Manifest database record is created which will establish the assembly_id and number of files
+    3. Report stats database record is created and is used as a filter to determine if the file
+       has already been processed.
+    4. All report files that have not been processed will have the local path to that report file
+       added to the report_meta context dictionary for that file.
+    5. Report file context dictionaries that require processing is added to a list which will be
+       passed to the report processor.  All context from report_meta is used by the processor.
+
     Args:
         url (String): URL path to payload in the Insights upload service..
 
     Returns:
-        (Dict): keys: value
-            "file: String,
-             cluster_id: String,
-             payload_date: DateTime,
-             manifest_path: String,
-             uuid: String,
-             manifest_path: String"
+        [dict]: keys: value
+                files: [String],
+                date: DateTime,
+                cluster_id: String
+                manifest_path: String,
+                provider_uuid: String,
+                provider_type: String
+                schema_name: String
+                manifest_id: Integer
+                current_file: String
 
     """
     # Create temporary directory for initial file staging and verification in the
@@ -244,7 +295,7 @@ async def send_confirmation(request_id, status):  # pragma: no cover
     Send kafka validation message to Insights Upload service.
 
     When a new file lands for topic 'hccm' we must validate it
-    so that it will be made perminenantly available to other
+    so that it will be made permanently available to other
     apps listening on the 'platform.upload.available' topic.
 
     Args:
@@ -302,22 +353,25 @@ def handle_message(msg):
         msg - Upload Service message containing usage payload information.
 
     Returns:
-        (String, dict) - String: Upload Service confirmation status
-                         dict: keys: value
-                               file: String,
-                               cluster_id: String,
-                               payload_date: DateTime,
-                               manifest_path: String,
-                               uuid: String,
-                               manifest_path: String
+        (String, [dict]) - String: Upload Service confirmation status
+                         [dict]: keys: value
+                                 files: [String],
+                                 date: DateTime,
+                                 cluster_id: String
+                                 manifest_path: String,
+                                 provider_uuid: String,
+                                 provider_type: String
+                                 schema_name: String
+                                 manifest_id: Integer
+                                 current_file: String
 
     """
     if msg.topic == HCCM_TOPIC:
         value = json.loads(msg.value.decode("utf-8"))
         try:
             LOG.info(f"Extracting Payload for msg: {str(value)}")
-            report_meta = extract_payload(value["url"])
-            return SUCCESS_CONFIRM_STATUS, report_meta
+            report_metas = extract_payload(value["url"])
+            return SUCCESS_CONFIRM_STATUS, report_metas
         except (OperationalError, InterfaceError):
             LOG.error("Unable to extract payload, database is closed.  Retrying...")
             raise KafkaMsgHandlerError("Unable to extract payload, db closed.")
@@ -358,7 +412,20 @@ def get_account(provider_uuid):
 
 
 def summarize_manifest(report_meta):
-    """Summarize manifest if ready."""
+    """
+    Kick off manifest summary when all report files have completed line item processing.
+
+    Args:
+        report (Dict) - keys: value
+                        schema_name: String,
+                        manifest_id: Integer,
+                        provider_uuid: String,
+                        provider_type: String,
+
+    Returns:
+        Celery Async UUID.
+
+    """
     async_id = None
     schema_name = report_meta.get("schema_name")
     manifest_id = report_meta.get("manifest_id")
@@ -381,24 +448,31 @@ def summarize_manifest(report_meta):
 
 def process_report(report):
     """
-    Process line item report and kick off summarization celery task.
+    Process line item report.
+
+    Returns True when line item processing is complete.  This is important because
+    the listen_for_messages -> process_messages path must have a positive acknowledgement
+    that line item processing is complete before committing.
+
+    If the service goes down in the middle of processing (SIGTERM) we do not want a
+    stray kafka commit to prematurely commit the message before processing has been
+    complete.
 
     Args:
         report (Dict) - keys: value
-                        file: String,
-                        cluster_id: String,
-                        date: DateTime,
-                        manifest_path: String,
-                        uuid: String,
-                        manifest_path: String
+                        schema_name: String,
+                        manifest_id: Integer,
+                        provider_uuid: String,
+                        provider_type: String,
+                        current_file: String,
+
     Returns:
-        None
+        True if line item report processing is complete.
 
     """
     schema_name = report.get("schema_name")
     manifest_id = report.get("manifest_id")
     provider_uuid = report.get("provider_uuid")
-    schema_name = report.get("schema_name")
     provider_type = report.get("provider_type")
 
     report_dict = {
@@ -411,7 +485,21 @@ def process_report(report):
 
 
 def report_metas_complete(report_metas):
-    """Dertmine if all reports have been processed."""
+    """
+    Verify if all reports from the ingress payload have been processed.
+
+    in process_messages, a dictionary value "process_complete" is added to the
+    report metadata dictionary for a report file.  This must be True for it to be
+    considered processed.
+
+    Args:
+        report_metas (list) - List of report metadata dictionaries needed for line item
+        processing.
+
+    Returns:
+        True if all report files for the payload have completed line item processing.
+
+    """
     process_complete = False
     for report_meta in report_metas:
         if not report_meta.get("process_complete"):
@@ -424,10 +512,18 @@ def report_metas_complete(report_metas):
 
 async def process_messages(msg, loop=EVENT_LOOP):
     """
-    Process asyncio MSG_PENDING_QUEUE and send validation status.
+    Process asyncio messages and send validation status.
+
+    Processing involves:
+    1. Downloading, verifying, extracting, and preparing report files for processing.
+    2. Line item processing each report file in the payload (downloaded from step 1).
+    3. Check if all reports have been processed for the manifest and if so, kick off
+       the celery worker task to summarize.
+    4. Send payload validation status to ingress service.
 
     Args:
-        None
+        msg (ConsumerRecord) - Message from kafka hccm topic.
+        loop (Asyncio Event Loop) - Event loop while listening for messages.
 
     Returns:
         None
@@ -489,13 +585,27 @@ async def listen_for_messages_loop(event_loop):
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
 async def listen_for_messages(consumer):
     """
-    Listen for messages on the available and hccm topics.
+    Listen for messages on the hccm topic.
 
     Once a message from one of these topics arrives, we add
-    them to the MSG_PENDING_QUEUE.
+    them extract the payload and line item process the report files.
+
+    Once all files from the manifest are complete a celery job is
+    dispatched to the worker to complete summary processing for the manifest.
+
+    Several exceptions can occur while listening for messages:
+    Database Errors - Re-processing attempts will be made until successful.
+    Internal Errors - Re-processing attempts will be made until successful.
+    Report Processing Errors - Kafka message will be committed with an error.
+                               Errors of this type would require a report processor
+                               fix and we do not want to block the message queue.
+
+    Upon successful processing the kafka message is manually committed.  Manual
+    commits are used so we can use the message queue to store unprocessed messages
+    to make the service more tolerant of SIGTERM events.
 
     Args:
-        None
+        consumer - (AIOKafkaConsumer): kafka consumer for HCCM ingress topic.
 
     Returns:
         None
@@ -536,6 +646,7 @@ async def listen_for_messages(consumer):
 
 
 def shutdown(loop):  # pragma: no cover
+    """SIGTERM asyncio event handler."""
     LOG.info("Received stop signal...")
 
 
@@ -545,7 +656,7 @@ def asyncio_worker_thread(loop):  # pragma: no cover
     Worker thread function to run the asyncio event loop.
 
     Args:
-        None
+        loop - Asyncio event loop
 
     Returns:
         None
