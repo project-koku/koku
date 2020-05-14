@@ -7,5 +7,6 @@ Development Information
 
    README
    CONTRIBUTING
+   devtools
    openshift
    testing

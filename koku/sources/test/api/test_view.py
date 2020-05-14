@@ -142,7 +142,7 @@ class SourcesViewTests(IamTestCase):
     def test_source_list(self):
         """Test the LIST endpoint."""
         with requests_mock.mock() as m:
-            m.get(f"http://www.sourcesclient.com/api/v1/sources/", status_code=200)
+            m.get("http://www.sourcesclient.com/api/v1/sources/", status_code=200)
 
             url = reverse("sources-list")
 
@@ -160,7 +160,7 @@ class SourcesViewTests(IamTestCase):
         IdentityHeaderMiddleware.create_customer(other_account)
         request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
         with requests_mock.mock() as m:
-            m.get(f"http://www.sourcesclient.com/api/v1/sources/", status_code=200)
+            m.get("http://www.sourcesclient.com/api/v1/sources/", status_code=200)
 
             url = reverse("sources-list")
 

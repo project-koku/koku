@@ -623,7 +623,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 json={"name": source_name, "source_type_id": source_type_id, "uid": source_uid},
             )
             m.get(
-                f"http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
+                "http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
                 status_code=200,
                 json={"data": [{"id": application_type}]},
             )

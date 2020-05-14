@@ -19,7 +19,9 @@
 # disabled module-wide due to current state of task signature.
 # we expect this situation to be temporary as we iterate on these details.
 import datetime
+import json
 import os
+from decimal import Decimal
 
 from celery import chain
 from celery.utils.log import get_task_logger
@@ -42,6 +44,7 @@ from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
 from masu.processor.cost_model_cost_updater import CostModelCostUpdater
+from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.worker_cache import WorkerCache
@@ -137,7 +140,7 @@ def get_report_files(
                         "manifest_id": report_dict.get("manifest_id"),
                     }
                     reports_to_summarize.append(report_meta)
-            except ReportProcessorError as processing_error:
+            except (ReportProcessorError, ReportProcessorDBError) as processing_error:
                 worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
                 LOG.error(str(processing_error))
                 WorkerCache().remove_task_from_cache(cache_key)
@@ -372,3 +375,106 @@ def vacuum_schema(schema_name):
                 cursor.execute(sql)
                 LOG.info(sql)
                 LOG.info(cursor.statusmessage)
+
+
+# The autovacuum settings should be tuned over time to account for a table's records
+# growing or shrinking. Based on the number of live tuples recorded from the latest
+# statistics run, the autovacuum_vacuum_scale_factor will be adjusted up or down.
+# More table rows will adjust the factor downward which should cause the autovacuum
+# process to run more frequently on those tables. The effect should be that the
+# process runs more frequently, but has less to do so it should overall be faster and
+# more efficient.
+# At this time, no table parameter will be lowered past the known production engine
+# setting of 0.2 by default. However this function's settings can be overridden via the
+# AUTOVACUUM_TUNING environment variable. See below.
+@app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name="reporting")
+def autovacuum_tune_schema(schema_name):
+    """Set the autovacuum table settings based on table size for the specified schema."""
+    table_sql = """
+SELECT s.relname as "table_name",
+       s.n_live_tup,
+       coalesce(table_options.options, '{}'::jsonb) as "options"
+  FROM pg_stat_user_tables s
+  LEFT
+  JOIN (
+         select oid,
+                jsonb_object_agg(split_part(option, '=', 1), split_part(option, '=', 2)) as options
+           from (
+                  select oid,
+                         unnest(reloptions) as "option"
+                    from pg_class
+                   where reloptions is not null
+                ) table_options_raw
+          where option ~ '^autovacuum_vacuum_scale_factor'
+          group
+             by oid
+       ) as table_options
+    ON table_options.oid = s.relid
+ WHERE s.schemaname = %s
+ ORDER
+    BY s.n_live_tup desc;
+"""
+
+    # initialize settings
+    scale_table = [(10000000, Decimal("0.01")), (1000000, Decimal("0.02")), (100000, Decimal("0.05"))]
+    alter_count = 0
+    no_scale = Decimal("100")
+    zero = Decimal("0")
+    reset = Decimal("-1")
+    scale_factor = zero
+
+    # override with environment
+    # This environment variable's data will be a JSON string in the form of:
+    # [[threshold, scale], ...]
+    # Where:
+    #     threshold is a integer number representing the approximate number of rows (tuples)
+    #     scale is the autovacuum_vacuum_scale_factor value (deimal number as string. ex "0.05")
+    #     See: https://www.postgresql.org/docs/10/runtime-config-autovacuum.html
+    #          https://www.2ndquadrant.com/en/blog/autovacuum-tuning-basics/
+    autovacuum_settings = json.loads(os.environ.get("AUTOVACUUM_TUNING", "[]"))
+    if autovacuum_settings:
+        scale_table = [[int(e[0]), Decimal(str(e[1]))] for e in autovacuum_settings]
+
+    scale_table.sort(key=lambda e: e[0], reverse=True)
+
+    # Execute the scale based on table analyzsis
+    with schema_context(schema_name):
+        with connection.cursor() as cursor:
+            cursor.execute(table_sql, [schema_name])
+            tables = cursor.fetchall()
+
+            for table in tables:
+                scale_factor = zero
+                table_name, n_live_tup, table_options = table
+                table_scale_option = table_options.get("autovacuum_vacuum_scale_factor", no_scale)
+
+                for threshold, scale in scale_table:
+                    if n_live_tup >= threshold:
+                        scale_factor = scale
+                        break
+
+                # If current scale factor is the same as the table setting, then do nothing
+                # Reset if table tuples have changed
+                if scale_factor > zero and table_scale_option <= scale:
+                    continue
+                elif scale_factor == zero and "autovacuum_vacuum_scale_factor" in table_options:
+                    scale_factor = reset
+
+                # Determine if we adjust downward or upward due to the threshold found.
+                if scale_factor > zero:
+                    value = [scale_factor]
+                    sql = f"""ALTER TABLE {schema_name}.{table_name} set (autovacuum_vacuum_scale_factor = %s);"""
+                    sql_log = (sql % str(scale_factor)).replace("'", "")
+                elif scale_factor < zero:
+                    value = None
+                    sql = f"""ALTER TABLE {schema_name}.{table_name} reset (autovacuum_vacuum_scale_factor);"""
+                    sql_log = sql
+
+                # Only execute the parameter change if there is something that needs to be changed
+                if scale_factor != zero:
+                    alter_count += 1
+                    cursor.execute(sql, value)
+                    LOG.info(sql_log)
+                    LOG.info(cursor.statusmessage)
+
+    LOG.info(f"Altered autovacuum_vacuum_scale_factor on {alter_count} tables")

@@ -395,7 +395,7 @@ async def process_message(app_type_id, msg, loop=EVENT_LOOP):  # noqa: C901
     elif msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE,):
         with concurrent.futures.ThreadPoolExecutor() as pool:
             if storage.is_known_source(msg_data.get("source_id")) is False:
-                LOG.info(f"Update event for unknown source id, skipping...")
+                LOG.info("Update event for unknown source id, skipping...")
                 return
             await loop.run_in_executor(
                 pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
@@ -663,7 +663,7 @@ def is_kafka_connected():  # pragma: no cover
     while not result:
         result = check_kafka_connection()
         if result:
-            LOG.info(f"Test connection to Kafka was successful.")
+            LOG.info("Test connection to Kafka was successful.")
         else:
             LOG.error("Unable to connect to Kafka server.")
             KAFKA_CONNECTION_ERRORS_COUNTER.inc()

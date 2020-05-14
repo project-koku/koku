@@ -97,6 +97,19 @@ class CostModelMetricsMapViewTest(IamTestCase):
             self.assertIsNotNone(metric.get("label_measurement_unit"))
             self.assertIsNotNone(metric.get("default_cost_type"))
 
+    def test_emptry_return_valid_source_type(self):
+        """
+        Test contents of the metrics.
+
+        Test that the data is empty list when not OCP source_type is supplied.
+        """
+        url = reverse("metrics")
+        client = APIClient()
+
+        url = url + f"?source_type={Provider.PROVIDER_AWS}"
+        response_data = client.get(url, **self.headers).data["data"]
+        self.assertFalse(response_data)
+
     def test_limit_1_offset_1(self):
         """
         Test accessing the second element in the array.
@@ -135,6 +148,15 @@ class CostModelMetricsMapViewTest(IamTestCase):
         client = APIClient()
         MOCK_COST_MODEL_METRIC_MAP = [{"Invalid": "Invalid"}]
         with patch("api.metrics.constants.COST_MODEL_METRIC_MAP", MOCK_COST_MODEL_METRIC_MAP):
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def test_invalid_json_500_response_source_type_map(self):
+        """Test that the API returns a 500 error when there is invalid source type map."""
+        url = reverse("metrics")
+        client = APIClient()
+        MOCK_SOURCE_TYPE_MAP = {"OCP-is-missing-from-this-dict": "Invalid"}
+        with patch("api.metrics.constants.SOURCE_TYPE_MAP", MOCK_SOURCE_TYPE_MAP):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
