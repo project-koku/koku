@@ -48,7 +48,7 @@ from reporting.models import AWSCostEntryProduct
 
 
 def _calculate_subtotals(data):
-    """Returns list of subtotals given data."""
+    """Returns the expected totals given the response data."""
 
     def total_costs(cost_values):
         total = 0

@@ -217,8 +217,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
             # remove the org unit and add in group by account
             org_unit_group_by_data = self.parameters.parameters.get("group_by").pop("org_unit")
             if not self.parameters.parameters["group_by"].get("account"):
-                # Fixme - implement RBAC here
                 self.parameters.parameters["group_by"]["account"] = ["*"]
+                if self.access:
+                    self.parameters._configure_access_params(self.parameters.caller)
 
             # look up the org_unit_object so that we can get the level
             org_unit_object = (
@@ -456,7 +457,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
     def total_sum(self, sum1, sum2):  # noqa: C901
         """
-        Add the results for each query_sum.
+        Given two sums, add the values of identical keys.
 
         Args:
             sum1 (Dict) the sum we are adding
