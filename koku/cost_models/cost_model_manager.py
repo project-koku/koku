@@ -75,11 +75,11 @@ class CostModelManager:
             CostModelMap.objects.filter(provider_uuid=provider_uuid, cost_model=self._model).delete()
 
         for provider_uuid in providers_to_create:
-            # Raise exception if provider is already associated with another cost model.
+            # Raise exception if source is already associated with another cost model.
             existing_cost_model = CostModelMap.objects.filter(provider_uuid=provider_uuid)
             if existing_cost_model.exists():
-                cost_model_name = existing_cost_model.first().cost_model.name
-                log_msg = f"Source {provider_uuid} already associated with cost model: {cost_model_name}."
+                cost_model_uuid = existing_cost_model.first().cost_model.uuid
+                log_msg = f"Source {provider_uuid} is already associated with cost model: {cost_model_uuid}."
                 LOG.warning(log_msg)
                 raise CostModelException(log_msg)
             CostModelMap.objects.create(cost_model=self._model, provider_uuid=provider_uuid)
