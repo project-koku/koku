@@ -16,24 +16,9 @@
 #
 """AWS Org Unit Query Handling."""
 from api.models import Provider
+from api.organizations.aws.provider_map import AWSOrgProviderMap
 from api.organizations.queries import OrgQueryHandler
-from api.report.provider_map import ProviderMap
 from reporting.provider.aws.models import AWSOrganizationalUnit
-
-
-class AWSOrgProviderMap(ProviderMap):
-    """AWS Provider Map."""
-
-    def __init__(self, provider, report_type):
-        """Constructor."""
-        self._mapping = [
-            {
-                "provider": Provider.PROVIDER_AWS,
-                "report_type": {"organizations": {"filter": [{}], "default_ordering": {}}, "tags": {}},
-            }
-        ]
-        self.views = {"organizations": {"default": AWSOrganizationalUnit}}
-        super().__init__(provider, report_type)
 
 
 class AWSOrgQueryHandler(OrgQueryHandler):
