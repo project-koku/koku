@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """AWS Report Serializers."""
+from django.utils.translation import ugettext as _
 from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
@@ -98,6 +99,13 @@ class QueryParamSerializer(ParamSerializer):
 
         """
         validate_field(self, "group_by", GroupBySerializer, value, tag_keys=self.tag_keys)
+        # Additionally, since we only have the org_unit group_by available for cost reports
+        # we must explicitly raise a validation error if it is a different report type
+        if "org_unit" in self.initial_data.get("group_by", {}).keys():
+            request = self.context.get("request")
+            if "costs" not in request.path:
+                error = {"org_unit": _("Unsupported parameter or invalid value")}
+                raise serializers.ValidationError(error)
         return value
 
     def validate_order_by(self, value):

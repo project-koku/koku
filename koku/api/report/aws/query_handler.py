@@ -27,8 +27,6 @@ from django.db.models.expressions import Func
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
-from django.utils.translation import ugettext as _
-from rest_framework import serializers
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
@@ -207,12 +205,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
         query_sum_results = []
         org_unit_applied = False
         if "org_unit" in self.parameters.parameters.get("group_by"):
-            if self.parameters.report_type != "costs":
-                # since we only have the org unit group_by available for cost reports
-                # raise a validation error if it is a different report type
-                error = {"org_unit": _("Unsupported parameter or invalid value")}
-                raise serializers.ValidationError(error)
-
             org_unit_applied = True
             # remove the org unit and add in group by account
             org_unit_group_by_data = self.parameters.parameters.get("group_by").pop("org_unit")

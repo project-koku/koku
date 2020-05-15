@@ -1305,7 +1305,7 @@ class AWSReportQueryTest(IamTestCase):
             """Check that the accounts, sub_ous, and totals are correct for each group_by."""
             with tenant_context(self.tenant):
                 url = f"?group_by[org_unit]={org_unit}"
-                query_params = self.mocked_query_params(url, AWSCostView)
+                query_params = self.mocked_query_params(url, AWSCostView, "costs")
                 handler = AWSReportQueryHandler(query_params)
                 data = handler.execute_query()
                 # grab the accounts and sub_ous and compare with the expected results
@@ -1334,7 +1334,7 @@ class AWSReportQueryTest(IamTestCase):
         with tenant_context(self.tenant):
             # grab org_unit=* query data
             org_group_by_url = "?group_by[org_unit]=*"
-            query_params = self.mocked_query_params(org_group_by_url, AWSCostView)
+            query_params = self.mocked_query_params(org_group_by_url, AWSCostView, "costs")
             handler = AWSReportQueryHandler(query_params)
             org_data = handler.execute_query()
             # grab the actual totals for the org_unit group by
@@ -1355,16 +1355,6 @@ class AWSReportQueryTest(IamTestCase):
             self.assertEqual(org_cost_total, overall_cost_total)
             self.assertEqual(org_infra_total, overall_infra_total)
             self.assertEqual(org_sup_total, overall_sup_total)
-
-    def test_group_by_org_unit_non_costs_reports(self):
-        """Test that grouping by org unit on non costs reports raises a validation error."""
-        for view in [AWSStorageView, AWSInstanceTypeView]:
-            with tenant_context(self.tenant):
-                org_group_by_url = "?group_by[org_unit]=*"
-                query_params = self.mocked_query_params(org_group_by_url, view)
-                handler = AWSReportQueryHandler(query_params)
-                with self.assertRaises(ValidationError):
-                    handler.execute_query()
 
     def test_filter_org_unit(self):
         """Check that the total is correct when filtering by org_unit."""
