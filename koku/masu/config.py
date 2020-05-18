@@ -134,3 +134,5 @@ class Config:
 
     # Flag to signal whether or not to connect to upload service
     KAFKA_CONNECT = False if os.getenv("KAFKA_CONNECT", "False") == "False" else True
+
+    RETRY_SECONDS = int(os.getenv("RETRY_SECONDS", "10"))

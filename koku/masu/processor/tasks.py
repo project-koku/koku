@@ -44,6 +44,7 @@ from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
 from masu.processor.cost_model_cost_updater import CostModelCostUpdater
+from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.worker_cache import WorkerCache
@@ -139,7 +140,7 @@ def get_report_files(
                         "manifest_id": report_dict.get("manifest_id"),
                     }
                     reports_to_summarize.append(report_meta)
-            except ReportProcessorError as processing_error:
+            except (ReportProcessorError, ReportProcessorDBError) as processing_error:
                 worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
                 LOG.error(str(processing_error))
                 WorkerCache().remove_task_from_cache(cache_key)
