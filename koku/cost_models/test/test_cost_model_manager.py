@@ -24,6 +24,7 @@ from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics import constants as metric_constants
 from api.provider.models import Provider
+from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
@@ -144,17 +145,17 @@ class CostModelManagerTest(IamTestCase):
             self.assertEqual(cost_model_map.first().cost_model, cost_model_obj)
             self.assertEqual(CostModelManager(cost_model_obj.uuid).get_provider_names_uuids(), provider_names_uuids)
 
+            second_cost_model_obj = None
             with patch("masu.processor.tasks.update_cost_model_costs.delay"):
-                second_cost_model_obj = manager.create(**data)
+                with self.assertRaises(CostModelException):
+                    second_cost_model_obj = manager.create(**data)
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
             self.assertIsNotNone(cost_model_map)
-            # Make sure we no longer associate this provider with
-            # the previous cost model
-            self.assertNotEqual(cost_model_map.first().cost_model, cost_model_obj)
-            self.assertEqual(cost_model_map.first().cost_model, second_cost_model_obj)
-            self.assertEqual(
-                CostModelManager(second_cost_model_obj.uuid).get_provider_names_uuids(), provider_names_uuids
-            )
+            # Make sure we still associate this provider with the previous cost model.
+            self.assertEqual(cost_model_map.first().cost_model, cost_model_obj)
+
+            # Make sure second cost model was never created.
+            self.assertIsNone(second_cost_model_obj)
 
     def test_create_with_two_providers(self):
         """Test creating a cost model with multiple providers."""

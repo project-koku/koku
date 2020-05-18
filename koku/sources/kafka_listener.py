@@ -363,7 +363,8 @@ async def process_message(app_type_id, msg, loop=EVENT_LOOP):  # noqa: C901
     LOG.info(f"Processing Event: {msg}")
     msg_data = None
     try:
-        msg_data = cost_mgmt_msg_filter(msg)
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            msg_data = await loop.run_in_executor(pool, cost_mgmt_msg_filter, msg)
     except SourceNotFoundError:
         LOG.warning(f"Source not found in platform sources. Skipping msg: {msg}")
         return
