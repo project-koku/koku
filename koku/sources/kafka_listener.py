@@ -339,7 +339,7 @@ def cost_mgmt_msg_filter(msg_data):
 
 
 @transaction.atomic  # noqa: C901
-async def process_message(app_type_id, msg, loop=EVENT_LOOP):  # noqa: C901
+def process_message(app_type_id, msg):  # noqa: C901
     """
     Process message from Platform-Sources kafka service.
 
@@ -353,8 +353,6 @@ async def process_message(app_type_id, msg, loop=EVENT_LOOP):  # noqa: C901
     Args:
         app_type_id - application type identifier
         msg - kafka message
-        loop - asyncio loop for ThreadPoolExecutor
-
 
     Returns:
         None
@@ -375,11 +373,8 @@ async def process_message(app_type_id, msg, loop=EVENT_LOOP):  # noqa: C901
 
         storage.create_source_event(msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset"))
 
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            if storage.is_known_source(msg_data.get("source_id")):
-                await loop.run_in_executor(
-                    pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
-                )
+        if storage.is_known_source(msg_data.get("source_id")):
+            sources_network_info(msg_data.get("source_id"), msg_data.get("auth_header"))
 
     elif msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
         if msg_data.get("event_type") in (KAFKA_AUTHENTICATION_CREATE,):
@@ -387,17 +382,13 @@ async def process_message(app_type_id, msg, loop=EVENT_LOOP):  # noqa: C901
                 msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset")
             )
 
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            await loop.run_in_executor(pool, save_auth_info, msg_data.get("auth_header"), msg_data.get("source_id"))
+        save_auth_info(msg_data.get("auth_header"), msg_data.get("source_id"))
 
     elif msg_data.get("event_type") in (KAFKA_SOURCE_UPDATE,):
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            if storage.is_known_source(msg_data.get("source_id")) is False:
-                LOG.info("Update event for unknown source id, skipping...")
-                return
-            await loop.run_in_executor(
-                pool, sources_network_info, msg_data.get("source_id"), msg_data.get("auth_header")
-            )
+        if storage.is_known_source(msg_data.get("source_id")) is False:
+            LOG.info("Update event for unknown source id, skipping...")
+            return
+        sources_network_info(msg_data.get("source_id"), msg_data.get("auth_header"))
 
     elif msg_data.get("event_type") in (KAFKA_APPLICATION_DESTROY,):
         storage.enqueue_source_delete(msg_data.get("source_id"), msg_data.get("offset"), allow_out_of_order=True)
@@ -428,7 +419,7 @@ async def listen_for_messages_loop(event_loop, application_source_id):
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()  # noqa: C901
-async def listen_for_messages(consumer, application_source_id):  # noqa: C901
+async def listen_for_messages(consumer, application_source_id, loop=EVENT_LOOP):  # noqa: C901
     """
     Listen for Platform-Sources kafka messages.
 
@@ -455,7 +446,8 @@ async def listen_for_messages(consumer, application_source_id):  # noqa: C901
             if msg:
                 LOG.debug(f"Cost Management Message to process: {str(msg)}")
                 try:
-                    await process_message(application_source_id, msg)
+                    with concurrent.futures.ThreadPoolExecutor() as pool:
+                        await loop.run_in_executor(pool, process_message, application_source_id, msg)
                 except (InterfaceError, OperationalError) as err:
                     connection.close()
                     LOG.error(err)
