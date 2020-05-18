@@ -20,18 +20,26 @@ import logging
 from collections import defaultdict
 from decimal import Decimal
 
+from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
 from api.metrics import constants as metric_constants
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.metrics.views import CostModelMetricMapJSONException
 from api.provider.models import Provider
+from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 
 CURRENCY_CHOICES = (("USD", "USD"),)
 MARKUP_CHOICES = (("percent", "%"),)
 LOG = logging.getLogger(__name__)
+
+
+def error_obj(key, message):
+    """Create an error object."""
+    error = {key: [_(message)]}
+    return error
 
 
 class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
@@ -382,7 +390,10 @@ class CostModelSerializer(serializers.Serializer):
         """Create the cost model object in the database."""
         source_uuids = validated_data.pop("source_uuids", [])
         validated_data.update({"provider_uuids": source_uuids})
-        return CostModelManager().create(**validated_data)
+        try:
+            return CostModelManager().create(**validated_data)
+        except CostModelException as error:
+            raise serializers.ValidationError(error_obj("cost-models", str(error)))
 
     def update(self, instance, validated_data, *args, **kwargs):
         """Update the rate object in the database."""
@@ -390,10 +401,12 @@ class CostModelSerializer(serializers.Serializer):
         new_providers_for_instance = []
         for uuid in source_uuids:
             new_providers_for_instance.append(str(Provider.objects.filter(uuid=uuid).first().uuid))
-        manager = CostModelManager(cost_model_uuid=instance.uuid)
-        manager.update_provider_uuids(new_providers_for_instance)
-        manager.update(**validated_data)
-
+        try:
+            manager = CostModelManager(cost_model_uuid=instance.uuid)
+            manager.update_provider_uuids(new_providers_for_instance)
+            manager.update(**validated_data)
+        except CostModelException as error:
+            raise serializers.ValidationError(error_obj("cost-models", str(error)))
         return manager.instance
 
     def to_representation(self, cost_model_obj):
