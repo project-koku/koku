@@ -25,10 +25,9 @@
         },
         "aiokafka": {
             "hashes": [
-                "sha256:b11e2284b09cdc59f78b830b5b0344707a673d36a7eb3b7824e537773df30ab4"
+                "sha256:36a5aa5bd681455c59c0de8a0c1bb9cfd2b32d93481bf56e821e9bad24859415"
             ],
-            "index": "pypi",
-            "version": "==0.5.2"
+            "version": "==0.6.0"
         },
         "amqp": {
             "hashes": [
