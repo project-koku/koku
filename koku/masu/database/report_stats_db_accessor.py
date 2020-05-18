@@ -92,7 +92,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
             (DateTime): Time stamp for last completed date/time.
 
         """
-        return self._obj.last_completed_datetime
+        return self._obj.last_completed_datetime if self._obj else None
 
     def get_last_started_datetime(self):
         """
