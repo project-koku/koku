@@ -489,10 +489,10 @@ docker-logs:
 docker-rabbit:
 	docker-compose up -d rabbit
 
-docker-reinitdb: docker-down-db remove-db docker-up-db run-migrations create-test-customer-no-sources
+docker-reinitdb: docker-down-db remove-db docker-up-db run-migrations docker-restart-koku create-test-customer-no-sources
 	@echo "Local database re-initialized with a test customer."
 
-docker-reinitdb-with-sources: docker-down-db remove-db docker-up-db run-migrations create-test-customer
+docker-reinitdb-with-sources: docker-down-db remove-db docker-up-db run-migrations docker-restart-koku create-test-customer
 	@echo "Local database re-initialized with a test customer and sources."
 
 docker-shell:
@@ -501,17 +501,29 @@ docker-shell:
 docker-test-all:
 	docker-compose -f koku-test.yml up --build
 
-docker-up-koku: KOKU_DOCKER_HASH := $(shell $(DOCKER) ps -q -f name=koku_server)
+docker-restart-koku:
+	@if [ -n "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
+         docker-compose restart koku-server ; \
+         make _koku-wait ; \
+         echo " koku is available" ; \
+     else \
+         make docker-up-koku ; \
+     fi
+
 docker-up-koku:
-ifeq ($(KOKU_DOCKER_HASH), )
-	@docker-compose up $(build) -d koku-server
+	@if [ -z "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
+         echo "Starting koku_server ..." ; \
+         docker-compose up $(build) -d koku-server ; \
+         make _koku-wait ; \
+     fi
+	@echo " koku is available!"
+
+_koku-wait:
 	@echo "Waiting on koku status: "
 	@until ./scripts/check_for_koku_server.sh $${KOKU_API_HOST:-localhost} $$API_PATH_PREFIX $${KOKU_API_PORT:-8000} >/dev/null 2>&1 ; do \
-        printf "." ; \
-        sleep 1 ; \
-    done
-endif
-	@echo " koku is available!"
+         printf "." ; \
+         sleep 1 ; \
+     done
 
 docker-up:
 	docker-compose up --build -d
