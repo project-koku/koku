@@ -105,13 +105,13 @@ class ReportDownloaderBase:
 
     def _process_manifest_db_record(self, assembly_id, billing_start, num_of_files):
         """Insert or update the manifest DB record."""
-        LOG.info("Inserting manifest database record for assembly_id: %s", assembly_id)
+        LOG.info("Inserting/updating manifest in database for assembly_id: %s", assembly_id)
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_entry = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
 
             if not manifest_entry:
-                LOG.info("No manifest entry found.  Adding for bill period start: %s", billing_start)
+                LOG.info("No manifest entry found in database. Adding for bill period start: %s", billing_start)
                 manifest_dict = {
                     "assembly_id": assembly_id,
                     "billing_period_start_datetime": billing_start,
