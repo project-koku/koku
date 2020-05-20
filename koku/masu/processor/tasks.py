@@ -22,6 +22,7 @@ import datetime
 import json
 import os
 from decimal import Decimal
+from decimal import InvalidOperation
 
 from celery import chain
 from celery.utils.log import get_task_logger
@@ -387,7 +388,7 @@ def vacuum_schema(schema_name):
 # At this time, no table parameter will be lowered past the known production engine
 # setting of 0.2 by default. However this function's settings can be overridden via the
 # AUTOVACUUM_TUNING environment variable. See below.
-@app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name="reporting")
+@app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name="reporting")  # noqa: C901
 def autovacuum_tune_schema(schema_name):
     """Set the autovacuum table settings based on table size for the specified schema."""
     table_sql = """
@@ -446,7 +447,10 @@ SELECT s.relname as "table_name",
             for table in tables:
                 scale_factor = zero
                 table_name, n_live_tup, table_options = table
-                table_scale_option = table_options.get("autovacuum_vacuum_scale_factor", no_scale)
+                try:
+                    table_scale_option = Decimal(table_options.get("autovacuum_vacuum_scale_factor", no_scale))
+                except InvalidOperation:
+                    table_scale_option = no_scale
 
                 for threshold, scale in scale_table:
                     if n_live_tup >= threshold:
