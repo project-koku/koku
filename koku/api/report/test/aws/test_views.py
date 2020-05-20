@@ -185,8 +185,8 @@ class AWSReportViewTest(IamTestCase):
 
     @RbacPermissions({"aws.account": {"read": ["*"]}})
     def test_execute_query_w_group_by_rbac_no_restriction(self):
-        """Test that total access results in all accounts associated with org_unit."""
-        qs = "group_by[org_unit]=OU_001"
+        """Test that total access results in all accounts associated with org_unit_id."""
+        qs = "group_by[org_unit_id]=OU_001"
         url = reverse("reports-aws-costs") + "?" + qs
         response = self.client.get(url, **self.headers)
         accounts = _calculate_accounts(response.data.get("data"))
@@ -199,7 +199,7 @@ class AWSReportViewTest(IamTestCase):
     @RbacPermissions({"aws.account": {"read": ["9999999999991"]}})
     def test_execute_query_w_group_by_rbac_restriction(self):
         """Test limited access results in only the account that the user can see."""
-        qs = "group_by[org_unit]=OU_001"
+        qs = "group_by[org_unit_id]=OU_001"
         url = reverse("reports-aws-costs") + "?" + qs
         response = self.client.get(url, **self.headers)
         accounts = _calculate_accounts(response.data.get("data"))
@@ -209,14 +209,14 @@ class AWSReportViewTest(IamTestCase):
     @RbacPermissions({"aws.account": {"read": []}})
     def test_execute_query_w_group_by_rbac_no_accounts(self):
         """Test that no read access results in a 403."""
-        qs = "?group_by[org_unit]=OU_001"
+        qs = "?group_by[org_unit_id]=OU_001"
         url = reverse("reports-aws-costs") + qs
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_group_by_org_unit_non_costs_reports(self):
         """Test that grouping by org unit on non costs reports raises a validation error."""
-        qs = "?group_by[org_unit]=*"
+        qs = "?group_by[org_unit_id]=*"
         url = reverse("reports-aws-storage") + qs
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

@@ -37,8 +37,8 @@ class AWSOrgQueryHandler(OrgQueryHandler):
             "level_column": "level",
         }
     ]
-    SUPPORTED_FILTERS = ["org_id"]
-    FILTER_MAP = {"org_id": {"field": "org_unit_id", "operation": "icontains", "composition_key": "org_filter"}}
+    SUPPORTED_FILTERS = ["org_unit_id"]
+    FILTER_MAP = {"org_unit_id": {"field": "org_unit_id", "operation": "icontains", "composition_key": "org_filter"}}
 
     def __init__(self, parameters):
         """Establish AWS report query handler.

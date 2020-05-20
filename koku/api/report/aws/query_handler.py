@@ -184,8 +184,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
                         if day.get("values"):
                             each_day["sub_orgs"].append(
                                 {
-                                    "org_name": org_name,
-                                    "org_id": sub_orgs_dict.get(org_name),
+                                    "org_unit_name": org_name,
+                                    "org_unit_id": sub_orgs_dict.get(org_name),
                                     "date": day.get("date"),
                                     "values": day.get("values"),
                                 }
@@ -195,7 +195,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
     def execute_query(self):  # noqa: C901
         """Execute each query needed to return the results.
 
-        If grouping by org_unit, a query will be executed to
+        If grouping by org_unit_id, a query will be executed to
         obtain the account results, and each sub_org results.
         Else it will return the original query.
         """
@@ -204,10 +204,10 @@ class AWSReportQueryHandler(ReportQueryHandler):
         query_data_results = {}
         query_sum_results = []
         org_unit_applied = False
-        if "org_unit" in self.parameters.parameters.get("group_by"):
+        if "org_unit_id" in self.parameters.parameters.get("group_by"):
             org_unit_applied = True
             # remove the org unit and add in group by account
-            org_unit_group_by_data = self.parameters.parameters.get("group_by").pop("org_unit")
+            org_unit_group_by_data = self.parameters.parameters.get("group_by").pop("org_unit_id")
             if not self.parameters.parameters["group_by"].get("account"):
                 self.parameters.parameters["group_by"]["account"] = ["*"]
                 if self.access:
@@ -230,7 +230,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 for org_object in sub_orgs:
                     sub_orgs_dict[org_object.org_unit_name] = org_object.org_unit_id
             # First we need to modify the parameters to get all accounts if org unit group_by is used
-            self.parameters.parameters["filter"]["org_unit"] = org_unit_group_by_data
+            self.parameters.parameters["filter"]["org_unit_id"] = org_unit_group_by_data
             self.query_filter = self._get_filter()
         # grab the base query
         # (without org_units this is the only query - with org_units this is the query to find the accounts)
@@ -239,7 +239,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         for sub_org_name, sub_org_id in sub_orgs_dict.items():
             if self.parameters.parameters["group_by"].get("account"):
                 self.parameters.parameters["group_by"].pop("account")
-            self.parameters.parameters["filter"]["org_unit"] = [sub_org_id]
+            self.parameters.parameters["filter"]["org_unit_id"] = [sub_org_id]
             self.query_filter = self._get_filter()
             sub_query_data, sub_query_sum = self.execute_individual_query()
             query_data_results[sub_org_name] = sub_query_data

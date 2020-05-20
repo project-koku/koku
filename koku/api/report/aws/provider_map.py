@@ -56,7 +56,7 @@ class AWSProviderMap(ProviderMap):
                     "account": "usage_account_id",
                     "service": "product_code",
                     "az": "availability_zone",
-                    "org_unit": "organizational_unit__org_unit_id",
+                    "org_unit_id": "organizational_unit__org_unit_id",
                 },
                 "end_date": "usage_end",
                 "filters": {
@@ -72,9 +72,9 @@ class AWSProviderMap(ProviderMap):
                     "az": {"field": "availability_zone", "operation": "icontains"},
                     "region": {"field": "region", "operation": "icontains"},
                     "product_family": {"field": "product_family", "operation": "icontains"},
-                    "org_unit": {"field": "organizational_unit__org_unit_id", "operation": "icontains"},
+                    "org_unit_id": {"field": "organizational_unit__org_unit_id", "operation": "icontains"},
                 },
-                "group_by_options": ["service", "account", "region", "az", "product_family", "org_unit"],
+                "group_by_options": ["service", "account", "region", "az", "product_family", "org_unit_id"],
                 "tag_column": "tags",
                 "report_type": {
                     "costs": {

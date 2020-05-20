@@ -78,10 +78,10 @@ class AWSReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_filter_by_org_id(self):
-        """Test that you can filter by org_id"""
+        """Test that you can filter by org_unit_id"""
         data_info = AWSOrganizationalUnit.objects.first()
         expected_org_id = data_info.org_unit_id
-        url = self.url + f"?filter[org_id]={expected_org_id}"
+        url = self.url + f"?filter[org_unit_id]={expected_org_id}"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data.get("data"))
@@ -90,10 +90,10 @@ class AWSReportViewTest(IamTestCase):
         self.assertEqual(data_row["org_unit_id"], expected_org_id)
 
     def test_filter_by_or_org_id_filter(self):
-        """Test that you can filter by org_id"""
+        """Test that you can filter by org_unit_id"""
         org_id_0 = "OU_001"
         org_id_1 = "OU_002"
-        url = self.url + f"?filter[or:org_id]={org_id_0}&filter[or:org_id]={org_id_1}"
+        url = self.url + f"?filter[or:org_unit_id]={org_id_0}&filter[or:org_unit_id]={org_id_1}"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data.get("data"))
@@ -103,15 +103,15 @@ class AWSReportViewTest(IamTestCase):
             self.assertIn(data_row["org_unit_id"], expected_org_ids)
 
     def test_filter_by_and_org_id_filter(self):
-        """Test that you can filter by org_id"""
+        """Test that you can filter by org_unit_id"""
         org_id_0 = "OU_001"
         org_id_1 = "OU_002"
-        url = self.url + f"?filter[and:org_id]={org_id_0}&filter[and:org_id]={org_id_1}"
+        url = self.url + f"?filter[and:org_unit_id]={org_id_0}&filter[and:org_unit_id]={org_id_1}"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data.get("data"))
         self.assertEqual(len(response.data.get("data")), 0)
-        url = self.url + f"?filter[and:org_id]={org_id_0}&filter[and:org_id]={org_id_0}"
+        url = self.url + f"?filter[and:org_unit_id]={org_id_0}&filter[and:org_unit_id]={org_id_0}"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data.get("data"))
