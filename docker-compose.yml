@@ -125,6 +125,8 @@ services:
       # The pg_init mount is still needed to enable the necesary extensions.
       - postgres
       - -c
+      - max_connections=1710
+      - -c
       - shared_preload_libraries=pg_stat_statements
       - -c
       - autovacuum_max_workers=8
