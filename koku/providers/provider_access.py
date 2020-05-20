@@ -101,9 +101,9 @@ class ProviderAccessor:
             ValidationError: Error string
 
         """
-        LOG.info(f"Provider account validation started for {str(credential)}")
+        LOG.info(f"Provider account validation started for {str(source_name)}.")
         reachable_status = self.service.cost_usage_source_is_reachable(credential, source_name)
-        LOG.info(f"Provider account validation complete for {str(credential)}")
+        LOG.info(f"Provider account validation complete for {str(source_name)}.")
         return reachable_status
 
     def infrastructure_type(self, provider_uuid, schema_name):
