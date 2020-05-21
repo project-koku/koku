@@ -21,11 +21,13 @@ import itertools
 import json
 import logging
 import random
+import signal
 import sys
 import threading
 import time
 
 from aiokafka import AIOKafkaConsumer
+from confluent_kafka import Consumer
 from django.db import connection
 from django.db import InterfaceError
 from django.db import OperationalError
@@ -400,6 +402,19 @@ def process_message(app_type_id, msg):  # noqa: C901
         storage.enqueue_source_update(msg_data.get("source_id"))
 
 
+def get_consumer_sync():
+    """Create a Kafka consumer."""
+    consumer = Consumer(
+        {
+            "bootstrap.servers": ",".join(Config.SOURCES_KAFKA_ADDRESS),
+            "group.id": "COST-SOURCES",
+            "queued.max.messages.kbytes": 1024,
+            "enable.auto.commit": False,
+        }
+    )
+    return consumer
+
+
 def get_consumer(event_loop):
     """Create a Kafka consumer."""
     return AIOKafkaConsumer(
@@ -642,6 +657,17 @@ def handle_exception(EVENT_LOOP, context):  # pragma: no cover
 
     # Stop asyncio event loop
     EVENT_LOOP.stop()
+
+
+running = True
+
+
+def handle_signal(signal, frame):
+    global running
+    running = False
+
+
+signal.signal(signal.SIGTERM, handle_signal)
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
