@@ -75,6 +75,7 @@ class SourcesErrorMessage:
         err_msg = None
         if isinstance(self._error, ValidationError):
             err_dict = self._error.detail
+            LOG.info(f"validation error: {self._error}. Validation detail {err_dict}")
             err_key = list(err_dict.keys()).pop()
             err_body = err_dict.get(err_key, []).pop()
             if err_body:
