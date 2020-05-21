@@ -76,7 +76,7 @@ class WorkerCache:
         task_list = self.worker_cache
         task_list.append(task_key)
         self.cache.set(settings.WORKER_CACHE_KEY, task_list, version=settings.HOSTNAME)
-        LOG.info(f"Added {task_key} to cache.")
+        LOG.info(f"Added task key {task_key} to cache.")
 
     def remove_task_from_cache(self, task_key):
         """Remove an entry from the cache for a task."""
@@ -87,7 +87,7 @@ class WorkerCache:
             pass
         else:
             self.cache.set(settings.WORKER_CACHE_KEY, task_list, version=settings.HOSTNAME)
-            LOG.info(f"Removed {task_key} from cache.")
+            LOG.info(f"Removed task key {task_key} from cache.")
 
     def get_all_running_tasks(self):
         """Combine each host's running tasks into a single list."""
