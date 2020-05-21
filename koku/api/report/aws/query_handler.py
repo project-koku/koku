@@ -477,6 +477,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
         with tenant_context(self.tenant):
             query_table = self.query_table
+            LOG.debug(f"Using query table: {query_table}")
             tag_results = None
             query = query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
