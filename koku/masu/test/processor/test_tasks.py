@@ -983,10 +983,13 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         if "AUTOVACUUM_TUNING" in os.environ:
             del os.environ["AUTOVACUUM_TUNING"]
 
+        # This invalid setting should be treated as though there was no setting
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
-            ("cost_model", 200000, {"autovacuum_vacuum_scale_factor": ""})
+            ("cost_model", 20000000, {"autovacuum_vacuum_scale_factor": ""})
         ]
-        expected = "INFO:masu.processor.tasks:Altered autovacuum_vacuum_scale_factor on 0 tables"
+        expected = (
+            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.01);"
+        )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
             self.assertIn(expected, logger.output)
