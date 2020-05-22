@@ -43,7 +43,7 @@ To get started developing against Koku first clone a local copy of the git repos
 
 This project is developed using the Django web framework. Many configuration settings can be read in from a ``.env`` file. To configure, do the following:
 
-1. Copy ``example.env`` into a ``.env``
+1. Copy ``env.example`` into a ``.env``
 2. Obtain AWS values and update the following in your ``.env``::
 
     AWS_ACCESS_KEY_ID=YOUR_AWS_ACCESS_KEY
