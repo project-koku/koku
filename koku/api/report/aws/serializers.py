@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """AWS Report Serializers."""
+from django.utils.translation import ugettext as _
 from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
@@ -30,7 +31,16 @@ from api.utils import UnitConverter
 class GroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
-    _opfields = ("account", "az", "instance_type", "region", "service", "storage_type", "product_family")
+    _opfields = (
+        "account",
+        "az",
+        "instance_type",
+        "region",
+        "service",
+        "storage_type",
+        "product_family",
+        "org_unit_id",
+    )
 
     # account field will accept both account number and account alias.
     account = StringOrListField(child=serializers.CharField(), required=False)
@@ -40,6 +50,7 @@ class GroupBySerializer(GroupSerializer):
     service = StringOrListField(child=serializers.CharField(), required=False)
     storage_type = StringOrListField(child=serializers.CharField(), required=False)
     product_family = StringOrListField(child=serializers.CharField(), required=False)
+    org_unit_id = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class OrderBySerializer(OrderSerializer):
@@ -59,13 +70,14 @@ class OrderBySerializer(OrderSerializer):
 class FilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
 
-    _opfields = ("account", "service", "region", "az", "product_family")
+    _opfields = ("account", "service", "region", "az", "product_family", "org_unit_id")
 
     account = StringOrListField(child=serializers.CharField(), required=False)
     service = StringOrListField(child=serializers.CharField(), required=False)
     region = StringOrListField(child=serializers.CharField(), required=False)
     az = StringOrListField(child=serializers.CharField(), required=False)
     product_family = StringOrListField(child=serializers.CharField(), required=False)
+    org_unit_id = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class QueryParamSerializer(ParamSerializer):
@@ -96,6 +108,13 @@ class QueryParamSerializer(ParamSerializer):
 
         """
         validate_field(self, "group_by", GroupBySerializer, value, tag_keys=self.tag_keys)
+        # Additionally, since we only have the org_unit_id group_by available for cost reports
+        # we must explicitly raise a validation error if it is a different report type
+        if "org_unit_id" in self.initial_data.get("group_by", {}).keys():
+            request = self.context.get("request")
+            if "costs" not in request.path:
+                error = {"org_unit_id": _("Unsupported parameter or invalid value")}
+                raise serializers.ValidationError(error)
         return value
 
     def validate_order_by(self, value):

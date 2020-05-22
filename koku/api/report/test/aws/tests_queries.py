@@ -47,6 +47,71 @@ from reporting.models import AWSCostEntryLineItemDailySummary
 from reporting.models import AWSCostEntryProduct
 
 
+def _calculate_subtotals(data):
+    """Returns the expected totals given the response data."""
+
+    def total_costs(cost_values):
+        total = 0
+        for value in cost_values:
+            total += value
+        return total
+
+    cost = []
+    infra = []
+    sup = []
+    for dictionary in data:
+        for _, value in dictionary.items():
+            if isinstance(value, list):
+                for item in value:
+                    if isinstance(item, dict):
+                        if "values" in item.keys():
+                            value = item["values"][0]
+                            cost.append(value["cost"]["total"]["value"])
+                            infra.append(value["infrastructure"]["total"]["value"])
+                            sup.append(value["supplementary"]["total"]["value"])
+                        else:
+                            cost.append(item["cost"]["total"]["value"])
+                            infra.append(item["infrastructure"]["total"]["value"])
+                            sup.append(item["supplementary"]["total"]["value"])
+
+    cost_total = total_costs(cost)
+    infra_total = total_costs(infra)
+    sup_total = total_costs(sup)
+    return (cost_total, infra_total, sup_total)
+
+
+def _calculate_accounts_and_sub_ous(data):
+    """Returns list of accounts and sub ous given data."""
+    accounts = []
+    sub_ous = []
+    for dictionary in data:
+        for _, value in dictionary.items():
+            if isinstance(value, list):
+                for item in value:
+                    if isinstance(item, dict):
+                        if "account" in item.keys():
+                            account = item["account"]
+                            accounts.append(account)
+                        elif "org_unit_id" in item.keys():
+                            sub_ou = item["org_unit_id"]
+                            sub_ous.append(sub_ou)
+    return (list(set(accounts)), list(set(sub_ous)))
+
+
+def get_account_ailases():
+    """Get the account aliases and return them in a list."""
+    accounts = AWSCostEntryLineItemDailySummary.objects.values(
+        "account_alias__account_alias", "usage_account_id"
+    ).distinct()
+    account_aliases = []
+    account_alias_mapping = {}
+    for account in accounts:
+        account_al = account.get("account_alias__account_alias")
+        account_aliases.append(account_al)
+        account_alias_mapping[account.get("usage_account_id")] = account_al
+    return account_aliases, account_alias_mapping
+
+
 class AWSReportQueryTest(IamTestCase):
     """Tests the report queries."""
 
@@ -80,6 +145,14 @@ class AWSReportQueryTest(IamTestCase):
                 .distinct()
                 .first()
                 .get("account_alias__account_alias")
+            )
+            self.account_aliases = get_account_ailases()[0]
+            self.account_alias_mapping = get_account_ailases()[1]
+            self.organizational_unit = (
+                AWSCostEntryLineItemDailySummary.objects.values("organizational_unit__org_unit_id")
+                .distinct()
+                .first()
+                .get("organizational_unit__org_unit_id")
             )
 
     def calculate_total(self, handler):
@@ -521,7 +594,7 @@ class AWSReportQueryTest(IamTestCase):
             month_data = data_item.get("accounts")
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            self.assertEqual(len(month_data), 1)
+            self.assertEqual(len(month_data), 6)
             current_total = 0
             for month_item in month_data:
                 self.assertIsInstance(month_item.get("account"), str)
@@ -534,7 +607,7 @@ class AWSReportQueryTest(IamTestCase):
     def test_execute_query_curr_month_by_account_w_order_by_account_alias(self):
         """Test execute_query for current month on monthly breakdown by account with asc order."""
 
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&order_by[account_alias]=asc"  # noqa: E501
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]={self.account_alias}&order_by[account_alias]=asc"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -757,7 +830,7 @@ class AWSReportQueryTest(IamTestCase):
         """Test execute_query for current month on monthly by account with limt as csv."""
         mock_accept.return_value = "text/csv"
 
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1&group_by[account]=*"  # noqa: E501
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1&group_by[account]={self.account_alias}"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -782,19 +855,23 @@ class AWSReportQueryTest(IamTestCase):
         # fetch the expected sums from the DB.
         with tenant_context(self.tenant):
             curr = AWSCostEntryLineItemDailySummary.objects.filter(
-                usage_start__gte=dh.this_month_start, usage_end__lte=dh.this_month_end
+                usage_start__gte=dh.this_month_start,
+                usage_end__lte=dh.this_month_end,
+                account_alias__account_alias=self.account_alias,
             ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
             current_total = Decimal(curr.get("value"))
 
             prev = AWSCostEntryLineItemDailySummary.objects.filter(
-                usage_start__gte=dh.last_month_start, usage_end__lte=dh.last_month_end
+                usage_start__gte=dh.last_month_start,
+                usage_end__lte=dh.last_month_end,
+                account_alias__account_alias=self.account_alias,
             ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
             prev_total = Decimal(prev.get("value"))
 
         expected_delta_value = Decimal(current_total - prev_total)
         expected_delta_percent = Decimal((current_total - prev_total) / prev_total * 100)
 
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&delta=cost"  # noqa: E501
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]={self.account_alias}&delta=cost"  # noqa: E501
         path = reverse("reports-aws-costs")
         query_params = self.mocked_query_params(url, AWSCostView, path)
         handler = AWSReportQueryHandler(query_params)
@@ -803,7 +880,6 @@ class AWSReportQueryTest(IamTestCase):
         query_output = handler.execute_query()
         data = query_output.get("data")
         self.assertIsNotNone(data)
-
         values = data[0].get("accounts", [])[0].get("values", [])[0]
         result_delta_value = values.get("delta_value")
         result_delta_percent = values.get("delta_percent")
@@ -868,12 +944,11 @@ class AWSReportQueryTest(IamTestCase):
         data = query_output.get("data")
 
         account_alias = data[0].get("accounts")[0].get("values")[0].get("account_alias")
-        self.assertEqual(account_alias, self.account_alias)
+
+        self.assertIn(account_alias, self.account_aliases)
 
     def test_execute_query_orderby_alias(self):
         """Test execute_query when account alias is avaiable."""
-        expected = {self.account_alias: self.accounts[0]}
-
         # execute query
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&order_by[account_alias]=asc"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -888,7 +963,8 @@ class AWSReportQueryTest(IamTestCase):
                 for value in account.get("values"):
                     actual[value.get("account_alias")] = value.get("account")
 
-        self.assertEqual(actual, expected)
+        for account_id, account_alias in self.account_alias_mapping.items():
+            self.assertEqual(actual.get(account_alias), account_id)
 
     def test_calculate_total(self):
         """Test that calculated totals return correctly."""
@@ -1207,6 +1283,96 @@ class AWSReportQueryTest(IamTestCase):
         data_totals = data.get("total", {})
         result = data_totals.get("cost", {}).get("total", {}).get("value")
         self.assertEqual(result, totals["cost"])
+
+    def test_execute_query_with_org_unit_group_by(self):
+        """Test that when data is grouped by org_unit_id, the totals add up correctly."""
+        # this mapping is based on the aws_org_tree.yml that populates the data for tests
+        # it takes into account the sub orgs that should show up for each org based on
+        # whether or not they have accounts under them in the range
+        # for example, OU_002 & 0U_004 do not show up under R_001 because OU_004 was deleted
+        # before the range began & OU_002 had no accounts during the range
+        ou_to_account_subou_map = {
+            "R_001": {"accounts": ["9999999999990"], "org_units": ["OU_001"]},
+            "OU_001": {"accounts": ["9999999999991", "9999999999992"], "org_units": []},
+            "OU_002": {"accounts": [], "org_units": ["OU_003"]},
+            "OU_003": {"accounts": ["9999999999993"], "org_units": []},
+            "OU_004": {"accounts": [], "org_units": []},
+            "OU_005": {"accounts": [], "org_units": []},
+        }
+        # helper function so that we don't have to repeat these steps for each ou
+
+        def check_accounts_subous_totals(org_unit):
+            """Check that the accounts, sub_ous, and totals are correct for each group_by."""
+            with tenant_context(self.tenant):
+                url = f"?group_by[org_unit_id]={org_unit}"
+                query_params = self.mocked_query_params(url, AWSCostView, "costs")
+                handler = AWSReportQueryHandler(query_params)
+                data = handler.execute_query()
+                # grab the accounts and sub_ous and compare with the expected results
+                accounts, sub_ous = _calculate_accounts_and_sub_ous(data.get("data"))
+                for account in ou_to_account_subou_map.get(org_unit).get("accounts"):
+                    self.assertIn(account, accounts)
+                for sub_ou in ou_to_account_subou_map.get(org_unit).get("org_units"):
+                    self.assertIn(sub_ou, sub_ous)
+                # grab the expected totals for cost, infra, and sup
+                cost_total, infra_total, sup_total = _calculate_subtotals(data.get("data"))
+                # grab the actual totals & make sure they are equal
+                actual_cost_total = data.get("total").get("cost").get("total").get("value")
+                actual_infra_total = data.get("total").get("infrastructure").get("total").get("value")
+                actual_sup_total = data.get("total").get("supplementary").get("total").get("value")
+                self.assertEqual(cost_total, actual_cost_total)
+                self.assertEqual(infra_total, actual_infra_total)
+                self.assertEqual(sup_total, actual_sup_total)
+
+        # for each org defined in our yaml file assert that everything is as expected
+        orgs_to_check = ["R_001", "OU_001", "OU_002", "OU_003", "OU_004", "OU_005"]
+        for org in orgs_to_check:
+            check_accounts_subous_totals(org)
+
+    def test_group_by_org_unit_all(self):
+        """Check that the total is correct when grouping by org_unit_id=*."""
+        with tenant_context(self.tenant):
+            # grab org_unit_id=* query data
+            org_group_by_url = "?group_by[org_unit_id]=*"
+            query_params = self.mocked_query_params(org_group_by_url, AWSCostView, "costs")
+            handler = AWSReportQueryHandler(query_params)
+            org_data = handler.execute_query()
+            # grab the actual totals for the org_unit_id group by
+            org_cost_total = org_data.get("total").get("cost").get("total").get("value")
+            org_infra_total = org_data.get("total").get("infrastructure").get("total").get("value")
+            org_sup_total = org_data.get("total").get("supplementary").get("total").get("value")
+
+            # grab query data without group by
+            overall_url = "?"
+            query_params = self.mocked_query_params(overall_url, AWSCostView)
+            handler = AWSReportQueryHandler(query_params)
+            overall_data = handler.execute_query()
+            # grab the actual totals for the org_unit_id group by
+            overall_cost_total = overall_data.get("total").get("cost").get("total").get("value")
+            overall_infra_total = overall_data.get("total").get("infrastructure").get("total").get("value")
+            overall_sup_total = overall_data.get("total").get("supplementary").get("total").get("value")
+
+            self.assertEqual(org_cost_total, overall_cost_total)
+            self.assertEqual(org_infra_total, overall_infra_total)
+            self.assertEqual(org_sup_total, overall_sup_total)
+
+    def test_filter_org_unit(self):
+        """Check that the total is correct when filtering by org_unit_id."""
+        with tenant_context(self.tenant):
+            org_group_by_url = "?filter[org_unit_id]=R_001"
+            query_params = self.mocked_query_params(org_group_by_url, AWSCostView)
+            handler = AWSReportQueryHandler(query_params)
+            org_data = handler.execute_query()
+            # grab the expected totals
+            cost_total, infra_total, sup_total = _calculate_subtotals(org_data.get("data"))
+            # grab the actual totals for the org_unit_id filter
+            org_cost_total = org_data.get("total").get("cost").get("total").get("value")
+            org_infra_total = org_data.get("total").get("infrastructure").get("total").get("value")
+            org_sup_total = org_data.get("total").get("supplementary").get("total").get("value")
+            # make sure they add up
+            self.assertEqual(org_cost_total, cost_total)
+            self.assertEqual(org_infra_total, infra_total)
+            self.assertEqual(org_sup_total, sup_total)
 
 
 class AWSReportQueryLogicalAndTest(IamTestCase):

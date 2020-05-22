@@ -20,8 +20,23 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.iam.test.iam_test_case import RbacPermissions
 from api.report.view import _convert_units
 from api.utils import UnitConverter
+
+
+def _calculate_accounts(data):
+    """Returns list of accounts in the input data."""
+    accounts = []
+    for dictionary in data:
+        for _, value in dictionary.items():
+            if isinstance(value, list):
+                for item in value:
+                    if isinstance(item, dict):
+                        if "account" in item.keys():
+                            account = item["account"]
+                            accounts.append(account)
+    return list(set(accounts))
 
 
 class AWSReportViewTest(IamTestCase):
@@ -167,3 +182,41 @@ class AWSReportViewTest(IamTestCase):
 
         self.assertEqual(expected_unit, result_unit)
         self.assertEqual(report_total * 1e9, result_total)
+
+    @RbacPermissions({"aws.account": {"read": ["*"]}})
+    def test_execute_query_w_group_by_rbac_no_restriction(self):
+        """Test that total access results in all accounts associated with org_unit_id."""
+        qs = "group_by[org_unit_id]=OU_001"
+        url = reverse("reports-aws-costs") + "?" + qs
+        response = self.client.get(url, **self.headers)
+        accounts = _calculate_accounts(response.data.get("data"))
+        # These accounts are tied to this org unit inside of the
+        # aws_org_tree.yml that populates the data for tests
+        for account in ["9999999999991", "9999999999992"]:
+            self.assertIn(account, accounts)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @RbacPermissions({"aws.account": {"read": ["9999999999991"]}})
+    def test_execute_query_w_group_by_rbac_restriction(self):
+        """Test limited access results in only the account that the user can see."""
+        qs = "group_by[org_unit_id]=OU_001"
+        url = reverse("reports-aws-costs") + "?" + qs
+        response = self.client.get(url, **self.headers)
+        accounts = _calculate_accounts(response.data.get("data"))
+        self.assertEqual(accounts, ["9999999999991"])
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @RbacPermissions({"aws.account": {"read": []}})
+    def test_execute_query_w_group_by_rbac_no_accounts(self):
+        """Test that no read access results in a 403."""
+        qs = "?group_by[org_unit_id]=OU_001"
+        url = reverse("reports-aws-costs") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_group_by_org_unit_non_costs_reports(self):
+        """Test that grouping by org unit on non costs reports raises a validation error."""
+        qs = "?group_by[org_unit_id]=*"
+        url = reverse("reports-aws-storage") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
