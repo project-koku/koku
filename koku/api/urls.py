@@ -20,6 +20,7 @@ from rest_framework.routers import DefaultRouter
 
 from api.views import AWSCostView
 from api.views import AWSInstanceTypeView
+from api.views import AWSOrgView
 from api.views import AWSStorageView
 from api.views import AWSTagView
 from api.views import AzureCostView
@@ -122,5 +123,6 @@ urlpatterns = [
     ),
     path("settings/", SettingsView.as_view(), name="settings"),
     path("settings", RedirectView.as_view(pattern_name="settings"), name="settings-redirect"),
+    path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
 ]
 urlpatterns += ROUTER.urls
