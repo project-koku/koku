@@ -21,22 +21,16 @@ import boto3
 from botocore.exceptions import ClientError
 from botocore.exceptions import NoCredentialsError
 from botocore.exceptions import ParamValidationError
-from django.utils.translation import ugettext as _
 from requests.exceptions import ConnectionError as BotoConnectionError
 from rest_framework import serializers  # meh
 
 from ..provider_errors import ProviderErrors
 from ..provider_interface import ProviderInterface
+from api.common import error_obj
 from api.models import Provider
 from masu.processor import ALLOWED_COMPRESSIONS
 
 LOG = logging.getLogger(__name__)
-
-
-def error_obj(key, message):
-    """Create an error object."""
-    error = {key: [_(message)]}
-    return error
 
 
 def _get_sts_access(provider_resource_name):

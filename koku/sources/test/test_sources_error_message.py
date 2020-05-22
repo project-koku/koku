@@ -16,17 +16,11 @@
 #
 """Test the Sources Error Messages."""
 from django.test import TestCase
-from django.utils.translation import ugettext as _
 from rest_framework.serializers import ValidationError
 
+from api.common import error_obj
 from providers.provider_errors import ProviderErrors
 from sources.sources_error_message import SourcesErrorMessage
-
-
-def error_obj(key, message):
-    """Create an error object."""
-    error = {key: [_(message)]}
-    return error
 
 
 class SourcesErrorMessageTest(TestCase):
