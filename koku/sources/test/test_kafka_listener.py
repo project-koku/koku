@@ -890,9 +890,10 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         ]
         for test in test_matrix:
             msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
+            run_loop = asyncio.new_event_loop()
             with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
                 with patch.object(SourcesHTTPClient, "get_source_type_name", return_value=test.get("source_name")):
-                    process_message(test_application_id, msg_data)
+                    run_loop.run_until_complete(process_message(test_application_id, msg_data, run_loop))
                     test.get("expected_fn")(msg_data, test, mock_sources_network_info)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
@@ -905,8 +906,10 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             "value": {"id": 1, "source_id": 1, "application_type_id": test_application_id},
         }
         msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
+        run_loop = asyncio.new_event_loop()
         with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError("NOT FOUND TEST")):
-            self.assertIsNone(process_message(test_application_id, msg_data))
+            result = run_loop.run_until_complete(process_message(test_application_id, msg_data, run_loop))
+            self.assertIsNone(result)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     @patch("sources.kafka_listener.sources_network_info", returns=None)
@@ -967,6 +970,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         for test in test_matrix:
             msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
+            run_loop = asyncio.new_event_loop()
             with patch.object(
                 SourcesHTTPClient, "get_source_id_from_endpoint_id", return_value=test.get("value").get("source_id")
             ):
@@ -977,7 +981,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 ):
                     with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
                         with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
-                            process_message(test_application_id, msg_data)
+                            run_loop.run_until_complete(process_message(test_application_id, msg_data, run_loop))
                             test.get("expected_fn")(msg_data, test, mock_save_auth_info)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
@@ -1010,12 +1014,13 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         for test in test_matrix:
             msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
+            run_loop = asyncio.new_event_loop()
             with patch(
                 "sources.kafka_listener.storage.is_known_source", return_value=test.get("expected_known_source")
             ):
                 with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
                     with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
-                        process_message(test_application_id, msg_data)
+                        run_loop.run_until_complete(process_message(test_application_id, msg_data, run_loop))
                         test.get("expected_fn")(msg_data, test.get("expected_known_source"), mock_sources_network_info)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
@@ -1044,9 +1049,10 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         for test in test_matrix:
             storage.create_source_event(test.get("value").get("source_id"), Config.SOURCES_FAKE_HEADER, 3)
             msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
+            run_loop = asyncio.new_event_loop()
             with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
                 with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
-                    process_message(test_application_id, msg_data)
+                    run_loop.run_until_complete(process_message(test_application_id, msg_data, run_loop))
                     test.get("expected_fn")(msg_data)
             Sources.objects.all().delete()
 
@@ -1090,6 +1096,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             )
             test_source.save()
             msg_data = MsgDataGenerator(event_type=test.get("event"), value=test.get("value")).get_data()
+            run_loop = asyncio.new_event_loop()
             with patch.object(
                 SourcesHTTPClient, "get_source_id_from_endpoint_id", return_value=test.get("value").get("source_id")
             ):
@@ -1100,7 +1107,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 ):
                     with patch.object(SourcesHTTPClient, "get_source_details", return_value={"source_type_id": "1"}):
                         with patch.object(SourcesHTTPClient, "get_source_type_name", return_value="amazon"):
-                            process_message(test_application_id, msg_data)
+                            run_loop.run_until_complete(process_message(test_application_id, msg_data, run_loop))
                             test.get("expected_fn")(test)
                             Sources.objects.all().delete()
 
@@ -1131,7 +1138,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             mock_consumer = MockKafkaConsumer([msg])
 
             run_loop.run_until_complete(
-                source_integration.listen_for_messages(mock_consumer, cost_management_app_type, run_loop)
+                source_integration.listen_for_messages(mock_consumer, cost_management_app_type)
             )
             if test.get("expected_process"):
                 mock_process_message.assert_called()
@@ -1160,24 +1167,23 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         ]
 
         for test in test_matrix:
-            with self.subTest(test=test):
-                msg = ConsumerRecord(
-                    topic="platform.sources.event-stream",
-                    offset=5,
-                    event_type="Application.create",
-                    auth_header="testheader",
-                    value=bytes(test.get("test_value"), encoding="utf-8"),
-                )
+            msg = ConsumerRecord(
+                topic="platform.sources.event-stream",
+                offset=5,
+                event_type="Application.create",
+                auth_header="testheader",
+                value=bytes(test.get("test_value"), encoding="utf-8"),
+            )
 
-                mock_consumer = MockKafkaConsumer([msg])
+            mock_consumer = MockKafkaConsumer([msg])
 
-                mock_process_message.side_effect = test.get("side_effect")
-                with patch("sources.kafka_listener.connection.close") as close_mock:
-                    with patch.object(Config, "RETRY_SECONDS", 0):
-                        run_loop.run_until_complete(
-                            source_integration.listen_for_messages(mock_consumer, cost_management_app_type, run_loop)
-                        )
-                        close_mock.assert_called()
+            mock_process_message.side_effect = test.get("side_effect")
+            with patch("sources.kafka_listener.connection.close") as close_mock:
+                with patch.object(Config, "RETRY_SECONDS", 0):
+                    run_loop.run_until_complete(
+                        source_integration.listen_for_messages(mock_consumer, cost_management_app_type)
+                    )
+                    close_mock.assert_called()
 
     @patch("sources.kafka_listener.process_message")
     def test_listen_for_messages_network_error(self, mock_process_message):
@@ -1211,7 +1217,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             with patch("sources.kafka_listener.connection.close") as close_mock:
                 with patch.object(Config, "RETRY_SECONDS", 0):
                     run_loop.run_until_complete(
-                        source_integration.listen_for_messages(mock_consumer, cost_management_app_type, run_loop)
+                        source_integration.listen_for_messages(mock_consumer, cost_management_app_type)
                     )
                     close_mock.assert_not_called()
 
