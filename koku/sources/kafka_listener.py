@@ -439,7 +439,8 @@ async def listen_for_messages(consumer, application_source_id, loop=EVENT_LOOP):
         async for msg in consumer:
             LOG.debug(f"Filtering Message: {str(msg)}")
             try:
-                msg = get_sources_msg_data(msg, application_source_id)
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    msg = await loop.run_in_executor(pool, get_sources_msg_data, msg, application_source_id)
             except SourcesMessageError:
                 await consumer.commit()
                 continue
