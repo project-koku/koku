@@ -1,7 +1,6 @@
 ===========
 Koku README
 ===========
-
 |license| |Build Status| |codecov| |Updates| |Python 3| |Docs|
 
 About
@@ -56,7 +55,7 @@ This project is developed using the Django web framework. Many configuration set
     brew install openssl
     brew unlink openssl && brew link openssl --force
 
-4. (Mac Only) Also add the following to your ``.env```::
+4. (Mac Only) Also add the following to your ``.env``::
 
     LDFLAGS="-L/usr/local/opt/openssl/lib"
     CPPFLAGS="-I/usr/local/opt/openssl/include"
@@ -81,6 +80,11 @@ This project is developed using the Django web framework. Many configuration set
 
     pre-commit install
 
+10. Clone a local copy of the  git repository. This should be in the same location as the cloned koku git repository ::
+
+        git clone https://github.com/project-koku/nise
+
+
 
 Developing with Docker Compose
 ------------------------------
@@ -90,10 +94,16 @@ This will explain how to start the server and its dependencies using Docker, cre
 Starting Koku using Docker Compose
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Run the following commands::
+1. Start the docker containers::
 
     make docker-up
+
+2. Display log output from the docker containers. It is recommended that logs be kept in a second terminal ::
+
     docker-compose logs -f koku-server koku-worker
+
+3. Install koku-nise::
+
     pip install koku-nise
 
 Run AWS Scenario
@@ -272,4 +282,4 @@ Please refer to Contributing_.
 .. |Python 3| image:: https://pyup.io/repos/github/project-koku/koku/python-3-shield.svg?t=1524249231720
    :target: https://pyup.io/repos/github/project-koku/koku/
 .. |Docs| image:: https://readthedocs.org/projects/koku/badge/
-   :target: https://koku.readthedocs.io/en/latest/
+   :target: https://koku.readthedocs.io/en/latest
