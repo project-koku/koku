@@ -5,8 +5,8 @@ from google.cloud import storage
 from google.cloud.exceptions import GoogleCloudError
 from rest_framework import serializers
 
-from ..provider_interface import error_obj
 from ..provider_interface import ProviderInterface
+from api.common import error_obj
 from api.models import Provider
 
 LOG = logging.getLogger(__name__)
