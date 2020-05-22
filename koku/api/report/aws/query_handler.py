@@ -239,7 +239,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
         for sub_org_name, sub_org_id in sub_orgs_dict.items():
             if self.parameters.parameters["group_by"].get("account"):
                 self.parameters.parameters["group_by"].pop("account")
-            self.parameters.parameters["filter"]["org_unit_id"] = [sub_org_id]
+            org_access = self.access.get("aws.organizational_unit", {}).get("read", [])
+            if sub_org_id in org_access or "*" in org_access:
+                self.parameters.parameters["filter"]["org_unit_id"] = [sub_org_id]
             self.query_filter = self._get_filter()
             sub_query_data, sub_query_sum = self.execute_individual_query()
             query_data_results[sub_org_name] = sub_query_data

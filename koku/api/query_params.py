@@ -45,7 +45,10 @@ class QueryParameters:
     """
 
     provider_resource_list = {
-        "aws": [(Provider.PROVIDER_AWS, "account", "aws.account")],
+        "aws": [
+            (Provider.PROVIDER_AWS, "account", "aws.account"),
+            (Provider.PROVIDER_AWS, "org_unit_id", "aws.organizational_unit"),
+        ],
         "azure": [(Provider.PROVIDER_AZURE, "subscription_guid", "azure.subscription_guid")],
         "ocp": [
             (Provider.PROVIDER_OCP, "cluster", "openshift.cluster", True),

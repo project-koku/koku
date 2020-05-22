@@ -46,10 +46,16 @@ PROVIDERS = [
     Provider.OCP_ALL,
 ]
 ACCESS_KEYS = {
-    Provider.PROVIDER_AWS.lower(): ["aws.account"],
+    Provider.PROVIDER_AWS.lower(): ["aws.account", "aws.organizational_unit"],
     Provider.PROVIDER_AZURE.lower(): ["azure.subscription_guid"],
     Provider.PROVIDER_OCP.lower(): ["openshift.cluster", "openshift.project", "openshift.node"],
-    Provider.OCP_AWS.lower(): ["aws.account", "openshift.cluster", "openshift.project", "openshift.node"],
+    Provider.OCP_AWS.lower(): [
+        "aws.account",
+        "aws.organizational_unit",
+        "openshift.cluster",
+        "openshift.project",
+        "openshift.node",
+    ],
     Provider.OCP_AZURE.lower(): [
         "azure.subscription_guid",
         "openshift.cluster",
@@ -58,6 +64,7 @@ ACCESS_KEYS = {
     ],
     Provider.OCP_ALL.lower(): [
         "aws.account",
+        "aws.organizational_unit",
         "azure.subscription_guid",
         "openshift.cluster",
         "openshift.project",
@@ -465,7 +472,7 @@ class QueryParametersTests(TestCase):
     def test_access_replace_wildcard(self):
         """Test that a group by account wildcard is replaced with only the subset of accounts."""
         fake_uri = "group_by[account]=*&" "group_by[region]=*"
-        test_access = {"aws.account": {"read": ["account1", "account2"]}}
+        test_access = {"aws.account": {"read": ["account1", "account2"]}, "aws.organizational_unit": {"read": ["*"]}}
         fake_request = Mock(
             spec=HttpRequest,
             user=Mock(access=test_access, customer=Mock(schema_name="acct10001")),
@@ -534,7 +541,7 @@ class QueryParametersTests(TestCase):
     def test_access_add_account_filter(self):
         """Test that if no group_by or filter is present a filter of accounts is added."""
         fake_uri = "filter[region]=*"
-        test_access = {"aws.account": {"read": ["account1", "account2"]}}
+        test_access = {"aws.account": {"read": ["account1", "account2"]}, "aws.organizational_unit": {"read": ["*"]}}
         fake_request = Mock(
             spec=HttpRequest,
             user=Mock(access=test_access, customer=Mock(schema_name="acct10001")),
@@ -727,7 +734,11 @@ class QueryParametersTests(TestCase):
     def test_partial_access_ocp_all_partial_azure_access(self):
         """Test set access returns account numbers."""
         guid = uuid4()
-        self.test_read_access = {"aws.account": {"read": ["*"]}, "azure.subscription_guid": {"read": [str(guid)]}}
+        self.test_read_access = {
+            "aws.account": {"read": ["*"]},
+            "aws.organizational_unit": {"read": ["*"]},
+            "azure.subscription_guid": {"read": [str(guid)]},
+        }
         fake_request = Mock(
             spec=HttpRequest,
             user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
@@ -748,7 +759,11 @@ class QueryParametersTests(TestCase):
 
     def test_check_wildcard_access(self):
         """Test check restrictions returns False when all access is wildcard."""
-        self.test_read_access = {"aws.account": {"read": ["*"]}, "azure.subscription_guid": {"read": ["*"]}}
+        self.test_read_access = {
+            "aws.account": {"read": ["*"]},
+            "aws.organizational_unit": {"read": ["*"]},
+            "azure.subscription_guid": {"read": ["*"]},
+        }
         fake_request = Mock(
             spec=HttpRequest,
             user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
@@ -793,6 +808,7 @@ class QueryParametersTests(TestCase):
         """Test check restrictions returns False when non-ocp have wildcard, but ocp is restricted."""
         self.test_read_access = {
             "aws.account": {"read": ["*"]},
+            "aws.organizational_unit": {"read": ["*"]},
             "azure.subscription_guid": {"read": ["*"]},
             "openshift.cluster": {"read": ["my-ocp-cluster"]},
         }
