@@ -71,6 +71,10 @@ help:
 	@echo "  load-test-customer-data               load test data for the default sources created in create-test-customer"
 	@echo "                                          @param start - (optional) start date ex. 2019-08-02"
 	@echo "                                          @param end - (optional) end date ex. 2019-12-5"
+	@echo "  load-aws-org-unit-tree                inserts aws org tree into model and runs nise command to populate cost"
+	@echo "                                          @param tree_yml - (optional) Tree yaml file. Default: 'scripts/aws_org_tree.yml'."
+	@echo "                                          @param schema - (optional) schema name. Default: 'acct10001'."
+	@echo "                                          @param nise_yml - (optional) Nise yaml file. Defaults to nise static yaml."
 	@echo "  backup-local-db-dir                   make a backup copy PostgreSQL database directory (pg_data.bak)"
 	@echo "  restore-local-db-dir                  overwrite the local PostgreSQL database directory with pg_data.bak"
 	@echo "  collect-static                        collect static files to host"
@@ -180,6 +184,9 @@ create-test-customer-no-sources: run-migrations docker-up-koku
 
 load-test-customer-data:
 	$(TOPDIR)/scripts/load_test_customer_data.sh $(TOPDIR) $(start) $(end)
+
+load-aws-org-unit-tree:
+	$(PYTHON) $(TOPDIR)/scripts/insert_aws_org_tree.py tree_yml=$(tree_yml) schema=$(schema) nise_yml=$(nise_yml)
 
 collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
@@ -489,10 +496,10 @@ docker-logs:
 docker-rabbit:
 	docker-compose up -d rabbit
 
-docker-reinitdb: docker-down-db remove-db docker-up-db run-migrations create-test-customer-no-sources
+docker-reinitdb: docker-down-db remove-db docker-up-db run-migrations docker-restart-koku create-test-customer-no-sources
 	@echo "Local database re-initialized with a test customer."
 
-docker-reinitdb-with-sources: docker-down-db remove-db docker-up-db run-migrations create-test-customer
+docker-reinitdb-with-sources: docker-down-db remove-db docker-up-db run-migrations docker-restart-koku create-test-customer
 	@echo "Local database re-initialized with a test customer and sources."
 
 docker-shell:
@@ -501,17 +508,29 @@ docker-shell:
 docker-test-all:
 	docker-compose -f koku-test.yml up --build
 
-docker-up-koku: KOKU_DOCKER_HASH := $(shell $(DOCKER) ps -q -f name=koku_server)
+docker-restart-koku:
+	@if [ -n "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
+         docker-compose restart koku-server ; \
+         make _koku-wait ; \
+         echo " koku is available" ; \
+     else \
+         make docker-up-koku ; \
+     fi
+
 docker-up-koku:
-ifeq ($(KOKU_DOCKER_HASH), )
-	@docker-compose up $(build) -d koku-server
+	@if [ -z "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
+         echo "Starting koku_server ..." ; \
+         docker-compose up $(build) -d koku-server ; \
+         make _koku-wait ; \
+     fi
+	@echo " koku is available!"
+
+_koku-wait:
 	@echo "Waiting on koku status: "
 	@until ./scripts/check_for_koku_server.sh $${KOKU_API_HOST:-localhost} $$API_PATH_PREFIX $${KOKU_API_PORT:-8000} >/dev/null 2>&1 ; do \
-        printf "." ; \
-        sleep 1 ; \
-    done
-endif
-	@echo " koku is available!"
+         printf "." ; \
+         sleep 1 ; \
+     done
 
 docker-up:
 	docker-compose up --build -d
