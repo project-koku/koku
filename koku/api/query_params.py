@@ -70,6 +70,7 @@ class QueryParameters:
 
         self.kwargs = kwargs
         self.request = request
+        self.caller = caller
         self.report_type = caller.report
         self.serializer = caller.serializer
         self.query_handler = caller.query_handler
