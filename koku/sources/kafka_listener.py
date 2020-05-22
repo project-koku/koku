@@ -138,7 +138,7 @@ def execute_process_queue(cost_management_type_id):
     """Execute process queue to synchronize providers."""
     while not PROCESS_QUEUE.empty():
         msg_tuple = PROCESS_QUEUE.get()
-        process_synchronize_sources_msg(msg_tuple, cost_management_type_id)
+        process_synchronize_sources_msg(msg_tuple, cost_management_type_id, PROCESS_QUEUE)
 
 
 @receiver(post_save, sender=Sources)
@@ -552,7 +552,7 @@ def execute_koku_provider_op(msg, cost_management_type_id):
         raise RabbitOperationalError(err_msg)
 
 
-def _requeue_provider_sync_message(priority, msg, queue=PROCESS_QUEUE):
+def _requeue_provider_sync_message(priority, msg, queue):
     """Helper to requeue provider sync messages."""
     time.sleep(Config.RETRY_SECONDS)
     _log_process_queue_event(queue, msg)
@@ -563,7 +563,7 @@ def _requeue_provider_sync_message(priority, msg, queue=PROCESS_QUEUE):
     )
 
 
-def process_synchronize_sources_msg(msg_tuple, cost_management_type_id):
+def process_synchronize_sources_msg(msg_tuple, cost_management_type_id, process_queue):
     """
     Synchronize Platform Sources with Koku Providers.
 
@@ -605,14 +605,14 @@ def process_synchronize_sources_msg(msg_tuple, cost_management_type_id):
             f"[synchronize_sources] Closing DB connection and re-queueing failed operation."
             f" Encountered {type(error).__name__}: {error}"
         )
-        _requeue_provider_sync_message(priority, msg)
+        _requeue_provider_sync_message(priority, msg, process_queue)
 
     except RabbitOperationalError as error:
         LOG.warning(
             f"[synchronize_sources] RabbitMQ is down and re-queueing failed operation."
             f" Encountered {type(error).__name__}: {error}"
         )
-        _requeue_provider_sync_message(priority, msg)
+        _requeue_provider_sync_message(priority, msg, process_queue)
 
     except Exception as error:
         # The reason for catching all exceptions is to ensure that the event

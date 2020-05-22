@@ -17,6 +17,7 @@
 """Test the Sources Kafka Listener handler."""
 import asyncio
 import json
+import queue
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -74,14 +75,29 @@ class ConsumerRecord:
 
     def __init__(self, topic, offset, event_type, auth_header, value, partition=0):
         """Initialize Msg."""
-        self.topic = topic
-        self.offset = offset
-        self.partition = partition
-        self.headers = (
+        self._topic = topic
+        self._offset = offset
+        self._partition = partition
+        self._headers = (
             ("event_type", bytes(event_type, encoding="utf-8")),
             ("x-rh-identity", bytes(auth_header, encoding="utf-8")),
         )
-        self.value = value
+        self._value = value
+
+    def topic(self):
+        return self._topic
+
+    def offset(self):
+        return self._offset
+
+    def partition(self):
+        return self._partition
+
+    def value(self):
+        return self._value
+
+    def headers(self):
+        return self._headers
 
 
 class MsgDataGenerator:
@@ -1111,8 +1127,6 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         future_mock.set_result("test result")
         mock_process_message.return_value = future_mock
 
-        run_loop = asyncio.new_event_loop()
-
         cost_management_app_type = 2
 
         test_matrix = [
@@ -1130,9 +1144,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
             mock_consumer = MockKafkaConsumer([msg])
 
-            run_loop.run_until_complete(
-                source_integration.listen_for_messages(mock_consumer, cost_management_app_type, run_loop)
-            )
+            source_integration.listen_for_messages(msg, mock_consumer, cost_management_app_type)
+
             if test.get("expected_process"):
                 mock_process_message.assert_called()
             else:
@@ -1143,8 +1156,6 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         """Test to listen for kafka messages with database errors."""
         future_mock = asyncio.Future()
         future_mock.set_result("test result")
-
-        run_loop = asyncio.new_event_loop()
 
         cost_management_app_type = 2
 
@@ -1174,9 +1185,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                 mock_process_message.side_effect = test.get("side_effect")
                 with patch("sources.kafka_listener.connection.close") as close_mock:
                     with patch.object(Config, "RETRY_SECONDS", 0):
-                        run_loop.run_until_complete(
-                            source_integration.listen_for_messages(mock_consumer, cost_management_app_type, run_loop)
-                        )
+                        source_integration.listen_for_messages(msg, mock_consumer, cost_management_app_type)
                         close_mock.assert_called()
 
     @patch("sources.kafka_listener.process_message")
@@ -1184,8 +1193,6 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         """Test to listen for kafka messages with network errors."""
         future_mock = asyncio.Future()
         future_mock.set_result("test result")
-
-        run_loop = asyncio.new_event_loop()
 
         cost_management_app_type = 2
 
@@ -1210,9 +1217,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             mock_process_message.side_effect = test.get("side_effect")
             with patch("sources.kafka_listener.connection.close") as close_mock:
                 with patch.object(Config, "RETRY_SECONDS", 0):
-                    run_loop.run_until_complete(
-                        source_integration.listen_for_messages(mock_consumer, cost_management_app_type, run_loop)
-                    )
+                    source_integration.listen_for_messages(msg, mock_consumer, cost_management_app_type)
                     close_mock.assert_not_called()
 
     @patch("sources.kafka_listener.execute_koku_provider_op")
@@ -1223,8 +1228,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         future_mock = asyncio.Future()
         future_mock.set_result("test result")
 
-        run_loop = asyncio.new_event_loop()
-        test_queue = asyncio.PriorityQueue(loop=run_loop)
+        test_queue = queue.PriorityQueue()
 
         cost_management_app_type = 2
 
@@ -1237,11 +1241,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             mock_process_message.side_effect = test.get("side_effect")
             with patch("sources.kafka_listener.connection.close") as close_mock:
                 with patch.object(Config, "RETRY_SECONDS", 0):
-                    run_loop.run_until_complete(
-                        process_synchronize_sources_msg(
-                            (i, test["test_value"]), test_queue, cost_management_app_type, run_loop
-                        )
-                    )
+                    process_synchronize_sources_msg((i, test["test_value"]), cost_management_app_type, test_queue)
                     close_mock.assert_called()
         for i in range(2):
             priority, _ = test_queue.get_nowait()
@@ -1252,8 +1252,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         """Test processing synchronize messages."""
         provider = Sources(**self.aws_source)
 
-        run_loop = asyncio.new_event_loop()
-        test_queue = asyncio.PriorityQueue(loop=run_loop)
+        test_queue = queue.PriorityQueue()
 
         cost_management_app_type = 2
 
@@ -1266,9 +1265,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             with patch("sources.storage.clear_update_flag") as mock_clear_flag, patch(
                 "sources.tasks.create_or_update_provider.delay"
             ) as mock_delay:
-                run_loop.run_until_complete(
-                    process_synchronize_sources_msg((0, msg), test_queue, cost_management_app_type, run_loop)
-                )
+                process_synchronize_sources_msg((0, msg), cost_management_app_type, test_queue)
                 mock_delay.assert_called()
                 mock_clear_flag.assert_called()
                 mock_destroy.assert_not_called()
@@ -1277,9 +1274,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         with patch("sources.storage.clear_update_flag") as mock_clear_flag, patch(
             "sources.tasks.create_or_update_provider.delay"
         ) as mock_delay:
-            run_loop.run_until_complete(
-                process_synchronize_sources_msg((0, msg), test_queue, cost_management_app_type, run_loop)
-            )
+            process_synchronize_sources_msg((0, msg), cost_management_app_type, test_queue)
             mock_delay.assert_not_called()
             mock_clear_flag.assert_not_called()
         mock_destroy.assert_called()
