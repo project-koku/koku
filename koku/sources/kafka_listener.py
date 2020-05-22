@@ -25,8 +25,8 @@ import sys
 import threading
 import time
 
-from aiokafka import AIOKafkaConsumer
 from confluent_kafka import Consumer
+from confluent_kafka import TopicPartition
 from django.db import connection
 from django.db import InterfaceError
 from django.db import OperationalError
@@ -409,29 +409,18 @@ def process_message(app_type_id, msg):  # noqa: C901
         storage.enqueue_source_update(msg_data.get("source_id"))
 
 
-def get_consumer_sync():
+def get_consumer():
     """Create a Kafka consumer."""
     consumer = Consumer(
         {
             "bootstrap.servers": Config.SOURCES_KAFKA_ADDRESS,
             "group.id": "COST-SOURCES",
             "queued.max.messages.kbytes": 1024,
-            "enable.auto.commit": False,
+            "enable.auto.commit": True,
         }
     )
     consumer.subscribe([Config.SOURCES_TOPIC])
     return consumer
-
-
-def get_consumer(event_loop):
-    """Create a Kafka consumer."""
-    return AIOKafkaConsumer(
-        Config.SOURCES_TOPIC,
-        loop=event_loop,
-        bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS,
-        group_id="hccm-sources",
-        enable_auto_commit=False,
-    )
 
 
 running = True
@@ -445,7 +434,7 @@ def handle_signal(signal, frame):
 
 def listen_for_messages_loop(application_source_id):
     """Wrap listen_for_messages in while true."""
-    consumer = get_consumer_sync()
+    consumer = get_consumer()
     LOG.info("Listener started.  Waiting for messages...")
     while running:
         msg_list = consumer.consume()
@@ -456,6 +445,13 @@ def listen_for_messages_loop(application_source_id):
 
         listen_for_messages(msg, consumer, application_source_id)
         execute_process_queue(application_source_id)
+
+
+def rewind_consumer_to_retry(consumer, topic_partition):
+    """Helper method to log and rewind kafka consumer for retry."""
+    LOG.info(f"Seeking back to offset: {topic_partition.offset}, partition: {topic_partition.partition}")
+    consumer.seek(topic_partition)
+    time.sleep(Config.RETRY_SECONDS)
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()  # noqa: C901
@@ -475,31 +471,31 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
     try:
         try:
             msg = get_sources_msg_data(msg, application_source_id)
+            offset = msg.get("offset")
+            partition = msg.get("partition")
         except SourcesMessageError:
-            consumer.commit()
             return
         if msg:
+            LOG.info(f"Processing message offset: {offset} partition: {partition}")
+            topic_partition = TopicPartition(topic=Config.SOURCES_TOPIC, partition=partition, offset=offset)
             LOG.info(f"Cost Management Message to process: {str(msg)}")
             try:
                 process_message(application_source_id, msg)
             except (InterfaceError, OperationalError) as err:
                 connection.close()
                 LOG.error(err)
-                time.sleep(Config.RETRY_SECONDS)
-                consumer.seek_to_committed()
+                rewind_consumer_to_retry(consumer, topic_partition)
             except SourcesHTTPClientError as err:
                 LOG.error(err)
-                time.sleep(Config.RETRY_SECONDS)
-                consumer.seek_to_committed()
+                rewind_consumer_to_retry(consumer, topic_partition)
             except SourceNotFoundError:
                 LOG.warning(f"Source not found in platform sources. Skipping msg: {msg}")
-                consumer.commit()
-            else:
-                consumer.commit()
     except KafkaError as error:
         LOG.error(f"[listen_for_messages] Kafka error encountered: {type(error).__name__}: {error}", exc_info=True)
+        rewind_consumer_to_retry(consumer, topic_partition)
     except Exception as error:
         LOG.error(f"[listen_for_messages] UNKNOWN error encountered: {type(error).__name__}: {error}", exc_info=True)
+        rewind_consumer_to_retry(consumer, topic_partition)
 
 
 def execute_koku_provider_op(msg, cost_management_type_id):

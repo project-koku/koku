@@ -159,7 +159,7 @@ class MockKafkaConsumer:
     async def commit(self):
         self.preloaded_messages.pop()
 
-    async def seek_to_committed(self):
+    async def seek(self, topic_partition):
         # This isn't realistic... But it's one way to stop the consumer for our needs.
         raise KafkaError("Seek to commited. Closing...")
 
