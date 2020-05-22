@@ -20,9 +20,9 @@ import logging
 from collections import defaultdict
 from decimal import Decimal
 
-from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
+from api.common import error_obj
 from api.metrics import constants as metric_constants
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.metrics.views import CostModelMetricMapJSONException
@@ -34,12 +34,6 @@ from cost_models.models import CostModel
 CURRENCY_CHOICES = (("USD", "USD"),)
 MARKUP_CHOICES = (("percent", "%"),)
 LOG = logging.getLogger(__name__)
-
-
-def error_obj(key, message):
-    """Create an error object."""
-    error = {key: [_(message)]}
-    return error
 
 
 class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
