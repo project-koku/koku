@@ -150,7 +150,7 @@ If you see this error, run the following command (assuming you are at the projec
 
     setfacl -m u:26:-wx ./pg_data
 
-See  https://access.redhat.com/containers/?tab=overview#/registry.access.redhat.com/rhel8/postgresql-10
+See  https://access.redhat.com/containers/?tab=overview#/registry.access.redhat.com/rhel8/postgresql-12
 
 
 Database Query Monitoring
@@ -254,7 +254,7 @@ Please refer to Contributing_.
 .. _readthedocs: http://koku.readthedocs.io/en/latest/
 .. _`Install Docker for Mac`: https://docs.docker.com/v17.12/docker-for-mac/install/
 .. _`Install brew`: https://brew.sh/
-.. _tutorial: https://www.postgresql.org/docs/10/static/tutorial-start.html
+.. _tutorial: https://www.postgresql.org/docs/12/tutorial-start.html
 .. _`Working with Openshift`: https://koku.readthedocs.io/en/latest/openshift.html
 .. _Contributing: https://koku.readthedocs.io/en/latest/CONTRIBUTING.html
 .. _pre-commit: https://pre-commit.com
