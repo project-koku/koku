@@ -437,7 +437,7 @@ def get_consumer(event_loop):
 running = True
 
 
-def handle_signal(name):
+def handle_signal(signal, frame):
     LOG.info("SIGTERM recieved.")
     global running
     running = False
@@ -448,8 +448,10 @@ def listen_for_messages_loop(application_source_id):
     consumer = get_consumer_sync()
     LOG.info("Listener started.  Waiting for messages...")
     while running:
-        msg = consumer.poll(1.0)
-        if msg is None:
+        msg_list = consumer.consume()
+        if len(msg_list) == 1:
+            msg = msg_list.pop()
+        else:
             continue
 
         listen_for_messages(msg, consumer, application_source_id)
@@ -462,7 +464,7 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
     Listen for Platform-Sources kafka messages.
 
     Args:
-        consumer (AIOKafkaConsumer): Kafka consumer object
+        consumer (Consumer): Kafka consumer object
         application_source_id (Integer): Cost Management's current Application Source ID. Used for
             kafka message filtering.
 
