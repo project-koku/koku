@@ -22,9 +22,9 @@ from base64 import b64decode
 from json import loads as json_loads
 
 from django.db import transaction
-from django.utils.translation import gettext as _
 from rest_framework import serializers
 
+from ..common import error_obj
 from ..common import RH_IDENTITY_HEADER
 from .models import Customer
 from .models import User
@@ -75,12 +75,6 @@ def extract_header(request, header):
 def create_schema_name(account):
     """Create a database schema name."""
     return f"acct{account}"
-
-
-def error_obj(key, message):
-    """Create an error object."""
-    error = {key: [_(message)]}
-    return error
 
 
 class UserSerializer(serializers.ModelSerializer):

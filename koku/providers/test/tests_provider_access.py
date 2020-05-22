@@ -18,6 +18,7 @@
 from unittest.mock import patch
 
 from django.test import TestCase
+from rest_framework.serializers import ValidationError
 
 from api.models import Provider
 from providers.aws.provider import AWSProvider
@@ -119,3 +120,21 @@ class ProviderAccessorTestCase(TestCase):
         with self.assertRaises(ProviderAccessorError):
             with patch.object(OCPProvider, "infra_key_list_implementation", side_effect=Exception("test")):
                 interface.infrastructure_type(None, None)
+
+    def test_invalid_provider_funcs(self):
+        """Verify that an invalid service is created and raises errors."""
+        provider_name = "BAD"
+        interface = ProviderAccessor(provider_name)
+        self.assertIsNone(interface.service)
+
+        with self.assertRaises(ValidationError):
+            interface.cost_usage_source_ready({}, {})
+
+        with self.assertRaises(ValidationError):
+            interface.service_name()
+
+        with self.assertRaises(ValidationError):
+            interface.infrastructure_type({}, {})
+
+        with self.assertRaises(ValidationError):
+            interface.infrastructure_key_list({}, {})
