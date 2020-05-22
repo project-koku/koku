@@ -286,7 +286,14 @@ class ReportQueryHandler(QueryHandler):
             if not group_data:
                 group_data = self.parameters.get_group_by("or:" + item)
             if group_data:
-                group_pos = self.parameters.url_data.index(item)
+                try:
+                    group_pos = self.parameters.url_data.index(item)
+                except ValueError:
+                    # if we are grouping by org unit we are inserting a group by account
+                    # and popping off the org_unit_id group by - but here we need to get the position
+                    # for org_unit_id
+                    if item == "account" and "org_unit_id" in self.parameters.url_data:
+                        group_pos = self.parameters.url_data.index("org_unit_id")
                 if (item, group_pos) not in group_by:
                     group_by.append((item, group_pos))
 
