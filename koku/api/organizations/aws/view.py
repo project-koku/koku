@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """AWS Organization views."""
-from api.common.permissions.aws_access import AwsAccessPermission
+from api.common.permissions.aws_access import AWSOUAccessPermission
 from api.models import Provider
 from api.organizations.aws.queries import AWSOrgQueryHandler
 from api.organizations.serializers import AWSOrgQueryParamSerializer
@@ -30,4 +30,4 @@ class AWSOrgView(OrganizationView):
     serializer = AWSOrgQueryParamSerializer
     report = "organizations"
     tag_handler = []
-    permission_classes = [AwsAccessPermission]
+    permission_classes = [AWSOUAccessPermission]

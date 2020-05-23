@@ -24,10 +24,26 @@ from rest_framework_csv.renderers import CSVRenderer
 from api.common.pagination import ReportPagination
 from api.common.pagination import ReportRankedPagination
 from api.iam.test.iam_test_case import IamTestCase
+from api.iam.test.iam_test_case import RbacPermissions
 from api.report.view import get_paginator
 
 
-class ReportViewTest(IamTestCase):
+def _calculate_accounts_and_subous(data):
+    """Returns list of accounts and sub_ous in the input data."""
+    accounts = []
+    sub_ous = []
+    if data:
+        for dictionary in data:
+            if "org_unit_id" in dictionary.keys():
+                sub_ou = dictionary["org_unit_id"]
+                sub_ous.append(sub_ou)
+            if "accounts" in dictionary.keys():
+                accounts_list = dictionary["accounts"]
+                accounts += accounts_list
+    return (list(set(accounts)), list(set(sub_ous)))
+
+
+class OrganizationsViewTest(IamTestCase):
     """Tests the organizations view."""
 
     ENDPOINTS = ["aws-org-unit"]
@@ -83,3 +99,55 @@ class ReportViewTest(IamTestCase):
         params = {"offset": 5}
         paginator = get_paginator(params, 0)
         self.assertIsInstance(paginator, ReportRankedPagination)
+
+    @RbacPermissions({"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["R_001", "OU_001"]}})
+    def test_endpoint_rbac_ou_restrictions(self):
+        """Test limited access results in only the ous that the user can see."""
+        url = reverse("aws-org-unit")
+        response = self.client.get(url, **self.headers)
+        accounts, ous = _calculate_accounts_and_subous(response.data.get("data"))
+        for org in ous:
+            self.assertIn(org, ["R_001", "OU_001"])
+        for account in ["account 002", "account 001", "Root A Test"]:
+            self.assertIn(account, accounts)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @RbacPermissions({"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["fake"]}})
+    def test_endpoint_rbac_no_ous(self):
+        """Test limited access results in only the account that the user can see."""
+        url = reverse("aws-org-unit")
+        response = self.client.get(url, **self.headers)
+        accounts, ous = _calculate_accounts_and_subous(response.data.get("data"))
+        self.assertEqual(ous, [])
+        self.assertEqual(accounts, [])
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # test that filtering on a specific ou that we don't have access to results
+        # in a 403 error
+        qs = "?filter[org_unit_id]=OU_001"
+        url = reverse("aws-org-unit") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @RbacPermissions({"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["*"]}})
+    def test_endpoint_no_restriction(self):
+        """Test open access results in all of the accounts/orgs."""
+        url = reverse("aws-org-unit")
+        response = self.client.get(url, **self.headers)
+        accounts, ous = _calculate_accounts_and_subous(response.data.get("data"))
+        for org in ["OU_003", "R_001", "OU_002", "OU_001", "OU_005"]:
+            self.assertIn(org, ous)
+        for account in ["Root A Test", "account 003", "account 002", "account 001"]:
+            self.assertIn(account, accounts)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @RbacPermissions({"aws.account": {"read": ["9999999999991787878"]}, "aws.organizational_unit": {"read": ["*"]}})
+    def test_endpoint_account_restriction(self):
+        """Test restricted account access results in no accounts but all orgs."""
+        url = reverse("aws-org-unit")
+        response = self.client.get(url, **self.headers)
+        accounts, ous = _calculate_accounts_and_subous(response.data.get("data"))
+        self.assertEqual(accounts, [])
+        for org in ["OU_003", "R_001", "OU_002", "OU_001", "OU_005"]:
+            self.assertIn(org, ous)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
