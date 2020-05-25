@@ -32,6 +32,7 @@ from api.provider.serializers import AdminProviderSerializer
 from api.provider.serializers import ProviderSerializer
 from api.provider.serializers import REPORT_PREFIX_MAX_LENGTH
 from providers.provider_access import ProviderAccessor
+from providers.provider_errors import ProviderErrors
 
 FAKE = Faker()
 
@@ -383,6 +384,51 @@ class ProviderSerializerTest(IamTestCase):
         self.assertTrue(instance.active)
         self.assertIsNone(schema_name)
         self.assertFalse("schema_name" in serializer.data["customer"])
+
+    def test_error_providers_with_same_auth_or_billing_source(self):
+        """Test that the errors are wrapped correctly."""
+        provider = self.generic_providers[Provider.PROVIDER_OCP]
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
+            with self.assertRaises(ValidationError) as excCtx:
+                serializer = ProviderSerializer(data=provider, context=self.request_context)
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
+
+            validationErr = excCtx.exception.detail[ProviderErrors.DUPLICATE_AUTH][0]
+            self.assertTrue("Cost management does not allow duplicate accounts" in str(validationErr))
+
+    def test_error_update_provider_with_used_auth_or_billing_source(self):
+        p1 = {
+            "name": "test_provider_1",
+            "type": Provider.PROVIDER_OCP.lower(),
+            "authentication": {"credentials": {"provider_resource_name": "my-ocp-cluster-1"}},
+        }
+        p2 = {
+            "name": "test_provider_2",
+            "type": Provider.PROVIDER_OCP.lower(),
+            "authentication": {"credentials": {"provider_resource_name": "my-ocp-cluster-2"}},
+        }
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            serializer = ProviderSerializer(data=p1, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
+            serializer = ProviderSerializer(data=p2, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+                d = {
+                    "name": "test_provider_2",
+                    "type": Provider.PROVIDER_OCP.lower(),
+                    "authentication": {"credentials": {"provider_resource_name": "my-ocp-cluster-1"}},
+                }
+                with self.assertRaises(ValidationError) as excCtx:
+                    serializer = ProviderSerializer(instance, data=d, context=self.request_context)
+                    if serializer.is_valid(raise_exception=True):
+                        serializer.save()
+                validationErr = excCtx.exception.detail[ProviderErrors.DUPLICATE_AUTH][0]
+                self.assertTrue("Cost management does not allow duplicate accounts" in str(validationErr))
 
     def test_create_gcp_provider_validate_no_data_source_bucket(self):
         """Test the data_source.bucket validation for GCP provider."""
