@@ -31,7 +31,7 @@ django-tenant-schemas==1.10.0
 django==3.0.6
 djangorestframework-csv==2.1.0
 djangorestframework==3.11.0
-docutils==0.15.2
+docutils==0.16
 flake8==3.8.1
 google-api-core==1.17.0
 google-auth==1.14.3
