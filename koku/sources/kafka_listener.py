@@ -406,7 +406,7 @@ def get_consumer():
     consumer = Consumer(
         {
             "bootstrap.servers": Config.SOURCES_KAFKA_ADDRESS,
-            "group.id": "COST-SOURCES",
+            "group.id": "hccm-sources",
             "queued.max.messages.kbytes": 1024,
             "enable.auto.commit": False,
         }
