@@ -415,7 +415,7 @@ def get_consumer():
     return consumer
 
 
-def listen_for_messages_loop(application_source_id):
+def listen_for_messages_loop(application_source_id):  # pragma: no cover
     """Wrap listen_for_messages in while true."""
     consumer = get_consumer()
     LOG.info("Listener started.  Waiting for messages...")

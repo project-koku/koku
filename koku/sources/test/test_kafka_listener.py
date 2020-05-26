@@ -1186,8 +1186,8 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                         close_mock.assert_called()
 
     @patch("sources.kafka_listener.process_message")
-    def test_listen_for_messages_network_error(self, mock_process_message):
-        """Test to listen for kafka messages with network errors."""
+    def test_listen_for_messages_other_errors(self, mock_process_message):
+        """Test to listen for kafka messages with network errors and source not found."""
         future_mock = asyncio.Future()
         future_mock.set_result("test result")
 
@@ -1197,7 +1197,11 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             {
                 "test_value": json.dumps({"id": 1, "source_id": 1, "application_type_id": 2}),
                 "side_effect": SourcesHTTPClientError,
-            }
+            },
+            {
+                "test_value": json.dumps({"id": 1, "source_id": 1, "application_type_id": 2}),
+                "side_effect": SourceNotFoundError,
+            },
         ]
 
         for test in test_matrix:
