@@ -20,7 +20,6 @@ import json
 import logging
 import queue
 import random
-import signal
 import sys
 import threading
 import time
@@ -287,12 +286,7 @@ def sources_network_info(source_id, auth_header):
 
     """
     sources_network = SourcesHTTPClient(auth_header, source_id)
-    try:
-        source_details = sources_network.get_source_details()
-    except SourcesHTTPClientError as conn_err:
-        err_msg = f"Unable to get information for Source {source_id}. Reason: {str(conn_err)}"
-        LOG.warning(err_msg)
-        return
+    source_details = sources_network.get_source_details()
     source_name = source_details.get("name")
     source_type_id = int(source_details.get("source_type_id"))
     source_uuid = source_details.get("uid")
@@ -379,7 +373,9 @@ def process_message(app_type_id, msg):  # noqa: C901
         return
 
     if msg_data.get("event_type") in (KAFKA_APPLICATION_CREATE,):
-
+        import time
+        LOG.info("Sleeping for 20")
+        time.sleep(20)
         storage.create_source_event(msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset"))
 
         if storage.is_known_source(msg_data.get("source_id")):
@@ -416,27 +412,18 @@ def get_consumer():
             "bootstrap.servers": Config.SOURCES_KAFKA_ADDRESS,
             "group.id": "COST-SOURCES",
             "queued.max.messages.kbytes": 1024,
-            "enable.auto.commit": True,
+            "enable.auto.commit": False,
         }
     )
     consumer.subscribe([Config.SOURCES_TOPIC])
     return consumer
 
 
-running = True
-
-
-def handle_signal(signal, frame):
-    LOG.info("SIGTERM recieved.")
-    global running
-    running = False
-
-
 def listen_for_messages_loop(application_source_id):
     """Wrap listen_for_messages in while true."""
     consumer = get_consumer()
     LOG.info("Listener started.  Waiting for messages...")
-    while running:
+    while True:
         msg_list = consumer.consume()
         if len(msg_list) == 1:
             msg = msg_list.pop()
@@ -481,6 +468,7 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
             LOG.info(f"Cost Management Message to process: {str(msg)}")
             try:
                 process_message(application_source_id, msg)
+                consumer.commit()
             except (InterfaceError, OperationalError) as err:
                 connection.close()
                 LOG.error(err)
@@ -490,12 +478,12 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
                 rewind_consumer_to_retry(consumer, topic_partition)
             except SourceNotFoundError:
                 LOG.warning(f"Source not found in platform sources. Skipping msg: {msg}")
+                consumer.commit()
+
     except KafkaError as error:
         LOG.error(f"[listen_for_messages] Kafka error encountered: {type(error).__name__}: {error}", exc_info=True)
-        rewind_consumer_to_retry(consumer, topic_partition)
     except Exception as error:
         LOG.error(f"[listen_for_messages] UNKNOWN error encountered: {type(error).__name__}: {error}", exc_info=True)
-        rewind_consumer_to_retry(consumer, topic_partition)
 
 
 def execute_koku_provider_op(msg, cost_management_type_id):
@@ -691,7 +679,6 @@ def sources_integration_thread():  # pragma: no cover
 
 def initialize_sources_integration():  # pragma: no cover
     """Start Sources integration thread."""
-    signal.signal(signal.SIGTERM, handle_signal)
 
     event_loop_thread = threading.Thread(target=sources_integration_thread)
     event_loop_thread.start()

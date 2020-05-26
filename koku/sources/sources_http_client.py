@@ -60,7 +60,12 @@ class SourcesHTTPClient:
     def get_source_details(self):
         """Get details on source_id."""
         url = "{}/{}/{}".format(self._base_url, "sources", str(self._source_id))
-        r = requests.get(url, headers=self._identity_header)
+        try:
+            r = requests.get(url, headers=self._identity_header)
+        except RequestException as conn_error:
+            raise SourcesHTTPClientError(
+                f"Unable to get source details. Reason: {str(conn_error)}"
+            )
         if r.status_code == 404:
             raise SourceNotFoundError(f"Status Code: {r.status_code}")
         elif r.status_code != 200:
@@ -71,8 +76,12 @@ class SourcesHTTPClient:
     def get_endpoint_id(self):
         """Get Sources Endpoint ID from Source ID."""
         endpoint_url = f"{self._base_url}/endpoints?filter[source_id]={self._source_id}"
-        r = requests.get(endpoint_url, headers=self._identity_header)
-
+        try:
+            r = requests.get(endpoint_url, headers=self._identity_header)
+        except RequestException as conn_error:
+            raise SourcesHTTPClientError(
+                f"Unable to endpoint ID. Reason: {str(conn_error)}"
+            )
         if r.status_code == 404:
             raise SourceNotFoundError(f"Status Code: {r.status_code}")
         elif r.status_code != 200:
@@ -88,7 +97,12 @@ class SourcesHTTPClient:
     def get_source_id_from_endpoint_id(self, resource_id):
         """Get Source ID from Sources Endpoint ID."""
         endpoint_url = f"{self._base_url}/endpoints?filter[id]={resource_id}"
-        r = requests.get(endpoint_url, headers=self._identity_header)
+        try:
+            r = requests.get(endpoint_url, headers=self._identity_header)
+        except RequestException as conn_error:
+            raise SourcesHTTPClientError(
+                f"Unable to source ID from endpoint ID. Reason: {str(conn_error)}"
+            )
 
         if r.status_code == 404:
             raise SourceNotFoundError(f"Status Code: {r.status_code}")
@@ -106,7 +120,12 @@ class SourcesHTTPClient:
         """Get application_type_id from source_id."""
         cost_mgmt_id = self.get_cost_management_application_type_id()
         endpoint_url = f"{self._base_url}/application_types/{cost_mgmt_id}/sources?&filter[id][]={source_id}"
-        r = requests.get(endpoint_url, headers=self._identity_header)
+        try:
+            r = requests.get(endpoint_url, headers=self._identity_header)
+        except RequestException as conn_error:
+            raise SourcesHTTPClientError(
+                f"Unable to cost management application type. Reason: {str(conn_error)}"
+            )
         if r.status_code == 404:
             raise SourceNotFoundError(f"Status Code: {r.status_code}")
         elif r.status_code != 200:
@@ -160,67 +179,76 @@ class SourcesHTTPClient:
     def get_aws_role_arn(self):
         """Get the roleARN from Sources Authentication service."""
         endpoint_url = "{}/endpoints?filter[source_id]={}".format(self._base_url, str(self._source_id))
-        r = requests.get(endpoint_url, headers=self._identity_header)
-        endpoint_response = r.json()
-        if endpoint_response.get("data"):
-            resource_id = endpoint_response.get("data")[0].get("id")
-        else:
-            raise SourcesHTTPClientError(
-                f"Unable to get AWS roleARN.  Endpoint not found for Source: {self._source_id}"
+        try:
+            r = requests.get(endpoint_url, headers=self._identity_header)
+            endpoint_response = r.json()
+            if endpoint_response.get("data"):
+                resource_id = endpoint_response.get("data")[0].get("id")
+            else:
+                raise SourcesHTTPClientError(
+                    f"Unable to get AWS roleARN.  Endpoint not found for Source: {self._source_id}"
+                )
+
+            authentications_str = "{}/authentications?filter[resource_type]=Endpoint&[authtype]=arn&[resource_id]={}"
+            authentications_url = authentications_str.format(self._base_url, str(resource_id))
+            r = requests.get(authentications_url, headers=self._identity_header)
+            authentications_response = r.json()
+            if not authentications_response.get("data"):
+                raise SourcesHTTPClientError(f"No authentication details for Source: {self._source_id}")
+            authentications_id = authentications_response.get("data")[0].get("id")
+
+            authentications_internal_url = "{}/authentications/{}?expose_encrypted_attribute[]=password".format(
+                self._internal_url, str(authentications_id)
             )
-
-        authentications_str = "{}/authentications?filter[resource_type]=Endpoint&[authtype]=arn&[resource_id]={}"
-        authentications_url = authentications_str.format(self._base_url, str(resource_id))
-        r = requests.get(authentications_url, headers=self._identity_header)
-        authentications_response = r.json()
-        if not authentications_response.get("data"):
-            raise SourcesHTTPClientError(f"No authentication details for Source: {self._source_id}")
-        authentications_id = authentications_response.get("data")[0].get("id")
-
-        authentications_internal_url = "{}/authentications/{}?expose_encrypted_attribute[]=password".format(
-            self._internal_url, str(authentications_id)
-        )
-        r = requests.get(authentications_internal_url, headers=self._identity_header)
-        authentications_internal_response = r.json()
-        password = authentications_internal_response.get("password")
-
+            r = requests.get(authentications_internal_url, headers=self._identity_header)
+            authentications_internal_response = r.json()
+            password = authentications_internal_response.get("password")
+        except RequestException as conn_error:
+            raise SourcesHTTPClientError(
+                f"Unable to AWS RoleARN. Reason: {str(conn_error)}"
+            )
         return password
 
     def get_azure_credentials(self):
         """Get the Azure Credentials from Sources Authentication service."""
         endpoint_url = f"{self._base_url}/endpoints?filter[source_id]={str(self._source_id)}"
-        r = requests.get(endpoint_url, headers=self._identity_header)
-        endpoint_response = r.json()
-        if endpoint_response.get("data"):
-            resource_id = endpoint_response.get("data")[0].get("id")
-        else:
-            raise SourcesHTTPClientError(
-                f"Unable to get Azure credentials.  Endpoint not found for Source: {self._source_id}"
+        try:
+            r = requests.get(endpoint_url, headers=self._identity_header)
+            endpoint_response = r.json()
+            if endpoint_response.get("data"):
+                resource_id = endpoint_response.get("data")[0].get("id")
+            else:
+                raise SourcesHTTPClientError(
+                    f"Unable to get Azure credentials.  Endpoint not found for Source: {self._source_id}"
+                )
+
+            authentications_url = (
+                f"{self._base_url}/authentications?filter[resource_type]=Endpoint&"
+                f"[authtype]=tenant_id_client_id_client_secret&[resource_id]={str(resource_id)}"
             )
+            r = requests.get(authentications_url, headers=self._identity_header)
+            authentications_response = r.json()
+            if not authentications_response.get("data"):
+                raise SourcesHTTPClientError(f"No authentication details for Source: {self._source_id}")
+            data_dict = authentications_response.get("data")[0]
+            authentications_id = data_dict.get("id")
 
-        authentications_url = (
-            f"{self._base_url}/authentications?filter[resource_type]=Endpoint&"
-            f"[authtype]=tenant_id_client_id_client_secret&[resource_id]={str(resource_id)}"
-        )
-        r = requests.get(authentications_url, headers=self._identity_header)
-        authentications_response = r.json()
-        if not authentications_response.get("data"):
-            raise SourcesHTTPClientError(f"No authentication details for Source: {self._source_id}")
-        data_dict = authentications_response.get("data")[0]
-        authentications_id = data_dict.get("id")
+            authentications_internal_url = (
+                f"{self._internal_url}/authentications/{str(authentications_id)}?expose_encrypted_attribute[]=password"
+            )
+            r = requests.get(authentications_internal_url, headers=self._identity_header)
+            authentications_internal_response = r.json()
+            password = authentications_internal_response.get("password")
 
-        authentications_internal_url = (
-            f"{self._internal_url}/authentications/{str(authentications_id)}?expose_encrypted_attribute[]=password"
-        )
-        r = requests.get(authentications_internal_url, headers=self._identity_header)
-        authentications_internal_response = r.json()
-        password = authentications_internal_response.get("password")
-
-        azure_credentials = {
-            "client_id": data_dict.get("username"),
-            "client_secret": password,
-            "tenant_id": data_dict.get("extra").get("azure").get("tenant_id"),
-        }
+            azure_credentials = {
+                "client_id": data_dict.get("username"),
+                "client_secret": password,
+                "tenant_id": data_dict.get("extra").get("azure").get("tenant_id"),
+            }
+        except RequestException as conn_error:
+            raise SourcesHTTPClientError(
+                f"Unable to get source details. Reason: {str(conn_error)}"
+            )
         return azure_credentials
 
     def build_source_status(self, error_obj):
