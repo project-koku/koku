@@ -17,6 +17,7 @@
 """View for Reports."""
 import logging
 
+from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext as _
 from django.views.decorators.vary import vary_on_headers
 from pint.errors import DimensionalityError
@@ -135,7 +136,7 @@ class ReportView(APIView):
     It providers one GET endpoint for the reports.
     """
 
-    @vary_on_headers(RH_IDENTITY_HEADER)
+    @method_decorator(vary_on_headers(RH_IDENTITY_HEADER))
     def get(self, request, **kwargs):
         """Get Report Data.
 
@@ -149,7 +150,7 @@ class ReportView(APIView):
 
         """
         LOG.debug(f"API: {request.path} USER: {request.user.username}")
-
+        LOG.info(request.headers)
         try:
             params = QueryParameters(request=request, caller=self, **kwargs)
         except ValidationError as exc:
