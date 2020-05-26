@@ -63,9 +63,7 @@ class SourcesHTTPClient:
         try:
             r = requests.get(url, headers=self._identity_header)
         except RequestException as conn_error:
-            raise SourcesHTTPClientError(
-                f"Unable to get source details. Reason: {str(conn_error)}"
-            )
+            raise SourcesHTTPClientError(f"Unable to get source details. Reason: {str(conn_error)}")
         if r.status_code == 404:
             raise SourceNotFoundError(f"Status Code: {r.status_code}")
         elif r.status_code != 200:
@@ -79,9 +77,7 @@ class SourcesHTTPClient:
         try:
             r = requests.get(endpoint_url, headers=self._identity_header)
         except RequestException as conn_error:
-            raise SourcesHTTPClientError(
-                f"Unable to endpoint ID. Reason: {str(conn_error)}"
-            )
+            raise SourcesHTTPClientError(f"Unable to endpoint ID. Reason: {str(conn_error)}")
         if r.status_code == 404:
             raise SourceNotFoundError(f"Status Code: {r.status_code}")
         elif r.status_code != 200:
@@ -100,9 +96,7 @@ class SourcesHTTPClient:
         try:
             r = requests.get(endpoint_url, headers=self._identity_header)
         except RequestException as conn_error:
-            raise SourcesHTTPClientError(
-                f"Unable to source ID from endpoint ID. Reason: {str(conn_error)}"
-            )
+            raise SourcesHTTPClientError(f"Unable to source ID from endpoint ID. Reason: {str(conn_error)}")
 
         if r.status_code == 404:
             raise SourceNotFoundError(f"Status Code: {r.status_code}")
@@ -123,9 +117,7 @@ class SourcesHTTPClient:
         try:
             r = requests.get(endpoint_url, headers=self._identity_header)
         except RequestException as conn_error:
-            raise SourcesHTTPClientError(
-                f"Unable to cost management application type. Reason: {str(conn_error)}"
-            )
+            raise SourcesHTTPClientError(f"Unable to cost management application type. Reason: {str(conn_error)}")
         if r.status_code == 404:
             raise SourceNotFoundError(f"Status Code: {r.status_code}")
         elif r.status_code != 200:
@@ -204,9 +196,7 @@ class SourcesHTTPClient:
             authentications_internal_response = r.json()
             password = authentications_internal_response.get("password")
         except RequestException as conn_error:
-            raise SourcesHTTPClientError(
-                f"Unable to AWS RoleARN. Reason: {str(conn_error)}"
-            )
+            raise SourcesHTTPClientError(f"Unable to AWS RoleARN. Reason: {str(conn_error)}")
         return password
 
     def get_azure_credentials(self):
@@ -246,9 +236,7 @@ class SourcesHTTPClient:
                 "tenant_id": data_dict.get("extra").get("azure").get("tenant_id"),
             }
         except RequestException as conn_error:
-            raise SourcesHTTPClientError(
-                f"Unable to get source details. Reason: {str(conn_error)}"
-            )
+            raise SourcesHTTPClientError(f"Unable to get source details. Reason: {str(conn_error)}")
         return azure_credentials
 
     def build_source_status(self, error_obj):

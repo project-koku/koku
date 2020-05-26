@@ -29,6 +29,7 @@ from django.test import TestCase
 from faker import Faker
 from kafka.errors import KafkaError
 from kombu.exceptions import OperationalError as RabbitOperationalError
+from requests.exceptions import RequestException
 from rest_framework.exceptions import ValidationError
 
 import sources.kafka_listener as source_integration
@@ -820,14 +821,10 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         ocp_source.save()
 
         with requests_mock.mock() as m:
-            m.get(f"http://www.sources.com/api/v1.0/sources/{test_source_id}", exc=SourcesHTTPClientError)
+            m.get(f"http://www.sources.com/api/v1.0/sources/{test_source_id}", exc=RequestException)
 
-            source_integration.sources_network_info(test_source_id, test_auth_header)
-
-        source_obj = Sources.objects.get(source_id=test_source_id)
-        self.assertIsNone(source_obj.name)
-        self.assertEquals(source_obj.source_type, "")
-        self.assertEquals(source_obj.authentication, {})
+            with self.assertRaises(SourcesHTTPClientError):
+                source_integration.sources_network_info(test_source_id, test_auth_header)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_sources_network_info_no_endpoint(self):

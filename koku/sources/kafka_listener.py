@@ -341,7 +341,6 @@ def cost_mgmt_msg_filter(msg_data):
     return msg_data
 
 
-@transaction.atomic  # noqa: C901
 def process_message(app_type_id, msg):  # noqa: C901
     """
     Process message from Platform-Sources kafka service.
@@ -374,6 +373,7 @@ def process_message(app_type_id, msg):  # noqa: C901
 
     if msg_data.get("event_type") in (KAFKA_APPLICATION_CREATE,):
         import time
+
         LOG.info("Sleeping for 20")
         time.sleep(20)
         storage.create_source_event(msg_data.get("source_id"), msg_data.get("auth_header"), msg_data.get("offset"))
@@ -467,8 +467,9 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
             topic_partition = TopicPartition(topic=Config.SOURCES_TOPIC, partition=partition, offset=offset)
             LOG.info(f"Cost Management Message to process: {str(msg)}")
             try:
-                process_message(application_source_id, msg)
-                consumer.commit()
+                with transaction.atomic():
+                    process_message(application_source_id, msg)
+                    consumer.commit()
             except (InterfaceError, OperationalError) as err:
                 connection.close()
                 LOG.error(err)
