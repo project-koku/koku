@@ -33,6 +33,7 @@ from tenant_schemas.utils import schema_context
 import masu.prometheus_stats as worker_stats
 from api.provider.models import Provider
 from api.utils import DateHelper
+from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.celery import app
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -345,6 +346,8 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
             with connection.cursor() as cursor:
                 cursor.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {table_name}")
                 LOG.info(f"Refreshed {table_name}.")
+
+    invalidate_view_cache_for_tenant_and_source_type(schema_name, provider_type)
 
     if manifest_id:
         # Processing for this monifest should be complete after this step
