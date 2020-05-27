@@ -51,15 +51,14 @@ from api.views import OCPVolumeView
 from api.views import openapi
 from api.views import SettingsView
 from api.views import StatusView
+from koku.cache import AWS_CACHE_PREFIX
+from koku.cache import AZURE_CACHE_PREFIX
+from koku.cache import OPENSHIFT_ALL_CACHE_PREFIX
+from koku.cache import OPENSHIFT_AWS_CACHE_PREFIX
+from koku.cache import OPENSHIFT_AZURE_CACHE_PREFIX
+from koku.cache import OPENSHIFT_CACHE_PREFIX
 from sources.api.views import SourcesViewSet
 
-
-AWS_CACHE_PREFIX = "aws-view"
-AZURE_CACHE_PREFIX = "azure-view"
-OPENSHIFT_CACHE_PREFIX = "openshift-view"
-OPENSHIFT_AWS_CACHE_PREFIX = "openshift-aws-view"
-OPENSHIFT_AZURE_CACHE_PREFIX = "openshift-azure-view"
-OPENSHIFT_ALL_CACHE_PREFIX = "openshift-all-view"
 
 ROUTER = DefaultRouter()
 ROUTER.register(r"dataexportrequests", DataExportRequestViewSet, basename="dataexportrequests")
