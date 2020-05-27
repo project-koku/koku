@@ -35,6 +35,7 @@ PORT = "port"
 PATH = "path"
 RESOURCE_TYPES = {
     "aws.account": ["read"],
+    "aws.organizational_unit": ["read"],
     "azure.subscription_guid": ["read"],
     "openshift.cluster": ["read"],
     "openshift.node": ["read"],
