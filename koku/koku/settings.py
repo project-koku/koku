@@ -106,8 +106,6 @@ SHARED_APPS = (
 
 TENANT_APPS = ("reporting", "cost_models")
 
-CACHE_REQUESTS = ENVIRONMENT.bool("CACHE_REQUESTS", default=False)
-
 DEFAULT_FILE_STORAGE = "tenant_schemas.storage.TenantFileSystemStorage"
 
 ### Middleware setup
@@ -116,17 +114,8 @@ MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "koku.middleware.DisableCSRF",
     "django.middleware.security.SecurityMiddleware",
+    "django.middleware.common.CommonMiddleware",
 ]
-if CACHE_REQUESTS:
-    MIDDLEWARE.extend(
-        [
-            "django.middleware.cache.UpdateCacheMiddleware",
-            "django.middleware.common.CommonMiddleware",
-            "django.middleware.cache.FetchFromCacheMiddleware",
-        ]
-    )
-else:
-    MIDDLEWARE.append("django.middleware.common.CommonMiddleware")
 MIDDLEWARE.extend(
     [
         "koku.middleware.IdentityHeaderMiddleware",
@@ -136,10 +125,6 @@ MIDDLEWARE.extend(
         "django_prometheus.middleware.PrometheusAfterMiddleware",
     ]
 )
-### End Middleware
-
-CACHE_MIDDLEWARE_ALIAS = "default"
-CACHE_MIDDLEWARE_SECONDS = ENVIRONMENT.get_value("CACHE_TIMEOUT", default=3600)
 
 DEVELOPMENT = ENVIRONMENT.bool("DEVELOPMENT", default=False)
 if DEVELOPMENT:
@@ -153,6 +138,8 @@ if DEVELOPMENT:
     }
     DEVELOPMENT_IDENTITY = ENVIRONMENT.json("DEVELOPMENT_IDENTITY", default=DEFAULT_IDENTITY)
     MIDDLEWARE.insert(5, "koku.dev_middleware.DevelopmentIdentityHeaderMiddleware")
+
+### End Middleware
 
 AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.AllowAllUsersModelBackend"]
 
@@ -201,6 +188,9 @@ else:
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/1",
+            "KEY_FUNCTION": "tenant_schemas.cache.make_key",
+            "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
+            "TIMEOUT": 3600,  # 1 hour default
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
