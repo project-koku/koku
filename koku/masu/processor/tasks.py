@@ -22,6 +22,7 @@ import datetime
 import json
 import os
 from decimal import Decimal
+from decimal import InvalidOperation
 
 from celery import chain
 from celery.utils.log import get_task_logger
@@ -45,6 +46,7 @@ from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
 from masu.processor.cost_model_cost_updater import CostModelCostUpdater
+from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.worker_cache import WorkerCache
@@ -140,7 +142,7 @@ def get_report_files(
                         "manifest_id": report_dict.get("manifest_id"),
                     }
                     reports_to_summarize.append(report_meta)
-            except ReportProcessorError as processing_error:
+            except (ReportProcessorError, ReportProcessorDBError) as processing_error:
                 worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
                 LOG.error(str(processing_error))
                 WorkerCache().remove_task_from_cache(cache_key)
@@ -389,7 +391,7 @@ def vacuum_schema(schema_name):
 # At this time, no table parameter will be lowered past the known production engine
 # setting of 0.2 by default. However this function's settings can be overridden via the
 # AUTOVACUUM_TUNING environment variable. See below.
-@app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name="reporting")
+@app.task(name="masu.processor.tasks.autovacuum_tune_schema", queue_name="reporting")  # noqa: C901
 def autovacuum_tune_schema(schema_name):
     """Set the autovacuum table settings based on table size for the specified schema."""
     table_sql = """
@@ -448,7 +450,10 @@ SELECT s.relname as "table_name",
             for table in tables:
                 scale_factor = zero
                 table_name, n_live_tup, table_options = table
-                table_scale_option = table_options.get("autovacuum_vacuum_scale_factor", no_scale)
+                try:
+                    table_scale_option = Decimal(table_options.get("autovacuum_vacuum_scale_factor", no_scale))
+                except InvalidOperation:
+                    table_scale_option = no_scale
 
                 for threshold, scale in scale_table:
                     if n_live_tup >= threshold:

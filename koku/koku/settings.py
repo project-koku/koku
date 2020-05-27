@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # third-party
     "rest_framework",
+    "django_extensions",
     "django_filters",
     "corsheaders",
     "querystring_parser",
