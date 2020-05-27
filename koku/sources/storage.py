@@ -246,7 +246,7 @@ def clear_update_flag(source_id):
 
 
 def get_source_instance(source_id):
-    return get_source(source_id, f"Source not found", LOG.info)
+    return get_source(source_id, "Source not found", LOG.info)
 
 
 def create_source_event(source_id, auth_header, offset):
