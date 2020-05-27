@@ -235,6 +235,10 @@ class OrgQueryHandler(QueryHandler):
                 account_query = account_query.exclude(created_timestamp__gte=self.end_datetime)
                 if self.query_filter:
                     account_query = account_query.filter(self.query_filter)
+                if self.access:
+                    accounts_to_filter = self.access.get("aws.account", {}).get("read", [])
+                    if accounts_to_filter and "*" not in accounts_to_filter:
+                        account_query = account_query.filter(account_alias__account_id__in=accounts_to_filter)
                 val_list = [org_name, org_id_column, org_path]
                 account_query = account_query.values(*val_list)
                 account_query = account_query.annotate(

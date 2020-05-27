@@ -108,7 +108,7 @@ services:
 
   db:
     container_name: koku_db
-    image: postgres:10.6
+    image: postgres:12
     environment:
     - POSTGRES_DB=${DATABASE_NAME-postgres}
     - POSTGRES_USER=${DATABASE_USER-postgres}
@@ -125,6 +125,8 @@ services:
       # use of the autovacuum processes
       # The pg_init mount is still needed to enable the necesary extensions.
       - postgres
+      - -c
+      - max_connections=1710
       - -c
       - shared_preload_libraries=pg_stat_statements
       - -c

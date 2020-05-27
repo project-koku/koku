@@ -25,6 +25,7 @@ from django.db import transaction
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
+from api.common import error_obj
 from api.provider.models import Provider
 from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
@@ -47,12 +48,6 @@ ALLOWED_AUTHENTICATION_PROVIDERS = (Provider.PROVIDER_AZURE, Provider.PROVIDER_A
 
 class SourcesDependencyError(Exception):
     """General Exception for sources dependency errors."""
-
-
-def error_obj(key, message):
-    """Create an error object."""
-    error = {key: [_(message)]}
-    return error
 
 
 def validate_field(data, valid_fields, key):
