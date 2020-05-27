@@ -24,6 +24,7 @@ from rest_framework_csv.renderers import CSVRenderer
 from api.common.pagination import ReportPagination
 from api.common.pagination import ReportRankedPagination
 from api.iam.test.iam_test_case import IamTestCase
+from api.iam.test.iam_test_case import RbacPermissions
 from api.report.view import _fill_in_missing_units
 from api.report.view import _find_unit
 from api.report.view import get_paginator
@@ -32,42 +33,37 @@ from api.report.view import get_paginator
 class ReportViewTest(IamTestCase):
     """Tests the report view."""
 
-    ENDPOINTS = [
-        # aws
-        "reports-aws-costs",
-        "reports-aws-storage",
-        "reports-aws-instance-type",
-        # azure
-        "reports-azure-costs",
-        "reports-azure-storage",
-        "reports-azure-instance-type",
-        # openshift
+    ENDPOINTS_AWS = ["reports-aws-costs", "reports-aws-storage", "reports-aws-instance-type"]
+    ENDPOINTS_AZURE = ["reports-azure-costs", "reports-azure-storage", "reports-azure-instance-type"]
+    ENDPOINTS_OPENSHIFT = [
         "reports-openshift-costs",
         "reports-openshift-memory",
         "reports-openshift-cpu",
         "reports-openshift-volume",
-        # openshift - on - aws
+    ]
+    ENDPOINTS_OPENSHIFT_AWS = [
         "reports-openshift-aws-costs",
         "reports-openshift-aws-storage",
         "reports-openshift-aws-instance-type",
-        # openshift - on - azure
+    ]
+    ENDPOINTS_OPENSHIFT_AZURE = [
         "reports-openshift-azure-costs",
         "reports-openshift-azure-storage",
         "reports-openshift-azure-instance-type",
-        # openshift - on - all infrastructure
+    ]
+    ENDPOINTS_OPENSHIFT_ALL = [
         "reports-openshift-all-costs",
         "reports-openshift-all-storage",
         "reports-openshift-all-instance-type",
     ]
-    TAGS = [
-        # tags
-        "aws-tags",
-        "azure-tags",
-        "openshift-tags",
-        "openshift-aws-tags",
-        "openshift-azure-tags",
-        "openshift-all-tags",
-    ]
+    ENDPOINTS = (
+        ENDPOINTS_AWS
+        + ENDPOINTS_AZURE
+        + ENDPOINTS_OPENSHIFT
+        + ENDPOINTS_OPENSHIFT_AWS
+        + ENDPOINTS_OPENSHIFT_AZURE
+        + ENDPOINTS_OPENSHIFT_ALL
+    )
 
     def setUp(self):
         """Set up the customer view tests."""
@@ -86,14 +82,6 @@ class ReportViewTest(IamTestCase):
                 self.assertIsNotNone(json_result.get("data"))
                 self.assertIsInstance(json_result.get("data"), list)
                 self.assertTrue(len(json_result.get("data")) > 0)
-
-    def test_tags_endpoint_view(self):
-        """Test endpoint runs with a customer owner."""
-        for tag_endpoint in self.TAGS:
-            with self.subTest(endpoint=tag_endpoint):
-                url = reverse(tag_endpoint)
-                response = self.client.get(url, **self.headers)
-                self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_endpoints_invalid_query_param(self):
         """Test endpoint runs with an invalid query param."""
@@ -182,3 +170,39 @@ class ReportViewTest(IamTestCase):
         params = {"offset": 5}
         paginator = get_paginator(params, 0)
         self.assertIsInstance(paginator, ReportRankedPagination)
+
+    @RbacPermissions({"invalid.permissions": {"things": ["thing_1", "thing_2"]}})
+    def test_rbacpermissions_invalid(self):
+        """Test that endpoints reject invalid permissions."""
+        for endpoint in self.ENDPOINTS:
+            with self.subTest(endpoint=endpoint):
+                url = reverse(endpoint)
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @RbacPermissions({"aws.account": {"read": ["*"]}})
+    def test_rbacpermissions_valid_aws(self):
+        """Test that AWS endpoints accept valid AWS permissions."""
+        for endpoint in self.ENDPOINTS_AWS:
+            with self.subTest(endpoint=endpoint):
+                url = reverse(endpoint)
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
+    def test_rbacpermissions_valid_azure(self):
+        """Test that Azure endpoints accept valid Azure permissions."""
+        for endpoint in self.ENDPOINTS_AZURE:
+            with self.subTest(endpoint=endpoint):
+                url = reverse(endpoint)
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["*"]}})
+    def test_rbacpermissions_valid_openshift(self):
+        """Test that OpenShift endpoints accept valid OpenShift permissions."""
+        for endpoint in self.ENDPOINTS_OPENSHIFT:
+            with self.subTest(endpoint=endpoint):
+                url = reverse(endpoint)
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)

@@ -94,7 +94,7 @@ class KokuCustomerOnboarder:
         """Create Koku Customer."""
         # Customer, User, and Tenant schema are lazy initialized
         # on any API request
-        print(f"\nAdding customer...")
+        print("\nAdding customer...")
         response = requests.get(self.endpoint_base + "reports/aws/costs/", headers=get_headers(self.auth_token))
         print(f"Response: [{response.status_code}] {response.text}")
 

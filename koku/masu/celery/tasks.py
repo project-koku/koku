@@ -44,13 +44,16 @@ from api.dataexport.syncer import AwsS3Syncer
 from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.dataexport.uploader import AwsS3Uploader
 from api.iam.models import Tenant
+from api.models import Provider
 from api.utils import DateHelper
 from koku.celery import app
 from masu.celery.export import table_export_settings
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
 from masu.external.date_accessor import DateAccessor
 from masu.processor.orchestrator import Orchestrator
+from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import vacuum_schema
 from masu.util.common import dictify_table_export_settings
 from masu.util.common import NamedTemporaryGZip
@@ -329,6 +332,22 @@ def vacuum_schemas():
         vacuum_schema.delay(schema_name)
 
 
+# This task will process the autovacuum tuning as a background process
+@app.task(name="masu.celery.tasks.autovacuum_tune_schemas", queue_name="reporting")
+def autovacuum_tune_schemas():
+    """Set the autovacuum table settings based on table size for all schemata."""
+    tenants = Tenant.objects.values("schema_name")
+    schema_names = [
+        tenant.get("schema_name")
+        for tenant in tenants
+        if (tenant.get("schema_name") and tenant.get("schema_name") != "public")
+    ]
+
+    for schema_name in schema_names:
+        LOG.info("Scheduling autovacuum tune task for %s", schema_name)
+        autovacuum_tune_schema.delay(schema_name)
+
+
 @app.task(name="masu.celery.tasks.clean_volume", queue_name="clean_volume")
 def clean_volume():
     """Clean up the volume in the worker pod."""
@@ -370,3 +389,34 @@ def clean_volume():
     LOG.info("Removing all files older than %s", expiration_date)
     LOG.info("The following files were too new to delete: %s", retain_files)
     LOG.info("The following files were deleted: %s", deleted_files)
+
+
+@app.task(name="masu.celery.tasks.crawl_account_hierarchy", queue_name="crawl_account_hierarchy")
+def crawl_account_hierarchy():
+    """Crawl top level accounts to discover hierarchy."""
+    _, polling_accounts = Orchestrator.get_accounts()
+    LOG.info("Account hierarchy crawler found %s accounts to scan" % len(polling_accounts))
+    processed = 0
+    skipped = 0
+    for account in polling_accounts:
+        crawler = None
+
+        # Look for a known crawler class to handle this provider
+        if account.get("provider_type") == Provider.PROVIDER_AWS:
+            crawler = AWSOrgUnitCrawler(account)
+
+        if crawler:
+            LOG.info(
+                "Starting account hierarchy crawler for type {} with provider_uuid ({})".format(
+                    account.get("provider_type"), account.get("provider_uuid")
+                )
+            )
+            crawler.crawl_account_hierarchy()
+            processed += 1
+        else:
+            LOG.info(
+                "No known crawler for account %s of type %s"
+                % (account.get("provider_uuid"), account.get("provider_type"))
+            )
+            skipped += 1
+    LOG.info(f"Account hierarchy crawler finished. {processed} processed and {skipped} skipped")

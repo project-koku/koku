@@ -95,6 +95,34 @@ class StandardResultsSetPagination(LimitOffsetPagination):
         )
 
 
+class ListPaginator(StandardResultsSetPagination):
+    """A paginator for a list."""
+
+    def __init__(self, data_set, request):
+        """Initialize the paginator."""
+        self.data_set = data_set
+        self.request = request
+        self.count = len(data_set)
+        self.limit = self.get_limit(self.request)
+        self.offset = self.get_offset(self.request)
+
+    @property
+    def paginated_data_set(self):
+        """Paginate the list."""
+        if self.limit > len(self.data_set):
+            self.limit = len(self.data_set)
+        try:
+            data = self.data_set[self.offset : self.offset + self.limit]  # noqa E203
+        except IndexError:
+            data = []
+        return data
+
+    @property
+    def paginated_response(self):
+        """Return the paginated repsonse."""
+        return self.get_paginated_response(self.paginated_data_set)
+
+
 class ReportPagination(StandardResultsSetPagination):
     """A specialty paginator for report data."""
 

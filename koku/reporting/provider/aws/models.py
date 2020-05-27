@@ -207,6 +207,8 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     region = models.CharField(max_length=50, null=True)
     instance_type = models.CharField(max_length=50, null=True)
     unit = models.CharField(max_length=63, null=True)
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
+
     # The following fields are aggregates
     resource_ids = ArrayField(models.CharField(max_length=256), null=True)
     resource_count = models.IntegerField(null=True)
@@ -273,6 +275,12 @@ class AWSAccountAlias(models.Model):
 
     account_id = models.CharField(max_length=50, null=False, unique=True)
     account_alias = models.CharField(max_length=63, null=True)
+
+    def __str__(self):
+        """Convert to string."""
+        return (
+            "{ id : %s, " "account_id : %s, " "account_alias : %s }" % (self.id, self.account_id, self.account_alias)
+        )
 
 
 class AWSTagsSummary(models.Model):
@@ -765,3 +773,44 @@ class AWSDatabaseSummary(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+
+class AWSOrganizationalUnit(models.Model):
+    """The alias table for AWS Organizational Unit."""
+
+    org_unit_name = models.CharField(max_length=250, null=False, unique=False)
+
+    org_unit_id = models.CharField(max_length=50, null=False, unique=False)
+
+    org_unit_path = models.TextField(null=False, unique=False)
+
+    level = models.PositiveSmallIntegerField(null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.PROTECT, null=True)
+
+    created_timestamp = models.DateField(auto_now_add=True)
+
+    deleted_timestamp = models.DateField(null=True)
+
+    def __str__(self):
+        """Convert to string."""
+        return (
+            "{ id : %s, "
+            "org_unit_name : %s, "
+            "org_unit_id : %s, "
+            "org_unit_path : %s, "
+            "level : %s, "
+            "account_alias : %s, "
+            "created_timestamp : %s, "
+            "deleted_timestamp : %s }"
+            % (
+                self.id,
+                self.org_unit_name,
+                self.org_unit_id,
+                self.org_unit_path,
+                self.level,
+                self.account_alias,
+                self.created_timestamp,
+                self.deleted_timestamp,
+            )
+        )

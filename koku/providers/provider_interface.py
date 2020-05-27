@@ -18,8 +18,6 @@
 from abc import ABC
 from abc import abstractmethod
 
-from django.utils.translation import ugettext as _
-
 
 class ProviderInterface(ABC):
     """Koku interface definition to access backend provider services."""
@@ -100,9 +98,3 @@ class ProviderInterface(ABC):
 
         """
         pass
-
-
-def error_obj(key, message):
-    """Create an error object."""
-    error = {key: [_(message)]}
-    return error

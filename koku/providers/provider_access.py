@@ -17,6 +17,10 @@
 """Provider external interface for koku to consume."""
 import logging
 
+from rest_framework.serializers import ValidationError
+
+from .provider_errors import ProviderErrors
+from api.common import error_obj
 from api.provider.models import Provider
 from providers.aws.provider import AWSProvider
 from providers.aws_local.provider import AWSLocalProvider
@@ -63,6 +67,17 @@ class ProviderAccessor:
         if callable(services.get(service_name)):
             self.service = services.get(service_name)()
 
+    def check_service(self):
+        """
+        Checks if the service is valid or raises an error.
+
+        Raises: ValidationError
+        """
+        if self.service is None:
+            key = ProviderErrors.INVALID_SOURCE_TYPE
+            message = ProviderErrors.INVALID_SOURCE_TYPE_MESSAGE
+            raise ValidationError(error_obj(key, message))
+
     def service_name(self):
         """
         Return the name of the provider service.
@@ -78,6 +93,7 @@ class ProviderAccessor:
                        example: "AWS"
 
         """
+        self.check_service()
         return self.service.name()
 
     def cost_usage_source_ready(self, credential, source_name):
@@ -101,9 +117,10 @@ class ProviderAccessor:
             ValidationError: Error string
 
         """
-        LOG.info(f"Provider account validation started for {str(credential)}")
+        self.check_service()
+        LOG.info(f"Provider account validation started for {str(source_name)}.")
         reachable_status = self.service.cost_usage_source_is_reachable(credential, source_name)
-        LOG.info(f"Provider account validation complete for {str(credential)}")
+        LOG.info(f"Provider account validation complete for {str(source_name)}.")
         return reachable_status
 
     def infrastructure_type(self, provider_uuid, schema_name):
@@ -119,6 +136,7 @@ class ProviderAccessor:
                        example: "AWS"
 
         """
+        self.check_service()
         try:
             infrastructure_type = self.service.infra_type_implementation(provider_uuid, schema_name)
         except Exception as error:
@@ -139,6 +157,7 @@ class ProviderAccessor:
                        example: ['ocp-cluster-on-aws-1', 'ocp-cluster-on-aws-2']
 
         """
+        self.check_service()
         keys = []
         try:
             keys = self.service.infra_key_list_implementation(infrastructure_type, schema_name)
