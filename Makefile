@@ -604,15 +604,11 @@ create-large-ocp-source-config-file:
 ifndef output_file_name
 	$(error param output_file_name is not set)
 endif
-ifndef generator_config_file
-	$(error param generator_config_file is not set)
+ifdef generator_template_file
+	@nise yaml -p ocp -c $(or $(generator_config_file), default) -t $(generator_template_file) -o $(output_file_name) $(generator_flags)
+else
+	@nise yaml -p ocp -c $(or $(generator_config_file), default) -o $(output_file_name) $(generator_flags)
 endif
-ifndef generator_template_file
-	$(error param generator_template_file is not set)
-endif
-	@../nise/utility/generate_static_ocp_settings.py -c $(generator_config_file) \
-	                                                 -t $(generator_template_file) \
-													 -o $(output_file_name) $(generator_flags)
 
 
 create-large-ocp-source-testing-files:
