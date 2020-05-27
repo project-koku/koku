@@ -608,7 +608,7 @@ def process_synchronize_sources_msg(msg_tuple, cost_management_type_id, process_
 
     except SourcesIntegrationError as error:
         LOG.warning(f"[synchronize_sources] Re-queuing failed operation. Error: {str(error)}")
-        await _requeue_provider_sync_message(priority, msg, process_queue)
+        _requeue_provider_sync_message(priority, msg, process_queue)
     except (InterfaceError, OperationalError) as error:
         connection.close()
         LOG.warning(

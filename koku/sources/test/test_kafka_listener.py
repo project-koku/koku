@@ -1256,10 +1256,10 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         for msg in messages:
             with patch("sources.storage.clear_update_flag") as mock_clear_flag:
-                process_synchronize_sources_msg((0, msg), test_queue, cost_management_app_type, run_loop)
+                process_synchronize_sources_msg((0, msg), cost_management_app_type, test_queue)
                 mock_clear_flag.assert_called()
 
         msg = {"operation": "destroy", "provider": provider}
         with patch("sources.storage.clear_update_flag") as mock_clear_flag:
-            process_synchronize_sources_msg((0, msg), test_queue, cost_management_app_type, run_loop)
+            process_synchronize_sources_msg((0, msg), cost_management_app_type, test_queue)
             mock_clear_flag.assert_not_called()
