@@ -18,7 +18,6 @@
 import copy
 import logging
 
-from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import F
 from django.db.models import Q
 from django.db.models.functions import Coalesce
@@ -177,17 +176,17 @@ class OrgQueryHandler(QueryHandler):
 
         return composed_filter
 
-    def _get_sub_ou_list(self, data):
+    def _get_sub_ou_list(self, data, org_ids):
         """Get a list of the sub org units for a org unit."""
         level = data.get("level")
         level = level + 1
         unit_path = data.get("org_unit_path")
+        final_sub_ou_list = []
         with tenant_context(self.tenant):
             for source in self.data_sources:
                 # Grab columns for this query
                 account_info = source.get("account_alias_column")
                 level_column = source.get("level_column")
-                org_id = source.get("org_id_column")
                 org_path = source.get("org_path_column")
                 # Build filters
                 filters = QueryFilterCollection()
@@ -201,59 +200,51 @@ class OrgQueryHandler(QueryHandler):
                 # Start quering
                 sub_org_query = source.get("db_table").objects
                 sub_org_query = sub_org_query.filter(composed_filters)
-                sub_org_query = sub_org_query.exclude(deleted_timestamp__lte=self.start_datetime)
-                sub_org_query = sub_org_query.exclude(created_timestamp__gte=self.end_datetime)
-                if self.query_filter:
-                    sub_org_query = sub_org_query.filter(self.query_filter)
-                val_list = [level_column]
-                sub_org_query = sub_org_query.values(*val_list)
-                sub_org_query = sub_org_query.annotate(subs_list=ArrayAgg(f"{org_id}", distinct=True))
-        if sub_org_query:
-            return sub_org_query[0].get("subs_list", [])
-        else:
-            return []
+                sub_org_query = sub_org_query.filter(id__in=org_ids)
+                sub_ou_list = sub_org_query.values_list("org_unit_id", flat=True)
+                final_sub_ou_list.extend(sub_ou_list)
+        return final_sub_ou_list
 
-    def _get_accounts_list(self, org_id):
+    def _create_accounts_mapping(self, org_id=None):
         """Returns an account list for given org_id."""
+        account_mapping = {}
         with tenant_context(self.tenant):
             for source in self.data_sources:
                 # Grab columns for this query
                 account_info = source.get("account_alias_column")
-                org_id_column = source.get("org_id_column")
-                org_name = source.get("org_name_column")
-                org_path = source.get("org_path_column")
                 # Create filters & Query
                 filters = QueryFilterCollection()
                 no_org_units = QueryFilter(field=f"{account_info}", operation="isnull", parameter=False)
                 filters.add(no_org_units)
-                exact_org_id = QueryFilter(field=f"{org_id_column}", operation="exact", parameter=org_id)
-                filters.add(exact_org_id)
                 composed_filters = filters.compose()
                 account_query = source.get("db_table").objects
                 account_query = account_query.filter(composed_filters)
                 account_query = account_query.exclude(deleted_timestamp__lte=self.start_datetime)
                 account_query = account_query.exclude(created_timestamp__gte=self.end_datetime)
-                if self.query_filter:
-                    account_query = account_query.filter(self.query_filter)
                 if self.access:
                     accounts_to_filter = self.access.get("aws.account", {}).get("read", [])
                     if accounts_to_filter and "*" not in accounts_to_filter:
                         account_query = account_query.filter(account_alias__account_id__in=accounts_to_filter)
-                val_list = [org_name, org_id_column, org_path]
-                account_query = account_query.values(*val_list)
+                account_query = account_query.order_by(f"{account_info}", "-created_timestamp")
+                account_query = account_query.distinct(f"{account_info}")
                 account_query = account_query.annotate(
-                    alias_list=ArrayAgg(
-                        Coalesce(F(f"{account_info}__account_alias"), F(f"{account_info}__account_id")), distinct=True
-                    )
+                    alias=Coalesce(F(f"{account_info}__account_alias"), F(f"{account_info}__account_id"))
                 )
-        if account_query:
-            return account_query[0].get("alias_list", [])
-        else:
-            return []
+                for account in account_query:
+                    org_id = account.org_unit_id
+                    alias = account.alias
+                    if account_mapping.get(org_id):
+                        account_list = account_mapping[org_id]
+                        account_list.append(alias)
+                        account_mapping[org_id] = account_list
+                    else:
+                        account_mapping[org_id] = [alias]
+        return account_mapping
 
     def get_org_units(self):
         """Get a list of org keys to build upon."""
         org_units = list()
+        org_id_list = list()
         with tenant_context(self.tenant):
             for source in self.data_sources:
                 # Grab columns for this query
@@ -273,12 +264,16 @@ class OrgQueryHandler(QueryHandler):
                 org_unit_query = org_unit_query.exclude(deleted_timestamp__lte=self.start_datetime)
                 org_unit_query = org_unit_query.exclude(created_timestamp__gte=self.end_datetime)
                 val_list = [org_id, org_name, org_path, level]
+                org_unit_query = org_unit_query.order_by(f"{org_id}", f"-{created_field}").distinct(f"{org_id}")
+                org_ids = org_unit_query.values_list("id", flat=True)
+                org_id_list.extend(org_ids)
+                # Note: you want to collect the org_id_list before you implement the self.query_filter
+                # so that way the get_sub_ou list will still work when you do filter[org_unit_id]=OU_002
                 if self.query_filter:
                     org_unit_query = org_unit_query.filter(self.query_filter)
                 org_unit_query = org_unit_query.values(*val_list)
-                org_unit_query = org_unit_query.order_by(f"{org_id}", f"-{created_field}").distinct(f"{org_id}")
                 org_units.extend(org_unit_query)
-        return org_units
+        return org_units, org_id_list
 
     def execute_query(self):
         """Execute query and return provided data.
@@ -287,13 +282,13 @@ class OrgQueryHandler(QueryHandler):
             (Dict): Dictionary response of query params and data
 
         """
-        query_data = self.get_org_units()
-
+        query_data, org_id_list = self.get_org_units()
         if not self.parameters.get("key_only"):
+            accounts_mapping = self._create_accounts_mapping()
             for data in query_data:
                 org_id = data.get("org_unit_id")
-                data["sub_orgs"] = self._get_sub_ou_list(data)
-                data["accounts"] = self._get_accounts_list(org_id)
+                data["sub_orgs"] = self._get_sub_ou_list(data, org_id_list)
+                data["accounts"] = accounts_mapping.get(org_id, [])
 
         self.query_data = query_data
         return self._format_query_response()
