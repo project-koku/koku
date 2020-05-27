@@ -20,6 +20,7 @@ mgmt_services/cost-mgmt:koku/python-certifi:2020.4.5.1.pipfile
 mgmt_services/cost-mgmt:koku/python-cffi:1.14.0.pipfile
 mgmt_services/cost-mgmt:koku/python-chardet:3.0.4.pipfile
 mgmt_services/cost-mgmt:koku/python-ciso8601:2.1.3.pipfile
+mgmt_services/cost-mgmt:koku/python-confluent-kafka:1.4.2.pipfile
 mgmt_services/cost-mgmt:koku/python-cryptography:2.9.2.pipfile
 mgmt_services/cost-mgmt:koku/python-django:2.2.12.pipfile
 mgmt_services/cost-mgmt:koku/python-django-cors-headers:3.3.0.pipfile
