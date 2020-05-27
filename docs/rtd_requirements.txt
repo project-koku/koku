@@ -10,8 +10,8 @@ azure-mgmt-storage==10.0.0
 azure-storage-blob==12.3.1
 beautifulsoup4==4.9.1
 billiard==3.6.3.0
-boto3==1.13.16
-botocore==1.16.16
+boto3==1.13.17
+botocore==1.16.17
 bs4==0.0.1
 cachetools==4.1.0
 celery-prometheus-exporter==1.7.0
@@ -27,7 +27,7 @@ django-environ==0.4.5
 django-extensions==2.2.9
 django-filter==2.2.0
 django-prometheus==2.0.0
-django-redis==4.11.0
+django-redis==4.12.1
 django-tenant-schemas==1.10.0
 django==2.2.12
 djangorestframework-csv==2.1.0
@@ -45,7 +45,7 @@ idna==2.9
 importlib-metadata==1.6.0 ; python_version < '3.8'
 isodate==0.6.0
 jinja2==2.11.2
-jinjasql==0.1.7
+jinjasql==0.1.8
 jmespath==0.10.0
 kafka-python==2.0.1
 kombu==4.6.8

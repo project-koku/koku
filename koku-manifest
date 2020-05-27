@@ -10,8 +10,8 @@ mgmt_services/cost-mgmt:koku/python-azure-mgmt-storage:10.0.0.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-storage-blob:12.3.1.pipfile
 mgmt_services/cost-mgmt:koku/python-beautifulsoup4:4.9.1.pipfile
 mgmt_services/cost-mgmt:koku/python-billiard:3.6.3.0.pipfile
-mgmt_services/cost-mgmt:koku/python-boto3:1.13.16.pipfile
-mgmt_services/cost-mgmt:koku/python-botocore:1.16.16.pipfile
+mgmt_services/cost-mgmt:koku/python-boto3:1.13.17.pipfile
+mgmt_services/cost-mgmt:koku/python-botocore:1.16.17.pipfile
 mgmt_services/cost-mgmt:koku/python-bs4:0.0.1.pipfile
 mgmt_services/cost-mgmt:koku/python-cachetools:4.1.0.pipfile
 mgmt_services/cost-mgmt:koku/python-celery:4.4.2.pipfile
@@ -28,7 +28,7 @@ mgmt_services/cost-mgmt:koku/python-django-environ:0.4.5.pipfile
 mgmt_services/cost-mgmt:koku/python-django-extensions:2.2.9.pipfile
 mgmt_services/cost-mgmt:koku/python-django-filter:2.2.0.pipfile
 mgmt_services/cost-mgmt:koku/python-django-prometheus:2.0.0.pipfile
-mgmt_services/cost-mgmt:koku/python-django-redis:4.11.0.pipfile
+mgmt_services/cost-mgmt:koku/python-django-redis:4.12.1.pipfile
 mgmt_services/cost-mgmt:koku/python-django-tenant-schemas:1.10.0.pipfile
 mgmt_services/cost-mgmt:koku/python-djangorestframework:3.11.0.pipfile
 mgmt_services/cost-mgmt:koku/python-djangorestframework-csv:2.1.0.pipfile
@@ -45,7 +45,7 @@ mgmt_services/cost-mgmt:koku/python-idna:2.9.pipfile
 mgmt_services/cost-mgmt:koku/python-importlib-metadata:1.6.0.pipfile
 mgmt_services/cost-mgmt:koku/python-isodate:0.6.0.pipfile
 mgmt_services/cost-mgmt:koku/python-jinja2:2.11.2.pipfile
-mgmt_services/cost-mgmt:koku/python-jinjasql:0.1.7.pipfile
+mgmt_services/cost-mgmt:koku/python-jinjasql:0.1.8.pipfile
 mgmt_services/cost-mgmt:koku/python-jmespath:0.10.0.pipfile
 mgmt_services/cost-mgmt:koku/python-kafka-python:2.0.1.pipfile
 mgmt_services/cost-mgmt:koku/python-kombu:4.6.8.pipfile

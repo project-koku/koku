@@ -58,13 +58,13 @@ help:
 	@echo "  lint                                  run pre-commit against the project"
 	@echo ""
 	@echo "--- Commands using local services ---"
-	@echo "  clear-testing						   Remove stale files/subdirectories from the testing directory."
+	@echo "  clear-testing                         Remove stale files/subdirectories from the testing directory."
 	@echo "  create-test-customer                  create a test customer and tenant in the database"
 	@echo "  create-test-customer-no-sources       create a test customer and tenant in the database without test sources"
 	@echo "  create-large-ocp-source-config-file   create a config file for nise to generate a large data sample"
-	@echo "                                          @param generator_config_file - config for the generator"
-	@echo "                                          @param generator_template_file - jinja2 template to render output"
 	@echo "                                          @param output_file_name - file name for output"
+	@echo "                                          @param generator_config_file - (optional, default=default) config file for the generator"
+	@echo "                                          @param generator_template_file - (optional) jinja2 template to render output"
 	@echo "                                          @param generator_flags - (optional) additional cli flags and args"
 	@echo "  large-ocp-source-testing              create a test OCP source "large_ocp_1" with a larger volume of data"
 	@echo "                                          @param nise_config_dir - directory of nise config files to use"
@@ -580,7 +580,7 @@ ifndef ocp_name
 endif
 	(command -v nise > /dev/null 2>&1) || (echo 'nise is not installed, please install nise.' && exit 1 )
 	mkdir -p testing/pvc_dir/insights_local
-	nise --ocp --ocp-cluster-id $(cluster_id) --insights-upload testing/pvc_dir/insights_local --static-report-file $(srf_yaml)
+	nise report ocp --ocp-cluster-id $(cluster_id) --insights-upload testing/pvc_dir/insights_local --static-report-file $(srf_yaml)
 	curl -d '{"name": "$(ocp_name)", "source_type": "OCP", "authentication": {"resource_name": "$(cluster_id)"}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
 # From here you can hit the http://127.0.0.1:5000/api/cost-management/v1/download/ endpoint to start running masu.
 # After masu has run these endpoints should have data in them: (v1/reports/openshift/memory, v1/reports/openshift/compute/, v1/reports/openshift/volumes/)
@@ -604,15 +604,11 @@ create-large-ocp-source-config-file:
 ifndef output_file_name
 	$(error param output_file_name is not set)
 endif
-ifndef generator_config_file
-	$(error param generator_config_file is not set)
+ifdef generator_template_file
+	@nise yaml -p ocp -c $(or $(generator_config_file), default) -t $(generator_template_file) -o $(output_file_name) $(generator_flags)
+else
+	@nise yaml -p ocp -c $(or $(generator_config_file), default) -o $(output_file_name) $(generator_flags)
 endif
-ifndef generator_template_file
-	$(error param generator_template_file is not set)
-endif
-	@../nise/utility/generate_static_ocp_settings.py -c $(generator_config_file) \
-	                                                 -t $(generator_template_file) \
-													 -o $(output_file_name) $(generator_flags)
 
 
 create-large-ocp-source-testing-files:
