@@ -25,6 +25,7 @@ import responses
 from django.db.models.signals import post_save
 from django.test import TestCase
 from faker import Faker
+from requests.exceptions import RequestException
 
 from api.provider.models import Sources
 from sources.config import Config
@@ -66,6 +67,15 @@ class SourcesHTTPClientTest(TestCase):
         with requests_mock.mock() as m:
             m.get(f"http://www.sources.com/api/v1.0/sources/{self.source_id}", status_code=404)
             with self.assertRaises(SourceNotFoundError):
+                client.get_source_details()
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_source_details_connection_error(self):
+        """Test to get source details with connection error."""
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        with requests_mock.mock() as m:
+            m.get(f"http://www.sources.com/api/v1.0/sources/{self.source_id}", exc=RequestException)
+            with self.assertRaises(SourcesHTTPClientError):
                 client.get_source_details()
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
@@ -235,6 +245,18 @@ class SourcesHTTPClientTest(TestCase):
                 client.get_aws_role_arn()
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_aws_role_arn_connection_error(self):
+        """Test to get AWS Role ARN from authentication service with connection errors."""
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}", exc=RequestException
+            )
+            with self.assertRaises(SourcesHTTPClientError):
+                client.get_aws_role_arn()
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_get_azure_credentials(self):
         """Test to get Azure credentials from authentication service."""
         resource_id = 2
@@ -313,6 +335,17 @@ class SourcesHTTPClientTest(TestCase):
                 client.get_azure_credentials()
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_azure_credentials_connection_error(self):
+        """Test to get Azure credentials from authentication service with connection error."""
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}", exc=RequestException
+            )
+            with self.assertRaises(SourcesHTTPClientError):
+                client.get_azure_credentials()
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_get_azure_credentials_no_endpoint(self):
         """Test to get Azure credentials from authentication service with no endpoint."""
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
@@ -372,6 +405,17 @@ class SourcesHTTPClientTest(TestCase):
                 client.get_endpoint_id()
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_endpoint_ids_connection_error(self):
+        """Test to get endpoint id with connection error."""
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}", exc=RequestException
+            )
+            with self.assertRaises(SourcesHTTPClientError):
+                client.get_endpoint_id()
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_get_source_id_from_endpoint_id(self):
         """Test to get source_id from resource_id."""
         resource_id = 2
@@ -416,6 +460,17 @@ class SourcesHTTPClientTest(TestCase):
                 json={"data": [{"id": resource_id}]},
             )
             with self.assertRaises(SourceNotFoundError):
+                client.get_source_id_from_endpoint_id(resource_id)
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_source_id_from_endpoint_id_connection_error(self):
+        """Test to get source ID from endpoint ID with connection error."""
+        resource_id = 2
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        with requests_mock.mock() as m:
+            m.get(f"http://www.sources.com/api/v1.0/endpoints?filter[id]={resource_id}", exc=RequestException)
+            with self.assertRaises(SourcesHTTPClientError):
                 client.get_source_id_from_endpoint_id(resource_id)
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
