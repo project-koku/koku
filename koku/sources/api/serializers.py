@@ -22,7 +22,6 @@ from xmlrpc.client import Fault
 from xmlrpc.client import ServerProxy
 
 from django.db import transaction
-from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
 from api.common import error_obj
