@@ -3330,16 +3330,26 @@
                     },
                     "sub_orgs": {
                         "type": "array",
+                        "items": {
+                            "type": "string",
+                            "description": "the individual org"
+                        },
                         "example": [
                             "OU_004",
                             "OU_005"
-                        ]
+                        ],
+                        "description": "the list of sub orgs under the org"
                     },
                     "accounts": {
                         "type": "array",
+                        "items": {
+                            "type": "string",
+                            "description": "individual account"
+                        },
                         "example": [
                             "account 003"
-                        ]
+                        ],
+                        "description": "the list of accounts under the org"
                     }
                 }
             },
