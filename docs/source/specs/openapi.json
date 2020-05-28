@@ -426,6 +426,52 @@
                 }
             }
         },
+        "/organizations/aws/": {
+            "get": {
+                "tags": [
+                    "Organizations"
+                ],
+                "summary": "View AWS organizations",
+                "security": [{
+                    "basic_auth": []
+                }],
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryDelta"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of Organization objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrganizationPagination"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/reports/aws/costs/": {
             "get": {
                 "tags": [
@@ -1999,6 +2045,16 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
                     }
                 ],
                 "responses": {
@@ -2116,6 +2172,16 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
                     }
                 ],
                 "responses": {
@@ -2233,6 +2299,16 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
                     }
                 ],
                 "responses": {
@@ -2350,6 +2426,16 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
                     }
                 ],
                 "responses": {
@@ -2467,6 +2553,16 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
                     }
                 ],
                 "responses": {
@@ -2584,6 +2680,16 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
                     }
                 ],
                 "responses": {
@@ -3176,6 +3282,66 @@
                         "type": "string"
                     }
                 }
+            },
+            "Organization": {
+                "required": [
+                    "org_unit_id",
+                    "org_unit_path",
+                    "level",
+                    "sub_orgs",
+                    "accounts"
+                ],
+                "properties": {
+                    "org_unit_id": {
+                        "type": "string",
+                        "example": "OU_003"
+                    },
+                    "org_unit_name": {
+                        "type": "string",
+                        "example": "Dept OU_003"
+                    },
+                    "org_unit_path": {
+                        "type": "string",
+                        "example": "R_001&OU_002&OU_003"
+                    },
+                    "level": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "sub_orgs": {
+                        "type": "array",
+                        "example": [
+                            "OU_004",
+                            "OU_005"
+                        ]
+                    },
+                    "accounts": {
+                        "type": "array",
+                        "example": [
+                            "account 003"
+                        ]
+                    }
+                }
+            },
+            "OrganizationPagination": {
+                "allOf": [{
+                        "$ref": "#/components/schemas/ListPagination"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/Organization"
+                                }
+                            }
+                        }
+                    }
+                ]
             },
             "Source": {
                 "required": [
