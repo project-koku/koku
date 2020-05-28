@@ -116,7 +116,7 @@ class TagQueryHandler(QueryHandler):
 
         """
         output = copy.deepcopy(self.parameters.parameters)
-        if not self.parameters.parameters.get("key_only"):
+        if not (self.parameters.parameters.get("key_only") or hasattr(self, "key")):
             self._slice_tag_values_list()
         output["data"] = self.query_data
 
