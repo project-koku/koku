@@ -17,9 +17,19 @@
 """Cache functions."""
 import logging
 
+from django.conf import settings
 from django.core.cache import caches
+from django.core.cache.backends import locmem
+from django.core.cache.backends.locmem import LocMemCache
+from django_redis.cache import RedisCache
 
 from api.provider.models import Provider
+
+
+class KokuCacheError(Exception):
+    """KokuCacheError Error."""
+
+    pass
 
 
 LOG = logging.getLogger(__name__)
@@ -38,8 +48,14 @@ def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix
     If cache_key_prefix is None, all views will be invalidated.
     """
     cache = caches["default"]
+    if isinstance(cache, RedisCache):
+        all_keys = cache.keys("*")
+    elif isinstance(cache, LocMemCache):
+        all_keys = list(locmem._caches.get(settings.TEST_CACHE_LOCATION).keys())
+    else:
+        msg = "Using an unsupported caching backend!"
+        raise KokuCacheError(msg)
 
-    all_keys = cache.keys("*")
     if cache_key_prefix:
         keys_to_invalidate = [key for key in all_keys if (schema_name in key and cache_key_prefix in key)]
     else:
