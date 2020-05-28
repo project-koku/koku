@@ -205,8 +205,8 @@ class OrgQueryHandler(QueryHandler):
                 final_sub_ou_list.extend(sub_ou_list)
         return final_sub_ou_list
 
-    def _create_accounts_mapping(self, org_id=None):
-        """Returns an account list for given org_id."""
+    def _create_accounts_mapping(self):
+        """Returns a mapping of org ids to accounts."""
         account_mapping = {}
         with tenant_context(self.tenant):
             for source in self.data_sources:
@@ -255,17 +255,26 @@ class OrgQueryHandler(QueryHandler):
                 account_info = source.get("account_alias_column")
                 created_field = source.get("created_time_column")
                 # Create filters & Query
-                filters = QueryFilterCollection()
+                account_filter = QueryFilterCollection()
                 no_accounts = QueryFilter(field=f"{account_info}", operation="isnull", parameter=True)
-                filters.add(no_accounts)
-                composed_filters = filters.compose()
+                account_filter.add(no_accounts)
+                remove_accounts = account_filter.compose()
                 org_unit_query = source.get("db_table").objects
-                org_unit_query = org_unit_query.filter(composed_filters)
+                org_unit_query = org_unit_query.filter(remove_accounts)
                 org_unit_query = org_unit_query.exclude(deleted_timestamp__lte=self.start_datetime)
                 org_unit_query = org_unit_query.exclude(created_timestamp__gte=self.end_datetime)
                 val_list = [org_id, org_name, org_path, level]
                 org_unit_query = org_unit_query.order_by(f"{org_id}", f"-{created_field}").distinct(f"{org_id}")
                 org_ids = org_unit_query.values_list("id", flat=True)
+                if self.access:
+                    acceptable_ous = self.access.get("aws.organizational_unit", {}).get("read", [])
+                    if acceptable_ous and "*" not in acceptable_ous:
+                        allowed_ids_query = source.get("db_table").objects
+                        allowed_ids_query = allowed_ids_query.filter(org_unit_id__in=acceptable_ous).filter(
+                            remove_accounts
+                        )
+                        allowed_ids = allowed_ids_query.values_list("id", flat=True)
+                        org_ids = list(set(org_ids) & set(allowed_ids))
                 org_id_list.extend(org_ids)
                 # Note: you want to collect the org_id_list before you implement the self.query_filter
                 # so that way the get_sub_ou list will still work when you do filter[org_unit_id]=OU_002
