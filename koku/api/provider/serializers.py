@@ -374,20 +374,20 @@ class ProviderSerializer(serializers.ModelSerializer):
             instance.save()
             raise validation_error
 
-        bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
-        auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
-        dup_queryset = (
-            Provider.objects.filter(authentication=auth).filter(billing_source=bill).filter(customer=customer)
-        )
-        if dup_queryset.count() != 0:
-            conflict_provder = dup_queryset.first()
-            message = (
-                f"Cost management does not allow duplicate accounts. "
-                f"{conflict_provder.name} already exists. Edit source settings to configure a new source."
-            )
-            LOG.warn(message)
-
         with transaction.atomic():
+            bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
+            auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
+            dup_queryset = (
+                Provider.objects.filter(authentication=auth).filter(billing_source=bill).filter(customer=customer)
+            )
+            if dup_queryset.count() != 0:
+                conflict_provder = dup_queryset.first()
+                message = (
+                    f"Cost management does not allow duplicate accounts. "
+                    f"{conflict_provder.name} already exists. Edit source settings to configure a new source."
+                )
+                LOG.warn(message)
+
             for key in validated_data.keys():
                 setattr(instance, key, validated_data[key])
 
