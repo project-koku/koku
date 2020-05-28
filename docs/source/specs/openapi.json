@@ -446,6 +446,9 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OrganizationFilter"
                     }
                 ],
                 "responses": {
@@ -3283,6 +3286,23 @@
                     }
                 }
             },
+            "OrganizationFilter": {
+                "type": "object",
+                "properties": {
+                    "resolution": {
+                        "$ref": "#/components/schemas/ReportResolution"
+                    },
+                    "time_scope_value": {
+                        "$ref": "#/components/schemas/ReportTimeScopeValue"
+                    },
+                    "time_scope_units": {
+                        "$ref": "#/components/schemas/ReportTimeScopeUnits"
+                    },
+                    "org_unit_id": {
+                        "$ref": "#/components/schemas/OrgUnitId"
+                    }
+                }
+            },
             "Organization": {
                 "required": [
                     "org_unit_id",
@@ -3595,6 +3615,9 @@
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "org_unit_id": {
+                        "$ref": "#/components/schemas/OrgUnitId"
                     }
                 }
             },
@@ -3928,6 +3951,9 @@
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "org_unit_id": {
+                        "$ref": "#/components/schemas/OrgUnitId"
                     }
                 },
                 "example": {
@@ -4581,6 +4607,10 @@
                     "cost": "asc"
                 },
                 "description": "The ordering to apply to the report. Default is ascending order for the data."
+            },
+            "OrgUnitId": {
+                "type": "string",
+                "example": "R_001"
             },
             "ReportDelta": {
                 "type": "object",
