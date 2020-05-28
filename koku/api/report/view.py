@@ -150,7 +150,7 @@ class ReportView(APIView):
 
         """
         LOG.debug(f"API: {request.path} USER: {request.user.username}")
-        LOG.info(request.headers)
+
         try:
             params = QueryParameters(request=request, caller=self, **kwargs)
         except ValidationError as exc:
