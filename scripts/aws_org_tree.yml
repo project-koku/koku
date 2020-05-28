@@ -106,4 +106,4 @@ account_structure:
           - organizational_unit:
             org_unit_id: 'OU_005'
             org_unit_name: 'Dept OU_005'
-            parent_path: "R_001&OU_002"
+            parent_path: "R_001&OU_001"
