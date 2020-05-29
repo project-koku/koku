@@ -16,7 +16,7 @@
 #
 """Configuration for Source Service."""
 import os
-
+from koku.settings import KOKU_SOURCES_CLIENT_PORT
 
 class Config:
     """Configuration for service."""
@@ -45,3 +45,4 @@ class Config:
     KOKU_API_URL = f"http://{KOKU_API_HOST}:{KOKU_API_PORT}{KOKU_API_PATH_PREFIX}/v1"
 
     RETRY_SECONDS = int(os.getenv("RETRY_SECONDS", "10"))
+    SOURCES_CLIENT_RPC_PORT = int(KOKU_SOURCES_CLIENT_PORT)

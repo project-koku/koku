@@ -29,6 +29,7 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
+from koku.settings import SOURCES_CLIENT_BASE_URL
 from sources.api import get_account_from_header
 from sources.api import get_auth_header
 from sources.storage import get_source_instance
@@ -127,7 +128,7 @@ class SourcesSerializer(serializers.ModelSerializer):
         authentication = validated_data.get("authentication")
 
         try:
-            with ServerProxy("http://sources-client:9000") as sources_client:
+            with ServerProxy(SOURCES_CLIENT_BASE_URL) as sources_client:
                 if billing_source:
                     billing_source = self._update_billing_source(instance, billing_source)
                     sources_client.update_billing_source(instance.source_id, billing_source)

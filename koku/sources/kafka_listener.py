@@ -135,11 +135,11 @@ def load_process_queue():
         PROCESS_QUEUE.put_nowait((next(COUNT), event))
 
 
-def execute_process_queue(cost_management_type_id):
+def execute_process_queue():
     """Execute process queue to synchronize providers."""
     while not PROCESS_QUEUE.empty():
         msg_tuple = PROCESS_QUEUE.get()
-        process_synchronize_sources_msg(msg_tuple, cost_management_type_id, PROCESS_QUEUE)
+        process_synchronize_sources_msg(msg_tuple, PROCESS_QUEUE)
 
 
 @receiver(post_save, sender=Sources)
@@ -165,6 +165,7 @@ def storage_callback(sender, instance, **kwargs):
         LOG.debug(f"Create Event Queued for:\n{str(instance)}")
         PROCESS_QUEUE.put_nowait((next(COUNT), process_event))
 
+    execute_process_queue()
 
 def get_sources_msg_data(msg, app_type_id):
     """
@@ -429,7 +430,7 @@ def listen_for_messages_loop(application_source_id):  # pragma: no cover
             continue
 
         listen_for_messages(msg, consumer, application_source_id)
-        execute_process_queue(application_source_id)
+        execute_process_queue()
 
 
 def rewind_consumer_to_retry(consumer, topic_partition):
@@ -485,7 +486,7 @@ def listen_for_messages(msg, consumer, application_source_id):  # noqa: C901
         LOG.error(f"[listen_for_messages] UNKNOWN error encountered: {type(error).__name__}: {error}", exc_info=True)
 
 
-def execute_koku_provider_op(msg, cost_management_type_id):
+def execute_koku_provider_op(msg):
     """
     Execute the 'create' or 'destroy Koku-Provider operations.
 
@@ -503,7 +504,6 @@ def execute_koku_provider_op(msg, cost_management_type_id):
         msg (Asyncio msg): Dictionary messages containing operation,
                                        provider and offset.
             example: {'operation': 'create', 'provider': SourcesModelObj, 'offset': 3}
-        cost_management_type_id (Integer): Cost Management Type Identifier
 
     Returns:
         None
@@ -539,7 +539,7 @@ def execute_koku_provider_op(msg, cost_management_type_id):
             LOG.info(f"Destroying provider {provider.koku_uuid} for Source ID: {provider.source_id}")
         else:
             LOG.error(f"unknown operation: {operation}")
-        sources_client.set_source_status(None, cost_management_type_id)
+        sources_client.set_source_status(None)
 
     except SourcesProviderCoordinatorError as account_error:
         raise SourcesIntegrationError("Koku provider error: ", str(account_error))
@@ -548,12 +548,12 @@ def execute_koku_provider_op(msg, cost_management_type_id):
             f"Unable to {operation} provider for Source ID: {str(provider.source_id)}. Reason: {str(account_error)}"
         )
         LOG.error(err_msg)
-        sources_client.set_source_status(str(account_error), cost_management_type_id)
+        sources_client.set_source_status(account_error)
     except RabbitOperationalError:
         err_msg = f"RabbitmQ unavailable. Unable to {operation} Source ID: {provider.source_id}"
         LOG.error(err_msg)
         sources_network = SourcesHTTPClient(provider.auth_header, provider.source_id)
-        sources_network.set_source_status(err_msg, cost_management_type_id=cost_management_type_id)
+        sources_network.set_source_status(err_msg)
 
         # Re-raise exception so it can be re-queued in synchronize_sources
         raise RabbitOperationalError(err_msg)
@@ -570,7 +570,7 @@ def _requeue_provider_sync_message(priority, msg, queue):
     )
 
 
-def process_synchronize_sources_msg(msg_tuple, cost_management_type_id, process_queue):
+def process_synchronize_sources_msg(msg_tuple, process_queue):
     """
     Synchronize Platform Sources with Koku Providers.
 
@@ -585,7 +585,6 @@ def process_synchronize_sources_msg(msg_tuple, cost_management_type_id, process_
         process_queue (Asyncio.Queue): Dictionary messages containing operation,
                                        provider and offset.
             example: {'operation': 'create', 'provider': SourcesModelObj, 'offset': 3}
-        cost_management_type_id (Integer): Cost Management Type Identifier
 
     Returns:
         None
@@ -598,7 +597,7 @@ def process_synchronize_sources_msg(msg_tuple, cost_management_type_id, process_
         f'for Source ID: {str(msg.get("provider").source_id)}'
     )
     try:
-        execute_koku_provider_op(msg, cost_management_type_id)
+        execute_koku_provider_op(msg)
         LOG.info(
             f'Koku provider operation to execute: {msg.get("operation")} '
             f'for Source ID: {str(msg.get("provider").source_id)} complete.'
@@ -698,14 +697,16 @@ def sources_integration_thread():  # pragma: no cover
         LOG.info("Kafka is running...")
 
     load_process_queue()
-    execute_process_queue(cost_management_type_id)
+    execute_process_queue()
 
     listen_for_messages_loop(cost_management_type_id)
 
 
 def rpc_thread():
     """RPC Server to serve PATCH requests."""
-    with SimpleXMLRPCServer(("0.0.0.0", 9000), allow_none=True) as server:
+    LOG.info(f"Starting RPC server. Port: {Config.SOURCES_CLIENT_RPC_PORT}")
+    with SimpleXMLRPCServer(("0.0.0.0", Config.SOURCES_CLIENT_RPC_PORT),
+                             allow_none=True) as server:
         server.register_introspection_functions()
         server.register_instance(SourcesPatchHandler())
         server.serve_forever()
@@ -719,4 +720,3 @@ def initialize_sources_integration():  # pragma: no cover
     LOG.info("Listening for kafka events")
     rpc = threading.Thread(target=rpc_thread)
     rpc.start()
-    LOG.info("Starting RPC thread.")

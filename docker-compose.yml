@@ -21,6 +21,8 @@ services:
         - POSTGRES_SQL_SERVICE_PORT=5432
         - DATABASE_USER=${DATABASE_USER-postgres}
         - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - KOKU_SOURCES_CLIENT_HOST=${KOKU_SOURCES_CLIENT_HOST-sources-client}
+        - KOKU_SOURCES_CLIENT_PORT=${KOKU_SOURCES_CLIENT_PORT-9000}
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
         - DJANGO_READ_DOT_ENV_FILE=True
@@ -309,6 +311,7 @@ services:
         - RABBITMQ_PORT=5672
         - SOURCES_KAFKA_HOST=${SOURCES_KAFKA_HOST-kafka}
         - SOURCES_KAFKA_PORT=${SOURCES_KAFKA_PORT-29092}
+        - KOKU_SOURCES_CLIENT_PORT=${KOKU_SOURCES_CLIENT_PORT-9000}
         - prometheus_multiproc_dir=/tmp
       privileged: true
       ports:
