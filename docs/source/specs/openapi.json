@@ -462,6 +462,9 @@
                             }
                         }
                     },
+                    "403": {
+                        "description": "Access to the requested resource is forbidden"
+                    },
                     "500": {
                         "description": "Unexpected Error",
                         "content": {
