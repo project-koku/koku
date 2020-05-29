@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for enable_tags masu admin endpoint."""
-# pylint: disable=inconsistent-return-statements,too-many-return-statements,too-many-branches,too-many-statements
 import logging
 
 from django.views.decorators.cache import never_cache

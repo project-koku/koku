@@ -30,7 +30,6 @@ class CostModelCostUpdaterError(Exception):
     """Expired Data Removalerror."""
 
 
-# pylint: disable=too-few-public-methods
 class CostModelCostUpdater:
     """Update reporting summary tables."""
 

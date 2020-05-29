@@ -30,7 +30,6 @@ LOG = logging.getLogger(__name__)
 WILDCARD = "*"
 
 
-# pylint: disable=abstract-method, too-many-ancestors
 class TruncMonthString(TruncMonth):
     """Class to handle string formated day truncation."""
 
@@ -40,7 +39,6 @@ class TruncMonthString(TruncMonth):
         return value.strftime("%Y-%m")
 
 
-# pylint: disable=abstract-method, too-many-ancestors
 class TruncDayString(TruncDay):
     """Class to handle string formated day truncation."""
 

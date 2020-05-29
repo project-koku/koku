@@ -69,7 +69,6 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
             data["provider_resource_name"] = data.get("credentials").get("provider_resource_name")
         return data
 
-    # pylint: disable=too-few-public-methods
     class Meta:
         """Metadata for the serializer."""
 
@@ -119,7 +118,6 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
 
     data_source = serializers.JSONField(allow_null=True, required=False)
 
-    # pylint: disable=too-few-public-methods
     class Meta:
         """Metadata for the serializer."""
 
@@ -220,7 +218,6 @@ class ProviderSerializer(serializers.ModelSerializer):
     created_by = UserSerializer(read_only=True)
     active = serializers.BooleanField(read_only=True)
 
-    # pylint: disable=too-few-public-methods
     class Meta:
         """Metadata for the serializer."""
 

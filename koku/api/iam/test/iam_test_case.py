@@ -170,7 +170,6 @@ class IamTestCase(TestCase):
         return query_params
 
 
-# pylint: disable=too-few-public-methods,protected-access
 class RbacPermissions:
     """A decorator class for running tests with a custom identity.
 

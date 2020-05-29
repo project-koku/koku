@@ -41,7 +41,6 @@ class AzureClientFactory:
 
     """
 
-    # pylint: disable=too-many-arguments
     def __init__(self, subscription_id, tenant_id, client_id, client_secret, cloud="public"):
         """Constructor."""
         self._subscription_id = subscription_id
