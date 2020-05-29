@@ -16,10 +16,10 @@
 #
 """Data Driven Component Generation for OpenShift Settings."""
 from django.test import RequestFactory
-from django.utils.translation import ugettext as _
 from rest_framework.serializers import ValidationError
 from tenant_schemas.utils import schema_context
 
+from api.common import error_obj
 from api.query_params import QueryParameters
 from api.settings.utils import create_dual_list_select
 from api.settings.utils import create_plain_text
@@ -29,12 +29,6 @@ from api.settings.utils import OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from reporting.models import OCPEnabledTagKeys
-
-
-def error_obj(key, message):
-    """Create an error object."""
-    error = {key: [_(message)]}
-    return error
 
 
 class OpenShiftSettings:

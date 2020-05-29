@@ -93,3 +93,5 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
             files = processor.remove_processed_files(path.dirname(report_path))
             LOG.info("Temporary files removed: %s", str(files))
         provider_accessor.setup_complete()
+
+    return True

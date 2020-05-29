@@ -251,7 +251,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = AWS_CUR_TABLE_MAP["tags_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_awstags_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_awstags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
@@ -290,7 +290,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_tags_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpawstags_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpawstags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {"schema": self.schema}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
