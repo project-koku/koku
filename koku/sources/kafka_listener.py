@@ -167,6 +167,7 @@ def storage_callback(sender, instance, **kwargs):
 
     execute_process_queue()
 
+
 def get_sources_msg_data(msg, app_type_id):
     """
     General filter and data extractor for Platform-Sources kafka messages.
@@ -705,8 +706,7 @@ def sources_integration_thread():  # pragma: no cover
 def rpc_thread():
     """RPC Server to serve PATCH requests."""
     LOG.info(f"Starting RPC server. Port: {Config.SOURCES_CLIENT_RPC_PORT}")
-    with SimpleXMLRPCServer(("0.0.0.0", Config.SOURCES_CLIENT_RPC_PORT),
-                             allow_none=True) as server:
+    with SimpleXMLRPCServer(("0.0.0.0", Config.SOURCES_CLIENT_RPC_PORT), allow_none=True) as server:
         server.register_introspection_functions()
         server.register_instance(SourcesPatchHandler())
         server.serve_forever()

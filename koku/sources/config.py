@@ -16,7 +16,9 @@
 #
 """Configuration for Source Service."""
 import os
+
 from koku.settings import KOKU_SOURCES_CLIENT_PORT
+
 
 class Config:
     """Configuration for service."""
