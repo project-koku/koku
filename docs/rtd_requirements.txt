@@ -10,8 +10,8 @@ azure-mgmt-storage==10.0.0
 azure-storage-blob==12.3.1
 beautifulsoup4==4.9.1
 billiard==3.6.3.0
-boto3==1.13.17
-botocore==1.16.17
+boto3==1.13.18
+botocore==1.16.18
 bs4==0.0.1
 cachetools==4.1.0
 celery-prometheus-exporter==1.7.0
@@ -59,7 +59,7 @@ ordered-set==4.0.1
 pandas==1.0.3
 pint==0.11
 prometheus-client==0.8.0
-protobuf==3.12.1
+protobuf==3.12.2
 psutil==5.7.0
 psycopg2-binary==2.8.5
 pyasn1-modules==0.2.8
