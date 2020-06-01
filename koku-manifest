@@ -71,7 +71,7 @@ mgmt_services/cost-mgmt:koku/python-pyjwt:1.7.1.pipfile
 mgmt_services/cost-mgmt:koku/python-python-dateutil:2.8.1.pipfile
 mgmt_services/cost-mgmt:koku/python-pytz:2020.1.pipfile
 mgmt_services/cost-mgmt:koku/python-querystring-parser:1.2.4.pipfile
-mgmt_services/cost-mgmt:koku/python-redis:3.5.2.pipfile
+mgmt_services/cost-mgmt:koku/python-redis:3.5.3.pipfile
 mgmt_services/cost-mgmt:koku/python-requests:2.23.0.pipfile
 mgmt_services/cost-mgmt:koku/python-requests-oauthlib:1.3.0.pipfile
 mgmt_services/cost-mgmt:koku/python-rsa:4.0.pipfile

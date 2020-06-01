@@ -377,7 +377,7 @@ def get_replacement_result(param_res_list, access_list, raise_exception=True):
     intersection = param_res_list & set(access_list)
     if not intersection:
         LOG.warning(
-            "User does not have permissions for the " "requested params: %s. Current access: %s.",
+            "User does not have permissions for the requested params: %s. Current access: %s.",
             param_res_list,
             access_list,
         )
