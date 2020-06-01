@@ -19,25 +19,19 @@ import logging
 
 from adal.adal_error import AdalError
 from azure.common import AzureException
-from django.utils.translation import ugettext as _
 from msrest.exceptions import ClientException
 from rest_framework.serializers import ValidationError
 
 from ..provider_errors import ProviderErrors
 from ..provider_interface import ProviderInterface
 from .client import AzureClientFactory
+from api.common import error_obj
 from api.models import Provider
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.azure.azure_service import AzureServiceError
 
 LOG = logging.getLogger(__name__)
-
-
-def error_obj(key, message):
-    """Create an error object."""
-    error = {key: [_(message)]}
-    return error
 
 
 class AzureProvider(ProviderInterface):
@@ -118,7 +112,7 @@ class AzureProvider(ProviderInterface):
         azure_service = None
 
         if not (isinstance(credential_name, dict) and isinstance(storage_resource_name, dict)):
-            message = f"Resource group and/or Storage account must be a dict"
+            message = "Resource group and/or Storage account must be a dict"
             raise ValidationError(error_obj(key, message))
 
         resource_group = storage_resource_name.get("resource_group")

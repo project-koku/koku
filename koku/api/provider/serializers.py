@@ -18,10 +18,10 @@
 from django.conf import settings
 from django.db import IntegrityError
 from django.db import transaction
-from django.utils.translation import ugettext as _
 from rest_framework import serializers
 from rest_framework.fields import empty
 
+from api.common import error_obj
 from api.iam.serializers import AdminCustomerSerializer
 from api.iam.serializers import CustomerSerializer
 from api.iam.serializers import UserSerializer
@@ -37,12 +37,6 @@ PROVIDER_CHOICE_LIST = [
 ]
 LCASE_PROVIDER_CHOICE_LIST = [provider.lower() for provider in PROVIDER_CHOICE_LIST]
 REPORT_PREFIX_MAX_LENGTH = 64
-
-
-def error_obj(key, message):
-    """Create an error object."""
-    error = {key: [_(message)]}
-    return error
 
 
 def validate_field(data, valid_fields, key):

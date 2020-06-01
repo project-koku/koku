@@ -194,7 +194,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """Clean up the manifest file after extracting information."""
         try:
             os.remove(manifest_file)
-            LOG.info("Deleted manifest file at %s", manifest_file)
+            LOG.debug("Deleted manifest file at %s", manifest_file)
         except OSError:
             LOG.info("Could not delete manifest file at %s", manifest_file)
 
@@ -268,7 +268,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             raise AWSReportDownloaderError(f"Insufficient disk space to download file: {s3_file}")
 
         if s3_etag != stored_etag or not os.path.isfile(full_file_path):
-            LOG.info("Downloading %s to %s", key, full_file_path)
+            LOG.debug("Downloading key: %s to file path: %s", key, full_file_path)
             self.s3_client.download_file(self.report.get("S3Bucket"), key, full_file_path)
         return full_file_path, s3_etag
 

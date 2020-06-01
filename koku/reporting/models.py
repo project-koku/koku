@@ -46,6 +46,7 @@ from reporting.provider.aws.models import AWSCostSummaryByRegion
 from reporting.provider.aws.models import AWSCostSummaryByService
 from reporting.provider.aws.models import AWSDatabaseSummary
 from reporting.provider.aws.models import AWSNetworkSummary
+from reporting.provider.aws.models import AWSOrganizationalUnit
 from reporting.provider.aws.models import AWSStorageSummary
 from reporting.provider.aws.models import AWSStorageSummaryByAccount
 from reporting.provider.aws.models import AWSStorageSummaryByRegion

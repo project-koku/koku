@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Red Hat, Inc.
+# Copyright 2020 Red Hat, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -14,21 +14,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Serializer for CloudAccount."""
-from rest_framework import serializers
+"""View for organizations."""
+from api.report.view import ReportView
 
 
-class CloudAccountSerializer(serializers.Serializer):
-    """Serializer for Cloud Account."""
+class OrganizationView(ReportView):
+    """Base Organizations View."""
 
-    name = serializers.CharField()
-    value = serializers.CharField()
-    description = serializers.CharField()
-    updated_timestamp = serializers.DateTimeField()
-
-
-class CloudAccountQueryParamsSerializer(serializers.Serializer):
-    """Serializer for the Query params on Cloud Account."""
-
-    limit = serializers.IntegerField(required=False, min_value=1)
-    offset = serializers.IntegerField(required=False, min_value=0)
+    report = "organizations"

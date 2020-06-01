@@ -1,0 +1,18 @@
+#!/bin/sh
+
+DISTRO=`cat /etc/*-release | grep ^ID= | grep -Po '".*?"' | tr -d '"'`
+NAMESPACE=centos
+[[ $DISTRO =~ rhel* ]] && NAMESPACE=rhscl
+
+cat <<EOF
+This is a S2I python-3.6 ${DISTRO} base image:
+To use it, install S2I: https://github.com/openshift/source-to-image
+
+Sample invocation:
+
+s2i build https://github.com/sclorg/s2i-python-container.git --context-dir=3.6/test/setup-test-app/ ${NAMESPACE}/python-36-${DISTRO}7 python-sample-app
+
+
+You can then run the resulting image via:
+podman run -p 8080:8080 python-sample-app
+EOF
