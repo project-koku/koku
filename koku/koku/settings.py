@@ -175,6 +175,7 @@ HOSTNAME = ENVIRONMENT.get_value("HOSTNAME", default="localhost")
 
 REDIS_HOST = ENVIRONMENT.get_value("REDIS_HOST", default="redis")
 REDIS_PORT = ENVIRONMENT.get_value("REDIS_PORT", default="6379")
+REDIS_DB = 1
 
 KEEPDB = ENVIRONMENT.bool("KEEPDB", default=True)
 TEST_CACHE_LOCATION = "unique-snowflake"
@@ -189,7 +190,7 @@ else:
     CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
-            "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/1",
+            "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
             "KEY_FUNCTION": "tenant_schemas.cache.make_key",
             "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
             "TIMEOUT": 3600,  # 1 hour default
