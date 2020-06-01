@@ -22,6 +22,7 @@ from django.core.cache import caches
 from django.core.cache.backends import locmem
 from django.core.cache.backends.locmem import LocMemCache
 from django_redis.cache import RedisCache
+from redis import Redis
 
 from api.provider.models import Provider
 
@@ -49,12 +50,17 @@ def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix
     """
     cache = caches["default"]
     if isinstance(cache, RedisCache):
+        cache = Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=settings.REDIS_DB)
         all_keys = cache.keys("*")
+        all_keys = [key.decode("utf-8") for key in all_keys]
     elif isinstance(cache, LocMemCache):
         all_keys = list(locmem._caches.get(settings.TEST_CACHE_LOCATION).keys())
+        all_keys = [key.split(":", 2)[-1] for key in all_keys]
     else:
         msg = "Using an unsupported caching backend!"
         raise KokuCacheError(msg)
+
+    all_keys = all_keys if all_keys is not None else []
 
     if cache_key_prefix:
         keys_to_invalidate = [key for key in all_keys if (schema_name in key and cache_key_prefix in key)]
@@ -62,8 +68,10 @@ def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix
         # Invalidate all cached views for the tenant
         keys_to_invalidate = [key for key in all_keys if schema_name in key]
 
-    cache.delete_many(keys_to_invalidate)
-    msg = f"Invalidated request cache for\n\ttenant: {schema_name}\n\tview: {cache_key_prefix}"
+    for key in keys_to_invalidate:
+        cache.delete(key)
+
+    msg = f"Invalidated request cache for\n\ttenant: {schema_name}\n\tcache_key_prefix: {cache_key_prefix}"
     LOG.info(msg)
 
 
