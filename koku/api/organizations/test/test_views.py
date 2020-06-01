@@ -40,6 +40,9 @@ def _calculate_accounts_and_subous(data):
             if "accounts" in dictionary.keys():
                 accounts_list = dictionary["accounts"]
                 accounts += accounts_list
+            if "sub_orgs" in dictionary.keys():
+                sub_orgs = dictionary["sub_orgs"]
+                sub_ous += sub_orgs
     return (list(set(accounts)), list(set(sub_ous)))
 
 
