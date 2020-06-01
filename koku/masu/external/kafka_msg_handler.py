@@ -102,6 +102,7 @@ def create_manifest_entries(report_meta, request_id, **context):
         report_meta.get("cluster_id"),
         None,
         provider_uuid=report_meta.get("provider_uuid"),
+        request_id=request_id,
         **context,
     )
     return downloader._prepare_db_manifest_record(report_meta)
