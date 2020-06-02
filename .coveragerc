@@ -3,6 +3,7 @@
 branch = True
 omit =
   .tox/*
+  scripts/*
   *virtualenv/*
   *virtualenvs/*
   *manage.py
