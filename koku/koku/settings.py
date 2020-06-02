@@ -420,6 +420,9 @@ CELERY_WORKER_TASK_LOG_FORMAT = (
 S3_BUCKET_NAME = ENVIRONMENT.get_value("S3_BUCKET_NAME", default="koku-reports")
 S3_BUCKET_PATH = ENVIRONMENT.get_value("S3_BUCKET_PATH", default="data_archive")
 S3_REGION = ENVIRONMENT.get_value("S3_REGION", default="us-east-1")
+S3_ENDPOINT = ENVIRONMENT.get_value("S3_ENDPOINT", default="s3.us-east-1.amazonaws.com")
+S3_ACCESS_KEY = ENVIRONMENT.get_value("S3_ACCESS_KEY", default=None)
+S3_SECRET = ENVIRONMENT.get_value("S3_SECRET", default=None)
 ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
 
 # Time to wait between cold storage retrieval for data export. Default is 3 hours

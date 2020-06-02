@@ -47,8 +47,10 @@ class StatusAPITest(TestCase):
         super().setUp()
         logging.disable(logging.NOTSET)
 
-    def test_status(self):
+    @patch("masu.api.status.ApplicationStatus.celery_status", new_callable=PropertyMock)
+    def test_status(self, mock_celery):
         """Test the status endpoint."""
+        mock_celery.return_value = {"celery@koku_worker": {}}
         response = self.client.get(reverse("server-status"))
         body = response.data
 
@@ -136,14 +138,16 @@ class StatusAPITest(TestCase):
         result = ApplicationStatus().modules
         self.assertEqual(result, expected)
 
+    @patch("masu.api.status.celery_app")
     @patch("masu.api.status.LOG.info")
-    def test_startup_with_modules(self, mock_logger):
+    def test_startup_with_modules(self, mock_logger, mock_celery):
         """Test the startup method with a module list."""
         ApplicationStatus().startup()
         mock_logger.assert_called_with(ANY, ANY)
 
+    @patch("masu.api.status.celery_app")
     @patch("masu.api.status.ApplicationStatus.modules", new_callable=PropertyMock)
-    def test_startup_without_modules(self, mock_mods):
+    def test_startup_without_modules(self, mock_mods, mock_celery):
         """Test the startup method without a module list."""
         mock_mods.return_value = {}
         expected = "INFO:masu.api.status:Modules: None"
@@ -152,8 +156,9 @@ class StatusAPITest(TestCase):
             ApplicationStatus().startup()
             self.assertIn(expected, logger.output)
 
+    @patch("masu.api.status.celery_app")
     @patch("masu.external.date_accessor.DateAccessor.today")
-    def test_get_datetime(self, mock_date):
+    def test_get_datetime(self, mock_date, mock_celery):
         """Test the startup method for datetime."""
         mock_date_string = "2018-07-25 10:41:59.993536"
         mock_date_obj = datetime.strptime(mock_date_string, "%Y-%m-%d %H:%M:%S.%f")
@@ -163,7 +168,8 @@ class StatusAPITest(TestCase):
             ApplicationStatus().startup()
             self.assertIn(str(expected), logger.output)
 
-    def test_get_debug(self):
+    @patch("masu.api.status.celery_app")
+    def test_get_debug(self, mock_celery):
         """Test the startup method for debug state."""
         expected = "INFO:masu.api.status:DEBUG enabled: {}".format(str(False))
         with self.assertLogs("masu.api.status", level="INFO") as logger:
@@ -227,7 +233,8 @@ class StatusAPITest(TestCase):
         self.assertIn("Error", result)
         # celery_app.control.inspect
 
-    def test_database_status(self):
+    @patch("masu.api.status.celery_app")
+    def test_database_status(self, mock_celery):
         """Test that fetching database status works."""
         expected = re.compile(r"INFO:masu.api.status:Database: \[{.*postgres.*}\]")
         with self.assertLogs("masu.api.status", level="INFO") as logger:
@@ -238,7 +245,8 @@ class StatusAPITest(TestCase):
                     results = expected.search(line)
             self.assertIsNotNone(results)
 
-    def test_database_status_fail(self):
+    @patch("masu.api.status.celery_app")
+    def test_database_status_fail(self, mock_celery):
         """Test that fetching database handles errors."""
         expected = "WARNING:masu.api.status:Unable to connect to DB: "
         with patch("django.db.backends.utils.CursorWrapper") as mock_cursor:

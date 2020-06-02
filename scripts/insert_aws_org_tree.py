@@ -208,9 +208,11 @@ class InsertAwsOrgTree:
         with open(self.nise_yml_path, "w") as f:
             yaml.dump(self.nise_yaml_contents, f)
         # Building an running nise command
-        nise_command = "nise --aws --static-report-file %s --aws-s3-bucket-name %s --aws-s3-report-name local-bucket"
         testing_path = os.getcwd() + "/testing/local_providers/aws_local_1"
-        nise_command = nise_command % (self.nise_yml_path, testing_path)
+        nise_command = (
+            f"nise report aws --static-report-file {self.nise_yml_path} "
+            f"--aws-s3-bucket-name {testing_path} --aws-s3-report-name local-bucket"
+        )
         os.system(nise_command)
         # Add aws source
         source_url = "http://{}:{}/api/cost-management/v1/sources/".format(
