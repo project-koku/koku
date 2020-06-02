@@ -23,9 +23,8 @@ from masu.external.account_label import AccountLabel
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
-from masu.processor.tasks import get_report_files
+from masu.processor.tasks import get_report_manifest
 from masu.processor.tasks import remove_expired_data
-from masu.processor.tasks import summarize_reports
 from masu.providers.status import ProviderStatus
 
 LOG = logging.getLogger(__name__)
@@ -137,7 +136,7 @@ class Orchestrator:
                         provider_uuid,
                     )
                     account["report_month"] = month
-                    async_result = (get_report_files.s(**account) | summarize_reports.s()).apply_async()
+                    async_result = (get_report_manifest.s(**account)).apply_async()
 
                     LOG.info(
                         "Download queued - schema_name: %s, Task ID: %s", account.get("schema_name"), str(async_result)

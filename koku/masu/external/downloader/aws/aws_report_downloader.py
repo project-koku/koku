@@ -272,6 +272,28 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.s3_client.download_file(self.report.get("S3Bucket"), key, full_file_path)
         return full_file_path, s3_etag
 
+    def get_manifest_context_for_date(self, date_time):
+        manifest_dict = {}
+        report_dict = {}
+        manifest_file, manifest = self._get_manifest(date_time)
+        if manifest != self.empty_manifest:
+            manifest_dict = self._prepare_db_manifest_record(manifest)
+        self._remove_manifest_file(manifest_file)
+
+        if manifest_dict:
+            manifest_id = self._process_manifest_db_record(
+                manifest_dict.get("assembly_id"), manifest_dict.get("billing_start"), manifest_dict.get("num_of_files")
+            )
+
+            report_dict["manifest_id"] = manifest_id
+            report_dict["assembly_id"] = manifest.get("assemblyId")
+            report_dict["compression"] = self.report.get("Compression")
+            report_dict["files"] = manifest.get("reportKeys")
+        return report_dict
+
+    def get_report_file(self, key):
+        """Download individual report file."""
+
     def get_report_context_for_date(self, date_time):
         """
         Get the report context for a provided date.

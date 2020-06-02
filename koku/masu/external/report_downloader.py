@@ -167,6 +167,27 @@ class ReportDownloader:
             raise ReportDownloaderError(str(err))
         return reports
 
+    def get_manifests(self, number_of_months=2):
+        """
+        Get current month's manifests.
+
+        Args:
+            (Int) Number of monthly reports to download.
+
+        Returns:
+            (List) List of filenames downloaded.
+
+        """
+        manifests = []
+        try:
+            current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+            for month in reversed(range(number_of_months)):
+                calculated_month = current_month + relativedelta(months=-month)
+                manifests = manifests + self.download_manifest(calculated_month)
+        except Exception as err:
+            raise ReportDownloaderError(str(err))
+        return manifests
+
     def is_report_processed(self, report_name, manifest_id):
         """Check if report_name has completed processing.
 
@@ -180,7 +201,15 @@ class ReportDownloader:
             return report_record.filter(last_completed_datetime__isnull=False).exists()
         return False
 
-    def download_report(self, date_time):
+    def download_manifest(self, date_time):
+        """
+        Download current manifest description for date_time.
+
+        """
+        report_context = self._downloader.get_manifest_context_for_date(date_time)
+        return report_context
+
+    def download_report(self, report_context):
         """
         Download CUR for a given date.
 
@@ -191,29 +220,28 @@ class ReportDownloader:
             ([{}]) List of dictionaries containing file path and compression.
 
         """
+        date_time = report_context.get("date")
         LOG.info("Attempting to get %s manifest for %s...", self.provider_type, str(date_time))
-        report_context = self._downloader.get_report_context_for_date(date_time)
         manifest_id = report_context.get("manifest_id")
-        reports = report_context.get("files", [])
-        cur_reports = []
-        for report in reports:
-            report_dictionary = {}
-            local_file_name = self._downloader.get_local_file_for_report(report)
+        report = report_context.get("current_file")
 
-            if self.is_report_processed(local_file_name, manifest_id):
-                LOG.info(f"File has already been processed: {local_file_name}. Skipping...")
-                continue
-            with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
-                stored_etag = stats_recorder.get_etag()
-                file_name, etag = self._downloader.download_file(report, stored_etag)
-                stats_recorder.update(etag=etag)
+        report_dictionary = {}
+        local_file_name = self._downloader.get_local_file_for_report(report)
 
-            report_dictionary["file"] = file_name
-            report_dictionary["compression"] = report_context.get("compression")
-            report_dictionary["start_date"] = date_time
-            report_dictionary["assembly_id"] = report_context.get("assembly_id")
-            report_dictionary["manifest_id"] = manifest_id
-            report_dictionary["provider_uuid"] = self.provider_uuid
+        if self.is_report_processed(local_file_name, manifest_id):
+            LOG.info(f"File has already been processed: {local_file_name}. Skipping...")
+            return []
 
-            cur_reports.append(report_dictionary)
-        return cur_reports
+        with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
+            stored_etag = stats_recorder.get_etag()
+            file_name, etag = self._downloader.download_file(report, stored_etag)
+            stats_recorder.update(etag=etag)
+
+        report_dictionary["file"] = file_name
+        report_dictionary["compression"] = report_context.get("compression")
+        report_dictionary["start_date"] = date_time
+        report_dictionary["assembly_id"] = report_context.get("assembly_id")
+        report_dictionary["manifest_id"] = manifest_id
+        report_dictionary["provider_uuid"] = self.provider_uuid
+
+        return report_dictionary
