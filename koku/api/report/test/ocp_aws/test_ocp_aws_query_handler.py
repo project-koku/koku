@@ -35,6 +35,7 @@ from reporting.models import OCPAWSCostSummaryByService
 from reporting.models import OCPAWSDatabaseSummary
 from reporting.models import OCPAWSNetworkSummary
 from reporting.models import OCPAWSStorageSummary
+from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 
 class OCPAWSQueryHandlerTestNoData(IamTestCase):
@@ -364,3 +365,32 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAWSDatabaseSummary)
+
+    def test_source_uuid_mapping(self):  # noqa: C901
+        """Test source_uuid is mapped to the correct source."""
+        endpoints = [OCPAWSCostView, OCPAWSInstanceTypeView, OCPAWSStorageView]
+        with tenant_context(self.tenant):
+            expected_source_uuids = OCPUsageReportPeriod.objects.all().values_list("provider_id", flat=True)
+            expected_source_uuids = list(expected_source_uuids)
+        source_uuid_list = []
+        for endpoint in endpoints:
+            urls = ["?"]
+            if endpoint == OCPAWSCostView:
+                urls.extend(["?group_by[account]=*", "?group_by[service]=*", "?group_by[region]=*"])
+            for url in urls:
+                query_params = self.mocked_query_params(url, endpoint)
+                handler = OCPAWSReportQueryHandler(query_params)
+                query_output = handler.execute_query()
+                data = query_output.get("data")
+                for dictionary in data:
+                    for _, value in dictionary.items():
+                        if isinstance(value, list):
+                            for item in value:
+                                if isinstance(item, dict):
+                                    if "values" in item.keys():
+                                        value = item["values"][0]
+                                        uuid_list = value.get("source_uuid")
+                                        source_uuid_list.extend(uuid_list)
+        self.assertNotEquals(source_uuid_list, [])
+        for source_uuid in source_uuid_list:
+            self.assertIn(source_uuid, expected_source_uuids)

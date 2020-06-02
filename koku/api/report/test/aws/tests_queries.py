@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
+import logging
 from collections import defaultdict
 from collections import OrderedDict
 from datetime import datetime
@@ -43,8 +44,11 @@ from api.report.queries import strip_tag_prefix
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
+from reporting.models import AWSCostEntryBill
 from reporting.models import AWSCostEntryLineItemDailySummary
 from reporting.models import AWSCostEntryProduct
+
+LOG = logging.getLogger(__name__)
 
 
 def _calculate_subtotals(data):
@@ -1591,3 +1595,33 @@ class AWSQueryHandlerTest(IamTestCase):
                 for service_item in account_item["services"]:
                     for value_item in service_item["values"]:
                         self.assertTrue("tags_exist" in value_item)
+
+    def test_source_uuid_mapping(self):  # noqa: C901
+        """Test source_uuid is mapped to the correct source."""
+        # Find the correct expected source uuid:
+        with tenant_context(self.tenant):
+            aws_uuids = AWSCostEntryLineItemDailySummary.objects.distinct().values_list("source_uuid", flat=True)
+            expected_source_uuids = AWSCostEntryBill.objects.distinct().values_list("provider_id", flat=True)
+            for aws_uuid in aws_uuids:
+                self.assertIn(aws_uuid, expected_source_uuids)
+        endpoints = [AWSCostView, AWSInstanceTypeView, AWSStorageView]
+        urls = ["?", "?group_by[account]=*", "?group_by[region]=*", "?group_by[service]=*"]
+        source_uuid_list = []
+        for endpoint in endpoints:
+            for url in urls:
+                query_params = self.mocked_query_params(url, endpoint)
+                handler = AWSReportQueryHandler(query_params)
+                query_output = handler.execute_query()
+                data = query_output.get("data")
+                for dictionary in data:
+                    for _, value in dictionary.items():
+                        if isinstance(value, list):
+                            for item in value:
+                                if isinstance(item, dict):
+                                    if "values" in item.keys():
+                                        value = item["values"][0]
+                                        uuid_list = value.get("source_uuid")
+                                        source_uuid_list.extend(uuid_list)
+        self.assertNotEqual(source_uuid_list, [])
+        for source_uuid in uuid_list:
+            self.assertIn(source_uuid, expected_source_uuids)

@@ -38,6 +38,7 @@ from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.azure.view import AzureTagView
 from api.utils import DateHelper
 from reporting.models import AzureComputeSummary
+from reporting.models import AzureCostEntryBill
 from reporting.models import AzureCostEntryLineItemDailySummary
 from reporting.models import AzureCostEntryProductService
 from reporting.models import AzureCostSummary
@@ -1103,3 +1104,38 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 query_params = self.mocked_query_params(url, view)
                 handler = AzureReportQueryHandler(query_params)
                 self.assertEqual(handler.query_table, table)
+
+    def test_source_uuid_mapping(self):  # noqa: C901
+        """Test source_uuid is mapped to the correct source."""
+        # Find the correct expected source uuid:
+        with tenant_context(self.tenant):
+            azure_uuids = AzureCostEntryLineItemDailySummary.objects.distinct().values_list("source_uuid", flat=True)
+            expected_source_uuids = AzureCostEntryBill.objects.distinct().values_list("provider_id", flat=True)
+            for azure_uuid in azure_uuids:
+                self.assertIn(azure_uuid, expected_source_uuids)
+
+        endpoints = [AzureCostView, AzureInstanceTypeView, AzureStorageView]
+        source_uuid_list = []
+        for endpoint in endpoints:
+            urls = ["?"]
+            if endpoint == AzureCostView:
+                urls.extend(
+                    ["?group_by[subscription_guid]=*", "?group_by[resource_location]=*", "group_by[service_name]=*"]
+                )
+            for url in urls:
+                query_params = self.mocked_query_params(url, endpoint)
+                handler = AzureReportQueryHandler(query_params)
+                query_output = handler.execute_query()
+                data = query_output.get("data")
+                for dictionary in data:
+                    for _, value in dictionary.items():
+                        if isinstance(value, list):
+                            for item in value:
+                                if isinstance(item, dict):
+                                    if "values" in item.keys():
+                                        value = item["values"][0]
+                                        uuid_list = value.get("source_uuid")
+                                        source_uuid_list.extend(uuid_list)
+        self.assertNotEquals(source_uuid_list, [])
+        for source_uuid in source_uuid_list:
+            self.assertIn(source_uuid, expected_source_uuids)

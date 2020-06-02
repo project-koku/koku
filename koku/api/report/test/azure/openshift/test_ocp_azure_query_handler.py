@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
+import logging
 from datetime import datetime
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
@@ -46,6 +47,9 @@ from reporting.models import OCPAzureCostSummaryByService
 from reporting.models import OCPAzureDatabaseSummary
 from reporting.models import OCPAzureNetworkSummary
 from reporting.models import OCPAzureStorageSummary
+from reporting.provider.ocp.models import OCPUsageReportPeriod
+
+LOG = logging.getLogger(__name__)
 
 
 class OCPAzureQueryHandlerTestNoData(IamTestCase):
@@ -961,3 +965,34 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAzureDatabaseSummary)
+
+    def test_source_uuid_mapping(self):  # noqa: C901
+        """Test source_uuid is mapped to the correct source."""
+        endpoints = [OCPAzureCostView, OCPAzureInstanceTypeView, OCPAzureStorageView]
+        with tenant_context(self.tenant):
+            expected_source_uuids = OCPUsageReportPeriod.objects.all().values_list("provider_id", flat=True)
+            expected_source_uuids = list(expected_source_uuids)
+        source_uuid_list = []
+        for endpoint in endpoints:
+            urls = ["?"]
+            if endpoint == OCPAzureCostView:
+                urls.extend(
+                    ["?group_by[subscription_guid]=*", "?group_by[resource_location]=*", "group_by[service_name]=*"]
+                )
+            for url in urls:
+                query_params = self.mocked_query_params(url, endpoint)
+                handler = OCPAzureReportQueryHandler(query_params)
+                query_output = handler.execute_query()
+                data = query_output.get("data")
+                for dictionary in data:
+                    for _, value in dictionary.items():
+                        if isinstance(value, list):
+                            for item in value:
+                                if isinstance(item, dict):
+                                    if "values" in item.keys():
+                                        value = item["values"][0]
+                                        uuid_list = value.get("source_uuid")
+                                        source_uuid_list.extend(uuid_list)
+        self.assertNotEquals(source_uuid_list, [])
+        for source_uuid in source_uuid_list:
+            self.assertIn(source_uuid, expected_source_uuids)
