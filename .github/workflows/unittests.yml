@@ -42,9 +42,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install Pipenv
-        run: python -m pip install --upgrade pip pipenv
-
+      - name: Install pipenv
+        uses: dschep/install-pipenv-action@v1
       - name: Cache dependencies
         id: cache-dependencies
         uses: actions/cache@v1
@@ -57,12 +56,9 @@ jobs:
         with:
           path: ~/.local/share/virtualenvs
           key: ${{ runner.os }}-venv-${{ matrix.python-version }}-${{ hashFiles('**/Pipfile.lock') }}
-
       - name: Install dependencies
         if: steps.cache-dependencies.outputs.cache-hit != 'true' || steps.cache-virtualenv.outputs.cache-hit != 'true'
         run: |
-          python -m pip install --upgrade pip pipenv
-          sed -ri 's/python_version = ".+"/python_version = "${{ matrix.python }}"/g' Pipfile
           pipenv install --dev --ignore-pipfile
 
       - name: Run unit tests
