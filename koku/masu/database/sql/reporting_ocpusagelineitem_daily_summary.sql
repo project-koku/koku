@@ -51,7 +51,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe
     LEFT JOIN cte_filtered_pod_labels AS fpl
         ON li.id = fpl.id
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
-        ON li.report_period_id = ab.id
+        ON li.cluster_id = ab.cluster_id
     WHERE usage_start >= {{start_date}}
         AND usage_start <= {{end_date}}
         AND li.cluster_id = {{cluster_id}}

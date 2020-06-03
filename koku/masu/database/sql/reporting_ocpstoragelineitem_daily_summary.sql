@@ -56,7 +56,7 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsa
     LEFT JOIN cte_filtered_volume_labels AS fvl
         ON li.id = fvl.id
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
-        ON li.report_period_id = ab.id
+        ON li.cluster_id = ab.cluster_id
     WHERE usage_start >= {{start_date}}
         AND usage_start <= {{end_date}}
         AND li.cluster_id = {{cluster_id}}

@@ -938,7 +938,7 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
     JOIN cte_pod_project_cost as pc
         ON li.azure_id = pc.azure_id
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
-        ON li.report_period_id = ab.id
+        ON li.cluster_id = ab.cluster_id
     WHERE li.usage_date >= {{start_date}}::date
         AND li.usage_date <= {{end_date}}::date
     -- Dedup on azure line item so we never double count usage or cost
@@ -980,7 +980,7 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
     LEFT JOIN reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.azure_id = li.azure_id
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
-        ON li.report_period_id = ab.id
+        ON li.cluster_id = ab.cluster_id
     WHERE li.usage_date >= {{start_date}}::date
         AND li.usage_date <= {{end_date}}::date
         AND ulid.azure_id IS NULL
@@ -1029,7 +1029,7 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
     JOIN {{schema | sqlsafe}}.reporting_azuremeter as m
         ON li.meter_id = m.id
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
-        ON li.report_period_id = ab.id
+        ON li.cluster_id = ab.cluster_id
     WHERE li.usage_date >= {{start_date}}::date
         AND li.usage_date <= {{end_date}}::date
     -- Grouping by OCP this time for the by project view
@@ -1080,7 +1080,7 @@ JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice AS p
     LEFT JOIN reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.azure_id = li.azure_id
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
-        ON li.report_period_id = ab.id
+        ON li.cluster_id = ab.cluster_id
     WHERE li.usage_date >= {{start_date}}::date
         AND li.usage_date <= {{end_date}}::date
         AND ulid.azure_id IS NULL
