@@ -104,8 +104,6 @@ SHARED_APPS = (
 
 TENANT_APPS = ("reporting", "cost_models")
 
-CACHE_REQUESTS = ENVIRONMENT.bool("CACHE_REQUESTS", default=False)
-
 DEFAULT_FILE_STORAGE = "tenant_schemas.storage.TenantFileSystemStorage"
 
 ### Middleware setup
@@ -114,17 +112,8 @@ MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "koku.middleware.DisableCSRF",
     "django.middleware.security.SecurityMiddleware",
+    "django.middleware.common.CommonMiddleware",
 ]
-if CACHE_REQUESTS:
-    MIDDLEWARE.extend(
-        [
-            "django.middleware.cache.UpdateCacheMiddleware",
-            "django.middleware.common.CommonMiddleware",
-            "django.middleware.cache.FetchFromCacheMiddleware",
-        ]
-    )
-else:
-    MIDDLEWARE.append("django.middleware.common.CommonMiddleware")
 MIDDLEWARE.extend(
     [
         "koku.middleware.IdentityHeaderMiddleware",
@@ -134,10 +123,6 @@ MIDDLEWARE.extend(
         "django_prometheus.middleware.PrometheusAfterMiddleware",
     ]
 )
-### End Middleware
-
-CACHE_MIDDLEWARE_ALIAS = "default"
-CACHE_MIDDLEWARE_SECONDS = ENVIRONMENT.get_value("CACHE_TIMEOUT", default=3600)
 
 DEVELOPMENT = ENVIRONMENT.bool("DEVELOPMENT", default=False)
 if DEVELOPMENT:
@@ -151,6 +136,8 @@ if DEVELOPMENT:
     }
     DEVELOPMENT_IDENTITY = ENVIRONMENT.json("DEVELOPMENT_IDENTITY", default=DEFAULT_IDENTITY)
     MIDDLEWARE.insert(5, "koku.dev_middleware.DevelopmentIdentityHeaderMiddleware")
+
+### End Middleware
 
 AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.AllowAllUsersModelBackend"]
 
@@ -185,20 +172,25 @@ HOSTNAME = ENVIRONMENT.get_value("HOSTNAME", default="localhost")
 
 REDIS_HOST = ENVIRONMENT.get_value("REDIS_HOST", default="redis")
 REDIS_PORT = ENVIRONMENT.get_value("REDIS_PORT", default="6379")
+REDIS_DB = 1
 
 KEEPDB = ENVIRONMENT.bool("KEEPDB", default=True)
+TEST_CACHE_LOCATION = "unique-snowflake"
 if "test" in sys.argv:
     TEST_RUNNER = "koku.koku_test_runner.KokuTestRunner"
     CACHES = {
-        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "unique-snowflake"},
-        "rbac": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "unique-snowflake"},
-        "worker": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "unique-snowflake"},
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
+        "rbac": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
+        "worker": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
     }
 else:
     CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
-            "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/1",
+            "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
+            "KEY_FUNCTION": "tenant_schemas.cache.make_key",
+            "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
+            "TIMEOUT": 3600,  # 1 hour default
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,

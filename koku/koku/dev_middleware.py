@@ -84,5 +84,5 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):
             request.user = user
             json_identity = json.dumps(identity_header)
             LOG.info("Identity: %s", json_identity)
-            dev_header = b64encode(json_identity.encode("utf-8"))
+            dev_header = b64encode(json_identity.encode("utf-8")).decode("utf-8")
             request.META[self.header] = dev_header

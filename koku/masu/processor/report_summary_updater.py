@@ -19,6 +19,7 @@ import datetime
 import logging
 
 from api.models import Provider
+from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -130,6 +131,8 @@ class ReportSummaryUpdater:
 
         start_date, end_date = self._updater.update_daily_tables(start_date, end_date)
 
+        invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
+
         return start_date, end_date
 
     def update_summary_tables(self, start_date, end_date):
@@ -153,6 +156,8 @@ class ReportSummaryUpdater:
 
         self._ocp_cloud_updater.update_summary_tables(start_date, end_date)
 
+        invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
+
     def update_cost_summary_table(self, start_date, end_date):
         """
         Update cost summary tables.
@@ -168,3 +173,5 @@ class ReportSummaryUpdater:
         start_date, end_date = self._format_dates(start_date, end_date)
 
         self._ocp_cloud_updater.update_cost_summary_table(start_date, end_date)
+
+        invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
