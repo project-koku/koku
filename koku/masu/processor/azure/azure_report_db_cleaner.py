@@ -28,7 +28,6 @@ class AzureReportDBCleanerError(Exception):
     """Raise an error during AWS report cleaning."""
 
 
-# pylint: disable=too-few-public-methods
 class AzureReportDBCleaner:
     """Class to remove report data."""
 

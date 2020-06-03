@@ -22,7 +22,6 @@ import os
 LOG = logging.getLogger(__name__)
 
 
-# pylint: disable=too-few-public-methods,simplifiable-if-expression
 class Config:
     """Configuration for app."""
 
@@ -109,7 +108,6 @@ class Config:
     MASU_RETAIN_NUM_MONTHS = int(os.getenv("MASU_RETAIN_NUM_MONTHS", "3"))
     MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY = int(os.getenv("MASU_RETAIN_NUM_MONTHS", "1"))
 
-    # pylint: disable=fixme
     # TODO: Remove this if/when reporting model files are owned by masu
     # The decimal precision of our database Numeric columns
     REPORTING_DECIMAL_PRECISION = 9

@@ -56,7 +56,6 @@ from sources.api.views import SourcesViewSet
 ROUTER = DefaultRouter()
 ROUTER.register(r"dataexportrequests", DataExportRequestViewSet, basename="dataexportrequests")
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
-# pylint: disable=invalid-name
 urlpatterns = [
     path("cloud-accounts/", cloud_accounts, name="cloud-accounts"),
     path("status/", StatusView.as_view(), name="server-status"),

@@ -36,8 +36,6 @@ LOG = logging.getLogger(__name__)
 class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """OCP Cost and Usage Report Downloader."""
 
-    # Disabling this linter until we can refactor
-    # pylint: disable=too-many-arguments
     def __init__(self, task, customer_name, auth_credential, bucket, report_name=None, **kwargs):
         """
         Initializer.

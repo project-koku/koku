@@ -12,21 +12,17 @@ from celery.signals import celeryd_after_setup
 from celery.signals import worker_shutting_down
 from django.conf import settings
 
-from koku import sentry  # pylint: disable=unused-import # noqa: F401
+from koku import sentry  # noqa: F401
 from koku.env import ENVIRONMENT
 
-# We disable pylint here because we wanted to avoid duplicate code
-# in settings and celery config files, therefore we import a single
-# file, since we don't actually call anything in it, pylint gets angry.
 
 LOGGER = logging.getLogger(__name__)
 
 
-# pylint: disable=abstract-method
 class LogErrorsTask(Task):  # pragma: no cover
     """Log Celery task exceptions."""
 
-    def on_failure(self, exc, task_id, args, kwargs, einfo):  # pylint: disable=too-many-arguments
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
         """Log exceptions when a celery task fails."""
         LOGGER.exception("Task failed: %s", exc, exc_info=exc)
         super().on_failure(exc, task_id, args, kwargs, einfo)
@@ -53,7 +49,6 @@ LOGGER.info("Database configured.")
 
 # 'app' is the recommended convention from celery docs
 # following this for ease of comparison to reference implementation
-# pylint: disable=invalid-name
 app = LoggingCelery("koku", log="koku.log:TaskRootLogging", broker=settings.CELERY_BROKER_URL)
 app.config_from_object("django.conf:settings", namespace="CELERY")
 

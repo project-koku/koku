@@ -31,7 +31,6 @@ class AzureCostModelCostUpdaterError(Exception):
     """AzureCostModelCostUpdater error."""
 
 
-# pylint: disable=too-few-public-methods
 class AzureCostModelCostUpdater:
     """Class to update Azure report summary data with charge information."""
 

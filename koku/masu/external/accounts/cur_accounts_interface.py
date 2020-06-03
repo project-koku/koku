@@ -19,7 +19,6 @@ from abc import ABC
 from abc import abstractmethod
 
 
-# pylint: disable=too-few-public-methods
 class CURAccountsInterface(ABC):
     """Masu interface definition to access Cost of Usage Report accounts."""
 

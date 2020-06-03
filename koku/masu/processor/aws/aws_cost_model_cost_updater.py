@@ -31,7 +31,6 @@ class AWSCostModelCostUpdaterError(Exception):
     """AWSCostModelCostUpdater error."""
 
 
-# pylint: disable=too-few-public-methods
 class AWSCostModelCostUpdater:
     """Class to update AWS report summary data with charge information."""
 

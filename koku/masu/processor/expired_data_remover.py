@@ -15,10 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Remove expired report data."""
-# pylint: skip-file
-# Skipping entire file for now since we are unable to disable duplicate-code lint
-# on the masu.external provider name import line.
-# See issue https://github.com/PyCQA/pylint/issues/214
 import logging
 from datetime import datetime
 from datetime import timedelta
@@ -42,7 +38,6 @@ class ExpiredDataRemoverError(Exception):
     pass
 
 
-# pylint: disable=too-few-public-methods
 class ExpiredDataRemover:
     """
     Removes expired report data based on masu's retention policy.

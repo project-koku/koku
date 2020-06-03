@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Update reporting summary tables."""
-# pylint: skip-file
 import datetime
 import logging
 
@@ -37,7 +36,6 @@ class ReportSummaryUpdaterError(Exception):
     pass
 
 
-# pylint: disable=too-few-public-methods
 class ReportSummaryUpdater:
     """Update reporting summary tables."""
 
