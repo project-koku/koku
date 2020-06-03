@@ -17,6 +17,7 @@
 """View for Settings."""
 import logging
 
+from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext as _
 from django.views.decorators.cache import never_cache
 from rest_framework.response import Response
@@ -38,7 +39,7 @@ class SettingsView(APIView):
 
     permission_classes = [SettingsAccessPermission]
 
-    @never_cache
+    @method_decorator(never_cache)
     def get(self, request):
         """
         Return a list of all settings.

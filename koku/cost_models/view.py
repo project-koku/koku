@@ -22,6 +22,7 @@ from operator import and_
 from django.core.exceptions import FieldError
 from django.core.exceptions import ValidationError
 from django.db.models import Q
+from django.utils.decorators import method_decorator
 from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
 from django_filters import CharFilter
@@ -153,12 +154,12 @@ class CostModelViewSet(
                     LOG.error(queryset_error)
         return queryset
 
-    @never_cache
+    @method_decorator(never_cache)
     def create(self, request, *args, **kwargs):
         """Create a rate."""
         return super().create(request=request, args=args, kwargs=kwargs)
 
-    @never_cache
+    @method_decorator(never_cache)
     def list(self, request, *args, **kwargs):
         """Obtain the list of rates for the tenant."""
         try:
@@ -168,12 +169,12 @@ class CostModelViewSet(
 
         return response
 
-    @never_cache
+    @method_decorator(never_cache)
     def retrieve(self, request, *args, **kwargs):
         """Get a rate."""
         return super().retrieve(request=request, args=args, kwargs=kwargs)
 
-    @never_cache
+    @method_decorator(never_cache)
     def destroy(self, request, *args, **kwargs):
         """Delete a rate."""
         uuid = kwargs.get("uuid")
@@ -185,6 +186,6 @@ class CostModelViewSet(
             manager.update_provider_uuids([])
         return super().destroy(request=request, args=args, kwargs=kwargs)
 
-    @never_cache
+    @method_decorator(never_cache)
     def update(self, request, *args, **kwargs):
         return super().update(request=request, args=args, kwargs=kwargs)
