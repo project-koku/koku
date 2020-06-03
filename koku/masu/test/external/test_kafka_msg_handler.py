@@ -606,6 +606,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             },
         ]
 
+        context = {"cluster_id": cluster_id}
         for test in test_matrix:
             with patch(
                 "masu.external.kafka_msg_handler.utils.get_provider_uuid_from_cluster_id",
@@ -614,7 +615,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 with patch(
                     "masu.external.kafka_msg_handler.get_account", return_value=test.get("get_account_response")
                 ):
-                    account = msg_handler.get_account_from_cluster_id(cluster_id, "test_request_id")
+                    account = msg_handler.get_account_from_cluster_id(cluster_id, "test_request_id", context)
                     test.get("expected_fn")(account, test)
 
     def test_record_report_status(self):
