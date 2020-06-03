@@ -58,7 +58,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self._bucket_info = self._storage_client.lookup_bucket(self.bucket_name)
         except ValidationError as ex:
             LOG.error(
-                "GCP bucket %(bucket_name)s for customer %(customer_name)s is not reachable. " "Error: %(ex)s",
+                "GCP bucket %(bucket_name)s for customer %(customer_name)s is not reachable. Error: %(ex)s",
                 {"customer_name": customer_name, "bucket_name": self.bucket_name, "ex": str(ex)},
             )
             raise GCPReportDownloaderError(str(ex))

@@ -24,7 +24,6 @@ from masu.processor.worker_cache import WorkerCache
 LOG = logging.getLogger(__name__)
 
 
-# pylint: disable=too-few-public-methods
 class ReportDownloaderBase:
     """
     Download cost reports from a provider.
@@ -32,7 +31,6 @@ class ReportDownloaderBase:
     Base object class for downloading cost reports from a cloud provider.
     """
 
-    # pylint: disable=unused-argument
     def __init__(self, task, download_path=None, **kwargs):
         """
         Create a downloader.

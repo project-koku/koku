@@ -15,9 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Asynchronous tasks."""
-# pylint: disable=too-many-arguments, too-many-function-args
-# disabled module-wide due to current state of task signature.
-# we expect this situation to be temporary as we iterate on these details.
 import datetime
 import json
 import os
@@ -57,7 +54,6 @@ from reporting.models import OCP_MATERIALIZED_VIEWS
 LOG = get_task_logger(__name__)
 
 
-# pylint: disable=too-many-locals
 @app.task(name="masu.processor.tasks.get_report_files", queue_name="download", bind=True)
 def get_report_files(
     self, customer_name, authentication, billing_source, provider_type, schema_name, provider_uuid, report_month

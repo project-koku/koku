@@ -15,8 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Identity and Access Serializers."""
-# disabled module-wide due to meta-programming
-# pylint: disable=too-few-public-methods
 import locale
 from base64 import b64decode
 from json import loads as json_loads

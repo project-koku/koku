@@ -34,8 +34,6 @@ LOG = logging.getLogger(__name__)
 class AzureLocalReportDownloader(AzureReportDownloader):
     """Azure Cost and Usage Report Downloader."""
 
-    # Disabling this linter until we can refactor
-    # pylint: disable=too-many-arguments
     def __init__(self, task, customer_name, auth_credential, billing_source, report_name=None, **kwargs):
         """
         Constructor.
