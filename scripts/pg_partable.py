@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# flake8: noqa
 """
 This program will convert source tables with data into partitioned tables,
 copying the data from source to the new partitioned table. All required
@@ -18,7 +17,8 @@ partition.
 #                     <partition-type>: {
 #                         values: [[<values here>], ...], # List of lists Required for list partition type
 #                         interval_type: <val>     # If date, timestamp type, choose "month" or "year"
-#                                                  # If numeric type, choose the appropriate DB data type (int, numeric(10,2), etc)
+#                                                  # If numeric type, choose the appropriate DB data type
+#                                                  # (int, numeric(10,2), etc)
 #                                                  # Required for range partition type
 #                         interval: <val>          # The interval itself: 1, 5, 10, etc
 #                                                  # Required for range partition type
@@ -38,7 +38,8 @@ partition.
 #                     <partition-type>: {
 #                         values: [[<values here>], ...], # List of lists Required for list partition type
 #                         interval_type: <val>     # If date, timestamp type, choose "month" or "year"
-#                                                  # If numeric type, choose the appropriate DB data type (int, numeric(10,2), etc)
+#                                                  # If numeric type, choose the appropriate DB data type
+#                                                  # (int, numeric(10,2), etc)
 #                                                  # Required for range partition type
 #                         interval: <val>          # The interval itself: 1, 5, 10, etc
 #                                                  # Required for range partition type
@@ -62,7 +63,6 @@ import os
 import sys
 from collections import defaultdict
 from collections import namedtuple
-from math import ceil
 
 import psycopg2
 import sqlparse
@@ -113,30 +113,42 @@ def generate_sample_config():
             "<schema>": [
                 {
                     "<table_name>": {
-                        "target_schema": "<schema_name>, # Optional. If not found, then target_schema = processing schema",
+                        "target_schema": "<schema_name>, # Optional. If not found, then "
+                        "target_schema = processing schema",
                         "partition_key": "<column_name>",
                         "partition_type": '<partition-type>, # should be "list" or "range"',
                         "<partition-type>": {
-                            "values": "[[<values here>], ...], # List of lists. Required for list partition type",
-                            "interval_type": '<val>     # If date, timestamp type, choose "month" or "year". If numeric type, choose the appropriate DB data type (int, numeric(10,2), etc). Required for range partition type',
-                            "interval": "<val>          # The interval itself: 1, 5, 10, etc. Required for range partition type",
+                            "values": "[[<values here>], ...], # List of lists. Required for " "list partition type",
+                            "interval_type": '<val>     # If date, timestamp type, choose "month" '
+                            'or "year". If numeric type, choose the appropriate DB '
+                            "data type (int, numeric(10,2), etc). Required for "
+                            "range partition type",
+                            "interval": "<val>          # The interval itself: 1, 5, 10, etc. "
+                            "Required for range partition type",
                         },
-                        "drop_table": "boolean          # Drop the source table after data migration. False by default",
+                        "drop_table": "boolean          # Drop the source table after data migration. "
+                        "False by default",
                     }
                 }
             ],
             "*": [
                 {
                     "<table_name>": {
-                        "target_schema": "<schema_name>, # Optional. If not found, then target_schema = processing schema",
+                        "target_schema": "<schema_name>, # Optional. If not found, then "
+                        "target_schema = processing schema",
                         "partition_key": "<column_name>",
                         "partition_type": '<partition-type>, # should be "list" or "range"',
                         "<partition-type>": {
-                            "values": "[[<values here>], ...], # List of lists. Required for list partition type",
-                            "interval_type": '<val>     # If date, timestamp type, choose "month" or "year". If numeric type, choose the appropriate DB data type (int, numeric(10,2), etc). Required for range partition type',
-                            "interval": "<val>          # The interval itself: 1, 5, 10, etc. Required for range partition type",
+                            "values": "[[<values here>], ...], # List of lists. Required for " "list partition type",
+                            "interval_type": '<val>     # If date, timestamp type, choose "month" '
+                            'or "year". If numeric type, choose the appropriate DB '
+                            "data type (int, numeric(10,2), etc). Required for "
+                            "range partition type",
+                            "interval": "<val>          # The interval itself: 1, 5, 10, etc. "
+                            "Required for range partition type",
                         },
-                        "drop_table": "boolean          # Drop the source table after data migration. False by default",
+                        "drop_table": "boolean          # Drop the source table after data migration. "
+                        "False by default",
                     }
                 }
             ],
@@ -550,7 +562,8 @@ values
 );
 """
     LINFO(
-        f"Creating partiton tracking record for {partition_table_record['schema_name']}.{partition_table_record['table_name']}"
+        f"Creating partiton tracking record for {partition_table_record['schema_name']}"
+        f".{partition_table_record['table_name']}"
     )
     execute(conn, sql, partition_table_record)
 
@@ -590,13 +603,16 @@ def build_partitioned_table_sql(schema_name, table_info):
         str : CREATE TABLE statement
     """
     table_name = table_info["structure"][0].table_name
-    sql = f"""
-create table if not exists {schema_name}.p_{table_name}
-(
-    {f',{os.linesep}    '.join(f'{i.column_name} {i.data_type} {"not null" if i.not_null else ""} {f"default {i.default}" if i.default else ""}' for i in table_info['structure'])}
-)
-"""
-    return sql
+    sql = [f"create table if not exists {schema_name}.p_{table_name}", "("]
+    sqlcols = []
+    for i in table_info["structure"]:
+        coldef = f'    {i.column_name} {i.data_type} {"not null" if i.not_null else ""} {f"default {i.default}" if i.default else ""}'  # noqa: E501
+        sqlcols.append(coldef)
+
+    sql.append(f",{os.linesep}".join(sqlcols))
+    sql.extend([")", ""])
+
+    return os.linesep.join(sql)
 
 
 def range_interval_gen(interval_type, interval, partition_values):
@@ -675,7 +691,8 @@ def create_partitioned_table(conn, schema_name, table_info, partition_values):
             conn, target_schema, table_name, partition_type, partition_range, range_ix, partition_key
         )
 
-    # Now that the partitioned structures are in place, rename so that the partitioned tables get all of the new inserts.
+    # Now that the partitioned structures are in place, rename so that the partitioned
+    # tables get all of the new inserts.
     # Selects, Updates, and Deletes will fail during the copy.
     # This function will execute a COMMIT
     rename_tables(conn, schema_name, table_name, target_schema, "p_" + table_name)
@@ -821,7 +838,7 @@ def process_database(db_url, config, sqlfilename=""):
         raise ValueError(f'Bad value for db_url: "{db_url}"')
 
     if not config:
-        raise ValueError(f"Bad or empty config dict")
+        raise ValueError("Bad or empty config dict")
 
     if sqlfilename:
         SQL_SCRIPT_FILE = open(sqlfilename, "wt")
