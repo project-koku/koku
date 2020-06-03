@@ -510,7 +510,7 @@ docker-test-all:
 
 docker-restart-koku:
 	@if [ -n "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
-         docker-compose restart koku-server ; \
+         docker-compose restart koku-server masu-server koku-worker koku-beat koku-listener ; \
          make _koku-wait ; \
          echo " koku is available" ; \
      else \

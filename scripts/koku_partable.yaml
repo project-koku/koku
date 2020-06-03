@@ -1,0 +1,11 @@
+partition_targets:
+  '*':
+    reporting_ocpusagelineitem_daily_summary:
+      drop_table: 0
+      partition_key: usage_start
+      partition_type: range
+      range:
+        interval: 1
+        interval_type: month
+excluded_schemata:
+- 'public'
