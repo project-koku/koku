@@ -18,6 +18,7 @@
 import base64
 import json
 import logging
+import time
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -37,9 +38,13 @@ from api.iam.test.iam_test_case import IamTestCase
 from koku.middleware import HttpResponseUnauthorizedRequest
 from koku.middleware import IdentityHeaderMiddleware
 from koku.middleware import KokuTenantMiddleware
+from koku.middleware import user_cache
 from koku.tests_rbac import mocked_requests_get_500_text
 
+# from koku.middleware import tenant_cache
 
+
+# @patch('koku.middleware.TIME_TO_CACHE',3)
 class KokuTenantMiddlewareTest(IamTestCase):
     """Tests against the koku tenant middleware."""
 
@@ -71,6 +76,20 @@ class KokuTenantMiddlewareTest(IamTestCase):
         result = middleware.process_request(mock_request)
         self.assertIsInstance(result, HttpResponseUnauthorizedRequest)
 
+    @patch("koku.middleware.TIME_TO_CACHE", 3)
+    def test_tenant_caching(self):
+        """Test that the tenant cache is successfully storing and expiring."""
+        mock_request = self.request_context["request"]
+        # tenant = Tenant.objects.get(schema_name="acct12345")
+        middleware = KokuTenantMiddleware()
+        middleware.get_tenant(Tenant, "localhost", mock_request)  # Add one item to the cache
+        self.assertEquals(middleware.tenant_cache.currsize, 1)
+        middleware.get_tenant(Tenant, "localhost", mock_request)  # Call the same tenant
+        self.assertEquals(middleware.tenant_cache.currsize, 1)  # Size should remain the same
+        self.assertEquals(middleware.tenant_cache.currsize, 1)
+        time.sleep(4)  # Wait the time greater than the ttl
+        self.assertEqual(middleware.tenant_cache.currsize, 0)
+
 
 class IdentityHeaderMiddlewareTest(IamTestCase):
     """Tests against the koku tenant middleware."""
@@ -101,6 +120,29 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         self.assertIsNotNone(user)
         tenant = Tenant.objects.get(schema_name=self.schema_name)
         self.assertIsNotNone(tenant)
+
+    @patch("koku.middleware.TIME_TO_CACHE", 3)
+    def test_process_not_status_caching(self):
+        """Test that the customer, tenant and user are created and cached"""
+        mock_request = self.request
+        middleware = IdentityHeaderMiddleware()
+        self.assertEquals(middleware.customer_cache.currsize, 0)
+        # Since the user cache is shared globally since it is used in both classes
+        # We can initiate a sleep to reset the cache
+        time.sleep(4)
+        middleware.process_request(mock_request)
+        self.assertTrue(hasattr(mock_request, "user"))
+        # Check that the customer cache has 1 entry
+        self.assertEquals(middleware.customer_cache.currsize, 1)
+        customer = Customer.objects.get(account_id=self.customer.account_id)
+        self.assertIsNotNone(customer)
+        self.assertEquals(middleware.customer_cache.currsize, 1)
+        user = User.objects.get(username=self.user_data["username"])
+        self.assertEqual(user_cache.currsize, 1)
+        self.assertIsNotNone(user)
+        time.sleep(4)
+        self.assertEquals(middleware.customer_cache.currsize, 0)
+        self.assertEquals(user_cache.currsize, 0)
 
     def test_process_no_customer(self):
         """Test that the customer, tenant and user are not created."""
@@ -144,6 +186,28 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
             customer=customer,
             request=mock_request,
         )
+
+    def test_race_condition_user_caching(self):
+        """Test case for caching where another request may create the user in a race condition."""
+        mock_request = self.request
+        middleware = IdentityHeaderMiddleware()
+        # Reset the user cache
+        time.sleep(4)
+        self.assertEquals(user_cache.currsize, 0)
+        middleware.process_request(mock_request)
+        self.assertTrue(hasattr(mock_request, "user"))
+        customer = Customer.objects.get(account_id=self.customer.account_id)
+        self.assertIsNotNone(customer)
+        user = User.objects.get(username=self.user_data["username"])
+        self.assertEquals(user_cache.currsize, 1)
+        self.assertIsNotNone(user)
+        IdentityHeaderMiddleware.create_user(
+            username=self.user_data["username"],  # pylint: disable=W0212
+            email=self.user_data["email"],
+            customer=customer,
+            request=mock_request,
+        )
+        self.assertEquals(user_cache.currsize, 1)
 
     @patch("koku.rbac.RbacService.get_access_for_user")
     def test_process_non_admin(self, get_access_mock):
