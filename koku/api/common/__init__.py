@@ -10,7 +10,7 @@ def error_obj(key, message):
     return error
 
 
-def log_json(request_id, message, **context):
+def log_json(request_id, message, context={}):
     """Create JSON object for logging data."""
     stmt = {"message": message, "request_id": request_id}
     stmt.update(context)
