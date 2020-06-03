@@ -23,7 +23,7 @@ partition.
 #                         interval: <val>          # The interval itself: 1, 5, 10, etc
 #                                                  # Required for range partition type
 #                     }
-#                     drop_table: boolean          # Drop the source table after data migration. False by default
+#                     drop_source_table: boolean          # Drop the source table after data migration. False by default
 #                 }
 #             },
 #             ...
@@ -44,7 +44,7 @@ partition.
 #                         interval: <val>          # The interval itself: 1, 5, 10, etc
 #                                                  # Required for range partition type
 #                     }
-#                     drop_table: boolean          # Drop the source table after data migration. False by default
+#                     drop_source_table: boolean          # Drop the source table after data migration. False by default
 #                 }
 #             },
 #             ...
@@ -60,6 +60,7 @@ import decimal
 import json
 import logging
 import os
+import re
 import sys
 from collections import defaultdict
 from collections import namedtuple
@@ -81,6 +82,7 @@ LWARN = LOG.warning
 LDEBUG = LOG.debug
 
 
+INDEX_PARSER = re.compile("(^.+INDEX )(.+)( ON )(.+)( USING.+$)", flags=re.IGNORECASE)
 SQL_SCRIPT_FILE = None
 TABLE_CACHE = {}
 
@@ -126,7 +128,7 @@ def generate_sample_config():
                             "interval": "<val>          # The interval itself: 1, 5, 10, etc. "
                             "Required for range partition type",
                         },
-                        "drop_table": "boolean          # Drop the source table after data migration. "
+                        "drop_source_table": "boolean          # Drop the source table after data migration. "
                         "False by default",
                     }
                 }
@@ -147,7 +149,7 @@ def generate_sample_config():
                             "interval": "<val>          # The interval itself: 1, 5, 10, etc. "
                             "Required for range partition type",
                         },
-                        "drop_table": "boolean          # Drop the source table after data migration. "
+                        "drop_source_table": "boolean          # Drop the source table after data migration. "
                         "False by default",
                     }
                 }
@@ -269,8 +271,7 @@ select n.nspname as "schema_name",
  where n.nspname = %(schema)s
    and c.relkind = 'r'
    and c.relname = any( %(tables)s )
- order by n.nspname,
-          c.relname,
+ order by c.relname,
           a.attnum;
 """
     if isinstance(table_names, str):
@@ -287,9 +288,102 @@ select n.nspname as "schema_name",
     return res
 
 
+def get_table_indexes(conn, schema_name, table_names):
+    sql = """
+with pk_indexes as (
+select i.relname
+  from pg_class t
+  join pg_namespace n
+    on n.oid = t.relnamespace
+  join pg_index x
+    on x.indrelid = t.oid
+   and x.indisprimary = true
+  join pg_class i
+    on i.oid = x.indexrelid
+ where n.nspname = %(schema)s
+   and t.relname = any( %(tables)s )
+   and t.relkind = 'r'
+)
+select i.*
+  from pg_indexes i
+ where i.schemaname = %(schema)s
+   and i.tablename = any( %(tables)s )
+   and not exists (select 1 from pk_indexes x where i.indexname = x.relname)
+ order
+    by i.tablename;
+"""
+    if isinstance(table_names, str):
+        v_table_names = [t.strip() for t in table_names.split(",")]
+    else:
+        v_table_names = list(table_names)
+
+    LINFO(f"Getting indexes for table(s): {', '.join(v_table_names)}")
+    values = {"schema": schema_name, "tables": v_table_names}
+    res = defaultdict(list)
+    for rec in execute(conn, sql, values, override=True):
+        res[rec.tablename].append(rec)
+
+    return res
+
+
+def get_table_constraints(conn, schema_name, table_names):
+    sql = """
+select c.oid::int as constraint_oid,
+       n.nspname::text as schema_name,
+       t.relname::text as table_name,
+       c.conname::text as constraint_name,
+       c.contype::text as constraint_type,
+       c.condeferrable as is_deferrable,
+       c.condeferred as is_deferred,
+       (select array_agg(tc.attname::text)
+          from pg_attribute tc
+         where tc.attrelid = c.conrelid
+           and tc.attnum = any(c.conkey)) as constraint_columns,
+       f.relname::text as reference_table,
+       c.confupdtype as update_action,
+       c.confdeltype as delete_action,
+       (select array_agg(fc.attname::text)
+          from pg_attribute fc
+         where fc.attrelid = c.confrelid
+           and fc.attnum = any(c.confkey)) as reference_columns,
+       pg_get_constraintdef(c.oid, true) as "definition"
+  from pg_constraint c
+  join pg_class t
+    on t.oid = c.conrelid
+   and t.relkind = 'r'
+  join pg_namespace n
+    on n.oid = t.relnamespace
+  left
+  join pg_class f
+    on f.oid = c.confrelid
+   and f.relkind = 'r'
+ where c.conrelid > 0
+   and n.nspname = %(schema)s
+   and t.relname = any( %(tables)s )
+ order
+    by t.relname,
+       case when c.contype = 'p'
+                 then 0
+            else 1
+       end::int
+"""
+    if isinstance(table_names, str):
+        v_table_names = [t.strip() for t in table_names.split(",")]
+    else:
+        v_table_names = list(table_names)
+
+    LINFO(f"Getting constraints for table(s): {', '.join(v_table_names)}")
+    values = {"schema": schema_name, "tables": v_table_names}
+    res = defaultdict(list)
+    for rec in execute(conn, sql, values, override=True):
+        res[rec.table_name].append(rec)
+
+    return res
+
+
 def db_schemas(conn, config):
     """
-    Generator that returns all schemata not excluded in the config
+    Generator   that returns all schemata not excluded in the config
     Args:
         conn (Connection) : Database connection
         config (dict) : program config settings
@@ -333,9 +427,16 @@ def partition_table_targets(conn, schema, conf):
     fetch_targets = set(schema_targets) - set(TABLE_CACHE)
     if fetch_targets:
         LINFO(f"Caching table info for {','.join(fetch_targets)}")
+        ixinfo = get_table_indexes(conn, schema, fetch_targets)
+        cnstinfo = get_table_constraints(conn, schema, fetch_targets)
         TABLE_CACHE.update(
             {
-                k: {"structure": v, "partition_info": schema_targets[k]}
+                k: {
+                    "structure": v,
+                    "indexes": ixinfo.get(k, []),
+                    "constraints": cnstinfo.get(k, []),
+                    "partition_info": schema_targets[k],
+                }
                 for k, v in get_table_info(conn, schema, fetch_targets).items()
             }
         )
@@ -409,19 +510,6 @@ def get_partition_key_data_type(table_info):
     for col_info in table_info["structure"]:
         if col_info.column_name == partition_key:
             return col_info.data_type
-
-
-def get_primary_key(table_info):
-    """
-    Find the primary key column definition in the table structure
-    Args:
-        table_info (dict) : Table definition and Partition definition
-    Returns:
-        dict : Column definition
-    """
-    for rec in table_info["structure"]:
-        if rec.is_primary_key:
-            return rec
 
 
 def floor_date(date_val, scale):
@@ -676,6 +764,14 @@ def create_partitioned_table(conn, schema_name, table_info, partition_values):
     execute(conn, f"drop table if exists {target_schema}.p_{table_name};")
     execute(conn, sql)
 
+    # Add the constraints.
+    create_partitioned_table_constraints(
+        conn, target_schema, "p_" + table_name, table_info["constraints"], partition_key
+    )
+
+    # Add the indexes.
+    create_partitioned_table_indexes(conn, target_schema, "p_" + table_name, table_info["indexes"])
+
     # Create the default partition
     create_table_partition(conn, target_schema, table_name, "default", (), -1, partition_key)
 
@@ -695,7 +791,15 @@ def create_partitioned_table(conn, schema_name, table_info, partition_values):
     # tables get all of the new inserts.
     # Selects, Updates, and Deletes will fail during the copy.
     # This function will execute a COMMIT
-    rename_tables(conn, schema_name, table_name, target_schema, "p_" + table_name)
+    rename_tables(
+        conn,
+        schema_name,
+        table_name,
+        target_schema,
+        "p_" + table_name,
+        table_info["constraints"],
+        table_info["indexes"],
+    )
 
     # Now comes the copy of the data.
     copy_data(conn, schema_name, "__" + table_name, target_schema, table_name)
@@ -705,6 +809,40 @@ def create_partitioned_table(conn, schema_name, table_info, partition_values):
     if table_info["partition_info"].get("drop_table", False):
         drop_table(conn, schema_name, "__" + table_name)
         conn.commit()
+
+
+def create_partitioned_table_constraints(conn, schema_name, table_name, constraint_info, partition_key):
+    if constraint_info:
+        sqlprefix = f"alter table {schema_name}.{table_name} add constraint {{}} "
+        for c_spec in constraint_info:
+            sql = sqlprefix.format("p_" + c_spec.constraint_name)
+            if c_spec.constraint_type == "p":
+                c_spec.constraint_columns.insert(0, partition_key)
+                sql += f'PRIMARY KEY ({", ".join(c_spec.constraint_columns)});'
+            else:
+                sql += c_spec.definition
+
+            LINFO(f"Creating constraint {c_spec.constraint_name} on table {schema_name}.{table_name}")
+            execute(conn, sql)
+    else:
+        LINFO("No constraints to create")
+
+
+def create_partitioned_table_indexes(conn, schema_name, table_name, index_info):
+    if index_info:
+        index_name_ix = 1
+        index_table_ix = -2
+
+        for ixrec in index_info:
+            index_parts = INDEX_PARSER.findall(ixrec.indexdef)
+            if index_parts:
+                index_parts = list(index_parts[0])
+                index_parts[index_name_ix] = f"p_{index_parts[index_name_ix]}"
+                index_parts[index_table_ix] = f"{schema_name}.{table_name}"
+                LINFO(f'Creating index "{index_parts[index_name_ix]}" on table {index_parts[index_table_ix]}')
+                execute(conn, "".join(index_parts))
+    else:
+        LINFO("No indexes to create")
 
 
 def create_table_partition(conn, target_schema, table_name, partition_type, partition_range, range_ix, partition_col):
@@ -781,7 +919,55 @@ def drop_table(conn, schema_name, table_name):
     execute(conn, f"drop table {schema_name}.{table_name};")
 
 
-def rename_tables(conn, source_schema, source_table, target_schema, target_table):
+def rename_constraints(conn, schema_name, table_name, constraints, src_op, src_val, dst_op, dst_val):
+    def p_add(label, prefix):
+        return prefix + label
+
+    def p_strip(label, prefix):
+        if label.startsiwth(prefix):
+            ix = len(prefix)
+            return label[ix:]
+        else:
+            return label
+
+    src_xform = locals()["p_" + src_op.lower()]
+    dst_xform = locals()["p_" + dst_op.lower()]
+
+    for c_spec in constraints:
+        sql = f"""
+alter table {schema_name}.{table_name}
+rename constraint {src_xform(c_spec.constraint_name, src_val)}
+to {dst_xform(c_spec.constraint_name, dst_val)} ;
+"""
+        execute(conn, sql)
+
+
+def rename_indexes(conn, schema_name, table_name, indexes, src_op, src_val, dst_op, dst_val):
+    def i_add(label, prefix):
+        return prefix + label
+
+    def i_strip(label, prefix):
+        if label.startsiwth(prefix):
+            ix = len(prefix)
+            return label[ix:]
+        else:
+            return label
+
+    src_xform = locals()["i_" + src_op.lower()]
+    dst_xform = locals()["i_" + dst_op.lower()]
+
+    for i_spec in indexes:
+        index_parts = INDEX_PARSER.findall(i_spec.indexdef)
+        if index_parts:
+            index_name = index_parts[0][1]
+            sql = f"""
+alter index {src_xform(index_name, src_val)}
+rename to {dst_xform(index_name, dst_val)} ;
+"""
+            execute(conn, sql)
+
+
+def rename_tables(conn, source_schema, source_table, target_schema, target_table, constraint_info, index_info):
     """
     Lock source table
     Rename the source table to __<source>
@@ -798,11 +984,31 @@ def rename_tables(conn, source_schema, source_table, target_schema, target_table
     """
     LINFO(f"Acquiring table lock on {source_schema}.{source_table}")
     execute(conn, "BEGIN;")  # Done on purpose for script generation
+
     execute(conn, f"lock table {source_schema}.{source_table};")
+
+    # Rename source table constraints from <cnst_name> to __<cnst_name>
+    LINFO(f"Rename {source_schema}.{source_table} constraints")
+    rename_constraints(conn, source_schema, source_table, constraint_info, "add", "", "add", "__")
+
+    # Rename source table indexes from <idx_name> to __<idx_name>
+    LINFO(f"Rename {source_schema}.{source_table} indexes")
+    rename_indexes(conn, source_schema, source_table, index_info, "add", "", "add", "__")
+
+    # Rename tables
     LINFO(f"Rename {source_schema}.{source_table} to {source_schema}.__{source_table}")
     execute(conn, f"alter table {source_schema}.{source_table} rename to __{source_table};")
     LINFO(f"Rename {target_schema}.{target_table} to {target_schema}.{source_table}")
     execute(conn, f"alter table {target_schema}.{target_table} rename to {source_table};")
+
+    # Rename target table constraints from <cnst_name> to __<cnst_name>
+    LINFO(f"Rename {target_schema}.{source_table} constraints")
+    rename_constraints(conn, target_schema, source_table, constraint_info, "add", "p_", "add", "")
+
+    # Rename target table indexes from <idx_name> to __<idx_name>
+    LINFO(f"Rename {target_schema}.{source_table} indexes")
+    rename_indexes(conn, target_schema, source_table, index_info, "add", "p_", "add", "")
+
     execute(conn, "COMMIT;")  # Done on purpose for script generation
 
 
