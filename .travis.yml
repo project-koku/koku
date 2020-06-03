@@ -46,9 +46,6 @@ script:
   - tox
   - df -h
 
-after_success:
-  - codecov --required || (sleep 5 && codecov --required) || (sleep 5 && codecov --required) || (sleep 5 && codecov --required) || (sleep 5 && codecov --required)
-  - coveralls
 
 notifications:
   slack:
