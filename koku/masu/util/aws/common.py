@@ -262,7 +262,6 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     return bills
 
 
-# pylint: disable=too-few-public-methods
 class AwsArn:
     """
     Object representing an AWS ARN.

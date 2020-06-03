@@ -168,7 +168,6 @@ def get_account_from_cluster_id(cluster_id, request_id, context={}):
     return account
 
 
-# pylint: disable=too-many-locals
 def extract_payload(url, request_id, context={}):  # noqa: C901
     """
     Extract OCP usage report payload into local directory structure.

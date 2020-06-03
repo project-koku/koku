@@ -15,7 +15,6 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Updater base for OpenShift on Cloud Infrastructures."""
-# pylint: skip-file
 import logging
 
 from api.provider.models import Provider

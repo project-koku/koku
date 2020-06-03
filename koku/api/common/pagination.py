@@ -24,7 +24,7 @@ from rest_framework.utils.urls import replace_query_param
 from api import API_VERSION
 
 PATH_INFO = "PATH_INFO"
-logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+logger = logging.getLogger(__name__)
 
 
 class StandardResultsSetPagination(LimitOffsetPagination):

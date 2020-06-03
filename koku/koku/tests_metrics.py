@@ -33,7 +33,6 @@ FAKE = Faker()
 
 
 # noqa: W0212,E1101
-# pylint: disable=no-member,protected-access
 class DatabaseStatusTest(IamTestCase):
     """Test DatabaseStatus object."""
 
@@ -111,7 +110,7 @@ class DatabaseStatusTest(IamTestCase):
         self.assertFalse(mock_gauge.called)
 
     @patch("time.sleep", return_value=None)  # make this test go 6 seconds faster :)
-    def test_query_exception(self, patched_sleep):  # pylint: disable=W0613
+    def test_query_exception(self, patched_sleep):
         """Test _query() when an exception is thrown."""
         logging.disable(logging.NOTSET)
         with mock.patch("django.db.backends.utils.CursorWrapper") as mock_cursor:

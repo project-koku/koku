@@ -29,7 +29,6 @@ from django.db.models.aggregates import Func
 
 from .env import ENVIRONMENT
 
-# pylint: disable=invalid-name
 engines = {
     "sqlite": "django.db.backends.sqlite3",
     "postgresql": "tenant_schemas.postgresql_backend",

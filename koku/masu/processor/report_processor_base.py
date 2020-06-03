@@ -36,7 +36,6 @@ from reporting_common import REPORT_COLUMN_MAP
 LOG = logging.getLogger(__name__)
 
 
-# pylint: disable=too-few-public-methods
 class ReportProcessorBase:
     """
     Download cost reports from a provider.

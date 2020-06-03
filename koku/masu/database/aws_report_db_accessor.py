@@ -40,7 +40,6 @@ from reporting.provider.aws.models import AWSCostEntryReservation
 LOG = logging.getLogger(__name__)
 
 
-# pylint: disable=too-many-public-methods
 class AWSReportDBAccessor(ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
@@ -74,7 +73,6 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name).filter(billing_period_start=start_date)
 
-    # pylint: disable=invalid-name
     def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
         table_name = AWSCostEntryBill
@@ -210,7 +208,6 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
         self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
-    # pylint: disable=invalid-name
     def populate_line_item_daily_summary_table(self, start_date, end_date, bill_ids):
         """Populate the daily aggregated summary of line items table.
 

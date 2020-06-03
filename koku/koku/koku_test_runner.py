@@ -53,8 +53,6 @@ class KokuTestRunner(DiscoverRunner):
         return main_db
 
 
-# Disable pylint to keep the Django function in tact as written
-# pylint: disable=C0301,R0913,R0914,R1704,W0613
 def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, parallel=0, aliases=None, **kwargs):
     """Create the test databases.
 

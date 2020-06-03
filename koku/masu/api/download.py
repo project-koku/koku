@@ -27,7 +27,7 @@ from rest_framework.settings import api_settings
 
 from masu.celery.tasks import check_report_updates
 
-logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+logger = logging.getLogger(__name__)
 
 
 @never_cache

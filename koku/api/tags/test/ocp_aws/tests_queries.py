@@ -25,7 +25,6 @@ from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummary
 
 
-# pylint: disable=no-member
 class OCPAWSTagQueryHandlerTest(IamTestCase):
     """Tests for the OCP-on-AWS tag query handler."""
 
