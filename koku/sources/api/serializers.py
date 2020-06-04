@@ -20,10 +20,10 @@ import logging
 from uuid import uuid4
 
 from django.db import transaction
-from django.utils.translation import ugettext as _
 from kombu.exceptions import OperationalError
 from rest_framework import serializers
 
+from api.common import error_obj
 from api.provider.models import Provider
 from api.provider.models import Sources
 from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
@@ -49,12 +49,6 @@ class SourcesDependencyError(Exception):
     """General Exception for sources dependency errors."""
 
 
-def error_obj(key, message):
-    """Create an error object."""
-    error = {key: [_(message)]}
-    return error
-
-
 def validate_field(data, valid_fields, key):
     """Validate a field."""
     message = f"One or more required fields is invalid/missing. Required fields are {valid_fields}"
@@ -76,7 +70,6 @@ class SourcesSerializer(serializers.ModelSerializer):
     )
     uuid = serializers.SerializerMethodField("get_source_uuid", read_only=True)
 
-    # pylint: disable=too-few-public-methods
     class Meta:
         """Metadata for the serializer."""
 

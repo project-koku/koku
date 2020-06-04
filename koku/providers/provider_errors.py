@@ -21,6 +21,9 @@ class ProviderErrors:
     """Error keys for provider account checks."""
 
     # KEYS
+    INVALID_SOURCE_TYPE = "source_type"
+    DUPLICATE_AUTH = "source.duplicate"
+
     AWS_NO_REPORT_FOUND = "authentication.provider_resource_name.noreportfound"
     AWS_REPORT_CONFIG = "aws.report.configuration"
     AWS_COMPRESSION_REPORT_CONFIG = "aws.report.compression.configuration"
@@ -37,6 +40,8 @@ class ProviderErrors:
     AZURE_CLIENT_ERROR = "azure.exception"
 
     # MESSAGES
+    INVALID_SOURCE_TYPE_MESSAGE = "The given source type is not supported."
+
     AWS_MISSING_RESOURCE_NAME_MESSAGE = "Provider resource name is a required parameter for AWS and must not be blank."
     AWS_RESOURCE_NAME_UNREACHABLE_MESSAGE = (
         "The role ARN has been entered incorrectly for this source. "

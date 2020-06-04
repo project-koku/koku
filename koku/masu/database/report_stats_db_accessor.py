@@ -59,7 +59,6 @@ class ReportStatsDBAccessor(KokuDBAccess):
         obj = (super()._get_db_obj_query(report_name=report_name)).first()
         return obj.last_completed_datetime if obj else None
 
-    # pylint: disable=arguments-differ
     def _get_db_obj_query(self):
         """
         Return the sqlachemy query for the report stats object.
@@ -72,14 +71,12 @@ class ReportStatsDBAccessor(KokuDBAccess):
         """
         return super()._get_db_obj_query(report_name=self._report_name, manifest_id=self._manifest_id)
 
-    # pylint: disable=no-self-use
     def get_cursor_position(self):
         """DEPRECATED: Return current cursor position for processing CUR."""
         return None
 
     def set_cursor_position(self, new_position):
         """DEPRECATED: Save current cursor position for processing CUR."""
-        # pylint: disable=unnecessary-pass
         pass
 
     def get_last_completed_datetime(self):
@@ -144,13 +141,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
         """
         return self._obj.etag
 
-    def update(
-        self,
-        cursor_position=None,  # pylint: disable=W0613
-        last_completed_datetime=None,
-        last_started_datetime=None,
-        etag=None,
-    ):
+    def update(self, cursor_position=None, last_completed_datetime=None, last_started_datetime=None, etag=None):
         """
         Update a CUR statistics record in the database.
 

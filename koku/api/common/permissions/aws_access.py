@@ -39,3 +39,9 @@ class AwsAccessPermission(permissions.BasePermission):
             return len(read_access) > 0
 
         return False
+
+
+class AWSOUAccessPermission(AwsAccessPermission):
+    """Determine if a user can view AWS OU data."""
+
+    resource_type = "aws.organizational_unit"

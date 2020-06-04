@@ -23,7 +23,6 @@ from masu.external.accounts.cur_accounts_interface import CURAccountsInterface
 LOG = logging.getLogger(__name__)
 
 
-# pylint: disable=too-few-public-methods
 class CURAccountsDB(CURAccountsInterface):
     """Provider interface definition."""
 

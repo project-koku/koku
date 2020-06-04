@@ -60,7 +60,6 @@ class Hasher:
             raise HasherError(errmsg)
 
         try:
-            # pylint: disable=attribute-defined-outside-init
             self._hash_function = getattr(hashlib, hash_function)
         except AttributeError:
             if hash_function in hashlib.algorithms_guaranteed:

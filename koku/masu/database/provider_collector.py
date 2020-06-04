@@ -33,7 +33,6 @@ class ProviderCollector(KokuDBAccess):
         super().__init__(schema)
         self._table = Provider
 
-    # pylint: disable=arguments-differ
     def _get_db_obj_query(self):
         """
         Return the sqlachemy query for the provider object.

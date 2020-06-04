@@ -112,14 +112,14 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
         super().__init__(get_response)
         self.tenant_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_CACHE)
 
-    def process_exception(self, request, exception):  # pylint: disable=R0201,R1710
+    def process_exception(self, request, exception):
         """Raise 424 on InterfaceError."""
         if isinstance(exception, InterfaceError):
             DB_CONNECTION_ERRORS_COUNTER.inc()
             LOG.error("KokuTenantMiddleware InterfaceError exception: %s", exception)
             return HttpResponseFailedDependency({"source": "Database", "exception": exception})
 
-    def process_request(self, request):  # pylint: disable=R1710
+    def process_request(self, request):
         """Check before super."""
         connection.set_schema_to_public()
 
@@ -161,7 +161,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
         return self.tenant_cache[tenant_username]
 
 
-class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
+class IdentityHeaderMiddleware(MiddlewareMixin):
     """A subclass of RemoteUserMiddleware.
     Processes the provided identity found on the request.
     """
@@ -229,7 +229,6 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         access = self.rbac.get_access_for_user(user)
         return access
 
-    # pylint: disable=R0914, R1710
     def process_request(self, request):  # noqa: C901
         """Process request for csrf checks.
         Args:
@@ -323,7 +322,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             user.access = user_access
             request.user = user
 
-    def process_response(self, request, response):  # pylint: disable=no-self-use
+    def process_response(self, request, response):
         """Process response for identity middleware.
         Args:
             request (object): The request object
@@ -356,10 +355,10 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         return response
 
 
-class DisableCSRF(MiddlewareMixin):  # pylint: disable=too-few-public-methods
+class DisableCSRF(MiddlewareMixin):
     """Middleware to disable CSRF for 3scale usecase."""
 
-    def process_request(self, request):  # pylint: disable=no-self-use
+    def process_request(self, request):
         """Process request for csrf checks.
         Args:
             request (object): The request object

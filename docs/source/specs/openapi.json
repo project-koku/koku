@@ -426,6 +426,58 @@
                 }
             }
         },
+        "/organizations/aws/": {
+            "get": {
+                "tags": [
+                    "Organizations"
+                ],
+                "summary": "View AWS organizations",
+                "security": [{
+                    "basic_auth": []
+                }],
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryDelta"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OrganizationFilter"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of Organization objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrganizationPagination"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Access to the requested resource is forbidden"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/reports/aws/costs/": {
             "get": {
                 "tags": [
@@ -1999,6 +2051,16 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
                     }
                 ],
                 "responses": {
@@ -2116,6 +2178,16 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
                     }
                 ],
                 "responses": {
@@ -2233,6 +2305,16 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
                     }
                 ],
                 "responses": {
@@ -2350,6 +2432,16 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
                     }
                 ],
                 "responses": {
@@ -2467,6 +2559,16 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
                     }
                 ],
                 "responses": {
@@ -2584,6 +2686,16 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
                     }
                 ],
                 "responses": {
@@ -3177,6 +3289,93 @@
                     }
                 }
             },
+            "OrganizationFilter": {
+                "type": "object",
+                "properties": {
+                    "resolution": {
+                        "$ref": "#/components/schemas/ReportResolution"
+                    },
+                    "time_scope_value": {
+                        "$ref": "#/components/schemas/ReportTimeScopeValue"
+                    },
+                    "time_scope_units": {
+                        "$ref": "#/components/schemas/ReportTimeScopeUnits"
+                    },
+                    "org_unit_id": {
+                        "$ref": "#/components/schemas/OrgUnitId"
+                    }
+                }
+            },
+            "Organization": {
+                "required": [
+                    "org_unit_id",
+                    "org_unit_path",
+                    "level",
+                    "sub_orgs",
+                    "accounts"
+                ],
+                "properties": {
+                    "org_unit_id": {
+                        "type": "string",
+                        "example": "OU_003"
+                    },
+                    "org_unit_name": {
+                        "type": "string",
+                        "example": "Dept OU_003"
+                    },
+                    "org_unit_path": {
+                        "type": "string",
+                        "example": "R_001&OU_002&OU_003"
+                    },
+                    "level": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "sub_orgs": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "description": "the individual org"
+                        },
+                        "example": [
+                            "OU_004",
+                            "OU_005"
+                        ],
+                        "description": "the list of sub orgs under the org"
+                    },
+                    "accounts": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "description": "individual account"
+                        },
+                        "example": [
+                            "account 003"
+                        ],
+                        "description": "the list of accounts under the org"
+                    }
+                }
+            },
+            "OrganizationPagination": {
+                "allOf": [{
+                        "$ref": "#/components/schemas/ListPagination"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/Organization"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
             "Source": {
                 "required": [
                     "id",
@@ -3429,6 +3628,9 @@
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "org_unit_id": {
+                        "$ref": "#/components/schemas/OrgUnitId"
                     }
                 }
             },
@@ -3762,6 +3964,9 @@
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "org_unit_id": {
+                        "$ref": "#/components/schemas/OrgUnitId"
                     }
                 },
                 "example": {
@@ -4415,6 +4620,10 @@
                     "cost": "asc"
                 },
                 "description": "The ordering to apply to the report. Default is ascending order for the data."
+            },
+            "OrgUnitId": {
+                "type": "string",
+                "example": "R_001"
             },
             "ReportDelta": {
                 "type": "object",
