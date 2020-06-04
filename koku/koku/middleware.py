@@ -47,10 +47,10 @@ from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
 
-TIME_TO_CACHE = 3  # in seconds (15 minutes)
-MAX_CACHE_SIZE = 128
 
-user_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_CACHE)
+TIME_TO_CACHE = 900  # in seconds (15 minutes)
+MAX_CACHE_SIZE = 10000
+USER_CACHE = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_CACHE)
 
 
 LOG = logging.getLogger(__name__)
@@ -108,6 +108,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
     """
 
     def __init__(self, get_response=None):
+        """ Create the tenant cache"""
         super().__init__(get_response)
         self.tenant_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_CACHE)
 
@@ -126,9 +127,8 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
             if hasattr(request, "user") and hasattr(request.user, "username"):
                 username = request.user.username
                 try:
-                    # User.objects.get(username=username)
-                    if username not in user_cache:
-                        user_cache[username] = User.objects.get(username=username)
+                    if username not in USER_CACHE:
+                        USER_CACHE[username] = User.objects.get(username=username)
                 except User.DoesNotExist:
                     return HttpResponseUnauthorizedRequest()
                 if not request.user.admin and request.user.access is None:
@@ -294,11 +294,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
                 return HttpResponseFailedDependency({"source": "Database", "exception": err})
 
             try:
-                if username not in user_cache:
+                if username not in USER_CACHE:
                     user = User.objects.get(username=username)
-                    user_cache[username] = user
+                    USER_CACHE[username] = user
                 else:
-                    user = user_cache[username]
+                    user = USER_CACHE[username]
             except User.DoesNotExist:
                 user = IdentityHeaderMiddleware.create_user(username, email, customer, request)
 
