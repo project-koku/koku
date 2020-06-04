@@ -434,27 +434,28 @@ select v.schemaname,
 
 def get_table_sequences(conn, schema_name, table_names):
     sql = """
-select c.relname::text as table_name,
+select t.relname::text as table_name,
        a.attname::text as column_name,
-       sq.*
-  from pg_depend d
+       seq.*
+  from pg_class t
+  join pg_depend d
+    on d.refobjid = t.oid
+  join pg_class s
+    on s.oid = d.objid
+   and s.relkind = 'S'
   join pg_attribute a
     on a.attrelid = d.refobjid
    and a.attnum = d.refobjsubid
-  join pg_class s
-    on s.oid = d.objid
-   and s.relkind = 's'
-  join pg_class c
-    on c.oid = d.refobjid
-   and c.relkind = 'r'
-  join pg_namespace n
-    on n.oid = c.relnamespace
-  join pg_sequences sq
-    on sq.schemaname = n.nspname
-   and sq.sequencename = s.relname
- where n.nspname = %(schema)s
-   and c.relname = any( %(tables)s )
-   and d.refobjsubid > 0
+   and a.attnum > 0
+  join pg_namespace ts
+    on ts.oid = t.relnamespace
+  join pg_namespace ss
+    on ss.oid = s.relnamespace
+  join pg_sequences seq
+    on seq.schemaname = ss.nspname
+   and seq.sequencename = s.relname
+ where ts.nspname = %(schema)s
+   and t.relname = any( %(tables)s )
    and d.classid = 'pg_class'::regclass;
 """
     if isinstance(table_names, str):
@@ -845,7 +846,7 @@ increment by %(increment_by)s
 minvalue %(min_value)s
 maxvalue %(max_value)s
 start with %(start_value)s
-cache %(cache)s
+cache %(cache_size)s
 {'no ' if not s_spec.cycle else ''}cycle ;
 """
         values = {
@@ -853,7 +854,7 @@ cache %(cache)s
             "min_value": s_spec.min_value,
             "max_value": s_spec.max_value,
             "start_value": s_spec.start_value,
-            "cache": s_spec.cache,
+            "cache_size": s_spec.cache_size,
         }
         execute(conn, sql, values)
 
@@ -864,7 +865,7 @@ alter column {s_spec.column_name} set default nextval(%(seqname)s::regclass) ;
         execute(conn, sql, {"seqname": f"{schema_name}.{s_spec.sequencename}"})
 
         sql = f"""
-alter sequence {schema_name}.{s_spec.schemaname}
+alter sequence {schema_name}.{s_spec.sequencename}
 owned by {schema_name}.{table_name}.{s_spec.column_name} ;
 """
         execute(conn, sql)
@@ -1057,29 +1058,37 @@ def drop_table(conn, schema_name, table_info):
     execute(conn, f"drop table {schema_name}.{table_name};")
 
 
-def rename_source_sequences(conn, schema_name, table_name, schema_info):
-    pass
-
-
-def create_sequences(conn, schema_name, table_name, schema_info):
-    pass
+def rename_source_sequences(conn, schema_name, table_name, sequence_info):
+    LINFO(f"Renaming sequences on source table {schema_name}.{table_name}")
+    for s_spec in sequence_info:
+        sql = f"""
+alter sequence {s_spec.schemaname}.{s_spec.sequencename} rename to __{s_spec.sequencename} ;
+"""
+        execute(conn, sql)
 
 
 def rename_source_views(conn, schema_name, table_name, view_info):
     LINFO(f"Renaming views for table {schema_name}.{table_name}")
     for v_spec in view_info:
         sql = f"""
-alter {'materialized ' if v_spec.view_type == 'matview' else ''}view {v_spec.schema_name}.{v_spec.view_name}
-rename to '__' + {v_spec.view_name} ;
+alter {'materialized ' if v_spec.view_type == 'matview' else ''}view {v_spec.schemaname}.{v_spec.view_name}
+rename to {'__' + v_spec.view_name} ;
 """
         execute(conn, sql)
+
+        if v_spec.indexes:
+            for ixname in v_spec.indexes.keys():
+                sql = f"""
+alter index {v_spec.schemaname}.{ixname} rename to {'__' + ixname}
+"""
+                execute(conn, sql)
 
 
 def create_views(conn, schema_name, table_name, view_info):
     LINFO(f"Creating views for table {schema_name}.{table_name}")
     for v_spec in view_info:
         sql = f"""
-create {'materialized ' if v_spec.view_type == 'matview' else ''}view {v_spec.schema_name}.{v_spec.view_name} as
+create {'materialized ' if v_spec.view_type == 'matview' else ''}view {v_spec.schemaname}.{v_spec.view_name} as
 {v_spec.definition}
 """
         execute(conn, sql)
@@ -1095,7 +1104,7 @@ def refresh_materialized_views(conn, view_info):
     for v_spec in view_info:
         if v_spec.view_type == "matview":
             sql = f"""
-refresh materialized view {v_spec.schema_name}.{v_spec.view_name} with data;
+refresh materialized view {v_spec.schemaname}.{v_spec.view_name} with data;
 """
             execute(conn, sql)
 
