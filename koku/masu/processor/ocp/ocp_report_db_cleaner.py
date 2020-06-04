@@ -29,7 +29,6 @@ class OCPReportDBCleanerError(Exception):
     """Raise an error during OCP report cleaning."""
 
 
-# pylint: disable=too-few-public-methods
 class OCPReportDBCleaner:
     """Class to remove report data."""
 
@@ -84,7 +83,6 @@ class OCPReportDBCleaner:
                     )
         return removed_items
 
-    # pylint: disable=too-many-locals
     def purge_expired_report_data(self, expired_date=None, provider_uuid=None, simulate=False):
         """Remove usage data with a report period before specified date.
 
@@ -147,7 +145,7 @@ class OCPReportDBCleaner:
 
                         qty = accessor.get_ocp_aws_summary_query_for_cluster_id(cluster_id).delete()
                         LOG.info("Removing %s OCP-on-AWS summary items for cluster id %s", qty, cluster_id)
-                        # pylint: disable=line-too-long
+
                         qty = accessor.get_ocp_aws_project_summary_query_for_cluster_id(cluster_id).delete()
                         LOG.info("Removing %s OCP-on-AWS project summary items for cluster id %s", qty, cluster_id)
 

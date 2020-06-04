@@ -29,7 +29,6 @@ class AWSReportDBCleanerError(Exception):
     """Raise an error during AWS report cleaning."""
 
 
-# pylint: disable=too-few-public-methods
 class AWSReportDBCleaner:
     """Class to remove report data."""
 
@@ -88,7 +87,6 @@ class AWSReportDBCleaner:
                     )
         return removed_items
 
-    # pylint: disable=too-many-locals
     def purge_expired_report_data(self, expired_date=None, provider_uuid=None, simulate=False):
         """Remove report data with a billing start period before specified date.
 

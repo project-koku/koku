@@ -10,8 +10,8 @@ mgmt_services/cost-mgmt:koku/python-azure-mgmt-storage:10.0.0.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-storage-blob:12.3.1.pipfile
 mgmt_services/cost-mgmt:koku/python-beautifulsoup4:4.9.1.pipfile
 mgmt_services/cost-mgmt:koku/python-billiard:3.6.3.0.pipfile
-mgmt_services/cost-mgmt:koku/python-boto3:1.13.20.pipfile
-mgmt_services/cost-mgmt:koku/python-botocore:1.16.20.pipfile
+mgmt_services/cost-mgmt:koku/python-boto3:1.13.21.pipfile
+mgmt_services/cost-mgmt:koku/python-botocore:1.16.21.pipfile
 mgmt_services/cost-mgmt:koku/python-bs4:0.0.1.pipfile
 mgmt_services/cost-mgmt:koku/python-cachetools:4.1.0.pipfile
 mgmt_services/cost-mgmt:koku/python-celery:4.4.3.pipfile

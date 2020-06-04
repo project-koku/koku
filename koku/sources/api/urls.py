@@ -25,7 +25,6 @@ from sources.api.views import SourcesViewSet
 ROUTER = DefaultRouter()
 ROUTER.register(r"sources", SourcesViewSet)
 
-# # pylint: disable=invalid-name
 urlpatterns = [
     url(r"^status/$", get_status, name="server-status"),
     url(r"^source-status/?$", source_status, name="source-status"),

@@ -31,7 +31,6 @@ class KokuDBAccess:
     with a schema/tenant context.
     """
 
-    # pylint: disable=no-member
     def __init__(self, schema):
         """
         Establish database connection.
