@@ -1,4 +1,20 @@
 #!/usr/bin/env python3
+#
+# Copyright 2020 Red Hat, Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
 """
 This program will convert source tables with data into partitioned tables,
 copying the data from source to the new partitioned table. All required
@@ -72,14 +88,6 @@ from dateutil import relativedelta
 from psycopg2.extras import Json
 from psycopg2.extras import NamedTupleCursor
 from pytz import UTC
-
-
-logging.basicConfig(level=logging.INFO, style="{", format="{filename}:{asctime}:{levelname}:{message}")
-LOG = logging.getLogger(os.path.basename(sys.argv[0]))
-LINFO = LOG.info
-LERROR = LOG.error
-LWARN = LOG.warning
-LDEBUG = LOG.debug
 
 
 INDEX_PARSER = re.compile("(^.+INDEX )(.+)( ON )(.+)( USING.+$)", flags=re.IGNORECASE)
@@ -379,6 +387,38 @@ select c.oid::int as constraint_oid,
         res[rec.table_name].append(rec)
 
     return res
+
+
+def get_table_views(conn, schema_name, table_names):
+    sql = """
+select m.schemaname,
+       t.table_name,
+       m.matviewname as view_name,
+       'matview'::text as view_type,
+       m.definition,
+       coalesce((select jsonb_object_agg(i.indexname::text, i.indexdef::text)
+                   from pg_indexes i
+                  where i.schemaname = m.schemaname
+                    and i.tablename = m.matviewname), '{}'::jsonb) as indexes
+  from pg_matviews m
+  join unnest( %(tables)s ) as t(table_name)
+    on m.definition ~ t.table_name
+ where m.schemaname = %(schema)s
+ union
+select v.schemaname,
+       t.table_name,
+       v.viewname as view_name,
+       'view' as view_type,
+       v.definition,
+       '{}'::jsonb as indexes
+  from pg_views v
+  join unnest( %(tables)s ) as t(table_name)
+    on v.definition ~ t.table_name
+ where v.schemaname = %(schema)s
+ order
+    by table_name;
+"""
+    execute(conn, sql)
 
 
 def db_schemas(conn, config):
@@ -904,7 +944,7 @@ partition of {target_schema}.p_{table_name}
     )
 
 
-def drop_table(conn, schema_name, table_name):
+def drop_table(conn, schema_name, table_info):
     """
     Truncate, then drop a specified table
     Args:
@@ -914,9 +954,15 @@ def drop_table(conn, schema_name, table_name):
     Returns:
         None
     """
+    table_name = table_info["structure"][0].table_name
     LINFO(f"Dropping table {schema_name}.{table_name}")
     execute(conn, f"truncate table {schema_name}.{table_name};")
     execute(conn, f"drop table {schema_name}.{table_name};")
+
+
+def drop_views(conn, schema_name, table_name, view_info):
+    for v_spec in view_info:
+        pass
 
 
 def rename_constraints(conn, schema_name, table_name, constraints, src_op, src_val, dst_op, dst_val):
@@ -961,7 +1007,7 @@ def rename_indexes(conn, schema_name, table_name, indexes, src_op, src_val, dst_
         if index_parts:
             index_name = index_parts[0][1]
             sql = f"""
-alter index {src_xform(index_name, src_val)}
+alter index {schema_name}.{src_xform(index_name, src_val)}
 rename to {dst_xform(index_name, dst_val)} ;
 """
             execute(conn, sql)
@@ -1092,8 +1138,29 @@ if __name__ == "__main__":
         default="",
         help="Generate a sql script instead of executing commands",
     )
+    parser.add_argument(
+        "--log",
+        dest="loglevel",
+        required=False,
+        metavar="LOGLEVEL",
+        choices=["INFO", "DEBUG", "WARNING", "ERROR", "CRITICAL"],
+        default="INFO",
+        help="Set the logging level. Default is INFO.",
+    )
 
     args = parser.parse_args()
+
+    logging.basicConfig(
+        level=getattr(logging, args.loglevel, logging.INFO),
+        style="{",
+        format="{filename}:{asctime}:{levelname}:{message}",
+    )
+
+    LOG = logging.getLogger(os.path.basename(sys.argv[0]))
+    LINFO = LOG.info
+    LERROR = LOG.error
+    LWARN = LOG.warning
+    LDEBUG = LOG.debug
 
     if args.gen_config:
         generate_sample_config()
