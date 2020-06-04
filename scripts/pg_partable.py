@@ -418,7 +418,57 @@ select v.schemaname,
  order
     by table_name;
 """
-    execute(conn, sql)
+    if isinstance(table_names, str):
+        v_table_names = [t.strip() for t in table_names.split(",")]
+    else:
+        v_table_names = list(table_names)
+
+    LINFO(f"Getting views referencing table(s): {', '.join(v_table_names)}")
+    values = {"schema": schema_name, "tables": v_table_names}
+    res = defaultdict(list)
+    for rec in execute(conn, sql, values, override=True):
+        res[rec.table_name].append(rec)
+
+    return res
+
+
+def get_table_sequences(conn, schema_name, table_names):
+    sql = """
+select c.relname::text as table_name,
+       a.attname::text as column_name,
+       sq.*
+  from pg_depend d
+  join pg_attribute a
+    on a.attrelid = d.refobjid
+   and a.attnum = d.refobjsubid
+  join pg_class s
+    on s.oid = d.objid
+   and s.relkind = 's'
+  join pg_class c
+    on c.oid = d.refobjid
+   and c.relkind = 'r'
+  join pg_namespace n
+    on n.oid = c.relnamespace
+  join pg_sequences sq
+    on sq.schemaname = n.nspname
+   and sq.sequencename = s.relname
+ where n.nspname = %(schema)s
+   and c.relname = any( %(tables)s )
+   and d.refobjsubid > 0
+   and d.classid = 'pg_class'::regclass;
+"""
+    if isinstance(table_names, str):
+        v_table_names = [t.strip() for t in table_names.split(",")]
+    else:
+        v_table_names = list(table_names)
+
+    LINFO(f"Getting sequences for table(s): {', '.join(v_table_names)}")
+    values = {"schema": schema_name, "tables": v_table_names}
+    res = defaultdict(list)
+    for rec in execute(conn, sql, values, override=True):
+        res[rec.table_name].append(rec)
+
+    return res
 
 
 def db_schemas(conn, config):
@@ -469,12 +519,16 @@ def partition_table_targets(conn, schema, conf):
         LINFO(f"Caching table info for {','.join(fetch_targets)}")
         ixinfo = get_table_indexes(conn, schema, fetch_targets)
         cnstinfo = get_table_constraints(conn, schema, fetch_targets)
+        viewinfo = get_table_views(conn, schema, fetch_targets)
+        seqinfo = get_table_sequences(conn, schema, fetch_targets)
         TABLE_CACHE.update(
             {
                 k: {
                     "structure": v,
                     "indexes": ixinfo.get(k, []),
                     "constraints": cnstinfo.get(k, []),
+                    "views": viewinfo.get(k, []),
+                    "sequences": seqinfo.get(k, []),
                     "partition_info": schema_targets[k],
                 }
                 for k, v in get_table_info(conn, schema, fetch_targets).items()
@@ -731,10 +785,17 @@ def build_partitioned_table_sql(schema_name, table_info):
         str : CREATE TABLE statement
     """
     table_name = table_info["structure"][0].table_name
+    seq_cols = {s.column_name for s in table_info["sequences"]}
     sql = [f"create table if not exists {schema_name}.p_{table_name}", "("]
     sqlcols = []
     for i in table_info["structure"]:
-        coldef = f'    {i.column_name} {i.data_type} {"not null" if i.not_null else ""} {f"default {i.default}" if i.default else ""}'  # noqa: E501
+        colspec = {
+            "column_name": i.column_name,
+            "data_type": i.data_type,
+            "not_null": "not null" if i.not_null else "",
+            "default": "" if i.column_name in seq_cols or not i.default else i.default,
+        }
+        coldef = "    {column_name} {data_type} {not_null} {default}".format(**colspec)
         sqlcols.append(coldef)
 
     sql.append(f",{os.linesep}".join(sqlcols))
@@ -775,6 +836,40 @@ def range_interval_gen(interval_type, interval, partition_values):
         yield (start, end)
 
 
+def create_table_sequences(conn, schema_name, table_name, sequence_info):
+    LINFO(f"Creating sequences for table {schema_name}.{table_name}")
+    for s_spec in sequence_info:
+        sql = f"""
+create sequence {schema_name}.{s_spec.sequencename} as {s_spec.data_type}
+increment by %(increment_by)s
+minvalue %(min_value)s
+maxvalue %(max_value)s
+start with %(start_value)s
+cache %(cache)s
+{'no ' if not s_spec.cycle else ''}cycle ;
+"""
+        values = {
+            "increment_by": s_spec.increment_by,
+            "min_value": s_spec.min_value,
+            "max_value": s_spec.max_value,
+            "start_value": s_spec.start_value,
+            "cache": s_spec.cache,
+        }
+        execute(conn, sql, values)
+
+        sql = f"""
+alter table {schema_name}.{table_name}
+alter column {s_spec.column_name} set default nextval(%(seqname)s::regclass) ;
+"""
+        execute(conn, sql, {"seqname": f"{schema_name}.{s_spec.sequencename}"})
+
+        sql = f"""
+alter sequence {schema_name}.{s_spec.schemaname}
+owned by {schema_name}.{table_name}.{s_spec.column_name} ;
+"""
+        execute(conn, sql)
+
+
 def create_partitioned_table(conn, schema_name, table_info, partition_values):
     """
     Create the partitioned table from the source table definition. Also create the
@@ -797,12 +892,18 @@ def create_partitioned_table(conn, schema_name, table_info, partition_values):
     partition_interval_type = table_info["partition_info"][partition_type]["interval_type"]
     partition_interval = table_info["partition_info"][partition_type]["interval"]
 
+    # Rename source sequences
+    rename_source_sequences(conn, schema_name, table_name, table_info["sequences"])
+
     # Create the main partitioned table
     sql = f"""{build_partitioned_table_sql(target_schema, table_info)}partition by {partition_type} ({partition_key});
 """
     LINFO(f"Creating partitioned table {target_schema}.p_{table_name}...")
     execute(conn, f"drop table if exists {target_schema}.p_{table_name};")
     execute(conn, sql)
+
+    # Create any sequences
+    create_table_sequences(conn, target_schema, "p_" + table_name, table_info["sequences"])
 
     # Add the constraints.
     create_partitioned_table_constraints(
@@ -827,23 +928,19 @@ def create_partitioned_table(conn, schema_name, table_info, partition_values):
             conn, target_schema, table_name, partition_type, partition_range, range_ix, partition_key
         )
 
+    # Before renaming the tables, we need to handle references in views
     # Now that the partitioned structures are in place, rename so that the partitioned
     # tables get all of the new inserts.
     # Selects, Updates, and Deletes will fail during the copy.
     # This function will execute a COMMIT
-    rename_tables(
-        conn,
-        schema_name,
-        table_name,
-        target_schema,
-        "p_" + table_name,
-        table_info["constraints"],
-        table_info["indexes"],
-    )
+    rename_tables(conn, schema_name, table_name, target_schema, "p_" + table_name, table_info)
 
     # Now comes the copy of the data.
     copy_data(conn, schema_name, "__" + table_name, target_schema, table_name)
     conn.commit()
+
+    create_views(conn, target_schema, table_name, table_info["views"])
+    refresh_materialized_views(conn, table_info["views"])
 
     # And drop the old source table if we're told to.
     if table_info["partition_info"].get("drop_table", False):
@@ -960,9 +1057,49 @@ def drop_table(conn, schema_name, table_info):
     execute(conn, f"drop table {schema_name}.{table_name};")
 
 
-def drop_views(conn, schema_name, table_name, view_info):
+def rename_source_sequences(conn, schema_name, table_name, schema_info):
+    pass
+
+
+def create_sequences(conn, schema_name, table_name, schema_info):
+    pass
+
+
+def rename_source_views(conn, schema_name, table_name, view_info):
+    LINFO(f"Renaming views for table {schema_name}.{table_name}")
     for v_spec in view_info:
-        pass
+        sql = f"""
+alter {'materialized ' if v_spec.view_type == 'matview' else ''}view {v_spec.schema_name}.{v_spec.view_name}
+rename to '__' + {v_spec.view_name} ;
+"""
+        execute(conn, sql)
+
+
+def create_views(conn, schema_name, table_name, view_info):
+    LINFO(f"Creating views for table {schema_name}.{table_name}")
+    for v_spec in view_info:
+        sql = f"""
+create {'materialized ' if v_spec.view_type == 'matview' else ''}view {v_spec.schema_name}.{v_spec.view_name} as
+{v_spec.definition}
+"""
+        execute(conn, sql)
+
+        if v_spec.indexes:
+            for ixdef in v_spec.indexes.values():
+                execute(conn, ixdef)
+
+    conn.commit()
+
+
+def refresh_materialized_views(conn, view_info):
+    for v_spec in view_info:
+        if v_spec.view_type == "matview":
+            sql = f"""
+refresh materialized view {v_spec.schema_name}.{v_spec.view_name} with data;
+"""
+            execute(conn, sql)
+
+    conn.commit()
 
 
 def rename_constraints(conn, schema_name, table_name, constraints, src_op, src_val, dst_op, dst_val):
@@ -1013,7 +1150,7 @@ rename to {dst_xform(index_name, dst_val)} ;
             execute(conn, sql)
 
 
-def rename_tables(conn, source_schema, source_table, target_schema, target_table, constraint_info, index_info):
+def rename_tables(conn, source_schema, source_table, target_schema, target_table, table_info):
     """
     Lock source table
     Rename the source table to __<source>
@@ -1028,10 +1165,18 @@ def rename_tables(conn, source_schema, source_table, target_schema, target_table
     Returns:
         None
     """
+    constraint_info = table_info["constraints"]
+    index_info = table_info["indexes"]
+    view_info = table_info["views"]
+
     LINFO(f"Acquiring table lock on {source_schema}.{source_table}")
     execute(conn, "BEGIN;")  # Done on purpose for script generation
 
     execute(conn, f"lock table {source_schema}.{source_table};")
+
+    # Rename source table views
+    LINFO(f"Rename {source_schema}.{source_table} views")
+    rename_source_views(conn, source_schema, source_table, view_info)
 
     # Rename source table constraints from <cnst_name> to __<cnst_name>
     LINFO(f"Rename {source_schema}.{source_table} constraints")
