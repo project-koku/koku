@@ -57,6 +57,33 @@ from reporting.models import OCP_MATERIALIZED_VIEWS
 LOG = get_task_logger(__name__)
 
 
+def record_report_status(manifest_id, file_name):
+    """
+    Creates initial report status database entry for new report files.
+
+    If a report has already been downloaded from the ingress service
+    there is a chance that processing has already been complete.  The
+    function returns the last completed date time to determine if the
+    report processing should continue in extract_payload.
+
+    Args:
+        manifest_id (Integer): Manifest Identifier.
+        file_name (String): Report file name
+
+    Returns:
+        DateTime - Last completed date time for a given report file.
+
+    """
+    already_processed = False
+    with ReportStatsDBAccessor(file_name, manifest_id) as db_accessor:
+        already_processed = db_accessor.get_last_completed_datetime()
+        if already_processed:
+            LOG.info(f"Report {file_name} has already been processed.")
+        else:
+            LOG.info(f"Recording stats entry for {file_name}")
+    return already_processed
+
+
 @app.task(name="masu.processor.tasks.get_report_manifest", queue_name="download", bind=True)
 def get_report_manifest(
     self, customer_name, authentication, billing_source, provider_type, schema_name, provider_uuid, report_month
@@ -72,21 +99,25 @@ def get_report_manifest(
 
     LOG.info(f"Found Manifests: {str(manifest)}")
     report_files = manifest.get("files", [])
-    for report_file in report_files:
-        report_context = manifest.copy()
-        report_context["current_file"] = report_file
-        # report_context["date"] = month
-        # report_context["schema_name"] = customer_name
-        get_report_files.delay(
-            customer_name,
-            authentication,
-            billing_source,
-            provider_type,
-            schema_name,
-            provider_uuid,
-            report_month,
-            report_context,
-        )
+    for report_file_dict in report_files:
+        local_file = report_file_dict.get("local_file")
+        report_file = report_file_dict.get("key")
+        if not record_report_status(manifest["manifest_id"], local_file):
+            report_context = manifest.copy()
+            report_context["current_file"] = report_file
+
+            get_report_files.delay(
+                customer_name,
+                authentication,
+                billing_source,
+                provider_type,
+                schema_name,
+                provider_uuid,
+                report_month,
+                report_context,
+            )
+        else:
+            LOG.info(f"{report_context['local_file']} was already processed")
     return manifest
 
 

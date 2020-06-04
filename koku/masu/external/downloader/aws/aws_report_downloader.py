@@ -288,7 +288,10 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             report_dict["manifest_id"] = manifest_id
             report_dict["assembly_id"] = manifest.get("assemblyId")
             report_dict["compression"] = self.report.get("Compression")
-            report_dict["files"] = manifest.get("reportKeys")
+            files_list = [
+                {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("reportKeys")
+            ]
+            report_dict["files"] = files_list
         return report_dict
 
     def get_report_file(self, key):

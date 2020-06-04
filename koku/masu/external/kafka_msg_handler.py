@@ -42,7 +42,6 @@ from kafka.errors import KafkaError
 
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
@@ -50,6 +49,7 @@ from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownload
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
+from masu.processor.tasks import record_report_status
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
@@ -101,33 +101,6 @@ def create_manifest_entries(report_meta):
         provider_uuid=report_meta.get("provider_uuid"),
     )
     return downloader._prepare_db_manifest_record(report_meta)
-
-
-def record_report_status(manifest_id, file_name):
-    """
-    Creates initial report status database entry for new report files.
-
-    If a report has already been downloaded from the ingress service
-    there is a chance that processing has already been complete.  The
-    function returns the last completed date time to determine if the
-    report processing should continue in extract_payload.
-
-    Args:
-        manifest_id (Integer): Manifest Identifier.
-        file_name (String): Report file name
-
-    Returns:
-        DateTime - Last completed date time for a given report file.
-
-    """
-    already_processed = False
-    with ReportStatsDBAccessor(file_name, manifest_id) as db_accessor:
-        already_processed = db_accessor.get_last_completed_datetime()
-        if already_processed:
-            LOG.info(f"Report {file_name} has already been processed.")
-        else:
-            LOG.info(f"Recording stats entry for {file_name}")
-    return already_processed
 
 
 def get_account_from_cluster_id(cluster_id):
