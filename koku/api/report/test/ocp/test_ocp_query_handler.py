@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
+import logging
 from collections import defaultdict
 from decimal import Decimal
 from unittest.mock import patch
@@ -35,6 +36,8 @@ from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+
+LOG = logging.getLogger(__name__)
 
 
 def _calculate_subtotals(data, cost, infra, sup):
@@ -545,8 +548,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         """Test source_uuid is mapped to the correct source."""
         endpoints = [OCPCostView, OCPCpuView, OCPVolumeView, OCPMemoryView]
         with tenant_context(self.tenant):
-            expected_source_uuids = OCPUsageReportPeriod.objects.all().values_list("provider_id", flat=True)
-            expected_source_uuids = list(expected_source_uuids)
+            expected_source_uuids = list(OCPUsageReportPeriod.objects.all().values_list("provider_id", flat=True))
         source_uuid_list = []
         for endpoint in endpoints:
             urls = ["?", "?group_by[project]=*"]
@@ -556,16 +558,15 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 query_params = self.mocked_query_params(url, endpoint)
                 handler = OCPReportQueryHandler(query_params)
                 query_output = handler.execute_query()
-                data = query_output.get("data")
-                for dictionary in data:
+                for dictionary in query_output.get("data"):
                     for _, value in dictionary.items():
                         if isinstance(value, list):
                             for item in value:
                                 if isinstance(item, dict):
                                     if "values" in item.keys():
+                                        self.assertEqual(len(item["values"]), 1)
                                         value = item["values"][0]
-                                        uuid_list = value.get("source_uuid")
-                                        source_uuid_list.extend(uuid_list)
+                                        source_uuid_list.extend(value.get("source_uuid"))
         self.assertNotEquals(source_uuid_list, [])
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)

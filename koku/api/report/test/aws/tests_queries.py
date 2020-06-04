@@ -1598,30 +1598,26 @@ class AWSQueryHandlerTest(IamTestCase):
 
     def test_source_uuid_mapping(self):  # noqa: C901
         """Test source_uuid is mapped to the correct source."""
-        # Find the correct expected source uuid:
         with tenant_context(self.tenant):
             aws_uuids = AWSCostEntryLineItemDailySummary.objects.distinct().values_list("source_uuid", flat=True)
             expected_source_uuids = AWSCostEntryBill.objects.distinct().values_list("provider_id", flat=True)
             for aws_uuid in aws_uuids:
                 self.assertIn(aws_uuid, expected_source_uuids)
         endpoints = [AWSCostView, AWSInstanceTypeView, AWSStorageView]
-        urls = ["?", "?group_by[account]=*", "?group_by[region]=*", "?group_by[service]=*"]
         source_uuid_list = []
         for endpoint in endpoints:
-            for url in urls:
+            for url in ["?", "?group_by[account]=*", "?group_by[region]=*", "?group_by[service]=*"]:
                 query_params = self.mocked_query_params(url, endpoint)
                 handler = AWSReportQueryHandler(query_params)
                 query_output = handler.execute_query()
-                data = query_output.get("data")
-                for dictionary in data:
+                for dictionary in query_output.get("data"):
                     for _, value in dictionary.items():
                         if isinstance(value, list):
                             for item in value:
                                 if isinstance(item, dict):
                                     if "values" in item.keys():
                                         value = item["values"][0]
-                                        uuid_list = value.get("source_uuid")
-                                        source_uuid_list.extend(uuid_list)
+                                        source_uuid_list.extend(value.get("source_uuid"))
         self.assertNotEqual(source_uuid_list, [])
-        for source_uuid in uuid_list:
+        for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)

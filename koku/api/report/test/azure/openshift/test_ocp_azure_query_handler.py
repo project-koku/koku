@@ -970,8 +970,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         """Test source_uuid is mapped to the correct source."""
         endpoints = [OCPAzureCostView, OCPAzureInstanceTypeView, OCPAzureStorageView]
         with tenant_context(self.tenant):
-            expected_source_uuids = OCPUsageReportPeriod.objects.all().values_list("provider_id", flat=True)
-            expected_source_uuids = list(expected_source_uuids)
+            expected_source_uuids = list(OCPUsageReportPeriod.objects.all().values_list("provider_id", flat=True))
         source_uuid_list = []
         for endpoint in endpoints:
             urls = ["?"]
@@ -983,16 +982,14 @@ class OCPAzureQueryHandlerTest(IamTestCase):
                 query_params = self.mocked_query_params(url, endpoint)
                 handler = OCPAzureReportQueryHandler(query_params)
                 query_output = handler.execute_query()
-                data = query_output.get("data")
-                for dictionary in data:
+                for dictionary in query_output.get("data"):
                     for _, value in dictionary.items():
                         if isinstance(value, list):
                             for item in value:
                                 if isinstance(item, dict):
                                     if "values" in item.keys():
                                         value = item["values"][0]
-                                        uuid_list = value.get("source_uuid")
-                                        source_uuid_list.extend(uuid_list)
+                                        source_uuid_list.extend(value.get("source_uuid"))
         self.assertNotEquals(source_uuid_list, [])
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)

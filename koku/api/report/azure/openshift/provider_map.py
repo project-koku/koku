@@ -123,7 +123,7 @@ class OCPAzureProviderMap(ProviderMap):
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
-                            "source_uuid": F("source_uuid"),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "count": None,
                         "delta_key": {
@@ -193,7 +193,7 @@ class OCPAzureProviderMap(ProviderMap):
                             ),
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
-                            "source_uuid": F("source_uuid"),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "count": None,
                         "delta_key": {
@@ -256,7 +256,7 @@ class OCPAzureProviderMap(ProviderMap):
                             # FIXME: Waiting on MSFT for usage_units default
                             "usage_units": Coalesce(Max("unit_of_measure"), Value("Storage Type Placeholder")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
-                            "source_uuid": F("source_uuid"),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "count": None,
                         "delta_key": {"usage": Sum("usage_quantity")},
@@ -329,7 +329,7 @@ class OCPAzureProviderMap(ProviderMap):
                             "usage": Sum("usage_quantity"),
                             "usage_units": Coalesce(Max("unit_of_measure"), Value("Storage Type Placeholder")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
-                            "source_uuid": F("source_uuid"),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "count": None,
                         "delta_key": {"usage": Sum("usage_quantity")},
@@ -394,7 +394,7 @@ class OCPAzureProviderMap(ProviderMap):
                             # FIXME: Waiting on MSFT for usage_units default
                             "usage_units": Coalesce(Max("unit_of_measure"), Value("Instance Type Placeholder")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
-                            "source_uuid": F("source_uuid"),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "count": "resource_id",
                         "delta_key": {"usage": Sum("usage_quantity")},
@@ -474,7 +474,7 @@ class OCPAzureProviderMap(ProviderMap):
                             # FIXME: Waiting on MSFT for usage_units default
                             "usage_units": Coalesce(Max("unit_of_measure"), Value("Instance Type Placeholder")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
-                            "source_uuid": F("source_uuid"),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "count": "resource_id",
                         "delta_key": {"usage": Sum("usage_quantity")},

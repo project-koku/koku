@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Azure Provider query handler."""
+import logging
 from datetime import datetime
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
@@ -48,6 +49,8 @@ from reporting.models import AzureCostSummaryByService
 from reporting.models import AzureDatabaseSummary
 from reporting.models import AzureNetworkSummary
 from reporting.models import AzureStorageSummary
+
+LOG = logging.getLogger(__name__)
 
 
 class AzureReportQueryHandlerTest(IamTestCase):
@@ -1113,7 +1116,6 @@ class AzureReportQueryHandlerTest(IamTestCase):
             expected_source_uuids = AzureCostEntryBill.objects.distinct().values_list("provider_id", flat=True)
             for azure_uuid in azure_uuids:
                 self.assertIn(azure_uuid, expected_source_uuids)
-
         endpoints = [AzureCostView, AzureInstanceTypeView, AzureStorageView]
         source_uuid_list = []
         for endpoint in endpoints:
@@ -1126,16 +1128,14 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 query_params = self.mocked_query_params(url, endpoint)
                 handler = AzureReportQueryHandler(query_params)
                 query_output = handler.execute_query()
-                data = query_output.get("data")
-                for dictionary in data:
+                for dictionary in query_output.get("data"):
                     for _, value in dictionary.items():
                         if isinstance(value, list):
                             for item in value:
                                 if isinstance(item, dict):
                                     if "values" in item.keys():
                                         value = item["values"][0]
-                                        uuid_list = value.get("source_uuid")
-                                        source_uuid_list.extend(uuid_list)
+                                        source_uuid_list.extend(value.get("source_uuid"))
         self.assertNotEquals(source_uuid_list, [])
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
