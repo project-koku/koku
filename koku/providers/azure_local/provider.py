@@ -17,20 +17,14 @@
 """Azure-local service provider implementation to be used by Koku."""
 import logging
 
-from django.utils.translation import ugettext as _
 from rest_framework.serializers import ValidationError
 
 from ..azure.provider import AzureProvider
 from ..provider_errors import ProviderErrors
+from api.common import error_obj
 from api.models import Provider
 
 LOG = logging.getLogger(__name__)
-
-
-def error_obj(key, message):
-    """Create an error object."""
-    error = {key: [_(message)]}
-    return error
 
 
 class AzureLocalProvider(AzureProvider):

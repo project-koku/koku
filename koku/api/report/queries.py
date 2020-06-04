@@ -286,7 +286,14 @@ class ReportQueryHandler(QueryHandler):
             if not group_data:
                 group_data = self.parameters.get_group_by("or:" + item)
             if group_data:
-                group_pos = self.parameters.url_data.index(item)
+                try:
+                    group_pos = self.parameters.url_data.index(item)
+                except ValueError:
+                    # if we are grouping by org unit we are inserting a group by account
+                    # and popping off the org_unit_id group by - but here we need to get the position
+                    # for org_unit_id
+                    if item == "account" and "org_unit_id" in self.parameters.url_data:
+                        group_pos = self.parameters.url_data.index("org_unit_id")
                 if (item, group_pos) not in group_by:
                     group_by.append((item, group_pos))
 
@@ -627,7 +634,6 @@ class ReportQueryHandler(QueryHandler):
 
         return self.unpack_date_grouped_data(rank_limited_data)
 
-    # needs refactoring, but disabling pylint's complexity check for now.
     def _perform_rank_summation(self, entry, is_offset):  # noqa: C901
         """Do the actual rank limiting for rank_list."""
         other = None

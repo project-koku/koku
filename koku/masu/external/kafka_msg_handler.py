@@ -40,6 +40,7 @@ from django.db import InterfaceError
 from django.db import OperationalError
 from kafka.errors import KafkaError
 
+from api.common import log_json
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
@@ -75,12 +76,14 @@ def backoff(interval, maximum=64):  # pragma: no cover
     time.sleep(wait)
 
 
-def create_manifest_entries(report_meta):
+def create_manifest_entries(report_meta, request_id, context={}):
     """
     Creates manifest database entries for report processing tracking.
 
     Args:
         report_meta (dict): Report context dictionary from extract_payload.
+        request_id (String): Identifier associated with the payload
+        context (Dict): Context for logging (account, etc)
 
     Returns:
         manifest_id (Integer): Manifest identifier of the created db entry.
@@ -99,11 +102,12 @@ def create_manifest_entries(report_meta):
         report_meta.get("cluster_id"),
         None,
         provider_uuid=report_meta.get("provider_uuid"),
+        request_id=request_id,
     )
     return downloader._prepare_db_manifest_record(report_meta)
 
 
-def record_report_status(manifest_id, file_name):
+def record_report_status(manifest_id, file_name, request_id, context={}):
     """
     Creates initial report status database entry for new report files.
 
@@ -115,6 +119,8 @@ def record_report_status(manifest_id, file_name):
     Args:
         manifest_id (Integer): Manifest Identifier.
         file_name (String): Report file name
+        request_id (String): Identifier associated with the payload
+        context (Dict): Context for logging (account, etc)
 
     Returns:
         DateTime - Last completed date time for a given report file.
@@ -124,18 +130,22 @@ def record_report_status(manifest_id, file_name):
     with ReportStatsDBAccessor(file_name, manifest_id) as db_accessor:
         already_processed = db_accessor.get_last_completed_datetime()
         if already_processed:
-            LOG.info(f"Report {file_name} has already been processed.")
+            msg = f"Report {file_name} has already been processed."
+            LOG.info(log_json(request_id, msg, context))
         else:
-            LOG.info(f"Recording stats entry for {file_name}")
+            msg = f"Recording stats entry for {file_name}"
+            LOG.info(log_json(request_id, msg, context))
     return already_processed
 
 
-def get_account_from_cluster_id(cluster_id):
+def get_account_from_cluster_id(cluster_id, request_id, context={}):
     """
     Returns the provider details for a given OCP cluster id.
 
     Args:
         cluster_id (String): Cluster UUID.
+        request_id (String): Identifier associated with the payload
+        context (Dict): Context for logging (account, etc)
 
     Returns:
         (dict) - keys: value
@@ -150,13 +160,15 @@ def get_account_from_cluster_id(cluster_id):
     account = None
     provider_uuid = utils.get_provider_uuid_from_cluster_id(cluster_id)
     if provider_uuid:
-        LOG.info("Found provider_uuid: %s for cluster_id: %s", str(provider_uuid), str(cluster_id))
-        account = get_account(provider_uuid)
+        msg = f"Found provider_uuid: {str(provider_uuid)} for cluster_id: {str(cluster_id)}"
+        LOG.info(log_json(request_id, msg, context))
+        if context:
+            context["provider_uuid"] = provider_uuid
+        account = get_account(provider_uuid, request_id, context)
     return account
 
 
-# pylint: disable=too-many-locals
-def extract_payload(url):  # noqa: C901
+def extract_payload(url, request_id, context={}):  # noqa: C901
     """
     Extract OCP usage report payload into local directory structure.
 
@@ -188,6 +200,8 @@ def extract_payload(url):  # noqa: C901
 
     Args:
         url (String): URL path to payload in the Insights upload service..
+        request_id (String): Identifier associated with the payload
+        context (Dict): Context for logging (account, etc)
 
     Returns:
         [dict]: keys: value
@@ -214,6 +228,8 @@ def extract_payload(url):  # noqa: C901
         download_response.raise_for_status()
     except requests.exceptions.HTTPError as err:
         shutil.rmtree(temp_dir)
+        msg = f"Unable to download file. Error: {str(err)}"
+        LOG.warning(log_json(request_id, msg))
         raise KafkaMsgHandlerError("Unable to download file. Error: ", str(err))
 
     temp_file = "{}/{}".format(temp_dir, "usage.tar.gz")
@@ -223,6 +239,8 @@ def extract_payload(url):  # noqa: C901
         temp_file_hdl.close()
     except (OSError, IOError) as error:
         shutil.rmtree(temp_dir)
+        msg = f"Unable to write file. Error: {str(error)}"
+        LOG.warning(log_json(request_id, msg, context))
         raise KafkaMsgHandlerError("Unable to write file. Error: ", str(error))
 
     # Extract tarball into temp directory
@@ -232,20 +250,27 @@ def extract_payload(url):  # noqa: C901
         files = mytar.getnames()
         manifest_path = [manifest for manifest in files if "manifest.json" in manifest]
     except (ReadError, EOFError, OSError) as error:
-        LOG.warning("Unable to untar file. Reason: %s", str(error))
+        msg = f"Unable to untar file. Reason: {str(error)}"
+        LOG.warning(log_json(request_id, msg, context))
         shutil.rmtree(temp_dir)
         raise KafkaMsgHandlerError("Extraction failure.")
 
     if not manifest_path:
+        msg = "No manifest found in payload."
+        LOG.warning(log_json(request_id, msg, context))
         raise KafkaMsgHandlerError("No manifest found in payload.")
     # Open manifest.json file and build the payload dictionary.
     full_manifest_path = "{}/{}".format(temp_dir, manifest_path[0])
     report_meta = utils.get_report_details(os.path.dirname(full_manifest_path))
 
     # Filter and get account from payload's cluster-id
-    account = get_account_from_cluster_id(report_meta.get("cluster_id"))
+    cluster_id = report_meta.get("cluster_id")
+    if context:
+        context["cluster_id"] = cluster_id
+    account = get_account_from_cluster_id(cluster_id, request_id, context)
     if not account:
-        LOG.error(f"Recieved unexpected OCP report from {report_meta.get('cluster_id')}")
+        msg = f"Recieved unexpected OCP report from {cluster_id}"
+        LOG.error(log_json(request_id, msg, context))
         shutil.rmtree(temp_dir)
         return None
 
@@ -263,7 +288,7 @@ def extract_payload(url):  # noqa: C901
     shutil.copy(report_meta.get("manifest_path"), manifest_destination_path)
 
     # Save Manifest
-    report_meta["manifest_id"] = create_manifest_entries(report_meta)
+    report_meta["manifest_id"] = create_manifest_entries(report_meta, request_id, context)
 
     # Copy report payload
     report_metas = []
@@ -275,14 +300,16 @@ def extract_payload(url):  # noqa: C901
         try:
             shutil.copy(payload_source_path, payload_destination_path)
             current_meta["current_file"] = payload_destination_path
-            if not record_report_status(report_meta["manifest_id"], report_file):
-                LOG.info("Successfully extracted OCP for %s/%s", report_meta.get("cluster_id"), usage_month)
+            if not record_report_status(report_meta["manifest_id"], report_file, request_id, context):
+                msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
+                LOG.info(log_json(request_id, msg, context))
                 report_metas.append(current_meta)
             else:
                 # Report already processed
                 pass
         except FileNotFoundError:
-            LOG.debug("File %s has not downloaded yet.", str(report_file))
+            msg = f"File {str(report_file)} has not downloaded yet."
+            LOG.debug(log_json(request_id, msg, context))
 
     # Remove temporary directory and files
     shutil.rmtree(temp_dir)
@@ -368,28 +395,36 @@ def handle_message(msg):
     """
     if msg.topic == HCCM_TOPIC:
         value = json.loads(msg.value.decode("utf-8"))
+        request_id = value.get("request_id", "no_request_id")
+        account = value.get("account", "no_account")
+        context = {"account": account}
         try:
-            LOG.info(f"Extracting Payload for msg: {str(value)}")
-            report_metas = extract_payload(value["url"])
+            msg = f"Extracting Payload for msg: {str(value)}"
+            LOG.info(log_json(request_id, msg, context))
+            report_metas = extract_payload(value["url"], request_id, context)
             return SUCCESS_CONFIRM_STATUS, report_metas
         except (OperationalError, InterfaceError):
-            LOG.error("Unable to extract payload, database is closed.  Retrying...")
+            msg = "Unable to extract payload, database is closed.  Retrying..."
+            LOG.error(log_json(request_id, msg, context))
             raise KafkaMsgHandlerError("Unable to extract payload, db closed.")
         except Exception as error:  # noqa
             traceback.print_exc()
-            LOG.warning("Unable to extract payload. Error: %s", str(type(error)))
+            msg = "Unable to extract payload. Error: %s", str(type(error))
+            LOG.warning(log_json(request_id, msg, context))
             return FAILURE_CONFIRM_STATUS, None
     else:
         LOG.error("Unexpected Message")
     return None, None
 
 
-def get_account(provider_uuid):
+def get_account(provider_uuid, request_id, context={}):
     """
     Retrieve a provider's account configuration needed for processing.
 
     Args:
         provider_uuid (String): Provider unique identifier.
+        request_id (String): Identifier associated with the payload
+        context (Dict): Context for logging (account, etc)
 
     Returns:
         (dict) - keys: value
@@ -405,7 +440,8 @@ def get_account(provider_uuid):
     try:
         all_accounts = AccountsAccessor().get_accounts(provider_uuid)
     except AccountsAccessorError as error:
-        LOG.info("Unable to get accounts. Error: %s", str(error))
+        msg = f"Unable to get accounts. Error: {str(error)}"
+        LOG.warning(log_json(request_id, msg, context))
         return None
 
     return all_accounts.pop() if all_accounts else None

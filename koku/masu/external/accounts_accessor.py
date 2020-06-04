@@ -31,7 +31,6 @@ class AccountsAccessorError(Exception):
     """Cost Usage Report Accounts error."""
 
 
-# pylint: disable=too-few-public-methods
 class AccountsAccessor:
     """Interface for masu to use to get CUR accounts."""
 

@@ -38,7 +38,7 @@ PGSQL_GAUGE = Gauge("postgresql_schema_size_bytes", "PostgreSQL DB Size (bytes)"
 class DatabaseStatus:
     """Database status information."""
 
-    def connection_check(self):  # pylint: disable=R0201
+    def connection_check(self):
         """Check DB connection."""
         try:
             connection.cursor()
@@ -47,7 +47,7 @@ class DatabaseStatus:
             LOG.error("DatabaseStatus.connection_check: No connection to DB: %s", str(error))
             DB_CONNECTION_ERRORS_COUNTER.inc()
 
-    def query(self, query, query_tag):  # pylint: disable=R0201
+    def query(self, query, query_tag):
         """Execute a SQL query, format the results.
 
         Returns:

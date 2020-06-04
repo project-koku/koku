@@ -16,7 +16,6 @@
 #
 """Models for cost entry tables."""
 # flake8: noqa
-# pylint: disable=unused-import
 from reporting.provider.all.openshift.models import OCPAllComputeSummary
 from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummary
 from reporting.provider.all.openshift.models import OCPAllCostLineItemProjectDailySummary
@@ -46,6 +45,7 @@ from reporting.provider.aws.models import AWSCostSummaryByRegion
 from reporting.provider.aws.models import AWSCostSummaryByService
 from reporting.provider.aws.models import AWSDatabaseSummary
 from reporting.provider.aws.models import AWSNetworkSummary
+from reporting.provider.aws.models import AWSOrganizationalUnit
 from reporting.provider.aws.models import AWSStorageSummary
 from reporting.provider.aws.models import AWSStorageSummaryByAccount
 from reporting.provider.aws.models import AWSStorageSummaryByRegion

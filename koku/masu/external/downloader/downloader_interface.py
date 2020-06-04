@@ -19,7 +19,6 @@ from abc import ABC
 from abc import abstractmethod
 
 
-# pylint: disable=too-few-public-methods
 class DownloaderInterface(ABC):
     """Masu interface definition to download cost usage reports."""
 

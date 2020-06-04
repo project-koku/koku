@@ -42,7 +42,6 @@ class ProviderAuthentication(models.Model):
 
     credentials = JSONField(null=True, default=dict)
 
-    # pylint: disable=too-few-public-methods
     class Meta:
         """Meta class."""
 
@@ -70,7 +69,6 @@ class ProviderBillingSource(models.Model):
 
     data_source = JSONField(null=True, default=dict)
 
-    # pylint: disable=too-few-public-methods
     class Meta:
         """Meta class."""
 
@@ -90,7 +88,6 @@ class Provider(models.Model):
     Used for modeling cost providers like AWS Accounts.
     """
 
-    # pylint: disable=too-few-public-methods
     class Meta:
         """Meta for Provider."""
 

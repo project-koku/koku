@@ -32,8 +32,6 @@ class DateAccessorError(Exception):
     """An exception during date processing."""
 
 
-# pylint: disable=too-few-public-methods
-# pylint: disable=no-self-use
 class DateAccessor:
     """Accessor to get date time."""
 
@@ -100,7 +98,7 @@ class DateAccessor:
                 LOG.error(err)
                 raise DateAccessorError(err)
         elif not isinstance(timezone, tzinfo):
-            err = "timezone must be a valid timezone string or subclass " "of datetime.tzinfo"
+            err = "timezone must be a valid timezone string or subclass of datetime.tzinfo"
             raise DateAccessorError(err)
 
         current_date = datetime.now(tz=timezone)
