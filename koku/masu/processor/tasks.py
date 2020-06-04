@@ -117,7 +117,7 @@ def get_report_manifest(
                 report_context,
             )
         else:
-            LOG.info(f"{report_context['local_file']} was already processed")
+            LOG.info(f"{local_file} was already processed")
     return manifest
 
 
@@ -227,7 +227,7 @@ def get_report_files(
     WorkerCache().remove_task_from_cache(cache_key)
 
     if report_meta:
-        async_id = check_for_needed_summary.delay(report_meta)
+        async_id = summarize_manifest.delay(report_meta)
         LOG.info(f"Check for summary celery ID: {async_id}")
     return report_meta
 
@@ -259,13 +259,27 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, lin
     refresh_materialized_views.delay(schema_name, provider)
 
 
-@app.task(name="masu.processor.tasks.check_for_needed_summary", queue_name="process")
-def check_for_needed_summary(report_meta):
+@app.task(name="masu.processor.tasks.summarize_manifest", queue_name="process")
+def summarize_manifest(report_meta):
+    """
+    Kick off manifest summary when all report files have completed line item processing.
+
+    Args:
+        report (Dict) - keys: value
+                        schema_name: String,
+                        manifest_id: Integer,
+                        provider_uuid: String,
+                        provider_type: String,
+
+    Returns:
+        Celery Async UUID.
+
+    """
     async_id = None
-    LOG.info(f"CHECK FOR SUMMARY NEEDED REPORT_META: {str(report_meta)}")
     schema_name = report_meta.get("schema_name")
     manifest_id = report_meta.get("manifest_id")
     provider_uuid = report_meta.get("provider_uuid")
+    schema_name = report_meta.get("schema_name")
     provider_type = report_meta.get("provider_type")
 
     with ReportManifestDBAccessor() as manifest_accesor:
@@ -278,7 +292,7 @@ def check_for_needed_summary(report_meta):
                 "manifest_id": manifest_id,
             }
             async_id = summarize_reports.delay([report_meta])
-    LOG.info(f"Summarizing Manifest ID: {str(manifest_id)} celery ID: {str(async_id)}")
+    return async_id
 
 
 @app.task(name="masu.processor.tasks.summarize_reports", queue_name="process")

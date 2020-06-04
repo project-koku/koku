@@ -41,7 +41,6 @@ from django.db import OperationalError
 from kafka.errors import KafkaError
 
 from masu.config import Config
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
@@ -50,7 +49,7 @@ from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import record_report_status
-from masu.processor.tasks import summarize_reports
+from masu.processor.tasks import summarize_manifest
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
 
@@ -382,41 +381,6 @@ def get_account(provider_uuid):
         return None
 
     return all_accounts.pop() if all_accounts else None
-
-
-def summarize_manifest(report_meta):
-    """
-    Kick off manifest summary when all report files have completed line item processing.
-
-    Args:
-        report (Dict) - keys: value
-                        schema_name: String,
-                        manifest_id: Integer,
-                        provider_uuid: String,
-                        provider_type: String,
-
-    Returns:
-        Celery Async UUID.
-
-    """
-    async_id = None
-    schema_name = report_meta.get("schema_name")
-    manifest_id = report_meta.get("manifest_id")
-    provider_uuid = report_meta.get("provider_uuid")
-    schema_name = report_meta.get("schema_name")
-    provider_type = report_meta.get("provider_type")
-
-    with ReportManifestDBAccessor() as manifest_accesor:
-        manifest = manifest_accesor.get_manifest_by_id(manifest_id)
-        if manifest.num_processed_files == manifest.num_total_files:
-            report_meta = {
-                "schema_name": schema_name,
-                "provider_type": provider_type,
-                "provider_uuid": provider_uuid,
-                "manifest_id": manifest_id,
-            }
-            async_id = summarize_reports.delay([report_meta])
-    return async_id
 
 
 def process_report(report):
