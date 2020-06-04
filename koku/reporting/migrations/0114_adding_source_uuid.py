@@ -78,6 +78,27 @@ DROP MATERIALIZED VIEW IF EXISTS reporting_azure_network_summary;
 DROP INDEX IF EXISTS azure_database_summary;
 DROP MATERIALIZED VIEW IF EXISTS reporting_azure_database_summary;
 
+DROP INDEX IF EXISTS ocp_cost_summary;
+DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_cost_summary;
+
+DROP INDEX IF EXISTS ocp_cost_summary_by_node;
+DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_cost_summary_by_node;
+
+DROP INDEX IF EXISTS ocp_cost_summary_by_project;
+DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_cost_summary_by_project;
+
+DROP INDEX IF EXISTS ocp_pod_summary;
+DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_pod_summary;
+
+DROP INDEX IF EXISTS ocp_pod_summary_by_project;
+DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_pod_summary_by_project;
+
+DROP INDEX IF EXISTS ocp_volume_summary;
+DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_volume_summary;
+
+DROP INDEX IF EXISTS ocp_volume_summary_by_project;
+DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_volume_summary_by_project;
+
 DROP INDEX IF EXISTS ocpaws_cost_summary;
 DROP MATERIALIZED VIEW IF EXISTS reporting_ocpaws_cost_summary;
 
@@ -101,27 +122,6 @@ DROP MATERIALIZED VIEW IF EXISTS reporting_ocpaws_network_summary;
 
 DROP INDEX IF EXISTS ocpaws_database_summary;
 DROP MATERIALIZED VIEW IF EXISTS reporting_ocpaws_database_summary;
-
-DROP INDEX IF EXISTS ocp_cost_summary;
-DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_cost_summary;
-
-DROP INDEX IF EXISTS ocp_cost_summary_by_node;
-DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_cost_summary_by_node;
-
-DROP INDEX IF EXISTS ocp_cost_summary_by_project;
-DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_cost_summary_by_project;
-
-DROP INDEX IF EXISTS ocp_pod_summary;
-DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_pod_summary;
-
-DROP INDEX IF EXISTS ocp_pod_summary_by_project;
-DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_pod_summary_by_project;
-
-DROP INDEX IF EXISTS ocp_volume_summary;
-DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_volume_summary;
-
-DROP INDEX IF EXISTS ocp_volume_summary_by_project;
-DROP MATERIALIZED VIEW IF EXISTS reporting_ocp_volume_summary_by_project;
 
 DROP INDEX IF EXISTS ocpazure_cost_summary;
 DROP MATERIALIZED VIEW IF EXISTS reporting_ocpazure_cost_summary;
@@ -923,205 +923,6 @@ CREATE UNIQUE INDEX azure_database_summary
 ON reporting_azure_database_summary (usage_start, service_name, source_uuid)
 ;
 
-CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary AS(
-    SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias) as id,
-        usage_start as usage_start,
-        usage_start as usage_end,
-        cluster_id,
-        cluster_alias,
-        sum(unblended_cost) as unblended_cost,
-        sum(markup_cost) as markup_cost,
-        max(currency_code) as currency_code,
-        source_uuid
-    FROM reporting_ocpawscostlineitem_daily_summary
-    -- Get data for this month or last month
-    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-    GROUP BY usage_start, cluster_id, cluster_alias, source_uuid
-)
-WITH DATA
-;
-
-CREATE UNIQUE INDEX ocpaws_cost_summary
-ON reporting_ocpaws_cost_summary (usage_start, cluster_id, cluster_alias, source_uuid)
-;
-
-CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary_by_account AS(
-    SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, usage_account_id, account_alias_id) as id,
-        usage_start as usage_start,
-        usage_start as usage_end,
-        cluster_id,
-        cluster_alias,
-        usage_account_id,
-        account_alias_id,
-        sum(unblended_cost) as unblended_cost,
-        sum(markup_cost) as markup_cost,
-        max(currency_code) as currency_code,
-        source_uuid
-    FROM reporting_ocpawscostlineitem_daily_summary
-    -- Get data for this month or last month
-    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-    GROUP BY usage_start, cluster_id, cluster_alias, usage_account_id, account_alias_id, source_uuid
-)
-WITH DATA
-;
-
-CREATE UNIQUE INDEX ocpaws_cost_summary_account
-ON reporting_ocpaws_cost_summary_by_account (usage_start, cluster_id, cluster_alias, usage_account_id, account_alias_id, source_uuid)
-;
-
-CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary_by_service AS(
-    SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, product_code, product_family) as id,
-        usage_start as usage_start,
-        usage_start as usage_end,
-        cluster_id,
-        cluster_alias,
-        product_code,
-        product_family,
-        sum(unblended_cost) as unblended_cost,
-        sum(markup_cost) as markup_cost,
-        max(currency_code) as currency_code,
-        source_uuid
-    FROM reporting_ocpawscostlineitem_daily_summary
-    -- Get data for this month or last month
-    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-    GROUP BY usage_start, cluster_id, cluster_alias, product_code, product_family, source_uuid
-)
-WITH DATA
-;
-
-CREATE UNIQUE INDEX ocpaws_cost_summary_service
-ON reporting_ocpaws_cost_summary_by_service (usage_start, cluster_id, cluster_alias, product_code, product_family, source_uuid)
-;
-
-CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary_by_region AS(
-    SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, region, availability_zone) as id,
-        usage_start as usage_start,
-        usage_start as usage_end,
-        cluster_id,
-        cluster_alias,
-        region,
-        availability_zone,
-        sum(unblended_cost) as unblended_cost,
-        sum(markup_cost) as markup_cost,
-        max(currency_code) as currency_code,
-        source_uuid
-    FROM reporting_ocpawscostlineitem_daily_summary
-    -- Get data for this month or last month
-    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-    GROUP BY usage_start, cluster_id, cluster_alias, region, availability_zone, source_uuid
-)
-WITH DATA
-;
-
-CREATE UNIQUE INDEX ocpaws_cost_summary_region
-ON reporting_ocpaws_cost_summary_by_region (usage_start, cluster_id, cluster_alias, region, availability_zone, source_uuid)
-;
-
-CREATE MATERIALIZED VIEW reporting_ocpaws_compute_summary AS(
-    SELECT ROW_NUMBER() OVER(ORDER BY usage_start, cluster_id, cluster_alias, instance_type, resource_id) AS id,
-        usage_start,
-        usage_start as usage_end,
-        cluster_id,
-        cluster_alias,
-        instance_type,
-        resource_id,
-        sum(usage_amount) as usage_amount,
-        max(unit) as unit,
-        sum(unblended_cost) as unblended_cost,
-        sum(markup_cost) as markup_cost,
-        max(currency_code) as currency_code,
-        source_uuid
-    FROM reporting_ocpawscostlineitem_daily_summary
-    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-        AND instance_type IS NOT NULL
-    GROUP BY usage_start, cluster_id, cluster_alias, instance_type, resource_id, source_uuid
-)
-WITH DATA
-;
-
-CREATE UNIQUE INDEX ocpaws_compute_summary
-    ON reporting_ocpaws_compute_summary (usage_start, cluster_id, cluster_alias, instance_type, resource_id, source_uuid)
-;
-
-CREATE MATERIALIZED VIEW reporting_ocpaws_storage_summary AS(
-    SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, product_family) as id,
-        usage_start as usage_start,
-        usage_start as usage_end,
-        cluster_id,
-        cluster_alias,
-        product_family,
-        sum(usage_amount) as usage_amount,
-        max(unit) as unit,
-        sum(unblended_cost) as unblended_cost,
-        sum(markup_cost) as markup_cost,
-        max(currency_code) as currency_code,
-        source_uuid
-    FROM reporting_ocpawscostlineitem_daily_summary
-    -- Get data for this month or last month
-    WHERE product_family LIKE '%Storage%'
-        AND unit = 'GB-Mo'
-        AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-    GROUP BY usage_start, cluster_id, cluster_alias, product_family, source_uuid
-)
-WITH DATA
-;
-
-CREATE UNIQUE INDEX ocpaws_storage_summary
-ON reporting_ocpaws_storage_summary (usage_start, cluster_id, cluster_alias, product_family, source_uuid)
-;
-
-CREATE MATERIALIZED VIEW reporting_ocpaws_network_summary AS(
-    SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, product_code) as id,
-        usage_start as usage_start,
-        usage_start as usage_end,
-        cluster_id,
-        cluster_alias,
-        product_code,
-        sum(usage_amount) as usage_amount,
-        max(unit) as unit,
-        sum(unblended_cost) as unblended_cost,
-        sum(markup_cost) as markup_cost,
-        max(currency_code) as currency_code,
-        source_uuid
-    FROM reporting_ocpawscostlineitem_daily_summary
-    -- Get data for this month or last month
-    WHERE product_code IN ('AmazonVPC','AmazonCloudFront','AmazonRoute53','AmazonAPIGateway')
-        AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-    GROUP BY usage_start, cluster_id, cluster_alias, product_code, source_uuid
-)
-WITH DATA
-;
-
-CREATE UNIQUE INDEX ocpaws_network_summary
-ON reporting_ocpaws_network_summary (usage_start, cluster_id, cluster_alias, product_code, source_uuid)
-;
-
-CREATE MATERIALIZED VIEW reporting_ocpaws_database_summary AS(
-    SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, product_code) as id,
-        usage_start as usage_start,
-        usage_start as usage_end,
-        cluster_id,
-        cluster_alias,
-        product_code,
-        sum(usage_amount) as usage_amount,
-        max(unit) as unit,
-        sum(unblended_cost) as unblended_cost,
-        sum(markup_cost) as markup_cost,
-        max(currency_code) as currency_code,
-        source_uuid
-    FROM reporting_ocpawscostlineitem_daily_summary
-    -- Get data for this month or last month
-    WHERE product_code IN ('AmazonRDS','AmazonDynamoDB','AmazonElastiCache','AmazonNeptune','AmazonRedshift','AmazonDocumentDB')
-        AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
-    GROUP BY usage_start, cluster_id, cluster_alias, product_code, source_uuid
-)
-WITH DATA
-;
-
-CREATE UNIQUE INDEX ocpaws_database_summary
-ON reporting_ocpaws_database_summary (usage_start, cluster_id, cluster_alias, product_code, source_uuid)
-;
-
 CREATE MATERIALIZED VIEW reporting_ocp_cost_summary AS(
     SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias) as id,
         usage_start as usage_start,
@@ -1352,6 +1153,205 @@ CREATE MATERIALIZED VIEW reporting_ocp_volume_summary_by_project AS(
 
 CREATE UNIQUE INDEX ocp_volume_summary_by_project
 ON reporting_ocp_volume_summary_by_project (usage_start, cluster_id, cluster_alias, namespace, source_uuid)
+;
+
+CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary AS(
+    SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias) as id,
+        usage_start as usage_start,
+        usage_start as usage_end,
+        cluster_id,
+        cluster_alias,
+        sum(unblended_cost) as unblended_cost,
+        sum(markup_cost) as markup_cost,
+        max(currency_code) as currency_code,
+        source_uuid
+    FROM reporting_ocpawscostlineitem_daily_summary
+    -- Get data for this month or last month
+    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+    GROUP BY usage_start, cluster_id, cluster_alias, source_uuid
+)
+WITH DATA
+;
+
+CREATE UNIQUE INDEX ocpaws_cost_summary
+ON reporting_ocpaws_cost_summary (usage_start, cluster_id, cluster_alias, source_uuid)
+;
+
+CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary_by_account AS(
+    SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, usage_account_id, account_alias_id) as id,
+        usage_start as usage_start,
+        usage_start as usage_end,
+        cluster_id,
+        cluster_alias,
+        usage_account_id,
+        account_alias_id,
+        sum(unblended_cost) as unblended_cost,
+        sum(markup_cost) as markup_cost,
+        max(currency_code) as currency_code,
+        source_uuid
+    FROM reporting_ocpawscostlineitem_daily_summary
+    -- Get data for this month or last month
+    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+    GROUP BY usage_start, cluster_id, cluster_alias, usage_account_id, account_alias_id, source_uuid
+)
+WITH DATA
+;
+
+CREATE UNIQUE INDEX ocpaws_cost_summary_account
+ON reporting_ocpaws_cost_summary_by_account (usage_start, cluster_id, cluster_alias, usage_account_id, account_alias_id, source_uuid)
+;
+
+CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary_by_service AS(
+    SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, product_code, product_family) as id,
+        usage_start as usage_start,
+        usage_start as usage_end,
+        cluster_id,
+        cluster_alias,
+        product_code,
+        product_family,
+        sum(unblended_cost) as unblended_cost,
+        sum(markup_cost) as markup_cost,
+        max(currency_code) as currency_code,
+        source_uuid
+    FROM reporting_ocpawscostlineitem_daily_summary
+    -- Get data for this month or last month
+    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+    GROUP BY usage_start, cluster_id, cluster_alias, product_code, product_family, source_uuid
+)
+WITH DATA
+;
+
+CREATE UNIQUE INDEX ocpaws_cost_summary_service
+ON reporting_ocpaws_cost_summary_by_service (usage_start, cluster_id, cluster_alias, product_code, product_family, source_uuid)
+;
+
+CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary_by_region AS(
+    SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, region, availability_zone) as id,
+        usage_start as usage_start,
+        usage_start as usage_end,
+        cluster_id,
+        cluster_alias,
+        region,
+        availability_zone,
+        sum(unblended_cost) as unblended_cost,
+        sum(markup_cost) as markup_cost,
+        max(currency_code) as currency_code,
+        source_uuid
+    FROM reporting_ocpawscostlineitem_daily_summary
+    -- Get data for this month or last month
+    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+    GROUP BY usage_start, cluster_id, cluster_alias, region, availability_zone, source_uuid
+)
+WITH DATA
+;
+
+CREATE UNIQUE INDEX ocpaws_cost_summary_region
+ON reporting_ocpaws_cost_summary_by_region (usage_start, cluster_id, cluster_alias, region, availability_zone, source_uuid)
+;
+
+CREATE MATERIALIZED VIEW reporting_ocpaws_compute_summary AS(
+    SELECT ROW_NUMBER() OVER(ORDER BY usage_start, cluster_id, cluster_alias, instance_type, resource_id) AS id,
+        usage_start,
+        usage_start as usage_end,
+        cluster_id,
+        cluster_alias,
+        instance_type,
+        resource_id,
+        sum(usage_amount) as usage_amount,
+        max(unit) as unit,
+        sum(unblended_cost) as unblended_cost,
+        sum(markup_cost) as markup_cost,
+        max(currency_code) as currency_code,
+        source_uuid
+    FROM reporting_ocpawscostlineitem_daily_summary
+    WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+        AND instance_type IS NOT NULL
+    GROUP BY usage_start, cluster_id, cluster_alias, instance_type, resource_id, source_uuid
+)
+WITH DATA
+;
+
+CREATE UNIQUE INDEX ocpaws_compute_summary
+    ON reporting_ocpaws_compute_summary (usage_start, cluster_id, cluster_alias, instance_type, resource_id, source_uuid)
+;
+
+CREATE MATERIALIZED VIEW reporting_ocpaws_storage_summary AS(
+    SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, product_family) as id,
+        usage_start as usage_start,
+        usage_start as usage_end,
+        cluster_id,
+        cluster_alias,
+        product_family,
+        sum(usage_amount) as usage_amount,
+        max(unit) as unit,
+        sum(unblended_cost) as unblended_cost,
+        sum(markup_cost) as markup_cost,
+        max(currency_code) as currency_code,
+        source_uuid
+    FROM reporting_ocpawscostlineitem_daily_summary
+    -- Get data for this month or last month
+    WHERE product_family LIKE '%Storage%'
+        AND unit = 'GB-Mo'
+        AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+    GROUP BY usage_start, cluster_id, cluster_alias, product_family, source_uuid
+)
+WITH DATA
+;
+
+CREATE UNIQUE INDEX ocpaws_storage_summary
+ON reporting_ocpaws_storage_summary (usage_start, cluster_id, cluster_alias, product_family, source_uuid)
+;
+
+CREATE MATERIALIZED VIEW reporting_ocpaws_network_summary AS(
+    SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, product_code) as id,
+        usage_start as usage_start,
+        usage_start as usage_end,
+        cluster_id,
+        cluster_alias,
+        product_code,
+        sum(usage_amount) as usage_amount,
+        max(unit) as unit,
+        sum(unblended_cost) as unblended_cost,
+        sum(markup_cost) as markup_cost,
+        max(currency_code) as currency_code,
+        source_uuid
+    FROM reporting_ocpawscostlineitem_daily_summary
+    -- Get data for this month or last month
+    WHERE product_code IN ('AmazonVPC','AmazonCloudFront','AmazonRoute53','AmazonAPIGateway')
+        AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+    GROUP BY usage_start, cluster_id, cluster_alias, product_code, source_uuid
+)
+WITH DATA
+;
+
+CREATE UNIQUE INDEX ocpaws_network_summary
+ON reporting_ocpaws_network_summary (usage_start, cluster_id, cluster_alias, product_code, source_uuid)
+;
+
+CREATE MATERIALIZED VIEW reporting_ocpaws_database_summary AS(
+    SELECT row_number() OVER(ORDER BY usage_start, cluster_id, cluster_alias, product_code) as id,
+        usage_start as usage_start,
+        usage_start as usage_end,
+        cluster_id,
+        cluster_alias,
+        product_code,
+        sum(usage_amount) as usage_amount,
+        max(unit) as unit,
+        sum(unblended_cost) as unblended_cost,
+        sum(markup_cost) as markup_cost,
+        max(currency_code) as currency_code,
+        source_uuid
+    FROM reporting_ocpawscostlineitem_daily_summary
+    -- Get data for this month or last month
+    WHERE product_code IN ('AmazonRDS','AmazonDynamoDB','AmazonElastiCache','AmazonNeptune','AmazonRedshift','AmazonDocumentDB')
+        AND usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+    GROUP BY usage_start, cluster_id, cluster_alias, product_code, source_uuid
+)
+WITH DATA
+;
+
+CREATE UNIQUE INDEX ocpaws_database_summary
+ON reporting_ocpaws_database_summary (usage_start, cluster_id, cluster_alias, product_code, source_uuid)
 ;
 
 CREATE MATERIALIZED VIEW reporting_ocpazure_cost_summary AS(
