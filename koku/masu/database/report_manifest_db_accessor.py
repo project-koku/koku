@@ -62,7 +62,6 @@ class ReportManifestDBAccessor(KokuDBAccess):
             manifest.manifest_completed_datetime = self.date_accessor.today_with_timezone("UTC")
             manifest.save()
 
-    # pylint: disable=arguments-differ
     def add(self, **kwargs):
         """
         Add a new row to the CUR stats database.

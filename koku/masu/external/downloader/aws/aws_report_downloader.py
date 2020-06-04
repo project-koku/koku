@@ -15,9 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """AWS Report Downloader."""
-# pylint: disable=fixme
-# disabled until we get travis to not fail on warnings, or the fixme is
-# resolved.
 import datetime
 import json
 import logging
@@ -57,8 +54,6 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     empty_manifest = {"reportKeys": []}
 
-    # Disabling until we can refactor
-    # pylint: disable=too-many-arguments
     def __init__(self, task, customer_name, auth_credential, bucket, report_name=None, **kwargs):
         """
         Constructor.

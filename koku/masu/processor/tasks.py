@@ -15,9 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Asynchronous tasks."""
-# pylint: disable=too-many-arguments, too-many-function-args
-# disabled module-wide due to current state of task signature.
-# we expect this situation to be temporary as we iterate on these details.
 import datetime
 import json
 import os
@@ -34,6 +31,7 @@ from tenant_schemas.utils import schema_context
 import masu.prometheus_stats as worker_stats
 from api.provider.models import Provider
 from api.utils import DateHelper
+from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.celery import app
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -56,7 +54,6 @@ from reporting.models import OCP_MATERIALIZED_VIEWS
 LOG = get_task_logger(__name__)
 
 
-# pylint: disable=too-many-locals
 @app.task(name="masu.processor.tasks.get_report_files", queue_name="download", bind=True)
 def get_report_files(
     self, customer_name, authentication, billing_source, provider_type, schema_name, provider_uuid, report_month
@@ -347,6 +344,8 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
             with connection.cursor() as cursor:
                 cursor.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {table_name}")
                 LOG.info(f"Refreshed {table_name}.")
+
+    invalidate_view_cache_for_tenant_and_source_type(schema_name, provider_type)
 
     if manifest_id:
         # Processing for this monifest should be complete after this step

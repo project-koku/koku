@@ -100,13 +100,13 @@ class StatusModelTest(TestCase):
         self.assertEqual(result, expected)
 
     @patch("api.status.models.logger.info")
-    def test_startup_with_modules(self, mock_logger):  # pylint: disable=no-self-use
+    def test_startup_with_modules(self, mock_logger):
         """Test the startup method with a module list."""
         self.status_info.startup()
         mock_logger.assert_called_with(ANY, ANY)
 
     @patch("api.status.models.Status.modules", new_callable=PropertyMock)
-    def test_startup_without_modules(self, mock_mods):  # pylint: disable=no-self-use
+    def test_startup_without_modules(self, mock_mods):
         """Test the startup method without a module list."""
         mock_mods.return_value = {}
         expected = "INFO:api.status.models:Modules: None"

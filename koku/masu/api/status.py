@@ -71,7 +71,6 @@ def get_status(request):
     return Response(response)
 
 
-# pylint: disable=too-few-public-methods, no-self-use
 class ApplicationStatus:
     """A view that returns status JSON."""
 
@@ -79,7 +78,7 @@ class ApplicationStatus:
 
     def __init__(self):
         """Initialize an ApplicationStatus object."""
-        self._events = dict()
+        self._events = {}
         self.modules = {}
 
     @property
@@ -187,14 +186,13 @@ class ApplicationStatus:
         """
         return self._modules
 
-    # pylint: disable=unused-argument
     @modules.setter
     def modules(self, value):
-        module_data = {}
-        for name, module in sorted(sys.modules.items()):
-            if hasattr(module, "__version__"):
-                module_data[str(name)] = str(module.__version__)
-        # pylint: disable=attribute-defined-outside-init
+        module_data = {
+            str(name): str(module.__version__)
+            for name, module in sorted(sys.modules.items())
+            if hasattr(module, "__version__")
+        }
         self._modules = module_data
 
     @property

@@ -18,6 +18,7 @@
 import logging
 
 from api.models import Provider
+from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.aws.aws_cost_model_cost_updater import AWSCostModelCostUpdater
 from masu.processor.azure.azure_cost_model_cost_updater import AzureCostModelCostUpdater
@@ -30,7 +31,6 @@ class CostModelCostUpdaterError(Exception):
     """Expired Data Removalerror."""
 
 
-# pylint: disable=too-few-public-methods
 class CostModelCostUpdater:
     """Update reporting summary tables."""
 
@@ -91,3 +91,4 @@ class CostModelCostUpdater:
         """
         if self._updater:
             self._updater.update_summary_cost_model_costs(start_date, end_date)
+            invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)

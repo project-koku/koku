@@ -138,7 +138,7 @@ class IamTestCase(TestCase):
             "entitlements": {"cost_management": {"is_entitled": is_cost_management}},
         }
         json_identity = json_dumps(identity)
-        mock_header = b64encode(json_identity.encode("utf-8"))
+        mock_header = b64encode(json_identity.encode("utf-8")).decode("utf-8")
         request = Mock()
         request.META = {RH_IDENTITY_HEADER: mock_header}
         if create_user:
@@ -170,7 +170,6 @@ class IamTestCase(TestCase):
         return query_params
 
 
-# pylint: disable=too-few-public-methods,protected-access
 class RbacPermissions:
     """A decorator class for running tests with a custom identity.
 
