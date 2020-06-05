@@ -937,8 +937,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         ON li.meter_id = m.id
     JOIN cte_pod_project_cost as pc
         ON li.azure_id = pc.azure_id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
-        ON li.cluster_id = ab.cluster_id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_azurecostentrybill as ab
+        ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_date >= {{start_date}}::date
         AND li.usage_date <= {{end_date}}::date
     -- Dedup on azure line item so we never double count usage or cost
@@ -979,8 +979,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         ON li.azure_id = pc.azure_id
     LEFT JOIN reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.azure_id = li.azure_id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
-        ON li.cluster_id = ab.cluster_id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_azurecostentrybill as ab
+        ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_date >= {{start_date}}::date
         AND li.usage_date <= {{end_date}}::date
         AND ulid.azure_id IS NULL
@@ -1028,8 +1028,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         ON li.cost_entry_product_id = p.id
     JOIN {{schema | sqlsafe}}.reporting_azuremeter as m
         ON li.meter_id = m.id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
-        ON li.cluster_id = ab.cluster_id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_azurecostentrybill as ab
+        ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_date >= {{start_date}}::date
         AND li.usage_date <= {{end_date}}::date
     -- Grouping by OCP this time for the by project view
@@ -1079,8 +1079,8 @@ JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice AS p
         ON li.meter_id = m.id
     LEFT JOIN reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.azure_id = li.azure_id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
-        ON li.cluster_id = ab.cluster_id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_azurecostentrybill as ab
+        ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_date >= {{start_date}}::date
         AND li.usage_date <= {{end_date}}::date
         AND ulid.azure_id IS NULL

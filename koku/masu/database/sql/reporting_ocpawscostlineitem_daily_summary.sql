@@ -980,8 +980,8 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         ON li.cost_entry_pricing_id = pr.id
     LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
-        ON li.cluster_id = ab.cluster_id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrybill as ab
+        ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_start >= {{start_date}}::date
         AND li.usage_start <= {{end_date}}::date
     -- Dedup on AWS line item so we never double count usage or cost
@@ -1027,8 +1027,8 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         ON li.usage_account_id = aa.account_id
     LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.aws_id = li.aws_id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
-        ON li.cluster_id = ab.cluster_id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrybill as ab
+        ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_start >= {{start_date}}::date
         AND li.usage_start <= {{end_date}}::date
         AND ulid.aws_id IS NULL
@@ -1081,8 +1081,8 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         ON li.cost_entry_pricing_id = pr.id
     LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
-        ON li.cluster_id = ab.cluster_id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrybill as ab
+        ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_start >= {{start_date}}::date
         AND li.usage_start <= {{end_date}}::date
     -- Grouping by OCP this time for the by project view
@@ -1137,8 +1137,8 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         ON li.usage_account_id = aa.account_id
     LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.aws_id = li.aws_id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
-        ON li.cluster_id = ab.cluster_id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrybill as ab
+        ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_start >= {{start_date}}::date
         AND li.usage_start <= {{end_date}}::date
         AND ulid.aws_id IS NULL

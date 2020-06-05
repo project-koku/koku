@@ -26,6 +26,7 @@ from api.report.ocp_aws.view import OCPAWSCostView
 from api.report.ocp_aws.view import OCPAWSInstanceTypeView
 from api.report.ocp_aws.view import OCPAWSStorageView
 from api.utils import DateHelper
+from reporting.models import AWSCostEntryBill
 from reporting.models import OCPAWSComputeSummary
 from reporting.models import OCPAWSCostLineItemDailySummary
 from reporting.models import OCPAWSCostSummary
@@ -35,7 +36,6 @@ from reporting.models import OCPAWSCostSummaryByService
 from reporting.models import OCPAWSDatabaseSummary
 from reporting.models import OCPAWSNetworkSummary
 from reporting.models import OCPAWSStorageSummary
-from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 
 class OCPAWSQueryHandlerTestNoData(IamTestCase):
@@ -370,7 +370,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         """Test source_uuid is mapped to the correct source."""
         endpoints = [OCPAWSCostView, OCPAWSInstanceTypeView, OCPAWSStorageView]
         with tenant_context(self.tenant):
-            expected_source_uuids = list(OCPUsageReportPeriod.objects.all().values_list("provider_id", flat=True))
+            expected_source_uuids = list(AWSCostEntryBill.objects.distinct().values_list("provider_id", flat=True))
         source_uuid_list = []
         for endpoint in endpoints:
             urls = ["?"]

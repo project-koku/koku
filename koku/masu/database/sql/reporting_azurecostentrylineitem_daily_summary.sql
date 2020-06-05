@@ -54,11 +54,13 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | s
 DELETE FROM {{schema | safe}}.reporting_azurecostentrylineitem_daily_summary
 WHERE usage_start >= {{start_date}}
     AND usage_start <= {{end_date}}
+    {% if bill_ids %}
     AND cost_entry_bill_id IN (
         {%- for bill_id in bill_ids  -%}
         {{bill_id}}{% if not loop.last %},{% endif %}
         {%- endfor -%}
     )
+    {% endif %}
 ;
 
 -- Populate the daily summary line item data

@@ -22,11 +22,12 @@ from api.report.all.openshift.query_handler import OCPAllReportQueryHandler
 from api.urls import OCPAllCostView
 from api.urls import OCPAllInstanceTypeView
 from api.urls import OCPAllStorageView
+from reporting.models import AWSCostEntryBill
+from reporting.models import AzureCostEntryBill
 from reporting.models import OCPAllComputeSummary
 from reporting.models import OCPAllDatabaseSummary
 from reporting.models import OCPAllNetworkSummary
 from reporting.models import OCPAllStorageSummary
-from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 COMPUTE_SUMMARY = OCPAllComputeSummary
 STORAGE_SUMMARY = OCPAllStorageSummary
@@ -89,7 +90,9 @@ class OCPAllQueryHandlerTest(IamTestCase):
         """Test source_uuid is mapped to the correct source."""
         endpoints = [OCPAllCostView, OCPAllInstanceTypeView, OCPAllStorageView]
         with tenant_context(self.tenant):
-            expected_source_uuids = list(OCPUsageReportPeriod.objects.all().values_list("provider_id", flat=True))
+            azure_uuids = list(AzureCostEntryBill.objects.distinct().values_list("provider_id", flat=True))
+            aws_uuids = list(AWSCostEntryBill.objects.distinct().values_list("provider_id", flat=True))
+            expected_source_uuids = azure_uuids + aws_uuids
         source_uuid_list = []
         for endpoint in endpoints:
             urls = ["?"]

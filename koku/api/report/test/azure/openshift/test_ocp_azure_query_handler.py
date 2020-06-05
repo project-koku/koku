@@ -38,6 +38,7 @@ from api.report.azure.openshift.view import OCPAzureInstanceTypeView
 from api.report.azure.openshift.view import OCPAzureStorageView
 from api.report.test.azure.helpers import AZURE_SERVICES
 from api.utils import DateHelper
+from reporting.models import AzureCostEntryBill
 from reporting.models import OCPAzureComputeSummary
 from reporting.models import OCPAzureCostLineItemDailySummary
 from reporting.models import OCPAzureCostSummary
@@ -47,7 +48,6 @@ from reporting.models import OCPAzureCostSummaryByService
 from reporting.models import OCPAzureDatabaseSummary
 from reporting.models import OCPAzureNetworkSummary
 from reporting.models import OCPAzureStorageSummary
-from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 LOG = logging.getLogger(__name__)
 
@@ -970,7 +970,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         """Test source_uuid is mapped to the correct source."""
         endpoints = [OCPAzureCostView, OCPAzureInstanceTypeView, OCPAzureStorageView]
         with tenant_context(self.tenant):
-            expected_source_uuids = list(OCPUsageReportPeriod.objects.all().values_list("provider_id", flat=True))
+            expected_source_uuids = list(AzureCostEntryBill.objects.distinct().values_list("provider_id", flat=True))
         source_uuid_list = []
         for endpoint in endpoints:
             urls = ["?"]
