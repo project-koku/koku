@@ -48,17 +48,16 @@
 #     REGISTRY_REDHAT_IO_SECRETS='/path/to/secrets/rh_registry.yml'  see: https://access.redhat.com/terms-based-registry/#/accounts for the file you need
 #     E2E_REPO='/path/to/e2e-deploy'
 
-set -e
+trap handle_errors ERR
+
+function handle_errors() {
+    echo "An error occurred on or around line $(caller). Unable to continue."
+    exit 1
+}
 
 ### login info
 OCP_USER=developer
 OCP_PASSWORD=developer
-
-if [[ "$OSTYPE" == "darwin"* ]]; then
-        KOKU_SECRETS=$PWD/e2e-secrets.yml
-else
-        KOKU_SECRETS=$(dirname $(readlink -f $0))/e2e-secrets.yml
-fi
 
 # Project names to use
 SECRETS_PROJECT=secrets
@@ -70,24 +69,34 @@ OC=$(which oc)
 OCDEPLOYER=$(which ocdeployer)
 IQE=$(which iqe)
 
+if [[ "$OSTYPE" == "darwin"* ]]; then
+        KOKU_SECRETS=$PWD/e2e-secrets.yml
+else
+        KOKU_SECRETS=$(dirname $(readlink -f $0))/e2e-secrets.yml
+fi
+
 ### validation
-if [ -z "$REGISTRY_REDHAT_IO_SECRETS" ]; then
-    echo 'Please specify a secrets file for registry.redhat.io using $REGISTRY_REDHAT_IO_SECRETS'
-    exit 1
-fi
-
-if [ -z "$E2E_REPO" ]; then
-    echo 'Please specify the location of the e2e-deploy repo using $E2E_REPO'
-    exit 1
-fi
-
-for cmd in "${OC}" "${OCDEPLOYER}" "${IQE}"; do
-    if [ -z ${cmd} ]; then
-        echo "Some dependencies were not found."
-        echo "Please ensure required commands are in your \$PATH"
-        exit 1
+function check_var() {
+    if [ -z ${!1:+x} ]; then
+        echo "Environment variable $1 is not set! Unable to continue."
+        exit 2
     fi
-done
+}
+
+check_var "REGISTRY_REDHAT_IO_SECRETS"
+check_var "E2E_REPO"
+check_var "OPENSHIFT_API_URL"
+
+echo <<EOF
+Building your environment using these settings:
+
+    OPENSHIFT_API_URL=${OPENSHIFT_API_URL}
+    BUILDFACTORY_PROJECT=${BUILDFACTORY_PROJECT}
+    DEPLOY_PROJECT=${DEPLOY_PROJECT}
+    SECRETS_PROJECT=${SECRETS_PROJECT}
+    DEPLOY_HCCM_OPTIONAL=${DEPLOY_HCCM_OPTIONAL}
+
+EOF
 
 pushd $E2E_REPO
 
@@ -118,8 +127,8 @@ if [ -f $REGISTRY_REDHAT_IO_SECRETS ]; then
     SECRET=$(cat $REGISTRY_REDHAT_IO_SECRETS | \
              python -c 'import yaml, sys; print(yaml.safe_load(sys.stdin).get("data").get(".dockerconfigjson"))' | \
              base64 $BASE64_DECODE)
-    # we need to install the pull secret into multiple projects because setting
-    # up a shared secret across projects is not well-supported by OCP <=4.2.
+
+    # this isn't a great way to set up the pull secrets, but it works for now.
     for project in "${BUILDFACTORY_PROJECT}" "${DEPLOY_PROJECT}" "${SECRETS_PROJECT}"; do
         echo ${SECRET} | ${OC} create secret generic rh-registry-pull-secret \
                                     --from-file=.dockerconfigjson=/dev/stdin \
@@ -173,7 +182,8 @@ else
 fi
 
 ### expose API route
-echo "Exposing API endpoint."
-${OC} expose service koku
+echo "Exposing API endpoints."
+${OC} expose service koku --generator="route/v1" --name=koku
+${OC} expose service koku-masu --generator="route/v1" --name=masu
 
 echo "Deployment completed successfully."
