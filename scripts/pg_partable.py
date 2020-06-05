@@ -858,6 +858,10 @@ cache %(cache_size)s
         }
         execute(conn, sql, values)
 
+        if s_spec.last_value:
+            sql = "select setval(%s::regclass, %s);"
+            execute(conn, sql, (f"{schema_name}.{s_spec.sequencename}", s_spec.last_value))
+
         sql = f"""
 alter table {schema_name}.{table_name}
 alter column {s_spec.column_name} set default nextval(%(seqname)s::regclass) ;
