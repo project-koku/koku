@@ -35,7 +35,6 @@ class CustomerDBAccessor(KokuDBAccess):
         self._customer_id = customer_id
         self._table = Customer
 
-    # pylint: disable=arguments-differ
     def _get_db_obj_query(self):
         """
         Return the sqlachemy query for the customer object.

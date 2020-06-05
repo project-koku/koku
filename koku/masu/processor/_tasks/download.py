@@ -31,8 +31,6 @@ from masu.providers.status import ProviderStatus
 LOG = get_task_logger(__name__)
 
 
-# disabled until the program flow stabilizes a bit more
-# pylint: disable=too-many-arguments,too-many-locals
 def _get_report_files(
     task, customer_name, authentication, billing_source, provider_type, provider_uuid, report_month, cache_key
 ):

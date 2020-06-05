@@ -15,9 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Azure Report Downloader."""
-# pylint: disable=fixme
-# disabled until we get travis to not fail on warnings, or the fixme is
-# resolved.
 import datetime
 import logging
 import os
@@ -49,8 +46,6 @@ class AzureReportDownloaderNoFileError(Exception):
 class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """Azure Cost and Usage Report Downloader."""
 
-    # Disabling this linter until we can refactor
-    # pylint: disable=too-many-arguments
     def __init__(self, task, customer_name, auth_credential, billing_source, report_name=None, **kwargs):
         """
         Constructor.

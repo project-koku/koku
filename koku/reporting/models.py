@@ -16,7 +16,6 @@
 #
 """Models for cost entry tables."""
 # flake8: noqa
-# pylint: disable=unused-import
 from reporting.provider.all.openshift.models import OCPAllComputeSummary
 from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummary
 from reporting.provider.all.openshift.models import OCPAllCostLineItemProjectDailySummary

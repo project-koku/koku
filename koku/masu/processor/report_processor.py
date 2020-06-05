@@ -39,8 +39,6 @@ class ReportProcessorDBError(Exception):
     """Report Processor database error."""
 
 
-# pylint: disable=too-few-public-methods
-# pylint: disable=too-many-arguments
 class ReportProcessor:
     """Interface for masu to use to processor CUR."""
 

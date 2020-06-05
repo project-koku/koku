@@ -15,9 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """AWS Local Report Downloader."""
-# pylint: skip-file
-# Having trouble disabling the lint warning for duplicate-code (AWSReportDownloader..)
-# Disabling pylint on this file since AWSLocalReportDownloader is a DEBUG feature.
 import datetime
 import hashlib
 import json
@@ -46,8 +43,6 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     empty_manifest = {"reportKeys": []}
 
-    # Disabling this linter until we can refactor
-    # pylint: disable=too-many-arguments
     def __init__(self, task, customer_name, auth_credential, bucket, report_name=None, **kwargs):
         """
         Constructor.

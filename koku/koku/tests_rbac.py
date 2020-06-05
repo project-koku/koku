@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from prometheus_client import REGISTRY
-from requests.exceptions import ConnectionError  # pylint: disable=W0622
+from requests.exceptions import ConnectionError
 from rest_framework import status
 
 from koku.rbac import _apply_access
@@ -40,7 +40,7 @@ LIMITED_AWS_ACCESS = {
 }
 
 
-class MockResponse:  # pylint: disable=too-few-public-methods
+class MockResponse:
     """Mock response object for testing."""
 
     def __init__(self, json_data, status_code, exception=None):
@@ -56,47 +56,47 @@ class MockResponse:  # pylint: disable=too-few-public-methods
         return self.json_data
 
 
-def mocked_requests_get_404_json(*args, **kwargs):  # pylint: disable=unused-argument
+def mocked_requests_get_404_json(*args, **kwargs):
     """Mock invalid response that returns json."""
     json_response = {"details": "Invalid path."}
     return MockResponse(json_response, status.HTTP_404_NOT_FOUND)
 
 
-def mocked_requests_get_404_text(*args, **kwargs):  # pylint: disable=unused-argument
+def mocked_requests_get_404_text(*args, **kwargs):
     """Mock invalid response that returns non-json."""
     json_response = "Not JSON"
     return MockResponse(json_response, status.HTTP_404_NOT_FOUND)
 
 
-def mocked_requests_get_404_except(*args, **kwargs):  # pylint: disable=unused-argument
+def mocked_requests_get_404_except(*args, **kwargs):
     """Mock invalid response that returns non-json."""
     return MockResponse(None, status.HTTP_404_NOT_FOUND, JSONDecodeError("JSON Problem", "", 1))
 
 
-def mocked_requests_get_500_text(*args, **kwargs):  # pylint: disable=unused-argument
+def mocked_requests_get_500_text(*args, **kwargs):
     """Mock invalid response that returns non-json."""
     json_response = "Not JSON"
     return MockResponse(json_response, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-def mocked_requests_get_200_text(*args, **kwargs):  # pylint: disable=unused-argument
+def mocked_requests_get_200_text(*args, **kwargs):
     """Mock valid status response that returns non-json."""
     json_response = "Not JSON"
     return MockResponse(json_response, status.HTTP_200_OK)
 
 
-def mocked_requests_get_200_except(*args, **kwargs):  # pylint: disable=unused-argument
+def mocked_requests_get_200_except(*args, **kwargs):
     """Mock valid status response that raises an excecption."""
     return MockResponse(None, status.HTTP_200_OK, ValueError("Decode Problem"))
 
 
-def mocked_requests_get_200_no_next(*args, **kwargs):  # pylint: disable=unused-argument
+def mocked_requests_get_200_no_next(*args, **kwargs):
     """Mock valid status response that has no next."""
     json_response = {"links": {"next": None}, "data": [LIMITED_AWS_ACCESS]}
     return MockResponse(json_response, status.HTTP_200_OK)
 
 
-def mocked_requests_get_200_next(*args, **kwargs):  # pylint: disable=unused-argument
+def mocked_requests_get_200_next(*args, **kwargs):
     """Mock valid status response that has no next."""
     json_response = {"links": {"next": "/v1/access/?limit=10&offset=200"}, "data": [LIMITED_AWS_ACCESS]}
     if "limit" in args[0]:
@@ -105,7 +105,7 @@ def mocked_requests_get_200_next(*args, **kwargs):  # pylint: disable=unused-arg
     return MockResponse(json_response, status.HTTP_200_OK)
 
 
-def mocked_get_operation(access_item, res_type):  # pylint: disable=unused-argument
+def mocked_get_operation(access_item, res_type):
     """Mock value error for get operation."""
     raise ValueError("Invalid wildcard for invalid res type.")
 
@@ -118,7 +118,7 @@ class RbacServiceTest(TestCase):
         """Test handling of request with non-200 response and json error."""
         rbac = RbacService()
         url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
-        access = rbac._request_user_access(url, headers={})  # pylint: disable=protected-access
+        access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [])
         mock_get.assert_called()
 
@@ -128,14 +128,14 @@ class RbacServiceTest(TestCase):
         rbac = RbacService()
         url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
         with self.assertRaises(RbacConnectionError):
-            rbac._request_user_access(url, headers={})  # pylint: disable=protected-access
+            rbac._request_user_access(url, headers={})
 
     @patch("koku.rbac.requests.get", side_effect=mocked_requests_get_404_text)
     def test_non_200_error_text(self, mock_get):
         """Test handling of request with non-200 response and non-json error."""
         rbac = RbacService()
         url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
-        access = rbac._request_user_access(url, headers={})  # pylint: disable=protected-access
+        access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [])
         mock_get.assert_called()
 
@@ -146,7 +146,7 @@ class RbacServiceTest(TestCase):
         url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
         logging.disable(logging.NOTSET)
         with self.assertLogs(logger="koku.rbac", level=logging.WARNING):
-            access = rbac._request_user_access(url, headers={})  # pylint: disable=protected-access
+            access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [])
         mock_get.assert_called()
 
@@ -155,7 +155,7 @@ class RbacServiceTest(TestCase):
         """Test handling of request with 200 response and non-json error."""
         rbac = RbacService()
         url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
-        access = rbac._request_user_access(url, headers={})  # pylint: disable=protected-access
+        access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [])
         mock_get.assert_called()
 
@@ -164,7 +164,7 @@ class RbacServiceTest(TestCase):
         """Test handling of request with 200 response and raises a json error."""
         rbac = RbacService()
         url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
-        access = rbac._request_user_access(url, headers={})  # pylint: disable=protected-access
+        access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [])
         mock_get.assert_called()
 
@@ -173,7 +173,7 @@ class RbacServiceTest(TestCase):
         """Test handling of request with 200 response with no next link."""
         rbac = RbacService()
         url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
-        access = rbac._request_user_access(url, headers={})  # pylint: disable=protected-access
+        access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [LIMITED_AWS_ACCESS])
         mock_get.assert_called()
 
@@ -182,7 +182,7 @@ class RbacServiceTest(TestCase):
         """Test handling of request with 200 response with next link."""
         rbac = RbacService()
         url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
-        access = rbac._request_user_access(url, headers={})  # pylint: disable=protected-access
+        access = rbac._request_user_access(url, headers={})
         self.assertEqual(access, [LIMITED_AWS_ACCESS, LIMITED_AWS_ACCESS])
         mock_get.assert_called()
 
@@ -193,7 +193,7 @@ class RbacServiceTest(TestCase):
         rbac = RbacService()
         url = f"{rbac.protocol}://{rbac.host}:{rbac.port}{rbac.path}"
         with self.assertRaises(RbacConnectionError):
-            rbac._request_user_access(url, headers={})  # pylint: disable=protected-access
+            rbac._request_user_access(url, headers={})
         after = REGISTRY.get_sample_value("rbac_connection_errors_total")
         self.assertEqual(1, after - before)
         mock_get.assert_called()
@@ -201,7 +201,7 @@ class RbacServiceTest(TestCase):
     def test_process_acls_bad_permission(self):
         """Test function of _process_acls with a bad permission format."""
         acls = [{"permission": "bad_permission"}]
-        access = _process_acls(acls)  # pylint: disable=protected-access
+        access = _process_acls(acls)
         self.assertIsNone(access)
 
     def test_process_acls_multiple(self):
@@ -221,7 +221,7 @@ class RbacServiceTest(TestCase):
                 ],
             },
         ]
-        access = _process_acls(acls)  # pylint: disable=protected-access
+        access = _process_acls(acls)
         expected = {
             "provider": [
                 {"operation": "read", "resources": ["*"]},
@@ -242,7 +242,7 @@ class RbacServiceTest(TestCase):
     def test_apply_access_except(self, mock_get_operation):
         """Test handling exception _get_operation used in apply access method."""
         processed_acls = {"*": [{"operation": "*", "resources": ["1", "3"]}]}
-        res_access = _apply_access(processed_acls)  # pylint: disable=protected-access
+        res_access = _apply_access(processed_acls)
         rw_access = {"write": [], "read": []}
         read_access = {"read": []}
         expected = {
@@ -260,7 +260,7 @@ class RbacServiceTest(TestCase):
 
     def test_apply_access_none(self):
         """Test handling none input for apply access method."""
-        res_access = _apply_access(None)  # pylint: disable=protected-access
+        res_access = _apply_access(None)
         rw_access = {"write": [], "read": []}
         read_access = {"read": []}
         expected = {
@@ -278,7 +278,7 @@ class RbacServiceTest(TestCase):
     def test_apply_access_all_wildcard(self):
         """Test handling of wildcard data for apply access method."""
         processed_acls = {"*": [{"operation": "*", "resources": ["1", "3"]}]}
-        res_access = _apply_access(processed_acls)  # pylint: disable=protected-access
+        res_access = _apply_access(processed_acls)
         rw_access = {"write": ["1", "3"], "read": ["1", "3"]}
         read_access = {"read": ["1", "3"]}
         expected = {
@@ -298,7 +298,7 @@ class RbacServiceTest(TestCase):
         processed_acls = {
             "*": [{"operation": "write", "resources": ["1", "3"]}, {"operation": "read", "resources": ["2"]}]
         }
-        res_access = _apply_access(processed_acls)  # pylint: disable=protected-access
+        res_access = _apply_access(processed_acls)
         rw_access = {"write": ["1", "3"], "read": ["1", "3", "2"]}
         read_access = {"read": ["2"]}
         expected = {
@@ -318,7 +318,7 @@ class RbacServiceTest(TestCase):
         processed_acls = {
             "provider": [{"operation": "write", "resources": ["1", "3"]}, {"operation": "read", "resources": ["2"]}]
         }
-        res_access = _apply_access(processed_acls)  # pylint: disable=protected-access
+        res_access = _apply_access(processed_acls)
         op_access = {"write": ["1", "3"], "read": ["1", "3", "2"]}
         no_rw_access = {"write": [], "read": []}
         no_access = {"read": []}
@@ -341,7 +341,7 @@ class RbacServiceTest(TestCase):
             "rate": [{"operation": "*", "resources": ["*"]}],
             "aws.account": [{"operation": "read", "resources": ["myaccount"]}],
         }
-        res_access = _apply_access(processed_acls)  # pylint: disable=protected-access
+        res_access = _apply_access(processed_acls)
         op_access = {"read": ["myaccount"]}
         rw_access = {"write": ["*"], "read": ["*"]}
         no_access = {"read": []}

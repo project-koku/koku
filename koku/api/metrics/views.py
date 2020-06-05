@@ -29,7 +29,7 @@ from rest_framework.exceptions import APIException
 from rest_framework.renderers import JSONRenderer
 from rest_framework.settings import api_settings
 
-from api.common import RH_IDENTITY_HEADER
+from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.pagination import ListPaginator
 from api.metrics import constants as metric_constants
 from api.metrics.serializers import QueryParamsSerializer
@@ -40,7 +40,7 @@ LOG = logging.getLogger(__name__)
 @api_view(["GET"])  # noqa: C901
 @permission_classes((permissions.AllowAny,))
 @renderer_classes([JSONRenderer] + api_settings.DEFAULT_RENDERER_CLASSES)
-@vary_on_headers(RH_IDENTITY_HEADER)
+@vary_on_headers(CACHE_RH_IDENTITY_HEADER)
 def metrics(request):
     """Provide the openapi information."""
     source_type = request.query_params.get("source_type")

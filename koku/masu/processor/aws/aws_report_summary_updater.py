@@ -29,7 +29,6 @@ from masu.util.common import date_range_pair
 LOG = logging.getLogger(__name__)
 
 
-# pylint: disable=too-few-public-methods
 class AWSReportSummaryUpdater:
     """Class to update AWS report summary data."""
 

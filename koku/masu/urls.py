@@ -31,5 +31,4 @@ if API_PATH_PREFIX != "":
     if not API_PATH_PREFIX.endswith("/"):
         API_PATH_PREFIX = API_PATH_PREFIX + "/"
 
-# pylint: disable=invalid-name
 urlpatterns = [url(fr"^{API_PATH_PREFIX}v1/", include("masu.api.urls")), path("", include("django_prometheus.urls"))]
