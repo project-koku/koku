@@ -290,8 +290,6 @@ CREATE UNIQUE INDEX aws_cost_summary_region
 ON reporting_aws_cost_summary_by_region (usage_start, region, availability_zone, source_uuid)
 ;
 
--- TODO: I am not sure if I did this one corrently
-
 CREATE MATERIALIZED VIEW reporting_aws_compute_summary AS(
 SELECT ROW_NUMBER() OVER(ORDER BY c.usage_start, c.instance_type) AS id,
        c.usage_start,
@@ -793,8 +791,6 @@ CREATE MATERIALIZED VIEW reporting_azure_cost_summary_by_service AS(
 CREATE UNIQUE INDEX azure_cost_summary_service
 ON reporting_azure_cost_summary_by_service (usage_start, service_name, source_uuid)
 ;
-
--- TODO: I am not sure if I did this one correct
 
 CREATE MATERIALIZED VIEW reporting_azure_compute_summary AS(
 SELECT ROW_NUMBER() OVER(ORDER BY c.usage_start, c.instance_type) AS id,

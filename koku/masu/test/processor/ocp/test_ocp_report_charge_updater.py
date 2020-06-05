@@ -210,7 +210,6 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             tier_charge = self.updater._calculate_variable_charge(usage, rate_json)
             self.assertEqual(tier_charge, expected_results.get(key))
 
-    # TODO: Fix this Cody
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     def test_update_markup_cost(self, mock_cost_accessor):
         """Test that markup is calculated."""
