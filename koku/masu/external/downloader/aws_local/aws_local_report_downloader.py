@@ -156,8 +156,13 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             report_dict["manifest_id"] = manifest_id
             report_dict["assembly_id"] = manifest.get("assemblyId")
             report_dict["compression"] = "GZIP"
+
             files_list = [
-                {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("reportKeys")
+                {
+                    "key": f"{self._get_report_path(date_time)}/{manifest.get('assemblyId')}/{os.path.basename(key)}",
+                    "local_file": self.get_local_file_for_report(key),
+                }
+                for key in manifest.get("reportKeys")
             ]
             report_dict["files"] = files_list
         return report_dict

@@ -76,12 +76,14 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
     )
 
     processor.process()
+    LOG.info(f"FINISHING PROCESSING: {report_path}")
     with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
         stats_recorder.log_last_completed_datetime()
 
     with ReportManifestDBAccessor() as manifest_accesor:
         manifest = manifest_accesor.get_manifest_by_id(manifest_id)
         if manifest:
+            LOG.info(f"FINISHING PROCESSING +1 FILES for: {report_path}. Was {manifest.num_processed_files}")
             manifest.num_processed_files += 1
             manifest.save()
             manifest_accesor.mark_manifest_as_updated(manifest)
