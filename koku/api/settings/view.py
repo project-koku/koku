@@ -26,7 +26,6 @@ from rest_framework.views import APIView
 
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.settings.ocp import OpenShiftSettings
-from api.settings.utils import OPENSHIFT_SETTINGS_PREFIX
 
 LOG = logging.getLogger(__name__)
 SETTINGS_GENERATORS = {"OCP": OpenShiftSettings}
@@ -44,8 +43,7 @@ class SettingsView(APIView):
         """
         Return a list of all settings.
         """
-        tabs = self._build_tabs(request)
-        settings = [{"fields": [tabs]}]
+        settings = self._build_settings(request)
         return Response(settings)
 
     def post(self, request):
@@ -58,11 +56,10 @@ class SettingsView(APIView):
             instance.handle_settings(request.data)
         return Response()
 
-    def _build_tabs(self, request):
-        tab_items = []
+    def _build_settings(self, request):
+        settings = []
         for settings_clazz in SETTINGS_GENERATORS.values():
             instance = settings_clazz(request)
-            tab_items += instance.build_tabs()
+            settings += instance.build_settings()
 
-        tabs = {"name": f"{OPENSHIFT_SETTINGS_PREFIX}.tabs", "fields": tab_items, "component": "tabs"}
-        return tabs
+        return settings
