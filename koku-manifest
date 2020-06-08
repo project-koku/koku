@@ -14,7 +14,7 @@ mgmt_services/cost-mgmt:koku/python-boto3:1.13.24.pipfile
 mgmt_services/cost-mgmt:koku/python-botocore:1.16.24.pipfile
 mgmt_services/cost-mgmt:koku/python-bs4:0.0.1.pipfile
 mgmt_services/cost-mgmt:koku/python-cachetools:4.1.0.pipfile
-mgmt_services/cost-mgmt:koku/python-celery:4.4.4.pipfile
+mgmt_services/cost-mgmt:koku/python-celery:4.4.5.pipfile
 mgmt_services/cost-mgmt:koku/python-celery-prometheus-exporter:1.7.0.pipfile
 mgmt_services/cost-mgmt:koku/python-certifi:2020.4.5.2.pipfile
 mgmt_services/cost-mgmt:koku/python-cffi:1.14.0.pipfile
