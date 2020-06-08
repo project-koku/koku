@@ -41,6 +41,7 @@ from django.db import OperationalError
 from kafka.errors import KafkaError
 
 from masu.config import Config
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
@@ -48,8 +49,9 @@ from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownload
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
+from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
-from masu.processor.tasks import summarize_manifest
+from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
 
@@ -247,6 +249,7 @@ def extract_payload(url):  # noqa: C901
         try:
             shutil.copy(payload_source_path, payload_destination_path)
             current_meta["current_file"] = payload_destination_path
+            record_all_manifest_files(report_meta["manifest_id"], report_meta.get("files"))
             if not record_report_status(report_meta["manifest_id"], report_file):
                 LOG.info("Successfully extracted OCP for %s/%s", report_meta.get("cluster_id"), usage_month)
                 report_metas.append(current_meta)
@@ -445,6 +448,40 @@ def report_metas_complete(report_metas):
         else:
             process_complete = True
     return process_complete
+
+
+def summarize_manifest(report_meta):
+    """
+    Kick off manifest summary when all report files have completed line item processing.
+
+    Args:
+        report (Dict) - keys: value
+                        schema_name: String,
+                        manifest_id: Integer,
+                        provider_uuid: String,
+                        provider_type: String,
+
+    Returns:
+        Celery Async UUID.
+
+    """
+    async_id = None
+    schema_name = report_meta.get("schema_name")
+    manifest_id = report_meta.get("manifest_id")
+    provider_uuid = report_meta.get("provider_uuid")
+    schema_name = report_meta.get("schema_name")
+    provider_type = report_meta.get("provider_type")
+
+    with ReportManifestDBAccessor() as manifest_accesor:
+        if manifest_accesor.manifest_ready_for_summary(manifest_id):
+            report_meta = {
+                "schema_name": schema_name,
+                "provider_type": provider_type,
+                "provider_uuid": provider_uuid,
+                "manifest_id": manifest_id,
+            }
+            async_id = summarize_reports.delay([report_meta])
+    return async_id
 
 
 async def process_messages(msg, loop=EVENT_LOOP):

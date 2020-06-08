@@ -57,6 +57,13 @@ from reporting.models import OCP_MATERIALIZED_VIEWS
 LOG = get_task_logger(__name__)
 
 
+def record_all_manifest_files(manifest_id, report_files):
+    """Store all report file names for manifest ID."""
+    for report in report_files:
+        with ReportStatsDBAccessor(report, manifest_id):
+            LOG.debug(f"Logging {report} for manifest ID: {manifest_id}")
+
+
 def record_report_status(manifest_id, file_name):
     """
     Creates initial report status database entry for new report files.
@@ -96,6 +103,12 @@ def get_report_manifest(
     manifest = _get_report_manifest(
         self, customer_name, authentication, billing_source, provider_type, provider_uuid, month, cache_key
     )
+
+    if manifest:
+        LOG.info("Saving all manifest file names.")
+        record_all_manifest_files(
+            manifest["manifest_id"], [report.get("local_file") for report in manifest.get("files", [])]
+        )
 
     LOG.info(f"Found Manifests: {str(manifest)}")
     report_files = manifest.get("files", [])
@@ -226,9 +239,10 @@ def get_report_files(
 
     WorkerCache().remove_task_from_cache(cache_key)
 
-    if report_meta:
-        async_id = summarize_manifest.delay(report_meta)
-        LOG.info(f"Check for summary celery ID: {async_id}")
+    with ReportManifestDBAccessor() as manifest_accesor:
+        if manifest_accesor.manifest_ready_for_summary(manifest_id) and report_meta:
+            async_id = summarize_reports.delay([report_meta])
+            LOG.info(f"Check for summary celery ID: {async_id}")
     return report_meta
 
 
@@ -257,42 +271,6 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, lin
     LOG.info(stmt)
     _remove_expired_data(schema_name, provider, simulate, provider_uuid, line_items_only)
     refresh_materialized_views.delay(schema_name, provider)
-
-
-@app.task(name="masu.processor.tasks.summarize_manifest", queue_name="process")
-def summarize_manifest(report_meta):
-    """
-    Kick off manifest summary when all report files have completed line item processing.
-
-    Args:
-        report (Dict) - keys: value
-                        schema_name: String,
-                        manifest_id: Integer,
-                        provider_uuid: String,
-                        provider_type: String,
-
-    Returns:
-        Celery Async UUID.
-
-    """
-    async_id = None
-    schema_name = report_meta.get("schema_name")
-    manifest_id = report_meta.get("manifest_id")
-    provider_uuid = report_meta.get("provider_uuid")
-    schema_name = report_meta.get("schema_name")
-    provider_type = report_meta.get("provider_type")
-
-    with ReportManifestDBAccessor() as manifest_accesor:
-        manifest = manifest_accesor.get_manifest_by_id(manifest_id)
-        if manifest.num_processed_files == manifest.num_total_files:
-            report_meta = {
-                "schema_name": schema_name,
-                "provider_type": provider_type,
-                "provider_uuid": provider_uuid,
-                "manifest_id": manifest_id,
-            }
-            async_id = summarize_reports.delay([report_meta])
-    return async_id
 
 
 @app.task(name="masu.processor.tasks.summarize_reports", queue_name="process")

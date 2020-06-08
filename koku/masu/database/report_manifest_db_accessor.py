@@ -16,6 +16,7 @@
 #
 """Report manifest database accessor for cost usage reports."""
 from celery.utils.log import get_task_logger
+from django.db import transaction
 from django.db.models import F
 from django.db.models.expressions import Window
 from django.db.models.functions import RowNumber
@@ -38,6 +39,15 @@ class ReportManifestDBAccessor(KokuDBAccess):
         super().__init__(self._schema)
         self._table = CostUsageReportManifest
         self.date_accessor = DateAccessor()
+
+    @classmethod
+    def increment_file_process_count(cls, manifest_id):
+        """Increment manifest processed report count."""
+        with transaction.atomic():
+            with schema_context("public"):
+                manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
+                manifest.num_processed_files += 1
+                manifest.save()
 
     def get_manifest(self, assembly_id, provider_uuid):
         """Get the manifest associated with the provided provider and id."""
@@ -90,6 +100,10 @@ class ReportManifestDBAccessor(KokuDBAccess):
             kwargs["provider_id"] = uuid
 
         return super().add(**kwargs)
+
+    def manifest_ready_for_summary(self, manifest_id):
+        """Determine if the manifest is ready to summarize."""
+        return not self.is_last_completed_datetime_null(manifest_id)
 
     def is_last_completed_datetime_null(self, manifest_id):
         """Determine if nulls exist in last_completed_datetime for manifest_id.
