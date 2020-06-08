@@ -38,8 +38,6 @@ class ReportDownloaderError(Exception):
     """Report Downloader error."""
 
 
-# pylint: disable=too-few-public-methods
-# pylint: disable=too-many-arguments
 class ReportDownloader:
     """Interface for masu to use to get CUR accounts."""
 

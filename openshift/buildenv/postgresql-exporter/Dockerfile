@@ -7,7 +7,7 @@ RUN yum -y update && \
 
 RUN mkdir -p /opt/app-root/{src,bin,etc}
 
-ENV GO_TOOLSET_VERSION 1.12
+ENV GO_TOOLSET_VERSION 1.13
 
 ENV LC_ALL=en_US.UTF-8 \
     LANG=en_US.UTF-8 \

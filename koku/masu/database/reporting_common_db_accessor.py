@@ -23,7 +23,6 @@ from masu.database.koku_database_access import KokuDBAccess
 class ReportingCommonDBAccessor(KokuDBAccess):
     """Class to interact with customer reporting tables."""
 
-    # pylint: disable=too-few-public-methods
     class ReportingCommonSchema:
         """A container for the shared reporting table objects."""
 
@@ -44,7 +43,6 @@ class ReportingCommonDBAccessor(KokuDBAccess):
             if "region_mapping" in model._meta.db_table:
                 setattr(self, f"_{model._meta.db_table}", model)
 
-    # pylint: disable=arguments-differ
     def _get_db_obj_query(self, table_name):
         """Create a query for a database object.
 

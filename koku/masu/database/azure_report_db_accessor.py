@@ -38,7 +38,6 @@ from reporting.provider.azure.models import AzureMeter
 LOG = logging.getLogger(__name__)
 
 
-# pylint: disable=too-many-public-methods
 class AzureReportDBAccessor(ReportDBAccessorBase):
     """Class to interact with Azure Report reporting tables."""
 
@@ -87,7 +86,6 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
 
             return {(meter["meter_id"]): meter["id"] for meter in meters}
 
-    # pylint: disable=invalid-name
     def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
         table_name = AzureCostEntryBill

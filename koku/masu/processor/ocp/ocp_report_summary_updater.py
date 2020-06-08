@@ -15,7 +15,6 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Updates report summary tables in the database."""
-# pylint: skip-file
 import calendar
 import logging
 

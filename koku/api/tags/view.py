@@ -18,12 +18,13 @@
 import logging
 
 from django.http import Http404
+from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 
-from api.common import RH_IDENTITY_HEADER
+from api.common import CACHE_RH_IDENTITY_HEADER
 from api.query_params import QueryParameters
 from api.report.view import get_paginator
 from api.report.view import ReportView
@@ -36,7 +37,7 @@ class TagView(ReportView):
 
     report = "tags"
 
-    @vary_on_headers(RH_IDENTITY_HEADER)
+    @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def get(self, request, **kwargs):
         """Get Report Data.
 

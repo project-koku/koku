@@ -70,7 +70,6 @@ class SourcesSerializer(serializers.ModelSerializer):
     )
     uuid = serializers.SerializerMethodField("get_source_uuid", read_only=True)
 
-    # pylint: disable=too-few-public-methods
     class Meta:
         """Metadata for the serializer."""
 

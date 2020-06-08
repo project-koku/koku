@@ -29,12 +29,12 @@ from api.iam.models import User
 LOG = logging.getLogger(__name__)
 
 
-class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=too-few-public-methods
+class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):
     """Middleware to add 3scale header for development."""
 
     header = RH_IDENTITY_HEADER
 
-    def process_request(self, request):  # pylint: disable=no-self-use
+    def process_request(self, request):
         """Inject an identity header for development purposes.
 
         Note: This identity object is still processed by koku.middleware.IdentityHeaderMiddleware
@@ -84,5 +84,5 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=t
             request.user = user
             json_identity = json.dumps(identity_header)
             LOG.info("Identity: %s", json_identity)
-            dev_header = b64encode(json_identity.encode("utf-8"))
+            dev_header = b64encode(json_identity.encode("utf-8")).decode("utf-8")
             request.META[self.header] = dev_header

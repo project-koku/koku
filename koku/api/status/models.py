@@ -24,14 +24,14 @@ import sys
 from api import API_VERSION
 from koku.rbac import RbacService
 
-logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+logger = logging.getLogger(__name__)
 
 
 class Status:
     """A server's status."""
 
     @property
-    def commit(self):  # pylint: disable=R0201
+    def commit(self):
         """Collect the build number for the server.
 
         :returns: A build number
@@ -44,7 +44,7 @@ class Status:
         return commit_info
 
     @property
-    def platform_info(self):  # pylint: disable=R0201
+    def platform_info(self):
         """Collect the platform information.
 
         :returns: A dictionary of platform data
@@ -52,7 +52,7 @@ class Status:
         return platform.uname()._asdict()
 
     @property
-    def python_version(self):  # pylint: disable=R0201
+    def python_version(self):
         """Collect the python version information.
 
         :returns: The python version string.
@@ -60,7 +60,7 @@ class Status:
         return sys.version.replace("\n", "")
 
     @property
-    def modules(self):  # pylint: disable=R0201
+    def modules(self):
         """Collect the installed modules.
 
         :returns: A dictonary of module names and versions.
