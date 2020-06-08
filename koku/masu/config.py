@@ -90,6 +90,10 @@ class Config:
     # Processing intermediate report storage
     TMP_DIR = f"{PVC_DIR}/processing"
 
+    # S3 path root for warehoused data
+    WAREHOUSE_PATH = "data"
+    CSV_DATA_TYPE = "csv"
+
     # Celery settings
     CELERY_BROKER_URL = f"amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}"
     # CELERY_RESULT_BACKEND = f'amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}'
