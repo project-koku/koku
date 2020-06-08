@@ -19,7 +19,7 @@
 trap handle_errors ERR
 
 function handle_errors() {
-    echo "An error has occurred. Unable to continue."
+    echo "An error occurred on or around line $(caller). Unable to continue."
     exit 1
 }
 
