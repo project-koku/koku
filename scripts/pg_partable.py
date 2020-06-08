@@ -837,9 +837,76 @@ def range_interval_gen(interval_type, interval, partition_values):
         yield (start, end)
 
 
-def create_table_sequences(conn, schema_name, table_name, sequence_info):
+def get_primary_key_ix(table_info):
+    for i, c_spec in enumerate(table_info["constraints"]):
+        if c_spec.constraint_type == "p":
+            return i
+
+    return -1
+
+
+def find_column_index(table_info, column_name):
+    structure = table_info["structure"]
+    for i, coldef in enumerate(structure):
+        if coldef.column_name == column_name:
+            return i
+
+    return -1
+
+
+def add_new_sequence(table_info, sequence_spec):
+    new_sequence = object()
+    for key, val in sequence_spec.items():
+        setattr(new_sequence, key, val)
+    table_info["sequences"].insert(0, new_sequence)
+
+
+def process_table_primary_key(table_info):
+    pk_info = table_info.get("primary_key")
+    if pk_info:
+        pk_ix = get_primary_key_ix(table_info)
+        if pk_ix >= 0:
+            table_name = table_info["structure"][0].table_name
+            new_pk_spec = object()
+            setattr(new_pk_spec, "constraint_type", "p")
+            new_constraint_cols = []
+            for col_name, col_spec in pk_info:
+                new_seq_spec = col_spec.get("new_sequence")
+                if new_seq_spec:
+                    add_new_sequence(table_info, new_seq_spec)
+
+                new_constraint_cols.append(col_name)
+
+                orig_col_ix = find_column_index(table_info, col_name)
+                orig_col = table_info["structure"][orig_col_ix] if orig_col_ix >= 0 else object()
+                new_col = object()
+                setattr(new_col, "table_name", table_name)
+                setattr(new_col, "column_name", col_name)
+                setattr(new_col, "data_type", col_spec.get("data_type", orig_col.data_type))
+                setattr(new_col, "not_null", False)
+                setattr(new_col, "default", col_spec.get("default", orig_col.default))
+
+                if orig_col_ix >= 0:
+                    table_info["structure"][orig_col_ix] = new_col
+                else:
+                    table_info["structure"].insert(0, new_col)
+
+            setattr(new_pk_spec, "constraint_columns", new_constraint_cols)
+            table_info["constraints"][pk_ix] = new_pk_spec
+
+
+def create_table_trigger(conn, schema_name, table_info):
+    pass
+
+
+def create_table_sequences(conn, schema_name, table_name, table_info):
     LINFO(f"Creating sequences for table {schema_name}.{table_name}")
+    sequence_info = table_info["sequences"]
+    no_seq = {k for k, v in table_info["partition_info"].get("primary_key", {}) if v.get("copy_sequence")}
     for s_spec in sequence_info:
+        if s_spec.column_name in no_seq:
+            continue
+
         sql = f"""
 create sequence {schema_name}.{s_spec.sequencename} as {s_spec.data_type}
 increment by %(increment_by)s
@@ -900,6 +967,9 @@ def create_partitioned_table(conn, schema_name, table_info, partition_values):
     # Rename source sequences
     rename_source_sequences(conn, schema_name, table_name, table_info["sequences"])
 
+    # Handle any primary key redefinition
+    process_table_primary_key(table_info)
+
     # Create the main partitioned table
     sql = f"""{build_partitioned_table_sql(target_schema, table_info)}partition by {partition_type} ({partition_key});
 """
@@ -909,6 +979,8 @@ def create_partitioned_table(conn, schema_name, table_info, partition_values):
 
     # Create any sequences
     create_table_sequences(conn, target_schema, "p_" + table_name, table_info["sequences"])
+
+    # Handle any triggers
 
     # Add the constraints.
     create_partitioned_table_constraints(
@@ -959,7 +1031,8 @@ def create_partitioned_table_constraints(conn, schema_name, table_name, constrai
         for c_spec in constraint_info:
             sql = sqlprefix.format("p_" + c_spec.constraint_name)
             if c_spec.constraint_type == "p":
-                c_spec.constraint_columns.insert(0, partition_key)
+                if partition_key not in c_spec.constraint_columns:
+                    c_spec.constraint_columns.insert(0, partition_key)
                 sql += f'PRIMARY KEY ({", ".join(c_spec.constraint_columns)});'
             else:
                 sql += c_spec.definition

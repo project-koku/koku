@@ -1,11 +1,147 @@
+# This file has two main sections:
+# partition_targets
+# stored_procedures
+#
+# If it exists, stored_procedures will be applied first
+# To apply to all schemata, use "*" for the partition or strored_procedure items
+# To omit a schema from either, then list it as <schema>: {}
+#
+# To make a new primary key, use the primary_key item in partition_targets section.
+# You can add existing columns to a new key or create columns or override a column
+# definition. To copy an existing sequence, use copy_sequence: 1. To create a new
+# sequence, specify all sequence options in a section under new_sequence. To omit
+# a new sequence, use new_sequence: {}.
+#
+# You can set a trigger on the partitioned table using the trigger section.
+#
+# When copying data from the original table, you can specify a column map from
+# which to build the statement to perform the copy. This should resolve to a dict
+# with the key being the partitioned table column and the value being the source
+# table column.
 partition_targets:
   '*':
     reporting_ocpusagelineitem_daily_summary:
       drop_table: 0
+      primary_key:
+        - usage_start: {}
+        - id:
+            type: text
+            default: null
+            copy_sequence: 0
+            new_sequence: {}
+      trigger:
+        - when: before
+          action: insert
+          columns: []
+          function: pre_trg_ocpusagelineitemdailysummary_pk
+          name: {table_name}_pk_pre_insert
+        - when: before
+          action: update
+          columns:
+            - usage_start
+            - cluster_id
+            - namespace
+            - node
+            - pod_labels
+          function: pre_trg_ocpusagelineitemdailysummary_pk
+          name: {table_name}_pk_pre_insert
       partition_key: usage_start
       partition_type: range
       range:
         interval: 1
         interval_type: month
-excluded_schemata:
-- 'public'
+      copy_column_map:
+        cluster_id: cluster_id
+        namespace: namespace
+        node: node
+        usage_start: usage_start
+        usage_end: usage_end
+        pod_usage_cpu_core_hours: pod_usage_cpu_core_hours
+        pod_request_cpu_core_hours: pod_request_cpu_core_hours
+        pod_limit_cpu_core_hours: pod_limit_cpu_core_hours
+        pod_usage_memory_gigabyte_hours: pod_usage_memory_gigabyte_hours
+        pod_request_memory_gigabyte_hours: pod_request_memory_gigabyte_hours
+        pod_limit_memory_gigabyte_hours: pod_limit_memory_gigabyte_hours
+        node_capacity_cpu_core_hours: node_capacity_cpu_core_hours
+        node_capacity_cpu_cores: node_capacity_cpu_cores
+        node_capacity_memory_gigabyte_hours: node_capacity_memory_gigabyte_hours
+        node_capacity_memory_gigabytes: node_capacity_memory_gigabytes
+        cluster_capacity_cpu_core_hours: cluster_capacity_cpu_core_hours
+        cluster_capacity_memory_gigabyte_hours: cluster_capacity_memory_gigabyte_hours
+        pod_labels: pod_labels
+        cluster_alias: cluster_alias
+        resource_id: resource_id
+        total_capacity_cpu_core_hours: total_capacity_cpu_core_hours
+        total_capacity_memory_gigabyte_hours: total_capacity_memory_gigabyte_hours
+        data_source: data_source
+        persistentvolume: persistentvolume
+        persistentvolumeclaim: persistentvolumeclaim
+        persistentvolumeclaim_capacity_gigabyte: persistentvolumeclaim_capacity_gigabyte
+        persistentvolumeclaim_capacity_gigabyte_months: persistentvolumeclaim_capacity_gigabyte_months
+        persistentvolumeclaim_usage_gigabyte_months: persistentvolumeclaim_usage_gigabyte_months
+        storageclass: storageclass
+        volume_labels: volume_labels
+        volume_request_storage_gigabyte_months: volume_request_storage_gigabyte_months
+        report_period_id: report_period_id
+        infrastructure_markup_cost: infrastructure_markup_cost
+        infrastructure_monthly_cost: infrastructure_monthly_cost
+        infrastructure_project_markup_cost: infrastructure_project_markup_cost
+        infrastructure_project_raw_cost: infrastructure_project_raw_cost
+        infrastructure_raw_cost: infrastructure_raw_cost
+        infrastructure_usage_cost: infrastructure_usage_cost
+        monthly_cost_type: monthly_cost_type
+        supplementary_monthly_cost: supplementary_monthly_cost
+        supplementary_usage_cost: supplementary_usage_cost
+  public: {}
+stored_procedures:
+  "*":
+    depends_on_schema: public
+    code:
+      - |-
+        create or replace function pre_trg_ocpusagelineitemdailysummary_pk() returns trigger as
+        $$
+        begin
+            if TG_OP in ('INSERT', 'UPDATE')
+            then
+                NEW.id = public.record_hash(NEW.usage_start::text,
+                                            NEW.cluster_id::text,
+                                            NEW.namespace::text,
+                                            NEW.node::text,
+                                            NEW.pod_labels::text);
+                return NEW;
+            else
+                return null;
+            end if;
+        end;
+        $$
+        language plpgsql;
+  public:
+    code:
+      - |-
+        create or replace function public.record_hash ( VARIADIC vals text[] ) returns text as
+        $$
+        declare
+            record_val text = '';
+            i int = 1;
+        begin
+            for i in 1 .. array_upper(vals, 1)
+            loop
+                if vals[i] is null
+                then
+                    vals[i] = '';
+                end if;
+                record_val = record_val || vals[i];
+            end loop;
+
+            if record_val = ''
+            then
+                record_val = null::text;
+            else
+                select encode(sha256(decode(record_val, 'escape')), 'hex') into record_val;
+            end if;
+
+            return record_val;
+        end;
+        $$
+        language plpgsql
+        returns null on null input;
