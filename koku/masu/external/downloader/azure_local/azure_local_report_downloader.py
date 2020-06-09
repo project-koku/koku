@@ -20,10 +20,12 @@ import logging
 import os
 import shutil
 
+from api.common import log_json
 from masu.config import Config
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderError
+from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.azure import common as utils
 from masu.util.common import extract_uuids_from_string
 
@@ -73,7 +75,8 @@ class AzureLocalReportDownloader(AzureReportDownloader):
         local_path = f"{self.local_storage}/{self.container_name}/{report_path}"
 
         if not os.path.exists(local_path):
-            LOG.error("Unable to find manifest.")
+            msg = f"Unable to find manifest: {local_path}."
+            LOG.error(log_json(self.request_id, msg, self.context))
             return manifest
 
         report_names = os.listdir(local_path)
@@ -97,7 +100,7 @@ class AzureLocalReportDownloader(AzureReportDownloader):
 
         return manifest
 
-    def download_file(self, key, stored_etag=None):
+    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
         Download a file from Azure bucket.
 
@@ -116,7 +119,20 @@ class AzureLocalReportDownloader(AzureReportDownloader):
         etag = etag_hasher.hexdigest()
 
         if etag != stored_etag:
-            LOG.info("Downloading %s to %s", key, full_file_path)
+            msg = f"Downloading {key} to {full_file_path}"
+            LOG.info(log_json(self.request_id, msg, self.context))
             shutil.copy2(key, full_file_path)
-        LOG.info("Returning full_file_path: %s, etag: %s", full_file_path, etag)
+            # Push to S3
+            copy_local_report_file_to_s3_bucket(
+                self.request_id,
+                self.account,
+                self._provider_uuid,
+                full_file_path,
+                local_filename,
+                manifest_id,
+                start_date,
+                self.context,
+            )
+        msg = f"Returning full_file_path: {full_file_path}, etag: {etag}"
+        LOG.info(log_json(self.request_id, msg, self.context))
         return full_file_path, etag
