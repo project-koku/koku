@@ -21,12 +21,14 @@ import os
 
 from django.conf import settings
 
+from api.common import log_json
 from masu.config import Config
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.azure import common as utils
 from masu.util.common import extract_uuids_from_string
 from masu.util.common import month_date_range
@@ -135,7 +137,8 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
         except AzureCostReportNotFound as ex:
-            LOG.info("Unable to find manifest. Error: %s", str(ex))
+            msg = f"Unable to find manifest. Error: {str(ex)}"
+            LOG.info(log_json(self.request_id, msg, self.context))
             return manifest
         report_name = blob.name
 
@@ -181,13 +184,13 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         if not should_download:
             manifest_id = self._get_existing_manifest_db_id(manifest_dict.get("assembly_id"))
-            stmt = (
+            msg = (
                 f"This manifest has already been downloaded and processed:\n"
                 f" schema_name: {self.customer_name},\n"
                 f" provider_uuid: {self._provider_uuid},\n"
                 f" manifest_id: {manifest_id}"
             )
-            LOG.info(stmt)
+            LOG.info(log_json(self.request_id, msg, self.context))
             return report_dict
 
         if manifest_dict:
@@ -219,7 +222,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """Get full path for local report file."""
         return utils.get_local_file_name(report)
 
-    def download_file(self, key, stored_etag=None):
+    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
         Download a file from Azure bucket.
 
@@ -237,12 +240,25 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             blob = self._azure_client.get_cost_export_for_key(key, self.container_name)
             etag = blob.etag
         except AzureCostReportNotFound as ex:
-            log_msg = f"Error when downloading Azure report for key: {key}. Error {ex}"
-            LOG.error(log_msg)
-            raise AzureReportDownloaderError(log_msg)
+            msg = f"Error when downloading Azure report for key: {key}. Error {ex}"
+            LOG.error(log_json(self.request_id, msg, self.context))
+            raise AzureReportDownloaderError(msg)
 
         if etag != stored_etag:
-            LOG.info("Downloading %s to %s", key, full_file_path)
+            msg = f"Downloading {key} to {full_file_path}"
+            LOG.info(log_json(self.request_id, msg, self.context))
             blob = self._azure_client.download_cost_export(key, self.container_name, destination=full_file_path)
-        LOG.info("Returning full_file_path: %s, etag: %s", full_file_path, etag)
+            # Push to S3
+            copy_local_report_file_to_s3_bucket(
+                self.request_id,
+                self.account,
+                self._provider_uuid,
+                full_file_path,
+                local_filename,
+                manifest_id,
+                start_date,
+                self.context,
+            )
+        msg = f"Returning full_file_path: {full_file_path}, etag: {etag}"
+        LOG.info(log_json(self.request_id, msg, self.context))
         return full_file_path, etag

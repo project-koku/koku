@@ -34,15 +34,17 @@ KOKU_PATH=$1
 START_DATE=$2
 END_DATE=$3
 
-if [ -z "${KOKU_API_HOSTNAME}" ]; then
-    echo "Please set the KOKU_API_HOSTNAME environment variable. Exiting."
-    exit 2
-fi
+### validation
+function check_var() {
+    if [ -z ${!1:+x} ]; then
+        echo "Environment variable $1 is not set! Unable to continue."
+        exit 2
+    fi
+}
 
-if [ -z "${MASU_API_HOSTNAME}" ]; then
-    echo "Please set the MASU_API_HOSTNAME environment variable. Exiting."
-    exit 2
-fi
+check_var KOKU_API_HOSTNAME
+check_var MASU_API_HOSTNAME
+check_var NISE_REPO_PATH
 
 KOKU_API=$KOKU_API_HOSTNAME
 MASU_API=$MASU_API_HOSTNAME
@@ -68,11 +70,6 @@ fi
 
 if [ -n "$MASU_PORT" ]; then
   MASU_API="$MASU_API_HOSTNAME:$MASU_PORT"
-fi
-
-if [ -z "$NISE_REPO_PATH" ]; then
-  echo "Please set NISE_REPO_PATH in your env"
-  exit
 fi
 
 CHECK=$(curl -s -w "%{http_code}\n" -L "$KOKU_API$API_PATH_PREFIX/v1/status/" -o /dev/null)
@@ -158,7 +155,11 @@ git checkout -- "$NISE_REPO_PATH/examples/ocp_on_azure/ocp_static_data.yml"
 if [[ $USE_OC == 1 ]]; then
     WORKER_POD="${KOKU_WORKER_POD_NAME:-koku-worker-0}"
     oc rsync --delete $KOKU_PATH/testing/pvc_dir/insights_local ${WORKER_POD}:/tmp
-    oc rsync --delete $KOKU_PATH/testing/local_providers/aws_local/* ${WORKER_POD}:/tmp/local_bucket
+    for SOURCEDIR in $(ls -1d $KOKU_PATH/testing/local_providers/aws_local*)
+    do
+        DESTDIR="${WORKER_POD}:$(echo $SOURCEDIR | sed 's#'$KOKU_PATH'#/tmp' | sed 's/aws_local/local_bucket/')"
+        oc rsync --delete $SOURCEDIR $DESTDIR
+    done
     oc rsync --delete $KOKU_PATH/testing/local_providers/azure_local/* ${WORKER_POD}:/tmp/local_container
 fi
 
