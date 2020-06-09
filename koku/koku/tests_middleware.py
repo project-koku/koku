@@ -76,18 +76,18 @@ class KokuTenantMiddlewareTest(IamTestCase):
         result = middleware.process_request(mock_request)
         self.assertIsInstance(result, HttpResponseUnauthorizedRequest)
 
-    @patch("koku.middleware.TIME_TO_CACHE", 3)
+    @patch("koku.middleware.KokuTenantMiddleware.tenant_cache", TTLCache(5, 3))
     def test_tenant_caching(self):
         """Test that the tenant cache is successfully storing and expiring."""
         mock_request = self.request_context["request"]
         middleware = KokuTenantMiddleware()
         middleware.get_tenant(Tenant, "localhost", mock_request)  # Add one item to the cache
-        self.assertEquals(middleware.tenant_cache.currsize, 1)
+        self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 1)
         middleware.get_tenant(Tenant, "localhost", mock_request)  # Call the same tenant
-        self.assertEquals(middleware.tenant_cache.currsize, 1)  # Size should remain the same
-        self.assertEquals(middleware.tenant_cache.currsize, 1)
+        self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 1)  # Size should remain the same
+        self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 1)
         time.sleep(4)  # Wait the time greater than the ttl
-        self.assertEqual(middleware.tenant_cache.currsize, 0)
+        self.assertEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
 
 
 class IdentityHeaderMiddlewareTest(IamTestCase):
@@ -120,7 +120,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         tenant = Tenant.objects.get(schema_name=self.schema_name)
         self.assertIsNotNone(tenant)
 
-    @patch("koku.middleware.TIME_TO_CACHE", 3)
+    @patch("koku.middleware.IdentityHeaderMiddleware.customer_cache", TTLCache(5, 3))
     @patch("koku.middleware.USER_CACHE", TTLCache(5, 3))
     def test_process_not_status_caching(self):
         """Test that the customer, tenant and user are created and cached"""
@@ -128,10 +128,10 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         middleware = IdentityHeaderMiddleware()
         self.assertEquals(MD.USER_CACHE.currsize, 0)
         self.assertEquals(MD.USER_CACHE.maxsize, 5)  # Confirm that the size of the mocked user cache has been updated
-        self.assertEquals(middleware.customer_cache.currsize, 0)
+        self.assertEquals(IdentityHeaderMiddleware.customer_cache.currsize, 0)
         middleware.process_request(mock_request)  # Adds 1 to the customer and user cache
         self.assertTrue(hasattr(mock_request, "user"))
-        self.assertEquals(middleware.customer_cache.currsize, 1)
+        self.assertEquals(IdentityHeaderMiddleware.customer_cache.currsize, 1)
         self.assertEquals(MD.USER_CACHE.currsize, 1)
         customer = Customer.objects.get(account_id=self.customer.account_id)
         self.assertIsNotNone(customer)
@@ -139,7 +139,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         self.assertEqual(MD.USER_CACHE.currsize, 1)
         self.assertIsNotNone(user)
         time.sleep(4)  # Wait for the ttl
-        self.assertEquals(middleware.customer_cache.currsize, 0)
+        self.assertEquals(IdentityHeaderMiddleware.customer_cache.currsize, 0)
         self.assertEquals(MD.USER_CACHE.currsize, 0)
 
     def test_process_no_customer(self):
@@ -268,6 +268,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         with self.assertRaises(PermissionDenied):
             middleware.process_request(mock_request)
 
+    @patch("koku.middleware.IdentityHeaderMiddleware.customer_cache", TTLCache(5, 3))
     def test_process_operational_error_return_424(self):
         """Test OperationalError causes 424 Reponse."""
         user_data = self._create_user_data()
@@ -316,6 +317,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         mock_request.META["QUERY_STRING"] = ""
 
         middleware = IdentityHeaderMiddleware()
+
         response = middleware.process_request(mock_request)
         self.assertEqual(response.status_code, status.HTTP_424_FAILED_DEPENDENCY)
         mocked_get.assert_called()

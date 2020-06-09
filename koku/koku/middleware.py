@@ -107,10 +107,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
     found from the user tied to a request.
     """
 
-    def __init__(self, get_response=None):
-        """ Create the tenant cache"""
-        super().__init__(get_response)
-        self.tenant_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_CACHE)
+    tenant_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_CACHE)
 
     def process_exception(self, request, exception):
         """Raise 424 on InterfaceError."""
@@ -129,6 +126,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
                 try:
                     if username not in USER_CACHE:
                         USER_CACHE[username] = User.objects.get(username=username)
+                        LOG.info(f"User added to cache: {username}")
                 except User.DoesNotExist:
                     return HttpResponseUnauthorizedRequest()
                 if not request.user.admin and request.user.access is None:
@@ -147,7 +145,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
         """Override the tenant selection logic."""
         schema_name = "public"
         tenant_username = request.user.username
-        if tenant_username not in self.tenant_cache:
+        if tenant_username not in KokuTenantMiddleware.tenant_cache:
             if not is_no_auth(request):
                 user = User.objects.get(username=tenant_username)
                 customer = user.customer
@@ -157,8 +155,9 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
             except model.DoesNotExist:
                 tenant = model(schema_name=schema_name)
                 tenant.save()
-            self.tenant_cache[tenant_username] = tenant
-        return self.tenant_cache[tenant_username]
+            KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
+            LOG.info(f"Tenant added to cache: {tenant_username}")
+        return KokuTenantMiddleware.tenant_cache[tenant_username]
 
 
 class IdentityHeaderMiddleware(MiddlewareMixin):
@@ -168,10 +167,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
 
     header = RH_IDENTITY_HEADER
     rbac = RbacService()
-
-    def __init__(self, get_response=None):
-        super().__init__(get_response)
-        self.customer_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_CACHE)
+    customer_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_CACHE)
 
     @staticmethod
     def create_customer(account):
@@ -279,12 +275,12 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             }
             LOG.info(stmt)
             try:
-                customer = None
-                if account not in self.customer_cache:
-                    self.customer_cache[account] = Customer.objects.filter(account_id=account).get()
-                    customer = self.customer_cache[account]
-                else:
-                    customer = self.customer_cache[account]
+                if account not in IdentityHeaderMiddleware.customer_cache:
+                    IdentityHeaderMiddleware.customer_cache[account] = Customer.objects.filter(
+                        account_id=account
+                    ).get()
+                    LOG.info(f"Customer added to cache: {account}")
+                customer = IdentityHeaderMiddleware.customer_cache[account]
             except Customer.DoesNotExist:
                 customer = IdentityHeaderMiddleware.create_customer(account)
             except OperationalError as err:
@@ -296,6 +292,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 if username not in USER_CACHE:
                     user = User.objects.get(username=username)
                     USER_CACHE[username] = user
+                    LOG.info(f"User added to cache: {username}")
                 else:
                     user = USER_CACHE[username]
             except User.DoesNotExist:
@@ -317,6 +314,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                     try:
                         user_access = self._get_access(user)
                     except RbacConnectionError as err:
+                        LOG.info("Enters Rbac")
                         return HttpResponseFailedDependency({"source": "Rbac", "exception": err})
                 cache.set(user.uuid, user_access, self.rbac.cache_ttl)
             user.access = user_access

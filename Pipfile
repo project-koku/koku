@@ -41,6 +41,7 @@ sentry-sdk = ">=0.13"
 ujson = ">=1.35"
 django-extensions = ">=2.2"
 confluent-kafka = ">=1.4.1"
+cachetools = ">=4.1.0"
 
 [dev-packages]
 astroid = ">=2.3"
