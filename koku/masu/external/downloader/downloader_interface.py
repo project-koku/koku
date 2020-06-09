@@ -53,13 +53,15 @@ class DownloaderInterface(ABC):
         """
 
     @abstractmethod
-    def download_file(self, key, stored_etag=None):
+    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
         Download a report file given a provider-specific key.
 
         Args:
             key (String): A key that can locate a report file.
             stored_etag (String): ReportStatsDBAccessor file identifier.
+            manifest_id (String): Report manifest identifier
+            start_date (DateTime): Report start date time
 
         Returns:
             (String, String) Full local file path to report, etag value.

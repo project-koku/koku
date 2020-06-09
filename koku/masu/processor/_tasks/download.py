@@ -19,6 +19,7 @@ import psutil
 from celery.utils.log import get_task_logger
 
 import masu.prometheus_stats as worker_stats
+from api.common import log_json
 from masu.config import Config
 from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.exceptions import MasuProcessingError
@@ -54,6 +55,8 @@ def _get_report_files(
                          '/var/tmp/masu/base/aws/professor-hour-industry-television.csv']
 
     """
+    request_id = task.request.id
+    context = {"account": customer_name[4:], "provider_uuid": provider_uuid}
     month_string = report_month.strftime("%B %Y")
     log_statement = (
         f"Downloading report for:\n"
@@ -62,13 +65,13 @@ def _get_report_files(
         f" account (provider uuid): {provider_uuid}\n"
         f" report_month: {month_string}"
     )
-    LOG.info(log_statement)
+    LOG.info(log_json(request_id, log_statement, context))
     try:
         disk = psutil.disk_usage(Config.PVC_DIR)
         disk_msg = f"Available disk space: {disk.free} bytes ({100 - disk.percent}%)"
     except OSError:
         disk_msg = f"Unable to find available disk space. {Config.PVC_DIR} does not exist"
-    LOG.info(disk_msg)
+    LOG.info(log_json(request_id, disk_msg, context))
 
     reports = None
     try:
@@ -81,12 +84,14 @@ def _get_report_files(
             provider_uuid=provider_uuid,
             cache_key=cache_key,
             report_name=None,
+            account=customer_name[4:],
+            request_id=task.request.id,
         )
         reports = downloader.download_report(report_month)
     except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
         worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()
         WorkerCache().remove_task_from_cache(cache_key)
-        LOG.error(str(err))
+        LOG.error(log_json(request_id, str(err), context))
         with ProviderStatus(provider_uuid) as status:
             status.set_error(error=err)
         raise err

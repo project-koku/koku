@@ -108,7 +108,7 @@ class GetReportFileTests(MasuTestCase):
         os.makedirs(Config.TMP_DIR, exist_ok=True)
 
         account = fake_arn(service="iam", generate_account_id=True)
-        expected = "INFO:masu.processor._tasks.download:Available disk space"
+        expected = "Available disk space"
         with self.assertLogs("masu.processor._tasks.download", level="INFO") as logger:
             _get_report_files(
                 Mock(),
@@ -136,10 +136,7 @@ class GetReportFileTests(MasuTestCase):
         Config.PVC_DIR = "/this/path/does/not/exist"
 
         account = fake_arn(service="iam", generate_account_id=True)
-        expected = (
-            "INFO:masu.processor._tasks.download:Unable to find"
-            + f" available disk space. {Config.PVC_DIR} does not exist"
-        )
+        expected = "Unable to find" + f" available disk space. {Config.PVC_DIR} does not exist"
         with self.assertLogs("masu.processor._tasks.download", level="INFO") as logger:
             _get_report_files(
                 Mock(),
@@ -151,7 +148,11 @@ class GetReportFileTests(MasuTestCase):
                 billing_source=self.fake.word(),
                 cache_key=self.fake.word(),
             )
-            self.assertIn(expected, logger.output)
+            statement_found = False
+            for log in logger.output:
+                if expected in log:
+                    statement_found = True
+            self.assertTrue(statement_found)
 
     @patch("masu.processor._tasks.download.ReportDownloader._set_downloader", side_effect=Exception("only a test"))
     def test_get_report_exception(self, fake_downloader):
