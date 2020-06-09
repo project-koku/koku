@@ -52,7 +52,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
 
     @transaction.atomic
     def crawl_account_hierarchy(self):
-        error_message = f"Unable to crawl aws organizational structure with ARN {self.account}"
+        error_message = f"Unable to crawl AWS organizational structure with ARN {self.account}"
         try:
             self._init_session()
             self._build_accout_alias_map()
