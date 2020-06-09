@@ -161,21 +161,23 @@ app.autodiscover_tasks()
 def clear_worker_cache(sender, instance, **kwargs):  # pragma: no cover
     """Clear WorkerCache after worker is up and running."""
     from .database import check_migrations
-    from masu.processor.worker_cache import WorkerCache
+
+    # from masu.processor.worker_cache import WorkerCache
 
     while not check_migrations():
         LOGGER.warning("Migrations not done. Sleeping")
         time.sleep(5)
     LOGGER.info("Clearing worker task cache.")
-    WorkerCache().invalidate_host()
+    # WorkerCache().invalidate_host()
 
 
 @worker_shutting_down.connect
 def clear_worker_cache_on_shutdown(sender, **kwargs):  # pragma: no cover
-    from masu.processor.worker_cache import WorkerCache
+    # from masu.processor.worker_cache import WorkerCache
 
     LOGGER.info("Clearing worker task cache.")
     try:
-        WorkerCache().invalidate_host()
+        pass
+        # WorkerCache().invalidate_host()
     except Exception:
         LOGGER.info("Cache not cleared on shutdown.")

@@ -47,10 +47,11 @@ from masu.processor.cost_model_cost_updater import CostModelCostUpdater
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
-from masu.processor.worker_cache import WorkerCache
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_MATERIALIZED_VIEWS
+
+# from masu.processor.worker_cache import WorkerCache
 
 LOG = get_task_logger(__name__)
 
@@ -232,10 +233,10 @@ def get_report_files(
         except (ReportProcessorError, ReportProcessorDBError) as processing_error:
             worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
             LOG.error(str(processing_error))
-            WorkerCache().remove_task_from_cache(cache_key)
+            # WorkerCache().remove_task_from_cache(cache_key)
             raise processing_error
 
-    WorkerCache().remove_task_from_cache(cache_key)
+    # WorkerCache().remove_task_from_cache(cache_key)
 
     with ReportManifestDBAccessor() as manifest_accesor:
         if manifest_accesor.manifest_ready_for_summary(manifest_id) and report_meta:
