@@ -287,9 +287,9 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, c
         return None
 
     upload = None
+    upload_key = f"{path}/{filename}"
     try:
         s3_resource = get_s3_resource()
-        upload_key = f"{path}/{filename}"
         s3_obj = {"bucket_name": settings.S3_BUCKET_NAME, "key": upload_key}
         upload = s3_resource.Object(**s3_obj)
         put_value = {"Body": data}
@@ -338,7 +338,7 @@ def remove_files_not_in_set_from_s3_bucket(request_id, account, provider_uuid, s
         try:
             path = _get_path_prefix(account, provider_uuid, start_date)
             s3_resource = get_s3_resource()
-            existing_objects = s3_resource.list_objects(Bucket=settings.S3_BUCKET_NAME, Prefix=path)
+            existing_objects = s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=path)
             for existing_object in existing_objects.get("Contents", []):
                 metadata = existing_object.get("Metadata")
                 manifest = metadata.get("ManifestId")
