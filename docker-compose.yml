@@ -207,6 +207,8 @@ services:
         - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
         - DEVELOPMENT=${DEVELOPMENT-True}
         - LOG_LEVEL=INFO
+        - DJANGO_LOG_LEVEL=INFO
+        - KOKU_LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
@@ -309,6 +311,502 @@ services:
         - koku-base
         - koku-rabbit
 
+  koku-worker-3:
+    container_name: koku_worker_3
+    hostname: koku_worker_3
+    image: koku_base
+    working_dir: /koku/koku
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload,sources']
+    environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+      - RABBITMQ_PORT=5672
+      - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
+      - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
+      - DEVELOPMENT=${DEVELOPMENT-True}
+      - LOG_LEVEL=INFO
+      - DJANGO_SETTINGS_MODULE=koku.settings
+      - MASU_SECRET_KEY=abc
+      - prometheus_multiproc_dir=/tmp
+      - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
+      - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+      - S3_ENDPOINT
+      - S3_ACCESS_KEY
+      - S3_SECRET
+      - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      - KOKU_CELERY_ENABLE_SENTRY
+      - KOKU_CELERY_SENTRY_DSN
+      - KOKU_SENTRY_ENVIRONMENT
+      - DEMO_ACCOUNTS=${DEMO_ACCOUNTS-{}}
+      - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
+      - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
+      - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+      - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
+      - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+    privileged: true
+    volumes:
+      - '.:/koku'
+      - './testing:/testing'
+      - './testing/local_providers/azure_local:/tmp/local_container'
+      - './testing/local_providers/aws_local:/tmp/local_bucket'
+      - './testing/local_providers/aws_local_0:/tmp/local_bucket_0'
+      - './testing/local_providers/aws_local_1:/tmp/local_bucket_1'
+      - './testing/local_providers/aws_local_2:/tmp/local_bucket_2'
+      - './testing/local_providers/aws_local_3:/tmp/local_bucket_3'
+      - './testing/local_providers/aws_local_4:/tmp/local_bucket_4'
+      - './testing/local_providers/aws_local_5:/tmp/local_bucket_5'
+      - './testing/local_providers/insights_local:/var/tmp/masu/insights_local'
+    links:
+        - koku-rabbit
+    depends_on:
+        - koku-base
+        - koku-rabbit
+
+  koku-worker-4:
+    container_name: koku_worker_4
+    hostname: koku_worker_4
+    image: koku_base
+    working_dir: /koku/koku
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload,sources']
+    environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+      - RABBITMQ_PORT=5672
+      - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
+      - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
+      - DEVELOPMENT=${DEVELOPMENT-True}
+      - LOG_LEVEL=INFO
+      - DJANGO_SETTINGS_MODULE=koku.settings
+      - MASU_SECRET_KEY=abc
+      - prometheus_multiproc_dir=/tmp
+      - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
+      - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+      - S3_ENDPOINT
+      - S3_ACCESS_KEY
+      - S3_SECRET
+      - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      - KOKU_CELERY_ENABLE_SENTRY
+      - KOKU_CELERY_SENTRY_DSN
+      - KOKU_SENTRY_ENVIRONMENT
+      - DEMO_ACCOUNTS=${DEMO_ACCOUNTS-{}}
+      - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
+      - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
+      - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+      - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
+      - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+    privileged: true
+    volumes:
+      - '.:/koku'
+      - './testing:/testing'
+      - './testing/local_providers/azure_local:/tmp/local_container'
+      - './testing/local_providers/aws_local:/tmp/local_bucket'
+      - './testing/local_providers/aws_local_0:/tmp/local_bucket_0'
+      - './testing/local_providers/aws_local_1:/tmp/local_bucket_1'
+      - './testing/local_providers/aws_local_2:/tmp/local_bucket_2'
+      - './testing/local_providers/aws_local_3:/tmp/local_bucket_3'
+      - './testing/local_providers/aws_local_4:/tmp/local_bucket_4'
+      - './testing/local_providers/aws_local_5:/tmp/local_bucket_5'
+      - './testing/local_providers/insights_local:/var/tmp/masu/insights_local'
+    links:
+        - koku-rabbit
+    depends_on:
+        - koku-base
+        - koku-rabbit
+
+  koku-worker-5:
+    container_name: koku_worker_5
+    hostname: koku_worker_5
+    image: koku_base
+    working_dir: /koku/koku
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload,sources']
+    environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+      - RABBITMQ_PORT=5672
+      - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
+      - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
+      - DEVELOPMENT=${DEVELOPMENT-True}
+      - LOG_LEVEL=INFO
+      - DJANGO_SETTINGS_MODULE=koku.settings
+      - MASU_SECRET_KEY=abc
+      - prometheus_multiproc_dir=/tmp
+      - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
+      - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+      - S3_ENDPOINT
+      - S3_ACCESS_KEY
+      - S3_SECRET
+      - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      - KOKU_CELERY_ENABLE_SENTRY
+      - KOKU_CELERY_SENTRY_DSN
+      - KOKU_SENTRY_ENVIRONMENT
+      - DEMO_ACCOUNTS=${DEMO_ACCOUNTS-{}}
+      - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
+      - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
+      - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+      - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
+      - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+    privileged: true
+    volumes:
+      - '.:/koku'
+      - './testing:/testing'
+      - './testing/local_providers/azure_local:/tmp/local_container'
+      - './testing/local_providers/aws_local:/tmp/local_bucket'
+      - './testing/local_providers/aws_local_0:/tmp/local_bucket_0'
+      - './testing/local_providers/aws_local_1:/tmp/local_bucket_1'
+      - './testing/local_providers/aws_local_2:/tmp/local_bucket_2'
+      - './testing/local_providers/aws_local_3:/tmp/local_bucket_3'
+      - './testing/local_providers/aws_local_4:/tmp/local_bucket_4'
+      - './testing/local_providers/aws_local_5:/tmp/local_bucket_5'
+      - './testing/local_providers/insights_local:/var/tmp/masu/insights_local'
+    links:
+        - koku-rabbit
+    depends_on:
+        - koku-base
+        - koku-rabbit
+
+  koku-worker-6:
+    container_name: koku_worker_6
+    hostname: koku_worker_6
+    image: koku_base
+    working_dir: /koku/koku
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload,sources']
+    environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+      - RABBITMQ_PORT=5672
+      - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
+      - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
+      - DEVELOPMENT=${DEVELOPMENT-True}
+      - LOG_LEVEL=INFO
+      - DJANGO_SETTINGS_MODULE=koku.settings
+      - MASU_SECRET_KEY=abc
+      - prometheus_multiproc_dir=/tmp
+      - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
+      - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+      - S3_ENDPOINT
+      - S3_ACCESS_KEY
+      - S3_SECRET
+      - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      - KOKU_CELERY_ENABLE_SENTRY
+      - KOKU_CELERY_SENTRY_DSN
+      - KOKU_SENTRY_ENVIRONMENT
+      - DEMO_ACCOUNTS=${DEMO_ACCOUNTS-{}}
+      - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
+      - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
+      - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+      - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
+      - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+    privileged: true
+    volumes:
+      - '.:/koku'
+      - './testing:/testing'
+      - './testing/local_providers/azure_local:/tmp/local_container'
+      - './testing/local_providers/aws_local:/tmp/local_bucket'
+      - './testing/local_providers/aws_local_0:/tmp/local_bucket_0'
+      - './testing/local_providers/aws_local_1:/tmp/local_bucket_1'
+      - './testing/local_providers/aws_local_2:/tmp/local_bucket_2'
+      - './testing/local_providers/aws_local_3:/tmp/local_bucket_3'
+      - './testing/local_providers/aws_local_4:/tmp/local_bucket_4'
+      - './testing/local_providers/aws_local_5:/tmp/local_bucket_5'
+      - './testing/local_providers/insights_local:/var/tmp/masu/insights_local'
+    links:
+        - koku-rabbit
+    depends_on:
+        - koku-base
+        - koku-rabbit
+
+  koku-worker-7:
+    container_name: koku_worker_7
+    hostname: koku_worker_7
+    image: koku_base
+    working_dir: /koku/koku
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload,sources']
+    environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+      - RABBITMQ_PORT=5672
+      - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
+      - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
+      - DEVELOPMENT=${DEVELOPMENT-True}
+      - LOG_LEVEL=INFO
+      - DJANGO_SETTINGS_MODULE=koku.settings
+      - MASU_SECRET_KEY=abc
+      - prometheus_multiproc_dir=/tmp
+      - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
+      - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+      - S3_ENDPOINT
+      - S3_ACCESS_KEY
+      - S3_SECRET
+      - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      - KOKU_CELERY_ENABLE_SENTRY
+      - KOKU_CELERY_SENTRY_DSN
+      - KOKU_SENTRY_ENVIRONMENT
+      - DEMO_ACCOUNTS=${DEMO_ACCOUNTS-{}}
+      - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
+      - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
+      - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+      - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
+      - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+    privileged: true
+    volumes:
+      - '.:/koku'
+      - './testing:/testing'
+      - './testing/local_providers/azure_local:/tmp/local_container'
+      - './testing/local_providers/aws_local:/tmp/local_bucket'
+      - './testing/local_providers/aws_local_0:/tmp/local_bucket_0'
+      - './testing/local_providers/aws_local_1:/tmp/local_bucket_1'
+      - './testing/local_providers/aws_local_2:/tmp/local_bucket_2'
+      - './testing/local_providers/aws_local_3:/tmp/local_bucket_3'
+      - './testing/local_providers/aws_local_4:/tmp/local_bucket_4'
+      - './testing/local_providers/aws_local_5:/tmp/local_bucket_5'
+      - './testing/local_providers/insights_local:/var/tmp/masu/insights_local'
+    links:
+        - koku-rabbit
+    depends_on:
+        - koku-base
+        - koku-rabbit
+
+  koku-worker-8:
+    container_name: koku_worker_8
+    hostname: koku_worker_8
+    image: koku_base
+    working_dir: /koku/koku
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload,sources']
+    environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+      - RABBITMQ_PORT=5672
+      - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
+      - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
+      - DEVELOPMENT=${DEVELOPMENT-True}
+      - LOG_LEVEL=INFO
+      - DJANGO_SETTINGS_MODULE=koku.settings
+      - MASU_SECRET_KEY=abc
+      - prometheus_multiproc_dir=/tmp
+      - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
+      - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+      - S3_ENDPOINT
+      - S3_ACCESS_KEY
+      - S3_SECRET
+      - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      - KOKU_CELERY_ENABLE_SENTRY
+      - KOKU_CELERY_SENTRY_DSN
+      - KOKU_SENTRY_ENVIRONMENT
+      - DEMO_ACCOUNTS=${DEMO_ACCOUNTS-{}}
+      - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
+      - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
+      - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+      - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
+      - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+    privileged: true
+    volumes:
+      - '.:/koku'
+      - './testing:/testing'
+      - './testing/local_providers/azure_local:/tmp/local_container'
+      - './testing/local_providers/aws_local:/tmp/local_bucket'
+      - './testing/local_providers/aws_local_0:/tmp/local_bucket_0'
+      - './testing/local_providers/aws_local_1:/tmp/local_bucket_1'
+      - './testing/local_providers/aws_local_2:/tmp/local_bucket_2'
+      - './testing/local_providers/aws_local_3:/tmp/local_bucket_3'
+      - './testing/local_providers/aws_local_4:/tmp/local_bucket_4'
+      - './testing/local_providers/aws_local_5:/tmp/local_bucket_5'
+      - './testing/local_providers/insights_local:/var/tmp/masu/insights_local'
+    links:
+        - koku-rabbit
+    depends_on:
+        - koku-base
+        - koku-rabbit
+
+  koku-worker-9:
+    container_name: koku_worker_9
+    hostname: koku_worker_9
+    image: koku_base
+    working_dir: /koku/koku
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload,sources']
+    environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+      - RABBITMQ_PORT=5672
+      - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
+      - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
+      - DEVELOPMENT=${DEVELOPMENT-True}
+      - LOG_LEVEL=INFO
+      - DJANGO_SETTINGS_MODULE=koku.settings
+      - MASU_SECRET_KEY=abc
+      - prometheus_multiproc_dir=/tmp
+      - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
+      - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+      - S3_ENDPOINT
+      - S3_ACCESS_KEY
+      - S3_SECRET
+      - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      - KOKU_CELERY_ENABLE_SENTRY
+      - KOKU_CELERY_SENTRY_DSN
+      - KOKU_SENTRY_ENVIRONMENT
+      - DEMO_ACCOUNTS=${DEMO_ACCOUNTS-{}}
+      - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
+      - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
+      - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+      - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
+      - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+    privileged: true
+    volumes:
+      - '.:/koku'
+      - './testing:/testing'
+      - './testing/local_providers/azure_local:/tmp/local_container'
+      - './testing/local_providers/aws_local:/tmp/local_bucket'
+      - './testing/local_providers/aws_local_0:/tmp/local_bucket_0'
+      - './testing/local_providers/aws_local_1:/tmp/local_bucket_1'
+      - './testing/local_providers/aws_local_2:/tmp/local_bucket_2'
+      - './testing/local_providers/aws_local_3:/tmp/local_bucket_3'
+      - './testing/local_providers/aws_local_4:/tmp/local_bucket_4'
+      - './testing/local_providers/aws_local_5:/tmp/local_bucket_5'
+      - './testing/local_providers/insights_local:/var/tmp/masu/insights_local'
+    links:
+        - koku-rabbit
+    depends_on:
+        - koku-base
+        - koku-rabbit
+
+  koku-worker-10:
+    container_name: koku_worker_10
+    hostname: koku_worker_10
+    image: koku_base
+    working_dir: /koku/koku
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process,upload,customer_data_sync,delete_archived_data,query_upload,sources']
+    environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+      - RABBITMQ_PORT=5672
+      - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
+      - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
+      - DEVELOPMENT=${DEVELOPMENT-True}
+      - LOG_LEVEL=INFO
+      - DJANGO_SETTINGS_MODULE=koku.settings
+      - MASU_SECRET_KEY=abc
+      - prometheus_multiproc_dir=/tmp
+      - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
+      - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+      - S3_ENDPOINT
+      - S3_ACCESS_KEY
+      - S3_SECRET
+      - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      - KOKU_CELERY_ENABLE_SENTRY
+      - KOKU_CELERY_SENTRY_DSN
+      - KOKU_SENTRY_ENVIRONMENT
+      - DEMO_ACCOUNTS=${DEMO_ACCOUNTS-{}}
+      - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
+      - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
+      - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+      - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
+      - REPORT_PROCESSING_TIMEOUT_HOURS=${REPORT_PROCESSING_TIMEOUT_HOURS-2}
+    privileged: true
+    volumes:
+      - '.:/koku'
+      - './testing:/testing'
+      - './testing/local_providers/azure_local:/tmp/local_container'
+      - './testing/local_providers/aws_local:/tmp/local_bucket'
+      - './testing/local_providers/aws_local_0:/tmp/local_bucket_0'
+      - './testing/local_providers/aws_local_1:/tmp/local_bucket_1'
+      - './testing/local_providers/aws_local_2:/tmp/local_bucket_2'
+      - './testing/local_providers/aws_local_3:/tmp/local_bucket_3'
+      - './testing/local_providers/aws_local_4:/tmp/local_bucket_4'
+      - './testing/local_providers/aws_local_5:/tmp/local_bucket_5'
+      - './testing/local_providers/insights_local:/var/tmp/masu/insights_local'
+    links:
+        - koku-rabbit
+    depends_on:
+        - koku-base
+        - koku-rabbit
+
   koku-listener:
       container_name: koku_listener
       image: koku_base
@@ -334,6 +832,8 @@ services:
         - MASU_DATE_OVERRIDE
         - MASU_DEBUG
         - LOG_LEVEL=INFO
+        - DJANGO_LOG_LEVEL=INFO
+        - KOKU_LOG_LEVEL=INFO
         - INITIAL_INGEST_NUM_MONTHS=1
         - PYTHONPATH=/koku/koku
         - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
@@ -410,6 +910,8 @@ services:
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
         - LOG_LEVEL=INFO
+        - DJANGO_LOG_LEVEL=INFO
+        - KOKU_LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp

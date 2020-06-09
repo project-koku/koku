@@ -25,7 +25,6 @@ from celery import chain
 from celery.utils.log import get_task_logger
 from dateutil import parser
 from django.db import connection
-from django.db import transaction
 from tenant_schemas.utils import schema_context
 
 import masu.prometheus_stats as worker_stats
@@ -33,7 +32,6 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.celery import app
-from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.accounts_accessor import AccountsAccessor
@@ -195,51 +193,35 @@ def get_report_files(
     else:
         return None
 
-    with transaction.atomic():
-        try:
-            manifest_id = report_dict.get("manifest_id")
-            file_name = os.path.basename(report_dict.get("file"))
-            with ReportStatsDBAccessor(file_name, manifest_id) as stats:
-                started_date = stats.get_last_started_datetime()
-                completed_date = stats.get_last_completed_datetime()
+    try:
+        stmt = (
+            f"Processing starting:\n"
+            f" schema_name: {customer_name}\n"
+            f" provider: {provider_type}\n"
+            f" provider_uuid: {provider_uuid}\n"
+            f' file: {report_dict.get("file")}'
+        )
+        LOG.info(stmt)
+        worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
+        _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
 
-            # Skip processing if already in progress.
-            if started_date and not completed_date:
-                expired_start_date = started_date + datetime.timedelta(hours=Config.REPORT_PROCESSING_TIMEOUT_HOURS)
-                if DateAccessor().today_with_timezone("UTC") < expired_start_date:
-                    LOG.info(
-                        "Skipping processing task for %s since it was started at: %s.", file_name, str(started_date)
-                    )
-                    return None
+        report_meta = {
+            "schema_name": schema_name,
+            "provider_type": provider_type,
+            "provider_uuid": provider_uuid,
+            "manifest_id": report_dict.get("manifest_id"),
+        }
 
-            stmt = (
-                f"Processing starting:\n"
-                f" schema_name: {customer_name}\n"
-                f" provider: {provider_type}\n"
-                f" provider_uuid: {provider_uuid}\n"
-                f' file: {report_dict.get("file")}'
-            )
-            LOG.info(stmt)
-            worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
-            _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
-
-            report_meta = {
-                "schema_name": schema_name,
-                "provider_type": provider_type,
-                "provider_uuid": provider_uuid,
-                "manifest_id": report_dict.get("manifest_id"),
-            }
-
-        except (ReportProcessorError, ReportProcessorDBError) as processing_error:
-            worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-            LOG.error(str(processing_error))
-            # WorkerCache().remove_task_from_cache(cache_key)
-            raise processing_error
+    except (ReportProcessorError, ReportProcessorDBError) as processing_error:
+        worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
+        LOG.error(str(processing_error))
+        # WorkerCache().remove_task_from_cache(cache_key)
+        raise processing_error
 
     # WorkerCache().remove_task_from_cache(cache_key)
 
     with ReportManifestDBAccessor() as manifest_accesor:
-        if manifest_accesor.manifest_ready_for_summary(manifest_id) and report_meta:
+        if manifest_accesor.manifest_ready_for_summary(report_dict.get("manifest_id")) and report_meta:
             async_id = summarize_reports.delay([report_meta])
             LOG.info(f"Check for summary celery ID: {async_id}")
     return report_meta

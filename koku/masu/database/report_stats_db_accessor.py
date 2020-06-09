@@ -116,6 +116,19 @@ class ReportStatsDBAccessor(KokuDBAccess):
         self._obj.last_started_datetime = DateAccessor().today_with_timezone("UTC")
         self._obj.save()
 
+    def clear_last_started_datetime(self):
+        """
+        Convinence method for clearing start date processing.
+
+        Args:
+            None
+        Returns:
+            None
+
+        """
+        self._obj.last_started_datetime = None
+        self._obj.save()
+
     def log_last_completed_datetime(self):
         """
         Convinence method for logging processing completed.
