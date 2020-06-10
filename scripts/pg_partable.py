@@ -21,55 +21,6 @@ copying the data from source to the new partitioned table. All required
 table partitions to hold the data will also be created as well as a default
 partition.
 """
-# Config:
-# {
-#     partition_targets: {
-#         <schema>: [
-#             {
-#                 <table_name>: {
-#                     target_schema: <schema_name>, # Optional. If not found, then target_schema = processing schema
-#                     partition_key: <column_name>,
-#                     partition_type: <partition-type>, # should be "list" or "range"
-#                     <partition-type>: {
-#                         values: [[<values here>], ...], # List of lists Required for list partition type
-#                         interval_type: <val>     # If date, timestamp type, choose "month" or "year"
-#                                                  # If numeric type, choose the appropriate DB data type
-#                                                  # (int, numeric(10,2), etc)
-#                                                  # Required for range partition type
-#                         interval: <val>          # The interval itself: 1, 5, 10, etc
-#                                                  # Required for range partition type
-#                     }
-#                     drop_source_table: boolean          # Drop the source table after data migration. False by default
-#                 }
-#             },
-#             ...
-#         ],
-#         # A "*" will match any schema not explicitly listed to process or exclude
-#         "*":      [
-#             {
-#                 <table_name>: {
-#                     target_schema: <schema_name>, # Optional. If not found, then target_schema = processing schema
-#                     partition_key: <column_name>,
-#                     partition_type: <partition-type>, # should be "list" or "range"
-#                     <partition-type>: {
-#                         values: [[<values here>], ...], # List of lists Required for list partition type
-#                         interval_type: <val>     # If date, timestamp type, choose "month" or "year"
-#                                                  # If numeric type, choose the appropriate DB data type
-#                                                  # (int, numeric(10,2), etc)
-#                                                  # Required for range partition type
-#                         interval: <val>          # The interval itself: 1, 5, 10, etc
-#                                                  # Required for range partition type
-#                     }
-#                     drop_source_table: boolean          # Drop the source table after data migration. False by default
-#                 }
-#             },
-#             ...
-#         ]
-#     }
-#     excluded_shemata: []    # put any user schemata to exclude here
-# }
-#
-# The "*" schema matches any schema not explicitly listed
 import argparse
 import datetime
 import decimal
@@ -93,6 +44,14 @@ from pytz import UTC
 INDEX_PARSER = re.compile("(^.+INDEX )(.+)( ON )(.+)( USING.+$)", flags=re.IGNORECASE)
 SQL_SCRIPT_FILE = None
 TABLE_CACHE = {}
+
+logging.basicConfig(level=logging.INFO, style="{", format="{filename}:{asctime}:{levelname}:{message}")
+
+LOG = logging.getLogger(os.path.basename(sys.argv[0]))
+LINFO = LOG.info
+LERROR = LOG.error
+LWARN = LOG.warning
+LDEBUG = LOG.debug
 
 
 class RecAttrs:
@@ -140,8 +99,38 @@ def generate_sample_config():
                             "interval": "<val>          # The interval itself: 1, 5, 10, etc. "
                             "Required for range partition type",
                         },
+                        "primary_key": {
+                            "<column_name>": {
+                                "data_type": "# data type of the column",
+                                "default": "# A default value, if any. To omit, set to null or empty string",
+                                "copy_sequence": "# Copy the source table column's sequence to the new table's "
+                                "column, set to 1 else set to 0",
+                                "new_sequence": {
+                                    "sequence_name": "# Name of the sequence",
+                                    "table_name": "# Name of the table",
+                                    "column_name": "# Name of the column in the table that will be the owner",
+                                    "start_value": "# Sequence starting value",
+                                    "min_value": "# Minimum value",
+                                    "max_value": "# Maximum value",
+                                    "cache_size": "# Number of values to cache (>= 1)",
+                                    "cycle": "# 1 = Cycle; 0 = No Cycle",
+                                },
+                            }
+                        },
+                        "triggers": [
+                            {
+                                "name": '# name of the trigger, you can use "{table_name}" as a '
+                                "placeholder for the name of the table",
+                                "when": "# BEFORE | AFTER",
+                                "action": "# INSERT | UPDATE | DELETE",
+                                "columns": "# List [] of columns to constrain the trigger",
+                                "function": "# Function to execute. Include the schema name if outside "
+                                "of processing schema",
+                            }
+                        ],
                         "drop_source_table": "boolean          # Drop the source table after data migration. "
                         "False by default",
+                        "copy_column_map": {"<insert_col_name>": "<source_column_name_or_expression>"},
                     }
                 }
             ],
@@ -161,19 +150,66 @@ def generate_sample_config():
                             "interval": "<val>          # The interval itself: 1, 5, 10, etc. "
                             "Required for range partition type",
                         },
+                        "primary_key": {
+                            "<column_name>": {
+                                "data_type": "# data type of the column",
+                                "default": "# A default value, if any. To omit, set to null or empty string",
+                                "copy_sequence": "# Copy the source table column's sequence to the new table's "
+                                "column, set to 1 else set to 0",
+                                "new_sequence": {
+                                    "sequence_name": "# Name of the sequence",
+                                    "table_name": "# Name of the table",
+                                    "column_name": "# Name of the column in the table that will be the owner",
+                                    "start_value": "# Sequence starting value",
+                                    "min_value": "# Minimum value",
+                                    "max_value": "# Maximum value",
+                                    "cache_size": "# Number of values to cache (>= 1)",
+                                    "cycle": "# 1 = Cycle; 0 = No Cycle",
+                                },
+                            }
+                        },
+                        "triggers": [
+                            {
+                                "name": '# name of the trigger, you can use "{table_name}" as a '
+                                "placeholder for the name of the table",
+                                "when": "# BEFORE | AFTER",
+                                "action": "# INSERT | UPDATE | DELETE",
+                                "columns": "# List [] of columns to constrain the trigger",
+                                "function": "# Function to execute. Include the schema name if outside "
+                                "of processing schema",
+                            }
+                        ],
                         "drop_source_table": "boolean          # Drop the source table after data migration. "
                         "False by default",
+                        "copy_column_map": {"<insert_col_name>": "<source_column_name_or_expression>"},
                     }
                 }
             ],
         },
-        "excluded_shemata": "[]    # put any user schemata to exclude here",
+        "stored_procedures": {
+            "<schema_name>": {
+                "depends_on_schema": "# put a required schema here to process it first. Omit this key if not needed",
+                "code": ["Put any sql code for stored procedures/functions here"],
+            },
+            "*": {
+                "depends_on_schema": "# put a required schema here to process it first. Omit this key if not needed",
+                "code": ["Put any sql code for stored procedures/functions here"],
+            },
+        },
     }
     comment_buff = """
 #
-# The "*" schema matches any schema not explicitly listed as a partition target or exclusion
+# The "*" schema matches any schema not explicitly listed as a partition target or stored procedure schema
 #
 # The "<partiiton-type>" value **must** match the value from the "partition_type" key
+#
+# To simply list existing columns with no changes for a new partition key, then set the column_name as the
+# key with an empty set of attributes
+#
+# Omit or have an empty set of attributes for new_sequence to not create a new sequence
+#
+# Omit or have an empty set of attributes for triggers to suppress any trigger creation
+#
 """
     yaml.safe_dump(cfg, sys.stdout, sort_keys=True, width=255)
     print(comment_buff, flush=True)
@@ -301,6 +337,15 @@ select n.nspname as "schema_name",
 
 
 def get_table_indexes(conn, schema_name, table_names):
+    """
+    Get index information for table(s) in a specified schema
+    Args:
+        conn (Connection) : Database connection
+        schema_name (str) : Name of schema in which table(s) should reside
+        table_names (str, list) : comma-separated string of table names or a list of table names
+    Returns:
+        dict : Returned index info indexed by table_name
+    """
     sql = """
 with pk_indexes as (
 select i.relname
@@ -339,6 +384,15 @@ select i.*
 
 
 def get_table_constraints(conn, schema_name, table_names):
+    """
+    Get constraint information for table(s) in a specified schema
+    Args:
+        conn (Connection) : Database connection
+        schema_name (str) : Name of schema in which table(s) should reside
+        table_names (str, list) : comma-separated string of table names or a list of table names
+    Returns:
+        dict : Returned constraint info indexed by table_name
+    """
     sql = """
 select c.oid::int as constraint_oid,
        n.nspname::text as schema_name,
@@ -394,6 +448,15 @@ select c.oid::int as constraint_oid,
 
 
 def get_table_views(conn, schema_name, table_names):
+    """
+    Get view information for table(s) in a specified schema
+    Args:
+        conn (Connection) : Database connection
+        schema_name (str) : Name of schema in which table(s) should reside
+        table_names (str, list) : comma-separated string of table names or a list of table names
+    Returns:
+        dict : Returned view info indexed by table_name
+    """
     sql = """
 select m.schemaname,
        t.table_name,
@@ -437,6 +500,15 @@ select v.schemaname,
 
 
 def get_table_sequences(conn, schema_name, table_names):
+    """
+    Get sequence information for table(s) in a specified schema
+    Args:
+        conn (Connection) : Database connection
+        schema_name (str) : Name of schema in which table(s) should reside
+        table_names (str, list) : comma-separated string of table names or a list of table names
+    Returns:
+        dict : Returned sequence info indexed by table_name
+    """
     sql = """
 select t.relname::text as table_name,
        a.attname::text as column_name,
@@ -497,6 +569,14 @@ select distinct
 
 
 def get_partition_targets(conf, schema):
+    """
+    Return the partition targets for the specified schema or for "*"
+    Args:
+        conf (dict): Configuration
+        schema (str): Schema name
+    Returns:
+        dict: table partition info for all target tables
+    """
     all_targets = conf["partition_targets"]
     schema_targets = all_targets.get(schema, all_targets.get("*", {}))
 
@@ -838,6 +918,14 @@ def range_interval_gen(interval_type, interval, partition_values):
 
 
 def get_primary_key_ix(table_info):
+    """
+    Return the list index of the primary key constraint information from the table constraints
+    Args:
+        table_info (dict): table_info (structure, constraints, partition_info, etc)
+    Returns:
+        int: >= 0 is valid index
+             < 0 is not found
+    """
     for i, c_spec in enumerate(table_info["constraints"]):
         if c_spec.constraint_type == "p":
             return i
@@ -846,6 +934,14 @@ def get_primary_key_ix(table_info):
 
 
 def find_column_index(table_info, column_name):
+    """
+    Return the list index of the column definition
+    Args:
+        table_info (dict): table_info (structure, constraints, partition_info, etc)
+    Returns:
+        int: >= 0 is valid index
+             < 0 is not found
+    """
     structure = table_info["structure"]
     for i, coldef in enumerate(structure):
         if coldef.column_name == column_name:
@@ -855,6 +951,14 @@ def find_column_index(table_info, column_name):
 
 
 def add_new_sequence(table_info, sequence_spec):
+    """
+    Add a new sequence record to the table_info
+    Args:
+        table_info (dict): The table information as read from the database
+        sequence_spec (dict): All information needed to process a sequence
+    Returns:
+        None
+    """
     new_sequence = RecAttrs()
     for key, val in sequence_spec.items():
         setattr(new_sequence, key, val)
@@ -862,6 +966,16 @@ def add_new_sequence(table_info, sequence_spec):
 
 
 def process_table_primary_key(table_info):
+    """
+    Process a primary key element defined in the config (if any)
+    This will either redefine a primary key from existing columns or add new columns.
+    Existing columns can have certain attributes redefined by the config driving this
+    function as well.
+    Args:
+        table_info (dict): Table information read from the database and its partition info from the config
+    Returns:
+        None
+    """
     pk_info = table_info["partition_info"].get("primary_key")
     if pk_info:
         pk_ix = get_primary_key_ix(table_info)
@@ -897,6 +1011,15 @@ def process_table_primary_key(table_info):
 
 
 def create_table_triggers(conn, schema_name, table_info):
+    """
+    Create triggers for the table based on the partition configuration
+    Args:
+        conn (Connection): Database connection
+        schema_name (str): Schema name
+        table_info (dict): Table information from the database and table partition configuration
+    Returns:
+        None
+    """
     table_name = table_info["structure"][0].table_name
     trigger_info = table_info["partition_info"].get("triggers")
     if trigger_info:
@@ -919,6 +1042,18 @@ def create_table_triggers(conn, schema_name, table_info):
 
 
 def create_table_sequences(conn, schema_name, table_name, table_info):
+    """
+    Create all sequences on the target partitioned table from the source table providing
+    that the sequence for the column is not blocked by the configuration primary key column
+    setting.
+    Args:
+        conn (Connection): Database connection
+        schema_name (str): Schema name
+        table_name (str): Target table name
+        table_info (dict): Table structure and partition configuration
+    Returns:
+        None
+    """
     LINFO(f"Creating sequences for table {schema_name}.{table_name}")
     sequence_info = table_info["sequences"]
     no_seq = {k for k, v in table_info["partition_info"].get("primary_key", {}).items() if not v.get("copy_sequence")}
@@ -1046,6 +1181,17 @@ def create_partitioned_table(conn, schema_name, table_info, partition_values):
 
 
 def create_partitioned_table_constraints(conn, schema_name, table_name, constraint_info, partition_key):
+    """
+    Create all constraints on the target partitioned table that are on the source table.
+    Args:
+        conn (Connection): Database connection
+        schema_name (str): Schema name
+        table_name (str): Target table name
+        constraint_info (list(NamedTuple)): Table constraint information as read from the database
+        partition_key (str): Column name of the partition key
+    Returns:
+        None
+    """
     if constraint_info:
         sqlprefix = f"alter table {schema_name}.{table_name} add constraint {{}} "
         for c_spec in constraint_info:
@@ -1064,6 +1210,16 @@ def create_partitioned_table_constraints(conn, schema_name, table_name, constrai
 
 
 def create_partitioned_table_indexes(conn, schema_name, table_name, index_info):
+    """
+    Create indexes on the target partitioned table that exist on the source table.
+    Args:
+        conn (Connection): Database connection
+        schema_name (str): Schema name
+        table_name (str): Target table name
+        index_info (list(NamedTuple)): Index info from source table as read from the database
+    Returns:
+        None
+    """
     if index_info:
         index_name_ix = 1
         index_table_ix = -2
@@ -1156,6 +1312,16 @@ def drop_table(conn, schema_name, table_info):
 
 
 def rename_source_sequences(conn, schema_name, table_name, sequence_info):
+    """
+    Rename source table sequences so that new sequences using the original names can be created.
+    Args:
+        conn (Connection): Database connection
+        schema_name (str): Schema name
+        table_name (str): Source table name
+        sequence_info (list(NamedTuple)): Sequence information for the table as read from the database
+    Returns:
+        None
+    """
     LINFO(f"Renaming sequences on source table {schema_name}.{table_name}")
     for s_spec in sequence_info:
         sql = f"""
@@ -1165,6 +1331,16 @@ alter sequence {s_spec.schemaname}.{s_spec.sequencename} rename to __{s_spec.seq
 
 
 def rename_source_views(conn, schema_name, table_name, view_info):
+    """
+    Rename views dependent on the source table so that new views using the original names can be created.
+    Args:
+        conn (Connection): Database connection
+        schema_name (str): Schema name
+        table_name (str): Source table name
+        view_info (list(NamedTuple)): Sequence information for the table as read from the database
+    Returns:
+        None
+    """
     LINFO(f"Renaming views for table {schema_name}.{table_name}")
     for v_spec in view_info:
         sql = f"""
@@ -1182,6 +1358,17 @@ alter index {v_spec.schemaname}.{ixname} rename to {'__' + ixname}
 
 
 def create_views(conn, schema_name, table_name, view_info):
+    """
+    Create views using the target partitioned table using the same name and definition as
+    the original views on the source table.
+    Args:
+        conn (Connection): Database connection
+        schema_name (str): Schema name
+        table_name (str): Source table name
+        view_info (list(NamedTuple)): Sequence information for the table as read from the database
+    Returns:
+        None
+    """
     LINFO(f"Creating views for table {schema_name}.{table_name}")
     for v_spec in view_info:
         sql = f"""
@@ -1198,6 +1385,14 @@ create {'materialized ' if v_spec.view_type == 'matview' else ''}view {v_spec.sc
 
 
 def refresh_materialized_views(conn, view_info):
+    """
+    Scans the read view information for materialized views and executes a refresh with data
+    Args:
+        conn (Connection): Database connection
+        view_info (list(NamedTuple)): Sequence information for the table as read from the database
+    Returns:
+        None
+    """
     for v_spec in view_info:
         if v_spec.view_type == "matview":
             sql = f"""
@@ -1209,6 +1404,23 @@ refresh materialized view {v_spec.schemaname}.{v_spec.view_name} with data;
 
 
 def rename_constraints(conn, schema_name, table_name, constraints, src_op, src_val, dst_op, dst_val):
+    """
+    Rename table constraints
+    Args:
+        conn (Connection): Database connection
+        schema_name (str): Schema name
+        table_name (str): Source table name
+        constraints (list(NamedTuple)): Constraint information for the table as read from the database
+        src_op (str): either "add" or "strip" -- applied to the source constraint name
+        src_val (str): String to add or use to determine how much to strip from the beginning
+                       of the source constraint name
+        dst_op (str): either "add" or "strip" -- applied to the destination constraint name
+        dst_val (str): String to add or use to determine how much to strip from the beginning
+                       of the destination constraint name
+    Returns:
+        None
+    """
+
     def p_add(label, prefix):
         return prefix + label
 
@@ -1232,6 +1444,23 @@ to {dst_xform(c_spec.constraint_name, dst_val)} ;
 
 
 def rename_indexes(conn, schema_name, table_name, indexes, src_op, src_val, dst_op, dst_val):
+    """
+    Rename table indexes
+    Args:
+        conn (Connection): Database connection
+        schema_name (str): Schema name
+        table_name (str): Source table name
+        indexes (list(NamedTuple)): Index information for the table as read from the database
+        src_op (str): either "add" or "strip" -- applied to the source index name
+        src_val (str): String to add or use to determine how much to strip from the beginning
+                       of the source index name
+        dst_op (str): either "add" or "strip" -- applied to the destination index name
+        dst_val (str): String to add or use to determine how much to strip from the beginning
+                       of the destination index name
+    Returns:
+        None
+    """
+
     def i_add(label, prefix):
         return prefix + label
 
@@ -1336,6 +1565,15 @@ select {', '.join(select_cols)} from {source_schema}.{source_table} ;
 
 
 def create_stored_procedures(conn, schema, config):
+    """
+    Execute sql meant to define stored procedures against a schema
+    Args:
+        conn (Connection): Database connection
+        schema (str): Schema name
+        config (dict): Partition configuration settings
+    Returns:
+        None
+    """
     sp_spec = config.get("stored_procedures", {})
     if sp_spec:
         schema_sp = sp_spec.get(schema, sp_spec.get("*", {}))
