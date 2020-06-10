@@ -343,6 +343,7 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "cost_units": Value("USD", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "capacity_aggregate": {},
                         "delta_key": {
@@ -678,6 +679,7 @@ class OCPProviderMap(ProviderMap):
                             "cost_units": Value("USD", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "cost": Value(0, output_field=DecimalField()),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "capacity_aggregate": {},
                         "delta_key": {
@@ -861,6 +863,7 @@ class OCPProviderMap(ProviderMap):
                                 "cluster": Max("cluster_capacity_cpu_core_hours"),
                             },
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "delta_key": {
                             "usage": Sum("pod_usage_cpu_core_hours"),
@@ -1026,6 +1029,7 @@ class OCPProviderMap(ProviderMap):
                             },
                             "usage_units": Value("GB-Hours", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "delta_key": {
                             "usage": Sum("pod_usage_memory_gigabyte_hours"),
@@ -1190,6 +1194,7 @@ class OCPProviderMap(ProviderMap):
                             "cost_units": Value("USD", output_field=CharField()),
                             "usage_units": Value("GB-Mo", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "delta_key": {
                             "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),

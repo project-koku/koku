@@ -107,6 +107,8 @@ class OCPAllCostLineItemDailySummary(models.Model):
     # See comment on unblended_cost for project cost explanation
     project_costs = JSONField(null=True)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 # Materialized Views for UI Reporting
 class OCPAllCostSummary(models.Model):
@@ -135,6 +137,8 @@ class OCPAllCostSummary(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAllCostSummaryByAccount(models.Model):
@@ -168,6 +172,8 @@ class OCPAllCostSummaryByAccount(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class OCPAllCostSummaryByService(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -200,6 +206,8 @@ class OCPAllCostSummaryByService(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class OCPAllCostSummaryByRegion(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -231,6 +239,8 @@ class OCPAllCostSummaryByRegion(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAllComputeSummary(models.Model):
@@ -268,6 +278,8 @@ class OCPAllComputeSummary(models.Model):
 
     currency_code = models.CharField(max_length=10, null=True)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class OCPAllDatabaseSummary(models.Model):
     """A summarized view of OCP on All infrastructure cost for products in the database service category."""
@@ -301,6 +313,8 @@ class OCPAllDatabaseSummary(models.Model):
 
     currency_code = models.CharField(max_length=10, null=True)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class OCPAllNetworkSummary(models.Model):
     """A summarized view of OCP on All infrastructure cost for products in the network service category."""
@@ -332,6 +346,8 @@ class OCPAllNetworkSummary(models.Model):
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAllStorageSummary(models.Model):
@@ -367,6 +383,8 @@ class OCPAllStorageSummary(models.Model):
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAllCostLineItemProjectDailySummary(models.Model):
@@ -442,3 +460,5 @@ class OCPAllCostLineItemProjectDailySummary(models.Model):
     pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
+
+    source_uuid = models.UUIDField(unique=False, null=True)

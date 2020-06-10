@@ -100,6 +100,8 @@ class OCPAzureCostLineItemDailySummary(models.Model):
     # See comment on pretax_cost for project cost explanation
     project_costs = JSONField(null=True)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class OCPAzureCostLineItemProjectDailySummary(models.Model):
     """A summarized view of OCP on Azure cost by OpenShift project."""
@@ -171,6 +173,8 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
 
     pod_cost = models.DecimalField(max_digits=24, decimal_places=6, null=True)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class OCPAzureTagsSummary(models.Model):
     """A collection of all current existing tag key and values."""
@@ -212,6 +216,7 @@ class OCPAzureCostSummary(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False, default="USD")
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAzureCostSummaryByAccount(models.Model):
@@ -236,6 +241,7 @@ class OCPAzureCostSummaryByAccount(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False, default="USD")
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAzureCostSummaryByLocation(models.Model):
@@ -260,6 +266,7 @@ class OCPAzureCostSummaryByLocation(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False, default="USD")
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAzureCostSummaryByService(models.Model):
@@ -284,6 +291,7 @@ class OCPAzureCostSummaryByService(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False, default="USD")
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAzureComputeSummary(models.Model):
@@ -311,6 +319,7 @@ class OCPAzureComputeSummary(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False, default="USD")
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAzureStorageSummary(models.Model):
@@ -337,6 +346,7 @@ class OCPAzureStorageSummary(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False, default="USD")
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAzureNetworkSummary(models.Model):
@@ -363,6 +373,7 @@ class OCPAzureNetworkSummary(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False, default="USD")
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAzureDatabaseSummary(models.Model):
@@ -389,3 +400,4 @@ class OCPAzureDatabaseSummary(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False, default="USD")
+    source_uuid = models.UUIDField(unique=False, null=True)
