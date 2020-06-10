@@ -2,7 +2,7 @@
 from rest_framework import serializers
 
 from ..gcp.provider import GCPProvider
-from ..provider_interface import error_obj
+from api.common import error_obj
 from api.models import Provider
 
 
