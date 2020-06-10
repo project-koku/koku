@@ -15,16 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Kafka message handler."""
-import asyncio
-import concurrent.futures
-import functools
 import json
 import logging
 import os
-import random
 import re
 import shutil
-import signal
 import tempfile
 import threading
 import time
@@ -34,14 +29,19 @@ from tarfile import ReadError
 from tarfile import TarFile
 
 import requests
-from aiokafka import AIOKafkaConsumer
-from aiokafka import AIOKafkaProducer
+from confluent_kafka import Consumer
+from confluent_kafka import Producer
+from confluent_kafka import TopicPartition
 from django.db import connection
 from django.db import InterfaceError
 from django.db import OperationalError
 from kafka.errors import KafkaError
+from kombu.exceptions import OperationalError as RabbitOperationalError
 
 from api.common import log_json
+from kafka_utils.utils import backoff
+from kafka_utils.utils import is_kafka_connected
+from kafka_utils.utils import rewind_consumer_to_retry
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
@@ -58,23 +58,15 @@ from masu.util.ocp import common as utils
 
 LOG = logging.getLogger(__name__)
 
-EVENT_LOOP = asyncio.get_event_loop()
-
 HCCM_TOPIC = "platform.upload.hccm"
 VALIDATION_TOPIC = "platform.upload.validation"
 SUCCESS_CONFIRM_STATUS = "success"
 FAILURE_CONFIRM_STATUS = "failure"
+PRODUCER = Producer({"bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS})
 
 
 class KafkaMsgHandlerError(Exception):
     """Kafka msg handler error."""
-
-
-def backoff(interval, maximum=64):  # pragma: no cover
-    """Exponential back-off."""
-    wait = min(maximum, (2 ** interval)) + random.random()
-    LOG.info("Sleeping for %.2f seconds.", wait)
-    time.sleep(wait)
 
 
 def create_manifest_entries(report_meta, request_id, context={}):
@@ -133,10 +125,9 @@ def record_report_status(manifest_id, file_name, request_id, context={}):
         already_processed = db_accessor.get_last_completed_datetime()
         if already_processed:
             msg = f"Report {file_name} has already been processed."
-            LOG.info(log_json(request_id, msg, context))
         else:
             msg = f"Recording stats entry for {file_name}"
-            LOG.info(log_json(request_id, msg, context))
+        LOG.info(log_json(request_id, msg, context))
     return already_processed
 
 
@@ -196,7 +187,7 @@ def download_payload(request_id, url, context={}):
         shutil.rmtree(temp_dir)
         msg = f"Unable to download file. Error: {str(err)}"
         LOG.warning(log_json(request_id, msg))
-        raise KafkaMsgHandlerError("Unable to download file. Error: ", str(err))
+        raise KafkaMsgHandlerError(msg)
 
     sanitized_request_id = re.sub("[^A-Za-z0-9]+", "", request_id)
     gzip_filename = f"{sanitized_request_id}.tar.gz"
@@ -209,8 +200,7 @@ def download_payload(request_id, url, context={}):
         shutil.rmtree(temp_dir)
         msg = f"Unable to write file. Error: {str(error)}"
         LOG.warning(log_json(request_id, msg, context))
-        raise KafkaMsgHandlerError("Unable to write file. Error: ", str(error))
-        LOG.warning(log_json(request_id, msg, context))
+        raise KafkaMsgHandlerError(msg)
 
     return (temp_dir, temp_file, gzip_filename)
 
@@ -368,7 +358,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
-async def send_confirmation(request_id, status):  # pragma: no cover
+def send_confirmation(request_id, status):  # pragma: no cover
     """
     Send kafka validation message to Insights Upload service.
 
@@ -383,26 +373,30 @@ async def send_confirmation(request_id, status):  # pragma: no cover
     Returns:
         None
 
-    """
-    producer = AIOKafkaProducer(loop=EVENT_LOOP, bootstrap_servers=Config.INSIGHTS_KAFKA_ADDRESS)
-    try:
-        await producer.start()
-    except (KafkaError, TimeoutError) as err:
-        await producer.stop()
-        LOG.exception(f"Unable to connect to kafka server.  Closing producer. {str(err)}")
-        KAFKA_CONNECTION_ERRORS_COUNTER.inc()
-        raise KafkaMsgHandlerError("Unable to connect to kafka server.  Closing producer.")
+    max.in.flight.requests.per.connection   1000000         Maximum number of in-flight requests per
+            broker connection. This is a generic property applied to all broker communication, however
+            it is primarily relevant to produce requests. In particular, note that other mechanisms
+            limit the number of outstanding consumer fetch request per broker to one.
+    message.send.max.retries                2               How many times to retry sending a failing
+            Message. Note: retrying may cause reordering unless enable.idempotence is set to true.
+    retry.backoff.ms                        100             The backoff time in milliseconds before
+            retrying a protocol request.
 
-    LOG.debug("Producer started...")
-    try:
-        validation = {"request_id": request_id, "validation": status}
-        msg = bytes(json.dumps(validation), "utf-8")
-        LOG.info("Validating message: %s", str(msg))
-        await producer.send_and_wait(VALIDATION_TOPIC, msg)
-        LOG.info("Validating message complete.")
-    finally:
-        await producer.stop()
-        LOG.debug("Producer stopped.")
+    """
+
+    def acked(err, msg):
+        """Acknowledge message success or failure."""
+        if err is not None:
+            LOG.error(f"Failed to deliver message: {str(msg)}: {str(err)}")
+        else:
+            LOG.info("Validating message complete.")
+
+    validation = {"request_id": request_id, "validation": status}
+    msg = bytes(json.dumps(validation), "utf-8")
+    PRODUCER.produce(VALIDATION_TOPIC, value=msg, callback=acked)
+    # Wait up to 1 second for events. Callbacks will be invoked during
+    # this method call if the message is acknowledged.
+    PRODUCER.flush(1)
 
 
 def handle_message(msg):
@@ -444,8 +438,8 @@ def handle_message(msg):
                                  current_file: String
 
     """
-    if msg.topic == HCCM_TOPIC:
-        value = json.loads(msg.value.decode("utf-8"))
+    if msg.topic() == HCCM_TOPIC:
+        value = json.loads(msg.value().decode("utf-8"))
         request_id = value.get("request_id", "no_request_id")
         account = value.get("account", "no_account")
         context = {"account": account}
@@ -460,7 +454,7 @@ def handle_message(msg):
             raise KafkaMsgHandlerError("Unable to extract payload, db closed.")
         except Exception as error:  # noqa
             traceback.print_exc()
-            msg = "Unable to extract payload. Error: %s", str(type(error))
+            msg = f"Unable to extract payload. Error: {str(type(error))}"
             LOG.warning(log_json(request_id, msg, context))
             return FAILURE_CONFIRM_STATUS, None
     else:
@@ -597,9 +591,9 @@ def report_metas_complete(report_metas):
     return process_complete
 
 
-async def process_messages(msg, loop=EVENT_LOOP):
+def process_messages(msg):
     """
-    Process asyncio messages and send validation status.
+    Process messages and send validation status.
 
     Processing involves:
     1. Downloading, verifying, extracting, and preparing report files for processing.
@@ -610,27 +604,24 @@ async def process_messages(msg, loop=EVENT_LOOP):
 
     Args:
         msg (ConsumerRecord) - Message from kafka hccm topic.
-        loop (Asyncio Event Loop) - Event loop while listening for messages.
 
     Returns:
         None
 
     """
     process_complete = False
-    with concurrent.futures.ThreadPoolExecutor() as pool:
-        status, report_metas = await loop.run_in_executor(pool, handle_message, msg)
+    status, report_metas = handle_message(msg)
 
     if report_metas:
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            for report_meta in report_metas:
-                report_meta["process_complete"] = await loop.run_in_executor(pool, process_report, report_meta)
-                LOG.info(f"Processing: {report_meta.get('current_file')} complete.")
-            process_complete = report_metas_complete(report_metas)
-            async_id = await loop.run_in_executor(pool, summarize_manifest, report_meta)
-            if async_id:
-                LOG.info("Summarization celery uuid: %s", str(async_id))
+        for report_meta in report_metas:
+            report_meta["process_complete"] = process_report(report_meta)
+            LOG.info(f"Processing: {report_meta.get('current_file')} complete.")
+        process_complete = report_metas_complete(report_metas)
+        async_id = summarize_manifest(report_meta)
+        if async_id:
+            LOG.info("Summarization celery uuid: %s", str(async_id))
     if status:
-        value = json.loads(msg.value.decode("utf-8"))
+        value = json.loads(msg.value().decode("utf-8"))
         count = 0
         while True:
             try:
@@ -640,9 +631,9 @@ async def process_messages(msg, loop=EVENT_LOOP):
                     LOG.info(f"Sending Ingress Service confirmation for: {files_string}")
                 else:
                     LOG.info(f"Sending Ingress Service confirmation for: {str(value)}")
-                await send_confirmation(value["request_id"], status)
+                send_confirmation(value["request_id"], status)
                 break
-            except KafkaMsgHandlerError as err:
+            except KafkaError as err:
                 LOG.error(f"Resending message confirmation due to error: {err}")
                 backoff(count, Config.INSIGHTS_KAFKA_CONN_RETRY_MAX)
                 count += 1
@@ -651,26 +642,35 @@ async def process_messages(msg, loop=EVENT_LOOP):
     return process_complete
 
 
-def get_consumer(event_loop):  # pragma: no cover
+def get_consumer():  # pragma: no cover
     """Create a Kafka consumer."""
-    return AIOKafkaConsumer(
-        HCCM_TOPIC,
-        loop=event_loop,
-        bootstrap_servers=Config.INSIGHTS_KAFKA_ADDRESS,
-        group_id="hccm-group",
-        enable_auto_commit=False,
+    consumer = Consumer(
+        {
+            "bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS,
+            "group.id": "hccm-group",
+            "queued.max.messages.kbytes": 1024,
+            "enable.auto.commit": False,
+        }
     )
+    consumer.subscribe([HCCM_TOPIC])
+    return consumer
 
 
-async def listen_for_messages_loop(event_loop):
+def listen_for_messages_loop():
     """Wrap listen_for_messages in while true."""
+    consumer = get_consumer()
     while True:
-        consumer = get_consumer(event_loop)
-        await listen_for_messages(consumer)
+        msg_list = consumer.consume()
+        if len(msg_list) == 1:
+            msg = msg_list.pop()
+        else:
+            continue
+
+        listen_for_messages(msg, consumer)
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
-async def listen_for_messages(consumer):
+def listen_for_messages(msg, consumer):
     """
     Listen for messages on the hccm topic.
 
@@ -698,67 +698,52 @@ async def listen_for_messages(consumer):
         None
 
     """
-    LOG.info("Kafka consumer starting...")
-    await consumer.start()
-    LOG.info("Listener started.  Waiting for messages...")
     try:
-        async for msg in consumer:
-            process_complete = False
-            try:
-                process_complete = await process_messages(msg)
-                if process_complete:
-                    await consumer.commit()
-            except (InterfaceError, OperationalError, ReportProcessorDBError) as err:
-                connection.close()
-                LOG.error(f"[listen_for_messages] database error. Seeking to committed. Error: {str(err)}")
-                await asyncio.sleep(Config.RETRY_SECONDS)
-                await consumer.seek_to_committed()
-            except KafkaMsgHandlerError as error:
-                LOG.error(f"[listen_for_messages] internal error. Seeking to committed. Error: {str(error)}")
-                await asyncio.sleep(Config.RETRY_SECONDS)
-                await consumer.seek_to_committed()
-            except ReportProcessorError as error:
-                LOG.error(f"Report processing error: {str(error)}")
-                await consumer.commit()
-
-    except KafkaError as error:
-        LOG.error(f"[listen_for_messages] Kafka error encountered: {type(error).__name__}: {error}", exc_info=True)
-        KAFKA_CONNECTION_ERRORS_COUNTER.inc()
+        offset = msg.offset()
+        partition = msg.partition()
+        LOG.info(f"Processing message offset: {offset} partition: {partition}")
+        topic_partition = TopicPartition(topic=HCCM_TOPIC, partition=partition, offset=offset)
+        process_messages(msg)
+        consumer.commit()
+    except (InterfaceError, OperationalError, ReportProcessorDBError) as error:
+        connection.close()
+        LOG.error(
+            f"[listen_for_messages] Database error. Seeking to committed. Error: {type(error).__name__}: {error}"
+        )
+        time.sleep(Config.RETRY_SECONDS)
+        rewind_consumer_to_retry(consumer, topic_partition, Config.RETRY_SECONDS)
+    except (KafkaMsgHandlerError, RabbitOperationalError) as error:
+        LOG.error(f"[listen_for_messages] Internal error. Seeking to committed. {type(error).__name__}: {error}")
+        time.sleep(Config.RETRY_SECONDS)
+        rewind_consumer_to_retry(consumer, topic_partition, Config.RETRY_SECONDS)
+    except ReportProcessorError as error:
+        LOG.error(f"[listen_for_messages] Report processing error: {str(error)}")
+        consumer.commit()
     except Exception as error:
-        traceback.print_exc()
         LOG.error(f"[listen_for_messages] UNKNOWN error encountered: {type(error).__name__}: {error}", exc_info=True)
-    finally:
-        # Will leave consumer group; perform autocommit if enabled.
-        await consumer.stop()
-
-
-def shutdown(loop):  # pragma: no cover
-    """SIGTERM asyncio event handler."""
-    LOG.info("Received stop signal...")
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
-def asyncio_worker_thread(loop):  # pragma: no cover
+def koku_worker_thread():  # pragma: no cover
     """
-    Worker thread function to run the asyncio event loop.
-
-    Args:
-        loop - Asyncio event loop
+    Configure Worker listener thread.
 
     Returns:
         None
 
     """
+    if is_kafka_connected(Config.INSIGHTS_KAFKA_HOST, Config.INSIGHTS_KAFKA_PORT):  # Next, check that Kafka is running
+        LOG.info("Kafka is running...")
+
     try:
-        loop.create_task(listen_for_messages_loop(loop))
-        loop.run_forever()
+        listen_for_messages_loop()
     except KeyboardInterrupt:
         exit(0)
 
 
 def initialize_kafka_handler():  # pragma: no cover
     """
-    Create asyncio tasks and daemon thread to run event loop.
+    Start Worker thread.
 
     Args:
         None
@@ -768,8 +753,8 @@ def initialize_kafka_handler():  # pragma: no cover
 
     """
     if Config.KAFKA_CONNECT:
-        EVENT_LOOP.add_signal_handler(signal.SIGTERM, functools.partial(shutdown, EVENT_LOOP))
-        event_loop_thread = threading.Thread(target=asyncio_worker_thread, args=(EVENT_LOOP,))
+        event_loop_thread = threading.Thread(target=koku_worker_thread)
         event_loop_thread.daemon = True
         event_loop_thread.start()
         event_loop_thread.join()
+        LOG.info("Listening for kafka events")
