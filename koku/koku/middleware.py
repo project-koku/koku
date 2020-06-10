@@ -279,7 +279,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                     IdentityHeaderMiddleware.customer_cache[account] = Customer.objects.filter(
                         account_id=account
                     ).get()
-                    LOG.info(f"Customer added to cache: {account}")
+                    LOG.debug(f"Customer added to cache: {account}")
                 customer = IdentityHeaderMiddleware.customer_cache[account]
             except Customer.DoesNotExist:
                 customer = IdentityHeaderMiddleware.create_customer(account)
