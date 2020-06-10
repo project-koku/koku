@@ -299,6 +299,8 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     monthly_cost_type = models.TextField(null=True, choices=MONTHLY_COST_TYPES)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class OCPUsagePodLabelSummary(models.Model):
     """A collection of all current existing tag key and values."""
@@ -544,6 +546,8 @@ class OCPCostSummary(models.Model):
 
     supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class OCPCostSummaryByProject(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -583,6 +587,8 @@ class OCPCostSummaryByProject(models.Model):
 
     supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class OCPCostSummaryByNode(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -620,6 +626,8 @@ class OCPCostSummaryByNode(models.Model):
     supplementary_usage_cost = JSONField(null=True)
 
     supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPPodSummary(models.Model):
@@ -678,6 +686,8 @@ class OCPPodSummary(models.Model):
     total_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPPodSummaryByProject(models.Model):
@@ -739,6 +749,8 @@ class OCPPodSummaryByProject(models.Model):
 
     cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class OCPVolumeSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -782,6 +794,8 @@ class OCPVolumeSummary(models.Model):
     volume_request_storage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPVolumeSummaryByProject(models.Model):
@@ -828,3 +842,5 @@ class OCPVolumeSummaryByProject(models.Model):
     volume_request_storage_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
