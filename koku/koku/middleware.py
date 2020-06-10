@@ -314,7 +314,6 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                     try:
                         user_access = self._get_access(user)
                     except RbacConnectionError as err:
-                        LOG.info("Enters Rbac")
                         return HttpResponseFailedDependency({"source": "Rbac", "exception": err})
                 cache.set(user.uuid, user_access, self.rbac.cache_ttl)
             user.access = user_access
