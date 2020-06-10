@@ -26,48 +26,67 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsa
         jsonb_each_text(lid.volume_labels) AS labels
         WHERE key = ANY (key_array)
         GROUP BY id
+    ),
+    cte_agg_pod_storage as (
+        SELECT li.report_period_id,
+            li.cluster_id,
+            li.cluster_alias,
+            li.namespace,
+            li.node,
+            li.usage_start,
+            li.usage_end,
+            li.persistentvolumeclaim,
+            li.persistentvolume,
+            li.storageclass,
+            coalesce(fvl.volume_labels, '{}'::jsonb) as volume_labels,
+            max(li.persistentvolumeclaim_capacity_bytes) * POWER(2, -30) as persistentvolumeclaim_capacity_gigabyte,
+            sum(li.persistentvolumeclaim_capacity_byte_seconds) /
+                86400 *
+                extract(days FROM date_trunc('month', li.usage_start) + interval '1 month - 1 day')
+                * POWER(2, -30) as persistentvolumeclaim_capacity_gigabyte_months,
+            sum(li.volume_request_storage_byte_seconds) /
+                86400 *
+                extract(days FROM date_trunc('month', li.usage_start) + interval '1 month - 1 day')
+                * POWER(2, -30) as volume_request_storage_gigabyte_months,
+            sum(li.persistentvolumeclaim_usage_byte_seconds) /
+                86400 *
+                extract(days FROM date_trunc('month', li.usage_start) + interval '1 month - 1 day')
+                * POWER(2, -30) as persistentvolumeclaim_usage_gigabyte_months
+        FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily AS li
+        LEFT JOIN cte_filtered_volume_labels AS fvl
+            ON li.id = fvl.id
+        WHERE usage_start >= {{start_date}}
+            AND usage_start <= {{end_date}}
+            AND cluster_id = {{cluster_id}}
+        GROUP BY li.report_period_id,
+            li.cluster_id,
+            li.cluster_alias,
+            li.usage_start,
+            li.usage_end,
+            li.namespace,
+            li.node,
+            fvl.volume_labels,
+            li.persistentvolume,
+            li.persistentvolumeclaim,
+            li.storageclass
     )
-    SELECT li.report_period_id,
-        li.cluster_id,
-        li.cluster_alias,
-        li.namespace,
-        li.node,
-        li.usage_start,
-        li.usage_end,
-        li.persistentvolumeclaim,
-        li.persistentvolume,
-        li.storageclass,
-        coalesce(fvl.volume_labels, '{}'::jsonb) as volume_labels,
-        max(li.persistentvolumeclaim_capacity_bytes) * POWER(2, -30) as persistentvolumeclaim_capacity_gigabyte,
-        sum(li.persistentvolumeclaim_capacity_byte_seconds) /
-            86400 *
-            extract(days FROM date_trunc('month', li.usage_start) + interval '1 month - 1 day')
-            * POWER(2, -30) as persistentvolumeclaim_capacity_gigabyte_months,
-        sum(li.volume_request_storage_byte_seconds) /
-            86400 *
-            extract(days FROM date_trunc('month', li.usage_start) + interval '1 month - 1 day')
-            * POWER(2, -30) as volume_request_storage_gigabyte_months,
-        sum(li.persistentvolumeclaim_usage_byte_seconds) /
-            86400 *
-            extract(days FROM date_trunc('month', li.usage_start) + interval '1 month - 1 day')
-            * POWER(2, -30) as persistentvolumeclaim_usage_gigabyte_months
-    FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily AS li
-    LEFT JOIN cte_filtered_volume_labels AS fvl
-        ON li.id = fvl.id
-    WHERE usage_start >= {{start_date}}
-        AND usage_start <= {{end_date}}
-        AND cluster_id = {{cluster_id}}
-    GROUP BY li.report_period_id,
-        li.cluster_id,
-        li.cluster_alias,
-        li.usage_start,
-        li.usage_end,
-        li.namespace,
-        li.node,
-        fvl.volume_labels,
-        li.persistentvolume,
-        li.persistentvolumeclaim,
-        li.storageclass
+    SELECT public.koku_record_uuid(aps.cluster_id::text, aps.namespace::text, aps.node::text, aps.volume_labels::text)::uuid as id,
+        aps.report_period_id,
+        aps.cluster_id,
+        aps.cluster_alias,
+        aps.namespace,
+        aps.node,
+        aps.usage_start,
+        aps.usage_end,
+        aps.persistentvolumeclaim,
+        aps.persistentvolume,
+        aps.storageclass,
+        aps.volume_labels,
+        aps.persistentvolumeclaim_capacity_gigabyte,
+        aps.persistentvolumeclaim_capacity_gigabyte_months,
+        aps.volume_request_storage_gigabyte_months,
+        aps.persistentvolumeclaim_usage_gigabyte_months
+    FROM cte_agg_pod_storage AS aps
 )
 ;
 
@@ -81,6 +100,7 @@ WHERE usage_start >= {{start_date}}
 
 -- Populate the daily aggregate line item data
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+    id,
     report_period_id,
     cluster_id,
     cluster_alias,
@@ -98,7 +118,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     volume_request_storage_gigabyte_months,
     persistentvolumeclaim_usage_gigabyte_months
 )
-    SELECT report_period_id,
+    SELECT id,
+        report_period_id,
         cluster_id,
         cluster_alias,
         'Storage',
