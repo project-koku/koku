@@ -10,8 +10,8 @@ azure-mgmt-storage==10.0.0
 azure-storage-blob==12.3.1
 beautifulsoup4==4.9.1
 billiard==3.6.3.0
-boto3==1.13.24
-botocore==1.16.24
+boto3==1.13.26
+botocore==1.16.26
 bs4==0.0.1
 cachetools==4.1.0
 celery-prometheus-exporter==1.7.0
@@ -33,7 +33,7 @@ django==2.2.13
 djangorestframework-csv==2.1.0
 djangorestframework==3.11.0
 docutils==0.15.2
-flake8==3.8.2
+flake8==3.8.3
 future==0.18.2
 google-api-core==1.19.1
 google-auth==1.16.1
@@ -52,7 +52,7 @@ kafka-python==2.0.1
 kombu==4.6.10
 markupsafe==1.1.1
 mccabe==0.6.1
-msrest==0.6.15
+msrest==0.6.16
 msrestazure==0.6.3
 numpy==1.18.5
 oauthlib==3.1.0
