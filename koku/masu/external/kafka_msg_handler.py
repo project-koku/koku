@@ -69,6 +69,14 @@ class KafkaMsgHandlerError(Exception):
     """Kafka msg handler error."""
 
 
+def delivery_callback(err, msg):
+    """Acknowledge message success or failure."""
+    if err is not None:
+        LOG.error(f"Failed to deliver message: {str(msg)}: {str(err)}")
+    else:
+        LOG.info("Validation message delivered.")
+
+
 def create_manifest_entries(report_meta, request_id, context={}):
     """
     Creates manifest database entries for report processing tracking.
@@ -298,7 +306,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     manifest_path = extract_payload_contents(request_id, temp_dir, temp_file_path, temp_file, context)
 
     # Open manifest.json file and build the payload dictionary.
-    full_manifest_path = "{}/{}".format(temp_dir, manifest_path[0])
+    full_manifest_path = f"{temp_dir}/{manifest_path[0]}"
     report_meta = utils.get_report_details(os.path.dirname(full_manifest_path))
 
     # Filter and get account from payload's cluster-id
@@ -321,11 +329,11 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
 
     # Create directory tree for report.
     usage_month = utils.month_date_range(report_meta.get("date"))
-    destination_dir = "{}/{}/{}".format(Config.INSIGHTS_LOCAL_REPORT_DIR, report_meta.get("cluster_id"), usage_month)
+    destination_dir = f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{report_meta.get('cluster_id')}/{usage_month}"
     os.makedirs(destination_dir, exist_ok=True)
 
     # Copy manifest
-    manifest_destination_path = "{}/{}".format(destination_dir, os.path.basename(report_meta.get("manifest_path")))
+    manifest_destination_path = f"{destination_dir}/{os.path.basename(report_meta.get('manifest_path'))}"
     shutil.copy(report_meta.get("manifest_path"), manifest_destination_path)
 
     # Save Manifest
@@ -383,17 +391,9 @@ def send_confirmation(request_id, status):  # pragma: no cover
             retrying a protocol request.
 
     """
-
-    def acked(err, msg):
-        """Acknowledge message success or failure."""
-        if err is not None:
-            LOG.error(f"Failed to deliver message: {str(msg)}: {str(err)}")
-        else:
-            LOG.info("Validating message complete.")
-
     validation = {"request_id": request_id, "validation": status}
     msg = bytes(json.dumps(validation), "utf-8")
-    PRODUCER.produce(VALIDATION_TOPIC, value=msg, callback=acked)
+    PRODUCER.produce(VALIDATION_TOPIC, value=msg, callback=delivery_callback)
     # Wait up to 1 second for events. Callbacks will be invoked during
     # this method call if the message is acknowledged.
     PRODUCER.flush(1)
@@ -617,9 +617,9 @@ def process_messages(msg):
             report_meta["process_complete"] = process_report(report_meta)
             LOG.info(f"Processing: {report_meta.get('current_file')} complete.")
         process_complete = report_metas_complete(report_metas)
-        async_id = summarize_manifest(report_meta)
-        if async_id:
-            LOG.info("Summarization celery uuid: %s", str(async_id))
+        summary_task_id = summarize_manifest(report_meta)
+        if summary_task_id:
+            LOG.info(f"Summarization celery uuid: {str(summary_task_id)}")
     if status:
         value = json.loads(msg.value().decode("utf-8"))
         count = 0
