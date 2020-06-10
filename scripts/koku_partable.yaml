@@ -23,34 +23,20 @@ partition_targets:
     reporting_ocpusagelineitem_daily_summary:
       drop_table: 0
       primary_key:
-        - usage_start: {}
-        - id:
-            type: text
-            default: null
-            copy_sequence: 0
-            new_sequence: {}
-      trigger:
-        - when: before
-          action: insert
-          columns: []
-          function: pre_trg_ocpusagelineitemdailysummary_pk
-          name: {table_name}_pk_pre_insert
-        - when: before
-          action: update
-          columns:
-            - usage_start
-            - cluster_id
-            - namespace
-            - node
-            - pod_labels
-          function: pre_trg_ocpusagelineitemdailysummary_pk
-          name: {table_name}_pk_pre_insert
+        usage_start: {}
+        id:
+          data_type: uuid
+          default: null
+          copy_sequence: 0
+          new_sequence: {}
+      triggers: []
       partition_key: usage_start
       partition_type: range
       range:
         interval: 1
         interval_type: month
       copy_column_map:
+        id: public.koku_record_uuid(cluster_id::text, namespace::text, node::text, pod_labels::text)::uuid
         cluster_id: cluster_id
         namespace: namespace
         node: node
@@ -96,33 +82,18 @@ partition_targets:
 stored_procedures:
   "*":
     depends_on_schema: public
-    code:
-      - |-
-        create or replace function pre_trg_ocpusagelineitemdailysummary_pk() returns trigger as
-        $$
-        begin
-            if TG_OP in ('INSERT', 'UPDATE')
-            then
-                NEW.id = public.record_hash(NEW.usage_start::text,
-                                            NEW.cluster_id::text,
-                                            NEW.namespace::text,
-                                            NEW.node::text,
-                                            NEW.pod_labels::text);
-                return NEW;
-            else
-                return null;
-            end if;
-        end;
-        $$
-        language plpgsql;
+    code: []
   public:
     code:
+      - create extension if not exists "uuid-ossp" schema public;
       - |-
-        create or replace function public.record_hash ( VARIADIC vals text[] ) returns text as
+        drop function if exists {schema_name}.koku_record_uuid ( VARIADIC vals text[] ) cascade;
+        create or replace function {schema_name}.koku_record_uuid ( VARIADIC vals text[] ) returns uuid as
         $$
         declare
-            record_val text = '';
-            i int = 1;
+            record_val text = ''::text;
+            return_val uuid = null::uuid;
+            i int = 1::int;
         begin
             for i in 1 .. array_upper(vals, 1)
             loop
@@ -135,12 +106,12 @@ stored_procedures:
 
             if record_val = ''
             then
-                record_val = null::text;
+                return_val = null::uuid;
             else
-                select encode(sha256(decode(record_val, 'escape')), 'hex') into record_val;
+                select public.uuid_generate_v5(public.uuid_ns_oid(), record_val) into return_val;
             end if;
 
-            return record_val;
+            return return_val;
         end;
         $$
         language plpgsql

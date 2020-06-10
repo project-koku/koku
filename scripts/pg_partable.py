@@ -95,6 +95,10 @@ SQL_SCRIPT_FILE = None
 TABLE_CACHE = {}
 
 
+class RecAttrs:
+    pass
+
+
 def db_json_dumps(d):
     """
     Dump json data using str as the default transform
@@ -472,34 +476,31 @@ select t.relname::text as table_name,
     return res
 
 
-def db_schemas(conn, config):
+def db_schemas(conn):
     """
-    Generator   that returns all schemata not excluded in the config
+    Generator   that returns all user schemata
     Args:
         conn (Connection) : Database connection
-        config (dict) : program config settings
     Returns:
         (generator returning str) : schema name
     """
-    excluded_schemata = config.get("excluded_schemata", [])
-    if excluded_schemata:
-        where = """ where schemaname != any(%s)"""
-        values = (excluded_schemata,)
-    else:
-        where = ""
-        values = None
-
-    sql = f"""
+    sql = """
 select distinct
        schemaname
   from pg_stat_user_tables
-{where}
  order
     by schemaname;
     """
-    for rec in execute(conn, sql, values, override=True).fetchall():
+    for rec in execute(conn, sql, override=True).fetchall():
         LINFO(f"Processing schema {rec.schemaname}")
         yield rec.schemaname
+
+
+def get_partition_targets(conf, schema):
+    all_targets = conf["partition_targets"]
+    schema_targets = all_targets.get(schema, all_targets.get("*", {}))
+
+    return schema_targets
 
 
 def partition_table_targets(conn, schema, conf):
@@ -513,8 +514,7 @@ def partition_table_targets(conn, schema, conf):
         generator returning dict : {'structure': [<table_info_column_rec>],
                                     'partition_info': config partition settings for table}
     """
-    all_targets = conf["partition_targets"]
-    schema_targets = all_targets.get(schema, all_targets.get("*", {}))
+    schema_targets = get_partition_targets(conf, schema)
     fetch_targets = set(schema_targets) - set(TABLE_CACHE)
     if fetch_targets:
         LINFO(f"Caching table info for {','.join(fetch_targets)}")
@@ -855,22 +855,23 @@ def find_column_index(table_info, column_name):
 
 
 def add_new_sequence(table_info, sequence_spec):
-    new_sequence = object()
+    new_sequence = RecAttrs()
     for key, val in sequence_spec.items():
         setattr(new_sequence, key, val)
     table_info["sequences"].insert(0, new_sequence)
 
 
 def process_table_primary_key(table_info):
-    pk_info = table_info.get("primary_key")
+    pk_info = table_info["partition_info"].get("primary_key")
     if pk_info:
         pk_ix = get_primary_key_ix(table_info)
         if pk_ix >= 0:
             table_name = table_info["structure"][0].table_name
-            new_pk_spec = object()
+            new_pk_spec = RecAttrs()
             setattr(new_pk_spec, "constraint_type", "p")
+            setattr(new_pk_spec, "constraint_name", table_info["constraints"][pk_ix].constraint_name)
             new_constraint_cols = []
-            for col_name, col_spec in pk_info:
+            for col_name, col_spec in pk_info.items():
                 new_seq_spec = col_spec.get("new_sequence")
                 if new_seq_spec:
                     add_new_sequence(table_info, new_seq_spec)
@@ -878,8 +879,8 @@ def process_table_primary_key(table_info):
                 new_constraint_cols.append(col_name)
 
                 orig_col_ix = find_column_index(table_info, col_name)
-                orig_col = table_info["structure"][orig_col_ix] if orig_col_ix >= 0 else object()
-                new_col = object()
+                orig_col = table_info["structure"][orig_col_ix] if orig_col_ix >= 0 else RecAttrs()
+                new_col = RecAttrs()
                 setattr(new_col, "table_name", table_name)
                 setattr(new_col, "column_name", col_name)
                 setattr(new_col, "data_type", col_spec.get("data_type", orig_col.data_type))
@@ -895,14 +896,32 @@ def process_table_primary_key(table_info):
             table_info["constraints"][pk_ix] = new_pk_spec
 
 
-def create_table_trigger(conn, schema_name, table_info):
-    pass
+def create_table_triggers(conn, schema_name, table_info):
+    table_name = table_info["structure"][0].table_name
+    trigger_info = table_info["partition_info"].get("triggers")
+    if trigger_info:
+        LINFO(f"Creating triggers on table {schema_name}.{table_name}")
+        for trigger in trigger_info:
+            trigger_name = trigger["name"].format(table_name=table_name)
+            trigger_sql = [f"create trigger {trigger_name} {trigger['when']} {trigger['action']} "]
+            cols = trigger.get("columns")
+            if cols:
+                trigger_sql.append(f"of {', '.join(cols)}")
+            trigger_sql.append(f"on {schema_name}.{table_name}")
+            func = trigger["function"].format(schema_name=schema_name)
+            if not func.endswith("()"):
+                func += "()"
+            trigger_sql.append(f"for each row execute function {func} ;")
+
+            execute(conn, os.linesep.join(trigger_sql))
+    else:
+        LINFO(f"No triggers to create on table {schema_name}.{table_name}")
 
 
 def create_table_sequences(conn, schema_name, table_name, table_info):
     LINFO(f"Creating sequences for table {schema_name}.{table_name}")
     sequence_info = table_info["sequences"]
-    no_seq = {k for k, v in table_info["partition_info"].get("primary_key", {}) if v.get("copy_sequence")}
+    no_seq = {k for k, v in table_info["partition_info"].get("primary_key", {}).items() if not v.get("copy_sequence")}
     for s_spec in sequence_info:
         if s_spec.column_name in no_seq:
             continue
@@ -978,9 +997,10 @@ def create_partitioned_table(conn, schema_name, table_info, partition_values):
     execute(conn, sql)
 
     # Create any sequences
-    create_table_sequences(conn, target_schema, "p_" + table_name, table_info["sequences"])
+    create_table_sequences(conn, target_schema, "p_" + table_name, table_info)
 
     # Handle any triggers
+    create_table_triggers(conn, target_schema, table_info)
 
     # Add the constraints.
     create_partitioned_table_constraints(
@@ -1013,7 +1033,7 @@ def create_partitioned_table(conn, schema_name, table_info, partition_values):
     rename_tables(conn, schema_name, table_name, target_schema, "p_" + table_name, table_info)
 
     # Now comes the copy of the data.
-    copy_data(conn, schema_name, "__" + table_name, target_schema, table_name)
+    copy_data(conn, schema_name, "__" + table_name, target_schema, table_name, table_info)
     conn.commit()
 
     create_views(conn, target_schema, table_name, table_info["views"])
@@ -1289,7 +1309,7 @@ def rename_tables(conn, source_schema, source_table, target_schema, target_table
     execute(conn, "COMMIT;")  # Done on purpose for script generation
 
 
-def copy_data(conn, source_schema, source_table, target_schema, target_table):
+def copy_data(conn, source_schema, source_table, target_schema, target_table, table_info):
     """
     Copy data from the source table and into the target table
     Args:
@@ -1302,7 +1322,42 @@ def copy_data(conn, source_schema, source_table, target_schema, target_table):
         None
     """
     LINFO(f"Copy data from {source_schema}.{source_table} to {target_schema}.{target_table}")
-    execute(conn, f"insert into {target_schema}.{target_table} select * from {source_schema}.{source_table};")
+    column_map = table_info["partition_info"].get("copy_column_map")
+    if column_map:
+        insert_cols, select_cols = zip(*column_map.items())
+        sql = f"""
+insert into {target_schema}.{target_table} ( {', '.join(insert_cols)} )
+select {', '.join(select_cols)} from {source_schema}.{source_table} ;
+"""
+    else:
+        sql = f"insert into {target_schema}.{target_table} select * from {source_schema}.{source_table};"
+
+    execute(conn, sql)
+
+
+def create_stored_procedures(conn, schema, config):
+    sp_spec = config.get("stored_procedures", {})
+    if sp_spec:
+        schema_sp = sp_spec.get(schema, sp_spec.get("*", {}))
+        if schema_sp:
+            LINFO(f"Creating stored procedures for schema {schema}")
+            if not schema_sp.get("processed", False):
+                parent_schema = schema_sp.get("depends_on_schema")
+                if parent_schema:
+                    create_stored_procedures(conn, parent_schema, config)
+
+                for sql in schema_sp["code"]:
+                    execute(conn, sql.format(schema_name=schema))
+
+                if schema not in sp_spec:
+                    schema_sp = {"code": schema_sp["code"]}
+                    sp_spec[schema] = schema_sp
+
+                schema_sp["processed"] = True
+            else:
+                LINFO(f"Stored procedures for schema {schema} have already been processed")
+        else:
+            LINFO(f"No stored procedures for schema {schema}")
 
 
 def process_database(db_url, config, sqlfilename=""):
@@ -1327,10 +1382,15 @@ def process_database(db_url, config, sqlfilename=""):
         SQL_SCRIPT_FILE = open(sqlfilename, "wt")
     try:
         with connect(db_url) as conn:
-            for schema in db_schemas(conn, config):
-                create_partition_table_tracker(conn, schema)
-                for table_info in partition_table_targets(conn, schema, config):
-                    partition_table(conn, schema, table_info)
+            for schema in db_schemas(conn):
+                execute(conn, f"set search_path = {schema} ;")
+                create_stored_procedures(conn, schema, config)
+                if get_partition_targets(config, schema):
+                    create_partition_table_tracker(conn, schema)
+                    for table_info in partition_table_targets(conn, schema, config):
+                        partition_table(conn, schema, table_info)
+                else:
+                    LINFO(f"No partitioning info for schema {schema}")
     finally:
         if SQL_SCRIPT_FILE:
             SQL_SCRIPT_FILE.flush()
