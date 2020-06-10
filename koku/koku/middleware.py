@@ -156,7 +156,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
                 tenant = model(schema_name=schema_name)
                 tenant.save()
             KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
-            LOG.info(f"Tenant added to cache: {tenant_username}")
+            LOG.debug(f"Tenant added to cache: {tenant_username}")
         return KokuTenantMiddleware.tenant_cache[tenant_username]
 
 
