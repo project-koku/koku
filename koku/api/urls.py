@@ -14,7 +14,9 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Describes the urls and patterns for the API application."""
+from django.conf import settings
 from django.urls import path
+from django.views.decorators.cache import cache_page
 from django.views.generic.base import RedirectView
 from rest_framework.routers import DefaultRouter
 
@@ -50,75 +52,218 @@ from api.views import OCPVolumeView
 from api.views import openapi
 from api.views import SettingsView
 from api.views import StatusView
+from koku.cache import AWS_CACHE_PREFIX
+from koku.cache import AZURE_CACHE_PREFIX
+from koku.cache import OPENSHIFT_ALL_CACHE_PREFIX
+from koku.cache import OPENSHIFT_AWS_CACHE_PREFIX
+from koku.cache import OPENSHIFT_AZURE_CACHE_PREFIX
+from koku.cache import OPENSHIFT_CACHE_PREFIX
 from sources.api.views import SourcesViewSet
 
 
 ROUTER = DefaultRouter()
 ROUTER.register(r"dataexportrequests", DataExportRequestViewSet, basename="dataexportrequests")
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
-# pylint: disable=invalid-name
 urlpatterns = [
     path("cloud-accounts/", cloud_accounts, name="cloud-accounts"),
     path("status/", StatusView.as_view(), name="server-status"),
     path("openapi.json", openapi, name="openapi"),
     path("metrics/", metrics, name="metrics"),
-    path("tags/aws/", AWSTagView.as_view(), name="aws-tags"),
-    path("tags/azure/", AzureTagView.as_view(), name="azure-tags"),
-    path("tags/openshift/", OCPTagView.as_view(), name="openshift-tags"),
-    path("tags/openshift/infrastructures/all/", OCPAllTagView.as_view(), name="openshift-all-tags"),
-    path("tags/openshift/infrastructures/aws/", OCPAWSTagView.as_view(), name="openshift-aws-tags"),
-    path("tags/openshift/infrastructures/azure/", OCPAzureTagView.as_view(), name="openshift-azure-tags"),
-    path("tags/aws/<key>/", AWSTagView.as_view(), name="aws-tags-key"),
-    path("tags/azure/<key>/", AzureTagView.as_view(), name="azure-tags-key"),
-    path("tags/openshift/<key>/", OCPTagView.as_view(), name="openshift-tags-key"),
-    path("tags/openshift/infrastructures/all/<key>/", OCPAllTagView.as_view(), name="openshift-all-tags-key"),
-    path("tags/openshift/infrastructures/aws/<key>/", OCPAWSTagView.as_view(), name="openshift-aws-tags-key"),
-    path("tags/openshift/infrastructures/azure/<key>/", OCPAzureTagView.as_view(), name="openshift-azure-tags-key"),
-    path("reports/aws/costs/", AWSCostView.as_view(), name="reports-aws-costs"),
-    path("reports/aws/instance-types/", AWSInstanceTypeView.as_view(), name="reports-aws-instance-type"),
-    path("reports/aws/storage/", AWSStorageView.as_view(), name="reports-aws-storage"),
-    path("reports/azure/costs/", AzureCostView.as_view(), name="reports-azure-costs"),
-    path("reports/azure/instance-types/", AzureInstanceTypeView.as_view(), name="reports-azure-instance-type"),
-    path("reports/azure/storage/", AzureStorageView.as_view(), name="reports-azure-storage"),
-    path("reports/openshift/costs/", OCPCostView.as_view(), name="reports-openshift-costs"),
-    path("reports/openshift/memory/", OCPMemoryView.as_view(), name="reports-openshift-memory"),
-    path("reports/openshift/compute/", OCPCpuView.as_view(), name="reports-openshift-cpu"),
-    path("reports/openshift/volumes/", OCPVolumeView.as_view(), name="reports-openshift-volume"),
-    path("reports/openshift/infrastructures/all/costs/", OCPAllCostView.as_view(), name="reports-openshift-all-costs"),
+    path(
+        "tags/aws/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AWS_CACHE_PREFIX)(AWSTagView.as_view()),
+        name="aws-tags",
+    ),
+    path(
+        "tags/azure/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AZURE_CACHE_PREFIX)(AzureTagView.as_view()),
+        name="azure-tags",
+    ),
+    path(
+        "tags/openshift/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(OCPTagView.as_view()),
+        name="openshift-tags",
+    ),
+    path(
+        "tags/openshift/infrastructures/all/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_ALL_CACHE_PREFIX)(
+            OCPAllTagView.as_view()
+        ),
+        name="openshift-all-tags",
+    ),
+    path(
+        "tags/openshift/infrastructures/aws/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_AWS_CACHE_PREFIX)(
+            OCPAWSTagView.as_view()
+        ),
+        name="openshift-aws-tags",
+    ),
+    path(
+        "tags/openshift/infrastructures/azure/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_AZURE_CACHE_PREFIX)(
+            OCPAzureTagView.as_view()
+        ),
+        name="openshift-azure-tags",
+    ),
+    path(
+        "tags/aws/<key>/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AWS_CACHE_PREFIX)(AWSTagView.as_view()),
+        name="aws-tags-key",
+    ),
+    path(
+        "tags/azure/<key>/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AZURE_CACHE_PREFIX)(AzureTagView.as_view()),
+        name="azure-tags-key",
+    ),
+    path(
+        "tags/openshift/<key>/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(OCPTagView.as_view()),
+        name="openshift-tags-key",
+    ),
+    path(
+        "tags/openshift/infrastructures/all/<key>/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_ALL_CACHE_PREFIX)(
+            OCPAllTagView.as_view()
+        ),
+        name="openshift-all-tags-key",
+    ),
+    path(
+        "tags/openshift/infrastructures/aws/<key>/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_AWS_CACHE_PREFIX)(
+            OCPAWSTagView.as_view()
+        ),
+        name="openshift-aws-tags-key",
+    ),
+    path(
+        "tags/openshift/infrastructures/azure/<key>/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_AZURE_CACHE_PREFIX)(
+            OCPAzureTagView.as_view()
+        ),
+        name="openshift-azure-tags-key",
+    ),
+    path(
+        "reports/aws/costs/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AWS_CACHE_PREFIX)(AWSCostView.as_view()),
+        name="reports-aws-costs",
+    ),
+    path(
+        "reports/aws/instance-types/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AWS_CACHE_PREFIX)(
+            AWSInstanceTypeView.as_view()
+        ),
+        name="reports-aws-instance-type",
+    ),
+    path(
+        "reports/aws/storage/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AWS_CACHE_PREFIX)(AWSStorageView.as_view()),
+        name="reports-aws-storage",
+    ),
+    path(
+        "reports/azure/costs/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AZURE_CACHE_PREFIX)(AzureCostView.as_view()),
+        name="reports-azure-costs",
+    ),
+    path(
+        "reports/azure/instance-types/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AZURE_CACHE_PREFIX)(
+            AzureInstanceTypeView.as_view()
+        ),
+        name="reports-azure-instance-type",
+    ),
+    path(
+        "reports/azure/storage/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AZURE_CACHE_PREFIX)(
+            AzureStorageView.as_view()
+        ),
+        name="reports-azure-storage",
+    ),
+    path(
+        "reports/openshift/costs/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(
+            OCPCostView.as_view()
+        ),
+        name="reports-openshift-costs",
+    ),
+    path(
+        "reports/openshift/memory/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(
+            OCPMemoryView.as_view()
+        ),
+        name="reports-openshift-memory",
+    ),
+    path(
+        "reports/openshift/compute/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(OCPCpuView.as_view()),
+        name="reports-openshift-cpu",
+    ),
+    path(
+        "reports/openshift/volumes/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(
+            OCPVolumeView.as_view()
+        ),
+        name="reports-openshift-volume",
+    ),
+    path(
+        "reports/openshift/infrastructures/all/costs/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_ALL_CACHE_PREFIX)(
+            OCPAllCostView.as_view()
+        ),
+        name="reports-openshift-all-costs",
+    ),
     path(
         "reports/openshift/infrastructures/all/storage/",
-        OCPAllStorageView.as_view(),
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_ALL_CACHE_PREFIX)(
+            OCPAllStorageView.as_view()
+        ),
         name="reports-openshift-all-storage",
     ),
     path(
         "reports/openshift/infrastructures/all/instance-types/",
-        OCPAllInstanceTypeView.as_view(),
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_ALL_CACHE_PREFIX)(
+            OCPAllInstanceTypeView.as_view()
+        ),
         name="reports-openshift-all-instance-type",
     ),
-    path("reports/openshift/infrastructures/aws/costs/", OCPAWSCostView.as_view(), name="reports-openshift-aws-costs"),
+    path(
+        "reports/openshift/infrastructures/aws/costs/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_AWS_CACHE_PREFIX)(
+            OCPAWSCostView.as_view()
+        ),
+        name="reports-openshift-aws-costs",
+    ),
     path(
         "reports/openshift/infrastructures/aws/storage/",
-        OCPAWSStorageView.as_view(),
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_AWS_CACHE_PREFIX)(
+            OCPAWSStorageView.as_view()
+        ),
         name="reports-openshift-aws-storage",
     ),
     path(
         "reports/openshift/infrastructures/aws/instance-types/",
-        OCPAWSInstanceTypeView.as_view(),
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_AWS_CACHE_PREFIX)(
+            OCPAWSInstanceTypeView.as_view()
+        ),
         name="reports-openshift-aws-instance-type",
     ),
     path(
         "reports/openshift/infrastructures/azure/costs/",
-        OCPAzureCostView.as_view(),
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_AZURE_CACHE_PREFIX)(
+            OCPAzureCostView.as_view()
+        ),
         name="reports-openshift-azure-costs",
     ),
     path(
         "reports/openshift/infrastructures/azure/storage/",
-        OCPAzureStorageView.as_view(),
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_AZURE_CACHE_PREFIX)(
+            OCPAzureStorageView.as_view()
+        ),
         name="reports-openshift-azure-storage",
     ),
     path(
         "reports/openshift/infrastructures/azure/instance-types/",
-        OCPAzureInstanceTypeView.as_view(),
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_AZURE_CACHE_PREFIX)(
+            OCPAzureInstanceTypeView.as_view()
+        ),
         name="reports-openshift-azure-instance-type",
     ),
     path("settings/", SettingsView.as_view(), name="settings"),

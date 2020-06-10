@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider Model Serializers."""
+import logging
+
 from django.conf import settings
 from django.db import IntegrityError
 from django.db import transaction
@@ -29,6 +31,9 @@ from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
 from providers.provider_access import ProviderAccessor
+from providers.provider_errors import ProviderErrors
+
+LOG = logging.getLogger(__name__)
 
 PROVIDER_CHOICE_LIST = [
     provider[0]
@@ -69,7 +74,6 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
             data["provider_resource_name"] = data.get("credentials").get("provider_resource_name")
         return data
 
-    # pylint: disable=too-few-public-methods
     class Meta:
         """Metadata for the serializer."""
 
@@ -119,7 +123,6 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
 
     data_source = serializers.JSONField(allow_null=True, required=False)
 
-    # pylint: disable=too-few-public-methods
     class Meta:
         """Metadata for the serializer."""
 
@@ -220,7 +223,6 @@ class ProviderSerializer(serializers.ModelSerializer):
     created_by = UserSerializer(read_only=True)
     active = serializers.BooleanField(read_only=True)
 
-    # pylint: disable=too-few-public-methods
     class Meta:
         """Metadata for the serializer."""
 
@@ -322,12 +324,17 @@ class ProviderSerializer(serializers.ModelSerializer):
         auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
 
         # We can re-use a billing source or a auth, but not the same combination.
-        unique_count = (
-            Provider.objects.filter(authentication=auth).filter(billing_source=bill).filter(customer=customer).count()
+        dup_queryset = (
+            Provider.objects.filter(authentication=auth).filter(billing_source=bill).filter(customer=customer)
         )
-        if unique_count != 0:
-            error = {"Error": "A Provider already exists with that Authentication and Billing Source"}
-            raise serializers.ValidationError(error)
+        if dup_queryset.count() != 0:
+            conflict_provider = dup_queryset.first()
+            message = (
+                f"Cost management does not allow duplicate accounts. "
+                f"{conflict_provider.name} already exists. Edit source settings to configure a new source."
+            )
+            LOG.warn(message)
+            raise serializers.ValidationError(error_obj(ProviderErrors.DUPLICATE_AUTH, message))
 
         provider = Provider.objects.create(**validated_data)
         provider.customer = customer
@@ -345,9 +352,6 @@ class ProviderSerializer(serializers.ModelSerializer):
         provider_type = validated_data["type"].lower()
         provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type)
         validated_data["type"] = provider_type
-        if instance.type != provider_type:
-            error = {"Error": "The Provider Type cannot be changed with a PUT request."}
-            raise serializers.ValidationError(error)
         interface = ProviderAccessor(provider_type)
         authentication = validated_data.pop("authentication")
         credentials = authentication.get("credentials")
@@ -370,6 +374,16 @@ class ProviderSerializer(serializers.ModelSerializer):
         with transaction.atomic():
             bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
             auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
+            dup_queryset = (
+                Provider.objects.filter(authentication=auth).filter(billing_source=bill).filter(customer=customer)
+            )
+            if dup_queryset.count() != 0:
+                conflict_provder = dup_queryset.first()
+                message = (
+                    f"Cost management does not allow duplicate accounts. "
+                    f"{conflict_provder.name} already exists. Edit source settings to configure a new source."
+                )
+                LOG.warn(message)
 
             for key in validated_data.keys():
                 setattr(instance, key, validated_data[key])
@@ -381,8 +395,7 @@ class ProviderSerializer(serializers.ModelSerializer):
             try:
                 instance.save()
             except IntegrityError:
-                error = {"Error": "A Provider already exists with that Authentication and Billing Source"}
-                raise serializers.ValidationError(error)
+                raise serializers.ValidationError(error_obj(ProviderErrors.DUPLICATE_AUTH, message))
             return instance
 
 

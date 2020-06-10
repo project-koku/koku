@@ -15,9 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Asynchronous tasks."""
-# pylint: disable=too-many-arguments, too-many-function-args
-# disabled module-wide due to current state of task signature.
-# we expect this situation to be temporary as we iterate on these details.
 import calendar
 import csv
 import math

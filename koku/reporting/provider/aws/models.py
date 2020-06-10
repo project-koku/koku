@@ -278,9 +278,7 @@ class AWSAccountAlias(models.Model):
 
     def __str__(self):
         """Convert to string."""
-        return (
-            "{ id : %s, " "account_id : %s, " "account_alias : %s }" % (self.id, self.account_id, self.account_alias)
-        )
+        return f"{{ id : {self.id}, account_id : {self.account_id}, account_alias : {self.account_alias} }}"
 
 
 class AWSTagsSummary(models.Model):

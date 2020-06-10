@@ -34,7 +34,6 @@ class TaskFormatter(ColorFormatter):
 class TaskRootLogging(Logging):
     """Custom Celery application logging setup."""
 
-    # pylint: disable=too-many-arguments, redefined-builtin, C0330
     def setup_handlers(self, logger, logfile, format, colorize, formatter=TaskFormatter, **kwargs):
         """Ignore the requested formatter and use our custom one."""
         return super().setup_handlers(logger, logfile, format, colorize, TaskFormatter, **kwargs)

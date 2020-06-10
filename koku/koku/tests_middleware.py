@@ -26,7 +26,7 @@ from django.core.exceptions import PermissionDenied
 from django.db.utils import OperationalError
 from django.test.utils import override_settings
 from faker import Faker
-from requests.exceptions import ConnectionError  # pylint: disable=W0622
+from requests.exceptions import ConnectionError
 from rest_framework import status
 
 from api.common import RH_IDENTITY_HEADER
@@ -124,8 +124,8 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         """Test case where another request may create the customer in a race condition."""
         customer = self._create_customer_data()
         account_id = customer["account_id"]
-        orig_cust = IdentityHeaderMiddleware.create_customer(account_id)  # pylint: disable=W0212
-        dup_cust = IdentityHeaderMiddleware.create_customer(account_id)  # pylint: disable=W0212
+        orig_cust = IdentityHeaderMiddleware.create_customer(account_id)
+        dup_cust = IdentityHeaderMiddleware.create_customer(account_id)
         self.assertEqual(orig_cust, dup_cust)
 
     def test_race_condition_user(self):
@@ -139,10 +139,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         user = User.objects.get(username=self.user_data["username"])
         self.assertIsNotNone(user)
         IdentityHeaderMiddleware.create_user(
-            username=self.user_data["username"],  # pylint: disable=W0212
-            email=self.user_data["email"],
-            customer=customer,
-            request=mock_request,
+            username=self.user_data["username"], email=self.user_data["email"], customer=customer, request=mock_request
         )
 
     @patch("koku.rbac.RbacService.get_access_for_user")

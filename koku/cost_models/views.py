@@ -16,5 +16,4 @@
 #
 """API views for import organization"""
 # flake8: noqa
-# pylint: disable=unused-import
 from cost_models.view import CostModelViewSet

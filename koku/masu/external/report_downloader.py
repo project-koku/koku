@@ -19,6 +19,7 @@ import logging
 
 from dateutil.relativedelta import relativedelta
 
+from api.common import log_json
 from api.models import Provider
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -38,8 +39,6 @@ class ReportDownloaderError(Exception):
     """Report Downloader error."""
 
 
-# pylint: disable=too-few-public-methods
-# pylint: disable=too-many-arguments
 class ReportDownloader:
     """Interface for masu to use to get CUR accounts."""
 
@@ -53,6 +52,8 @@ class ReportDownloader:
         provider_uuid,
         cache_key,
         report_name=None,
+        account=None,
+        request_id="no_request_id",
     ):
         """Set the downloader based on the backend cloud provider."""
         self.task = task
@@ -63,6 +64,12 @@ class ReportDownloader:
         self.provider_type = provider_type
         self.provider_uuid = provider_uuid
         self.cache_key = cache_key
+        self.request_id = request_id
+        self.account = account
+        if self.account is None:
+            self.account = customer_name[4:]
+        self.context = {"request_id": self.request_id, "provider_uuid": self.provider_uuid, "account": self.account}
+
         try:
             self._downloader = self._set_downloader()
         except Exception as err:
@@ -93,6 +100,8 @@ class ReportDownloader:
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
                 cache_key=self.cache_key,
+                request_id=self.request_id,
+                account=self.account,
             )
         if self.provider_type == Provider.PROVIDER_AWS_LOCAL:
             return AWSLocalReportDownloader(
@@ -103,6 +112,8 @@ class ReportDownloader:
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
                 cache_key=self.cache_key,
+                request_id=self.request_id,
+                account=self.account,
             )
         if self.provider_type == Provider.PROVIDER_AZURE:
             return AzureReportDownloader(
@@ -113,6 +124,8 @@ class ReportDownloader:
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
                 cache_key=self.cache_key,
+                request_id=self.request_id,
+                account=self.account,
             )
         if self.provider_type == Provider.PROVIDER_AZURE_LOCAL:
             return AzureLocalReportDownloader(
@@ -123,6 +136,8 @@ class ReportDownloader:
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
                 cache_key=self.cache_key,
+                request_id=self.request_id,
+                account=self.account,
             )
         if self.provider_type == Provider.PROVIDER_OCP:
             return OCPReportDownloader(
@@ -133,6 +148,8 @@ class ReportDownloader:
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
                 cache_key=self.cache_key,
+                request_id=self.request_id,
+                account=self.account,
             )
         if self.provider_type == Provider.PROVIDER_GCP:
             return GCPReportDownloader(
@@ -143,6 +160,8 @@ class ReportDownloader:
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
                 cache_key=self.cache_key,
+                request_id=self.request_id,
+                account=self.account,
             )
         return None
 
@@ -191,7 +210,8 @@ class ReportDownloader:
             ([{}]) List of dictionaries containing file path and compression.
 
         """
-        LOG.info("Attempting to get %s manifest for %s...", self.provider_type, str(date_time))
+        msg = f"Attempting to get {self.provider_type,} manifest for {str(date_time)}..."
+        LOG.info(log_json(self.request_id, msg, self.context))
         report_context = self._downloader.get_report_context_for_date(date_time)
         manifest_id = report_context.get("manifest_id")
         reports = report_context.get("files", [])
@@ -201,11 +221,14 @@ class ReportDownloader:
             local_file_name = self._downloader.get_local_file_for_report(report)
 
             if self.is_report_processed(local_file_name, manifest_id):
-                LOG.info(f"File has already been processed: {local_file_name}. Skipping...")
+                msg = f"File has already been processed: {local_file_name}. Skipping..."
+                LOG.info(log_json(self.request_id, msg, self.context))
                 continue
             with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
                 stored_etag = stats_recorder.get_etag()
-                file_name, etag = self._downloader.download_file(report, stored_etag)
+                file_name, etag = self._downloader.download_file(
+                    report, stored_etag, manifest_id=manifest_id, start_date=date_time
+                )
                 stats_recorder.update(etag=etag)
 
             report_dictionary["file"] = file_name
