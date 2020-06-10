@@ -15,36 +15,24 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Asynchronous tasks."""
-import calendar
-import csv
 import math
 import os
-from datetime import date
 from datetime import datetime
 from datetime import timedelta
 
-import boto3
 from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
-from dateutil.parser import parse
-from dateutil.relativedelta import relativedelta
-from dateutil.rrule import DAILY
-from dateutil.rrule import rrule
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
-from django.db import connection
 from django.utils import timezone
 
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer
 from api.dataexport.syncer import SyncedFileInColdStorageError
-from api.dataexport.uploader import AwsS3Uploader
 from api.iam.models import Tenant
 from api.models import Provider
 from api.utils import DateHelper
 from koku.celery import app
-from masu.celery.export import table_export_settings
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
@@ -52,9 +40,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import vacuum_schema
-from masu.util.common import dictify_table_export_settings
-from masu.util.common import NamedTemporaryGZip
-from masu.util.upload import get_upload_path
+from masu.util.aws.common import get_s3_resource
 
 LOG = get_task_logger(__name__)
 _DB_FETCH_BATCH_SIZE = 2000
@@ -74,47 +60,6 @@ def remove_expired_data(simulate=False, line_items_only=False):
     LOG.info("Removing expired data at %s", str(today))
     orchestrator = Orchestrator()
     orchestrator.remove_expired_report_data(simulate, line_items_only)
-
-
-@app.task(name="masu.celery.tasks.upload_normalized_data", queue_name="upload")
-def upload_normalized_data():
-    """Scheduled task to export normalized data to s3."""
-    if not settings.ENABLE_S3_ARCHIVING:
-        LOG.info("S3 Archiving is disabled. Not running task.")
-        return
-
-    LOG.info("Beginning upload_normalized_data")
-    curr_date = DateAccessor().today()
-    curr_month_range = calendar.monthrange(curr_date.year, curr_date.month)
-    curr_month_first_day = date(year=curr_date.year, month=curr_date.month, day=1)
-    curr_month_last_day = date(year=curr_date.year, month=curr_date.month, day=curr_month_range[1])
-
-    previous_month = curr_date - relativedelta(months=1)
-
-    prev_month_range = calendar.monthrange(previous_month.year, previous_month.month)
-    prev_month_first_day = date(year=previous_month.year, month=previous_month.month, day=1)
-    prev_month_last_day = date(year=previous_month.year, month=previous_month.month, day=prev_month_range[1])
-
-    accounts, _ = Orchestrator.get_accounts()
-
-    for account in accounts:
-        LOG.info("processing schema %s provider uuid %s", account["schema_name"], account["provider_uuid"])
-        for table in table_export_settings:
-
-            # Celery does not serialize named tuples, convert it
-            # to a dict before handing it off to the celery task.
-            table_dict = dictify_table_export_settings(table)
-
-            # Upload this month's reports
-            query_and_upload_to_s3.delay(
-                account["schema_name"], account["provider_uuid"], table_dict, curr_month_first_day, curr_month_last_day
-            )
-
-            # Upload last month's reports
-            query_and_upload_to_s3.delay(
-                account["schema_name"], account["provider_uuid"], table_dict, prev_month_first_day, prev_month_last_day
-            )
-    LOG.info("Completed upload_normalized_data")
 
 
 @app.task(
@@ -164,17 +109,13 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
         LOG.info("Skipping delete_archived_data. Upload feature is disabled.")
         return
 
-    if not settings.S3_BUCKET_PATH:
-        message = "settings.S3_BUCKET_PATH must have a not-empty value"
-        LOG.error(message)
-        raise ImproperlyConfigured(message)
-
     # We need to normalize capitalization and "-local" dev providers.
-    provider_slug = provider_type.lower().split("-")[0]
-    prefix = f"{settings.S3_BUCKET_PATH}/{schema_name}/{provider_slug}/{provider_uuid}/"
+    account = schema_name[4:]
+    path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.CSV_DATA_TYPE}"
+    prefix = f"{path_prefix}/{account}/{provider_uuid}/"
     LOG.info("attempting to delete our archived data in S3 under %s", prefix)
 
-    s3_resource = boto3.resource("s3", settings.S3_REGION)
+    s3_resource = get_s3_resource()
     s3_bucket = s3_resource.Bucket(settings.S3_BUCKET_NAME)
     object_keys = [{"Key": s3_object.key} for s3_object in s3_bucket.objects.filter(Prefix=prefix)]
     batch_size = 1000  # AWS S3 delete API limits to 1000 objects per request.
@@ -244,74 +185,6 @@ def sync_data_to_customer(dump_request_uuid):
             return
     dump_request.status = DataExportRequest.COMPLETE
     dump_request.save()
-
-
-@app.task(name="masu.celery.tasks.query_and_upload_to_s3", queue_name="query_upload")
-def query_and_upload_to_s3(schema_name, provider_uuid, table_export_setting, start_date, end_date):
-    """
-    Query the database and upload the results to s3.
-
-    Args:
-        schema_name (str): Account schema name in which to execute the query.
-        provider_uuid (UUID): Provider UUID for filtering the query.
-        table_export_setting (dict): Settings for the table export.
-        start_date (string): start date (inclusive)
-        end_date (string): end date (inclusive)
-
-    """
-    if not settings.ENABLE_S3_ARCHIVING:
-        LOG.info("S3 Archiving is disabled. Not running task.")
-        return
-
-    LOG.info(
-        "query_and_upload_to_s3: schema %s provider_uuid %s table.output_name %s for %s",
-        schema_name,
-        provider_uuid,
-        table_export_setting["output_name"],
-        (start_date, end_date),
-    )
-    if isinstance(start_date, str):
-        start_date = parse(start_date)
-    if isinstance(end_date, str):
-        end_date = parse(end_date)
-
-    uploader = AwsS3Uploader(settings.S3_BUCKET_NAME)
-    iterate_daily = table_export_setting["iterate_daily"]
-    dates_to_iterate = rrule(DAILY, dtstart=start_date, until=end_date if iterate_daily else start_date)
-
-    for the_date in dates_to_iterate:
-        with NamedTemporaryGZip() as temp_file:
-            with connection.cursor() as cursor:
-                cursor.db.set_schema(schema_name)
-                upload_path = get_upload_path(
-                    schema_name,
-                    table_export_setting["provider"],
-                    provider_uuid,
-                    the_date,
-                    table_export_setting["output_name"],
-                    iterate_daily,
-                )
-                cursor.execute(
-                    table_export_setting["sql"].format(schema=schema_name),
-                    {
-                        "start_date": the_date,
-                        "end_date": the_date if iterate_daily else end_date,
-                        "provider_uuid": provider_uuid,
-                    },
-                )
-                # Don't upload if result set is empty
-                if cursor.rowcount == 0:
-                    continue
-                writer = csv.writer(temp_file, quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                writer.writerow([field.name for field in cursor.description])
-                while True:
-                    records = cursor.fetchmany(size=_DB_FETCH_BATCH_SIZE)
-                    if not records:
-                        break
-                    for row in records:
-                        writer.writerow(row)
-            temp_file.close()
-            uploader.upload_file(temp_file.name, upload_path)
 
 
 @app.task(name="masu.celery.tasks.vacuum_schemas", queue_name="reporting")
