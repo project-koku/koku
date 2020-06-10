@@ -292,7 +292,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 if username not in USER_CACHE:
                     user = User.objects.get(username=username)
                     USER_CACHE[username] = user
-                    LOG.info(f"User added to cache: {username}")
+                    LOG.debug(f"User added to cache: {username}")
                 else:
                     user = USER_CACHE[username]
             except User.DoesNotExist:
