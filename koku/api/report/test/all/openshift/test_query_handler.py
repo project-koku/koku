@@ -15,11 +15,15 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the OCP on All query handler."""
+from tenant_schemas.utils import tenant_context
+
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.all.openshift.query_handler import OCPAllReportQueryHandler
 from api.urls import OCPAllCostView
 from api.urls import OCPAllInstanceTypeView
 from api.urls import OCPAllStorageView
+from reporting.models import AWSCostEntryBill
+from reporting.models import AzureCostEntryBill
 from reporting.models import OCPAllComputeSummary
 from reporting.models import OCPAllDatabaseSummary
 from reporting.models import OCPAllNetworkSummary
@@ -81,3 +85,39 @@ class OCPAllQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, OCPAllCostView)
         handler = OCPAllReportQueryHandler(query_params)
         self.assertTrue(handler.query_table == DATABASE_SUMMARY)
+
+    def test_source_uuid_mapping(self):  # noqa: C901
+        """Test source_uuid is mapped to the correct source."""
+        endpoints = [OCPAllCostView, OCPAllInstanceTypeView, OCPAllStorageView]
+        with tenant_context(self.tenant):
+            azure_uuids = list(AzureCostEntryBill.objects.distinct().values_list("provider_id", flat=True))
+            aws_uuids = list(AWSCostEntryBill.objects.distinct().values_list("provider_id", flat=True))
+            expected_source_uuids = azure_uuids + aws_uuids
+        source_uuid_list = []
+        for endpoint in endpoints:
+            urls = ["?"]
+            if endpoint == OCPAllCostView:
+                urls.extend(
+                    [
+                        "?group_by[account]=*",
+                        "?group_by[service]=*",
+                        "?group_by[region]=*",
+                        "?group_by[product_family]=*",
+                    ]
+                )
+            for url in urls:
+                query_params = self.mocked_query_params(url, endpoint)
+                handler = OCPAllReportQueryHandler(query_params)
+                query_output = handler.execute_query()
+                for dictionary in query_output.get("data"):
+                    for _, value in dictionary.items():
+                        if isinstance(value, list):
+                            for item in value:
+                                if isinstance(item, dict):
+                                    if "values" in item.keys():
+                                        self.assertEqual(len(item["values"]), 1)
+                                        value = item["values"][0]
+                                        source_uuid_list.extend(value.get("source_uuid"))
+        self.assertNotEquals(source_uuid_list, [])
+        for source_uuid in source_uuid_list:
+            self.assertIn(source_uuid, expected_source_uuids)

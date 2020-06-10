@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider Mapper for AWS Reports."""
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
@@ -129,6 +130,7 @@ class AWSProviderMap(ProviderMap):
                                 + Value(0, output_field=DecimalField())
                             ),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "delta_key": {
                             # cost goes to cost_total
@@ -198,6 +200,7 @@ class AWSProviderMap(ProviderMap):
                             "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("Hrs")),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{"field": "instance_type", "operation": "isnull", "parameter": False}],
@@ -265,6 +268,7 @@ class AWSProviderMap(ProviderMap):
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [

@@ -94,7 +94,8 @@ class OCPReportDownloaderTest(MasuTestCase):
         super().tearDown()
         shutil.rmtree(REPORTS_DIR, ignore_errors=True)
 
-    def test_download_bucket(self):
+    @patch("masu.util.aws.common.copy_data_to_s3_bucket", return_value=None)
+    def test_download_bucket(self, mock_copys3):
         """Test to verify that basic report downloading works."""
         test_report_date = datetime(year=2018, month=9, day=7)
         with patch.object(DateAccessor, "today", return_value=test_report_date):
