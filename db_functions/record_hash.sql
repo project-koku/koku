@@ -19,12 +19,17 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 create or replace function {schema_name}.koku_record_uuid ( VARIADIC vals text[] ) returns uuid as
 $$
 declare
+    -- The string of the concatenation of the parameter values
     record_val text = ''::text;
+    -- The output UUID
     return_val uuid = null::uuid;
+    -- Iterator var
     i int = 1::int;
 begin
+    -- Loop over the parameter values, concatenating them together
     for i in 1 .. array_upper(vals, 1)
     loop
+        -- Translate nulls to empty string
         if vals[i] is null
         then
             vals[i] = '';
@@ -32,10 +37,12 @@ begin
         record_val = record_val || vals[i];
     end loop;
 
+    -- If all values end up generating an empty string, return null
     if record_val = ''
     then
         return_val = null::uuid;
     else
+        -- Otherwise generate a UUID5
         select public.uuid_generate_v5(public.uuid_ns_oid(), record_val) into return_val;
     end if;
 
