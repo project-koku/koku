@@ -126,7 +126,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
                 try:
                     if username not in USER_CACHE:
                         USER_CACHE[username] = User.objects.get(username=username)
-                        LOG.info(f"User added to cache: {username}")
+                        LOG.debug(f"User added to cache: {username}")
                 except User.DoesNotExist:
                     return HttpResponseUnauthorizedRequest()
                 if not request.user.admin and request.user.access is None:
