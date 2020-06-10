@@ -16,11 +16,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 -- Function to generate a sha256 hash from the concatenation
 -- of all of the text values passed into the function
-create or replace function public.record_hash ( VARIADIC vals text[] ) returns text as
+create or replace function {schema_name}.koku_record_uuid ( VARIADIC vals text[] ) returns uuid as
 $$
 declare
-    record_val text = '';
-    i int = 1;
+    record_val text = ''::text;
+    return_val uuid = null::uuid;
+    i int = 1::int;
 begin
     for i in 1 .. array_upper(vals, 1)
     loop
@@ -33,12 +34,12 @@ begin
 
     if record_val = ''
     then
-        record_val = null::text;
+        return_val = null::uuid;
     else
-        select encode(sha256(decode(record_val, 'escape')), 'hex') into record_val;
+        select public.uuid_generate_v5(public.uuid_ns_oid(), record_val) into return_val;
     end if;
 
-    return record_val;
+    return return_val;
 end;
 $$
 language plpgsql
