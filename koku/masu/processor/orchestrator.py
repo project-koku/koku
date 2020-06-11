@@ -16,6 +16,9 @@
 #
 """Report Processing Orchestrator."""
 import logging
+import uuid
+
+from dateutil import parser
 
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -23,8 +26,12 @@ from masu.external.account_label import AccountLabel
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
-from masu.processor.tasks import get_report_manifest
+from masu.external.report_downloader import ReportDownloader
+from masu.processor.tasks import get_report_files
+from masu.processor.tasks import record_all_manifest_files
+from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
+from masu.processor.tasks import summarize_reports
 from masu.providers.status import ProviderStatus
 
 LOG = logging.getLogger(__name__)
@@ -107,6 +114,66 @@ class Orchestrator:
 
         return DateAccessor().get_billing_months(number_of_months)
 
+    def get_report_manifest(
+        self, customer_name, authentication, billing_source, provider_type, schema_name, provider_uuid, report_month
+    ):
+        month = report_month
+        if isinstance(report_month, str):
+            month = parser.parse(report_month)
+        cache_key = f"{provider_uuid}:{month}"
+
+        class Request:
+            id = uuid.uuid4()
+
+        class Task:
+            request = Request()
+
+        manifest = None
+        downloader = ReportDownloader(
+            task=Task(),
+            customer_name=customer_name,
+            access_credential=authentication,
+            report_source=billing_source,
+            provider_type=provider_type,
+            provider_uuid=provider_uuid,
+            cache_key=cache_key,
+            report_name=None,
+        )
+        manifest = downloader.download_manifest(report_month)
+
+        if manifest:
+            LOG.info("Saving all manifest file names.")
+            record_all_manifest_files(
+                manifest["manifest_id"], [report.get("local_file") for report in manifest.get("files", [])]
+            )
+
+        LOG.info(f"Found Manifests: {str(manifest)}")
+        report_files = manifest.get("files", [])
+        for report_file_dict in report_files:
+            local_file = report_file_dict.get("local_file")
+            report_file = report_file_dict.get("key")
+            if not record_report_status(manifest["manifest_id"], local_file):
+                report_context = manifest.copy()
+                report_context["current_file"] = report_file
+
+                async_result = (
+                    get_report_files.s(
+                        customer_name,
+                        authentication,
+                        billing_source,
+                        provider_type,
+                        schema_name,
+                        provider_uuid,
+                        report_month,
+                        report_context,
+                    )
+                    | summarize_reports.s()
+                ).apply_async()
+                LOG.info("Download queued - schema_name: %s, Task ID: %s", schema_name, str(async_result))
+            else:
+                LOG.info(f"{local_file} was already processed")
+        return manifest
+
     def prepare(self):
         """
         Prepare a processing request for each account.
@@ -135,11 +202,7 @@ class Orchestrator:
                         provider_uuid,
                     )
                     account["report_month"] = month
-                    async_result = (get_report_manifest.s(**account)).apply_async()
-
-                    LOG.info(
-                        "Download queued - schema_name: %s, Task ID: %s", account.get("schema_name"), str(async_result)
-                    )
+                    self.get_report_manifest(**account)
 
                     # update labels
                     labeler = AccountLabel(

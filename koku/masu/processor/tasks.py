@@ -38,7 +38,6 @@ from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
 from masu.processor._tasks.download import _get_report_files
-from masu.processor._tasks.download import _get_report_manifest
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
 from masu.processor.cost_model_cost_updater import CostModelCostUpdater
@@ -86,49 +85,6 @@ def record_report_status(manifest_id, file_name):
         else:
             LOG.info(f"Recording stats entry for {file_name}")
     return already_processed
-
-
-@app.task(name="masu.processor.tasks.get_report_manifest", queue_name="download", bind=True)
-def get_report_manifest(
-    self, customer_name, authentication, billing_source, provider_type, schema_name, provider_uuid, report_month
-):
-    month = report_month
-    if isinstance(report_month, str):
-        month = parser.parse(report_month)
-    cache_key = f"{provider_uuid}:{month}"
-
-    manifest = _get_report_manifest(
-        self, customer_name, authentication, billing_source, provider_type, provider_uuid, month, cache_key
-    )
-
-    if manifest:
-        LOG.info("Saving all manifest file names.")
-        record_all_manifest_files(
-            manifest["manifest_id"], [report.get("local_file") for report in manifest.get("files", [])]
-        )
-
-    LOG.info(f"Found Manifests: {str(manifest)}")
-    report_files = manifest.get("files", [])
-    for report_file_dict in report_files:
-        local_file = report_file_dict.get("local_file")
-        report_file = report_file_dict.get("key")
-        if not record_report_status(manifest["manifest_id"], local_file):
-            report_context = manifest.copy()
-            report_context["current_file"] = report_file
-
-            get_report_files.delay(
-                customer_name,
-                authentication,
-                billing_source,
-                provider_type,
-                schema_name,
-                provider_uuid,
-                report_month,
-                report_context,
-            )
-        else:
-            LOG.info(f"{local_file} was already processed")
-    return manifest
 
 
 # pylint: disable=too-many-locals
@@ -219,12 +175,7 @@ def get_report_files(
         raise processing_error
 
     # WorkerCache().remove_task_from_cache(cache_key)
-
-    with ReportManifestDBAccessor() as manifest_accesor:
-        if manifest_accesor.manifest_ready_for_summary(report_dict.get("manifest_id")) and report_meta:
-            async_id = summarize_reports.delay([report_meta])
-            LOG.info(f"Check for summary celery ID: {async_id}")
-    return report_meta
+    return [report_meta]
 
 
 @app.task(name="masu.processor.tasks.remove_expired_data", queue_name="remove_expired")
@@ -273,18 +224,20 @@ def summarize_reports(reports_to_summarize):
         # on processing time. There are override mechanisms in the
         # Updater classes for when full-month summarization is
         # required.
-        start_date = DateAccessor().today() - datetime.timedelta(days=2)
-        start_date = start_date.strftime("%Y-%m-%d")
-        end_date = DateAccessor().today().strftime("%Y-%m-%d")
-        LOG.info("report to summarize: %s", str(report))
-        update_summary_tables.delay(
-            report.get("schema_name"),
-            report.get("provider_type"),
-            report.get("provider_uuid"),
-            start_date=start_date,
-            end_date=end_date,
-            manifest_id=report.get("manifest_id"),
-        )
+        with ReportManifestDBAccessor() as manifest_accesor:
+            if manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
+                start_date = DateAccessor().today() - datetime.timedelta(days=2)
+                start_date = start_date.strftime("%Y-%m-%d")
+                end_date = DateAccessor().today().strftime("%Y-%m-%d")
+                LOG.info("report to summarize: %s", str(report))
+                update_summary_tables.delay(
+                    report.get("schema_name"),
+                    report.get("provider_type"),
+                    report.get("provider_uuid"),
+                    start_date=start_date,
+                    end_date=end_date,
+                    manifest_id=report.get("manifest_id"),
+                )
 
 
 @app.task(name="masu.processor.tasks.update_summary_tables", queue_name="reporting")

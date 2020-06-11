@@ -32,26 +32,6 @@ from masu.providers.status import ProviderStatus
 LOG = get_task_logger(__name__)
 
 
-def _get_report_manifest(
-    task, customer_name, authentication, billing_source, provider_type, provider_uuid, report_month, cache_key
-):
-    """Get files for report manifest"""
-    manifests = None
-    downloader = ReportDownloader(
-        task=task,
-        customer_name=customer_name,
-        access_credential=authentication,
-        report_source=billing_source,
-        provider_type=provider_type,
-        provider_uuid=provider_uuid,
-        cache_key=cache_key,
-        report_name=None,
-    )
-    manifests = downloader.download_manifest(report_month)
-
-    return manifests
-
-
 # disabled until the program flow stabilizes a bit more
 # pylint: disable=too-many-arguments,too-many-locals
 def _get_report_files(
