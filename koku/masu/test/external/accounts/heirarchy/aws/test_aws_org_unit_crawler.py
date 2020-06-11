@@ -15,15 +15,19 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the AWSOrgUnitCrawler object."""
+import logging
 from datetime import timedelta
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from botocore.exceptions import ClientError
+from botocore.exceptions import ParamValidationError
 from faker import Faker
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
+from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import LOG as crawler_log
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
 from reporting.provider.aws.models import AWSAccountAlias
@@ -50,6 +54,24 @@ def _generate_act_for_parent_side_effect(schema, parent_id, num_of_accounts=GEN_
         with schema_context(schema):
             AWSAccountAlias.objects.create(account_id=act_id, account_alias=act_name)
     return side_effect_list
+
+
+def _mock_boto3_access_denied():
+    """Raise boto3 access denied exception for testing."""
+    raise ClientError(
+        error_response={
+            "Error": {
+                "Code": "AccessDeniedException",
+                "Message": "You don't have permissions to access this resource.",
+            }
+        },
+        operation_name="ListRoots",
+    )
+
+
+def _mock_boto3_general_client_error():
+    """Raise a blank client error exception for testing."""
+    raise ClientError(operation_name="", error_response={})
 
 
 class AWSOrgUnitCrawlerTest(MasuTestCase):
@@ -163,6 +185,51 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             cur_count = AWSOrganizationalUnit.objects.count()
             total_entries = (len(ou_ids) * GEN_NUM_ACT_DEFAULT) + len(ou_ids)
             self.assertEqual(cur_count, total_entries)
+
+    @patch("masu.util.aws.common.get_assume_role_session")
+    def test_crawl_boto_param_exception(self, mock_session):
+        """Test botocore parameter exception is caught properly."""
+        logging.disable(logging.NOTSET)
+        mock_session.client = MagicMock()
+        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler._init_session()
+        unit_crawler._client.list_roots.side_effect = ParamValidationError(report="Bad Param")
+        with self.assertLogs(logger=crawler_log, level=logging.WARNING):
+            unit_crawler.crawl_account_hierarchy()
+
+    @patch("masu.util.aws.common.get_assume_role_session")
+    def test_crawl_list_root_access_denied(self, mock_session):
+        """Test botocore list roots access denied."""
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/error-handling.html
+        logging.disable(logging.NOTSET)
+        mock_session.client = MagicMock()
+        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler._init_session()
+        unit_crawler._client.list_roots.side_effect = _mock_boto3_access_denied
+        with self.assertLogs(logger=crawler_log, level=logging.WARNING):
+            unit_crawler.crawl_account_hierarchy()
+
+    @patch("masu.util.aws.common.get_assume_role_session")
+    def test_general_client_error_denied(self, mock_session):
+        """Test botocore general ClientError."""
+        logging.disable(logging.NOTSET)
+        mock_session.client = MagicMock()
+        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler._init_session()
+        unit_crawler._client.list_roots.side_effect = _mock_boto3_general_client_error
+        with self.assertLogs(logger=crawler_log, level=logging.WARNING):
+            unit_crawler.crawl_account_hierarchy()
+
+    @patch("masu.util.aws.common.get_assume_role_session")
+    def test_unknown_exception(self, mock_session):
+        """Test botocore general ClientError."""
+        logging.disable(logging.NOTSET)
+        mock_session.client = MagicMock()
+        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler._init_session()
+        unit_crawler._client.list_roots.side_effect = Exception("unknown error")
+        with self.assertLogs(logger=crawler_log, level=logging.raiseExceptions):
+            unit_crawler.crawl_account_hierarchy()
 
     @patch("masu.util.aws.common.get_assume_role_session")
     def test_crawl_org_for_acts(self, mock_session):
