@@ -45,12 +45,7 @@ def check_kafka_connection(host, port):
 
 
 def is_kafka_connected(host, port):  # pragma: no cover
-    """
-    Check connectability to Kafka messenger.
-
-    This method will block sources integration initialization until
-    Kafka is connected.
-    """
+    """Wait for Kafka to become available."""
     count = 0
     result = False
     while not result:
