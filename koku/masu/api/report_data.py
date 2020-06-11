@@ -16,7 +16,6 @@
 #
 """View for report_data endpoint."""
 # flake8: noqa
-# pylint: disable=inconsistent-return-statements,too-many-return-statements,too-many-branches,too-many-statements
 import logging
 
 from django.views.decorators.cache import never_cache
@@ -110,7 +109,6 @@ def report_data(request):
             errmsg = "simulate must be a boolean."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-        # pylint: disable=simplifiable-if-statement
         if simulate is not None and simulate.lower() == "true":
             simulate = True
         else:

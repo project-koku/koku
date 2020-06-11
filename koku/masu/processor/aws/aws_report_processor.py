@@ -38,7 +38,6 @@ from reporting_common import REPORT_COLUMN_MAP
 LOG = logging.getLogger(__name__)
 
 
-# pylint: disable=too-few-public-methods
 class ProcessedReport:
     """Cost usage report transcribed to our database models.
 
@@ -64,11 +63,9 @@ class ProcessedReport:
         self.pricing = {}
 
 
-# pylint: disable=too-many-instance-attributes
 class AWSReportProcessor(ReportProcessorBase):
     """Cost Usage Report processor."""
 
-    # pylint:disable=too-many-arguments
     def __init__(self, schema_name, report_path, compression, provider_uuid, manifest_id=None):
         """Initialize the report processor.
 
@@ -135,7 +132,6 @@ class AWSReportProcessor(ReportProcessorBase):
         is_full_month = self._should_process_full_month()
         self._delete_line_items(AWSReportDBAccessor, is_finalized=is_finalized_data)
         opener, mode = self._get_file_opener(self._compression)
-        # pylint: disable=invalid-name
         with opener(self._report_path, mode) as f:
             with AWSReportDBAccessor(self._schema) as report_db:
                 LOG.info("File %s opened for processing", str(f))
@@ -190,7 +186,6 @@ class AWSReportProcessor(ReportProcessorBase):
 
         """
         opener, mode = self._get_file_opener(self._compression)
-        # pylint: disable=invalid-name
         with opener(self._report_path, mode) as f:
             reader = csv.DictReader(f)
             for row in reader:
@@ -234,7 +229,6 @@ class AWSReportProcessor(ReportProcessorBase):
 
         return {column_map[key]: value for key, value in row.items() if key in column_map}
 
-    # pylint: disable=no-self-use
     def _process_tags(self, row, tag_prefix="resourceTags"):
         """Return a JSON string of AWS resource tags.
 
@@ -254,7 +248,6 @@ class AWSReportProcessor(ReportProcessorBase):
                     tag_dict[key_value[-1]] = value
         return json.dumps(tag_dict)
 
-    # pylint: disable=no-self-use
     def _get_cost_entry_time_interval(self, interval):
         """Split the cost entry time interval into start and end.
 
@@ -331,7 +324,6 @@ class AWSReportProcessor(ReportProcessorBase):
 
         return cost_entry_id
 
-    # pylint: disable=too-many-arguments
     def _create_cost_entry_line_item(
         self, row, cost_entry_id, bill_id, product_id, pricing_id, reservation_id, report_db_accesor
     ):

@@ -15,9 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Processor for OCP Usage Reports."""
-# pylint: skip-file
-# Disabling for now since there are overlaps with AWSReportProcessor.
-# Addressing all lint errors would impact both report processors.
 import csv
 import json
 import logging

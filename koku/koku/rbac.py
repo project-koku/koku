@@ -20,7 +20,7 @@ from json.decoder import JSONDecodeError
 
 import requests
 from prometheus_client import Counter
-from requests.exceptions import ConnectionError  # pylint: disable=W0622
+from requests.exceptions import ConnectionError
 from rest_framework import status
 
 from api.query_handler import WILDCARD
@@ -163,7 +163,7 @@ class RbacConnectionError(ConnectionError):
     """Exception for Rbac ConnectionErrors."""
 
 
-class RbacService:  # pylint: disable=too-few-public-methods
+class RbacService:
     """A class to handle interactions with the RBAC service."""
 
     def __init__(self):
@@ -175,15 +175,14 @@ class RbacService:  # pylint: disable=too-few-public-methods
         self.path = rbac_conn_info.get(PATH)
         self.cache_ttl = int(ENVIRONMENT.get_value("RBAC_CACHE_TTL", default="30"))
 
-    def _get_rbac_service(self):  # pylint: disable=no-self-use
+    def _get_rbac_service(self):
         """Get RBAC service host and port info from environment."""
-        rbac_conn_info = {
+        return {
             PROTOCOL: ENVIRONMENT.get_value("RBAC_SERVICE_PROTOCOL", default="http"),
             HOST: ENVIRONMENT.get_value("RBAC_SERVICE_HOST", default="localhost"),
             PORT: ENVIRONMENT.get_value("RBAC_SERVICE_PORT", default="8111"),
             PATH: ENVIRONMENT.get_value("RBAC_SERVICE_PATH", default="/r/insights/platform/rbac/v1/access/"),
         }
-        return rbac_conn_info
 
     def _request_user_access(self, url, headers):  # noqa: C901
         """Send request to RBAC service and handle pagination case."""
@@ -234,7 +233,7 @@ class RbacService:  # pylint: disable=too-few-public-methods
         )
         headers = {"x-rh-identity": user.identity_header.get("encoded")}
         acls = self._request_user_access(url, headers)
-        if isinstance(acls, list) and len(acls) == 0:  # pylint: disable=len-as-condition
+        if isinstance(acls, list) and len(acls) == 0:
             return None
 
         processed_acls = _process_acls(acls)
