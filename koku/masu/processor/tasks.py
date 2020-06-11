@@ -301,8 +301,6 @@ def update_all_summary_tables(start_date, end_date=None):
         LOG.error("Unable to get accounts. Error: %s", str(error))
 
 
-# TODO: Cody: I think this is where the cost models updates need to changed
-# Implementing the change at this level causes: FAILED (failures=10, errors=7)
 @app.task(name="masu.processor.tasks.update_cost_model_costs", queue_name="reporting")
 def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_date=None):
     """Update usage charge information.

@@ -694,11 +694,14 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self.assertEqual(result_start_date, expected_start_date.date())
         self.assertEqual(result_end_date, expected_end_date.date())
 
+    @patch("masu.processor.tasks.CostModelDBAccessor")
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.refresh_materialized_views")
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
-    def test_update_summary_tables_ocp(self, mock_cost_model, mock_charge_info, mock_view, mock_chain):
+    def test_update_summary_tables_ocp(
+        self, mock_cost_model, mock_charge_info, mock_view, mock_chain, mock_task_cost_model
+    ):
         """Test that the summary table task runs."""
         infrastructure_rates = {
             "cpu_core_usage_per_hour": 1.5,
@@ -710,6 +713,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_cost_model.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
         mock_cost_model.return_value.__enter__.return_value.supplementary_rates = {}
         mock_cost_model.return_value.__enter__.return_value.markup = markup
+        # We need to bypass the None check for cost model in update_cost_model_costs
+        mock_task_cost_model.return_value.__enter__.return_value.cost_model = {}
 
         provider = Provider.PROVIDER_OCP
         provider_ocp_uuid = self.ocp_test_provider_uuid
