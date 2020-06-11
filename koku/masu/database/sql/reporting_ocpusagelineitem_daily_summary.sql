@@ -66,7 +66,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe
             fpl.pod_labels,
             ab.provider_id
     )
-    SELECT public.koku_record_uuid(apu.cluster_id::text, apu.namespace::text, apu.node::text, apu.pod_labels::text)::uuid as id,
+    SELECT public.koku_record_hash(apu.cluster_id::text, apu.namespace::text, apu.node::text, apu.pod_labels::text)::text as id,
         apu.report_period_id,
         apu.cluster_id,
         apu.cluster_alias,

@@ -21,11 +21,11 @@
 partition_targets:
   '*':
     reporting_ocpusagelineitem_daily_summary:
-      drop_table: 0
+      drop_table: 1
       primary_key:
         usage_start: {}
         id:
-          data_type: uuid
+          data_type: text
           default: null
           copy_sequence: 0
           new_sequence: {}
@@ -36,7 +36,7 @@ partition_targets:
         interval: 1
         interval_type: month
       copy_column_map:
-        id: public.koku_record_uuid(cluster_id::text, namespace::text, node::text, pod_labels::text)::uuid
+        id: public.koku_record_hash(cluster_id::text, namespace::text, node::text, pod_labels::text)::text
         cluster_id: cluster_id
         namespace: namespace
         node: node
@@ -85,14 +85,13 @@ stored_procedures:
     code: []
   public:
     code:
-      - create extension if not exists "uuid-ossp" schema public;
       - |-
-        drop function if exists {schema_name}.koku_record_uuid ( VARIADIC vals text[] ) cascade;
-        create or replace function {schema_name}.koku_record_uuid ( VARIADIC vals text[] ) returns uuid as
+        drop function if exists {schema_name}.koku_record_hash ( VARIADIC vals text[] ) cascade;
+        create or replace function {schema_name}.koku_record_hash ( VARIADIC vals text[] ) returns text as
         $$
         declare
             record_val text = ''::text;
-            return_val uuid = null::uuid;
+            return_val text = null::text;
             i int = 1::int;
         begin
             for i in 1 .. array_upper(vals, 1)
@@ -104,11 +103,9 @@ stored_procedures:
                 record_val = record_val || vals[i];
             end loop;
 
-            if record_val = ''
+            if record_val != ''
             then
-                return_val = null::uuid;
-            else
-                select public.uuid_generate_v5(public.uuid_ns_oid(), record_val) into return_val;
+                return_val = encode(sha256(convert_to(record_val, 'utf-8')), 'hex');
             end if;
 
             return return_val;

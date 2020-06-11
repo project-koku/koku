@@ -1295,7 +1295,7 @@ partition of {target_schema}.p_{table_name}
     )
 
 
-def drop_table(conn, schema_name, table_info):
+def drop_table(conn, schema_name, table_name):
     """
     Truncate, then drop a specified table
     Args:
@@ -1305,10 +1305,10 @@ def drop_table(conn, schema_name, table_info):
     Returns:
         None
     """
-    table_name = table_info["structure"][0].table_name
     LINFO(f"Dropping table {schema_name}.{table_name}")
     execute(conn, f"truncate table {schema_name}.{table_name};")
     execute(conn, f"drop table {schema_name}.{table_name} cascade;")
+    conn.commit()
 
 
 def rename_source_sequences(conn, schema_name, table_name, sequence_info):

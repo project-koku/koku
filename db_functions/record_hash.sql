@@ -16,13 +16,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 -- Function to generate a sha256 hash from the concatenation
 -- of all of the text values passed into the function
-create or replace function {schema_name}.koku_record_uuid ( VARIADIC vals text[] ) returns uuid as
+create or replace function {schema_name}.koku_record_hash ( VARIADIC vals text[] ) returns text as
 $$
 declare
     -- The string of the concatenation of the parameter values
     record_val text = ''::text;
-    -- The output UUID
-    return_val uuid = null::uuid;
+    -- The output text value
+    return_val text = null::text;
+    i int = 1::int;
+begin
     -- Iterator var
     i int = 1::int;
 begin
@@ -42,8 +44,8 @@ begin
     then
         return_val = null::uuid;
     else
-        -- Otherwise generate a UUID5
-        select public.uuid_generate_v5(public.uuid_ns_oid(), record_val) into return_val;
+        -- Otherwise generate a hash and get the hex value
+        return_val = encode(sha256(convert_to(record_val, 'utf-8')), 'hex');
     end if;
 
     return return_val;

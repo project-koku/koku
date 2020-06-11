@@ -208,7 +208,7 @@ class OCPUsageLineItemDailySummary(models.Model):
             GinIndex(fields=["pod_labels"], name="pod_labels_idx"),
         ]
 
-    id = models.UUIDField(primary_key=True)
+    id = models.TextField(primary_key=True)
 
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
 
@@ -227,7 +227,7 @@ class OCPUsageLineItemDailySummary(models.Model):
     # Another node identifier used to tie the node to an EC2 instance
     resource_id = models.CharField(max_length=253, null=True)
 
-    usage_start = models.DateField(null=False)
+    usage_start = models.DateField(null=False, primary_key=True)
     usage_end = models.DateField(null=False)
 
     pod_labels = JSONField(null=True)

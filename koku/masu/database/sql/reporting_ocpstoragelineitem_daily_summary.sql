@@ -74,7 +74,7 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsa
             li.storageclass,
             ab.provider_id
     )
-    SELECT public.koku_record_uuid(aps.cluster_id::text, aps.namespace::text, aps.node::text, aps.volume_labels::text)::uuid as id,
+    SELECT public.koku_record_hash(aps.cluster_id::text, aps.namespace::text, aps.node::text, aps.volume_labels::text)::text as id,
            aps.report_period_id,
            aps.cluster_id,
            aps.cluster_alias,
