@@ -1,0 +1,128 @@
+#!/bin/bash
+
+function is_django_installed() {
+  python -c "import django" &>/dev/null
+}
+
+function should_collectstatic() {
+  is_django_installed && [[ -z "$DISABLE_COLLECTSTATIC" ]]
+}
+
+function virtualenv_bin() {
+  if head "/etc/redhat-release" | grep -q "^CentOS Linux release 7" || \
+     head "/etc/redhat-release" | grep -q "^Red Hat Enterprise Linux\( Server\)\? release 7" || \
+     head "/etc/redhat-release" | grep -q "^Fedora release"; then
+    virtualenv $1
+  else
+    virtualenv-${PYTHON_VERSION} $1
+  fi
+}
+
+# Install pipenv or micropipenv to the separate virtualenv to isolate it
+# from system Python packages and packages in the main
+# virtualenv. Executable is simlinked into ~/.local/bin
+# to be accessible. This approach is inspired by pipsi
+# (pip script installer).
+function install_tool() {
+  echo "---> Installing $1 packaging tool ..."
+  VENV_DIR=$HOME/.local/venvs/$1
+  virtualenv_bin "$VENV_DIR"
+  $VENV_DIR/bin/pip --isolated install -U $1$2  # Combines package name with [extras] if [extras] is defined as $2
+  mkdir -p $HOME/.local/bin
+  ln -s $VENV_DIR/bin/$1 $HOME/.local/bin/$1
+}
+
+function install_pipenv() {
+  echo "---> Installing $1 tool ..."
+  VENV_DIR=$HOME/.local/venvs/$1
+  virtualenv_bin "$VENV_DIR"
+  $VENV_DIR/bin/pip --isolated install "pipenv==$VERSION_PIPENV" --ignore-installed
+  mkdir -p $HOME/.local/bin
+  ln -s $VENV_DIR/bin/$1 $HOME/.local/bin/$1
+}
+
+set -e
+
+# First of all, check that we don't have disallowed combination of ENVs
+if [[ ! -z "$ENABLE_PIPENV" && ! -z "$ENABLE_MICROPIPENV" ]]; then
+  echo "ERROR: Pipenv and micropipenv cannot be enabled at the same time!"
+  # podman/buildah does not relay this exit code but it will be fixed hopefuly
+  # https://github.com/containers/buildah/issues/2305
+  exit 3
+fi
+
+shopt -s dotglob
+echo "---> Installing application source ..."
+mv /tmp/src/* "$HOME"
+
+# set permissions for any installed artifacts
+fix-permissions /opt/app-root -P
+
+# We have to first upgrade pip to at least 19.3 because:
+# * pip < 9 does not support different packages' versions for Python 2/3
+# * pip < 19.3 does not support manylinux2014 wheels. Only manylinux2014 wheels
+#   support platforms like ppc64le, aarch64 or armv7
+echo "---> Upgrading pip to version 19.3.1 ..."
+pip install -U "pip==19.3.1"
+
+if [[ ! -z "$UPGRADE_PIP_TO_LATEST" ]]; then
+  echo "---> Upgrading pip to latest version ..."
+  pip install -U pip setuptools wheel
+fi
+
+if [[ ! -z "$ENABLE_PIPENV" ]]; then
+  install_pipenv "pipenv"
+  echo "---> $(pipenv --version)"
+  echo "---> Installing dependencies via pipenv ..."
+  if [[ -f Pipfile ]]; then
+    pipenv install --deploy
+  elif [[ -f requirements.txt ]]; then
+    pipenv install -r requirements.txt
+  fi
+  # pipenv check
+elif [[ ! -z "$ENABLE_MICROPIPENV" ]]; then
+  install_tool "micropipenv" "[toml]"
+  echo "---> Installing dependencies via micropipenv ..."
+  # micropipenv detects Pipfile.lock and requirements.txt in this order
+  micropipenv install --deploy
+elif [[ -f requirements.txt ]]; then
+  echo "---> Installing dependencies ..."
+  pip install -r requirements.txt
+fi
+
+if [[ -f setup.py && -z "$DISABLE_SETUP_PY_PROCESSING" ]]; then
+  echo "---> Installing application ..."
+  pip install .
+fi
+
+if should_collectstatic; then
+  (
+    echo "---> Collecting Django static files ..."
+
+    APP_HOME=$(readlink -f "${APP_HOME:-.}")
+    # Change the working directory to APP_HOME
+    PYTHONPATH="$(pwd)${PYTHONPATH:+:$PYTHONPATH}"
+    cd "$APP_HOME"
+
+    # Look for 'manage.py' in the current directory
+    manage_file=./manage.py
+
+    if [[ ! -f "$manage_file" ]]; then
+      echo "WARNING: seems that you're using Django, but we could not find a 'manage.py' file."
+      echo "'manage.py collectstatic' ignored."
+      exit
+    fi
+
+    if ! python $manage_file collectstatic --dry-run --noinput &> /dev/null; then
+      echo "WARNING: could not run 'manage.py collectstatic'. To debug, run:"
+      echo "    $ python $manage_file collectstatic --noinput"
+      echo "Ignore this warning if you're not serving static files with Django."
+      exit
+    fi
+
+    python $manage_file collectstatic --noinput
+  )
+fi
+
+# set permissions for any installed artifacts
+fix-permissions /opt/app-root -P

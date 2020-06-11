@@ -37,7 +37,6 @@ class OCPCostModelCostUpdaterError(Exception):
     """OCPCostModelCostUpdater error."""
 
 
-# pylint: disable=too-few-public-methods
 class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
     """Class to update OCP report summary data with charge information."""
 

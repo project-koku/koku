@@ -16,11 +16,11 @@
 #
 """API views for import organization"""
 # flake8: noqa
-# pylint: disable=unused-import
 from api.cloud_accounts.views import cloud_accounts
 from api.dataexport.views import DataExportRequestViewSet
 from api.metrics.views import metrics
 from api.openapi.view import openapi
+from api.organizations.aws.view import AWSOrgView
 from api.report.all.openshift.view import OCPAllCostView
 from api.report.all.openshift.view import OCPAllInstanceTypeView
 from api.report.all.openshift.view import OCPAllStorageView

@@ -108,7 +108,7 @@ class GetReportFileTests(MasuTestCase):
         os.makedirs(Config.TMP_DIR, exist_ok=True)
 
         account = fake_arn(service="iam", generate_account_id=True)
-        expected = "INFO:masu.processor._tasks.download:Available disk space"
+        expected = "Available disk space"
         with self.assertLogs("masu.processor._tasks.download", level="INFO") as logger:
             _get_report_files(
                 Mock(),
@@ -136,10 +136,7 @@ class GetReportFileTests(MasuTestCase):
         Config.PVC_DIR = "/this/path/does/not/exist"
 
         account = fake_arn(service="iam", generate_account_id=True)
-        expected = (
-            "INFO:masu.processor._tasks.download:Unable to find"
-            + f" available disk space. {Config.PVC_DIR} does not exist"
-        )
+        expected = "Unable to find" + f" available disk space. {Config.PVC_DIR} does not exist"
         with self.assertLogs("masu.processor._tasks.download", level="INFO") as logger:
             _get_report_files(
                 Mock(),
@@ -151,7 +148,11 @@ class GetReportFileTests(MasuTestCase):
                 billing_source=self.fake.word(),
                 cache_key=self.fake.word(),
             )
-            self.assertIn(expected, logger.output)
+            statement_found = False
+            for log in logger.output:
+                if expected in log:
+                    statement_found = True
+            self.assertTrue(statement_found)
 
     @patch("masu.processor._tasks.download.ReportDownloader._set_downloader", side_effect=Exception("only a test"))
     def test_get_report_exception(self, fake_downloader):
@@ -969,6 +970,26 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         ]
         expected = (
             "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.05);"
+        )
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+
+    @patch("masu.processor.tasks.connection")
+    def test_autovacuum_tune_schema_invalid_setting(self, mock_conn):
+        """Test that the autovacuum tuning runs."""
+        logging.disable(logging.NOTSET)
+
+        # Make sure that the AUTOVACUUM_TUNING environment variable is unset!
+        if "AUTOVACUUM_TUNING" in os.environ:
+            del os.environ["AUTOVACUUM_TUNING"]
+
+        # This invalid setting should be treated as though there was no setting
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
+            ("cost_model", 20000000, {"autovacuum_vacuum_scale_factor": ""})
+        ]
+        expected = (
+            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.01);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)

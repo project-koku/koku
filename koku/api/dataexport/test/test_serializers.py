@@ -38,7 +38,7 @@ class DataExportRequestSerializerTest(MasuTestCase):
             "entitlements": {"cost_management": {"is_entitled": True}},
         }
         json_identity = json_dumps(identity)
-        mock_header = b64encode(json_identity.encode("utf-8"))
+        mock_header = b64encode(json_identity.encode("utf-8")).decode("utf-8")
 
         mock_request = Mock()
         mock_request.user = user

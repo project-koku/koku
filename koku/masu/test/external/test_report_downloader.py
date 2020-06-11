@@ -207,7 +207,7 @@ class ReportDownloaderTest(MasuTestCase):
         report_context = {"files": ["file-1.csv.gz", "file-2.csv.gz", "file-3.csv.gz"], "manifest_id": manifest_id}
         mock_dl_context.return_value = report_context
         mock_dl_local_files.side_effect = lambda x: x
-        mock_dl_download.side_effect = lambda x, y: (x, y)
+        mock_dl_download.side_effect = lambda x, y, manifest_id, start_date: (x, y)
 
         baker.make(CostUsageReportManifest, id=manifest_id)
         baker.make(

@@ -22,7 +22,6 @@ import os
 LOG = logging.getLogger(__name__)
 
 
-# pylint: disable=too-few-public-methods,simplifiable-if-expression
 class Config:
     """Configuration for app."""
 
@@ -91,6 +90,10 @@ class Config:
     # Processing intermediate report storage
     TMP_DIR = f"{PVC_DIR}/processing"
 
+    # S3 path root for warehoused data
+    WAREHOUSE_PATH = "data"
+    CSV_DATA_TYPE = "csv"
+
     # Celery settings
     CELERY_BROKER_URL = f"amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}"
     # CELERY_RESULT_BACKEND = f'amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}'
@@ -109,7 +112,6 @@ class Config:
     MASU_RETAIN_NUM_MONTHS = int(os.getenv("MASU_RETAIN_NUM_MONTHS", "3"))
     MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY = int(os.getenv("MASU_RETAIN_NUM_MONTHS", "1"))
 
-    # pylint: disable=fixme
     # TODO: Remove this if/when reporting model files are owned by masu
     # The decimal precision of our database Numeric columns
     REPORTING_DECIMAL_PRECISION = 9

@@ -31,7 +31,6 @@ from masu.providers.status import ProviderStatus
 LOG = logging.getLogger(__name__)
 
 
-# pylint: disable=too-few-public-methods
 class Orchestrator:
     """
     Orchestrator for report processing.
