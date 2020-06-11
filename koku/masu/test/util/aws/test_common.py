@@ -321,6 +321,51 @@ class TestAWSUtils(MasuTestCase):
 
         self.assertEqual(bill_ids, expected_bill_ids)
 
+    def test_remove_files_not_in_set_from_s3_bucket(self):
+        """Test remove_files_not_in_set_from_s3_bucket."""
+        removed = utils.remove_files_not_in_set_from_s3_bucket(
+            "request_id", "account", "provider_uuid", None, "manifest_id"
+        )
+        self.assertEqual(removed, None)
+
+        date_accessor = DateAccessor()
+        start_date = date_accessor.today_with_timezone("utc").replace(day=1)
+        expected_key = "removed_key"
+        mock_object = Mock(metadata={}, key=expected_key)
+        mock_summary = Mock()
+        mock_summary.Object.return_value = mock_object
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+                mock_s3.return_value.Bucket.return_value.objects.filter.return_value = [mock_summary]
+                removed = utils.remove_files_not_in_set_from_s3_bucket(
+                    "request_id", "account", "provider_uuid", start_date, "manifest_id"
+                )
+                self.assertEqual(removed, [expected_key])
+
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+                mock_s3.side_effect = ClientError({}, "Error")
+                removed = utils.remove_files_not_in_set_from_s3_bucket(
+                    "request_id", "account", "provider_uuid", start_date, "manifest_id"
+                )
+                self.assertEqual(removed, [])
+
+    def test_copy_data_to_s3_bucket(self):
+        """Test copy_data_to_s3_bucket."""
+        upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
+        self.assertEqual(upload, None)
+
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+                upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
+                self.assertIsNotNone(upload)
+
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+                mock_s3.side_effect = ClientError({}, "Error")
+                upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
+                self.assertEqual(upload, None)
+
 
 class AwsArnTest(TestCase):
     """AwnArn class test case."""

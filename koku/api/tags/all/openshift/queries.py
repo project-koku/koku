@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """OCP-on-All Tag Query Handling."""
+from django.db.models import F
+
 from api.models import Provider
 from api.report.all.openshift.provider_map import OCPAllProviderMap
 from api.tags.queries import TagQueryHandler
@@ -28,8 +30,14 @@ class OCPAllTagQueryHandler(TagQueryHandler):
     provider = Provider.OCP_ALL
     data_sources = [
         {"db_table": OCPAWSTagsSummary, "db_column_period": "cost_entry_bill__billing_period"},
-        {"db_table": OCPAzureTagsSummary, "db_column_period": "cost_entry_bill__billing_period"},
+        {
+            "db_table": OCPAzureTagsSummary,
+            "db_column_period": "cost_entry_bill__billing_period",
+            "annotations": {"accounts": F("subscription_guid")},
+        },
     ]
+    SUPPORTED_FILTERS = ["account"]
+    FILTER_MAP = {"account": {"field": "accounts", "operation": "icontains", "composition_key": "account_filter"}}
 
     def __init__(self, parameters):
         """Establish OCP on All infrastructure tag query handler.

@@ -8,6 +8,7 @@ from dateutil.rrule import rrule
 from google.cloud import storage
 from rest_framework.exceptions import ValidationError
 
+from api.common import log_json
 from masu.config import Config
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
@@ -57,10 +58,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self._storage_client = storage.Client()
             self._bucket_info = self._storage_client.lookup_bucket(self.bucket_name)
         except ValidationError as ex:
-            LOG.error(
-                "GCP bucket %(bucket_name)s for customer %(customer_name)s is not reachable. Error: %(ex)s",
-                {"customer_name": customer_name, "bucket_name": self.bucket_name, "ex": str(ex)},
-            )
+            msg = f"GCP bucket {self.bucket_name} for customer {customer_name} is not reachable. Error: {str(ex)}"
+            LOG.error(log_json(self.request_id, msg, self.context))
             raise GCPReportDownloaderError(str(ex))
 
     def get_report_context_for_date(self, date_time):
@@ -82,24 +81,24 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         if not self.check_if_manifest_should_be_downloaded(manifest_data["assembly_id"]):
             manifest_id = self._get_existing_manifest_db_id(manifest_data["assembly_id"])
-            stmt = (
+            msg = (
                 f"This manifest has already been downloaded and processed:\n"
                 f" schema_name: {self.customer_name}\n"
                 f" provider_uuid: {self._provider_uuid}\n"
                 f" manifest_id: {manifest_id}"
             )
-            LOG.info(stmt)
+            LOG.info(log_json(self.request_id, msg, self.context))
             return {}
 
         file_names_count = len(manifest_data["file_names"])
         if not file_names_count:
-            stmt = (
+            msg = (
                 f'No relevant files found for month starting {manifest_data["start_date"]}'
                 f' for customer "{self.customer_name}",'
                 f" provider_uuid {self._provider_uuid},"
                 f" and bucket_name: {self.bucket_name}"
             )
-            LOG.info(stmt)
+            LOG.info(log_json(self.request_id, msg, self.context))
             return {}
 
         manifest_id = self._process_manifest_db_record(
@@ -226,7 +225,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         return report
 
-    def download_file(self, key, stored_etag=None):
+    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
         Download a file from GCP storage bucket.
 
@@ -247,24 +246,18 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         if stored_etag is not None and stored_etag != blob.etag:
             # Should we abort download here? Just log a warning for now...
-            LOG.warning(
-                'etag for "%(blob_name)s" is "%(blob_etag)s", but stored etag is %(stored_etag)s',
-                {"blob_name": key, "blob_etag": blob.etag, "stored_etag": stored_etag},
-            )
+            msg = f"etag for {key} is {blob.etag}, but stored etag is {stored_etag}"
+            LOG.warning(log_json(self.request_id, msg, self.context))
 
         directory_path = self._get_local_directory_path()
         full_local_path = self._get_local_file_path(directory_path, key)
         os.makedirs(directory_path, exist_ok=True)
-        LOG.info(
-            'Downloading "%(blob_name)s" to %(full_local_path)s',
-            {"blob_name": key, "full_local_path": full_local_path},
-        )
+        msg = f"Downloading {key} to {full_local_path}"
+        LOG.info(log_json(self.request_id, msg, self.context))
         blob.download_to_filename(full_local_path)
 
-        LOG.info(
-            "Returning full_file_path: %(full_local_path)s, etag: %(etag)s",
-            {"full_local_path": full_local_path, "etag": blob.etag},
-        )
+        msg = f"Returning full_file_path: {full_local_path}, etag: {blob.etag}"
+        LOG.info(log_json(self.request_id, msg, self.context))
         return full_local_path, blob.etag
 
     def _get_local_directory_path(self):
@@ -293,6 +286,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         local_file_name = key.replace("/", "_")
-        LOG.info("Local filename: %s", local_file_name)
+        msg = f"Local filename: {local_file_name}"
+        LOG.info(log_json(self.request_id, msg, self.context))
         full_local_path = os.path.join(directory_path, local_file_name)
         return full_local_path

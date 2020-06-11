@@ -46,13 +46,16 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe
             max(li.cluster_capacity_cpu_core_seconds) / 3600 as cluster_capacity_cpu_core_hours,
             max(li.cluster_capacity_memory_byte_seconds) / 3600 * POWER(2, -30) as cluster_capacity_memory_gigabyte_hours,
             max(li.total_capacity_cpu_core_seconds) / 3600 as total_capacity_cpu_core_hours,
-            max(li.total_capacity_memory_byte_seconds) / 3600 * POWER(2, -30) as total_capacity_memory_gigabyte_hours
+            max(li.total_capacity_memory_byte_seconds) / 3600 * POWER(2, -30) as total_capacity_memory_gigabyte_hours,
+            ab.provider_id as source_uuid
         FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily AS li
         LEFT JOIN cte_filtered_pod_labels AS fpl
             ON li.id = fpl.id
+        LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
+            ON li.cluster_id = ab.cluster_id
         WHERE usage_start >= {{start_date}}
             AND usage_start <= {{end_date}}
-            AND cluster_id = {{cluster_id}}
+            AND li.cluster_id = {{cluster_id}}
         GROUP BY report_period_id,
             li.cluster_id,
             li.cluster_alias,
@@ -60,7 +63,8 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe
             li.usage_end,
             li.namespace,
             li.node,
-            fpl.pod_labels
+            fpl.pod_labels,
+            ab.provider_id
     )
     SELECT public.koku_record_uuid(apu.cluster_id::text, apu.namespace::text, apu.node::text, apu.pod_labels::text)::uuid as id,
         apu.report_period_id,
@@ -85,7 +89,8 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe
         apu.cluster_capacity_cpu_core_hours,
         apu.cluster_capacity_memory_gigabyte_hours,
         apu.total_capacity_cpu_core_hours,
-        apu.total_capacity_memory_gigabyte_hours
+        apu.total_capacity_memory_gigabyte_hours,
+        apu.source_uuid
     FROM cte_agg_pod_usage apu
 )
 ;
@@ -124,7 +129,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
     total_capacity_cpu_core_hours,
-    total_capacity_memory_gigabyte_hours
+    total_capacity_memory_gigabyte_hours,
+    source_uuid
 )
     SELECT id,
         report_period_id,
@@ -150,6 +156,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         cluster_capacity_cpu_core_hours,
         cluster_capacity_memory_gigabyte_hours,
         total_capacity_cpu_core_hours,
-         total_capacity_memory_gigabyte_hours
+        total_capacity_memory_gigabyte_hours,
+        source_uuid
     FROM reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe}}
 ;

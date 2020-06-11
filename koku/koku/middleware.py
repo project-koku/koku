@@ -20,6 +20,7 @@ import logging
 from http import HTTPStatus
 from json.decoder import JSONDecodeError
 
+from cachetools import TTLCache
 from django.conf import settings
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
@@ -47,6 +48,11 @@ from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
 
 
+TIME_TO_CACHE = 900  # in seconds (15 minutes)
+MAX_CACHE_SIZE = 10000
+USER_CACHE = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_CACHE)
+
+
 LOG = logging.getLogger(__name__)
 MASU = settings.MASU
 SOURCES = settings.SOURCES
@@ -70,7 +76,6 @@ def is_no_entitled(request):
 
 class HttpResponseUnauthorizedRequest(HttpResponse):
     """A subclass of HttpResponse to return a 401.
-
     Used if identity header is not sent.
     """
 
@@ -98,10 +103,11 @@ class HttpResponseFailedDependency(JsonResponse):
 
 class KokuTenantMiddleware(BaseTenantMiddleware):
     """A subclass of the Django-tenant-schemas tenant middleware.
-
     Determines which schema to use based on the customer's schema
     found from the user tied to a request.
     """
+
+    tenant_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_CACHE)
 
     def process_exception(self, request, exception):
         """Raise 424 on InterfaceError."""
@@ -118,7 +124,9 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
             if hasattr(request, "user") and hasattr(request.user, "username"):
                 username = request.user.username
                 try:
-                    User.objects.get(username=username)
+                    if username not in USER_CACHE:
+                        USER_CACHE[username] = User.objects.get(username=username)
+                        LOG.debug(f"User added to cache: {username}")
                 except User.DoesNotExist:
                     return HttpResponseUnauthorizedRequest()
                 if not request.user.admin and request.user.access is None:
@@ -136,37 +144,38 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
     def get_tenant(self, model, hostname, request):
         """Override the tenant selection logic."""
         schema_name = "public"
-        if not is_no_auth(request):
-            user = User.objects.get(username=request.user.username)
-            customer = user.customer
-            schema_name = customer.schema_name
-        try:
-            tenant = model.objects.get(schema_name=schema_name)
-        except model.DoesNotExist:
-            tenant = model(schema_name=schema_name)
-            tenant.save()
-        return tenant
+        tenant_username = request.user.username
+        if tenant_username not in KokuTenantMiddleware.tenant_cache:
+            if not is_no_auth(request):
+                user = User.objects.get(username=tenant_username)
+                customer = user.customer
+                schema_name = customer.schema_name
+            try:
+                tenant = model.objects.get(schema_name=schema_name)
+            except model.DoesNotExist:
+                tenant = model(schema_name=schema_name)
+                tenant.save()
+            KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
+            LOG.debug(f"Tenant added to cache: {tenant_username}")
+        return KokuTenantMiddleware.tenant_cache[tenant_username]
 
 
 class IdentityHeaderMiddleware(MiddlewareMixin):
     """A subclass of RemoteUserMiddleware.
-
     Processes the provided identity found on the request.
     """
 
     header = RH_IDENTITY_HEADER
     rbac = RbacService()
+    customer_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_CACHE)
 
     @staticmethod
     def create_customer(account):
         """Create a customer.
-
         Args:
             account (str): The account identifier
-
         Returns:
             (Customer) The created customer
-
         """
         try:
             with transaction.atomic():
@@ -185,16 +194,13 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
     @staticmethod
     def create_user(username, email, customer, request):
         """Create a user for a customer.
-
         Args:
             username (str): The username
             email (str): The email for the user
             customer (Customer): The customer the user is associated with
             request (object): The incoming request
-
         Returns:
             (User) The created user
-
         """
         new_user = None
         try:
@@ -221,10 +227,8 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
 
     def process_request(self, request):  # noqa: C901
         """Process request for csrf checks.
-
         Args:
             request (object): The request object
-
         """
         connection.set_schema_to_public()
 
@@ -271,7 +275,12 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             }
             LOG.info(stmt)
             try:
-                customer = Customer.objects.filter(account_id=account).get()
+                if account not in IdentityHeaderMiddleware.customer_cache:
+                    IdentityHeaderMiddleware.customer_cache[account] = Customer.objects.filter(
+                        account_id=account
+                    ).get()
+                    LOG.debug(f"Customer added to cache: {account}")
+                customer = IdentityHeaderMiddleware.customer_cache[account]
             except Customer.DoesNotExist:
                 customer = IdentityHeaderMiddleware.create_customer(account)
             except OperationalError as err:
@@ -280,7 +289,12 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 return HttpResponseFailedDependency({"source": "Database", "exception": err})
 
             try:
-                user = User.objects.get(username=username)
+                if username not in USER_CACHE:
+                    user = User.objects.get(username=username)
+                    USER_CACHE[username] = user
+                    LOG.debug(f"User added to cache: {username}")
+                else:
+                    user = USER_CACHE[username]
             except User.DoesNotExist:
                 user = IdentityHeaderMiddleware.create_user(username, email, customer, request)
 
@@ -307,11 +321,9 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
 
     def process_response(self, request, response):
         """Process response for identity middleware.
-
         Args:
             request (object): The request object
             response (object): The response object
-
         """
         query_string = ""
         is_admin = False
@@ -345,9 +357,7 @@ class DisableCSRF(MiddlewareMixin):
 
     def process_request(self, request):
         """Process request for csrf checks.
-
         Args:
             request (object): The request object
-
         """
         setattr(request, "_dont_enforce_csrf_checks", True)

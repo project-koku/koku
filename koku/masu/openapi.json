@@ -31,10 +31,6 @@
         "description": "Operations about updating cost model costs"
       },
       {
-        "name": "Upload Normalized Data",
-        "description": "Operations about uploading normalized data"
-      },
-      {
         "name": "Status",
         "description": "Operations about status"
       }
@@ -409,30 +405,6 @@
           },
           "tags": [
             "Update Cost Model Cost"
-          ]
-        },
-        "parameters": []
-      },
-      "/upload_normalized_data/": {
-        "post": {
-          "summary": "Upload normalized data",
-          "operationId": "uploadNormalizedData",
-          "description": "Call the upload_normalized_data task.",
-          "parameters": [],
-          "responses": {
-            "201": {
-              "description": "Celery AsyncResult ID of the upload_normalized_data task",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/UploadNormalizedDataPostResponse"
-                  }
-                }
-              }
-            }
-          },
-          "tags": [
-            "Upload Normalized Data"
           ]
         },
         "parameters": []

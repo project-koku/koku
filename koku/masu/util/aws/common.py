@@ -18,13 +18,17 @@
 import datetime
 import logging
 import re
+from io import BytesIO
 
 import boto3
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 from tenant_schemas.utils import schema_context
 
+from api.common import log_json
 from api.models import Provider
+from masu.config import Config
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.util import common as utils
@@ -262,6 +266,97 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     return bills
 
 
+def get_s3_resource():
+    """
+    Obtain the s3 session client
+    """
+    aws_session = boto3.Session(
+        aws_access_key_id=settings.S3_ACCESS_KEY,
+        aws_secret_access_key=settings.S3_SECRET,
+        region_name=settings.S3_REGION,
+    )
+    s3_resource = aws_session.resource("s3")
+    return s3_resource
+
+
+def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, context={}):
+    """
+    Copies data to s3 bucket file
+    """
+    if not settings.ENABLE_S3_ARCHIVING:
+        return None
+
+    upload = None
+    upload_key = f"{path}/{filename}"
+    try:
+        s3_resource = get_s3_resource()
+        s3_obj = {"bucket_name": settings.S3_BUCKET_NAME, "key": upload_key}
+        upload = s3_resource.Object(**s3_obj)
+        put_value = {"Body": data}
+        if manifest_id:
+            put_value["Metadata"] = {"ManifestId": str(manifest_id)}
+        upload.put(**put_value)
+    except ClientError as err:
+        msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
+        LOG.info(log_json(request_id, msg, context))
+    return upload
+
+
+def _get_path_prefix(account, provider_uuid, start_date):
+    """
+    Get the S3 bucket prefix
+    """
+    year = start_date.strftime("%Y")
+    month = start_date.strftime("%m")
+    path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.CSV_DATA_TYPE}"
+    path = f"{path_prefix}/{account}/{provider_uuid}/{year}/{month}"
+    return path
+
+
+def copy_local_report_file_to_s3_bucket(
+    request_id, account, provider_uuid, full_file_path, local_filename, manifest_id, start_date, context={}
+):
+    """
+    Copies local report file to s3 bucket
+    """
+    if start_date:
+        path = _get_path_prefix(account, provider_uuid, start_date)
+        with open(full_file_path, "rb") as fin:
+            data = BytesIO(fin.read())
+            copy_data_to_s3_bucket(request_id, path, local_filename, data, manifest_id, context)
+
+
+def remove_files_not_in_set_from_s3_bucket(request_id, account, provider_uuid, start_date, manifest_id, context={}):
+    """
+    Removes all files in a given prefix if they are not within the given set.
+    """
+    if not settings.ENABLE_S3_ARCHIVING:
+        return None
+
+    removed = []
+    if start_date:
+        try:
+            path = _get_path_prefix(account, provider_uuid, start_date)
+            s3_resource = get_s3_resource()
+            existing_objects = s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=path)
+            for obj_summary in existing_objects:
+                existing_object = obj_summary.Object()
+                metadata = existing_object.metadata
+                manifest = metadata.get("ManifestId")
+                key = existing_object.key
+                if manifest is not manifest_id:
+                    s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
+                    removed.append(key)
+            if removed:
+                msg = f"Removed files from s3 bucket {settings.S3_BUCKET_NAME}: {','.join(removed)}."
+                LOG.info(log_json(request_id, msg, context))
+        except ClientError as err:
+            msg = f"Unable to remove data in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
+            LOG.info(log_json(request_id, msg, context))
+    return removed
+
+
+# pylint: disable=too-few-public-methods
 class AwsArn:
     """
     Object representing an AWS ARN.

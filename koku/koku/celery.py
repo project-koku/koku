@@ -140,14 +140,6 @@ app.conf.beat_schedule["crawl_account_hierarchy"] = {
     "schedule": crontab(hour=0, minute=0),
 }
 
-
-# Toggle to enable/disable S3 archiving of account data.
-if settings.ENABLE_S3_ARCHIVING:
-    app.conf.beat_schedule["daily_upload_normalized_reports_to_s3"] = {
-        "task": "masu.celery.tasks.upload_normalized_data",
-        "schedule": int(os.getenv("UPLOAD_NORMALIZED_DATA_INTERVAL", "86400")),
-    }
-
 # Celery timeout if broker is unavaiable to avoid blocking indefintely
 app.conf.broker_transport_options = {"max_retries": 4, "interval_start": 0, "interval_step": 0.5, "interval_max": 3}
 
