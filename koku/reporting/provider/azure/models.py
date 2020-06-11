@@ -138,6 +138,7 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     instance_ids = ArrayField(models.CharField(max_length=256), null=True)
     instance_count = models.IntegerField(null=True)
     unit_of_measure = models.CharField(max_length=63, null=True)
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AzureTagsSummary(models.Model):
@@ -177,6 +178,7 @@ class AzureCostSummary(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False, default="USD")
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AzureCostSummaryByAccount(models.Model):
@@ -199,6 +201,7 @@ class AzureCostSummaryByAccount(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False, default="USD")
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AzureCostSummaryByLocation(models.Model):
@@ -221,6 +224,7 @@ class AzureCostSummaryByLocation(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False, default="USD")
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AzureCostSummaryByService(models.Model):
@@ -243,6 +247,7 @@ class AzureCostSummaryByService(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False, default="USD")
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AzureComputeSummary(models.Model):
@@ -269,6 +274,7 @@ class AzureComputeSummary(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False, default="USD")
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AzureStorageSummary(models.Model):
@@ -293,6 +299,7 @@ class AzureStorageSummary(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False, default="USD")
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AzureNetworkSummary(models.Model):
@@ -317,6 +324,7 @@ class AzureNetworkSummary(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False, default="USD")
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AzureDatabaseSummary(models.Model):
@@ -341,3 +349,4 @@ class AzureDatabaseSummary(models.Model):
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False, default="USD")
+    source_uuid = models.UUIDField(unique=False, null=True)

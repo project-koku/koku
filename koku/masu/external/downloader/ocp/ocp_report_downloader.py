@@ -21,10 +21,12 @@ import logging
 import os
 import shutil
 
+from api.common import log_json
 from masu.config import Config
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.ocp import common as utils
 
 DATA_DIR = Config.TMP_DIR
@@ -57,11 +59,13 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.cluster_id = auth_credential
         self.temp_dir = None
         self.bucket = bucket
+        self.context["cluster_id"] = self.cluster_id
 
     def _get_manifest(self, date_time):
         dates = utils.month_date_range(date_time)
         directory = f"{REPORTS_DIR}/{self.cluster_id}/{dates}"
-        LOG.info("Looking for manifest at %s", directory)
+        msg = f"Looking for manifest at {directory}"
+        LOG.info(log_json(self.request_id, msg, self.context))
         report_meta = utils.get_report_details(directory)
         return report_meta
 
@@ -73,9 +77,11 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest_path = "{}/{}".format(directory, "manifest.json")
         try:
             os.remove(manifest_path)
-            LOG.info("Deleted manifest file at %s", directory)
+            msg = f"Deleted manifest file at {directory}"
+            LOG.debug(log_json(self.request_id, msg, self.context))
         except OSError:
-            LOG.info("Could not delete manifest file at %s", directory)
+            msg = f"Could not delete manifest file at {directory}"
+            LOG.info(log_json(self.request_id, msg, self.context))
 
         return None
 
@@ -91,11 +97,13 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         dates = utils.month_date_range(date_time)
-        LOG.debug("Looking for cluster %s report for date %s", self.cluster_id, str(dates))
+        msg = f"Looking for cluster {self.cluster_id} report for date {str(dates)}"
+        LOG.debug(log_json(self.request_id, msg, self.context))
         directory = f"{REPORTS_DIR}/{self.cluster_id}/{dates}"
 
         manifest = self._get_manifest(date_time)
-        LOG.info("manifest found: %s", str(manifest))
+        msg = f"manifest found: {str(manifest)}"
+        LOG.info(log_json(self.request_id, msg, self.context))
 
         reports = []
         for file in manifest.get("files", []):
@@ -104,7 +112,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         return reports
 
-    def download_file(self, key, stored_etag=None):
+    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
         Download an OCP usage file.
 
@@ -127,8 +135,22 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         ocp_etag = etag_hasher.hexdigest()
 
         if ocp_etag != stored_etag or not os.path.isfile(full_file_path):
-            LOG.info("Downloading %s to %s", key, full_file_path)
+            msg = f"Downloading {key} to {full_file_path}"
+            LOG.info(log_json(self.request_id, msg, self.context))
             shutil.move(key, full_file_path)
+
+        # Push to S3
+        copy_local_report_file_to_s3_bucket(
+            self.request_id,
+            self.account,
+            self._provider_uuid,
+            full_file_path,
+            local_filename,
+            manifest_id,
+            start_date,
+            self.context,
+        )
+
         return full_file_path, ocp_etag
 
     def get_report_context_for_date(self, date_time):

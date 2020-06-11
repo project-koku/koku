@@ -23,6 +23,7 @@ import os
 import re
 import shutil
 
+from api.common import log_json
 from masu.config import Config
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
@@ -68,7 +69,8 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.report_name = name
         self.report_prefix = prefix
 
-        LOG.info("Found report name: %s, report prefix: %s", self.report_name, self.report_prefix)
+        msg = f"Found report name: {self.report_name}, report prefix: {self.report_prefix}"
+        LOG.info(log_json(self.request_id, msg, self.context))
         if self.report_prefix:
             self.base_path = f"{bucket}/{self.report_prefix}/"
         else:
@@ -126,7 +128,8 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             manifest_file, _ = self.download_file(manifest)
         except AWSReportDownloaderNoFileError as err:
-            LOG.error("Unable to get report manifest. Reason: %s", str(err))
+            msg = f"Unable to get report manifest. Reason: {str(err)}"
+            LOG.error(log_json(self.request_id, msg, self.context))
             return "", self.empty_manifest
 
         manifest_json = None
@@ -166,9 +169,11 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """Clean up the manifest file after extracting information."""
         try:
             os.remove(manifest_file)
-            LOG.info("Deleted manifest file at %s", manifest_file)
+            msg = f"Deleted manifest file at {manifest_file}"
+            LOG.info(log_json(self.request_id, msg, self.context))
         except OSError:
-            LOG.info("Could not delete manifest file at %s", manifest_file)
+            msg = f"Could not delete manifest file at {manifest_file}"
+            LOG.info(log_json(self.request_id, msg, self.context))
 
         return None
 
@@ -187,7 +192,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         report_date_range = utils.month_date_range(date_time)
         return f"{self.base_path}/{self.report_name}/{report_date_range}"
 
-    def download_file(self, key, stored_etag=None):
+    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
         Download an S3 object to file.
 
@@ -214,8 +219,23 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         s3_etag = s3_etag_hasher.hexdigest()
 
         if s3_etag != stored_etag or not os.path.isfile(full_file_path):
-            LOG.info("Downloading %s to %s", key, full_file_path)
+            msg = f"Downloading {key} to {full_file_path}"
+            LOG.info(log_json(self.request_id, msg, self.context))
             shutil.copy2(key, full_file_path)
+            # Push to S3
+            utils.copy_local_report_file_to_s3_bucket(
+                self.request_id,
+                self.account,
+                self._provider_uuid,
+                full_file_path,
+                local_s3_filename,
+                manifest_id,
+                start_date,
+                self.context,
+            )
+            utils.remove_files_not_in_set_from_s3_bucket(
+                self.request_id, self.account, self._provider_uuid, start_date, manifest_id
+            )
         return full_file_path, s3_etag
 
     def get_report_context_for_date(self, date_time):
@@ -246,13 +266,13 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         if not should_download:
             manifest_id = self._get_existing_manifest_db_id(manifest_dict.get("assembly_id"))
-            stmt = (
+            msg = (
                 f"This manifest has already been downloaded and processed:\n"
                 f" schema_name: {self.customer_name},\n"
                 f" provider_uuid: {self._provider_uuid},\n"
                 f" manifest_id: {manifest_id}"
             )
-            LOG.info(stmt)
+            LOG.info(log_json(self.request_id, msg, self.context))
             return report_dict
 
         if manifest_dict:

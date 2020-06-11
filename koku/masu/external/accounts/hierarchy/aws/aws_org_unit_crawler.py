@@ -19,6 +19,8 @@
 import logging
 from datetime import timedelta
 
+from botocore.exceptions import ClientError
+from botocore.exceptions import ParamValidationError
 from django.db import transaction
 from tenant_schemas.utils import schema_context
 
@@ -50,14 +52,23 @@ class AWSOrgUnitCrawler(AccountCrawler):
 
     @transaction.atomic
     def crawl_account_hierarchy(self):
-        self._init_session()
-        self._build_accout_alias_map()
+        error_message = f"Unable to crawl AWS organizational structure with ARN {self.account}"
+        try:
+            self._init_session()
+            self._build_accout_alias_map()
 
-        self._compute_org_structure_yesterday()
-        root_ou = self._client.list_roots()["Roots"][0]
-        LOG.info("Obtained the root identifier: %s" % (root_ou["Id"]))
-        self._crawl_org_for_accounts(root_ou, root_ou.get("Id"), level=0)
-        self._mark_nodes_deleted()
+            self._compute_org_structure_yesterday()
+            root_ou = self._client.list_roots()["Roots"][0]
+            LOG.info("Obtained the root identifier: %s" % (root_ou["Id"]))
+            self._crawl_org_for_accounts(root_ou, root_ou.get("Id"), level=0)
+            self._mark_nodes_deleted()
+        except ParamValidationError as param_error:
+            LOG.warn(msg=error_message)
+            LOG.warn(param_error)
+        except ClientError as boto_error:
+            LOG.warn(msg=error_message, exc_info=boto_error)
+        except Exception as unknown_error:
+            LOG.exception(msg=error_message, exc_info=unknown_error)
 
     def _mark_nodes_deleted(self):
         today = self._date_accessor.today()

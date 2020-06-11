@@ -928,7 +928,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         max(li.pretax_cost) * {{markup}}::numeric as markup_cost,
         max(li.shared_projects) as shared_projects,
         max(li.offer_id) as offer_id,
-        pc.project_costs as project_costs
+        pc.project_costs as project_costs,
+        ab.provider_id as source_uuid
     FROM reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} as li
     JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice AS p
         ON li.cost_entry_product_id = p.id
@@ -936,10 +937,12 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         ON li.meter_id = m.id
     JOIN cte_pod_project_cost as pc
         ON li.azure_id = pc.azure_id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_azurecostentrybill as ab
+        ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_date >= {{start_date}}::date
         AND li.usage_date <= {{end_date}}::date
     -- Dedup on azure line item so we never double count usage or cost
-    GROUP BY li.azure_id, li.tags, pc.project_costs
+    GROUP BY li.azure_id, li.tags, pc.project_costs, ab.provider_id
 
     UNION
 
@@ -965,7 +968,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         max(li.pretax_cost) * {{markup}}::numeric as markup_cost,
         max(li.shared_projects) as shared_projects,
         max(li.offer_id) as offer_id,
-        pc.project_costs as project_costs
+        pc.project_costs as project_costs,
+        ab.provider_id as source_uuid
     FROM reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS li
     JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice AS p
         ON li.cost_entry_product_id = p.id
@@ -975,10 +979,12 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_daily_summary_{{uuid | sql
         ON li.azure_id = pc.azure_id
     LEFT JOIN reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.azure_id = li.azure_id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_azurecostentrybill as ab
+        ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_date >= {{start_date}}::date
         AND li.usage_date <= {{end_date}}::date
         AND ulid.azure_id IS NULL
-    GROUP BY li.azure_id, li.tags, pc.project_costs
+    GROUP BY li.azure_id, li.tags, pc.project_costs, ab.provider_id
 )
 ;
 
@@ -1015,12 +1021,15 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         max(li.offer_id) as offer_id,
         max(li.shared_pods) as shared_pods,
         li.pod_cost,
-        li.pod_cost * {{markup}}::numeric as project_markup_cost
+        li.pod_cost * {{markup}}::numeric as project_markup_cost,
+        ab.provider_id as source_uuid
     FROM reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} as li
     JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice AS p
         ON li.cost_entry_product_id = p.id
     JOIN {{schema | sqlsafe}}.reporting_azuremeter as m
         ON li.meter_id = m.id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_azurecostentrybill as ab
+        ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_date >= {{start_date}}::date
         AND li.usage_date <= {{end_date}}::date
     -- Grouping by OCP this time for the by project view
@@ -1032,7 +1041,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         li.pod,
         li.node,
         li.pod_labels,
-        li.pod_cost
+        li.pod_cost,
+        ab.provider_id
 
     UNION
 
@@ -1060,7 +1070,8 @@ CREATE TEMPORARY TABLE reporting_ocpazurecostlineitem_project_daily_summary_{{uu
         max(li.offer_id) as offer_id,
         max(li.shared_pods) as shared_pods,
         li.pod_cost,
-        li.pod_cost * {{markup}}::numeric as project_markup_cost
+        li.pod_cost * {{markup}}::numeric as project_markup_cost,
+        ab.provider_id as source_uuid
     FROM reporting_ocpazurestoragelineitem_daily_{{uuid | sqlsafe}} AS li
 JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice AS p
         ON li.cost_entry_product_id = p.id
@@ -1068,6 +1079,8 @@ JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice AS p
         ON li.meter_id = m.id
     LEFT JOIN reporting_ocpazureusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.azure_id = li.azure_id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_azurecostentrybill as ab
+        ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_date >= {{start_date}}::date
         AND li.usage_date <= {{end_date}}::date
         AND ulid.azure_id IS NULL
@@ -1080,7 +1093,8 @@ JOIN {{schema | sqlsafe}}.reporting_azurecostentryproductservice AS p
         li.node,
         li.persistentvolume_labels,
         li.persistentvolumeclaim_labels,
-        li.pod_cost
+        li.pod_cost,
+        ab.provider_id
 )
 ;
 
@@ -1126,7 +1140,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary (
     currency,
     unit_of_measure,
     shared_projects,
-    project_costs
+    project_costs,
+    source_uuid
 )
     SELECT report_period_id,
         cluster_id,
@@ -1150,7 +1165,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary (
         currency,
         unit_of_measure,
         shared_projects,
-        project_costs
+        project_costs,
+        source_uuid
     FROM reporting_ocpazurecostlineitem_daily_summary_{{uuid | sqlsafe}}
 ;
 
@@ -1195,7 +1211,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_su
     currency,
     unit_of_measure,
     pod_cost,
-    project_markup_cost
+    project_markup_cost,
+    source_uuid
 )
     SELECT report_period_id,
         cluster_id,
@@ -1220,6 +1237,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_su
         currency,
         unit_of_measure,
         pod_cost,
-        project_markup_cost
+        project_markup_cost,
+        source_uuid
     FROM reporting_ocpazurecostlineitem_project_daily_summary_{{uuid | sqlsafe}}
 ;

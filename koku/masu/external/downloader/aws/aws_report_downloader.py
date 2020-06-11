@@ -26,6 +26,7 @@ import boto3
 from botocore.exceptions import ClientError
 from django.conf import settings
 
+from api.common import log_json
 from masu.config import Config
 from masu.exceptions import MasuProviderError
 from masu.external.downloader.downloader_interface import DownloaderInterface
@@ -171,12 +172,14 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         manifest = "{}/{}-Manifest.json".format(self._get_report_path(date_time), self.report_name)
-        LOG.info("Will attempt to download manifest: %s", manifest)
+        msg = f"Will attempt to download manifest: {manifest}"
+        LOG.info(log_json(self.request_id, msg, self.context))
 
         try:
             manifest_file, _ = self.download_file(manifest)
         except AWSReportDownloaderNoFileError as err:
-            LOG.info("Unable to get report manifest. Reason: %s", str(err))
+            msg = f"Unable to get report manifest. Reason: {str(err)}"
+            LOG.info(log_json(self.request_id, msg, self.context))
             return "", self.empty_manifest
 
         manifest_json = None
@@ -191,7 +194,8 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             os.remove(manifest_file)
             LOG.debug("Deleted manifest file at %s", manifest_file)
         except OSError:
-            LOG.info("Could not delete manifest file at %s", manifest_file)
+            msg = f"Could not delete manifest file at {manifest_file}"
+            LOG.info(log_json(self.request_id, msg, self.context))
 
         return None
 
@@ -226,7 +230,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             files.append(file_name)
         return files
 
-    def download_file(self, key, stored_etag=None):
+    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
         Download an S3 object to file.
 
@@ -241,7 +245,8 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         directory_path = f"{DATA_DIR}/{self.customer_name}/aws/{self.bucket}"
 
         local_s3_filename = utils.get_local_file_name(key)
-        LOG.info("Local S3 filename: %s", local_s3_filename)
+        msg = f"Local S3 filename: {local_s3_filename}"
+        LOG.info(log_json(self.request_id, msg, self.context))
         full_file_path = f"{directory_path}/{local_s3_filename}"
 
         # Make sure the data directory exists
@@ -252,11 +257,12 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             s3_etag = s3_file.get("ETag")
         except ClientError as ex:
             if ex.response["Error"]["Code"] == "NoSuchKey":
-                log_msg = "Unable to find {} in S3 Bucket: {}".format(s3_filename, self.report.get("S3Bucket"))
-                LOG.info(log_msg)
-                raise AWSReportDownloaderNoFileError(log_msg)
+                msg = "Unable to find {} in S3 Bucket: {}".format(s3_filename, self.report.get("S3Bucket"))
+                LOG.info(log_json(self.request_id, msg, self.context))
+                raise AWSReportDownloaderNoFileError(msg)
 
-            LOG.error("Error downloading file: Error: %s", str(ex))
+            msg = f"Error downloading file: Error: {str(ex)}"
+            LOG.error(log_json(self.request_id, msg, self.context))
             raise AWSReportDownloaderError(str(ex))
 
         if not self._check_size(key, check_inflate=True):
@@ -265,6 +271,21 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if s3_etag != stored_etag or not os.path.isfile(full_file_path):
             LOG.debug("Downloading key: %s to file path: %s", key, full_file_path)
             self.s3_client.download_file(self.report.get("S3Bucket"), key, full_file_path)
+            # Push to S3
+            utils.copy_local_report_file_to_s3_bucket(
+                self.request_id,
+                self.account,
+                self._provider_uuid,
+                full_file_path,
+                local_s3_filename,
+                manifest_id,
+                start_date,
+                self.context,
+            )
+            utils.remove_files_not_in_set_from_s3_bucket(
+                self.request_id, self.account, self._provider_uuid, start_date, manifest_id
+            )
+
         return full_file_path, s3_etag
 
     def get_manifest_context_for_date(self, date_time):
@@ -318,13 +339,13 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         if not should_download:
             manifest_id = self._get_existing_manifest_db_id(manifest_dict.get("assembly_id"))
-            stmt = (
+            msg = (
                 f"This manifest has already been downloaded and processed:\n"
                 f" schema_name: {self.customer_name},\n"
                 f" provider_uuid: {self._provider_uuid},\n"
                 f" manifest_id: {manifest_id}"
             )
-            LOG.info(stmt)
+            LOG.info(log_json(self.request_id, msg, self.context))
             return report_dict
 
         if manifest_dict:

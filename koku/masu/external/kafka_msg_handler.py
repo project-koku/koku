@@ -22,6 +22,7 @@ import json
 import logging
 import os
 import random
+import re
 import shutil
 import signal
 import tempfile
@@ -104,6 +105,7 @@ def create_manifest_entries(report_meta, request_id, context={}):
         None,
         provider_uuid=report_meta.get("provider_uuid"),
         request_id=request_id,
+        account=context.get("account", "no_account"),
     )
     return downloader._prepare_db_manifest_record(report_meta)
 
@@ -138,6 +140,92 @@ def get_account_from_cluster_id(cluster_id, request_id, context={}):
     return account
 
 
+def download_payload(request_id, url, context={}):
+    """
+    Download the payload from ingress to temporary location.
+
+        Args:
+        request_id (String): Identifier associated with the payload
+        url (String): URL path to payload in the Insights upload service..
+        context (Dict): Context for logging (account, etc)
+
+        Returns:
+        Tuple: temp_dir (String), temp_file (String)
+    """
+    # Create temporary directory for initial file staging and verification in the
+    # OpenShift PVC directory so that any failures can be triaged in the event
+    # the pod goes down.
+    os.makedirs(Config.PVC_DIR, exist_ok=True)
+    temp_dir = tempfile.mkdtemp(dir=Config.PVC_DIR)
+
+    # Download file from quarantine bucket as tar.gz
+    try:
+        download_response = requests.get(url)
+        download_response.raise_for_status()
+    except requests.exceptions.HTTPError as err:
+        shutil.rmtree(temp_dir)
+        msg = f"Unable to download file. Error: {str(err)}"
+        LOG.warning(log_json(request_id, msg))
+        raise KafkaMsgHandlerError("Unable to download file. Error: ", str(err))
+
+    sanitized_request_id = re.sub("[^A-Za-z0-9]+", "", request_id)
+    gzip_filename = f"{sanitized_request_id}.tar.gz"
+    temp_file = f"{temp_dir}/{gzip_filename}"
+    try:
+        temp_file_hdl = open(temp_file, "wb")
+        temp_file_hdl.write(download_response.content)
+        temp_file_hdl.close()
+    except (OSError, IOError) as error:
+        shutil.rmtree(temp_dir)
+        msg = f"Unable to write file. Error: {str(error)}"
+        LOG.warning(log_json(request_id, msg, context))
+        raise KafkaMsgHandlerError("Unable to write file. Error: ", str(error))
+        LOG.warning(log_json(request_id, msg, context))
+
+    return (temp_dir, temp_file, gzip_filename)
+
+
+def extract_payload_contents(request_id, out_dir, tarball_path, tarball, context={}):
+    """
+    Extract the payload contents into a temporary location.
+
+        Args:
+        request_id (String): Identifier associated with the payload
+        out_dir (String): temporary directory to extract data to
+        tarball_path (String): the path to the payload file to extract
+        tarball (String): the payload file to extract
+        context (Dict): Context for logging (account, etc)
+
+        Returns:
+            (String): path to manifest file
+    """
+    # Extract tarball into temp directory
+
+    if not os.path.isfile(tarball_path):
+        msg = f"Unable to find tar file {tarball_path}."
+        LOG.warning(log_json(request_id, msg, context))
+        raise KafkaMsgHandlerError("Extraction failure, file not found.")
+
+    try:
+        mytar = TarFile.open(tarball_path, mode="r:gz")
+        mytar.extractall(path=out_dir)
+        files = mytar.getnames()
+        manifest_path = [manifest for manifest in files if "manifest.json" in manifest]
+    except (ReadError, EOFError, OSError) as error:
+        msg = f"Unable to untar file {tarball_path}. Reason: {str(error)}"
+        LOG.warning(log_json(request_id, msg, context))
+        shutil.rmtree(out_dir)
+        raise KafkaMsgHandlerError("Extraction failure.")
+
+    if not manifest_path:
+        msg = "No manifest found in payload."
+        LOG.warning(log_json(request_id, msg, context))
+        raise KafkaMsgHandlerError("No manifest found in payload.")
+
+    return manifest_path
+
+
+# pylint: disable=too-many-locals
 def extract_payload(url, request_id, context={}):  # noqa: C901
     """
     Extract OCP usage report payload into local directory structure.
@@ -186,49 +274,9 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
                 current_file: String
 
     """
-    # Create temporary directory for initial file staging and verification in the
-    # OpenShift PVC directory so that any failures can be triaged in the event
-    # the pod goes down.
-    os.makedirs(Config.PVC_DIR, exist_ok=True)
-    temp_dir = tempfile.mkdtemp(dir=Config.PVC_DIR)
+    temp_dir, temp_file_path, temp_file = download_payload(request_id, url, context)
+    manifest_path = extract_payload_contents(request_id, temp_dir, temp_file_path, temp_file, context)
 
-    # Download file from quarantine bucket as tar.gz
-    try:
-        download_response = requests.get(url)
-        download_response.raise_for_status()
-    except requests.exceptions.HTTPError as err:
-        shutil.rmtree(temp_dir)
-        msg = f"Unable to download file. Error: {str(err)}"
-        LOG.warning(log_json(request_id, msg))
-        raise KafkaMsgHandlerError("Unable to download file. Error: ", str(err))
-
-    temp_file = "{}/{}".format(temp_dir, "usage.tar.gz")
-    try:
-        temp_file_hdl = open("{}/{}".format(temp_dir, "usage.tar.gz"), "wb")
-        temp_file_hdl.write(download_response.content)
-        temp_file_hdl.close()
-    except (OSError, IOError) as error:
-        shutil.rmtree(temp_dir)
-        msg = f"Unable to write file. Error: {str(error)}"
-        LOG.warning(log_json(request_id, msg, context))
-        raise KafkaMsgHandlerError("Unable to write file. Error: ", str(error))
-
-    # Extract tarball into temp directory
-    try:
-        mytar = TarFile.open(temp_file)
-        mytar.extractall(path=temp_dir)
-        files = mytar.getnames()
-        manifest_path = [manifest for manifest in files if "manifest.json" in manifest]
-    except (ReadError, EOFError, OSError) as error:
-        msg = f"Unable to untar file. Reason: {str(error)}"
-        LOG.warning(log_json(request_id, msg, context))
-        shutil.rmtree(temp_dir)
-        raise KafkaMsgHandlerError("Extraction failure.")
-
-    if not manifest_path:
-        msg = "No manifest found in payload."
-        LOG.warning(log_json(request_id, msg, context))
-        raise KafkaMsgHandlerError("No manifest found in payload.")
     # Open manifest.json file and build the payload dictionary.
     full_manifest_path = "{}/{}".format(temp_dir, manifest_path[0])
     report_meta = utils.get_report_details(os.path.dirname(full_manifest_path))
@@ -243,10 +291,13 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
         LOG.error(log_json(request_id, msg, context))
         shutil.rmtree(temp_dir)
         return None
-
+    schema_name = account.get("schema_name")
+    provider_type = account.get("provider_type")
+    context["account"] = schema_name[4:]
+    context["provider_type"] = provider_type
     report_meta["provider_uuid"] = account.get("provider_uuid")
-    report_meta["provider_type"] = account.get("provider_type")
-    report_meta["schema_name"] = account.get("schema_name")
+    report_meta["provider_type"] = provider_type
+    report_meta["schema_name"] = schema_name
 
     # Create directory tree for report.
     usage_month = utils.month_date_range(report_meta.get("date"))

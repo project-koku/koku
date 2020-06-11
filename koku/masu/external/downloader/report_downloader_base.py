@@ -18,6 +18,7 @@
 import logging
 from tempfile import mkdtemp
 
+from api.common import log_json
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 
 # from masu.processor.worker_cache import WorkerCache
@@ -57,8 +58,10 @@ class ReportDownloaderBase:
             self.download_path = mkdtemp(prefix="masu")
         self.worker_cache = None  # WorkerCache()
         self._cache_key = kwargs.get("cache_key")
-        self._provider_uuid = None
         self._provider_uuid = kwargs.get("provider_uuid")
+        self.request_id = kwargs.get("request_id")
+        self.account = kwargs.get("account")
+        self.context = {"request_id": self.request_id, "provider_uuid": self._provider_uuid, "account": self.account}
 
     def _get_existing_manifest_db_id(self, assembly_id):
         """Return a manifest DB object if it exists."""
@@ -83,7 +86,7 @@ class ReportDownloaderBase:
         """
         if self._cache_key and self.worker_cache and self.worker_cache.task_is_running(self._cache_key):
             msg = f"{self._cache_key} is currently running."
-            LOG.info(msg)
+            LOG.info(log_json(self.request_id, msg, self.context))
             return False
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
@@ -111,7 +114,8 @@ class ReportDownloaderBase:
             manifest_entry = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
 
             if not manifest_entry:
-                LOG.info("No manifest entry found in database. Adding for bill period start: %s", billing_start)
+                msg = f"No manifest entry found in database. Adding for bill period start: {billing_start}"
+                LOG.info(log_json(self.request_id, msg, self.context))
                 manifest_dict = {
                     "assembly_id": assembly_id,
                     "billing_period_start_datetime": billing_start,
