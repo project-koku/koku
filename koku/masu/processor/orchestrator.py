@@ -18,6 +18,7 @@
 import logging
 import uuid
 
+from celery import chord
 from dateutil import parser
 
 from masu.config import Config
@@ -149,6 +150,7 @@ class Orchestrator:
 
         LOG.info(f"Found Manifests: {str(manifest)}")
         report_files = manifest.get("files", [])
+        report_tasks = []
         for report_file_dict in report_files:
             local_file = report_file_dict.get("local_file")
             report_file = report_file_dict.get("key")
@@ -156,7 +158,7 @@ class Orchestrator:
                 report_context = manifest.copy()
                 report_context["current_file"] = report_file
 
-                async_result = (
+                report_tasks.append(
                     get_report_files.s(
                         customer_name,
                         authentication,
@@ -167,11 +169,13 @@ class Orchestrator:
                         report_month,
                         report_context,
                     )
-                    | summarize_reports.s()
-                ).apply_async()
-                LOG.info("Download queued - schema_name: %s, Task ID: %s", schema_name, str(async_result))
+                )
+                LOG.info("Download queued - schema_name: %s.", schema_name)
             else:
                 LOG.info(f"{local_file} was already processed")
+
+        async_id = chord(report_tasks, summarize_reports.s())()
+        LOG.info(f"CHORD ASYNC ID: {async_id}")
         return manifest
 
     def prepare(self):

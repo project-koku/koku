@@ -175,7 +175,7 @@ def get_report_files(
         raise processing_error
 
     # WorkerCache().remove_task_from_cache(cache_key)
-    return [report_meta]
+    return report_meta
 
 
 @app.task(name="masu.processor.tasks.remove_expired_data", queue_name="remove_expired")
@@ -217,7 +217,9 @@ def summarize_reports(reports_to_summarize):
         None
 
     """
-    for report in reports_to_summarize:
+    reports_deduplicated = [dict(t) for t in {tuple(d.items()) for d in reports_to_summarize}]
+
+    for report in reports_deduplicated:
         # For day-to-day summarization we choose a small window to
         # cover new data from a window of days.
         # This saves us from re-summarizing unchanged data and cuts down
