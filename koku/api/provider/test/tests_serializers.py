@@ -124,7 +124,7 @@ class ProviderSerializerTest(IamTestCase):
             with self.assertRaises(serializers.ValidationError):
                 serializer.save()
 
-    def test_create_provider_fails_customer(self):  # pylint: disable=C0103
+    def test_create_provider_fails_customer(self):
         """Test creating a provider where customer is not found for user."""
         provider = {
             "name": "test_provider",

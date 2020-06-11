@@ -31,7 +31,6 @@ from reporting_common import REPORT_COLUMN_MAP
 LOG = logging.getLogger(__name__)
 
 
-# pylint: disable=too-few-public-methods
 class ReportSchema:
     """A container for the reporting table objects."""
 
@@ -58,7 +57,6 @@ class ReportSchema:
             self.column_types = column_types
 
 
-# pylint: disable=too-many-public-methods
 class ReportDBAccessorBase(KokuDBAccess):
     """Class to interact with customer reporting tables."""
 
@@ -133,7 +131,6 @@ class ReportDBAccessorBase(KokuDBAccess):
             delete_sql = f"DELETE FROM {temp_table_name}"
             cursor.execute(delete_sql)
 
-    # pylint: disable=too-many-arguments
     def bulk_insert_rows(self, file_obj, table, columns, sep=","):
         """Insert many rows using Postgres copy functionality.
 
@@ -150,7 +147,6 @@ class ReportDBAccessorBase(KokuDBAccess):
             statement = f"COPY {table} ({columns}) FROM STDIN WITH CSV DELIMITER '{sep}'"
             cursor.copy_expert(statement, file_obj)
 
-    # pylint: disable=arguments-differ
     def _get_db_obj_query(self, table, columns=None):
         """Return a query on a specific database table.
 

@@ -4775,6 +4775,9 @@
                                     "example": [
                                         [{
                                             "date": "2018-05-28",
+                                            "source_uuid": [
+                                                "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                            ],
                                             "total": {
                                                 "infrastructure": {
                                                     "raw": {
@@ -4839,6 +4842,9 @@
                                                     "account": "8577742690384",
                                                     "values": [{
                                                         "date": "2018-05-28",
+                                                        "source_uuid": [
+                                                            "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                        ],
                                                         "account": "8577742690384",
                                                         "account_alias": "sample-account",
                                                         "infrastructure": {
@@ -4905,6 +4911,9 @@
                                                     "account": "9420673783214",
                                                     "values": [{
                                                         "date": "2018-05-28",
+                                                        "source_uuid": [
+                                                            "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                        ],
                                                         "account": "9420673783214",
                                                         "account_alias": "9420673783214",
                                                         "infrastructure": {
@@ -4992,6 +5001,9 @@
                                                 "project": "monitoring",
                                                 "values": [{
                                                     "date": "2018-11",
+                                                    "source_uuid": [
+                                                        "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                    ],
                                                     "project": "monitoring",
                                                     "infrastructure": {
                                                         "raw": {
@@ -5053,6 +5065,9 @@
                                                 "project": "metering",
                                                 "values": [{
                                                     "date": "2018-11",
+                                                    "source_uuid": [
+                                                        "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                    ],
                                                     "project": "metering",
                                                     "infrastructure": {
                                                         "raw": {
@@ -5138,6 +5153,9 @@
                                                     "instance_type": "t2.medium",
                                                     "values": [{
                                                         "date": "2018-05-28",
+                                                        "source_uuid": [
+                                                            "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                        ],
                                                         "instance_type": "t2.medium",
                                                         "usage": {
                                                             "value": 5,
@@ -5203,6 +5221,9 @@
                                                     "instance_type": "m5.2xlarge",
                                                     "values": [{
                                                         "date": "2018-05-28",
+                                                        "source_uuid": [
+                                                            "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                        ],
                                                         "instance_type": "m5.2xlarge",
                                                         "usage": {
                                                             "value": 29,
@@ -5294,6 +5315,9 @@
                                                     "account": "4418636104713",
                                                     "values": [{
                                                         "date": "2018-07",
+                                                        "source_uuid": [
+                                                            "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                        ],
                                                         "account": "4418636104713",
                                                         "usage": {
                                                             "value": 1826.74238146924,
@@ -5359,6 +5383,9 @@
                                                     "account": "8577742690384",
                                                     "values": [{
                                                         "date": "2018-07",
+                                                        "source_uuid": [
+                                                            "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                        ],
                                                         "account": "8577742690384",
                                                         "usage": {
                                                             "value": 1137.74036198065,
@@ -5424,6 +5451,9 @@
                                                     "account": "3474227945050",
                                                     "values": [{
                                                         "date": "2018-07",
+                                                        "source_uuid": [
+                                                            "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                        ],
                                                         "account": "3474227945050",
                                                         "usage": {
                                                             "value": 1045.80659412797,
@@ -5489,6 +5519,9 @@
                                                     "account": "7249815104968",
                                                     "values": [{
                                                         "date": "2018-07",
+                                                        "source_uuid": [
+                                                            "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                        ],
                                                         "account": "7249815104968",
                                                         "usage": {
                                                             "value": 807.326470618818,
@@ -5554,6 +5587,9 @@
                                                     "account": "9420673783214",
                                                     "values": [{
                                                         "date": "2018-07",
+                                                        "source_uuid": [
+                                                            "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                        ],
                                                         "account": "9420673783214",
                                                         "usage": {
                                                             "value": 658.306642830709,
@@ -5653,6 +5689,9 @@
                                             "account": "9999999999999",
                                             "values": [{
                                                 "date": "2019-01",
+                                                "source_uuid": [
+                                                    "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                ],
                                                 "account": "9999999999999",
                                                 "account_alias": "9999999999999",
                                                 "infrastructure": {
@@ -5751,6 +5790,9 @@
                                             "account": "9999999999999",
                                             "values": [{
                                                 "date": "2019-01",
+                                                "source_uuid": [
+                                                    "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                ],
                                                 "account": "9999999999999",
                                                 "account_alias": "9999999999999",
                                                 "infrastructure": {
@@ -5919,6 +5961,9 @@
                                             "date": "2018-10",
                                             "values": [{
                                                 "date": "2018-10",
+                                                "source_uuid": [
+                                                    "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                ],
                                                 "usage": {
                                                     "value": "0.611978,",
                                                     "units": "Core-Hours"
@@ -6017,6 +6062,9 @@
                                             "date": "2018-10",
                                             "values": [{
                                                 "date": "2018-10",
+                                                "source_uuid": [
+                                                    "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                ],
                                                 "usage": {
                                                     "value": 4.62038,
                                                     "units": "GB-Hours"
@@ -6114,6 +6162,9 @@
                                         "date": "2019-02",
                                         "values": [{
                                             "date": "2019-02",
+                                            "source_uuid": [
+                                                "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                            ],
                                             "usage": {
                                                 "value": 283.455815,
                                                 "units": "GB-Mo"
