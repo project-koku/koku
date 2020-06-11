@@ -109,6 +109,8 @@ class OCPAWSCostLineItemDailySummary(models.Model):
     # See comment on unblended_cost for project cost explanation
     project_costs = JSONField(null=True)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class OCPAWSCostLineItemProjectDailySummary(models.Model):
     """A summarized view of OCP on AWS cost by OpenShift project."""
@@ -188,6 +190,8 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
 
     pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class OCPAWSTagsSummary(models.Model):
     """A collection of all current existing tag key and values."""
@@ -237,6 +241,8 @@ class OCPAWSCostSummary(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class OCPAWSCostSummaryByAccount(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -270,6 +276,8 @@ class OCPAWSCostSummaryByAccount(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAWSCostSummaryByService(models.Model):
@@ -305,6 +313,8 @@ class OCPAWSCostSummaryByService(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class OCPAWSCostSummaryByRegion(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -338,6 +348,8 @@ class OCPAWSCostSummaryByRegion(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAWSComputeSummary(models.Model):
@@ -377,6 +389,8 @@ class OCPAWSComputeSummary(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class OCPAWSStorageSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -412,6 +426,8 @@ class OCPAWSStorageSummary(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAWSNetworkSummary(models.Model):
@@ -449,6 +465,8 @@ class OCPAWSNetworkSummary(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class OCPAWSDatabaseSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -484,3 +502,5 @@ class OCPAWSDatabaseSummary(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)

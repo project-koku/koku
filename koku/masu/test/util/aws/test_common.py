@@ -331,10 +331,12 @@ class TestAWSUtils(MasuTestCase):
         date_accessor = DateAccessor()
         start_date = date_accessor.today_with_timezone("utc").replace(day=1)
         expected_key = "removed_key"
-        mock_object = {"Metadata": {}, "Key": expected_key}
+        mock_object = Mock(metadata={}, key=expected_key)
+        mock_summary = Mock()
+        mock_summary.Object.return_value = mock_object
         with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
             with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-                mock_s3.return_value.Bucket.return_value.objects.filter.return_value = {"Contents": [mock_object]}
+                mock_s3.return_value.Bucket.return_value.objects.filter.return_value = [mock_summary]
                 removed = utils.remove_files_not_in_set_from_s3_bucket(
                     "request_id", "account", "provider_uuid", start_date, "manifest_id"
                 )
