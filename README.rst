@@ -11,6 +11,7 @@ Koku's goal is to provide an open source solution for cost management of cloud a
 
 Full documentation is available through readthedocs_.
 
+To submit an issue please visit https://issues.redhat.com/projects/COST/
 
 Getting Started
 ===============
