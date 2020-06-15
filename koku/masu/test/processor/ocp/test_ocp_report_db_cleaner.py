@@ -16,6 +16,7 @@
 #
 """Test the OCPReportDBCleaner utility object."""
 import datetime
+import logging
 
 from dateutil import relativedelta
 from tenant_schemas.utils import schema_context
@@ -26,6 +27,8 @@ from masu.processor.ocp.ocp_report_db_cleaner import OCPReportDBCleaner
 from masu.processor.ocp.ocp_report_db_cleaner import OCPReportDBCleanerError
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
+
+LOG = logging.getLogger(__name__)
 
 
 class OCPReportDBCleanerTest(MasuTestCase):
@@ -351,8 +354,12 @@ class OCPReportDBCleanerTest(MasuTestCase):
 
         removed_data = cleaner.purge_expired_line_item(later_cutoff)
         self.assertEqual(len(removed_data), expected_count)
-        self.assertEqual(removed_data[0].get("usage_period_id"), first_period.id)
-        self.assertEqual(removed_data[0].get("interval_start"), str(first_period.report_period_start))
+        first_period_response = None
+        for data in removed_data:
+            if data.get("usage_period_id") == first_period.id:
+                first_period_response = data
+                self.assertEqual(data.get("interval_start"), str(first_period.report_period_start))
+        self.assertIsNotNone(first_period_response)
 
         with schema_context(self.schema):
             self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
