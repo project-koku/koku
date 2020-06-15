@@ -15,6 +15,7 @@ if ENVIRONMENT.bool("KOKU_API_ENABLE_SENTRY", default=False):
         dsn=ENVIRONMENT("KOKU_SENTRY_DSN"),
         environment=ENVIRONMENT("KOKU_SENTRY_ENVIRONMENT"),
         integrations=[DjangoIntegration()],
+        traces_sample_rate=0.25,
     )
     LOG.info("Sentry setup.")
 elif ENVIRONMENT.bool("KOKU_CELERY_ENABLE_SENTRY", default=False):
@@ -23,6 +24,7 @@ elif ENVIRONMENT.bool("KOKU_CELERY_ENABLE_SENTRY", default=False):
         dsn=ENVIRONMENT("KOKU_CELERY_SENTRY_DSN"),
         environment=ENVIRONMENT("KOKU_SENTRY_ENVIRONMENT"),
         integrations=[CeleryIntegration()],
+        traces_sample_rate=0.25,
     )
     LOG.info("Sentry setup.")
 else:
