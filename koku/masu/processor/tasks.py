@@ -44,11 +44,10 @@ from masu.processor.cost_model_cost_updater import CostModelCostUpdater
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
+from masu.processor.worker_cache import WorkerCache
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_MATERIALIZED_VIEWS
-
-# from masu.processor.worker_cache import WorkerCache
 
 LOG = get_task_logger(__name__)
 
@@ -124,7 +123,9 @@ def get_report_files(
     if isinstance(report_month, str):
         month = parser.parse(report_month)
 
-    cache_key = f"{provider_uuid}:{month}"
+    cache_key = report_context.get("local_file")
+    WorkerCache().add_task_to_cache(cache_key)
+
     report_dict = _get_report_files(
         self,
         customer_name,
@@ -159,6 +160,10 @@ def get_report_files(
         )
         LOG.info(stmt)
         worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
+        import time
+
+        LOG.info("Sleeping for 60 seconds")
+        time.sleep(60)
         _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
 
         report_meta = {
@@ -171,10 +176,10 @@ def get_report_files(
     except (ReportProcessorError, ReportProcessorDBError) as processing_error:
         worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
         LOG.error(str(processing_error))
-        # WorkerCache().remove_task_from_cache(cache_key)
+        WorkerCache().remove_task_from_cache(cache_key)
         raise processing_error
 
-    # WorkerCache().remove_task_from_cache(cache_key)
+    WorkerCache().remove_task_from_cache(cache_key)
     return report_meta
 
 

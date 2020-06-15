@@ -99,4 +99,5 @@ class WorkerCache:
     def task_is_running(self, task_key):
         """Check if a task is in the cache."""
         task_list = self.get_all_running_tasks()
+        LOG.info(f"RUNNING TASKS: {str(task_list)}")
         return True if task_key in task_list else False

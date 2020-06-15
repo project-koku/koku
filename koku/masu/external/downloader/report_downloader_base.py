@@ -84,6 +84,8 @@ class ReportDownloaderBase:
 
         Returns True if the manifest should be downloaded and processed.
         """
+        # TODO: Check if we can remove
+        return
         if self._cache_key and self.worker_cache and self.worker_cache.task_is_running(self._cache_key):
             msg = f"{self._cache_key} is currently running."
             LOG.info(log_json(self.request_id, msg, self.context))

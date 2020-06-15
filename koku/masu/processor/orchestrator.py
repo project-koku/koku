@@ -33,6 +33,7 @@ from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
+from masu.processor.worker_cache import WorkerCache
 from masu.providers.status import ProviderStatus
 
 LOG = logging.getLogger(__name__)
@@ -57,6 +58,7 @@ class Orchestrator:
 
         """
         self._accounts, self._polling_accounts = self.get_accounts(billing_source, provider_uuid)
+        self.worker_cache = WorkerCache()
 
     @staticmethod
     def get_accounts(billing_source=None, provider_uuid=None):
@@ -154,28 +156,37 @@ class Orchestrator:
         for report_file_dict in report_files:
             local_file = report_file_dict.get("local_file")
             report_file = report_file_dict.get("key")
-            if not record_report_status(manifest["manifest_id"], local_file):
-                report_context = manifest.copy()
-                report_context["current_file"] = report_file
 
-                report_tasks.append(
-                    get_report_files.s(
-                        customer_name,
-                        authentication,
-                        billing_source,
-                        provider_type,
-                        schema_name,
-                        provider_uuid,
-                        report_month,
-                        report_context,
-                    )
-                )
-                LOG.info("Download queued - schema_name: %s.", schema_name)
-            else:
+            # Check if report file is complete or in progress.
+            if record_report_status(manifest["manifest_id"], local_file):
                 LOG.info(f"{local_file} was already processed")
+                continue
 
-        async_id = chord(report_tasks, summarize_reports.s())()
-        LOG.info(f"CHORD ASYNC ID: {async_id}")
+            if self.worker_cache.task_is_running(local_file):
+                LOG.info(f"{local_file} process is in progress")
+                continue
+
+            report_context = manifest.copy()
+            report_context["current_file"] = report_file
+            report_context["local_file"] = local_file
+
+            report_tasks.append(
+                get_report_files.s(
+                    customer_name,
+                    authentication,
+                    billing_source,
+                    provider_type,
+                    schema_name,
+                    provider_uuid,
+                    report_month,
+                    report_context,
+                )
+            )
+            LOG.info("Download queued - schema_name: %s.", schema_name)
+
+        if report_tasks:
+            async_id = chord(report_tasks, summarize_reports.s())()
+            LOG.info(f"Manifest Processing Async ID: {async_id}")
         return manifest
 
     def prepare(self):

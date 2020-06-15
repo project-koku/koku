@@ -253,6 +253,8 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 files       - ([]): List of report files.
 
         """
+        # TODO: Check if we can remove
+        return
         should_download = True
         report_dict = {}
         manifest_dict = {}

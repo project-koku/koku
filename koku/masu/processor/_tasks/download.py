@@ -26,9 +26,8 @@ from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
+from masu.processor.worker_cache import WorkerCache
 from masu.providers.status import ProviderStatus
-
-# from masu.processor.worker_cache import WorkerCache
 
 LOG = get_task_logger(__name__)
 
@@ -101,7 +100,7 @@ def _get_report_files(
         report = downloader.download_report(report_context)
     except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
         worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-        # WorkerCache().remove_task_from_cache(cache_key)
+        WorkerCache().remove_task_from_cache(cache_key)
         LOG.error(log_json(request_id, str(err), context))
         with ProviderStatus(provider_uuid) as status:
             status.set_error(error=err)
