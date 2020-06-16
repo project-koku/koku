@@ -123,7 +123,7 @@ def get_report_files(
     if isinstance(report_month, str):
         month = parser.parse(report_month)
 
-    cache_key = report_context.get("local_file")
+    cache_key = f"{provider_uuid}:{month.date()}"
     WorkerCache().add_task_to_cache(cache_key)
 
     report_dict = _get_report_files(
@@ -160,10 +160,10 @@ def get_report_files(
         )
         LOG.info(stmt)
         worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
-        import time
+        # import time
 
-        LOG.info("Sleeping for 60 seconds")
-        time.sleep(60)
+        # LOG.info("Sleeping for 60 seconds")
+        # time.sleep(60)
         _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
 
         report_meta = {

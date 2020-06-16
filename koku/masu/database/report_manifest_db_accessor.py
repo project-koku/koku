@@ -41,12 +41,13 @@ class ReportManifestDBAccessor(KokuDBAccess):
         self.date_accessor = DateAccessor()
 
     @classmethod
-    def increment_file_process_count(cls, manifest_id):
+    def increment_file_process_count(cls, manifest_id, report_file):
         """Increment manifest processed report count."""
         with transaction.atomic():
             with schema_context("public"):
                 manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
                 manifest.num_processed_files += 1
+                LOG.info(f"INCREMENT FILE: file: {report_file} num_processed_files: {manifest.num_processed_files}")
                 manifest.save()
 
     def get_manifest(self, assembly_id, provider_uuid):
