@@ -208,7 +208,7 @@ class OCPUsageLineItemDailySummary(models.Model):
             GinIndex(fields=["pod_labels"], name="pod_labels_idx"),
         ]
 
-    id = models.TextField(primary_key=True)
+    id = models.BigAutoField(primary_key=True)
 
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
 
