@@ -13,7 +13,7 @@ UPDATE acct10001.reporting_awscostentrylineitem_daily_summary as aws
     SET source_uuid = bill.provider_id
 FROM acct10001.reporting_awscostentrybill as bill
 WHERE aws.source_uuid is NULL
-AND aws.cost_entry_bill_id = bill.id
+AND aws.cost_entry_bill_id = bill.id;
 
 UPDATE acct10001.reporting_ocpawscostlineitem_daily_summary as ocp_aws
     SET source_uuid = bill.provider_id
