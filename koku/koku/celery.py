@@ -171,7 +171,6 @@ def clear_worker_cache_on_shutdown(sender, **kwargs):  # pragma: no cover
 
     LOGGER.info("Clearing worker task cache.")
     try:
-        pass
         WorkerCache().invalidate_host()
     except Exception:
         LOGGER.info("Cache not cleared on shutdown.")
