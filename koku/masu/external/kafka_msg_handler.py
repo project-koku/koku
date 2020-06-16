@@ -30,18 +30,17 @@ from tarfile import TarFile
 
 import requests
 from confluent_kafka import Consumer
+from confluent_kafka import KafkaError
+from confluent_kafka import KafkaException
 from confluent_kafka import Producer
-from confluent_kafka import TopicPartition
 from django.db import connection
 from django.db import InterfaceError
 from django.db import OperationalError
-from kafka.errors import KafkaError
 from kombu.exceptions import OperationalError as RabbitOperationalError
 
 from api.common import log_json
 from kafka_utils.utils import backoff
 from kafka_utils.utils import is_kafka_connected
-from kafka_utils.utils import rewind_consumer_to_retry
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
@@ -56,6 +55,8 @@ from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
 
+# from kafka.errors import KafkaError
+
 LOG = logging.getLogger(__name__)
 
 HCCM_TOPIC = "platform.upload.hccm"
@@ -63,6 +64,10 @@ VALIDATION_TOPIC = "platform.upload.validation"
 SUCCESS_CONFIRM_STATUS = "success"
 FAILURE_CONFIRM_STATUS = "failure"
 PRODUCER = Producer({"bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS})
+
+# import ptvsd
+# ptvsd.enable_attach(address=('0.0.0.0', 5678))
+# ptvsd.wait_for_attach()
 
 
 class KafkaMsgHandlerError(Exception):
@@ -652,6 +657,7 @@ def get_consumer():  # pragma: no cover
             "group.id": "hccm-group",
             "queued.max.messages.kbytes": 1024,
             "enable.auto.commit": False,
+            "enable.auto.offset.store": False,
         }
     )
     consumer.subscribe([HCCM_TOPIC])
@@ -662,11 +668,16 @@ def listen_for_messages_loop():
     """Wrap listen_for_messages in while true."""
     consumer = get_consumer()
     while True:
-        msg_list = consumer.consume()
-        if len(msg_list) == 1:
-            msg = msg_list.pop()
-        else:
+        msg = consumer.poll(timeout=1.0)
+        if msg is None:
             continue
+
+        if msg.error():
+            if msg.error().code() == KafkaError._PARTITION_EOF:
+                # End of partition event
+                LOG.warning(f"{msg.topic()} {msg.partition()} [{msg.offset()}] reached end at offset %d\n")
+            elif msg.error():
+                raise KafkaException(msg.error())
 
         listen_for_messages(msg, consumer)
 
@@ -704,22 +715,21 @@ def listen_for_messages(msg, consumer):
         offset = msg.offset()
         partition = msg.partition()
         LOG.info(f"Processing message offset: {offset} partition: {partition}")
-        topic_partition = TopicPartition(topic=HCCM_TOPIC, partition=partition, offset=offset)
         process_messages(msg)
+        LOG.warning(f"COMMITTING: message offset: {offset} partition: {partition}")
+        consumer.store_offsets(msg)
         consumer.commit()
     except (InterfaceError, OperationalError, ReportProcessorDBError) as error:
         connection.close()
-        LOG.error(
-            f"[listen_for_messages] Database error. Seeking to committed. Error: {type(error).__name__}: {error}"
-        )
+        LOG.error(f"[listen_for_messages] Database error. Error: {type(error).__name__}: {error}. Retrying...")
         time.sleep(Config.RETRY_SECONDS)
-        rewind_consumer_to_retry(consumer, topic_partition, Config.RETRY_SECONDS)
     except (KafkaMsgHandlerError, RabbitOperationalError) as error:
-        LOG.error(f"[listen_for_messages] Internal error. Seeking to committed. {type(error).__name__}: {error}")
+        LOG.error(f"[listen_for_messages] Internal error. {type(error).__name__}: {error}. Retrying...")
         time.sleep(Config.RETRY_SECONDS)
-        rewind_consumer_to_retry(consumer, topic_partition, Config.RETRY_SECONDS)
     except ReportProcessorError as error:
         LOG.error(f"[listen_for_messages] Report processing error: {str(error)}")
+        LOG.warning(f"COMMITTING: message offset: {offset} partition: {partition}")
+        consumer.store_offsets(msg)
         consumer.commit()
     except Exception as error:
         LOG.error(f"[listen_for_messages] UNKNOWN error encountered: {type(error).__name__}: {error}", exc_info=True)
