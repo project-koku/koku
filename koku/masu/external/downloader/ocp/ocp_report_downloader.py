@@ -38,19 +38,18 @@ LOG = logging.getLogger(__name__)
 class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """OCP Cost and Usage Report Downloader."""
 
-    def __init__(self, task, customer_name, auth_credential, bucket, report_name=None, **kwargs):
+    def __init__(self, customer_name, auth_credential, bucket, report_name=None, **kwargs):
         """
         Initializer.
 
         Args:
-            task             (Object) bound celery object
             customer_name    (String) Name of the customer
             auth_credential  (String) OpenShift cluster ID
             report_name      (String) Name of the Cost Usage Report to download (optional)
             bucket           (String) Not used for OCP
 
         """
-        super().__init__(task, **kwargs)
+        super().__init__(**kwargs)
 
         LOG.debug("Connecting to OCP service provider...")
 

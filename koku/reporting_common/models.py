@@ -33,10 +33,8 @@ class CostUsageReportManifest(models.Model):
     # Completed should indicate that our reporting materialzed views have refreshed
     manifest_completed_datetime = models.DateTimeField(null=True)
     billing_period_start_datetime = models.DateTimeField()
-    num_processed_files = models.IntegerField(default=0)
     num_total_files = models.IntegerField()
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
-    task = models.UUIDField(null=True)
 
 
 class CostUsageReportStatus(models.Model):

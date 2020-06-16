@@ -33,12 +33,11 @@ class ReportDownloaderBase:
     Base object class for downloading cost reports from a cloud provider.
     """
 
-    def __init__(self, task, download_path=None, **kwargs):
+    def __init__(self, download_path=None, **kwargs):
         """
         Create a downloader.
 
         Args:
-            task          (Object) bound celery object
             download_path (String) filesystem path to store downloaded files
 
         Kwargs:
@@ -50,8 +49,6 @@ class ReportDownloaderBase:
             report_name       (String) cost report name
 
         """
-        self._task = task
-
         if download_path:
             self.download_path = download_path
         else:
@@ -123,7 +120,6 @@ class ReportDownloaderBase:
                     "billing_period_start_datetime": billing_start,
                     "num_total_files": num_of_files,
                     "provider_uuid": self._provider_uuid,
-                    "task": self._task.request.id,
                 }
                 manifest_entry = manifest_accessor.add(**manifest_dict)
 

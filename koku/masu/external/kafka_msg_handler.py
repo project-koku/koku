@@ -29,7 +29,6 @@ import tempfile
 import threading
 import time
 import traceback
-import uuid
 from tarfile import ReadError
 from tarfile import TarFile
 
@@ -92,14 +91,7 @@ def create_manifest_entries(report_meta, request_id, context={}):
 
     """
 
-    class Request:
-        id = uuid.uuid4()
-
-    class Task:
-        request = Request()
-
     downloader = OCPReportDownloader(
-        Task(),
         report_meta.get("schema_name"),
         report_meta.get("cluster_id"),
         None,

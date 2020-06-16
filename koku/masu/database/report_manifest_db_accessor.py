@@ -16,7 +16,6 @@
 #
 """Report manifest database accessor for cost usage reports."""
 from celery.utils.log import get_task_logger
-from django.db import transaction
 from django.db.models import F
 from django.db.models.expressions import Window
 from django.db.models.functions import RowNumber
@@ -39,16 +38,6 @@ class ReportManifestDBAccessor(KokuDBAccess):
         super().__init__(self._schema)
         self._table = CostUsageReportManifest
         self.date_accessor = DateAccessor()
-
-    @classmethod
-    def increment_file_process_count(cls, manifest_id, report_file):
-        """Increment manifest processed report count."""
-        with transaction.atomic():
-            with schema_context("public"):
-                manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
-                manifest.num_processed_files += 1
-                LOG.info(f"INCREMENT FILE: file: {report_file} num_processed_files: {manifest.num_processed_files}")
-                manifest.save()
 
     def get_manifest(self, assembly_id, provider_uuid):
         """Get the manifest associated with the provided provider and id."""
@@ -81,7 +70,6 @@ class ReportManifestDBAccessor(KokuDBAccess):
             kwargs (dict): Fields containing CUR Manifest attributes.
                 Valid keys are: assembly_id,
                                 billing_period_start_datetime,
-                                num_processed_files (optional),
                                 num_total_files,
                                 provider_uuid,
         Returns:
@@ -90,9 +78,6 @@ class ReportManifestDBAccessor(KokuDBAccess):
         """
         if "manifest_creation_datetime" not in kwargs:
             kwargs["manifest_creation_datetime"] = self.date_accessor.today_with_timezone("UTC")
-
-        if "num_processed_files" not in kwargs:
-            kwargs["num_processed_files"] = 0
 
         # The Django model insists on calling this field provider_id
         if "provider_uuid" in kwargs:
@@ -104,6 +89,12 @@ class ReportManifestDBAccessor(KokuDBAccess):
     def manifest_ready_for_summary(self, manifest_id):
         """Determine if the manifest is ready to summarize."""
         return not self.is_last_completed_datetime_null(manifest_id)
+
+    def number_of_files_processed(self, manifest_id):
+        """Return the number of files processed in a manifest."""
+        return CostUsageReportStatus.objects.filter(
+            manifest_id=manifest_id, last_completed_datetime__isnull=False
+        ).count()
 
     def is_last_completed_datetime_null(self, manifest_id):
         """Determine if nulls exist in last_completed_datetime for manifest_id.
@@ -143,7 +134,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
         )
         for manifest in [manifest for manifest in manifests if manifest.row_number == 1]:
             # loop through the manifests and decide if they have finished processing
-            processed = manifest.num_total_files == manifest.num_processed_files
+            processed = self.manifest_ready_for_summary(manifest.id)
             # if all of the files for the manifest have been processed we don't want to add it
             # to assembly_ids because it is safe to delete
             if not processed:

@@ -44,7 +44,6 @@ class ReportDownloader:
 
     def __init__(
         self,
-        task,
         customer_name,
         access_credential,
         report_source,
@@ -56,7 +55,6 @@ class ReportDownloader:
         request_id="no_request_id",
     ):
         """Set the downloader based on the backend cloud provider."""
-        self.task = task
         self.customer_name = customer_name
         self.credential = access_credential
         self.cur_source = report_source
@@ -93,7 +91,6 @@ class ReportDownloader:
         """
         if self.provider_type == Provider.PROVIDER_AWS:
             return AWSReportDownloader(
-                task=self.task,
                 customer_name=self.customer_name,
                 auth_credential=self.credential,
                 bucket=self.cur_source,
@@ -105,7 +102,6 @@ class ReportDownloader:
             )
         if self.provider_type == Provider.PROVIDER_AWS_LOCAL:
             return AWSLocalReportDownloader(
-                task=self.task,
                 customer_name=self.customer_name,
                 auth_credential=self.credential,
                 bucket=self.cur_source,
@@ -117,7 +113,6 @@ class ReportDownloader:
             )
         if self.provider_type == Provider.PROVIDER_AZURE:
             return AzureReportDownloader(
-                task=self.task,
                 customer_name=self.customer_name,
                 auth_credential=self.credential,
                 billing_source=self.cur_source,
@@ -129,7 +124,6 @@ class ReportDownloader:
             )
         if self.provider_type == Provider.PROVIDER_AZURE_LOCAL:
             return AzureLocalReportDownloader(
-                task=self.task,
                 customer_name=self.customer_name,
                 auth_credential=self.credential,
                 billing_source=self.cur_source,
@@ -141,7 +135,6 @@ class ReportDownloader:
             )
         if self.provider_type == Provider.PROVIDER_OCP:
             return OCPReportDownloader(
-                task=self.task,
                 customer_name=self.customer_name,
                 auth_credential=self.credential,
                 bucket=self.cur_source,
@@ -153,7 +146,6 @@ class ReportDownloader:
             )
         if self.provider_type == Provider.PROVIDER_GCP:
             return GCPReportDownloader(
-                task=self.task,
                 customer_name=self.customer_name,
                 auth_credential=self.credential,
                 billing_source=self.cur_source,

@@ -212,7 +212,8 @@ class ReportProcessorBase:
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(self._manifest_id)
-            if manifest.num_processed_files != 0:
+            num_processed_files = manifest_accessor.number_of_files_processed(self._manifest_id)
+            if num_processed_files != 0:
                 return False
             # Override the bill date to correspond with the manifest
             bill_date = manifest.billing_period_start_datetime.date()

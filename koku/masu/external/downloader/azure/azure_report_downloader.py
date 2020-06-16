@@ -48,19 +48,18 @@ class AzureReportDownloaderNoFileError(Exception):
 class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """Azure Cost and Usage Report Downloader."""
 
-    def __init__(self, task, customer_name, auth_credential, billing_source, report_name=None, **kwargs):
+    def __init__(self, customer_name, auth_credential, billing_source, report_name=None, **kwargs):
         """
         Constructor.
 
         Args:
-            task             (Object) bound celery object
             customer_name    (String) Name of the customer
             auth_credential  (Dict) Dictionary containing Azure authentication details.
             report_name      (String) Name of the Cost Usage Report to download (optional)
             billing_source   (Dict) Dictionary containing Azure Storage blob details.
 
         """
-        super().__init__(task, **kwargs)
+        super().__init__(**kwargs)
 
         if customer_name[4:] in settings.DEMO_ACCOUNTS:
             demo_account = settings.DEMO_ACCOUNTS.get(customer_name[4:])

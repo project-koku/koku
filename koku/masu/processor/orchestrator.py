@@ -16,7 +16,6 @@
 #
 """Report Processing Orchestrator."""
 import logging
-import uuid
 
 from celery import chord
 from dateutil import parser
@@ -125,15 +124,8 @@ class Orchestrator:
             month = parser.parse(report_month)
         cache_key = f"{provider_uuid}:{month}"
 
-        class Request:
-            id = uuid.uuid4()
-
-        class Task:
-            request = Request()
-
         manifest = None
         downloader = ReportDownloader(
-            task=Task(),
             customer_name=customer_name,
             access_credential=authentication,
             report_source=billing_source,

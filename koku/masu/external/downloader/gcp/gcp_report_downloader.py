@@ -36,17 +36,16 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     https://cloud.google.com/billing/docs/how-to/export-data-file
     """
 
-    def __init__(self, task, customer_name, billing_source, **kwargs):
+    def __init__(self, customer_name, billing_source, **kwargs):
         """
         Constructor.
 
         Args:
-            task           (Object) bound celery object
             customer_name  (str): Name of the customer
             billing_source (dict): dict containing name of GCP storage bucket
 
         """
-        super().__init__(task, **kwargs)
+        super().__init__(**kwargs)
 
         self.bucket_name = billing_source["bucket"]
         self.report_prefix = billing_source.get("report_prefix", "")

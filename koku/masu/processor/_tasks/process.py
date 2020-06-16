@@ -87,8 +87,6 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
     with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
         stats_recorder.log_last_completed_datetime()
 
-    ReportManifestDBAccessor.increment_file_process_count(manifest_id, path.basename(report_path))
-
     with ReportManifestDBAccessor() as manifest_accesor:
         manifest = manifest_accesor.get_manifest_by_id(manifest_id)
         if manifest:
