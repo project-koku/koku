@@ -155,9 +155,7 @@ class AWSReportProcessor(ReportProcessorBase):
 
                         row_count += len(self.processed_report.line_items)
                         self._update_mappings()
-                # import time
-                # LOG.info("SLEEPING 30 seconds")
-                # time.sleep(30)
+
                 if self.processed_report.line_items:
                     LOG.debug(
                         "Saving report rows %d to %d for %s",
