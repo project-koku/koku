@@ -449,10 +449,11 @@ def handle_message(msg):
             LOG.info(log_json(request_id, msg, context))
             report_metas = extract_payload(value["url"], request_id, context)
             return SUCCESS_CONFIRM_STATUS, report_metas
-        except (OperationalError, InterfaceError):
+        except (OperationalError, InterfaceError) as error:
+            connection.close()
             msg = "Unable to extract payload, database is closed.  Retrying..."
             LOG.error(log_json(request_id, msg, context))
-            raise KafkaMsgHandlerError("Unable to extract payload, db closed.")
+            raise KafkaMsgHandlerError(f"Unable to extract payload, db closed. {type(error).__name__}: {error}")
         except Exception as error:  # noqa
             traceback.print_exc()
             msg = f"Unable to extract payload. Error: {str(type(error))}"
@@ -733,7 +734,7 @@ def koku_worker_thread():  # pragma: no cover
         None
 
     """
-    if is_kafka_connected(Config.INSIGHTS_KAFKA_HOST, Config.INSIGHTS_KAFKA_PORT):  # Next, check that Kafka is running
+    if is_kafka_connected(Config.INSIGHTS_KAFKA_HOST, Config.INSIGHTS_KAFKA_PORT):  # Check that Kafka is running
         LOG.info("Kafka is running...")
 
     try:
@@ -758,4 +759,3 @@ def initialize_kafka_handler():  # pragma: no cover
         event_loop_thread.daemon = True
         event_loop_thread.start()
         event_loop_thread.join()
-        LOG.info("Listening for kafka events")
