@@ -9,113 +9,41 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RunSQL(
             sql="""
--- AWS
--- 14 secs 951 msec.
-UPDATE acct10001.reporting_awscostentrylineitem_daily_summary
-    SET source_uuid = bill.provider_id
-FROM acct10001.reporting_awscostentrylineitem_daily_summary as aws
-LEFT JOIN acct10001.reporting_awscostentrybill as bill
-    ON aws.cost_entry_bill_id = bill.id
-WHERE aws.source_uuid is NULL;
-
--- 243 msec.
 UPDATE acct10001.reporting_awscostentrylineitem_daily_summary as aws
     SET source_uuid = bill.provider_id
 FROM acct10001.reporting_awscostentrybill as bill
 WHERE aws.source_uuid is NULL
 AND aws.cost_entry_bill_id = bill.id
 
--- AWS ON OCP
--- 4 min 14 secs.
-UPDATE acct10001.reporting_ocpawscostlineitem_daily_summary
-    SET source_uuid = bill.provider_id
-FROM acct10001.reporting_ocpawscostlineitem_daily_summary as ocp_aws
-LEFT JOIN acct10001.reporting_awscostentrybill as bill
-    ON ocp_aws.cost_entry_bill_id = bill.id
-WHERE ocp_aws.source_uuid is NULL;
-
--- 8 secs 43 msec.
 UPDATE acct10001.reporting_ocpawscostlineitem_daily_summary as ocp_aws
     SET source_uuid = bill.provider_id
 FROM acct10001.reporting_awscostentrybill as bill
 WHERE ocp_aws.source_uuid is NULL
 AND ocp_aws.cost_entry_bill_id = bill.id;
 
--- AWS on OCP BY PROJECT
--- 4 min 24 secs.
-UPDATE acct10001.reporting_ocpawscostlineitem_project_daily_summary
-    SET source_uuid = bill.provider_id
-FROM acct10001.reporting_ocpawscostlineitem_project_daily_summary as ocp_aws_proj
-LEFT JOIN acct10001.reporting_awscostentrybill as bill
-    ON ocp_aws_proj.cost_entry_bill_id = bill.id
-WHERE ocp_aws_proj.source_uuid is NULL;
-
--- 4 secs 305 msec.
 UPDATE acct10001.reporting_ocpawscostlineitem_project_daily_summary as ocp_aws_proj
     SET source_uuid = bill.provider_id
 FROM acct10001.reporting_awscostentrybill as bill
 WHERE ocp_aws_proj.source_uuid is NULL
 AND ocp_aws_proj.cost_entry_bill_id = bill.id;
 
-UPDATE acct10001.reporting_ocpawscostlineitem_project_daily_summary
-    SET source_uuid = NULL;
-
--- azure
--- 874 msec.
-UPDATE acct10001.reporting_azurecostentrylineitem_daily_summary
-    SET source_uuid = bill.provider_id
-FROM acct10001.reporting_azurecostentrylineitem_daily_summary as az
-LEFT JOIN acct10001.reporting_azurecostentrybill as bill
-    ON az.cost_entry_bill_id = bill.id
-WHERE az.source_uuid is NULL;
-
--- 87 msec.
 UPDATE acct10001.reporting_azurecostentrylineitem_daily_summary as az
     SET source_uuid = bill.provider_id
 FROM acct10001.reporting_azurecostentrybill as bill
 WHERE az.source_uuid is NULL
 AND az.cost_entry_bill_id = bill.id;
 
-UPDATE acct10001.reporting_azurecostentrylineitem_daily_summary
-    SET source_uuid = NULL;
-
--- ocp on azure
--- 862 msec
-UPDATE acct10001.reporting_ocpazurecostlineitem_daily_summary
-    SET source_uuid = bill.provider_id
-FROM acct10001.reporting_ocpazurecostlineitem_daily_summary as ocp_az
-LEFT JOIN acct10001.reporting_azurecostentrybill as bill
-    ON ocp_az.cost_entry_bill_id = bill.id
-WHERE ocp_az.source_uuid is NULL;
-
--- 243 msec
 UPDATE acct10001.reporting_ocpazurecostlineitem_daily_summary as ocp_az
     SET source_uuid = bill.provider_id
 FROM acct10001.reporting_azurecostentrybill as bill
 WHERE ocp_az.source_uuid is NULL
 AND ocp_az.cost_entry_bill_id = bill.id;
 
-UPDATE acct10001.reporting_ocpazurecostlineitem_daily_summary
-    SET source_uuid = NULL;
-
--- ocp on azure by proj
--- 2 secs 348 msec.
-UPDATE acct10001.reporting_ocpazurecostlineitem_project_daily_summary
-    SET source_uuid = bill.provider_id
-FROM acct10001.reporting_ocpazurecostlineitem_project_daily_summary as ocp_az_proj
-LEFT JOIN acct10001.reporting_azurecostentrybill as bill
-    ON ocp_az_proj.cost_entry_bill_id = bill.id
-WHERE ocp_az_proj.source_uuid is NULL;
-
--- 123 msec.
 UPDATE acct10001.reporting_ocpazurecostlineitem_project_daily_summary as ocp_az_proj
     SET source_uuid = bill.provider_id
 FROM acct10001.reporting_azurecostentrybill as bill
 WHERE ocp_az_proj.source_uuid is NULL
 AND ocp_az_proj.cost_entry_bill_id = bill.id;
-
-UPDATE acct10001.reporting_ocpazurecostlineitem_project_daily_summary
-    SET source_uuid = NULL;
 
 UPDATE reporting_ocpusagelineitem_daily_summary as ocp
     SET source_uuid = rp.provider_id
