@@ -339,12 +339,13 @@ def remove_files_not_in_set_from_s3_bucket(request_id, account, provider_uuid, s
             path = _get_path_prefix(account, provider_uuid, start_date)
             s3_resource = get_s3_resource()
             existing_objects = s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=path)
-            for existing_object in existing_objects.get("Contents", []):
-                metadata = existing_object.get("Metadata")
+            for obj_summary in existing_objects:
+                existing_object = obj_summary.Object()
+                metadata = existing_object.metadata
                 manifest = metadata.get("ManifestId")
-                key = existing_object.get("Key")
+                key = existing_object.key
                 if manifest is not manifest_id:
-                    s3_resource.delete_object(Bucket=settings.S3_BUCKET_NAME, Key=key)
+                    s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
                     removed.append(key)
             if removed:
                 msg = f"Removed files from s3 bucket {settings.S3_BUCKET_NAME}: {','.join(removed)}."
