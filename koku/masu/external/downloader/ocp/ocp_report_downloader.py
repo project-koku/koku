@@ -68,6 +68,32 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         report_meta = utils.get_report_details(directory)
         return report_meta
 
+    def get_manifest_context_for_date(self, date_time):
+        report_dict = {}
+        manifest = self._get_manifest(date_time)
+        LOG.info(f"MANIFEST FOUND: {str(manifest)}")
+        if manifest == {}:
+            return report_dict
+
+        manifest_id = self._prepare_db_manifest_record(manifest)
+        self._remove_manifest_file(date_time)
+
+        if manifest:
+            report_dict["manifest_id"] = manifest_id
+            report_dict["assembly_id"] = manifest.get("uuid")
+            report_dict["compression"] = UNCOMPRESSED
+            files_list = []
+            for key in manifest.get("files"):
+                key_full_path = (
+                    f"{REPORTS_DIR}/{self.cluster_id}/{utils.month_date_range(date_time)}/{os.path.basename(key)}"
+                )
+
+                file_dict = {"key": key_full_path, "local_file": self.get_local_file_for_report(key_full_path)}
+                files_list.append(file_dict)
+            LOG.info(f"FILES LIST: {str(files_list)}")
+            report_dict["files"] = files_list
+        return report_dict
+
     def _remove_manifest_file(self, date_time):
         """Clean up the manifest file after extracting information."""
         dates = utils.month_date_range(date_time)
