@@ -34,10 +34,6 @@ from masu.util.azure.common import get_bills_from_provider as azure_get_bills_fr
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_id_from_provider
 
-# from reporting.models import OCP_ON_AWS_MATERIALIZED_VIEWS
-# from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
-# from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
-
 # from django.db import connection
 
 LOG = logging.getLogger(__name__)
@@ -84,9 +80,6 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                     start_date, end_date
                 )
 
-        # if infra_map:
-        #    self.refresh_openshift_on_infrastructure_views(OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS)
-
     def update_aws_summary_tables(self, openshift_provider_uuid, aws_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on AWS."""
         if isinstance(start_date, str):
@@ -120,7 +113,6 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                 )
                 accessor.populate_ocp_on_aws_cost_daily_summary(start, end, cluster_id, aws_bill_ids, markup_value)
             accessor.populate_ocp_on_aws_tags_summary_table()
-        # self.refresh_openshift_on_infrastructure_views(OCP_ON_AWS_MATERIALIZED_VIEWS)
 
         with OCPReportDBAccessor(self._schema) as accessor:
             # This call just sends the infrastructure cost to the
@@ -165,13 +157,3 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
             # This call just sends the infrastructure cost to the
             # OCP usage daily summary table
             accessor.update_summary_infrastructure_cost(cluster_id, start_date, end_date)
-        # self.refresh_openshift_on_infrastructure_views(OCP_ON_AZURE_MATERIALIZED_VIEWS)
-
-    # def refresh_openshift_on_infrastructure_views(self, view_set):
-    #     """Refresh MATERIALIZED VIEWs."""
-    #     with schema_context(self._schema):
-    #         for view in view_set:
-    #             table_name = view._meta.db_table
-    #             with connection.cursor() as cursor:
-    #                 cursor.execute(f"REFRESH MATERIALIZED VIEW {table_name}")
-    #                 LOG.info(f"Refreshed {table_name}.")
