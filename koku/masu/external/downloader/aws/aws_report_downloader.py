@@ -287,7 +287,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         return full_file_path, s3_etag
 
-    def get_manifest_context_for_date(self, date_time):
+    def get_manifest_context_for_date(self, date):
         """
         Get the manifest context for a provided date.
 
@@ -304,7 +304,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest_dict = {}
         report_dict = {}
-        manifest_file, manifest = self._get_manifest(date_time)
+        manifest_file, manifest = self._get_manifest(date)
         if manifest != self.empty_manifest:
             manifest_dict = self._prepare_db_manifest_record(manifest)
         self._remove_manifest_file(manifest_file)
@@ -322,9 +322,6 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             ]
             report_dict["files"] = files_list
         return report_dict
-
-    def get_report_file(self, key):
-        """Download individual report file."""
 
     def get_local_file_for_report(self, report):
         """Get full path for local report file."""

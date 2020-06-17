@@ -155,7 +155,6 @@ app.autodiscover_tasks()
 def clear_worker_cache(sender, instance, **kwargs):  # pragma: no cover
     """Clear WorkerCache after worker is up and running."""
     from .database import check_migrations
-
     from masu.processor.worker_cache import WorkerCache
 
     while not check_migrations():

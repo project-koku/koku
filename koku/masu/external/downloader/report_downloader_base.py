@@ -21,8 +21,6 @@ from tempfile import mkdtemp
 from api.common import log_json
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 
-# from masu.processor.worker_cache import WorkerCache
-
 LOG = logging.getLogger(__name__)
 
 
@@ -53,7 +51,6 @@ class ReportDownloaderBase:
             self.download_path = download_path
         else:
             self.download_path = mkdtemp(prefix="masu")
-        self.worker_cache = None  # WorkerCache()
         self._cache_key = kwargs.get("cache_key")
         self._provider_uuid = kwargs.get("provider_uuid")
         self.request_id = kwargs.get("request_id")

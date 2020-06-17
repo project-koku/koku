@@ -116,9 +116,27 @@ class Orchestrator:
 
         return DateAccessor().get_billing_months(number_of_months)
 
-    def get_report_manifest(
+    def start_manifest_processing(
         self, customer_name, authentication, billing_source, provider_type, schema_name, provider_uuid, report_month
     ):
+        """
+        Start processing an account's manifest for the specified report_month.
+
+        Args:
+            (String) customer_name - customer name
+            (String) authentication - authentication object
+            (String) billing_source - report storage location
+            (String) schema_name - db tenant
+            (String) provider_uuid - provider unique identifier
+            (Date)   report_month - month to get latest manifest
+
+        Returns:
+            ({}) Dictionary containing the following keys:
+                manifest_id - (String): Manifest ID for ReportManifestDBAccessor
+                assembly_id - (String): UUID identifying report file
+                compression - (String): Report compression format
+                files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
+        """
         month = report_month
         if isinstance(report_month, str):
             month = parser.parse(report_month)
@@ -210,7 +228,7 @@ class Orchestrator:
                         provider_uuid,
                     )
                     account["report_month"] = month
-                    self.get_report_manifest(**account)
+                    self.start_manifest_processing(**account)
 
                     # update labels
                     labeler = AccountLabel(

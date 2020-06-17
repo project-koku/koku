@@ -157,7 +157,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         return manifest
 
-    def get_manifest_context_for_date(self, date_time):
+    def get_manifest_context_for_date(self, date):
         """
         Get the manifest context for a provided date.
 
@@ -174,7 +174,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest_dict = {}
         report_dict = {}
-        manifest = self._get_manifest(date_time)
+        manifest = self._get_manifest(date)
         if manifest == {}:
             return report_dict
 

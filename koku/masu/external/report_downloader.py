@@ -178,27 +178,6 @@ class ReportDownloader:
             raise ReportDownloaderError(str(err))
         return reports
 
-    def get_manifests(self, number_of_months=2):
-        """
-        Get current month's manifests.
-
-        Args:
-            (Int) Number of monthly reports to download.
-
-        Returns:
-            (List) List of filenames downloaded.
-
-        """
-        manifests = []
-        try:
-            current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
-            for month in reversed(range(number_of_months)):
-                calculated_month = current_month + relativedelta(months=-month)
-                manifests = manifests + self.download_manifest(calculated_month)
-        except Exception as err:
-            raise ReportDownloaderError(str(err))
-        return manifests
-
     def is_report_processed(self, report_name, manifest_id):
         """Check if report_name has completed processing.
 
@@ -212,12 +191,12 @@ class ReportDownloader:
             return report_record.filter(last_completed_datetime__isnull=False).exists()
         return False
 
-    def download_manifest(self, date_time):
+    def download_manifest(self, date):
         """
-        Download current manifest description for date_time.
+        Download current manifest description for date.
 
         """
-        report_context = self._downloader.get_manifest_context_for_date(date_time)
+        report_context = self._downloader.get_manifest_context_for_date(date)
         return report_context
 
     def download_report(self, report_context):

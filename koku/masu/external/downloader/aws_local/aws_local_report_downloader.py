@@ -137,7 +137,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         return manifest_file, manifest_json
 
-    def get_manifest_context_for_date(self, date_time):
+    def get_manifest_context_for_date(self, date):
         """
         Get the manifest context for a provided date.
 
@@ -154,7 +154,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest_dict = {}
         report_dict = {}
-        manifest_file, manifest = self._get_manifest(date_time)
+        manifest_file, manifest = self._get_manifest(date)
         if manifest != self.empty_manifest:
             manifest_dict = self._prepare_db_manifest_record(manifest)
         self._remove_manifest_file(manifest_file)
@@ -170,7 +170,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
             files_list = [
                 {
-                    "key": f"{self._get_report_path(date_time)}/{manifest.get('assemblyId')}/{os.path.basename(key)}",
+                    "key": f"{self._get_report_path(date)}/{manifest.get('assemblyId')}/{os.path.basename(key)}",
                     "local_file": self.get_local_file_for_report(key),
                 }
                 for key in manifest.get("reportKeys")

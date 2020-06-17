@@ -68,7 +68,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         report_meta = utils.get_report_details(directory)
         return report_meta
 
-    def get_manifest_context_for_date(self, date_time):
+    def get_manifest_context_for_date(self, date):
         """
         Get the manifest context for a provided date.
 
@@ -84,13 +84,13 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         report_dict = {}
-        manifest = self._get_manifest(date_time)
+        manifest = self._get_manifest(date)
 
         if manifest == {}:
             return report_dict
 
         manifest_id = self._prepare_db_manifest_record(manifest)
-        self._remove_manifest_file(date_time)
+        self._remove_manifest_file(date)
 
         if manifest:
             report_dict["manifest_id"] = manifest_id
@@ -99,7 +99,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             files_list = []
             for key in manifest.get("files"):
                 key_full_path = (
-                    f"{REPORTS_DIR}/{self.cluster_id}/{utils.month_date_range(date_time)}/{os.path.basename(key)}"
+                    f"{REPORTS_DIR}/{self.cluster_id}/{utils.month_date_range(date)}/{os.path.basename(key)}"
                 )
 
                 file_dict = {"key": key_full_path, "local_file": self.get_local_file_for_report(key_full_path)}

@@ -62,7 +62,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             LOG.error(log_json(self.request_id, msg, self.context))
             raise GCPReportDownloaderError(str(ex))
 
-    def get_manifest_context_for_date(self, date_time):
+    def get_manifest_context_for_date(self, date):
         """
         Get the manifest context for a provided date.
 
@@ -79,7 +79,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest_dict = {}
         report_dict = {}
-        manifest_dict = self._generate_monthly_pseudo_manifest(date_time)
+        manifest_dict = self._generate_monthly_pseudo_manifest(date)
 
         if manifest_dict:
             file_names_count = len(manifest_dict["file_names"])

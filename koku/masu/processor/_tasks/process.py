@@ -79,7 +79,6 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
 
         processor.process()
     except (ReportProcessorError, ReportProcessorDBError) as processing_error:
-        LOG.info("Rollingback ReportStatsDBAccessor")
         with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
             stats_recorder.clear_last_started_datetime()
         raise processing_error
