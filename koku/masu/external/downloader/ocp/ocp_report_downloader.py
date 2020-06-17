@@ -69,9 +69,23 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         return report_meta
 
     def get_manifest_context_for_date(self, date_time):
+        """
+        Get the manifest context for a provided date.
+
+        Args:
+            date (Date): The starting datetime object
+
+        Returns:
+            ({}) Dictionary containing the following keys:
+                manifest_id - (String): Manifest ID for ReportManifestDBAccessor
+                assembly_id - (String): UUID identifying report file
+                compression - (String): Report compression format
+                files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
+
+        """
         report_dict = {}
         manifest = self._get_manifest(date_time)
-        LOG.info(f"MANIFEST FOUND: {str(manifest)}")
+
         if manifest == {}:
             return report_dict
 
@@ -177,36 +191,6 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         )
 
         return full_file_path, ocp_etag
-
-    def get_report_context_for_date(self, date_time):
-        """
-        Get the report context for a provided date.
-
-        Args:
-            date_time (DateTime): The starting datetime object
-
-        Returns:
-            ({}) Dictionary containing the following keys:
-                manifest_id - (String): Manifest ID for ReportManifestDBAccessor
-                assembly_id - (String): UUID identifying report file
-                compression - (String): Report compression format
-                files       - ([]): List of report files.
-
-        """
-        report_dict = {}
-        manifest = self._get_manifest(date_time)
-        manifest_id = None
-        if manifest != {}:
-            manifest_id = self._prepare_db_manifest_record(manifest)
-
-        report_dict["manifest_id"] = manifest_id
-        report_dict["assembly_id"] = manifest.get("uuid")
-        report_dict["compression"] = UNCOMPRESSED
-        report_dict["files"] = self.get_report_for(date_time)
-        # Remove the manifest file now that we have saved the info
-        # in the database.
-        self._remove_manifest_file(date_time)
-        return report_dict
 
     def get_local_file_for_report(self, report):
         """Get full path for local report file."""

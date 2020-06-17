@@ -63,6 +63,20 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             raise GCPReportDownloaderError(str(ex))
 
     def get_manifest_context_for_date(self, date_time):
+        """
+        Get the manifest context for a provided date.
+
+        Args:
+            date (Date): The starting datetime object
+
+        Returns:
+            ({}) Dictionary containing the following keys:
+                manifest_id - (String): Manifest ID for ReportManifestDBAccessor
+                assembly_id - (String): UUID identifying report file
+                compression - (String): Report compression format
+                files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
+
+        """
         manifest_dict = {}
         report_dict = {}
         manifest_dict = self._generate_monthly_pseudo_manifest(date_time)
@@ -98,56 +112,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
         return True if manifest else False
-
-    def get_report_context_for_date(self, date_time):
-        """
-        Get the report context for a provided date.
-
-        Args:
-            date_time (datetime.datetime): The starting datetime object
-
-        Returns:
-            ({}) Dictionary containing the following keys:
-                manifest_id - (String): Manifest ID for ReportManifestDBAccessor
-                assembly_id - (String): unique ID for this provider and date range
-                compression - (String): Report compression format
-                files       - ([]): List of report files.
-
-        """
-        manifest_data = self._generate_monthly_pseudo_manifest(date_time)
-
-        if not self.check_if_manifest_should_be_downloaded(manifest_data["assembly_id"]):
-            manifest_id = self._get_existing_manifest_db_id(manifest_data["assembly_id"])
-            msg = (
-                f"This manifest has already been downloaded and processed:\n"
-                f" schema_name: {self.customer_name}\n"
-                f" provider_uuid: {self._provider_uuid}\n"
-                f" manifest_id: {manifest_id}"
-            )
-            LOG.info(log_json(self.request_id, msg, self.context))
-            return {}
-
-        file_names_count = len(manifest_data["file_names"])
-        if not file_names_count:
-            msg = (
-                f'No relevant files found for month starting {manifest_data["start_date"]}'
-                f' for customer "{self.customer_name}",'
-                f" provider_uuid {self._provider_uuid},"
-                f" and bucket_name: {self.bucket_name}"
-            )
-            LOG.info(log_json(self.request_id, msg, self.context))
-            return {}
-
-        manifest_id = self._process_manifest_db_record(
-            manifest_data["assembly_id"], manifest_data["start_date"], file_names_count
-        )
-        report_dict = {
-            "manifest_id": manifest_id,
-            "assembly_id": manifest_data["assembly_id"],
-            "compression": manifest_data["compression"],
-            "files": list(manifest_data["file_names"]),
-        }
-        return report_dict
 
     def _generate_monthly_pseudo_manifest(self, start_date):
         """

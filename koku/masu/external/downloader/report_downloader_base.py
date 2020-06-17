@@ -69,42 +69,6 @@ class ReportDownloaderBase:
                 manifest_id = manifest.id
         return manifest_id
 
-    def check_if_manifest_should_be_downloaded(self, assembly_id):
-        """Check if we should download this manifest.
-
-        We first check if we have a database record of this manifest.
-        That would indicate that we have already downloaded and at least
-        begun processing. We then check the last completed time for
-        a file in this manifest. This second check is to cover the case
-        when we did not complete processing and need to re-downlaod and
-        process the manifest.
-
-        Returns True if the manifest should be downloaded and processed.
-        """
-        # TODO: Check if we can remove
-        return
-        if self._cache_key and self.worker_cache and self.worker_cache.task_is_running(self._cache_key):
-            msg = f"{self._cache_key} is currently running."
-            LOG.info(log_json(self.request_id, msg, self.context))
-            return False
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
-
-            if manifest:
-                manifest_id = manifest.id
-                # check if `last_completed_datetime` is null for any report in the manifest.
-                # if nulls exist, report processing is not complete and reports should be downloaded.
-                need_to_download = manifest_accessor.is_last_completed_datetime_null(manifest_id)
-                if need_to_download and self.worker_cache:
-                    self.worker_cache.add_task_to_cache(self._cache_key)
-                return need_to_download
-
-        # The manifest does not exist, this is the first time we are
-        # downloading and processing it.
-        if self.worker_cache:
-            self.worker_cache.add_task_to_cache(self._cache_key)
-        return True
-
     def _process_manifest_db_record(self, assembly_id, billing_start, num_of_files):
         """Insert or update the manifest DB record."""
         LOG.info("Inserting/updating manifest in database for assembly_id: %s", assembly_id)
