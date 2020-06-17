@@ -10,6 +10,7 @@ from rest_framework.exceptions import ValidationError
 
 from api.common import log_json
 from masu.config import Config
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
@@ -60,6 +61,43 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             msg = f"GCP bucket {self.bucket_name} for customer {customer_name} is not reachable. Error: {str(ex)}"
             LOG.error(log_json(self.request_id, msg, self.context))
             raise GCPReportDownloaderError(str(ex))
+
+    def get_manifest_context_for_date(self, date_time):
+        manifest_dict = {}
+        report_dict = {}
+        manifest_dict = self._generate_monthly_pseudo_manifest(date_time)
+
+        if manifest_dict:
+            file_names_count = len(manifest_dict["file_names"])
+            if not file_names_count:
+                msg = (
+                    f'No relevant files found for month starting {manifest_dict["start_date"]}'
+                    f' for customer "{self.customer_name}",'
+                    f" provider_uuid {self._provider_uuid},"
+                    f" and bucket_name: {self.bucket_name}"
+                )
+                LOG.info(log_json(self.request_id, msg, self.context))
+                return {}
+            manifest_id = self._process_manifest_db_record(
+                manifest_dict["assembly_id"], manifest_dict["start_date"], file_names_count
+            )
+
+            report_dict["manifest_id"] = manifest_id
+            report_dict["assembly_id"] = manifest_dict.get("assemblyId")
+            report_dict["compression"] = manifest_dict.get("Compression")
+            files_list = [
+                {"key": key, "local_file": self.get_local_file_for_report(key)}
+                for key in manifest_dict.get("file_names")
+            ]
+            report_dict["files"] = files_list
+        return report_dict
+
+    def check_if_manifest_should_be_downloaded(self, assembly_id):
+        """Check if we should download this manifest."""
+        manifest = None
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
+        return True if manifest else False
 
     def get_report_context_for_date(self, date_time):
         """
