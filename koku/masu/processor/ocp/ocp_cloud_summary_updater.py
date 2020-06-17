@@ -34,8 +34,6 @@ from masu.util.azure.common import get_bills_from_provider as azure_get_bills_fr
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_id_from_provider
 
-# from django.db import connection
-
 LOG = logging.getLogger(__name__)
 
 

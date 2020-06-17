@@ -52,8 +52,7 @@ from reporting.models import AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_AWS_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
-
-# from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
+from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
 
 LOG = get_task_logger(__name__)
 
@@ -260,9 +259,7 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
             line_items_only = True
             chain(
                 update_cost_model_costs.s(schema_name, provider_uuid, start_date, end_date),
-                refresh_materialized_views.si(
-                    schema_name, provider, manifest_id
-                ),  # refresh_materialized_views.si(schema_name,Provider.OCP_ALL,manifest_id)
+                refresh_materialized_views.si(schema_name, provider, manifest_id),
                 remove_expired_data.si(schema_name, provider, simulate, provider_uuid, line_items_only),
             ).apply_async()
         else:
@@ -340,21 +337,19 @@ def refresh_materialized_views(schema_name, provider_type, manifest_id=None):
     materialized_views = ()
     if provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
         materialized_views = (
-            AWS_MATERIALIZED_VIEWS + OCP_ON_AWS_MATERIALIZED_VIEWS  # + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
+            AWS_MATERIALIZED_VIEWS + OCP_ON_AWS_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
         )
     elif provider_type in (Provider.PROVIDER_OCP):
         materialized_views = (
             OCP_MATERIALIZED_VIEWS
             + OCP_ON_AWS_MATERIALIZED_VIEWS
             + OCP_ON_AZURE_MATERIALIZED_VIEWS
-            # + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
+            + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
         )
     elif provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
         materialized_views = (
-            AZURE_MATERIALIZED_VIEWS + OCP_ON_AZURE_MATERIALIZED_VIEWS  # + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
+            AZURE_MATERIALIZED_VIEWS + OCP_ON_AZURE_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
         )
-    # elif provider_type in (Provider.OCP_ALL):
-    #     materialized_views = (OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS)
 
     with schema_context(schema_name):
         for view in materialized_views:

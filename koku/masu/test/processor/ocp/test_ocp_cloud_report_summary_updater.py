@@ -38,13 +38,6 @@ from masu.test import MasuTestCase
 from reporting.models import AWSCostEntryBill
 from reporting_common.models import CostUsageReportManifest
 
-# from dateutil.relativedelta import relativedelta
-
-# from reporting.models import OCP_ON_AWS_MATERIALIZED_VIEWS
-# from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
-# from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummary
-# from reporting.provider.all.openshift.models import OCPAllCostLineItemProjectDailySummary
-
 
 class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
     """Test cases for the OCPCloudReportSummaryUpdaterTest class."""
