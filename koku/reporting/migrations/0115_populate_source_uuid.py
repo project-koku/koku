@@ -9,39 +9,39 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RunSQL(
             sql="""
-UPDATE acct10001.reporting_awscostentrylineitem_daily_summary as aws
+UPDATE reporting_awscostentrylineitem_daily_summary as aws
     SET source_uuid = bill.provider_id
-FROM acct10001.reporting_awscostentrybill as bill
+FROM reporting_awscostentrybill as bill
 WHERE aws.source_uuid is NULL
 AND aws.cost_entry_bill_id = bill.id;
 
-UPDATE acct10001.reporting_ocpawscostlineitem_daily_summary as ocp_aws
+UPDATE reporting_ocpawscostlineitem_daily_summary as ocp_aws
     SET source_uuid = bill.provider_id
-FROM acct10001.reporting_awscostentrybill as bill
+FROM reporting_awscostentrybill as bill
 WHERE ocp_aws.source_uuid is NULL
 AND ocp_aws.cost_entry_bill_id = bill.id;
 
-UPDATE acct10001.reporting_ocpawscostlineitem_project_daily_summary as ocp_aws_proj
+UPDATE reporting_ocpawscostlineitem_project_daily_summary as ocp_aws_proj
     SET source_uuid = bill.provider_id
-FROM acct10001.reporting_awscostentrybill as bill
+FROM reporting_awscostentrybill as bill
 WHERE ocp_aws_proj.source_uuid is NULL
 AND ocp_aws_proj.cost_entry_bill_id = bill.id;
 
-UPDATE acct10001.reporting_azurecostentrylineitem_daily_summary as az
+UPDATE reporting_azurecostentrylineitem_daily_summary as az
     SET source_uuid = bill.provider_id
-FROM acct10001.reporting_azurecostentrybill as bill
+FROM reporting_azurecostentrybill as bill
 WHERE az.source_uuid is NULL
 AND az.cost_entry_bill_id = bill.id;
 
-UPDATE acct10001.reporting_ocpazurecostlineitem_daily_summary as ocp_az
+UPDATE reporting_ocpazurecostlineitem_daily_summary as ocp_az
     SET source_uuid = bill.provider_id
-FROM acct10001.reporting_azurecostentrybill as bill
+FROM reporting_azurecostentrybill as bill
 WHERE ocp_az.source_uuid is NULL
 AND ocp_az.cost_entry_bill_id = bill.id;
 
-UPDATE acct10001.reporting_ocpazurecostlineitem_project_daily_summary as ocp_az_proj
+UPDATE reporting_ocpazurecostlineitem_project_daily_summary as ocp_az_proj
     SET source_uuid = bill.provider_id
-FROM acct10001.reporting_azurecostentrybill as bill
+FROM reporting_azurecostentrybill as bill
 WHERE ocp_az_proj.source_uuid is NULL
 AND ocp_az_proj.cost_entry_bill_id = bill.id;
 
