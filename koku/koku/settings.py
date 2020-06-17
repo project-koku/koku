@@ -67,7 +67,6 @@ ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
     "tenant_schemas",
-    "pg_partitioning",
     # django
     "django.contrib.auth",
     "django.contrib.contenttypes",
