@@ -426,6 +426,58 @@
                 }
             }
         },
+        "/organizations/aws/": {
+            "get": {
+                "tags": [
+                    "Organizations"
+                ],
+                "summary": "View AWS organizations",
+                "security": [{
+                    "basic_auth": []
+                }],
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryDelta"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OrganizationFilter"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of Organization objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/OrganizationPagination"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Access to the requested resource is forbidden"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/reports/aws/costs/": {
             "get": {
                 "tags": [
@@ -1999,6 +2051,16 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
                     }
                 ],
                 "responses": {
@@ -2116,6 +2178,16 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
                     }
                 ],
                 "responses": {
@@ -2233,6 +2305,16 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
                     }
                 ],
                 "responses": {
@@ -2350,6 +2432,16 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
                     }
                 ],
                 "responses": {
@@ -2467,6 +2559,16 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
                     }
                 ],
                 "responses": {
@@ -2584,6 +2686,16 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
                     }
                 ],
                 "responses": {
@@ -3177,6 +3289,93 @@
                     }
                 }
             },
+            "OrganizationFilter": {
+                "type": "object",
+                "properties": {
+                    "resolution": {
+                        "$ref": "#/components/schemas/ReportResolution"
+                    },
+                    "time_scope_value": {
+                        "$ref": "#/components/schemas/ReportTimeScopeValue"
+                    },
+                    "time_scope_units": {
+                        "$ref": "#/components/schemas/ReportTimeScopeUnits"
+                    },
+                    "org_unit_id": {
+                        "$ref": "#/components/schemas/OrgUnitId"
+                    }
+                }
+            },
+            "Organization": {
+                "required": [
+                    "org_unit_id",
+                    "org_unit_path",
+                    "level",
+                    "sub_orgs",
+                    "accounts"
+                ],
+                "properties": {
+                    "org_unit_id": {
+                        "type": "string",
+                        "example": "OU_003"
+                    },
+                    "org_unit_name": {
+                        "type": "string",
+                        "example": "Dept OU_003"
+                    },
+                    "org_unit_path": {
+                        "type": "string",
+                        "example": "R_001&OU_002&OU_003"
+                    },
+                    "level": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "sub_orgs": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "description": "the individual org"
+                        },
+                        "example": [
+                            "OU_004",
+                            "OU_005"
+                        ],
+                        "description": "the list of sub orgs under the org"
+                    },
+                    "accounts": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "description": "individual account"
+                        },
+                        "example": [
+                            "account 003"
+                        ],
+                        "description": "the list of accounts under the org"
+                    }
+                }
+            },
+            "OrganizationPagination": {
+                "allOf": [{
+                        "$ref": "#/components/schemas/ListPagination"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/Organization"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
             "Source": {
                 "required": [
                     "id",
@@ -3429,6 +3628,9 @@
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "org_unit_id": {
+                        "$ref": "#/components/schemas/OrgUnitId"
                     }
                 }
             },
@@ -3762,6 +3964,9 @@
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "org_unit_id": {
+                        "$ref": "#/components/schemas/OrgUnitId"
                     }
                 },
                 "example": {
@@ -4416,6 +4621,10 @@
                 },
                 "description": "The ordering to apply to the report. Default is ascending order for the data."
             },
+            "OrgUnitId": {
+                "type": "string",
+                "example": "R_001"
+            },
             "ReportDelta": {
                 "type": "object",
                 "properties": {
@@ -4566,6 +4775,9 @@
                                     "example": [
                                         [{
                                             "date": "2018-05-28",
+                                            "source_uuid": [
+                                                "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                            ],
                                             "total": {
                                                 "infrastructure": {
                                                     "raw": {
@@ -4630,6 +4842,9 @@
                                                     "account": "8577742690384",
                                                     "values": [{
                                                         "date": "2018-05-28",
+                                                        "source_uuid": [
+                                                            "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                        ],
                                                         "account": "8577742690384",
                                                         "account_alias": "sample-account",
                                                         "infrastructure": {
@@ -4696,6 +4911,9 @@
                                                     "account": "9420673783214",
                                                     "values": [{
                                                         "date": "2018-05-28",
+                                                        "source_uuid": [
+                                                            "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                        ],
                                                         "account": "9420673783214",
                                                         "account_alias": "9420673783214",
                                                         "infrastructure": {
@@ -4783,6 +5001,9 @@
                                                 "project": "monitoring",
                                                 "values": [{
                                                     "date": "2018-11",
+                                                    "source_uuid": [
+                                                        "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                    ],
                                                     "project": "monitoring",
                                                     "infrastructure": {
                                                         "raw": {
@@ -4844,6 +5065,9 @@
                                                 "project": "metering",
                                                 "values": [{
                                                     "date": "2018-11",
+                                                    "source_uuid": [
+                                                        "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                    ],
                                                     "project": "metering",
                                                     "infrastructure": {
                                                         "raw": {
@@ -4929,6 +5153,9 @@
                                                     "instance_type": "t2.medium",
                                                     "values": [{
                                                         "date": "2018-05-28",
+                                                        "source_uuid": [
+                                                            "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                        ],
                                                         "instance_type": "t2.medium",
                                                         "usage": {
                                                             "value": 5,
@@ -4994,6 +5221,9 @@
                                                     "instance_type": "m5.2xlarge",
                                                     "values": [{
                                                         "date": "2018-05-28",
+                                                        "source_uuid": [
+                                                            "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                        ],
                                                         "instance_type": "m5.2xlarge",
                                                         "usage": {
                                                             "value": 29,
@@ -5085,6 +5315,9 @@
                                                     "account": "4418636104713",
                                                     "values": [{
                                                         "date": "2018-07",
+                                                        "source_uuid": [
+                                                            "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                        ],
                                                         "account": "4418636104713",
                                                         "usage": {
                                                             "value": 1826.74238146924,
@@ -5150,6 +5383,9 @@
                                                     "account": "8577742690384",
                                                     "values": [{
                                                         "date": "2018-07",
+                                                        "source_uuid": [
+                                                            "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                        ],
                                                         "account": "8577742690384",
                                                         "usage": {
                                                             "value": 1137.74036198065,
@@ -5215,6 +5451,9 @@
                                                     "account": "3474227945050",
                                                     "values": [{
                                                         "date": "2018-07",
+                                                        "source_uuid": [
+                                                            "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                        ],
                                                         "account": "3474227945050",
                                                         "usage": {
                                                             "value": 1045.80659412797,
@@ -5280,6 +5519,9 @@
                                                     "account": "7249815104968",
                                                     "values": [{
                                                         "date": "2018-07",
+                                                        "source_uuid": [
+                                                            "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                        ],
                                                         "account": "7249815104968",
                                                         "usage": {
                                                             "value": 807.326470618818,
@@ -5345,6 +5587,9 @@
                                                     "account": "9420673783214",
                                                     "values": [{
                                                         "date": "2018-07",
+                                                        "source_uuid": [
+                                                            "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                        ],
                                                         "account": "9420673783214",
                                                         "usage": {
                                                             "value": 658.306642830709,
@@ -5444,6 +5689,9 @@
                                             "account": "9999999999999",
                                             "values": [{
                                                 "date": "2019-01",
+                                                "source_uuid": [
+                                                    "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                ],
                                                 "account": "9999999999999",
                                                 "account_alias": "9999999999999",
                                                 "infrastructure": {
@@ -5542,6 +5790,9 @@
                                             "account": "9999999999999",
                                             "values": [{
                                                 "date": "2019-01",
+                                                "source_uuid": [
+                                                    "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                ],
                                                 "account": "9999999999999",
                                                 "account_alias": "9999999999999",
                                                 "infrastructure": {
@@ -5710,6 +5961,9 @@
                                             "date": "2018-10",
                                             "values": [{
                                                 "date": "2018-10",
+                                                "source_uuid": [
+                                                    "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                ],
                                                 "usage": {
                                                     "value": "0.611978,",
                                                     "units": "Core-Hours"
@@ -5808,6 +6062,9 @@
                                             "date": "2018-10",
                                             "values": [{
                                                 "date": "2018-10",
+                                                "source_uuid": [
+                                                    "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                                ],
                                                 "usage": {
                                                     "value": 4.62038,
                                                     "units": "GB-Hours"
@@ -5905,6 +6162,9 @@
                                         "date": "2019-02",
                                         "values": [{
                                             "date": "2019-02",
+                                            "source_uuid": [
+                                                "56c3d549-0ebb-4648-8467-e4274687fcff"
+                                            ],
                                             "usage": {
                                                 "value": 283.455815,
                                                 "units": "GB-Mo"

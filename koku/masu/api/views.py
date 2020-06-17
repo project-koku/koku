@@ -16,7 +16,6 @@
 #
 """API views for import organization"""
 # flake8: noqa
-# pylint: disable=unused-import
 from masu.api.download import download_report
 from masu.api.enabled_tags import enabled_tags
 from masu.api.expired_data import expired_data

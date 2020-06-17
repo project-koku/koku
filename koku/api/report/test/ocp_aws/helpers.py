@@ -235,33 +235,28 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
         apps = [
             self.fake.word(),
             self.fake.word(),
-            self.fake.word(),  # pylint: disable=no-member
             self.fake.word(),
             self.fake.word(),
             self.fake.word(),
-        ]  # pylint: disable=no-member
-        organizations = [
             self.fake.word(),
-            self.fake.word(),  # pylint: disable=no-member
-            self.fake.word(),
-            self.fake.word(),
-        ]  # pylint: disable=no-member
+        ]
+        organizations = [self.fake.word(), self.fake.word(), self.fake.word(), self.fake.word()]
         markets = [
             self.fake.word(),
             self.fake.word(),
-            self.fake.word(),  # pylint: disable=no-member
             self.fake.word(),
             self.fake.word(),
             self.fake.word(),
-        ]  # pylint: disable=no-member
+            self.fake.word(),
+        ]
         versions = [
             self.fake.word(),
             self.fake.word(),
-            self.fake.word(),  # pylint: disable=no-member
             self.fake.word(),
             self.fake.word(),
             self.fake.word(),
-        ]  # pylint: disable=no-member
+            self.fake.word(),
+        ]
 
         seeded_labels = {
             "environment": ["dev", "ci", "qa", "stage", "prod"],
@@ -273,18 +268,18 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
         gen_label_keys = [
             self.fake.word(),
             self.fake.word(),
-            self.fake.word(),  # pylint: disable=no-member
             self.fake.word(),
             self.fake.word(),
             self.fake.word(),
-        ]  # pylint: disable=no-member
+            self.fake.word(),
+        ]
         all_label_keys = list(seeded_labels.keys()) + gen_label_keys
         num_labels = random.randint(2, len(all_label_keys))
         chosen_label_keys = random.choices(all_label_keys, k=num_labels)
 
         labels = {}
         for label_key in chosen_label_keys:
-            label_value = self.fake.word()  # pylint: disable=no-member
+            label_value = self.fake.word()
             if label_key in seeded_labels:
                 label_value = random.choice(seeded_labels[label_key])
 

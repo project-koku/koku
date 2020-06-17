@@ -180,7 +180,7 @@ class RateSerializer(serializers.Serializer):
         end = sorted_tiers[-1].get("usage", {}).get("usage_end")
 
         if start is not None or end is not None:
-            error_msg = "tiered_rate must have a tier with usage_start as null" " and a tier with usage_end as null."
+            error_msg = "tiered_rate must have a tier with usage_start as null and a tier with usage_end as null."
             raise serializers.ValidationError(error_msg)
         else:
             RateSerializer._validate_no_tier_gaps(sorted_tiers)

@@ -24,7 +24,6 @@ from api.query_params import QueryParameters
 from api.settings.utils import create_dual_list_select
 from api.settings.utils import create_plain_text
 from api.settings.utils import create_subform
-from api.settings.utils import create_tab_item
 from api.settings.utils import OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
@@ -67,7 +66,7 @@ class OpenShiftSettings:
 
         return all_tags_set, enabled
 
-    def _build_tag_key_tab(self):
+    def _build_tag_key(self):
         """
         Generate tag_key tab component
 
@@ -83,39 +82,34 @@ class OpenShiftSettings:
         avail_objs = [{"value": tag_key, "label": tag_key} for tag_key in available]
         dual_list_options = {
             "options": avail_objs,
-            "leftTitle": "Available Tag Keys",
-            "rightTitle": "Enabled Tag Keys",
+            "leftTitle": "Available tags",
+            "rightTitle": "Enabled tags",
             "noValueTitle": "No enabled tag keys",
             "noOptionsTitle": "No available tag keys",
-            "filterOptionsTitle": "Filter available",
-            "filterValueTitle": "Filter enabled",
+            "filterOptionsTitle": "Filter by available tag keys",
+            "filterValueTitle": "Filter by enabled tag keys",
             "filterValueText": "Remove your filter to see all enabled tag keys",
             "filterOptionsText": "Remove your filter to see all available tag keys",
             "initialValue": enabled,
         }
-        tab_dual_list_name = f"{OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX}.enabled"
-        tab_dual_list_select = create_dual_list_select(tab_dual_list_name, **dual_list_options)
-        tab_sub_form_name = f"{OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX}.subform"
-        tab_sub_form_title = "Tag Key Enablement"
-        tab_sub_form_fields = [tag_key_text, tab_dual_list_select]
-        tab_sub_form = create_subform(tab_sub_form_name, tab_sub_form_title, tab_sub_form_fields)
+        dual_list_name = f"{OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX}.enabled"
+        dual_list_select = create_dual_list_select(dual_list_name, **dual_list_options)
+        sub_form_name = f"{OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX}.subform"
+        sub_form_title = "Enable OpenShift labels"
+        sub_form_fields = [tag_key_text, dual_list_select]
+        sub_form = create_subform(sub_form_name, sub_form_title, sub_form_fields)
 
-        tab_item_name = f"{OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX}.tab-item"
-        tab_item_title = "OpenShift Tag Management"
-        tab_item_description = "OpenShift Tag Management Setting tab"
-        tab_item_fields = tab_sub_form
-        tab_item = create_tab_item(tab_item_name, tab_item_title, tab_item_description, tab_item_fields)
-        return tab_item
+        return sub_form
 
-    def build_tabs(self):
+    def build_settings(self):
         """
-        Generate OpenShift tabs
+        Generate OpenShift settings
 
         Returns:
-            (List) - List of Tab Items
+            (List) - List of setting items
         """
-        openshift_tag_mgmt_tab = self._build_tag_key_tab()
-        return [openshift_tag_mgmt_tab]
+        openshift_tag_mgmt = self._build_tag_key()
+        return [openshift_tag_mgmt]
 
     def _tag_key_handler(self, settings):
         """

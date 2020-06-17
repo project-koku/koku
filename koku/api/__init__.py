@@ -17,4 +17,4 @@
 """Configuration for the api app."""
 
 API_VERSION = 1
-default_app_config = "api.apps.ApiConfig"  # pylint: disable=C0103
+default_app_config = "api.apps.ApiConfig"

@@ -225,6 +225,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     public_on_demand_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     tax_type = models.TextField(null=True)
     tags = JSONField(null=True)
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AWSCostEntryPricing(models.Model):
@@ -278,9 +279,7 @@ class AWSAccountAlias(models.Model):
 
     def __str__(self):
         """Convert to string."""
-        return (
-            "{ id : %s, " "account_id : %s, " "account_alias : %s }" % (self.id, self.account_id, self.account_alias)
-        )
+        return f"{{ id : {self.id}, account_id : {self.account_id}, account_alias : {self.account_alias} }}"
 
 
 class AWSTagsSummary(models.Model):
@@ -326,6 +325,8 @@ class AWSCostSummary(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class AWSCostSummaryByService(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -356,6 +357,8 @@ class AWSCostSummaryByService(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class AWSCostSummaryByAccount(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -365,7 +368,7 @@ class AWSCostSummaryByAccount(models.Model):
     """
 
     class Meta:
-        """Meta for AWSCostSummaryByService."""
+        """Meta for AWSCostSummaryByAccount."""
 
         db_table = "reporting_aws_cost_summary_by_account"
         managed = False
@@ -386,6 +389,8 @@ class AWSCostSummaryByAccount(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class AWSCostSummaryByRegion(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -395,7 +400,7 @@ class AWSCostSummaryByRegion(models.Model):
     """
 
     class Meta:
-        """Meta for AWSCostSummaryByService."""
+        """Meta for AWSCostSummaryByRegion."""
 
         db_table = "reporting_aws_cost_summary_by_region"
         managed = False
@@ -415,6 +420,8 @@ class AWSCostSummaryByRegion(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AWSComputeSummary(models.Model):
@@ -451,6 +458,8 @@ class AWSComputeSummary(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AWSComputeSummaryByService(models.Model):
@@ -492,6 +501,8 @@ class AWSComputeSummaryByService(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class AWSComputeSummaryByAccount(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -531,6 +542,8 @@ class AWSComputeSummaryByAccount(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AWSComputeSummaryByRegion(models.Model):
@@ -572,6 +585,8 @@ class AWSComputeSummaryByRegion(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class AWSStorageSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -603,6 +618,8 @@ class AWSStorageSummary(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AWSStorageSummaryByService(models.Model):
@@ -637,6 +654,8 @@ class AWSStorageSummaryByService(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AWSStorageSummaryByAccount(models.Model):
@@ -674,6 +693,8 @@ class AWSStorageSummaryByAccount(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class AWSStorageSummaryByRegion(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -710,6 +731,8 @@ class AWSStorageSummaryByRegion(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class AWSNetworkSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -742,6 +765,8 @@ class AWSNetworkSummary(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class AWSDatabaseSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -773,6 +798,8 @@ class AWSDatabaseSummary(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AWSOrganizationalUnit(models.Model):

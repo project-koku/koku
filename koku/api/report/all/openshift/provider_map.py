@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Provider Mapper for OCP on AWS Reports."""
+"""Provider Mapper for OCP on All Reports."""
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
 from django.db.models import Count
@@ -122,6 +122,7 @@ class OCPAllProviderMap(ProviderMap):
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "count": None,
                         "delta_key": {
@@ -198,6 +199,7 @@ class OCPAllProviderMap(ProviderMap):
                             ),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "count": None,
                         "delta_key": {
@@ -266,6 +268,7 @@ class OCPAllProviderMap(ProviderMap):
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "count": None,
                         "delta_key": {"usage": Sum("usage_amount")},
@@ -349,6 +352,7 @@ class OCPAllProviderMap(ProviderMap):
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "count": None,
                         "delta_key": {"usage": Sum("usage_amount")},
@@ -423,6 +427,7 @@ class OCPAllProviderMap(ProviderMap):
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(Max("unit"), Value("Hrs")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "count": "resource_id",
                         "delta_key": {"usage": Sum("usage_amount")},
@@ -509,6 +514,7 @@ class OCPAllProviderMap(ProviderMap):
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("Hrs")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "count": "resource_id",
                         "delta_key": {"usage": Sum("usage_amount")},

@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for server status."""
+from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from rest_framework import permissions
 from rest_framework.response import Response
@@ -30,7 +31,7 @@ class StatusView(APIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = StatusSerializer
 
-    @never_cache
+    @method_decorator(never_cache)
     def get(self, request):
         """Return the server status."""
         status_info = Status()

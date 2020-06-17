@@ -10,6 +10,7 @@ Koku's goal is to provide an open source solution for cost management of cloud a
 
 Full documentation is available through readthedocs_.
 
+To submit an issue please visit https://issues.redhat.com/projects/COST/
 
 Getting Started
 ===============
@@ -37,13 +38,14 @@ For Mac OSX
 Development
 ===========
 
-To get started developing against Koku first clone a local copy of the git repository. ::
+To get started developing against Koku you first need to clone a local copy of the git repositories. ::
 
     git clone https://github.com/project-koku/koku
+    git clone https://github.com/project-koku/nise
 
 This project is developed using the Django web framework. Many configuration settings can be read in from a ``.env`` file. To configure, do the following:
 
-1. Copy ``env.example`` into a ``.env``
+1. Copy ``.env.example`` into a ``.env``
 2. Obtain AWS values and update the following in your ``.env``::
 
     AWS_ACCESS_KEY_ID=YOUR_AWS_ACCESS_KEY
@@ -79,11 +81,6 @@ This project is developed using the Django web framework. Many configuration set
 9. Install the pre-commit hooks for the repository ::
 
     pre-commit install
-
-10. Clone a local copy of the  git repository. This should be in the same location as the cloned koku git repository ::
-
-        git clone https://github.com/project-koku/nise
-
 
 
 Developing with Docker Compose
