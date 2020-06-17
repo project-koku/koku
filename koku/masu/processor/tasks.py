@@ -21,14 +21,17 @@ import os
 from decimal import Decimal
 from decimal import InvalidOperation
 
+from botocore.exceptions import ClientError
 from celery import chain
 from celery.utils.log import get_task_logger
 from dateutil import parser
+from django.conf import settings
 from django.db import connection
 from django.db import transaction
 from tenant_schemas.utils import schema_context
 
 import masu.prometheus_stats as worker_stats
+from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
@@ -47,6 +50,9 @@ from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.worker_cache import WorkerCache
+from masu.util.aws.common import convert_csv_to_parquet
+from masu.util.aws.common import get_path_prefix
+from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_MATERIALIZED_VIEWS
@@ -54,7 +60,7 @@ from reporting.models import OCP_MATERIALIZED_VIEWS
 LOG = get_task_logger(__name__)
 
 
-@app.task(name="masu.processor.tasks.get_report_files", queue_name="download", bind=True)
+@app.task(name="masu.processor.tasks.get_report_files", queue_name="download", bind=True)  # noqa: C901
 def get_report_files(
     self, customer_name, authentication, billing_source, provider_type, schema_name, provider_uuid, report_month
 ):
@@ -97,6 +103,9 @@ def get_report_files(
         stmt += " file: " + str(report["file"]) + "\n"
     LOG.info(stmt[:-1])
     reports_to_summarize = []
+    processed_files = {}
+    start_date = None
+
     for report_dict in reports:
         with transaction.atomic():
             try:
@@ -127,9 +136,17 @@ def get_report_files(
                     f' file: {report_dict.get("file")}'
                 )
                 LOG.info(stmt)
+                if not start_date:
+                    start_date = report_dict.get("start_date")
                 worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
                 _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
                 known_manifest_ids = [report.get("manifest_id") for report in reports_to_summarize]
+                proc_file_path = report_dict.get("file")
+                manifest_id_str = str(manifest_id)
+                if processed_files.get(manifest_id_str) is None:
+                    processed_files[manifest_id_str] = []
+                if proc_file_path:
+                    processed_files[manifest_id_str].append(os.path.basename(proc_file_path))
                 if report_dict.get("manifest_id") not in known_manifest_ids:
                     report_meta = {
                         "schema_name": schema_name,
@@ -145,6 +162,12 @@ def get_report_files(
                 raise processing_error
 
     WorkerCache().remove_task_from_cache(cache_key)
+    if start_date:
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        for manifest_id, files in processed_files.items():
+            convert_to_parquet.delay(
+                self.request.id, schema_name[4:], provider_uuid, start_date_str, manifest_id, files
+            )
 
     return reports_to_summarize
 
@@ -481,3 +504,90 @@ SELECT s.relname as "table_name",
                     LOG.info(cursor.statusmessage)
 
     LOG.info(f"Altered autovacuum_vacuum_scale_factor on {alter_count} tables")
+
+
+@app.task(  # noqa: C901
+    name="masu.celery.tasks.convert_to_parquet",
+    queue_name="reporting",
+    autoretry_for=(ClientError,),
+    max_retries=10,
+    retry_backoff=10,
+)
+def convert_to_parquet(request_id, account, provider_uuid, start_date, manifest_id, files, context={}):
+    """
+    Convert archived CSV data from our S3 bucket for a given provider to Parquet.
+
+    This function chiefly follows the download of a providers data.
+
+    This task is defined to attempt up to 10 retries using exponential backoff
+    starting with a 10-second delay. This is intended to allow graceful handling
+    of temporary AWS S3 connectivity issues because it is relatively important
+    for us to convert the archived data.
+
+    Args:
+        request_id (str): The associated request id (ingress or celery task id)
+        account (str): The account string
+        provider_uuid (UUID): The provider UUID
+        start_date (str): The report start time (YYYY-mm-dd)
+        manifest_id (str): The identifier for the report manifest
+        files [str]: List of file names downloaded from the report
+        context (dict): A context object for logging
+
+    """
+    if not context:
+        context = {"account": account, "provider_uuid": provider_uuid}
+
+    if not request_id or not account or not provider_uuid:
+        messages = []
+        if not request_id:
+            message = "missing required argument: request_id"
+            LOG.error(message)
+            messages.append(message)
+        if not account:
+            message = "missing required argument: account"
+            LOG.error(message)
+            messages.append(message)
+        if not provider_uuid:
+            message = "missing required argument: provider_uuid"
+            LOG.error(message)
+            messages.append(message)
+
+    if not settings.ENABLE_S3_ARCHIVING:
+        msg = "Skipping convert_to_parquet. S3 archiving feature is disabled."
+        LOG.info(log_json(request_id, msg, context))
+        return
+
+    if not files:
+        msg = "S3 archiving feature is enabled, but no files to process."
+        LOG.info(log_json(request_id, msg, context))
+        return
+
+    if not start_date:
+        msg = "S3 archiving feature is enabled, but no start_date was given for processing."
+        LOG.warn(log_json(request_id, msg, context))
+        return
+
+    try:
+        cost_date = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+    except ValueError:
+        msg = "S3 archiving feature is enabled, but the start_date was not a valid date string format (YYYY-mm-dd)."
+        LOG.warn(log_json(request_id, msg, context))
+        return
+
+    s3_csv_path = get_path_prefix(account, provider_uuid, cost_date, Config.CSV_DATA_TYPE)
+    local_path = f"{Config.TMP_DIR}/{account}/{provider_uuid}"
+    s3_parquet_path = get_path_prefix(account, provider_uuid, cost_date, Config.PARQUET_DATA_TYPE)
+    remove_files_not_in_set_from_s3_bucket(request_id, s3_parquet_path, manifest_id)
+
+    failed_conversion = []
+    for csv_filename in files:
+        result = convert_csv_to_parquet(
+            request_id, s3_csv_path, s3_parquet_path, local_path, manifest_id, csv_filename, context
+        )
+        if not result:
+            failed_conversion.append(csv_filename)
+
+    if failed_conversion:
+        msg = f"Failed to convert the following files to parquet:{','.join(failed_conversion)}."
+        LOG.warn(log_json(request_id, msg, context))
+        return

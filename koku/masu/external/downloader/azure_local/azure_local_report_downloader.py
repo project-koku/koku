@@ -26,6 +26,7 @@ from masu.external import UNCOMPRESSED
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderError
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
+from masu.util.aws.common import get_path_prefix
 from masu.util.azure import common as utils
 from masu.util.common import extract_uuids_from_string
 
@@ -123,15 +124,9 @@ class AzureLocalReportDownloader(AzureReportDownloader):
             LOG.info(log_json(self.request_id, msg, self.context))
             shutil.copy2(key, full_file_path)
             # Push to S3
+            s3_csv_path = get_path_prefix(self.account, self._provider_uuid, start_date, Config.CSV_DATA_TYPE)
             copy_local_report_file_to_s3_bucket(
-                self.request_id,
-                self.account,
-                self._provider_uuid,
-                full_file_path,
-                local_filename,
-                manifest_id,
-                start_date,
-                self.context,
+                self.request_id, s3_csv_path, full_file_path, local_filename, manifest_id, start_date, self.context
             )
         msg = f"Returning full_file_path: {full_file_path}, etag: {etag}"
         LOG.info(log_json(self.request_id, msg, self.context))

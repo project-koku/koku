@@ -52,6 +52,7 @@ from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownload
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
+from masu.processor.tasks import convert_to_parquet
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
@@ -328,6 +329,8 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     report_meta["provider_uuid"] = account.get("provider_uuid")
     report_meta["provider_type"] = provider_type
     report_meta["schema_name"] = schema_name
+    report_meta["account"] = schema_name[4:]
+    report_meta["request_id"] = request_id
 
     # Create directory tree for report.
     usage_month = utils.month_date_range(report_meta.get("date"))
@@ -364,7 +367,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
 
     # Remove temporary directory and files
     shutil.rmtree(temp_dir)
-    return report_metas
+    return report_metas, request_id
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
@@ -533,7 +536,7 @@ def summarize_manifest(report_meta):
     return async_id
 
 
-def process_report(report):
+def process_report(request_id, report):
     """
     Process line item report.
 
@@ -546,21 +549,28 @@ def process_report(report):
     complete.
 
     Args:
+        request_id (Str): The request id
         report (Dict) - keys: value
+                        request_id: String,
+                        account: String,
                         schema_name: String,
                         manifest_id: Integer,
                         provider_uuid: String,
                         provider_type: String,
                         current_file: String,
+                        date: DateTime
 
     Returns:
         True if line item report processing is complete.
 
     """
+    account = report.get("account")
     schema_name = report.get("schema_name")
     manifest_id = report.get("manifest_id")
     provider_uuid = report.get("provider_uuid")
     provider_type = report.get("provider_type")
+    start_date = report.get("date")
+    files = report.get("files")
 
     report_dict = {
         "file": report.get("current_file"),
@@ -568,7 +578,12 @@ def process_report(report):
         "manifest_id": manifest_id,
         "provider_uuid": provider_uuid,
     }
-    return _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
+    result = _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
+    if start_date:
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        file_names = [os.path.basename(report_file) for report_file in files]
+        convert_to_parquet.delay(request_id, account, provider_uuid, start_date_str, manifest_id, file_names)
+    return result
 
 
 def report_metas_complete(report_metas):

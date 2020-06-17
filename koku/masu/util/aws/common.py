@@ -18,9 +18,12 @@
 import datetime
 import logging
 import re
+import shutil
 from io import BytesIO
+from pathlib import Path
 
 import boto3
+import pandas as pd
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
@@ -34,6 +37,8 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.util import common as utils
 
 LOG = logging.getLogger(__name__)
+CSV_GZIP_EXT = ".csv.gz"
+CSV_EXT = ".csv"
 
 
 def get_assume_role_session(arn, session="MasuSession"):
@@ -302,31 +307,32 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, c
     return upload
 
 
-def _get_path_prefix(account, provider_uuid, start_date):
+def get_path_prefix(account, provider_uuid, start_date, data_type):
     """
     Get the S3 bucket prefix
     """
-    year = start_date.strftime("%Y")
-    month = start_date.strftime("%m")
-    path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.CSV_DATA_TYPE}"
-    path = f"{path_prefix}/{account}/{provider_uuid}/{year}/{month}"
+    path = None
+    if start_date:
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        path_prefix = f"{Config.WAREHOUSE_PATH}/{data_type}"
+        path = f"{path_prefix}/{account}/{provider_uuid}/{year}/{month}"
     return path
 
 
 def copy_local_report_file_to_s3_bucket(
-    request_id, account, provider_uuid, full_file_path, local_filename, manifest_id, start_date, context={}
+    request_id, s3_path, full_file_path, local_filename, manifest_id, start_date, context={}
 ):
     """
     Copies local report file to s3 bucket
     """
-    if start_date:
-        path = _get_path_prefix(account, provider_uuid, start_date)
+    if s3_path:
         with open(full_file_path, "rb") as fin:
             data = BytesIO(fin.read())
-            copy_data_to_s3_bucket(request_id, path, local_filename, data, manifest_id, context)
+            copy_data_to_s3_bucket(request_id, s3_path, local_filename, data, manifest_id, context)
 
 
-def remove_files_not_in_set_from_s3_bucket(request_id, account, provider_uuid, start_date, manifest_id, context={}):
+def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, context={}):
     """
     Removes all files in a given prefix if they are not within the given set.
     """
@@ -334,17 +340,17 @@ def remove_files_not_in_set_from_s3_bucket(request_id, account, provider_uuid, s
         return None
 
     removed = []
-    if start_date:
+    if s3_path:
         try:
-            path = _get_path_prefix(account, provider_uuid, start_date)
             s3_resource = get_s3_resource()
-            existing_objects = s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=path)
+            existing_objects = s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
             for obj_summary in existing_objects:
                 existing_object = obj_summary.Object()
                 metadata = existing_object.metadata
-                manifest = metadata.get("ManifestId")
+                manifest = metadata.get("manifestid")
+                manifest_id_str = str(manifest_id)
                 key = existing_object.key
-                if manifest is not manifest_id:
+                if manifest != manifest_id_str:
                     s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
                     removed.append(key)
             if removed:
@@ -354,6 +360,70 @@ def remove_files_not_in_set_from_s3_bucket(request_id, account, provider_uuid, s
             msg = f"Unable to remove data in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
             LOG.info(log_json(request_id, msg, context))
     return removed
+
+
+def convert_csv_to_parquet(
+    request_id, s3_csv_path, s3_parquet_path, local_path, manifest_id, csv_filename, context={}
+):
+    """
+    Convert CSV files to parquet on S3.
+    """
+    s3_resource = get_s3_resource()
+    csv_file = f"{s3_csv_path}/{csv_filename}"
+
+    msg = f"Running convert_csv_to_parquet on file {csv_filename} in S3 path {s3_csv_path}."
+    LOG.info(log_json(request_id, msg, context))
+
+    kwargs = {}
+    parquet_file = None
+    if csv_filename.lower().endswith(CSV_EXT):
+        ext = -1 * len(CSV_EXT)
+        parquet_file = f"{csv_filename[:ext]}.parquet"
+    elif csv_filename.lower().endswith(CSV_GZIP_EXT):
+        ext = -1 * len(CSV_GZIP_EXT)
+        parquet_file = f"{csv_filename[:ext]}.parquet"
+        kwargs = {"compression": "gzip"}
+    else:
+        msg = f"File {csv_filename} is not valid CSV. Conversion to parquet skipped."
+        LOG.warn(log_json(request_id, msg, context))
+        return False
+
+    Path(local_path).mkdir(parents=True, exist_ok=True)
+    tmpfile = f"{local_path}/{csv_filename}"
+    try:
+        csv_obj = s3_resource.Object(bucket_name=settings.S3_BUCKET_NAME, key=csv_file)
+        csv_obj.download_file(tmpfile)
+    except Exception as err:
+        shutil.rmtree(local_path, ignore_errors=True)
+        msg = f"File {csv_filename} could not obtained for parquet conversion. Reason: {str(err)}"
+        LOG.warn(log_json(request_id, msg, context))
+        return False
+
+    output_file = f"{local_path}/{parquet_file}"
+    try:
+        data_frame = pd.read_csv(tmpfile, **kwargs)
+        data_frame.to_parquet(output_file)
+    except Exception as err:
+        shutil.rmtree(local_path, ignore_errors=True)
+        msg = f"File {csv_filename} could not be written as parquet to temp file {output_file}. Reason: {str(err)}"
+        LOG.warn(log_json(request_id, msg, context))
+        return False
+
+    try:
+        with open(output_file, "rb") as fin:
+            data = BytesIO(fin.read())
+            copy_data_to_s3_bucket(
+                request_id, s3_parquet_path, parquet_file, data, manifest_id=manifest_id, context=context
+            )
+    except Exception as err:
+        shutil.rmtree(local_path, ignore_errors=True)
+        s3_key = f"{s3_parquet_path}/{parquet_file}"
+        msg = f"File {csv_filename} could not be written as parquet to S3 {s3_key}. Reason: {str(err)}"
+        LOG.warn(log_json(request_id, msg, context))
+        return False
+
+    shutil.rmtree(local_path, ignore_errors=True)
+    return True
 
 
 # pylint: disable=too-few-public-methods

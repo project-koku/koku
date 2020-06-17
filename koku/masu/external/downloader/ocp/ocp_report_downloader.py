@@ -27,6 +27,7 @@ from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
+from masu.util.aws.common import get_path_prefix
 from masu.util.ocp import common as utils
 
 DATA_DIR = Config.TMP_DIR
@@ -140,15 +141,9 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             shutil.move(key, full_file_path)
 
         # Push to S3
+        s3_csv_path = get_path_prefix(self.account, self._provider_uuid, start_date, Config.CSV_DATA_TYPE)
         copy_local_report_file_to_s3_bucket(
-            self.request_id,
-            self.account,
-            self._provider_uuid,
-            full_file_path,
-            local_filename,
-            manifest_id,
-            start_date,
-            self.context,
+            self.request_id, s3_csv_path, full_file_path, local_filename, manifest_id, start_date, self.context
         )
 
         return full_file_path, ocp_etag

@@ -27,6 +27,7 @@ from dateutil.relativedelta import relativedelta
 from faker import Faker
 from tenant_schemas.utils import schema_context
 
+from masu.config import Config
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external import AWS_REGIONS
@@ -323,13 +324,12 @@ class TestAWSUtils(MasuTestCase):
 
     def test_remove_files_not_in_set_from_s3_bucket(self):
         """Test remove_files_not_in_set_from_s3_bucket."""
-        removed = utils.remove_files_not_in_set_from_s3_bucket(
-            "request_id", "account", "provider_uuid", None, "manifest_id"
-        )
+        removed = utils.remove_files_not_in_set_from_s3_bucket("request_id", None, "manifest_id")
         self.assertEqual(removed, None)
 
         date_accessor = DateAccessor()
         start_date = date_accessor.today_with_timezone("utc").replace(day=1)
+        s3_csv_path = utils.get_path_prefix("account", "provider_uuid", start_date, Config.CSV_DATA_TYPE)
         expected_key = "removed_key"
         mock_object = Mock(metadata={}, key=expected_key)
         mock_summary = Mock()
@@ -337,17 +337,13 @@ class TestAWSUtils(MasuTestCase):
         with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
             with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
                 mock_s3.return_value.Bucket.return_value.objects.filter.return_value = [mock_summary]
-                removed = utils.remove_files_not_in_set_from_s3_bucket(
-                    "request_id", "account", "provider_uuid", start_date, "manifest_id"
-                )
+                removed = utils.remove_files_not_in_set_from_s3_bucket("request_id", s3_csv_path, "manifest_id")
                 self.assertEqual(removed, [expected_key])
 
         with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
             with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
                 mock_s3.side_effect = ClientError({}, "Error")
-                removed = utils.remove_files_not_in_set_from_s3_bucket(
-                    "request_id", "account", "provider_uuid", start_date, "manifest_id"
-                )
+                removed = utils.remove_files_not_in_set_from_s3_bucket("request_id", s3_csv_path, "manifest_id")
                 self.assertEqual(removed, [])
 
     def test_copy_data_to_s3_bucket(self):
