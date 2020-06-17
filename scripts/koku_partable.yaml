@@ -25,91 +25,86 @@ partition_targets:
       primary_key:
         usage_start: {}
         id:
-          data_type: text
-          default: null
-          copy_sequence: 0
-          new_sequence: {}
+          copy_sequence: 1
       triggers: []
       partition_key: usage_start
       partition_type: range
       range:
         interval: 1
         interval_type: month
-      copy_column_map:
-        id: public.koku_record_hash(cluster_id::text, namespace::text, node::text, pod_labels::text)::text
-        cluster_id: cluster_id
-        namespace: namespace
-        node: node
-        usage_start: usage_start
-        usage_end: usage_end
-        pod_usage_cpu_core_hours: pod_usage_cpu_core_hours
-        pod_request_cpu_core_hours: pod_request_cpu_core_hours
-        pod_limit_cpu_core_hours: pod_limit_cpu_core_hours
-        pod_usage_memory_gigabyte_hours: pod_usage_memory_gigabyte_hours
-        pod_request_memory_gigabyte_hours: pod_request_memory_gigabyte_hours
-        pod_limit_memory_gigabyte_hours: pod_limit_memory_gigabyte_hours
-        node_capacity_cpu_core_hours: node_capacity_cpu_core_hours
-        node_capacity_cpu_cores: node_capacity_cpu_cores
-        node_capacity_memory_gigabyte_hours: node_capacity_memory_gigabyte_hours
-        node_capacity_memory_gigabytes: node_capacity_memory_gigabytes
-        cluster_capacity_cpu_core_hours: cluster_capacity_cpu_core_hours
-        cluster_capacity_memory_gigabyte_hours: cluster_capacity_memory_gigabyte_hours
-        pod_labels: pod_labels
-        cluster_alias: cluster_alias
-        resource_id: resource_id
-        total_capacity_cpu_core_hours: total_capacity_cpu_core_hours
-        total_capacity_memory_gigabyte_hours: total_capacity_memory_gigabyte_hours
-        data_source: data_source
-        persistentvolume: persistentvolume
-        persistentvolumeclaim: persistentvolumeclaim
-        persistentvolumeclaim_capacity_gigabyte: persistentvolumeclaim_capacity_gigabyte
-        persistentvolumeclaim_capacity_gigabyte_months: persistentvolumeclaim_capacity_gigabyte_months
-        persistentvolumeclaim_usage_gigabyte_months: persistentvolumeclaim_usage_gigabyte_months
-        storageclass: storageclass
-        volume_labels: volume_labels
-        volume_request_storage_gigabyte_months: volume_request_storage_gigabyte_months
-        report_period_id: report_period_id
-        infrastructure_markup_cost: infrastructure_markup_cost
-        infrastructure_monthly_cost: infrastructure_monthly_cost
-        infrastructure_project_markup_cost: infrastructure_project_markup_cost
-        infrastructure_project_raw_cost: infrastructure_project_raw_cost
-        infrastructure_raw_cost: infrastructure_raw_cost
-        infrastructure_usage_cost: infrastructure_usage_cost
-        monthly_cost_type: monthly_cost_type
-        supplementary_monthly_cost: supplementary_monthly_cost
-        supplementary_usage_cost: supplementary_usage_cost
+      copy_column_map: {}
   public: {}
 stored_procedures:
-  "*":
-    depends_on_schema: public
-    code: []
   public:
     code:
       - |-
-        drop function if exists {schema_name}.koku_record_hash ( VARIADIC vals text[] ) cascade;
-        create or replace function {schema_name}.koku_record_hash ( VARIADIC vals text[] ) returns text as
-        $$
-        declare
-            record_val text = ''::text;
-            return_val text = null::text;
-            i int = 1::int;
-        begin
-            for i in 1 .. array_upper(vals, 1)
-            loop
-                if vals[i] is null
-                then
-                    vals[i] = '';
-                end if;
-                record_val = record_val || vals[i];
-            end loop;
+        DROP PROCEDURE IF EXISTS {schema_name}.create_date_partitions(text, text, text, text, text, text, boolean);
+        CREATE OR REPLACE PROCEDURE {schema_name}.create_date_partitions(
+            check_table text,
+            check_col text,
+            schema text,
+            partitioned_table text,
+            partition_type text,
+            partition_key text,
+            _commit boolean DEFAULT false
+        ) AS $$
+        DECLARE
+            rec record;
+            partition_name text  = '';
+            check_stmt text = '';
+            action_stmt text = '';
+        BEGIN
+            check_stmt = 'WITH distinct_date_key as (' ||
+                         'SELECT DISTINCT ' ||
+                         '       to_char(' || quote_ident(check_col) || ', ''YYYY-MM-01'')::text as date_key' ||
+                         '  FROM ' || quote_ident(check_table) || ' ' ||
+                         ') ' ||
+                         'SELECT ddk.date_key::date' ||
+                         '  FROM distinct_date_key as ddk ' ||
+                         ' WHERE NOT EXISTS (SELECT 1 ' ||
+                         '                     FROM ' ||
+                                                    quote_ident(schema) || '."partitioned_tables" ' ||
+                         '                    WHERE schema_name = ' || quote_literal(schema) ||
+                         '                      AND partition_of_table_name = ' || quote_literal(partitioned_table) ||
+                         '                      AND partition_type = ''range'' ' ||
+                         '                      AND ddk.date_key = (partition_parameters->>''from'') ) ;';
+            FOR rec IN EXECUTE stmt
+            LOOP
+                -- Create the new partition
+                partition_name = partitioned_table || '_' || to_char(rec.date_key, 'YYYY_MM');
 
-            if record_val != ''
-            then
-                return_val = encode(sha256(convert_to(record_val, 'utf-8')), 'hex');
-            end if;
+                action_stmt = 'CREATE TABLE ' ||
+                               quote_ident(schema) || '.' || quote_ident(partition_name) ||
+                             ' PARTITION OF ' ||
+                               quote_ident(schema) || '.' || quote_ident(partitioned_table) ||
+                             ' FOR VALUES FROM (' ||
+                               quote_literal(rec.date_key) ||
+                              '::date) TO (' ||
+                               quote_literal((rec.date_key + '1 month'::interval)::date) ||
+                               '::date); ';
+                EXECUTE action_stmt;
 
-            return return_val;
-        end;
-        $$
-        language plpgsql
-        returns null on null input;
+                -- log the new partition
+                action_stmt = 'INSERT INTO ' || quote_ident(schema) || '."partitioned_tables" ( ' ||
+                              '    "schema_name", "table_name", "partition_of_table_name", ' ||
+                              '    "partition_type", "partition_col", "partition_parameters" ' ||
+                              ') VALUES ( ' ||
+                                  quote_literal(schema) || ', ' ||
+                                  quote_literal(partition_name) || ', ' ||
+                                  quote_literal(partitioned_table) || ', ' ||
+                                  quote_literal('range') || ' ,' ||
+                                  quote_literal(partition_key) || ', ' ||
+                                 'jsonb_build_object( ' ||
+                                 '    ''default'', false, ' ||
+                                 '    ''from'', ' || quote_literal(rec.date_key::text) || ', ' ||
+                                 '    ''to'', ' || quote_literal((rec.date_key + '1 month'::interval)::date::text) ||
+                                 ' ));';
+                EXECUTE action_stmt;
+                END LOOP;
+
+            IF _commit
+            THEN
+                COMMIT;
+            END IF;
+        END;
+        $$ LANGUAGE PLPGSQL;

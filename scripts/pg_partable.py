@@ -560,6 +560,7 @@ def db_schemas(conn):
 select distinct
        schemaname
   from pg_stat_user_tables
+ where schemaname !~ '^pg_temp'
  order
     by schemaname;
     """
@@ -793,6 +794,21 @@ create table if not exists {schema_name}.partitioned_tables
     partition_parameters jsonb not null,
     constraint table_partition_pkey primary key (schema_name, table_name)
 );
+"""
+    execute(conn, sql)
+
+    sql = f"""
+create index "partable_table" on {schema_name}.partitioned_tables (table_name, schema_name);
+"""
+    execute(conn, sql)
+
+    sql = f"""
+create index "partable_partition_parameters" on {schema_name}.partitioned_tables using GIN (partition_parameters);
+"""
+    execute(conn, sql)
+
+    sql = f"""
+create index "partable_partition_type" on {schema_name}.partitioned_tables (partition_type);
 """
     execute(conn, sql)
 
