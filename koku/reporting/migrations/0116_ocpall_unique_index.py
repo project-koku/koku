@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
             ;
             DROP INDEX IF EXISTS ocpall_cost_project_daily_summary;
             CREATE UNIQUE INDEX ocpall_cost_project_daily_summary
-            ON reporting_ocpallcostlineitem_project_daily_summary (source_type, usage_start, cluster_id, namespace, node, usage_account_id, resource_id, product_code, product_family, instance_type, region, availability_zone, pod_labels)
+            ON reporting_ocpallcostlineitem_project_daily_summary (source_type, usage_start, cluster_id, data_source, namespace, node, usage_account_id, resource_id, product_code, product_family, instance_type, region, availability_zone, pod_labels)
             ;
             DROP INDEX IF EXISTS ocpall_storage_summary;
             CREATE UNIQUE INDEX ocpall_storage_summary
