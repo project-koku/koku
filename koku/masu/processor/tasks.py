@@ -332,7 +332,9 @@ def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_dat
             updater.update_cost_model_costs(start_date, end_date)
     else:
         stmt = (
-            f"\n update_cost_model_costs skipped. No cost model available for: \n" f" provider_uuid: {provider_uuid}"
+            f"\n update_cost_model_costs skipped. No cost model available for \n"
+            f" schema_name: {schema_name},\n"
+            f" provider_uuid: {provider_uuid}"
         )
         LOG.info(stmt)
 
