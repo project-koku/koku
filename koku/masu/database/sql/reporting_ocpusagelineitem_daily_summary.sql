@@ -68,6 +68,14 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe
 ;
 
 
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+WHERE usage_start >= {{start_date}}
+    AND usage_start <= {{end_date}}
+    AND cluster_id = {{cluster_id}}
+    AND data_source = 'Pod'
+;
+
+
 -- This procedure will scan the temp table for distinct start-of-month usage_start dates
 -- and create any missing table partitions
 CALL public.create_date_partitions(
