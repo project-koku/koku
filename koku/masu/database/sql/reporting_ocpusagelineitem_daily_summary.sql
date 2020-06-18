@@ -22,90 +22,67 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe
         jsonb_each_text(lid.pod_labels) AS labels
         WHERE key = ANY (key_array)
         GROUP BY id
-    ),
-    cte_agg_pod_usage as (
-        SELECT li.report_period_id,
-            li.cluster_id,
-            li.cluster_alias,
-            li.namespace,
-            li.node,
-            max(li.resource_id) as resource_id,
-            li.usage_start,
-            li.usage_end,
-            coalesce(fpl.pod_labels, '{}'::jsonb) as pod_labels,
-            sum(li.pod_usage_cpu_core_seconds) / 3600 as pod_usage_cpu_core_hours,
-            sum(li.pod_request_cpu_core_seconds) / 3600 as pod_request_cpu_core_hours,
-            sum(li.pod_limit_cpu_core_seconds) / 3600 as pod_limit_cpu_core_hours,
-            sum(li.pod_usage_memory_byte_seconds) / 3600 * POWER(2, -30) as pod_usage_memory_gigabyte_hours,
-            sum(li.pod_request_memory_byte_seconds) / 3600 * POWER(2, -30) as pod_request_memory_gigabyte_hours,
-            sum(li.pod_limit_memory_byte_seconds) / 3600 * POWER(2, -30) as pod_limit_memory_gigabyte_hours,
-            max(li.node_capacity_cpu_cores) as node_capacity_cpu_cores,
-            sum(li.node_capacity_cpu_core_seconds) / 3600 as node_capacity_cpu_core_hours,
-            max(li.node_capacity_memory_bytes) * POWER(2, -30) as node_capacity_memory_gigabytes,
-            sum(li.node_capacity_memory_byte_seconds) / 3600 * POWER(2, -30) as node_capacity_memory_gigabyte_hours,
-            max(li.cluster_capacity_cpu_core_seconds) / 3600 as cluster_capacity_cpu_core_hours,
-            max(li.cluster_capacity_memory_byte_seconds) / 3600 * POWER(2, -30) as cluster_capacity_memory_gigabyte_hours,
-            max(li.total_capacity_cpu_core_seconds) / 3600 as total_capacity_cpu_core_hours,
-            max(li.total_capacity_memory_byte_seconds) / 3600 * POWER(2, -30) as total_capacity_memory_gigabyte_hours,
-            ab.provider_id as source_uuid
-        FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily AS li
-        LEFT JOIN cte_filtered_pod_labels AS fpl
-            ON li.id = fpl.id
-        LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
-            ON li.cluster_id = ab.cluster_id
-        WHERE usage_start >= {{start_date}}
-            AND usage_start <= {{end_date}}
-            AND li.cluster_id = {{cluster_id}}
-        GROUP BY report_period_id,
-            li.cluster_id,
-            li.cluster_alias,
-            li.usage_start,
-            li.usage_end,
-            li.namespace,
-            li.node,
-            fpl.pod_labels,
-            ab.provider_id
     )
-    SELECT public.koku_record_hash(apu.cluster_id::text, apu.namespace::text, apu.node::text, apu.pod_labels::text)::text as id,
-        apu.report_period_id,
-        apu.cluster_id,
-        apu.cluster_alias,
-        apu.namespace,
-        apu.node,
-        apu.resource_id,
-        apu.usage_start,
-        apu.usage_end,
-        apu.pod_labels,
-        apu.pod_usage_cpu_core_hours,
-        apu.pod_request_cpu_core_hours,
-        apu.pod_limit_cpu_core_hours,
-        apu.pod_usage_memory_gigabyte_hours,
-        apu.pod_request_memory_gigabyte_hours,
-        apu.pod_limit_memory_gigabyte_hours,
-        apu.node_capacity_cpu_cores,
-        apu.node_capacity_cpu_core_hours,
-        apu.node_capacity_memory_gigabytes,
-        apu.node_capacity_memory_gigabyte_hours,
-        apu.cluster_capacity_cpu_core_hours,
-        apu.cluster_capacity_memory_gigabyte_hours,
-        apu.total_capacity_cpu_core_hours,
-        apu.total_capacity_memory_gigabyte_hours,
-        apu.source_uuid
-    FROM cte_agg_pod_usage apu
+    SELECT li.report_period_id,
+        li.cluster_id,
+        li.cluster_alias,
+        li.namespace,
+        li.node,
+        max(li.resource_id) as resource_id,
+        li.usage_start,
+        li.usage_end,
+        coalesce(fpl.pod_labels, '{}'::jsonb) as pod_labels,
+        sum(li.pod_usage_cpu_core_seconds) / 3600 as pod_usage_cpu_core_hours,
+        sum(li.pod_request_cpu_core_seconds) / 3600 as pod_request_cpu_core_hours,
+        sum(li.pod_limit_cpu_core_seconds) / 3600 as pod_limit_cpu_core_hours,
+        sum(li.pod_usage_memory_byte_seconds) / 3600 * POWER(2, -30) as pod_usage_memory_gigabyte_hours,
+        sum(li.pod_request_memory_byte_seconds) / 3600 * POWER(2, -30) as pod_request_memory_gigabyte_hours,
+        sum(li.pod_limit_memory_byte_seconds) / 3600 * POWER(2, -30) as pod_limit_memory_gigabyte_hours,
+        max(li.node_capacity_cpu_cores) as node_capacity_cpu_cores,
+        sum(li.node_capacity_cpu_core_seconds) / 3600 as node_capacity_cpu_core_hours,
+        max(li.node_capacity_memory_bytes) * POWER(2, -30) as node_capacity_memory_gigabytes,
+        sum(li.node_capacity_memory_byte_seconds) / 3600 * POWER(2, -30) as node_capacity_memory_gigabyte_hours,
+        max(li.cluster_capacity_cpu_core_seconds) / 3600 as cluster_capacity_cpu_core_hours,
+        max(li.cluster_capacity_memory_byte_seconds) / 3600 * POWER(2, -30) as cluster_capacity_memory_gigabyte_hours,
+        max(li.total_capacity_cpu_core_seconds) / 3600 as total_capacity_cpu_core_hours,
+        max(li.total_capacity_memory_byte_seconds) / 3600 * POWER(2, -30) as total_capacity_memory_gigabyte_hours,
+        ab.provider_id as source_uuid
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily AS li
+    LEFT JOIN cte_filtered_pod_labels AS fpl
+        ON li.id = fpl.id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod as ab
+        ON li.cluster_id = ab.cluster_id
+    WHERE usage_start >= {{start_date}}
+        AND usage_start <= {{end_date}}
+        AND li.cluster_id = {{cluster_id}}
+    GROUP BY report_period_id,
+        li.cluster_id,
+        li.cluster_alias,
+        li.usage_start,
+        li.usage_end,
+        li.namespace,
+        li.node,
+        fpl.pod_labels,
+        ab.provider_id
 )
 ;
 
--- Clear out old entries first
-DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
-WHERE usage_start >= {{start_date}}
-    AND usage_start <= {{end_date}}
-    AND cluster_id = {{cluster_id}}
-    AND data_source = 'Pod'
-;
+
+-- This procedure will scan the temp table for distinct start-of-month usage_start dates
+-- and create any missing table partitions
+CALL public.create_date_partitions(
+        'reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe}}',
+        'usage_start',
+        '{{schema | sqlsafe}}',
+        'reporting_ocpusagelineitem_daily_summary',
+        'range',
+        'usage_start'
+    );
+
 
 -- Populate the daily aggregate line item data
+-- THIS IS A PARTITONED TABLE
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
-    id,
     report_period_id,
     cluster_id,
     cluster_alias,
@@ -132,8 +109,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     total_capacity_memory_gigabyte_hours,
     source_uuid
 )
-    SELECT id,
-        report_period_id,
+    SELECT report_period_id,
         cluster_id,
         cluster_alias,
         'Pod',

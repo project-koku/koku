@@ -1368,7 +1368,7 @@ rename to {'__' + v_spec.view_name} ;
         if v_spec.indexes:
             for ixname in v_spec.indexes.keys():
                 sql = f"""
-alter index {v_spec.schemaname}.{ixname} rename to {'__' + ixname}
+alter index {v_spec.schemaname}.{ixname} rename to {'__' + ixname} ;
 """
                 execute(conn, sql)
 

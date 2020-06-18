@@ -35,6 +35,9 @@ partition_targets:
       copy_column_map: {}
   public: {}
 stored_procedures:
+  "*":
+    depends_on_schema: public
+    code: []
   public:
     code:
       - |-
@@ -68,7 +71,7 @@ stored_procedures:
                          '                      AND partition_of_table_name = ' || quote_literal(partitioned_table) ||
                          '                      AND partition_type = ''range'' ' ||
                          '                      AND ddk.date_key = (partition_parameters->>''from'') ) ;';
-            FOR rec IN EXECUTE stmt
+            FOR rec IN EXECUTE check_stmt
             LOOP
                 -- Create the new partition
                 partition_name = partitioned_table || '_' || to_char(rec.date_key, 'YYYY_MM');
