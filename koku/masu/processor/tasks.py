@@ -538,19 +538,16 @@ def convert_to_parquet(request_id, account, provider_uuid, start_date, manifest_
         context = {"account": account, "provider_uuid": provider_uuid}
 
     if not request_id or not account or not provider_uuid:
-        messages = []
         if not request_id:
             message = "missing required argument: request_id"
             LOG.error(message)
-            messages.append(message)
         if not account:
             message = "missing required argument: account"
             LOG.error(message)
-            messages.append(message)
         if not provider_uuid:
             message = "missing required argument: provider_uuid"
             LOG.error(message)
-            messages.append(message)
+        return
 
     if not settings.ENABLE_S3_ARCHIVING:
         msg = "Skipping convert_to_parquet. S3 archiving feature is disabled."
