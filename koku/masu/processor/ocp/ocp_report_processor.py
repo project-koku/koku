@@ -314,6 +314,12 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
                     self._create_usage_report_line_item(row, report_period_id, report_id, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:
+                        LOG.info(
+                            "Saving report rows %d to %d for %s",
+                            row_count,
+                            row_count + len(self.processed_report.line_items),
+                            self._report_name,
+                        )
                         self._save_to_db(temp_table, report_db)
                         report_db.merge_temp_table(
                             self.table_name._meta.db_table,
@@ -321,29 +327,22 @@ class OCPReportProcessorBase(ReportProcessorBase):
                             self.line_item_columns,
                             self.line_item_conflict_columns,
                         )
-                        LOG.info(
-                            "Saving report rows %d to %d for %s",
-                            row_count,
-                            row_count + len(self.processed_report.line_items),
-                            self._report_name,
-                        )
                         row_count += len(self.processed_report.line_items)
-
                         self._update_mappings()
 
                 if self.processed_report.line_items:
+                    LOG.info(
+                        "Saving report rows %d to %d for %s",
+                        row_count,
+                        row_count + len(self.processed_report.line_items),
+                        self._report_name,
+                    )
                     self._save_to_db(temp_table, report_db)
                     report_db.merge_temp_table(
                         self.table_name._meta.db_table,
                         temp_table,
                         self.line_item_columns,
                         self.line_item_conflict_columns,
-                    )
-                    LOG.info(
-                        "Saving report rows %d to %d for %s",
-                        row_count,
-                        row_count + len(self.processed_report.line_items),
-                        self._report_name,
                     )
 
                     row_count += len(self.processed_report.line_items)
