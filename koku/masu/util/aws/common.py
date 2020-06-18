@@ -368,14 +368,20 @@ def convert_csv_to_parquet(
     """
     Convert CSV files to parquet on S3.
     """
-    s3_resource = get_s3_resource()
-    csv_file = f"{s3_csv_path}/{csv_filename}"
+    if s3_csv_path is None or s3_parquet_path is None or local_path is None:
+        msg = (
+            f"Invalid paths provided to convert_csv_to_parquet."
+            f"CSV path={s3_csv_path}, Parquet path={s3_parquet_path}, and local_path={local_path}."
+        )
+        LOG.error(log_json(request_id, msg, context))
+        return False
 
     msg = f"Running convert_csv_to_parquet on file {csv_filename} in S3 path {s3_csv_path}."
     LOG.info(log_json(request_id, msg, context))
 
     kwargs = {}
     parquet_file = None
+    csv_file = f"{s3_csv_path}/{csv_filename}"
     if csv_filename.lower().endswith(CSV_EXT):
         ext = -1 * len(CSV_EXT)
         parquet_file = f"{csv_filename[:ext]}.parquet"
@@ -391,6 +397,7 @@ def convert_csv_to_parquet(
     Path(local_path).mkdir(parents=True, exist_ok=True)
     tmpfile = f"{local_path}/{csv_filename}"
     try:
+        s3_resource = get_s3_resource()
         csv_obj = s3_resource.Object(bucket_name=settings.S3_BUCKET_NAME, key=csv_file)
         csv_obj.download_file(tmpfile)
     except Exception as err:

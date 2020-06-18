@@ -362,6 +362,73 @@ class TestAWSUtils(MasuTestCase):
                 upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
                 self.assertEqual(upload, None)
 
+    def test_convert_csv_to_parquet(self):
+        """Test convert_csv_to_parquet."""
+        result = utils.convert_csv_to_parquet(
+            "request_id", None, "s3_parquet_path", "local_path", "manifest_id", "csv_filename"
+        )
+        self.assertFalse(result)
+
+        result = utils.convert_csv_to_parquet(
+            "request_id", "s3_csv_path", "s3_parquet_path", "local_path", "manifest_id", "csv_filename"
+        )
+        self.assertFalse(result)
+
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+                with patch("masu.util.aws.common.Path"):
+                    mock_s3.side_effect = ClientError({}, "Error")
+                    result = utils.convert_csv_to_parquet(
+                        "request_id", "s3_csv_path", "s3_parquet_path", "local_path", "manifest_id", "csv_filename.csv"
+                    )
+                    self.assertFalse(result)
+
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource"):
+                with patch("masu.util.aws.common.Path"):
+                    result = utils.convert_csv_to_parquet(
+                        "request_id",
+                        "s3_csv_path",
+                        "s3_parquet_path",
+                        "local_path",
+                        "manifest_id",
+                        "csv_filename.csv.gz",
+                    )
+                    self.assertFalse(result)
+
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource"):
+                with patch("masu.util.aws.common.Path"):
+                    with patch("masu.util.aws.common.pd"):
+                        with patch("masu.util.aws.common.open") as mock_open:
+                            mock_open.side_effect = ValueError()
+                            result = utils.convert_csv_to_parquet(
+                                "request_id",
+                                "s3_csv_path",
+                                "s3_parquet_path",
+                                "local_path",
+                                "manifest_id",
+                                "csv_filename.csv.gz",
+                            )
+                            self.assertFalse(result)
+
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource"):
+                with patch("masu.util.aws.common.Path"):
+                    with patch("masu.util.aws.common.pd"):
+                        with patch("masu.util.aws.common.open"):
+                            with patch("masu.util.aws.common.BytesIO"):
+                                with patch("masu.util.aws.common.copy_data_to_s3_bucket"):
+                                    result = utils.convert_csv_to_parquet(
+                                        "request_id",
+                                        "s3_csv_path",
+                                        "s3_parquet_path",
+                                        "local_path",
+                                        "manifest_id",
+                                        "csv_filename.csv.gz",
+                                    )
+                                    self.assertTrue(result)
+
 
 class AwsArnTest(TestCase):
     """AwnArn class test case."""
