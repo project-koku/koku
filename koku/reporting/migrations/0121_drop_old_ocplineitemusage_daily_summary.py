@@ -4,7 +4,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0119_matview_ocplineitemusage_daily_summary")]
+    dependencies = [("reporting", "0120_matview_ocplineitemusage_daily_summary")]
 
     operations = [
         migrations.RunSQL(

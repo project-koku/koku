@@ -4,7 +4,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0115_partitioned_ocplineitemusage_daily_summary")]
+    dependencies = [("reporting", "0116_partitioned_ocplineitemusage_daily_summary")]
 
     operations = [
         migrations.RunSQL(

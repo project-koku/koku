@@ -4,7 +4,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0021_db_functions"), ("reporting", "0114_adding_source_uuid")]
+    dependencies = [("api", "0021_db_functions"), ("reporting", "0115_populate_source_uuid")]
 
     operations = [
         migrations.RunSQL(
