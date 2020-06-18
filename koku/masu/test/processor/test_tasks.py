@@ -41,6 +41,7 @@ from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.provider_status_accessor import ProviderStatusCode
@@ -1004,3 +1005,22 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         vh = next(iter(koku_celery.app.conf.beat_schedule["vacuum-schemas"]["schedule"].hour))
         avh = next(iter(koku_celery.app.conf.beat_schedule["autovacuum-tune-schemas"]["schedule"].hour))
         self.assertTrue(avh == (23 if vh == 0 else (vh - 1)))
+
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    def test_no_cost_model_during_cost_model_update(self, mock_updater):
+        """Test cost model update not called if no cost model is present."""
+
+        provider_ocp_uuid = self.ocp_test_provider_uuid
+        with CostModelDBAccessor(self.schema, provider_ocp_uuid) as cost_model_accessor:
+            test_cost_model = cost_model_accessor.cost_model
+        self.assertIsNone(test_cost_model)
+
+        start_date = DateHelper().last_month_start
+        end_date = DateHelper().last_month_end
+
+        update_cost_model_costs(
+            schema_name=self.schema, provider_uuid=provider_ocp_uuid, start_date=start_date, end_date=end_date
+        )
+
+        self.assertFalse(mock_updater.called)
+        self.assertEqual(mock_updater.call_count, 0)
