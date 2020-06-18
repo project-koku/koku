@@ -81,9 +81,8 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsa
 CALL public.create_date_partitions(
         'reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsafe}}',
         'usage_start',
-            '{{schema | sqlsafe}}',
+        '{{schema | sqlsafe}}',
         'reporting_ocpusagelineitem_daily_summary',
-        'range',
         'usage_start'
     );
 

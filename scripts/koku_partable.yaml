@@ -41,13 +41,12 @@ stored_procedures:
   public:
     code:
       - |-
-        DROP PROCEDURE IF EXISTS {schema_name}.create_date_partitions(text, text, text, text, text, text, boolean);
+        DROP PROCEDURE IF EXISTS {schema_name}.create_date_partitions(text, text, text, text, text, boolean);
         CREATE OR REPLACE PROCEDURE {schema_name}.create_date_partitions(
             check_table text,
             check_col text,
             schema text,
             partitioned_table text,
-            partition_type text,
             partition_key text,
             _commit boolean DEFAULT false
         ) AS $$
@@ -105,7 +104,7 @@ stored_procedures:
                 EXECUTE action_stmt;
                 END LOOP;
 
-            IF _commit
+            IF (_commit = true) AND (action_stmt != '')
             THEN
                 COMMIT;
             END IF;

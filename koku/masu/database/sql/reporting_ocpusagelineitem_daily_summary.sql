@@ -75,7 +75,6 @@ CALL public.create_date_partitions(
         'usage_start',
         '{{schema | sqlsafe}}',
         'reporting_ocpusagelineitem_daily_summary',
-        'range',
         'usage_start'
     );
 

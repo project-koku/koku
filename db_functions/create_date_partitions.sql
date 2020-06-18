@@ -1,12 +1,34 @@
+/*
+Copyright 2020 Red Hat, Inc.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 -- Procedure to create table partitions.
 -- Depends on the partitioned_tables table being defined in each schema
-DROP PROCEDURE IF EXISTS public.create_date_partitions(text, text, text, text, text, text, boolean);
+-- Args:
+--   check_table (text)      : Name of the table to check for partition start bounds
+--   check_col (text)        : Name of the column that holds the date values to check
+--   schema (text)           : Schema of the partitioned table
+--   parttioned_table (text) : Name of the partitioned table within the schema
+--   partition_key (text)    : Partition key (column) name
+--   _commit (boolean)       : Execute a commit after action. (default is false)
+DROP PROCEDURE IF EXISTS public.create_date_partitions(text, text, text, text, text, boolean);
 CREATE OR REPLACE PROCEDURE public.create_date_partitions(
     check_table text,
     check_col text,
     schema text,
     partitioned_table text,
-    partition_type text,
     partition_key text,
     _commit boolean DEFAULT false
 ) AS $$
@@ -64,7 +86,7 @@ BEGIN
         EXECUTE action_stmt;
         END LOOP;
 
-    IF _commit
+    IF (_commit = true) AND (action_stmt != '')
     THEN
         COMMIT;
     END IF;

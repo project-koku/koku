@@ -20,7 +20,6 @@ CALL public.create_date_partitions(
     'usage_start',
     current_schema,
     'reporting_ocpusagelineitem_daily_summary',
-    'range',
     'usage_start'
 );
             """
