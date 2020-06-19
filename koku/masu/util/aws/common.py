@@ -326,10 +326,36 @@ def copy_local_report_file_to_s3_bucket(
     """
     Copies local report file to s3 bucket
     """
-    if s3_path:
+    if s3_path and settings.ENABLE_S3_ARCHIVING:
         with open(full_file_path, "rb") as fin:
             data = BytesIO(fin.read())
             copy_data_to_s3_bucket(request_id, s3_path, local_filename, data, manifest_id, context)
+
+
+def get_file_keys_from_s3_with_manifest_id(request_id, s3_path, manifest_id, context={}):
+    """
+    Get all files in a given prefix that match the given manifest_id.
+    """
+    if not settings.ENABLE_S3_ARCHIVING:
+        return []
+
+    keys = []
+    if s3_path:
+        try:
+            s3_resource = get_s3_resource()
+            existing_objects = s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
+            for obj_summary in existing_objects:
+                existing_object = obj_summary.Object()
+                metadata = existing_object.metadata
+                manifest = metadata.get("manifestid")
+                manifest_id_str = str(manifest_id)
+                key = existing_object.key
+                if manifest == manifest_id_str:
+                    keys.append(key)
+        except ClientError as err:
+            msg = f"Unable to find data in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
+            LOG.info(log_json(request_id, msg, context))
+    return keys
 
 
 def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, context={}):
@@ -337,7 +363,7 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
     Removes all files in a given prefix if they are not within the given set.
     """
     if not settings.ENABLE_S3_ARCHIVING:
-        return None
+        return []
 
     removed = []
     if s3_path:

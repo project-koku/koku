@@ -325,7 +325,7 @@ class TestAWSUtils(MasuTestCase):
     def test_remove_files_not_in_set_from_s3_bucket(self):
         """Test remove_files_not_in_set_from_s3_bucket."""
         removed = utils.remove_files_not_in_set_from_s3_bucket("request_id", None, "manifest_id")
-        self.assertEqual(removed, None)
+        self.assertEqual(removed, [])
 
         date_accessor = DateAccessor()
         start_date = date_accessor.today_with_timezone("utc").replace(day=1)
@@ -361,6 +361,22 @@ class TestAWSUtils(MasuTestCase):
                 mock_s3.side_effect = ClientError({}, "Error")
                 upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
                 self.assertEqual(upload, None)
+
+    def test_get_file_keys_from_s3_with_manifest_id(self):
+        """Test get_file_keys_from_s3_with_manifest_id."""
+        files = utils.get_file_keys_from_s3_with_manifest_id("request_id", "s3_path", "manifest_id")
+        self.assertEqual(files, [])
+
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+                files = utils.get_file_keys_from_s3_with_manifest_id("request_id", None, "manifest_id")
+                self.assertEqual(files, [])
+
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+                mock_s3.side_effect = ClientError({}, "Error")
+                files = utils.get_file_keys_from_s3_with_manifest_id("request_id", "s3_path", "manifest_id")
+                self.assertEqual(files, [])
 
     def test_convert_csv_to_parquet(self):
         """Test convert_csv_to_parquet."""

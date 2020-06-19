@@ -42,6 +42,7 @@ from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
+from masu.external.downloader.ocp.ocp_report_downloader import REPORT_TYPES
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
@@ -51,6 +52,7 @@ from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.worker_cache import WorkerCache
 from masu.util.aws.common import convert_csv_to_parquet
+from masu.util.aws.common import get_file_keys_from_s3_with_manifest_id
 from masu.util.aws.common import get_path_prefix
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from reporting.models import AWS_MATERIALIZED_VIEWS
@@ -103,7 +105,6 @@ def get_report_files(
         stmt += " file: " + str(report["file"]) + "\n"
     LOG.info(stmt[:-1])
     reports_to_summarize = []
-    processed_files = {}
     start_date = None
 
     for report_dict in reports:
@@ -141,12 +142,6 @@ def get_report_files(
                 worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
                 _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
                 known_manifest_ids = [report.get("manifest_id") for report in reports_to_summarize]
-                proc_file_path = report_dict.get("file")
-                manifest_id_str = str(manifest_id)
-                if processed_files.get(manifest_id_str) is None:
-                    processed_files[manifest_id_str] = []
-                if proc_file_path:
-                    processed_files[manifest_id_str].append(os.path.basename(proc_file_path))
                 if report_dict.get("manifest_id") not in known_manifest_ids:
                     report_meta = {
                         "schema_name": schema_name,
@@ -164,10 +159,9 @@ def get_report_files(
     WorkerCache().remove_task_from_cache(cache_key)
     if start_date:
         start_date_str = start_date.strftime("%Y-%m-%d")
-        for manifest_id, files in processed_files.items():
-            convert_to_parquet.delay(
-                self.request.id, schema_name[4:], provider_uuid, start_date_str, manifest_id, files
-            )
+        convert_to_parquet.delay(
+            self.request.id, schema_name[4:], provider_uuid, provider_type, start_date_str, manifest_id
+        )
 
     return reports_to_summarize
 
@@ -513,7 +507,7 @@ SELECT s.relname as "table_name",
     max_retries=10,
     retry_backoff=10,
 )
-def convert_to_parquet(request_id, account, provider_uuid, start_date, manifest_id, files, context={}):
+def convert_to_parquet(request_id, account, provider_uuid, provider_type, start_date, manifest_id, context={}):
     """
     Convert archived CSV data from our S3 bucket for a given provider to Parquet.
 
@@ -530,7 +524,6 @@ def convert_to_parquet(request_id, account, provider_uuid, start_date, manifest_
         provider_uuid (UUID): The provider UUID
         start_date (str): The report start time (YYYY-mm-dd)
         manifest_id (str): The identifier for the report manifest
-        files [str]: List of file names downloaded from the report
         context (dict): A context object for logging
 
     """
@@ -547,15 +540,13 @@ def convert_to_parquet(request_id, account, provider_uuid, start_date, manifest_
         if not provider_uuid:
             message = "missing required argument: provider_uuid"
             LOG.error(message)
+        if not provider_type:
+            message = "missing required argument: provider_type"
+            LOG.error(message)
         return
 
     if not settings.ENABLE_S3_ARCHIVING:
         msg = "Skipping convert_to_parquet. S3 archiving feature is disabled."
-        LOG.info(log_json(request_id, msg, context))
-        return
-
-    if not files:
-        msg = "S3 archiving feature is enabled, but no files to process."
         LOG.info(log_json(request_id, msg, context))
         return
 
@@ -574,12 +565,27 @@ def convert_to_parquet(request_id, account, provider_uuid, start_date, manifest_
     s3_csv_path = get_path_prefix(account, provider_uuid, cost_date, Config.CSV_DATA_TYPE)
     local_path = f"{Config.TMP_DIR}/{account}/{provider_uuid}"
     s3_parquet_path = get_path_prefix(account, provider_uuid, cost_date, Config.PARQUET_DATA_TYPE)
-    remove_files_not_in_set_from_s3_bucket(request_id, s3_parquet_path, manifest_id)
+
+    file_keys = get_file_keys_from_s3_with_manifest_id(request_id, s3_csv_path, manifest_id, context)
+    files = [os.path.basename(file_key) for file_key in file_keys]
+    if not files:
+        msg = "S3 archiving feature is enabled, but no files to process."
+        LOG.info(log_json(request_id, msg, context))
+        return
+
+    if provider_type == Provider.PROVIDER_AWS or provider_type == Provider.PROVIDER_AWS_LOCAL:
+        remove_files_not_in_set_from_s3_bucket(request_id, s3_parquet_path, manifest_id, context)
 
     failed_conversion = []
     for csv_filename in files:
+        parquet_path = s3_parquet_path
+        if provider_type == Provider.PROVIDER_OCP:
+            for report_type in REPORT_TYPES.keys():
+                if report_type in csv_filename:
+                    parquet_path = f"{s3_parquet_path}/{report_type}"
+                    break
         result = convert_csv_to_parquet(
-            request_id, s3_csv_path, s3_parquet_path, local_path, manifest_id, csv_filename, context
+            request_id, s3_csv_path, parquet_path, local_path, manifest_id, csv_filename, context
         )
         if not result:
             failed_conversion.append(csv_filename)

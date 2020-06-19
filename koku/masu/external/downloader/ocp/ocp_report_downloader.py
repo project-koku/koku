@@ -21,6 +21,9 @@ import logging
 import os
 import shutil
 
+import pandas as pd
+from django.conf import settings
+
 from api.common import log_json
 from masu.config import Config
 from masu.external import UNCOMPRESSED
@@ -32,7 +35,11 @@ from masu.util.ocp import common as utils
 
 DATA_DIR = Config.TMP_DIR
 REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
-
+REPORT_TYPES = {
+    "storage_usage": "persistentvolumeclaim_labels",
+    "pod_usage": "pod_labels",
+    "node_labels": "node_labels",
+}
 LOG = logging.getLogger(__name__)
 
 
@@ -113,6 +120,41 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         return reports
 
+    def detect_type(self, data_frame):
+        """
+        Detects the OCP report type.
+        """
+        for report_type, column_name in REPORT_TYPES.items():
+            if column_name in data_frame.columns:
+                return report_type
+        return None
+
+    def divide_csv_daily(self, file_path, filename, start_date, manifest_id):
+        """
+        Split local file into daily content.
+        """
+        daily_files = []
+        directory = os.path.dirname(file_path)
+
+        data_frame = pd.read_csv(file_path)
+        report_type = self.detect_type(data_frame)
+        unique_times = data_frame.interval_start.unique()
+        days = list({cur_dt[:10] for cur_dt in unique_times})
+        daily_data_frames = [
+            {"data_frame": data_frame[data_frame.interval_start.str.contains(cur_day)], "date": cur_day}
+            for cur_day in days
+        ]
+
+        for daily_data in daily_data_frames:
+            day = daily_data.get("date")
+            df = daily_data.get("data_frame")
+            day_file = f"{report_type}.{day}.csv"
+            day_filepath = f"{directory}{day_file}"
+            df.to_csv(day_filepath, index=False, header=True)
+            daily_files.append({"filename": day_file, "filepath": day_filepath})
+
+        return daily_files
+
     def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
         Download an OCP usage file.
@@ -140,11 +182,21 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             LOG.info(log_json(self.request_id, msg, self.context))
             shutil.move(key, full_file_path)
 
-        # Push to S3
-        s3_csv_path = get_path_prefix(self.account, self._provider_uuid, start_date, Config.CSV_DATA_TYPE)
-        copy_local_report_file_to_s3_bucket(
-            self.request_id, s3_csv_path, full_file_path, local_filename, manifest_id, start_date, self.context
-        )
+        if settings.ENABLE_S3_ARCHIVING:
+            daily_files = self.divide_csv_daily(full_file_path, local_filename, manifest_id, start_date)
+            for daily_file in daily_files:
+                # Push to S3
+                s3_csv_path = get_path_prefix(self.account, self._provider_uuid, start_date, Config.CSV_DATA_TYPE)
+                copy_local_report_file_to_s3_bucket(
+                    self.request_id,
+                    s3_csv_path,
+                    daily_file.get("filepath"),
+                    daily_file.get("filename"),
+                    manifest_id,
+                    start_date,
+                    self.context,
+                )
+                os.remove(daily_file.get("filepath"))
 
         return full_file_path, ocp_etag
 

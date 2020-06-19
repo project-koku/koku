@@ -201,6 +201,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             utils.copy_local_report_file_to_s3_bucket(
                 self.request_id, s3_csv_path, full_file_path, local_s3_filename, manifest_id, start_date, self.context
             )
+            utils.remove_files_not_in_set_from_s3_bucket(self.request_id, s3_csv_path, manifest_id)
         return full_file_path, s3_etag
 
     def get_report_context_for_date(self, date_time):

@@ -570,7 +570,6 @@ def process_report(request_id, report):
     provider_uuid = report.get("provider_uuid")
     provider_type = report.get("provider_type")
     start_date = report.get("date")
-    files = report.get("files")
 
     report_dict = {
         "file": report.get("current_file"),
@@ -581,8 +580,7 @@ def process_report(request_id, report):
     result = _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
     if start_date:
         start_date_str = start_date.strftime("%Y-%m-%d")
-        file_names = [os.path.basename(report_file) for report_file in files]
-        convert_to_parquet.delay(request_id, account, provider_uuid, start_date_str, manifest_id, file_names)
+        convert_to_parquet.delay(request_id, account, provider_uuid, provider_type, start_date_str, manifest_id)
     return result
 
 
