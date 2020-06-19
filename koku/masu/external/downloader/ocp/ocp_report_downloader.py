@@ -129,7 +129,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 return report_type
         return None
 
-    def divide_csv_daily(self, file_path, filename, start_date, manifest_id):
+    def divide_csv_daily(self, file_path, filename):
         """
         Split local file into daily content.
         """
@@ -149,7 +149,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             day = daily_data.get("date")
             df = daily_data.get("data_frame")
             day_file = f"{report_type}.{day}.csv"
-            day_filepath = f"{directory}{day_file}"
+            day_filepath = f"{directory}/{day_file}"
             df.to_csv(day_filepath, index=False, header=True)
             daily_files.append({"filename": day_file, "filepath": day_filepath})
 
@@ -183,7 +183,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             shutil.move(key, full_file_path)
 
         if settings.ENABLE_S3_ARCHIVING:
-            daily_files = self.divide_csv_daily(full_file_path, local_filename, manifest_id, start_date)
+            daily_files = self.divide_csv_daily(full_file_path, local_filename)
             for daily_file in daily_files:
                 # Push to S3
                 s3_csv_path = get_path_prefix(self.account, self._provider_uuid, start_date, Config.CSV_DATA_TYPE)
