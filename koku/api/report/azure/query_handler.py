@@ -109,7 +109,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
         report_type = self.parameters.report_type
         report_group = "default"
 
-        filter_keys = self.__get_query_table_filter_keys()
+        filter_keys = self._get_query_table_filter_keys()
         group_by_keys = self._get_query_table_group_by_keys()
 
         # If grouping by more than 1 field, we default to the daily summary table
