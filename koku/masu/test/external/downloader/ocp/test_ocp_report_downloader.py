@@ -193,4 +193,5 @@ class OCPReportDownloaderTest(MasuTestCase):
                 self.assertEqual(len(daily_files), 2)
                 gen_files = ["storage_usage.2020-01-01.csv", "storage_usage.2020-01-02.csv"]
                 expected = [{"filename": gen_file, "filepath": f"{td}/{gen_file}"} for gen_file in gen_files]
-                self.assertEqual(expected, daily_files)
+                for expected_item in expected:
+                    self.assertIn(expected_item, daily_files)
