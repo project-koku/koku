@@ -715,7 +715,7 @@ def listen_for_messages(msg, consumer):
         offset = msg.offset()
         partition = msg.partition()
         LOG.info(f"Processing message offset: {offset} partition: {partition}")
-        process_messages(msg)
+        # process_messages(msg)
         LOG.warning(f"COMMITTING: message offset: {offset} partition: {partition}")
         consumer.store_offsets(msg)
         consumer.commit()
