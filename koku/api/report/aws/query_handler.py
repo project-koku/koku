@@ -117,6 +117,32 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 annotations[q_param] = Concat(db_field, Value(""))
         return annotations
 
+    def _get_query_table_group_by_keys(self):
+        """Return the group by keys specific for selecting the query table."""
+        group_by_keys = list(self.parameters.get("group_by", {}).keys())
+
+        # Account and org unit are in all views, so don't factor into the
+        # choice of view
+        if len(group_by_keys) == 2 and "account" in group_by_keys:
+            group_by_keys.remove("account")
+        elif len(group_by_keys) == 2 and "org_unit_id" in group_by_keys:
+            group_by_keys.remove("org_unit_id")
+        return group_by_keys
+
+    def _get_query_table_filter_keys(self):
+        """Return the filter keys specific for selecting the query table."""
+        excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
+        filter_keys = set(self.parameters.get("filter", {}).keys())
+        filter_keys = filter_keys.difference(excluded_filters)
+
+        # Account and org unit are in all views, so don't factor into the
+        # choice of view
+        if len(filter_keys) == 2 and "account" in filter_keys:
+            filter_keys.remove("account")
+        elif len(filter_keys) == 2 and "org_unit_id" in filter_keys:
+            filter_keys.remove("org_unit_id")
+        return filter_keys
+
     @property
     def query_table(self):
         """Return the database table to query against."""
@@ -124,10 +150,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
         report_type = self.parameters.report_type
         report_group = "default"
 
-        excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
-        filter_keys = set(self.parameters.get("filter", {}).keys())
-        filter_keys = filter_keys.difference(excluded_filters)
-        group_by_keys = list(self.parameters.get("group_by", {}).keys())
+        filter_keys = self.__get_query_table_filter_keys()
+        group_by_keys = self._get_query_table_group_by_keys()
 
         # If grouping by more than 1 field, we default to the daily summary table
         if len(group_by_keys) > 1:
@@ -199,6 +223,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         obtain the account results, and each sub_org results.
         Else it will return the original query.
         """
+        LOG.info(f"\t\tOur query table: {self.query_table}")
         original_filters = copy.deepcopy(self.parameters.parameters.get("filter"))
         sub_orgs_dict = {}
         query_data_results = {}
