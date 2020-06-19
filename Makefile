@@ -166,7 +166,7 @@ help:
 ### General Commands ###
 
 clean:
-	git clean -fdx -e .idea/ -e *env/
+	git clean -fdx -e .idea/ -e *env/ -e .env
 
 html:
 	@cd docs; $(MAKE) html
