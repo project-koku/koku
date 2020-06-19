@@ -65,6 +65,8 @@ from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.test.external.downloader.aws import fake_arn
 from reporting.models import AWS_MATERIALIZED_VIEWS
+from reporting.models import AZURE_MATERIALIZED_VIEWS
+from reporting.models import OCP_MATERIALIZED_VIEWS
 
 
 class FakeDownloader(Mock):
@@ -820,7 +822,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         mock_update.delay.assert_called_with(ANY, ANY, ANY, str(start_date), ANY)
 
-    def test_refresh_materialized_views(self):
+    def test_refresh_materialized_views_aws(self):
         """Test that materialized views are refreshed."""
         manifest_dict = {
             "assembly_id": "12345",
@@ -837,6 +839,58 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
 
         views_to_check = [view for view in AWS_MATERIALIZED_VIEWS if "Cost" in view._meta.db_table]
+
+        with schema_context(self.schema):
+            for view in views_to_check:
+                self.assertNotEqual(view.objects.count(), 0)
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(manifest.id)
+            self.assertIsNotNone(manifest.manifest_completed_datetime)
+
+    def test_refresh_materialized_views_azure(self):
+        """Test that materialized views are refreshed."""
+        manifest_dict = {
+            "assembly_id": "12345",
+            "billing_period_start_datetime": DateHelper().today,
+            "num_total_files": 2,
+            "provider_uuid": self.aws_provider_uuid,
+            "task": "170653c0-3e66-4b7e-a764-336496d7ca5a",
+        }
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.add(**manifest_dict)
+            manifest.save()
+
+        refresh_materialized_views(self.schema, Provider.PROVIDER_AZURE, manifest_id=manifest.id)
+
+        views_to_check = [view for view in AZURE_MATERIALIZED_VIEWS if "Cost" in view._meta.db_table]
+
+        with schema_context(self.schema):
+            for view in views_to_check:
+                self.assertNotEqual(view.objects.count(), 0)
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(manifest.id)
+            self.assertIsNotNone(manifest.manifest_completed_datetime)
+
+    def test_refresh_materialized_views_ocp(self):
+        """Test that materialized views are refreshed."""
+        manifest_dict = {
+            "assembly_id": "12345",
+            "billing_period_start_datetime": DateHelper().today,
+            "num_total_files": 2,
+            "provider_uuid": self.aws_provider_uuid,
+            "task": "170653c0-3e66-4b7e-a764-336496d7ca5a",
+        }
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.add(**manifest_dict)
+            manifest.save()
+
+        refresh_materialized_views(self.schema, Provider.PROVIDER_OCP, manifest_id=manifest.id)
+
+        views_to_check = [view for view in OCP_MATERIALIZED_VIEWS if "Cost" in view._meta.db_table]
 
         with schema_context(self.schema):
             for view in views_to_check:
