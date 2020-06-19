@@ -456,12 +456,12 @@ def handle_message(msg):
             return SUCCESS_CONFIRM_STATUS, report_metas
         except (OperationalError, InterfaceError) as error:
             connection.close()
-            msg = "Unable to extract payload, database is closed.  Retrying..."
+            msg = f"Unable to extract payload, db closed. {type(error).__name__}: {error}"
             LOG.error(log_json(request_id, msg, context))
-            raise KafkaMsgHandlerError(f"Unable to extract payload, db closed. {type(error).__name__}: {error}")
+            raise KafkaMsgHandlerError(msg)
         except Exception as error:  # noqa
             traceback.print_exc()
-            msg = f"Unable to extract payload. Error: {str(type(error))}"
+            msg = f"Unable to extract payload. Error: {type(error).__name__}: {error}"
             LOG.warning(log_json(request_id, msg, context))
             return FAILURE_CONFIRM_STATUS, None
     else:
@@ -626,7 +626,7 @@ def process_messages(msg):
         process_complete = report_metas_complete(report_metas)
         summary_task_id = summarize_manifest(report_meta)
         if summary_task_id:
-            LOG.info(f"Summarization celery uuid: {str(summary_task_id)}")
+            LOG.info(f"Summarization celery uuid: {summary_task_id}")
     if status:
         value = json.loads(msg.value().decode("utf-8"))
         count = 0
@@ -637,7 +637,7 @@ def process_messages(msg):
                     files_string = ",".join(map(str, file_list))
                     LOG.info(f"Sending Ingress Service confirmation for: {files_string}")
                 else:
-                    LOG.info(f"Sending Ingress Service confirmation for: {str(value)}")
+                    LOG.info(f"Sending Ingress Service confirmation for: {value}")
                 send_confirmation(value["request_id"], status)
                 break
             except KafkaError as err:
@@ -675,7 +675,7 @@ def listen_for_messages_loop():
         if msg.error():
             if msg.error().code() == KafkaError._PARTITION_EOF:
                 # End of partition event
-                LOG.warning(f"{msg.topic()} {msg.partition()} [{msg.offset()}] reached end at offset %d\n")
+                LOG.warning(f"{msg.topic()} {msg.partition()} [{msg.offset()}] reached end at offset {msg.offset()}")
             elif msg.error():
                 raise KafkaException(msg.error())
 
