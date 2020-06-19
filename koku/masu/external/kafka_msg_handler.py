@@ -33,6 +33,7 @@ from confluent_kafka import Consumer
 from confluent_kafka import KafkaError
 from confluent_kafka import KafkaException
 from confluent_kafka import Producer
+from django.conf import settings
 from django.db import connection
 from django.db import InterfaceError
 from django.db import OperationalError
@@ -655,9 +656,11 @@ def get_consumer():  # pragma: no cover
         {
             "bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS,
             "group.id": "hccm-group",
+            "group.instance.id": f"{settings.HOSTNAME}",
             "queued.max.messages.kbytes": 1024,
             "enable.auto.commit": False,
             "enable.auto.offset.store": False,
+            "max.poll.interval.ms": 600000,
         }
     )
     consumer.subscribe([HCCM_TOPIC])
@@ -715,7 +718,7 @@ def listen_for_messages(msg, consumer):
         offset = msg.offset()
         partition = msg.partition()
         LOG.info(f"Processing message offset: {offset} partition: {partition}")
-        # process_messages(msg)
+        process_messages(msg)
         LOG.warning(f"COMMITTING: message offset: {offset} partition: {partition}")
         consumer.store_offsets(msg)
         consumer.commit()
