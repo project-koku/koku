@@ -4,7 +4,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0114_adding_source_uuid")]
+    dependencies = [("reporting", "0116_ocpall_unique_index")]
 
     operations = [
         migrations.RunSQL(
