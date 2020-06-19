@@ -17,11 +17,9 @@
 """Test the OCPCloudReportSummaryUpdaterTest."""
 import datetime
 import decimal
-from unittest.mock import call
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from dateutil.relativedelta import relativedelta
 from django.db.models import Sum
 from model_bakery import baker
 from tenant_schemas.utils import schema_context
@@ -38,10 +36,6 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUpdater
 from masu.test import MasuTestCase
 from reporting.models import AWSCostEntryBill
-from reporting.models import OCP_ON_AWS_MATERIALIZED_VIEWS
-from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
-from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummary
-from reporting.provider.all.openshift.models import OCPAllCostLineItemProjectDailySummary
 from reporting_common.models import CostUsageReportManifest
 
 
@@ -59,13 +53,10 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         super().setUp()
         self.today = self.dh.today
 
-    @patch(
-        "masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views"  # noqa: E501
-    )
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
     @patch("masu.processor.ocp.ocp_cloud_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.update_summary_infrastructure_cost")
-    def test_update_summary_tables_with_ocp_provider(self, mock_ocp, mock_ocp_on_aws, mock_map, mock_refresh):
+    def test_update_summary_tables_with_ocp_provider(self, mock_ocp, mock_ocp_on_aws, mock_map):
         """Test that summary tables are properly run for an OCP provider."""
         start_date = self.dh.today
         end_date = start_date + datetime.timedelta(days=1)
@@ -90,18 +81,12 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         mock_ocp_on_aws.assert_called_with(
             start_date.date(), end_date.date(), cluster_id, [str(bill.id)], decimal.Decimal(0)
         )
-        mock_refresh.assert_called()
 
-    @patch(
-        "masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views"  # noqa: E501
-    )
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
     @patch("masu.processor.ocp.ocp_cloud_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.update_summary_infrastructure_cost")
     @patch("masu.processor.ocp.ocp_cloud_summary_updater.aws_get_bills_from_provider")
-    def test_update_summary_tables_with_aws_provider(
-        self, mock_utility, mock_ocp, mock_ocp_on_aws, mock_map, mock_refresh
-    ):
+    def test_update_summary_tables_with_aws_provider(self, mock_utility, mock_ocp, mock_ocp_on_aws, mock_map):
         """Test that summary tables are properly run for an OCP provider."""
         fake_bills = [Mock(), Mock()]
         fake_bills[0].id = 1
@@ -122,14 +107,10 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         mock_ocp_on_aws.assert_called_with(
             start_date.date(), end_date.date(), cluster_id, bill_ids, decimal.Decimal(0)
         )
-        mock_refresh.assert_called()
 
-    @patch(
-        "masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views"  # noqa: E501
-    )
     @patch("masu.processor.ocp.ocp_cloud_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.update_summary_infrastructure_cost")
-    def test_update_summary_tables_no_ocp_on_aws(self, mock_ocp, mock_ocp_on_aws, mock_refresh):
+    def test_update_summary_tables_no_ocp_on_aws(self, mock_ocp, mock_ocp_on_aws):
         """Test that summary tables do not run when OCP-on-AWS does not exist."""
         new_aws_provider = baker.make("Provider", type="AWS")
         new_ocp_provider = baker.make("Provider", type="OCP")
@@ -148,12 +129,8 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
 
             updater.update_summary_tables(start_date_str, end_date_str)
             mock_ocp_on_aws.assert_not_called()
-        mock_refresh.assert_not_called()
 
-    @patch(
-        "masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views"  # noqa: E501
-    )
-    def test_update_summary_tables(self, mock_refresh):
+    def test_update_summary_tables(self):
         """Test that summary tables are updated correctly."""
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
@@ -172,8 +149,6 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         with AWSReportDBAccessor(self.schema) as aws_accessor:
             query = aws_accessor._get_db_obj_query(summary_table_name)
             self.assertNotEqual(query.count(), initial_count)
-
-        mock_refresh.assert_called()
 
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.cost_model")
     def test_update_markup_cost(self, mock_cost_model):
@@ -248,11 +223,8 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         self.assertIn(str(self.ocp_on_aws_ocp_provider.uuid), infra_map)
         self.assertEqual(infra_map.get(str(self.ocp_on_aws_ocp_provider.uuid)), expected_mapping)
 
-    @patch(
-        "masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views"  # noqa: E501
-    )
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.cost_model")
-    def test_update_summary_tables_azure(self, mock_cost_model, mock_refresh):
+    def test_update_summary_tables_azure(self, mock_cost_model):
         """Test that summary tables are updated correctly."""
         markup = {"value": 10, "unit": "percent"}
         mock_cost_model.markup = markup
@@ -289,52 +261,3 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         self.assertIsNotNone(project_infra_cost)
         self.assertNotEqual(infra_cost, decimal.Decimal(0))
         self.assertNotEqual(project_infra_cost, decimal.Decimal(0))
-
-        mock_refresh.assert_called()
-
-    @patch(
-        "masu.processor.ocp.ocp_cloud_summary_updater.OCPCloudReportSummaryUpdater.refresh_openshift_on_infrastructure_views"  # noqa: E501
-    )
-    def test_refresh_openshift_on_infrastructure_views(self, mock_view_refresh):
-        """Test that the combined OpenShift views are refreshed."""
-        start_date = self.dh.today
-        end_date = start_date + datetime.timedelta(days=1)
-        start_date = start_date - relativedelta(months=1)
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
-
-        updater = OCPCloudReportSummaryUpdater(schema=self.schema, provider=self.azure_provider, manifest=None)
-        updater.update_summary_tables(start_date_str, end_date_str)
-        mock_view_refresh.assert_called_with(OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS)
-
-        mock_view_refresh.reset_mock()
-        updater = OCPCloudReportSummaryUpdater(schema=self.schema, provider=self.aws_provider, manifest=None)
-        updater.update_summary_tables(start_date_str, end_date_str)
-
-        expected_calls = [call(OCP_ON_AWS_MATERIALIZED_VIEWS), call(OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS)]
-        mock_view_refresh.assert_has_calls(expected_calls)
-
-        with AzureReportDBAccessor(self.schema) as azure_accessor:
-            summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
-            query = azure_accessor._get_db_obj_query(summary_table_name)
-            azure_count = query.count()
-            summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_project_daily_summary"]
-            query = azure_accessor._get_db_obj_query(summary_table_name)
-            azure_project_count = query.count()
-
-        with AWSReportDBAccessor(self.schema) as aws_accessor:
-            summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
-            query = aws_accessor._get_db_obj_query(summary_table_name)
-            aws_count = query.count()
-            summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"]
-            query = aws_accessor._get_db_obj_query(summary_table_name)
-            aws_project_count = query.count()
-
-        updater.refresh_openshift_on_infrastructure_views(OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS)
-
-        with schema_context(self.schema):
-            all_count = OCPAllCostLineItemDailySummary.objects.count()
-            all_project_count = OCPAllCostLineItemProjectDailySummary.objects.count()
-
-        self.assertEqual(all_count, azure_count + aws_count)
-        self.assertEqual(all_project_count, azure_project_count + aws_project_count)
