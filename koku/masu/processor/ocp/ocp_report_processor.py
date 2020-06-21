@@ -35,7 +35,6 @@ from reporting.provider.ocp.models import OCPUsageLineItem
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 
-# from datetime import datetime
 
 LOG = logging.getLogger(__name__)
 
@@ -208,8 +207,6 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
         """
         table_name = OCPUsageReport
-        # start = datetime.strptime(row.get("interval_start"), Config.OCP_DATETIME_STR_FORMAT)
-        # end = datetime.strptime(row.get("interval_end"), Config.OCP_DATETIME_STR_FORMAT)
         start = ciso8601.parse_datetime(row.get("interval_start").replace(" +0000 UTC", "+0000"))
         end = ciso8601.parse_datetime(row.get("interval_end").replace(" +0000 UTC", "+0000"))
 
@@ -241,8 +238,6 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
         """
         table_name = OCPUsageReportPeriod
-        # start = datetime.strptime(row.get("report_period_start"), Config.OCP_DATETIME_STR_FORMAT)
-        # end = datetime.strptime(row.get("report_period_end"), Config.OCP_DATETIME_STR_FORMAT)
         start = ciso8601.parse_datetime(row.get("report_period_start").replace(" +0000 UTC", "+0000"))
         end = ciso8601.parse_datetime(row.get("report_period_end").replace(" +0000 UTC", "+0000"))
 
