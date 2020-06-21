@@ -59,15 +59,16 @@ from masu.util.ocp import common as utils
 
 LOG = logging.getLogger(__name__)
 
+# import ptvsd
+# ptvsd.enable_attach(("0.0.0.0", 5678))
+# LOG.warning("Waiting for debugger attach...")
+# ptvsd.wait_for_attach()
+
 HCCM_TOPIC = "platform.upload.hccm"
 VALIDATION_TOPIC = "platform.upload.validation"
 SUCCESS_CONFIRM_STATUS = "success"
 FAILURE_CONFIRM_STATUS = "failure"
 PRODUCER = Producer({"bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS})
-
-# import ptvsd
-# ptvsd.enable_attach(address=('0.0.0.0', 5678))
-# ptvsd.wait_for_attach()
 
 
 class KafkaMsgHandlerError(Exception):

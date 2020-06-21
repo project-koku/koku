@@ -18,11 +18,11 @@
 import csv
 import json
 import logging
-from datetime import datetime
 from enum import Enum
 from os import path
 from os import remove
 
+import ciso8601
 from django.conf import settings
 
 from masu.config import Config
@@ -35,7 +35,7 @@ from reporting.provider.ocp.models import OCPUsageLineItem
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 
-# import ciso8601
+# from datetime import datetime
 
 LOG = logging.getLogger(__name__)
 
@@ -208,10 +208,10 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
         """
         table_name = OCPUsageReport
-        # start = ciso8601.parse_datetime(row.get("report_period_start").replace(" +0000 UTC", "+0000"))
-        # end = ciso8601.parse_datetime(row.get("report_period_start").replace(" +0000 UTC", "+0000"))
-        start = datetime.strptime(row.get("interval_start"), Config.OCP_DATETIME_STR_FORMAT)
-        end = datetime.strptime(row.get("interval_end"), Config.OCP_DATETIME_STR_FORMAT)
+        # start = datetime.strptime(row.get("interval_start"), Config.OCP_DATETIME_STR_FORMAT)
+        # end = datetime.strptime(row.get("interval_end"), Config.OCP_DATETIME_STR_FORMAT)
+        start = ciso8601.parse_datetime(row.get("interval_start").replace(" +0000 UTC", "+0000"))
+        end = ciso8601.parse_datetime(row.get("interval_end").replace(" +0000 UTC", "+0000"))
 
         key = (report_period_id, start)
         if key in self.processed_report.reports:
@@ -241,10 +241,10 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
         """
         table_name = OCPUsageReportPeriod
-        # start = ciso8601.parse_datetime(row.get("report_period_start").replace(" +0000 UTC", "+0000"))
-        # end = ciso8601.parse_datetime(row.get("report_period_start").replace(" +0000 UTC", "+0000"))
-        start = datetime.strptime(row.get("report_period_start"), Config.OCP_DATETIME_STR_FORMAT)
-        end = datetime.strptime(row.get("report_period_end"), Config.OCP_DATETIME_STR_FORMAT)
+        # start = datetime.strptime(row.get("report_period_start"), Config.OCP_DATETIME_STR_FORMAT)
+        # end = datetime.strptime(row.get("report_period_end"), Config.OCP_DATETIME_STR_FORMAT)
+        start = ciso8601.parse_datetime(row.get("report_period_start").replace(" +0000 UTC", "+0000"))
+        end = ciso8601.parse_datetime(row.get("report_period_end").replace(" +0000 UTC", "+0000"))
 
         key = (cluster_id, start, self._provider_uuid)
         if key in self.processed_report.report_periods:
@@ -312,7 +312,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
         with opener(self._report_path, mode) as f:
             with OCPReportDBAccessor(self._schema) as report_db:
                 temp_table = report_db.create_temp_table(self.table_name._meta.db_table, drop_column="id")
-                LOG.info("File %s opened for processing", str(f))
+                LOG.info(f"File '{self._report_path}' opened for processing")
                 reader = csv.DictReader(f)
                 for row in reader:
                     report_period_id = self._create_report_period(row, self._cluster_id, report_db)
@@ -362,6 +362,8 @@ class OCPReportProcessorBase(ReportProcessorBase):
 class OCPCpuMemReportProcessor(OCPReportProcessorBase):
     """OCP Usage Report processor."""
 
+    report_type = "OCPCpuMemReport"
+
     def __init__(self, schema_name, report_path, compression, provider_uuid):
         """Initialize the report processor.
 
@@ -380,6 +382,7 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
             f"Initialized report processor for:\n"
             f" schema_name: {self._schema}\n"
             f" provider_uuid: {provider_uuid}\n"
+            f" report_type: {self.report_type}\n"
             f" file: {self._report_path}"
         )
         LOG.info(stmt)
@@ -426,6 +429,8 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
 class OCPStorageProcessor(OCPReportProcessorBase):
     """OCP Storage Report processor."""
 
+    report_type = "OCPStorageReport"
+
     def __init__(self, schema_name, report_path, compression, provider_uuid):
         """Initialize the report processor.
 
@@ -444,6 +449,7 @@ class OCPStorageProcessor(OCPReportProcessorBase):
             f"Initialized report processor for:\n"
             f" schema_name: {self._schema}\n"
             f" provider_uuid: {provider_uuid}\n"
+            f" report_type: {self.report_type}\n"
             f" file: {self._report_path}"
         )
         LOG.info(stmt)
@@ -497,6 +503,8 @@ class OCPStorageProcessor(OCPReportProcessorBase):
 class OCPNodeLabelProcessor(OCPReportProcessorBase):
     """OCP Node Label Report processor."""
 
+    report_type = "OCPNodeLabelReport"
+
     def __init__(self, schema_name, report_path, compression, provider_uuid):
         """Initialize the report processor.
 
@@ -515,6 +523,7 @@ class OCPNodeLabelProcessor(OCPReportProcessorBase):
             f"Initialized report processor for:\n"
             f" schema_name: {self._schema}\n"
             f" provider_uuid: {provider_uuid}\n"
+            f" report_type: {self.report_type}\n"
             f" file: {self._report_path}"
         )
         LOG.info(stmt)
