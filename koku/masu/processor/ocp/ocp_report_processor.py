@@ -18,11 +18,11 @@
 import csv
 import json
 import logging
+from datetime import datetime
 from enum import Enum
 from os import path
 from os import remove
 
-import ciso8601
 from django.conf import settings
 
 from masu.config import Config
@@ -35,7 +35,7 @@ from reporting.provider.ocp.models import OCPUsageLineItem
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 
-# from datetime import datetime
+# import ciso8601
 
 LOG = logging.getLogger(__name__)
 
@@ -208,10 +208,10 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
         """
         table_name = OCPUsageReport
-        start = ciso8601.parse_datetime(row.get("report_period_start").replace(" +0000 UTC", "+0000"))
-        end = ciso8601.parse_datetime(row.get("report_period_start").replace(" +0000 UTC", "+0000"))
-        # start = datetime.strptime(row.get("interval_start"), Config.OCP_DATETIME_STR_FORMAT)
-        # end = datetime.strptime(row.get("interval_end"), Config.OCP_DATETIME_STR_FORMAT)
+        # start = ciso8601.parse_datetime(row.get("report_period_start").replace(" +0000 UTC", "+0000"))
+        # end = ciso8601.parse_datetime(row.get("report_period_start").replace(" +0000 UTC", "+0000"))
+        start = datetime.strptime(row.get("interval_start"), Config.OCP_DATETIME_STR_FORMAT)
+        end = datetime.strptime(row.get("interval_end"), Config.OCP_DATETIME_STR_FORMAT)
 
         key = (report_period_id, start)
         if key in self.processed_report.reports:
@@ -241,10 +241,10 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
         """
         table_name = OCPUsageReportPeriod
-        start = ciso8601.parse_datetime(row.get("report_period_start").replace(" +0000 UTC", "+0000"))
-        end = ciso8601.parse_datetime(row.get("report_period_start").replace(" +0000 UTC", "+0000"))
-        # start = datetime.strptime(row.get("report_period_start"), Config.OCP_DATETIME_STR_FORMAT)
-        # end = datetime.strptime(row.get("report_period_end"), Config.OCP_DATETIME_STR_FORMAT)
+        # start = ciso8601.parse_datetime(row.get("report_period_start").replace(" +0000 UTC", "+0000"))
+        # end = ciso8601.parse_datetime(row.get("report_period_start").replace(" +0000 UTC", "+0000"))
+        start = datetime.strptime(row.get("report_period_start"), Config.OCP_DATETIME_STR_FORMAT)
+        end = datetime.strptime(row.get("report_period_end"), Config.OCP_DATETIME_STR_FORMAT)
 
         key = (cluster_id, start, self._provider_uuid)
         if key in self.processed_report.report_periods:
