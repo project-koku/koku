@@ -103,8 +103,8 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         tenant = Tenant.objects.get_or_create(schema_name=account[1])[0]
                         tenant.save()
                         Customer.objects.get_or_create(account_id=account[0], schema_name=account[1])
-                except Exception:
-                    pass
+                except Exception as err:
+                    LOG.warning(err)
 
                 if parallel > 1:
                     for index in range(parallel):
