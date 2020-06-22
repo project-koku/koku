@@ -669,6 +669,7 @@ def get_consumer():  # pragma: no cover
 def listen_for_messages_loop():
     """Wrap listen_for_messages in while true."""
     consumer = get_consumer()
+    LOG.info("Consumer is listening for messages...")
     while True:
         msg = consumer.poll(timeout=1.0)
         if msg is None:
@@ -677,7 +678,9 @@ def listen_for_messages_loop():
         if msg.error():
             if msg.error().code() == KafkaError._PARTITION_EOF:
                 # End of partition event
-                LOG.warning(f"{msg.topic()} {msg.partition()} [{msg.offset()}] reached end at offset {msg.offset()}")
+                LOG.warning(
+                    f"[listen_for_messages_loop] {msg.topic()} {msg.partition()} reached end at offset {msg.offset()}"
+                )
             elif msg.error():
                 raise KafkaException(msg.error())
 
@@ -707,7 +710,7 @@ def listen_for_messages(msg, consumer):
     to make the service more tolerant of SIGTERM events.
 
     Args:
-        consumer - (AIOKafkaConsumer): kafka consumer for HCCM ingress topic.
+        consumer - (Consumer): kafka consumer for HCCM ingress topic.
 
     Returns:
         None
@@ -747,7 +750,7 @@ def koku_worker_thread():  # pragma: no cover
 
     """
     if is_kafka_connected(Config.INSIGHTS_KAFKA_HOST, Config.INSIGHTS_KAFKA_PORT):  # Check that Kafka is running
-        LOG.info("Kafka is running...")
+        LOG.info("Kafka is running.")
 
     try:
         listen_for_messages_loop()
