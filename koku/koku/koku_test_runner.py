@@ -34,9 +34,6 @@ from reporting.models import OCPEnabledTagKeys
 LOG = logging.getLogger(__name__)
 OCP_ENABLED_TAGS = ["app", "storageclass", "environment", "version"]
 
-# import sys
-# sys.stdout = open(os.devnull, "w")
-
 
 class KokuTestRunner(DiscoverRunner):
     """Koku Test Runner for Unit Tests."""
