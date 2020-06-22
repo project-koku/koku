@@ -4,7 +4,6 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-aiokafka = ">=0.5"
 django-environ = ">=0.4"
 djangorestframework = ">=3.11"
 gunicorn = ">=20.0"
