@@ -54,7 +54,7 @@ markupsafe==1.1.1
 mccabe==0.6.1
 msrest==0.6.16
 msrestazure==0.6.3
-numpy==1.18.5
+numpy==1.19.0
 oauthlib==3.1.0
 ordered-set==4.0.2
 pandas==1.0.4
