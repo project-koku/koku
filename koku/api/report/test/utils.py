@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test utilities."""
+import logging
 import os
 import pkgutil
 import shutil
@@ -25,7 +26,7 @@ from django.conf import settings
 from django.test.utils import override_settings
 from jinja2 import Template
 from model_bakery import baker
-from nise.__main__ import run
+from nise import __main__
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
@@ -35,6 +36,10 @@ from masu.processor.report_processor import ReportProcessor
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_summary_tables
+
+# only log errors from nise
+logger = logging.getLogger("__main__")
+logger.setLevel(level=logging.ERROR)
 
 
 class NiseDataLoader:
@@ -122,7 +127,7 @@ class NiseDataLoader:
             with open(static_data_path, "w") as f:
                 f.write(template.render(start_date=start_date, end_date=end_date))
 
-            run(provider_type.lower(), options)
+            __main__.run(provider_type.lower(), options)
 
             report_path = self.build_report_path(provider_type, bill_date, base_path)
             for report in os.scandir(report_path):
@@ -179,7 +184,7 @@ class NiseDataLoader:
             with open(static_data_path, "w") as f:
                 f.write(template.render(start_date=start_date, end_date=end_date, account_id=account_id))
 
-            run(nise_provider_type.lower(), options)
+            __main__.run(nise_provider_type.lower(), options)
 
             report_path = self.build_report_path(provider_type, bill_date, base_path)
             for report in os.scandir(report_path):
@@ -240,7 +245,7 @@ class NiseDataLoader:
             with open(static_data_path, "w") as f:
                 f.write(template.render(start_date=start_date, end_date=end_date))
 
-            run(nise_provider_type.lower(), options)
+            __main__.run(nise_provider_type.lower(), options)
 
             report_path = self.build_report_path(provider_type, bill_date, base_path)
             for report in os.scandir(report_path):
