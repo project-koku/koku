@@ -9,8 +9,8 @@ azure-mgmt-storage==11.0.0
 azure-storage-blob==12.3.2
 beautifulsoup4==4.9.1
 billiard==3.6.3.0
-boto3==1.14.7
-botocore==1.17.7
+boto3==1.14.8
+botocore==1.17.8
 bs4==0.0.1
 cachetools==4.1.0
 celery-prometheus-exporter==1.7.0
@@ -47,6 +47,7 @@ isodate==0.6.0
 jinja2==2.11.2
 jinjasql==0.1.8
 jmespath==0.10.0
+kafka-python==2.0.1
 kombu==4.6.10
 markupsafe==1.1.1
 mccabe==0.6.1
