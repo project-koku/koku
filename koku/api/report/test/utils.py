@@ -26,7 +26,8 @@ from django.conf import settings
 from django.test.utils import override_settings
 from jinja2 import Template
 from model_bakery import baker
-from nise import __main__
+from nise.__main__ import LOG
+from nise.__main__ import run
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
@@ -38,8 +39,7 @@ from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_summary_tables
 
 # only log errors from nise
-logger = logging.getLogger("__main__")
-logger.setLevel(level=logging.ERROR)
+LOG.setLevel(level=logging.ERROR)
 
 
 class NiseDataLoader:
@@ -127,7 +127,7 @@ class NiseDataLoader:
             with open(static_data_path, "w") as f:
                 f.write(template.render(start_date=start_date, end_date=end_date))
 
-            __main__.run(provider_type.lower(), options)
+            run(provider_type.lower(), options)
 
             report_path = self.build_report_path(provider_type, bill_date, base_path)
             for report in os.scandir(report_path):
@@ -184,7 +184,7 @@ class NiseDataLoader:
             with open(static_data_path, "w") as f:
                 f.write(template.render(start_date=start_date, end_date=end_date, account_id=account_id))
 
-            __main__.run(nise_provider_type.lower(), options)
+            run(nise_provider_type.lower(), options)
 
             report_path = self.build_report_path(provider_type, bill_date, base_path)
             for report in os.scandir(report_path):
@@ -245,7 +245,7 @@ class NiseDataLoader:
             with open(static_data_path, "w") as f:
                 f.write(template.render(start_date=start_date, end_date=end_date))
 
-            __main__.run(nise_provider_type.lower(), options)
+            run(nise_provider_type.lower(), options)
 
             report_path = self.build_report_path(provider_type, bill_date, base_path)
             for report in os.scandir(report_path):
