@@ -25,6 +25,7 @@ import threading
 import time
 
 from confluent_kafka import Consumer
+from confluent_kafka import KafkaError
 from confluent_kafka import TopicPartition
 from django.db import connection
 from django.db import InterfaceError
@@ -32,7 +33,6 @@ from django.db import OperationalError
 from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from kafka.errors import KafkaError
 from kombu.exceptions import OperationalError as RabbitOperationalError
 from rest_framework.exceptions import ValidationError
 
