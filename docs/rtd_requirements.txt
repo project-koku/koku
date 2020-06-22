@@ -58,7 +58,7 @@ numpy==1.19.0
 oauthlib==3.1.0
 ordered-set==4.0.2
 pandas==1.0.5
-pint==0.12
+pint==0.13
 prometheus-client==0.8.0
 protobuf==3.12.2
 psutil==5.7.0
