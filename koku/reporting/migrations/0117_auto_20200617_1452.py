@@ -353,16 +353,13 @@ class Migration(migrations.Migration):
                         ) AS r
                         ON c.usage_start = r.usage_start
                     AND c.instance_type = r.instance_type
-                    AND (
-                            (c.usage_account_id = r.usage_account_id) OR
-                            (c.account_alias_id = r.account_alias_id)
-                        )
+                    AND c.usage_account_id = r.usage_account_id
                 )
                 WITH DATA
                 ;
 
                 CREATE UNIQUE INDEX aws_compute_summary_account
-                    ON reporting_aws_compute_summary_by_account (usage_start, usage_account_id, account_alias_id, instance_type, source_uuid)
+                    ON reporting_aws_compute_summary_by_account (usage_start, usage_account_id, account_alias_id, instance_type)
                 ;
 
                 CREATE MATERIALIZED VIEW reporting_aws_compute_summary_by_region AS (
@@ -406,8 +403,7 @@ class Migration(migrations.Migration):
                                     usage_account_id,
                                     region,
                                     availability_zone,
-                                    instance_type,
-                                    source_uuid
+                                    instance_type
                         ) AS c
                     JOIN (
                             -- this group by gets the distinct resources running by day
@@ -441,6 +437,7 @@ class Migration(migrations.Migration):
                     AND c.region = r.region
                     AND c.availability_zone = r.availability_zone
                     AND c.instance_type = r.instance_type
+                    AND c.usage_account_id = r.usage_account_id
                     )
                 WITH DATA
                     ;
@@ -481,7 +478,7 @@ class Migration(migrations.Migration):
                                     SUM(unblended_cost) AS unblended_cost,
                                     SUM(markup_cost) AS markup_cost,
                                     MAX(currency_code) AS currency_code,
-                                    source_uuid
+                                    MAX(source_uuid::text)::uuid as source_uuid
                             FROM reporting_awscostentrylineitem_daily_summary
                             WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
                                 AND instance_type IS NOT NULL
@@ -490,8 +487,7 @@ class Migration(migrations.Migration):
                                     usage_account_id,
                                     product_code,
                                     product_family,
-                                    instance_type,
-                                    source_uuid
+                                    instance_type
                         ) AS c
                     JOIN (
                             -- this group by gets the distinct resources running by day
@@ -525,6 +521,7 @@ class Migration(migrations.Migration):
                     AND c.product_code = r.product_code
                     AND c.product_family = r.product_family
                     AND c.instance_type = r.instance_type
+                    AND c.usage_account_id = r.usage_account_id
                     )
                 WITH DATA
                 ;
