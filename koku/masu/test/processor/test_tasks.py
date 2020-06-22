@@ -564,9 +564,10 @@ class TestProcessorTasks(MasuTestCase):
             "missing required argument: provider_uuid",
         ]
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            convert_to_parquet(None, None, None, None, "start_date", "manifest_id", [])
-            for expected in expected_logs:
-                self.assertIn(expected, " ".join(logger.output))
+            with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
+                convert_to_parquet(None, None, None, None, "start_date", "manifest_id", [])
+                for expected in expected_logs:
+                    self.assertIn(expected, " ".join(logger.output))
 
         expected = "Skipping convert_to_parquet. S3 archiving feature is disabled."
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:

@@ -37,6 +37,7 @@ from masu.test.external.downloader.aws import fake_arn
 from masu.test.external.downloader.aws import fake_aws_account_id
 from masu.test.external.downloader.aws.test_aws_report_downloader import FakeSession
 from masu.util.aws import common as utils
+from masu.util.common import get_path_prefix
 from reporting.models import AWSCostEntryBill
 
 # the cn endpoints aren't supported by moto, so filter them out
@@ -329,7 +330,7 @@ class TestAWSUtils(MasuTestCase):
 
         date_accessor = DateAccessor()
         start_date = date_accessor.today_with_timezone("utc").replace(day=1)
-        s3_csv_path = utils.get_path_prefix("account", "provider_uuid", start_date, Config.CSV_DATA_TYPE)
+        s3_csv_path = get_path_prefix("account", "provider_uuid", start_date, Config.CSV_DATA_TYPE)
         expected_key = "removed_key"
         mock_object = Mock(metadata={}, key=expected_key)
         mock_summary = Mock()

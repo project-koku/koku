@@ -53,8 +53,8 @@ from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.worker_cache import WorkerCache
 from masu.util.aws.common import convert_csv_to_parquet
 from masu.util.aws.common import get_file_keys_from_s3_with_manifest_id
-from masu.util.aws.common import get_path_prefix
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
+from masu.util.common import get_path_prefix
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_MATERIALIZED_VIEWS
@@ -543,6 +543,11 @@ def convert_to_parquet(request_id, account, provider_uuid, provider_type, start_
     if not context:
         context = {"account": account, "provider_uuid": provider_uuid}
 
+    if not settings.ENABLE_S3_ARCHIVING:
+        msg = "Skipping convert_to_parquet. S3 archiving feature is disabled."
+        LOG.info(log_json(request_id, msg, context))
+        return
+
     if not request_id or not account or not provider_uuid:
         if not request_id:
             message = "missing required argument: request_id"
@@ -556,11 +561,6 @@ def convert_to_parquet(request_id, account, provider_uuid, provider_type, start_
         if not provider_type:
             message = "missing required argument: provider_type"
             LOG.error(message)
-        return
-
-    if not settings.ENABLE_S3_ARCHIVING:
-        msg = "Skipping convert_to_parquet. S3 archiving feature is disabled."
-        LOG.info(log_json(request_id, msg, context))
         return
 
     if not start_date:
@@ -586,7 +586,9 @@ def convert_to_parquet(request_id, account, provider_uuid, provider_type, start_
         LOG.info(log_json(request_id, msg, context))
         return
 
-    if provider_type == Provider.PROVIDER_AWS or provider_type == Provider.PROVIDER_AWS_LOCAL:
+    # OCP data is daily chunked report files.
+    # AWS and Azure are monthly reports. Previous reports should be removed so data isn't duplicated
+    if provider_type != Provider.PROVIDER_OCP:
         remove_files_not_in_set_from_s3_bucket(request_id, s3_parquet_path, manifest_id, context)
 
     failed_conversion = []

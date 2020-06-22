@@ -26,9 +26,9 @@ from masu.external import UNCOMPRESSED
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderError
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
-from masu.util.aws.common import get_path_prefix
 from masu.util.azure import common as utils
 from masu.util.common import extract_uuids_from_string
+from masu.util.common import get_path_prefix
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)

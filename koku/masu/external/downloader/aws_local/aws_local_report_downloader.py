@@ -28,6 +28,7 @@ from masu.config import Config
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws import common as utils
+from masu.util.common import get_path_prefix
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -197,7 +198,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             shutil.copy2(key, full_file_path)
             # Push to S3
 
-            s3_csv_path = utils.get_path_prefix(self.account, self._provider_uuid, start_date, Config.CSV_DATA_TYPE)
+            s3_csv_path = get_path_prefix(self.account, self._provider_uuid, start_date, Config.CSV_DATA_TYPE)
             utils.copy_local_report_file_to_s3_bucket(
                 self.request_id, s3_csv_path, full_file_path, local_s3_filename, manifest_id, start_date, self.context
             )

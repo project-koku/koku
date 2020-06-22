@@ -31,7 +31,6 @@ from tenant_schemas.utils import schema_context
 
 from api.common import log_json
 from api.models import Provider
-from masu.config import Config
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.util import common as utils
@@ -305,19 +304,6 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, manifest_id=None, c
         msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
         LOG.info(log_json(request_id, msg, context))
     return upload
-
-
-def get_path_prefix(account, provider_uuid, start_date, data_type):
-    """
-    Get the S3 bucket prefix
-    """
-    path = None
-    if start_date:
-        year = start_date.strftime("%Y")
-        month = start_date.strftime("%m")
-        path_prefix = f"{Config.WAREHOUSE_PATH}/{data_type}"
-        path = f"{path_prefix}/{account}/{provider_uuid}/{year}/{month}"
-    return path
 
 
 def copy_local_report_file_to_s3_bucket(

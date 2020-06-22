@@ -29,9 +29,9 @@ from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
-from masu.util.aws.common import get_path_prefix
 from masu.util.azure import common as utils
 from masu.util.common import extract_uuids_from_string
+from masu.util.common import get_path_prefix
 from masu.util.common import month_date_range
 
 DATA_DIR = Config.TMP_DIR

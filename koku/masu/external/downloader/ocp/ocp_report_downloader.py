@@ -30,7 +30,7 @@ from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
-from masu.util.aws.common import get_path_prefix
+from masu.util.common import get_path_prefix
 from masu.util.ocp import common as utils
 
 DATA_DIR = Config.TMP_DIR
@@ -120,15 +120,6 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         return reports
 
-    def detect_type(self, data_frame):
-        """
-        Detects the OCP report type.
-        """
-        for report_type, column_name in REPORT_TYPES.items():
-            if column_name in data_frame.columns:
-                return report_type
-        return None
-
     def divide_csv_daily(self, file_path, filename):
         """
         Split local file into daily content.
@@ -137,7 +128,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         directory = os.path.dirname(file_path)
 
         data_frame = pd.read_csv(file_path)
-        report_type = self.detect_type(data_frame)
+        report_type, _ = utils.detect_type(file_path)
         unique_times = data_frame.interval_start.unique()
         days = list({cur_dt[:10] for cur_dt in unique_times})
         daily_data_frames = [
