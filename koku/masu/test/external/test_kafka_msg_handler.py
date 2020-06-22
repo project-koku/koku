@@ -22,7 +22,6 @@ import shutil
 import tempfile
 import uuid
 from datetime import datetime
-from unittest import mock
 from unittest.mock import patch
 
 import requests_mock
@@ -70,50 +69,34 @@ class ConsumerRecord:
 
     def __init__(self, topic, offset, url, value, partition=0):
         """Initialize Msg."""
-        self.topic = topic
-        self.offset = offset
-        self.partition = partition
+        self._topic = topic
+        self._offset = offset
+        self._partition = partition
         self.url = url
-        self.value = value
+        self._value = value
 
+    def offset(self):
+        return self._offset
 
-def AsyncMock(*args, **kwargs):
-    m = mock.Mock(*args, **kwargs)
+    def partition(self):
+        return self._partition
 
-    async def mock_coro(*args, **kwargs):
-        return m(*args, **kwargs)
+    def topic(self):
+        return self._topic
 
-    mock_coro.mock = m
-    return mock_coro
+    def value(self):
+        return self._value
 
 
 class MockKafkaConsumer:
     def __init__(self, preloaded_messages=["hi", "world"]):
         self.preloaded_messages = preloaded_messages
 
-    async def start(self):
+    def store_offsets(self, msg):
         pass
 
-    async def stop(self):
-        pass
-
-    async def commit(self):
+    def commit(self):
         self.preloaded_messages.pop()
-
-    async def seek_to_committed(self):
-        # This isn't realistic... But it's one way to stop the consumer for our needs.
-        raise KafkaError("Seek to commited. Closing...")
-
-    async def getone(self):
-        for msg in self.preloaded_messages:
-            return msg
-        raise KafkaError("Closing Mock Consumer")
-
-    def __aiter__(self):
-        return self
-
-    async def __anext__(self):
-        return await self.getone()
 
 
 class KafkaMsgHandlerTest(MasuTestCase):
@@ -141,11 +124,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
     @patch("masu.external.kafka_msg_handler.process_messages")
     def test_listen_for_messages(self, mock_process_message):
         """Test to listen for kafka messages."""
-        future_mock = asyncio.Future()
-        future_mock.set_result("test result")
-        mock_process_message.return_value = future_mock
-
-        run_loop = asyncio.new_event_loop()
+        mock_process_message.return_value = True
 
         test_matrix = [
             {
@@ -169,7 +148,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
             mock_consumer = MockKafkaConsumer([msg])
 
-            run_loop.run_until_complete(msg_handler.listen_for_messages(mock_consumer))
+            msg_handler.listen_for_messages(msg, mock_consumer)
             if test.get("expected_process"):
                 mock_process_message.assert_called()
             else:
@@ -178,11 +157,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
     @patch("masu.external.kafka_msg_handler.process_messages")
     def test_listen_for_messages_db_error(self, mock_process_message):
         """Test to listen for kafka messages with database errors."""
-        future_mock = asyncio.Future()
-        future_mock.set_result("test result")
-        mock_process_message.return_value = future_mock
-
-        run_loop = asyncio.new_event_loop()
+        mock_process_message.return_value = True
 
         test_matrix = [
             {
@@ -219,17 +194,13 @@ class KafkaMsgHandlerTest(MasuTestCase):
             mock_process_message.side_effect = test.get("side_effect")
             with patch("masu.external.kafka_msg_handler.connection.close") as close_mock:
                 with patch.object(Config, "RETRY_SECONDS", 0):
-                    run_loop.run_until_complete(msg_handler.listen_for_messages(mock_consumer))
+                    msg_handler.listen_for_messages(msg, mock_consumer)
                     close_mock.assert_called()
 
     @patch("masu.external.kafka_msg_handler.process_messages")
     def test_listen_for_messages_error(self, mock_process_message):
         """Test to listen for kafka messages with errors."""
-        future_mock = asyncio.Future()
-        future_mock.set_result("test result")
-        mock_process_message.return_value = future_mock
-
-        run_loop = asyncio.new_event_loop()
+        mock_process_message.return_value = False
 
         test_matrix = [
             {
@@ -266,17 +237,17 @@ class KafkaMsgHandlerTest(MasuTestCase):
             mock_process_message.side_effect = test.get("side_effect")
             with patch("masu.external.kafka_msg_handler.connection.close") as close_mock:
                 with patch.object(Config, "RETRY_SECONDS", 0):
-                    run_loop.run_until_complete(msg_handler.listen_for_messages(mock_consumer))
+                    msg_handler.listen_for_messages(msg, mock_consumer)
                     close_mock.assert_not_called()
 
     def test_process_messages(self):
         """Test the process_message function."""
 
         def _expected_success_path(msg, test, confirmation_mock):
-            confirmation_mock.mock.assert_called()
+            confirmation_mock.assert_called()
 
         def _expected_fail_path(msg, test, confirmation_mock):
-            confirmation_mock.mock.assert_not_called()
+            confirmation_mock.assert_not_called()
 
         report_meta_1 = {
             "schema_name": "test_schema",
@@ -342,26 +313,24 @@ class KafkaMsgHandlerTest(MasuTestCase):
             },
         ]
         for test in test_matrix:
-            msg = ConsumerRecord(
-                topic="platform.upload.hccm",
-                offset=5,
-                url="https://insights-quarantine.s3.amazonaws.com/myfile",
-                value=bytes(test.get("value"), encoding="utf-8"),
-            )
-            run_loop = asyncio.new_event_loop()
-            with patch(
-                "masu.external.kafka_msg_handler.handle_message", return_value=test.get("handle_message_returns")
-            ):
+            with self.subTest(test=test):
+                msg = ConsumerRecord(
+                    topic="platform.upload.hccm",
+                    offset=5,
+                    url="https://insights-quarantine.s3.amazonaws.com/myfile",
+                    value=bytes(test.get("value"), encoding="utf-8"),
+                )
                 with patch(
-                    "masu.external.kafka_msg_handler.summarize_manifest",
-                    return_value=test.get("summarize_manifest_returns"),
+                    "masu.external.kafka_msg_handler.handle_message", return_value=test.get("handle_message_returns")
                 ):
-                    with patch("masu.external.kafka_msg_handler.process_report"):
-                        with patch(
-                            "masu.external.kafka_msg_handler.send_confirmation", new=AsyncMock()
-                        ) as confirmation_mock:
-                            run_loop.run_until_complete(msg_handler.process_messages(msg, run_loop))
-                            test.get("expected_fn")(msg, test, confirmation_mock)
+                    with patch(
+                        "masu.external.kafka_msg_handler.summarize_manifest",
+                        return_value=test.get("summarize_manifest_returns"),
+                    ):
+                        with patch("masu.external.kafka_msg_handler.process_report"):
+                            with patch("masu.external.kafka_msg_handler.send_confirmation") as confirmation_mock:
+                                msg_handler.process_messages(msg)
+                                test.get("expected_fn")(msg, test, confirmation_mock)
 
     def test_handle_messages(self):
         """Test to ensure that kafka messages are handled."""
