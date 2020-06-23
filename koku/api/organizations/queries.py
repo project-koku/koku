@@ -220,7 +220,7 @@ class OrgQueryHandler(QueryHandler):
                 account_query = source.get("db_table").objects
                 account_query = account_query.filter(composed_filters)
                 account_query = account_query.exclude(deleted_timestamp__lte=self.start_datetime)
-                account_query = account_query.exclude(created_timestamp__gte=self.end_datetime)
+                account_query = account_query.exclude(created_timestamp__gt=self.end_datetime)
                 if self.access:
                     accounts_to_filter = self.access.get("aws.account", {}).get("read", [])
                     if accounts_to_filter and "*" not in accounts_to_filter:
@@ -262,7 +262,7 @@ class OrgQueryHandler(QueryHandler):
                 org_unit_query = source.get("db_table").objects
                 org_unit_query = org_unit_query.filter(remove_accounts)
                 org_unit_query = org_unit_query.exclude(deleted_timestamp__lte=self.start_datetime)
-                org_unit_query = org_unit_query.exclude(created_timestamp__gte=self.end_datetime)
+                org_unit_query = org_unit_query.exclude(created_timestamp__gt=self.end_datetime)
                 val_list = [org_id, org_name, org_path, level]
                 org_unit_query = org_unit_query.order_by(f"{org_id}", f"-{created_field}").distinct(f"{org_id}")
                 org_ids = org_unit_query.values_list("id", flat=True)
