@@ -85,14 +85,16 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
         query_table = self._mapper.query_table
         report_type = self.parameters.report_type
         report_group = "default"
+        account_key = "subscription_guid"
 
-        excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
+        filter_keys = self._get_query_table_filter_keys()
+        group_by_keys = self._get_query_table_group_by_keys()
 
-        filter_keys = set(self.parameters.get("filter", {}).keys())
-        filter_keys = filter_keys.difference(excluded_filters)
-        group_by_keys = list(self.parameters.get("group_by", {}).keys())
+        account_set = {account_key}
+        group_by_set = set(group_by_keys).difference(account_set)
+        filter_set = set(filter_keys).difference(account_set)
 
-        if not check_view_filter_and_group_by_criteria(filter_keys, group_by_keys):
+        if not check_view_filter_and_group_by_criteria(filter_set, group_by_set):
             return query_table
 
         # Special Casess for Network and Database Cards in the UI
@@ -112,9 +114,9 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
         elif report_type == "costs" and service_filter and not service_filter.difference(database_services):
             report_type = "database"
 
-        if group_by_keys:
+        if group_by_set:
             report_group = group_by_keys[0]
-        elif filter_keys and not group_by_keys:
+        elif filter_keys:
             report_group = list(filter_keys)[0]
         try:
             query_table = self._mapper.views[report_type][report_group]

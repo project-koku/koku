@@ -158,8 +158,14 @@ class AWSReportQueryHandler(ReportQueryHandler):
             return query_table
         if len(filter_keys) > 1:
             return query_table
+
+        account_set = {"account", "org_unit_id"}
+        group_by_set = set(group_by_keys).difference(account_set)
+        filter_set = set(filter_keys).difference(account_set)
+        key_diff = filter_set.difference(group_by_set)
+        LOG.info(group_by_set)
         # If filtering on a different field than grouping by, we default to the daily summary table
-        if group_by_keys and len(filter_keys.difference(group_by_keys)) != 0:
+        if group_by_set and len(key_diff) != 0:
             return query_table
 
         # Special Casess for Network and Database Cards in the UI
@@ -178,9 +184,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
         elif report_type == "costs" and service_filter and not service_filter.difference(database_services):
             report_type = "database"
 
-        if group_by_keys:
+        if group_by_set:
             report_group = group_by_keys[0]
-        elif filter_keys and not group_by_keys:
+        elif filter_keys:
             report_group = list(filter_keys)[0]
         try:
             query_table = self._mapper.views[report_type][report_group]
