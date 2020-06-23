@@ -15,19 +15,18 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Kafka msg handler."""
-import asyncio
 import json
 import os
 import shutil
 import tempfile
 import uuid
 from datetime import datetime
+from unittest.mock import Mock
 from unittest.mock import patch
 
 import requests_mock
 from django.db import InterfaceError
 from django.db import OperationalError
-from kafka.errors import KafkaError
 from requests.exceptions import HTTPError
 
 import masu.external.kafka_msg_handler as msg_handler
@@ -45,7 +44,7 @@ from masu.test import MasuTestCase
 
 def raise_exception():
     """Raise a kafka error."""
-    raise KafkaError()
+    raise KafkaMsgHandlerError()
 
 
 def raise_OSError(path):
@@ -58,10 +57,13 @@ class KafkaMsg:
 
     def __init__(self, topic, url):
         """Initialize a Kafka Message."""
-        self.topic = topic
+        self._topic = topic
         value_dict = {"url": url}
         value_str = json.dumps(value_dict)
         self.value = value_str.encode("utf-8")
+
+    def topic(self):
+        return self._topic
 
 
 class ConsumerRecord:
@@ -612,24 +614,17 @@ class KafkaMsgHandlerTest(MasuTestCase):
         with patch.object(OCPReportDownloader, "_prepare_db_manifest_record", return_value=1):
             self.assertEqual(1, msg_handler.create_manifest_entries(report_meta, "test_request_id"))
 
-    async def test_send_confirmation_error(self):
+    def test_send_confirmation_error(self):
         """Set up the test for raising a kafka error during sending confirmation."""
         # grab the connection error count before
         connection_errors_before = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
-        with patch("masu.external.kafka_msg_handler.AIOKafkaProducer.start", side_effect=raise_exception):
+        with patch("masu.external.kafka_msg_handler.PRODUCER", new_callable=Mock()) as mock_producer:
+            mock_producer.flush.side_effect = KafkaMsgHandlerError
             with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                await msg_handler.send_confirmation(request_id="foo", status=msg_handler.SUCCESS_CONFIRM_STATUS)
+                msg_handler.send_confirmation(request_id="foo", status=msg_handler.SUCCESS_CONFIRM_STATUS)
             # assert that the error caused the kafka error metric to be incremented
             connection_errors_after = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
             self.assertEqual(connection_errors_after - connection_errors_before, 1)
-
-    def test_kafka_connection_metrics_send_confirmation(self):
-        """Test the async function to send confirmation"""
-        event_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(event_loop)
-        coro = asyncio.coroutine(self.test_send_confirmation_error)
-        event_loop.run_until_complete(coro())
-        event_loop.close()
 
     def test_get_account(self):
         """Test that the account details are returned given a provider uuid."""
