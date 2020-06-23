@@ -365,7 +365,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
                     report_file,
                     payload_destination_path,
                     report_meta["manifest_id"],
-                    report_meta["account"],
+                    report_meta["date"],
                     context,
                 )
                 report_metas.append(current_meta)
@@ -378,7 +378,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
 
     # Remove temporary directory and files
     shutil.rmtree(temp_dir)
-    return report_metas, request_id
+    return report_metas
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
@@ -547,17 +547,19 @@ def summarize_manifest(report_meta):
     return async_id
 
 
-def convert_manifest_to_parquet(report_meta):
+def convert_manifest_to_parquet(request_id, report_meta, context={}):
     """
     Kick off manifest conversion when all report files have completed line item processing.
 
     Args:
+        request_id (str) - The triggering request identifier
         report (Dict) - keys: value
                         schema_name: String,
                         manifest_id: Integer,
                         provider_uuid: String,
                         provider_type: String,
                         date: DateTime
+        context (Dict) - Logging context
 
     Returns:
         Celery Async UUID.
@@ -567,9 +569,11 @@ def convert_manifest_to_parquet(report_meta):
     schema_name = report_meta.get("schema_name")
     manifest_id = report_meta.get("manifest_id")
     provider_uuid = report_meta.get("provider_uuid")
-    schema_name = report_meta.get("schema_name")
     provider_type = report_meta.get("provider_type")
     start_date = report_meta.get("date")
+
+    if not context:
+        context = {"account": schema_name[4:], "provider_uuid": provider_uuid, "provider_type": provider_type}
 
     with ReportManifestDBAccessor() as manifest_accesor:
         manifest = manifest_accesor.get_manifest_by_id(manifest_id)
@@ -581,7 +585,9 @@ def convert_manifest_to_parquet(report_meta):
                 "manifest_id": manifest_id,
                 "start_date": start_date,
             }
-            async_id = convert_reports_to_parquet.delay([report_meta])
+            async_id = convert_reports_to_parquet.delay(
+                request_id=request_id, reports_to_convert=[report_meta], context=context
+            )
     return async_id
 
 
@@ -676,20 +682,25 @@ async def process_messages(msg, loop=EVENT_LOOP):
     with concurrent.futures.ThreadPoolExecutor() as pool:
         status, report_metas = await loop.run_in_executor(pool, handle_message, msg)
 
+    value = json.loads(msg.value.decode("utf-8"))
+    request_id = value.get("request_id", "no_request_id")
     if report_metas:
         with concurrent.futures.ThreadPoolExecutor() as pool:
             for report_meta in report_metas:
-                report_meta["process_complete"] = await loop.run_in_executor(pool, process_report, report_meta)
+                report_meta["process_complete"] = await loop.run_in_executor(
+                    pool, functools.partial(process_report, request_id=request_id, report=report_meta)
+                )
                 LOG.info(f"Processing: {report_meta.get('current_file')} complete.")
             process_complete = report_metas_complete(report_metas)
             async_id = await loop.run_in_executor(pool, summarize_manifest, report_meta)
             if async_id:
                 LOG.info("Summarization celery uuid: %s", str(async_id))
-            async_id = await loop.run_in_executor(pool, convert_manifest_to_parquet, report_meta)
+            async_id = await loop.run_in_executor(
+                pool, functools.partial(convert_manifest_to_parquet, request_id=request_id, report_meta=report_meta)
+            )
             if async_id:
                 LOG.info("Conversion of CSV to Parquet uuid: %s", str(async_id))
     if status:
-        value = json.loads(msg.value.decode("utf-8"))
         count = 0
         while True:
             try:

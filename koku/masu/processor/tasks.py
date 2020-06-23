@@ -563,8 +563,7 @@ def convert_reports_to_parquet(request_id, reports_to_convert, context={}):
 
         if start_date and schema_name:
             account = schema_name[4:]
-            start_date_str = start_date.strftime("%Y-%m-%d")
-            convert_to_parquet.delay(request_id, account, provider_uuid, provider_type, start_date_str, manifest_id)
+            convert_to_parquet.delay(request_id, account, provider_uuid, provider_type, start_date, manifest_id)
 
 
 @app.task(  # noqa: C901
@@ -623,9 +622,9 @@ def convert_to_parquet(request_id, account, provider_uuid, provider_type, start_
         return
 
     try:
-        cost_date = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+        cost_date = parser.parse(start_date)
     except ValueError:
-        msg = "S3 archiving feature is enabled, but the start_date was not a valid date string format (YYYY-mm-dd)."
+        msg = "S3 archiving feature is enabled, but the start_date was not a valid date string ISO 8601 format."
         LOG.warn(log_json(request_id, msg, context))
         return
 
