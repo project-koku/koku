@@ -60,10 +60,13 @@ class KafkaMsg:
         self._topic = topic
         value_dict = {"url": url}
         value_str = json.dumps(value_dict)
-        self.value = value_str.encode("utf-8")
+        self._value = value_str.encode("utf-8")
 
     def topic(self):
         return self._topic
+
+    def value(self):
+        return self._value
 
 
 class ConsumerRecord:
