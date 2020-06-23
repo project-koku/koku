@@ -514,6 +514,49 @@ SELECT s.relname as "table_name",
 
 
 @app.task(  # noqa: C901
+    name="masu.celery.tasks.convert_reports_to_parquet",
+    queue_name="reporting",
+    autoretry_for=(ClientError,),
+    max_retries=10,
+    retry_backoff=10,
+)
+def convert_reports_to_parquet(request_id, reports_to_convert, context={}):
+    """
+    Convert archived CSV data from our S3 bucket for a given provider to Parquet.
+
+    This function chiefly follows the download of a providers data.
+
+    This task is defined to attempt up to 10 retries using exponential backoff
+    starting with a 10-second delay. This is intended to allow graceful handling
+    of temporary AWS S3 connectivity issues because it is relatively important
+    for us to convert the archived data.
+
+    Args:
+        request_id (str): The associated request id (ingress or celery task id)
+        reports_to_convert (list(Dict)): The list of report dictionaries
+        context (dict): A context object for logging
+
+    """
+    if not settings.ENABLE_S3_ARCHIVING:
+        msg = "Skipping convert_reports_to_parquet. S3 archiving feature is disabled."
+        LOG.info(log_json(request_id, msg, context))
+        return
+
+    for report in reports_to_convert:
+        LOG.info("report to convert: %s", str(report))
+        schema_name = report.get("schema_name")
+        provider_uuid = report.get("provider_uuid")
+        provider_type = report.get("provider_type")
+        manifest_id = report.get("manifest_id")
+        start_date = report.get("start_date")
+
+        if start_date and schema_name:
+            account = schema_name[4:]
+            start_date_str = start_date.strftime("%Y-%m-%d")
+            convert_to_parquet.delay(request_id, account, provider_uuid, provider_type, start_date_str, manifest_id)
+
+
+@app.task(  # noqa: C901
     name="masu.celery.tasks.convert_to_parquet",
     queue_name="reporting",
     autoretry_for=(ClientError,),

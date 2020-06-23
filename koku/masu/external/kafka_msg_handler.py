@@ -53,7 +53,7 @@ from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownload
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
-from masu.processor.tasks import convert_to_parquet
+from masu.processor.tasks import convert_reports_to_parquet
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
@@ -547,6 +547,44 @@ def summarize_manifest(report_meta):
     return async_id
 
 
+def convert_manifest_to_parquet(report_meta):
+    """
+    Kick off manifest conversion when all report files have completed line item processing.
+
+    Args:
+        report (Dict) - keys: value
+                        schema_name: String,
+                        manifest_id: Integer,
+                        provider_uuid: String,
+                        provider_type: String,
+                        date: DateTime
+
+    Returns:
+        Celery Async UUID.
+
+    """
+    async_id = None
+    schema_name = report_meta.get("schema_name")
+    manifest_id = report_meta.get("manifest_id")
+    provider_uuid = report_meta.get("provider_uuid")
+    schema_name = report_meta.get("schema_name")
+    provider_type = report_meta.get("provider_type")
+    start_date = report_meta.get("date")
+
+    with ReportManifestDBAccessor() as manifest_accesor:
+        manifest = manifest_accesor.get_manifest_by_id(manifest_id)
+        if manifest.num_processed_files == manifest.num_total_files:
+            report_meta = {
+                "schema_name": schema_name,
+                "provider_type": provider_type,
+                "provider_uuid": provider_uuid,
+                "manifest_id": manifest_id,
+                "start_date": start_date,
+            }
+            async_id = convert_reports_to_parquet.delay([report_meta])
+    return async_id
+
+
 def process_report(request_id, report):
     """
     Process line item report.
@@ -575,12 +613,10 @@ def process_report(request_id, report):
         True if line item report processing is complete.
 
     """
-    account = report.get("account")
     schema_name = report.get("schema_name")
     manifest_id = report.get("manifest_id")
     provider_uuid = report.get("provider_uuid")
     provider_type = report.get("provider_type")
-    start_date = report.get("date")
 
     report_dict = {
         "file": report.get("current_file"),
@@ -588,11 +624,7 @@ def process_report(request_id, report):
         "manifest_id": manifest_id,
         "provider_uuid": provider_uuid,
     }
-    result = _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
-    if start_date:
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        convert_to_parquet.delay(request_id, account, provider_uuid, provider_type, start_date_str, manifest_id)
-    return result
+    return _process_report_file(schema_name, provider_type, provider_uuid, report_dict)
 
 
 def report_metas_complete(report_metas):
@@ -653,6 +685,9 @@ async def process_messages(msg, loop=EVENT_LOOP):
             async_id = await loop.run_in_executor(pool, summarize_manifest, report_meta)
             if async_id:
                 LOG.info("Summarization celery uuid: %s", str(async_id))
+            async_id = await loop.run_in_executor(pool, convert_manifest_to_parquet, report_meta)
+            if async_id:
+                LOG.info("Conversion of CSV to Parquet uuid: %s", str(async_id))
     if status:
         value = json.loads(msg.value.decode("utf-8"))
         count = 0
