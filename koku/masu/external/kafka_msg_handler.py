@@ -68,7 +68,7 @@ HCCM_TOPIC = "platform.upload.hccm"
 VALIDATION_TOPIC = "platform.upload.validation"
 SUCCESS_CONFIRM_STATUS = "success"
 FAILURE_CONFIRM_STATUS = "failure"
-PRODUCER = Producer({"bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS})
+PRODUCER = Producer({"bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS, "message.timeout.ms": 1000})
 
 
 class KafkaMsgHandlerError(Exception):
@@ -79,6 +79,7 @@ def delivery_callback(err, msg):
     """Acknowledge message success or failure."""
     if err is not None:
         LOG.error(f"Failed to deliver message: {str(msg)}: {str(err)}")
+        raise KafkaMsgHandlerError(err)
     else:
         LOG.info("Validation message delivered.")
 
