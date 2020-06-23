@@ -355,13 +355,17 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         # Verify that when extract_payload has a OperationalError that KafkaMessageError is raised
         with patch("masu.external.kafka_msg_handler.extract_payload", side_effect=OperationalError):
-            with self.assertRaises(KafkaMsgHandlerError):
-                msg_handler.handle_message(hccm_msg)
+            with patch("django.db.connection.close") as mock_close:
+                with self.assertRaises(KafkaMsgHandlerError):
+                    msg_handler.handle_message(hccm_msg)
+                    mock_close.assert_called()
 
         # Verify that when extract_payload has a InterfaceError that KafkaMessageError is raised
         with patch("masu.external.kafka_msg_handler.extract_payload", side_effect=InterfaceError):
-            with self.assertRaises(KafkaMsgHandlerError):
-                msg_handler.handle_message(hccm_msg)
+            with patch("django.db.connection.close") as mock_close:
+                with self.assertRaises(KafkaMsgHandlerError):
+                    msg_handler.handle_message(hccm_msg)
+                    mock_close.assert_called()
 
     def test_process_report(self):
         """Test report processing."""
