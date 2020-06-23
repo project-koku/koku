@@ -938,7 +938,17 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         handler = OCPAzureReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAzureCostSummaryByLocation)
 
+        url = "?group_by[resource_location]=*&group_by[subscription_guid]=*"
+        query_params = self.mocked_query_params(url, OCPAzureCostView)
+        handler = OCPAzureReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAzureCostSummaryByLocation)
+
         url = "?group_by[service_name]=*"
+        query_params = self.mocked_query_params(url, OCPAzureCostView)
+        handler = OCPAzureReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAzureCostSummaryByService)
+
+        url = "?group_by[service_name]=*&group_by[subscription_guid]=*"
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAzureCostSummaryByService)
@@ -948,7 +958,17 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         handler = OCPAzureReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAzureComputeSummary)
 
+        url = "?group_by[subscription_guid]=*"
+        query_params = self.mocked_query_params(url, OCPAzureInstanceTypeView)
+        handler = OCPAzureReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAzureComputeSummary)
+
         url = "?"
+        query_params = self.mocked_query_params(url, OCPAzureStorageView)
+        handler = OCPAzureReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAzureStorageSummary)
+
+        url = "?group_by[subscription_guid]=*"
         query_params = self.mocked_query_params(url, OCPAzureStorageView)
         handler = OCPAzureReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAzureStorageSummary)
@@ -961,7 +981,21 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         handler = OCPAzureReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAzureNetworkSummary)
 
+        url = (
+            "?filter[service_name]=Virtual Network,VPN,DNS,Traffic Manager,"
+            "ExpressRoute,Load Balancer,Application Gateway"
+            "&group_by[subscription_guid]=*"
+        )
+        query_params = self.mocked_query_params(url, OCPAzureCostView)
+        handler = OCPAzureReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAzureNetworkSummary)
+
         url = "?filter[service_name]=Cosmos DB,Cache for Redis,Database"
+        query_params = self.mocked_query_params(url, OCPAzureCostView)
+        handler = OCPAzureReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAzureDatabaseSummary)
+
+        url = "?filter[service_name]=Cosmos DB,Cache for Redis,Database" "&group_by[subscription_guid]=*"
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAzureDatabaseSummary)

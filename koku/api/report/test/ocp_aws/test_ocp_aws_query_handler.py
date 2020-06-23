@@ -339,7 +339,17 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         handler = OCPAWSReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAWSCostSummaryByRegion)
 
+        url = "?group_by[region]=*&group_by[account]=*"
+        query_params = self.mocked_query_params(url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAWSCostSummaryByRegion)
+
         url = "?group_by[service]=*"
+        query_params = self.mocked_query_params(url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAWSCostSummaryByService)
+
+        url = "?group_by[service]=*&group_by[account]=*"
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAWSCostSummaryByService)
@@ -349,7 +359,17 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         handler = OCPAWSReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAWSComputeSummary)
 
+        url = "?group_by[account]=*"
+        query_params = self.mocked_query_params(url, OCPAWSInstanceTypeView)
+        handler = OCPAWSReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAWSComputeSummary)
+
         url = "?"
+        query_params = self.mocked_query_params(url, OCPAWSStorageView)
+        handler = OCPAWSReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAWSStorageSummary)
+
+        url = "?group_by[account]=*"
         query_params = self.mocked_query_params(url, OCPAWSStorageView)
         handler = OCPAWSReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAWSStorageSummary)
@@ -359,8 +379,21 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         handler = OCPAWSReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAWSNetworkSummary)
 
+        url = "?filter[service]=AmazonVPC,AmazonCloudFront,AmazonRoute53,AmazonAPIGateway&group_by[account]=*"
+        query_params = self.mocked_query_params(url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAWSNetworkSummary)
+
         url = (
             "?filter[service]=AmazonRDS,AmazonDynamoDB,AmazonElastiCache,AmazonNeptune,AmazonRedshift,AmazonDocumentDB"
+        )
+        query_params = self.mocked_query_params(url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAWSDatabaseSummary)
+
+        url = (
+            "?filter[service]=AmazonRDS,AmazonDynamoDB,AmazonElastiCache,AmazonNeptune,AmazonRedshift,AmazonDocumentDB"
+            "&group_by[account]=*"
         )
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
