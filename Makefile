@@ -99,6 +99,7 @@ help:
 	@echo "                                         url:      localhost:3001"
 	@echo "                                         user:     admin"
 	@echo "                                         password: admin12"
+	@echo "  docker-up-min                        run database, koku/masu servers and worker"
 	@echo "  docker-down                          shut down all containers"
 	@echo "  docker-rabbit                        run RabbitMQ container"
 	@echo "  docker-reinitdb                      drop and recreate the database"
@@ -537,6 +538,9 @@ docker-up:
 
 docker-up-no-build:
 	docker-compose up -d
+
+docker-up-min:
+	docker-compose up --build -d db redis koku-server masu-server koku-worker
 
 docker-up-db:
 	docker-compose up -d db

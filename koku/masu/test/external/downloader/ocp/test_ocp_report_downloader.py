@@ -18,15 +18,18 @@
 import logging
 import os.path
 import shutil
+import tempfile
 from datetime import datetime
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import pandas as pd
 from faker import Faker
 
 from api.models import Provider
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
+from masu.external.downloader.ocp.ocp_report_downloader import divide_csv_daily
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
@@ -162,3 +165,28 @@ class OCPReportDownloaderTest(MasuTestCase):
             )
             # Re-enable log suppression
             logging.disable(logging.CRITICAL)
+
+    def test_divide_csv_daily(self):
+        """Test the divide_csv_daily method."""
+
+        with tempfile.TemporaryDirectory() as td:
+            filename = "storage_data.csv"
+            file_path = f"{td}/{filename}"
+            with patch("masu.external.downloader.ocp.ocp_report_downloader.pd") as mock_pd:
+                with patch(
+                    "masu.external.downloader.ocp.ocp_report_downloader.utils.detect_type",
+                    return_value=("storage_usage", None),
+                ):
+                    mock_report = {
+                        "interval_start": ["2020-01-01 00:00:00 +UTC", "2020-01-02 00:00:00 +UTC"],
+                        "persistentvolumeclaim_labels": ["label1", "label2"],
+                    }
+                    df = pd.DataFrame(data=mock_report)
+                    mock_pd.read_csv.return_value = df
+                    daily_files = divide_csv_daily(file_path, filename)
+                    self.assertNotEqual([], daily_files)
+                    self.assertEqual(len(daily_files), 2)
+                    gen_files = ["storage_usage.2020-01-01.csv", "storage_usage.2020-01-02.csv"]
+                    expected = [{"filename": gen_file, "filepath": f"{td}/{gen_file}"} for gen_file in gen_files]
+                    for expected_item in expected:
+                        self.assertIn(expected_item, daily_files)

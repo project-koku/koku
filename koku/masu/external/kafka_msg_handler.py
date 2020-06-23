@@ -48,10 +48,12 @@ from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
+from masu.external.downloader.ocp.ocp_report_downloader import create_daily_archives
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
+from masu.processor.tasks import convert_reports_to_parquet
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
@@ -328,6 +330,8 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     report_meta["provider_uuid"] = account.get("provider_uuid")
     report_meta["provider_type"] = provider_type
     report_meta["schema_name"] = schema_name
+    report_meta["account"] = schema_name[4:]
+    report_meta["request_id"] = request_id
 
     # Create directory tree for report.
     usage_month = utils.month_date_range(report_meta.get("date"))
@@ -354,6 +358,16 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
             if not record_report_status(report_meta["manifest_id"], report_file, request_id, context):
                 msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
                 LOG.info(log_json(request_id, msg, context))
+                create_daily_archives(
+                    request_id,
+                    report_meta["account"],
+                    report_meta["provider_uuid"],
+                    report_file,
+                    payload_destination_path,
+                    report_meta["manifest_id"],
+                    report_meta["date"],
+                    context,
+                )
                 report_metas.append(current_meta)
             else:
                 # Report already processed
@@ -533,7 +547,51 @@ def summarize_manifest(report_meta):
     return async_id
 
 
-def process_report(report):
+def convert_manifest_to_parquet(request_id, report_meta, context={}):
+    """
+    Kick off manifest conversion when all report files have completed line item processing.
+
+    Args:
+        request_id (str) - The triggering request identifier
+        report (Dict) - keys: value
+                        schema_name: String,
+                        manifest_id: Integer,
+                        provider_uuid: String,
+                        provider_type: String,
+                        date: DateTime
+        context (Dict) - Logging context
+
+    Returns:
+        Celery Async UUID.
+
+    """
+    async_id = None
+    schema_name = report_meta.get("schema_name")
+    manifest_id = report_meta.get("manifest_id")
+    provider_uuid = report_meta.get("provider_uuid")
+    provider_type = report_meta.get("provider_type")
+    start_date = report_meta.get("date")
+
+    if not context:
+        context = {"account": schema_name[4:], "provider_uuid": provider_uuid, "provider_type": provider_type}
+
+    with ReportManifestDBAccessor() as manifest_accesor:
+        manifest = manifest_accesor.get_manifest_by_id(manifest_id)
+        if manifest.num_processed_files == manifest.num_total_files:
+            report_meta = {
+                "schema_name": schema_name,
+                "provider_type": provider_type,
+                "provider_uuid": provider_uuid,
+                "manifest_id": manifest_id,
+                "start_date": start_date,
+            }
+            async_id = convert_reports_to_parquet.delay(
+                request_id=request_id, reports_to_convert=[report_meta], context=context
+            )
+    return async_id
+
+
+def process_report(request_id, report):
     """
     Process line item report.
 
@@ -546,12 +604,16 @@ def process_report(report):
     complete.
 
     Args:
+        request_id (Str): The request id
         report (Dict) - keys: value
+                        request_id: String,
+                        account: String,
                         schema_name: String,
                         manifest_id: Integer,
                         provider_uuid: String,
                         provider_type: String,
                         current_file: String,
+                        date: DateTime
 
     Returns:
         True if line item report processing is complete.
@@ -620,17 +682,25 @@ async def process_messages(msg, loop=EVENT_LOOP):
     with concurrent.futures.ThreadPoolExecutor() as pool:
         status, report_metas = await loop.run_in_executor(pool, handle_message, msg)
 
+    value = json.loads(msg.value.decode("utf-8"))
+    request_id = value.get("request_id", "no_request_id")
     if report_metas:
         with concurrent.futures.ThreadPoolExecutor() as pool:
             for report_meta in report_metas:
-                report_meta["process_complete"] = await loop.run_in_executor(pool, process_report, report_meta)
+                report_meta["process_complete"] = await loop.run_in_executor(
+                    pool, functools.partial(process_report, request_id=request_id, report=report_meta)
+                )
                 LOG.info(f"Processing: {report_meta.get('current_file')} complete.")
             process_complete = report_metas_complete(report_metas)
             async_id = await loop.run_in_executor(pool, summarize_manifest, report_meta)
             if async_id:
                 LOG.info("Summarization celery uuid: %s", str(async_id))
+            async_id = await loop.run_in_executor(
+                pool, functools.partial(convert_manifest_to_parquet, request_id=request_id, report_meta=report_meta)
+            )
+            if async_id:
+                LOG.info("Conversion of CSV to Parquet uuid: %s", str(async_id))
     if status:
-        value = json.loads(msg.value.decode("utf-8"))
         count = 0
         while True:
             try:
