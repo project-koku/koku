@@ -642,7 +642,7 @@ def process_messages(msg):
                     LOG.info(f"Sending Ingress Service confirmation for: {value}")
                 send_confirmation(value["request_id"], status)
                 break
-            except KafkaError as err:
+            except KafkaMsgHandlerError as err:
                 LOG.error(f"Resending message confirmation due to error: {err}")
                 backoff(count, Config.INSIGHTS_KAFKA_CONN_RETRY_MAX)
                 count += 1
