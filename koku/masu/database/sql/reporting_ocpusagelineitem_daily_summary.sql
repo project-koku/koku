@@ -46,7 +46,8 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe
         max(li.cluster_capacity_memory_byte_seconds) / 3600 * POWER(2, -30) as cluster_capacity_memory_gigabyte_hours,
         max(li.total_capacity_cpu_core_seconds) / 3600 as total_capacity_cpu_core_hours,
         max(li.total_capacity_memory_byte_seconds) / 3600 * POWER(2, -30) as total_capacity_memory_gigabyte_hours,
-        ab.provider_id as source_uuid
+        ab.provider_id as source_uuid,
+        '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as infrastructure_usage_cost
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily AS li
     LEFT JOIN cte_filtered_pod_labels AS fpl
         ON li.id = fpl.id
@@ -101,7 +102,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     cluster_capacity_memory_gigabyte_hours,
     total_capacity_cpu_core_hours,
     total_capacity_memory_gigabyte_hours,
-    source_uuid
+    source_uuid,
+    infrastructure_usage_cost
 )
     SELECT report_period_id,
         cluster_id,
@@ -127,6 +129,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         cluster_capacity_memory_gigabyte_hours,
         total_capacity_cpu_core_hours,
         total_capacity_memory_gigabyte_hours,
-        source_uuid
+        source_uuid,
+        infrastructure_usage_cost
     FROM reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe}}
 ;

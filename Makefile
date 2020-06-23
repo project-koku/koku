@@ -492,7 +492,7 @@ docker-down-db:
 	docker-compose rm -s -v -f db
 
 docker-logs:
-	docker-compose logs -f
+	docker-compose logs -f koku-server koku-worker masu-server
 
 docker-rabbit:
 	docker-compose up -d rabbit
