@@ -18,7 +18,6 @@
 """Koku Test Runner."""
 import logging
 import os
-import sys
 
 from django.conf import settings
 from django.db import connections
@@ -34,7 +33,6 @@ from reporting.models import OCPEnabledTagKeys
 
 LOG = logging.getLogger(__name__)
 OCP_ENABLED_TAGS = ["app", "storageclass", "environment", "version"]
-sys.stdout = open(os.devnull, "w")
 
 
 class KokuTestRunner(DiscoverRunner):
