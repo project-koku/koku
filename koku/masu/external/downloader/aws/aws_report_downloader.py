@@ -275,14 +275,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             # Push to S3
             s3_csv_path = get_path_prefix(self.account, self._provider_uuid, start_date, Config.CSV_DATA_TYPE)
             utils.copy_local_report_file_to_s3_bucket(
-                self.request_id,
-                self.account,
-                self._provider_uuid,
-                full_file_path,
-                local_s3_filename,
-                manifest_id,
-                start_date,
-                self.context,
+                self.request_id, s3_csv_path, full_file_path, local_s3_filename, manifest_id, start_date, self.context
             )
             utils.remove_files_not_in_set_from_s3_bucket(self.request_id, s3_csv_path, manifest_id)
 
