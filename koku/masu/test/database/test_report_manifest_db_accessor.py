@@ -44,6 +44,10 @@ class ManifestCreationHelper:
         self._billing_start = billing_start
         self._report_files = []
 
+    def __del__(self):
+        CostUsageReportStatus.objects.filter(manifest_id=self._manifest_id).delete()
+        CostUsageReportManifest.objects.filter(assembly_id=self._assembly_id).delete()
+
     def generate_manifest(self):
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_entry = manifest_accessor.get_manifest(self._assembly_id, self._provider_uuid)
