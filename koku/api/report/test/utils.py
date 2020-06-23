@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test utilities."""
-import logging
 import os
 import pkgutil
 import shutil
@@ -26,7 +25,6 @@ from django.conf import settings
 from django.test.utils import override_settings
 from jinja2 import Template
 from model_bakery import baker
-from nise.__main__ import LOG
 from nise.__main__ import run
 from tenant_schemas.utils import schema_context
 
@@ -37,9 +35,6 @@ from masu.processor.report_processor import ReportProcessor
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_summary_tables
-
-# only log errors from nise
-LOG.setLevel(level=logging.ERROR)
 
 
 class NiseDataLoader:
