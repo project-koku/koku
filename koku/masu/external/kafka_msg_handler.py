@@ -48,6 +48,7 @@ from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
+from masu.external.downloader.ocp.ocp_report_downloader import create_daily_archives
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
@@ -357,6 +358,16 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
             if not record_report_status(report_meta["manifest_id"], report_file, request_id, context):
                 msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
                 LOG.info(log_json(request_id, msg, context))
+                create_daily_archives(
+                    request_id,
+                    report_meta["account"],
+                    report_meta["provider_uuid"],
+                    report_file,
+                    payload_destination_path,
+                    report_meta["manifest_id"],
+                    report_meta["account"],
+                    context,
+                )
                 report_metas.append(current_meta)
             else:
                 # Report already processed

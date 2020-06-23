@@ -29,6 +29,7 @@ from faker import Faker
 from api.models import Provider
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
+from masu.external.downloader.ocp.ocp_report_downloader import divide_csv_daily
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
@@ -182,7 +183,7 @@ class OCPReportDownloaderTest(MasuTestCase):
                     }
                     df = pd.DataFrame(data=mock_report)
                     mock_pd.read_csv.return_value = df
-                    daily_files = self.ocp_report_downloader.divide_csv_daily(file_path, filename)
+                    daily_files = divide_csv_daily(file_path, filename)
                     self.assertNotEqual([], daily_files)
                     self.assertEqual(len(daily_files), 2)
                     gen_files = ["storage_usage.2020-01-01.csv", "storage_usage.2020-01-02.csv"]
