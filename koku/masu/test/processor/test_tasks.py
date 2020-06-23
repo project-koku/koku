@@ -41,6 +41,7 @@ from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.provider_status_accessor import ProviderStatusCode
@@ -696,11 +697,14 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self.assertEqual(result_start_date, expected_start_date.date())
         self.assertEqual(result_end_date, expected_end_date.date())
 
+    @patch("masu.processor.tasks.CostModelDBAccessor")
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.refresh_materialized_views")
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
-    def test_update_summary_tables_ocp(self, mock_cost_model, mock_charge_info, mock_view, mock_chain):
+    def test_update_summary_tables_ocp(
+        self, mock_cost_model, mock_charge_info, mock_view, mock_chain, mock_task_cost_model
+    ):
         """Test that the summary table task runs."""
         infrastructure_rates = {
             "cpu_core_usage_per_hour": 1.5,
@@ -712,6 +716,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_cost_model.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
         mock_cost_model.return_value.__enter__.return_value.supplementary_rates = {}
         mock_cost_model.return_value.__enter__.return_value.markup = markup
+        # We need to bypass the None check for cost model in update_cost_model_costs
+        mock_task_cost_model.return_value.__enter__.return_value.cost_model = {}
 
         provider = Provider.PROVIDER_OCP
         provider_ocp_uuid = self.ocp_test_provider_uuid
@@ -1053,3 +1059,22 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         vh = next(iter(koku_celery.app.conf.beat_schedule["vacuum-schemas"]["schedule"].hour))
         avh = next(iter(koku_celery.app.conf.beat_schedule["autovacuum-tune-schemas"]["schedule"].hour))
         self.assertTrue(avh == (23 if vh == 0 else (vh - 1)))
+
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    def test_no_cost_model_during_cost_model_update(self, mock_updater):
+        """Test cost model update not called if no cost model is present."""
+
+        provider_ocp_uuid = self.ocp_test_provider_uuid
+        with CostModelDBAccessor(self.schema, provider_ocp_uuid) as cost_model_accessor:
+            test_cost_model = cost_model_accessor.cost_model
+        self.assertIsNone(test_cost_model)
+
+        start_date = DateHelper().last_month_start
+        end_date = DateHelper().last_month_end
+
+        update_cost_model_costs(
+            schema_name=self.schema, provider_uuid=provider_ocp_uuid, start_date=start_date, end_date=end_date
+        )
+
+        self.assertFalse(mock_updater.called)
+        self.assertEqual(mock_updater.call_count, 0)
