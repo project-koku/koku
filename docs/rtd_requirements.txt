@@ -63,6 +63,7 @@ prometheus-client==0.8.0
 protobuf==3.12.2
 psutil==5.7.0
 psycopg2-binary==2.8.5
+pyarrow==0.17.1
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
 pycodestyle==2.6.0

@@ -63,6 +63,7 @@ mgmt_services/cost-mgmt:koku/python-prometheus-client:0.8.0.pipfile
 mgmt_services/cost-mgmt:koku/python-protobuf:3.12.2.pipfile
 mgmt_services/cost-mgmt:koku/python-psutil:5.7.0.pipfile
 mgmt_services/cost-mgmt:koku/python-psycopg2-binary:2.8.5.pipfile
+mgmt_services/cost-mgmt:koku/python-pyarrow:0.17.1.pipfile
 mgmt_services/cost-mgmt:koku/python-pyasn1:0.4.8.pipfile
 mgmt_services/cost-mgmt:koku/python-pyasn1-modules:0.2.8.pipfile
 mgmt_services/cost-mgmt:koku/python-pycodestyle:2.6.0.pipfile
