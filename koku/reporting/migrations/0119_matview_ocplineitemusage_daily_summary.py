@@ -4,13 +4,13 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0119_copy_data_ocplineitemusage_daily_summary")]
+    dependencies = [("reporting", "0118_rename_ocplineitemusage_daily_summary")]
 
     operations = [
         migrations.RunSQL(
             """
 -- ========================================
---    rereate the materialized views to connect them to the partitioned table
+--    Recreate the materialized views to connect them to the partitioned table
 -- ========================================
 CREATE materialized VIEW reporting_ocp_cost_summary AS
 SELECT row_number() OVER (ORDER BY reporting_ocpusagelineitem_daily_summary.usage_start, reporting_ocpusagelineitem_daily_summary.cluster_id, reporting_ocpusagelineitem_daily_summary.cluster_alias) AS id,
@@ -226,6 +226,13 @@ REFRESH MATERIALIZED VIEW reporting_ocp_pod_summary_by_project WITH DATA;
 REFRESH MATERIALIZED VIEW reporting_ocp_volume_summary WITH DATA;
 
 REFRESH MATERIALIZED VIEW reporting_ocp_volume_summary_by_project WITH DATA;
+
+
+-- ========================================
+--    Drop original objects
+-- ========================================
+TRUNCATE TABLE __reporting_ocpusagelineitem_daily_summary;
+DROP TABLE __reporting_ocpusagelineitem_daily_summary CASCADE;
             """
         )
     ]
