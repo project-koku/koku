@@ -683,7 +683,7 @@ def process_messages(msg):
     process_complete = False
     status, report_metas = handle_message(msg)
 
-    value = json.loads(msg.value.decode("utf-8"))
+    value = json.loads(msg.value().decode("utf-8"))
     request_id = value.get("request_id", "no_request_id")
     if report_metas:
         for report_meta in report_metas:
@@ -697,7 +697,6 @@ def process_messages(msg):
         if conversion_task_id:
             LOG.info(f"Conversion of CSV to Parquet uuid: {conversion_task_id}")
     if status:
-        value = json.loads(msg.value().decode("utf-8"))
         count = 0
         while True:
             try:
@@ -727,7 +726,7 @@ def get_consumer():  # pragma: no cover
             "queued.max.messages.kbytes": 1024,
             "enable.auto.commit": False,
             "enable.auto.offset.store": False,
-            "max.poll.interval.ms": 900000,  # 15 minutes
+            "max.poll.interval.ms": 1080000,  # 18 minutes
         }
     )
     consumer.subscribe([HCCM_TOPIC])
