@@ -34,6 +34,7 @@ from api.utils import DateHelper
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.celery import app
 from masu.config import Config
+from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.accounts_accessor import AccountsAccessor
@@ -317,18 +318,28 @@ def update_cost_model_costs(schema_name, provider_uuid, start_date=None, end_dat
         None
 
     """
-    worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
+    with CostModelDBAccessor(schema_name, provider_uuid) as cost_model_accessor:
+        cost_model = cost_model_accessor.cost_model
+    if cost_model is not None:
+        worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
 
-    stmt = (
-        f"update_cost_model_costs called with args:\n"
-        f" schema_name: {schema_name},\n"
-        f" provider_uuid: {provider_uuid}"
-    )
-    LOG.info(stmt)
+        stmt = (
+            f"update_cost_model_costs called with args:\n"
+            f" schema_name: {schema_name},\n"
+            f" provider_uuid: {provider_uuid}"
+        )
+        LOG.info(stmt)
 
-    updater = CostModelCostUpdater(schema_name, provider_uuid)
-    if updater:
-        updater.update_cost_model_costs(start_date, end_date)
+        updater = CostModelCostUpdater(schema_name, provider_uuid)
+        if updater:
+            updater.update_cost_model_costs(start_date, end_date)
+    else:
+        stmt = (
+            f"\n update_cost_model_costs skipped. No cost model available for \n"
+            f" schema_name: {schema_name},\n"
+            f" provider_uuid: {provider_uuid}"
+        )
+        LOG.info(stmt)
 
 
 @app.task(name="masu.processor.tasks.refresh_materialized_views", queue_name="reporting")
