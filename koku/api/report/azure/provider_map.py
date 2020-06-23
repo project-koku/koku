@@ -247,9 +247,21 @@ class AzureProviderMap(ProviderMap):
                 "resource_location": AzureCostSummaryByLocation,
                 "service_name": AzureCostSummaryByService,
             },
-            "instance_type": {"default": AzureComputeSummary, "instance_type": AzureComputeSummary},
-            "storage": {"default": AzureStorageSummary},
-            "database": {"default": AzureDatabaseSummary, "service_name": AzureDatabaseSummary},
-            "network": {"default": AzureNetworkSummary, "service_name": AzureNetworkSummary},
+            "instance_type": {
+                "default": AzureComputeSummary,
+                "instance_type": AzureComputeSummary,
+                "subscription_guid": AzureComputeSummary,
+            },
+            "storage": {"default": AzureStorageSummary, "subscription_guid": AzureStorageSummary},
+            "database": {
+                "default": AzureDatabaseSummary,
+                "service_name": AzureDatabaseSummary,
+                "subscription_guid": AzureDatabaseSummary,
+            },
+            "network": {
+                "default": AzureNetworkSummary,
+                "service_name": AzureNetworkSummary,
+                "subscription_guid": AzureNetworkSummary,
+            },
         }
         super().__init__(provider, report_type)

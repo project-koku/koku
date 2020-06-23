@@ -312,7 +312,7 @@ class AWSProviderMap(ProviderMap):
                 "service": AWSStorageSummaryByService,
                 "product_family": AWSStorageSummaryByService,
             },
-            "database": {"default": AWSDatabaseSummary, "service": AWSDatabaseSummary},
-            "network": {"default": AWSNetworkSummary, "service": AWSNetworkSummary},
+            "database": {"default": AWSDatabaseSummary, "service": AWSDatabaseSummary, "account": AWSDatabaseSummary},
+            "network": {"default": AWSNetworkSummary, "service": AWSNetworkSummary, "account": AWSNetworkSummary},
         }
         super().__init__(provider, report_type)

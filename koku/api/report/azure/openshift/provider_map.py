@@ -502,9 +502,21 @@ class OCPAzureProviderMap(ProviderMap):
                 "service_name": OCPAzureCostSummaryByService,
                 "resource_location": OCPAzureCostSummaryByLocation,
             },
-            "instance_type": {"default": OCPAzureComputeSummary, "instance_type": OCPAzureComputeSummary},
-            "storage": {"default": OCPAzureStorageSummary},
-            "database": {"default": OCPAzureDatabaseSummary, "service_name": OCPAzureDatabaseSummary},
-            "network": {"default": OCPAzureNetworkSummary, "service_name": OCPAzureNetworkSummary},
+            "instance_type": {
+                "default": OCPAzureComputeSummary,
+                "instance_type": OCPAzureComputeSummary,
+                "subscription_guid": OCPAzureComputeSummary,
+            },
+            "storage": {"default": OCPAzureStorageSummary, "subscription_guid": OCPAzureStorageSummary},
+            "database": {
+                "default": OCPAzureDatabaseSummary,
+                "service_name": OCPAzureDatabaseSummary,
+                "subscription_guid": OCPAzureDatabaseSummary,
+            },
+            "network": {
+                "default": OCPAzureNetworkSummary,
+                "service_name": OCPAzureNetworkSummary,
+                "subscription_guid": OCPAzureNetworkSummary,
+            },
         }
         super().__init__(provider, report_type)

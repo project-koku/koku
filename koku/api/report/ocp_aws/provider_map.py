@@ -503,9 +503,21 @@ class OCPAWSProviderMap(ProviderMap):
                 "service": OCPAWSCostSummaryByService,
                 "region": OCPAWSCostSummaryByRegion,
             },
-            "instance_type": {"default": OCPAWSComputeSummary, "instance_type": OCPAWSComputeSummary},
-            "storage": {"default": OCPAWSStorageSummary},
-            "database": {"default": OCPAWSDatabaseSummary, "service": OCPAWSDatabaseSummary},
-            "network": {"default": OCPAWSNetworkSummary, "service": OCPAWSNetworkSummary},
+            "instance_type": {
+                "default": OCPAWSComputeSummary,
+                "instance_type": OCPAWSComputeSummary,
+                "account": OCPAWSComputeSummary,
+            },
+            "storage": {"default": OCPAWSStorageSummary, "account": OCPAWSStorageSummary},
+            "database": {
+                "default": OCPAWSDatabaseSummary,
+                "service": OCPAWSDatabaseSummary,
+                "account": OCPAWSDatabaseSummary,
+            },
+            "network": {
+                "default": OCPAWSNetworkSummary,
+                "service": OCPAWSNetworkSummary,
+                "account": OCPAWSNetworkSummary,
+            },
         }
         super().__init__(provider, report_type)
