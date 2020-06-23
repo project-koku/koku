@@ -400,7 +400,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "file": "/path/to/file.csv",
         }
         with patch("masu.external.kafka_msg_handler._process_report_file") as mock_process:
-            msg_handler.process_report(report_meta)
+            msg_handler.process_report("request_id", report_meta)
             mock_process.assert_called()
 
     def test_summarize_manifest(self):
