@@ -42,64 +42,8 @@ ALTER SEQUENCE reporting_ocpusagelineitem_daily_summary_id_seq
       RENAME TO __reporting_ocpusagelineitem_daily_summary_id_seq ;
 
 CREATE TABLE IF NOT EXISTS p_reporting_ocpusagelineitem_daily_summary (
-    id bigint ,
-    cluster_id CHARACTER varying(50) ,
-    namespace CHARACTER varying(253) ,
-    node CHARACTER varying(253) ,
-    usage_start date ,
-    usage_end date NOT NULL,
-    pod_usage_cpu_core_hours numeric(27,9) ,
-    pod_request_cpu_core_hours numeric(27,9) ,
-    pod_limit_cpu_core_hours numeric(27,9) ,
-    pod_usage_memory_gigabyte_hours numeric(27,9) ,
-    pod_request_memory_gigabyte_hours numeric(27,9) ,
-    pod_limit_memory_gigabyte_hours numeric(27,9) ,
-    node_capacity_cpu_core_hours numeric(27,9) ,
-    node_capacity_cpu_cores numeric(27,9) ,
-    node_capacity_memory_gigabyte_hours numeric(27,9) ,
-    node_capacity_memory_gigabytes numeric(27,9) ,
-    cluster_capacity_cpu_core_hours numeric(27,9) ,
-    cluster_capacity_memory_gigabyte_hours numeric(27,9) ,
-    pod_labels JSONB ,
-    cluster_alias CHARACTER varying(256) ,
-    resource_id CHARACTER varying(253) ,
-    total_capacity_cpu_core_hours numeric(27,9) ,
-    total_capacity_memory_gigabyte_hours numeric(27,9) ,
-    data_source CHARACTER varying(64) ,
-    persistentvolume CHARACTER varying(253) ,
-    persistentvolumeclaim CHARACTER varying(253) ,
-    persistentvolumeclaim_capacity_gigabyte numeric(27,9) ,
-    persistentvolumeclaim_capacity_gigabyte_months numeric(27,9) ,
-    persistentvolumeclaim_usage_gigabyte_months numeric(27,9) ,
-    storageclass CHARACTER varying(50) ,
-    volume_labels JSONB ,
-    volume_request_storage_gigabyte_months numeric(27,9) ,
-    report_period_id integer ,
-    infrastructure_markup_cost numeric(33,15) ,
-    infrastructure_monthly_cost numeric(33,15) ,
-    infrastructure_project_markup_cost numeric(33,15) ,
-    infrastructure_project_raw_cost numeric(33,15) ,
-    infrastructure_raw_cost numeric(33,15) ,
-    infrastructure_usage_cost JSONB ,
-    monthly_cost_type text ,
-    supplementary_monthly_cost numeric(33,15) ,
-    supplementary_usage_cost JSONB ,
-    source_uuid UUID
-)
-PARTITION BY RANGE (usage_start);
-
-CREATE SEQUENCE reporting_ocpusagelineitem_daily_summary_id_seq AS bigint
-       INCREMENT BY 1
-       MINVALUE 1
-       MAXVALUE 9223372036854775807
-       START WITH 1
-       CACHE 1
-       NO CYCLE ;
-
-ALTER TABLE p_reporting_ocpusagelineitem_daily_summary ALTER COLUMN id
-   SET DEFAULT nextval('reporting_ocpusagelineitem_daily_summary_id_seq'::regclass) ;
-
-ALTER SEQUENCE reporting_ocpusagelineitem_daily_summary_id_seq owned BY p_reporting_ocpusagelineitem_daily_summary.id ;
+    LIKE reporting_ocpusagelineitem_daily_summary INCLUDING ALL
+);
 
 ALTER TABLE p_reporting_ocpusagelineitem_daily_summary ADD
 CONSTRAINT p_reporting_ocpusagelineitem_daily_summary_pkey PRIMARY KEY (usage_start, id) ;
