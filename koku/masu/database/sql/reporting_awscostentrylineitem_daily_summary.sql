@@ -25,7 +25,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sql
         array_agg(DISTINCT li.resource_id) as resource_ids,
         count(DISTINCT li.resource_id) as resource_count,
         max(ou.id) as organizational_unit_id,
-        ab.provider_id as source_uuid
+        ab.provider_id as source_uuid,
+        0.0::decimal as markup_cost
     FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily AS li
     JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
         ON li.cost_entry_product_id = p.id
@@ -102,7 +103,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary (
     resource_ids,
     resource_count,
     organizational_unit_id,
-    source_uuid
+    source_uuid,
+    markup_cost
 )
 SELECT cost_entry_bill_id,
         usage_start,
@@ -129,6 +131,7 @@ SELECT cost_entry_bill_id,
         resource_ids,
         resource_count,
         organizational_unit_id,
-        source_uuid
+        source_uuid,
+        markup_cost
     FROM reporting_awscostentrylineitem_daily_summary_{{uuid | sqlsafe}}
 ;

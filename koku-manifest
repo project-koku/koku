@@ -57,7 +57,6 @@ mgmt_services/cost-mgmt:koku/python-msrestazure:0.6.3.pipfile
 mgmt_services/cost-mgmt:koku/python-numpy:1.18.5.pipfile
 mgmt_services/cost-mgmt:koku/python-oauthlib:3.1.0.pipfile
 mgmt_services/cost-mgmt:koku/python-ordered-set:4.0.2.pipfile
-mgmt_services/cost-mgmt:koku/python-packaging:20.4.pipfile
 mgmt_services/cost-mgmt:koku/python-pandas:1.0.4.pipfile
 mgmt_services/cost-mgmt:koku/python-pint:0.13.pipfile
 mgmt_services/cost-mgmt:koku/python-prometheus-client:0.8.0.pipfile

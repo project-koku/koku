@@ -57,7 +57,6 @@ msrestazure==0.6.3
 numpy==1.18.5
 oauthlib==3.1.0
 ordered-set==4.0.2
-packaging==20.4
 pandas==1.0.4
 pint==0.13
 prometheus-client==0.8.0
