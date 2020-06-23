@@ -73,14 +73,14 @@ CONSTRAINT p_reporting_ocpusageli_report_period_id_fc68baea_fk_reporting
 FOREIGN KEY (report_period_id) REFERENCES reporting_ocpusagereportperiod(id) DEFERRABLE INITIALLY DEFERRED ;
 
 -- INDEXES
-CREATE INDEX p_ocpu_lids_pod_labels_idx ON p_reporting_ocpusagelineitem_daily_summary USING gin (pod_labels)
-CREATE INDEX p_ocpu_lids_summary_data_source_idx ON p_reporting_ocpusagelineitem_daily_summary USING btree (data_source)
-CREATE INDEX p_ocpu_lids_reporting_ocpusagelineitem_report_period_id_fc68baea ON p_reporting_ocpusagelineitem_daily_summary USING btree (report_period_id)
-CREATE INDEX p_ocpu_lids_summary_ocp_usage_idx ON p_reporting_ocpusagelineitem_daily_summary USING btree (usage_start)
-CREATE INDEX p_ocpu_lids_summary_namespace_idx ON p_reporting_ocpusagelineitem_daily_summary USING btree (namespace varchar_pattern_ops)
-CREATE INDEX p_ocpu_lids_summary_node_idx ON p_reporting_ocpusagelineitem_daily_summary USING btree (node varchar_pattern_ops)
-CREATE INDEX p_ocpu_lids_ocp_summary_namespace_like_idx ON p_reporting_ocpusagelineitem_daily_summary USING gin (upper((namespace)::text) public.gin_trgm_ops)
-CREATE INDEX p_ocpu_lids_ocp_summary_node_like_idx ON p_reporting_ocpusagelineitem_daily_summary USING gin (upper((node)::text) public.gin_trgm_ops)
+CREATE INDEX p_ocpu_lids_pod_labels_idx ON p_reporting_ocpusagelineitem_daily_summary USING gin (pod_labels);
+CREATE INDEX p_ocpu_lids_summary_data_source_idx ON p_reporting_ocpusagelineitem_daily_summary USING btree (data_source);
+CREATE INDEX p_ocpu_lids_reporting_ocpusagelineitem_report_period_id_fc68baea ON p_reporting_ocpusagelineitem_daily_summary USING btree (report_period_id);
+CREATE INDEX p_ocpu_lids_summary_ocp_usage_idx ON p_reporting_ocpusagelineitem_daily_summary USING btree (usage_start);
+CREATE INDEX p_ocpu_lids_summary_namespace_idx ON p_reporting_ocpusagelineitem_daily_summary USING btree (namespace varchar_pattern_ops);
+CREATE INDEX p_ocpu_lids_summary_node_idx ON p_reporting_ocpusagelineitem_daily_summary USING btree (node varchar_pattern_ops);
+CREATE INDEX p_ocpu_lids_ocp_summary_namespace_like_idx ON p_reporting_ocpusagelineitem_daily_summary USING gin (upper((namespace)::text) public.gin_trgm_ops);
+CREATE INDEX p_ocpu_lids_ocp_summary_node_like_idx ON p_reporting_ocpusagelineitem_daily_summary USING gin (upper((node)::text) public.gin_trgm_ops);
 
 
 -- ===================================
