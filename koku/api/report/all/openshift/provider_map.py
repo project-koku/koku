@@ -557,9 +557,11 @@ class OCPAllProviderMap(ProviderMap):
             },
             "instance_type": {
                 "default": OCPAllComputeSummary,
-                ("account"): OCPAllComputeSummary,
+                ("account",): OCPAllComputeSummary,
                 ("instance_type",): OCPAllComputeSummary,
                 ("account", "instance_type"): OCPAllComputeSummary,
+                ("service",): OCPAllComputeSummary,
+                ("account", "service"): OCPAllComputeSummary,
             },
             "storage": {
                 "default": OCPAllStorageSummary,
