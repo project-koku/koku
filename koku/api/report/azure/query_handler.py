@@ -82,25 +82,13 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
     def _get_query_table_group_by_keys(self):
         """Return the group by keys specific for selecting the query table."""
-        group_by_keys = list(self.parameters.get("group_by", {}).keys())
-
-        # subscription guid is in all views, so does not factor into the
-        # choice of view
-        if len(group_by_keys) == 2 and "subscription_guid" in group_by_keys:
-            group_by_keys.remove("subscription_guid")
-        return group_by_keys
+        return set(self.parameters.get("group_by", {}).keys())
 
     def _get_query_table_filter_keys(self):
         """Return the filter keys specific for selecting the query table."""
         excluded_filters = {"time_scope_value", "time_scope_units", "resolution"}
         filter_keys = set(self.parameters.get("filter", {}).keys())
-        filter_keys = filter_keys.difference(excluded_filters)
-
-        # subscription guid is in all views, so does not factor into the
-        # choice of view
-        if len(filter_keys) == 2 and "subscription_guid" in filter_keys:
-            filter_keys.remove("subscription_guid")
-        return filter_keys
+        return filter_keys.difference(excluded_filters)
 
     @property
     def query_table(self):
@@ -111,25 +99,13 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
         filter_keys = self._get_query_table_filter_keys()
         group_by_keys = self._get_query_table_group_by_keys()
-
-        # If grouping by more than 1 field, we default to the daily summary table
-        if len(group_by_keys) > 1:
-            return query_table
-        if len(filter_keys) > 1:
-            return query_table
-
-        account_set = {"subscription_guid"}
-        group_by_set = set(group_by_keys).difference(account_set)
-        filter_set = set(filter_keys).difference(account_set)
-        key_diff = filter_set.difference(group_by_set)
-
-        # If filtering on a different field than grouping by, we default to the daily summary table
-        if group_by_set and len(key_diff) != 0:
-            return query_table
+        key_tuple = tuple(sorted(filter_keys.union(group_by_keys)))
+        if key_tuple:
+            report_group = key_tuple
 
         # Special Casess for Network and Database Cards in the UI
         service_filter = set(self.parameters.get("filter", {}).get("service_name", []))
-        network_services = [
+        network_services = {
             "Virtual Network",
             "VPN",
             "DNS",
@@ -137,17 +113,13 @@ class AzureReportQueryHandler(ReportQueryHandler):
             "ExpressRoute",
             "Load Balancer",
             "Application Gateway",
-        ]
-        database_services = ["Database", "Cosmos DB", "Cache for Redis"]
+        }
+        database_services = {"Database", "Cosmos DB", "Cache for Redis"}
         if report_type == "costs" and service_filter and not service_filter.difference(network_services):
             report_type = "network"
         elif report_type == "costs" and service_filter and not service_filter.difference(database_services):
             report_type = "database"
 
-        if group_by_set:
-            report_group = group_by_keys[0]
-        elif filter_keys:
-            report_group = list(filter_keys)[0]
         try:
             query_table = self._mapper.views[report_type][report_group]
         except KeyError:

@@ -25,7 +25,6 @@ from django.db.models import Value
 from django.db.models import Window
 from django.db.models.expressions import Func
 from django.db.models.functions import Coalesce
-from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
 
@@ -114,34 +113,18 @@ class AWSReportQueryHandler(ReportQueryHandler):
         )
         for q_param, db_field in fields.items():
             if q_param in prefix_removed_parameters_list:
-                annotations[q_param] = Concat(db_field, Value(""))
+                annotations[q_param] = F(db_field)
         return annotations
 
     def _get_query_table_group_by_keys(self):
         """Return the group by keys specific for selecting the query table."""
-        group_by_keys = list(self.parameters.get("group_by", {}).keys())
-
-        # Account and org unit are in all views, so don't factor into the
-        # choice of view
-        if len(group_by_keys) == 2 and "account" in group_by_keys:
-            group_by_keys.remove("account")
-        elif len(group_by_keys) == 2 and "org_unit_id" in group_by_keys:
-            group_by_keys.remove("org_unit_id")
-        return group_by_keys
+        return set(self.parameters.get("group_by", {}).keys())
 
     def _get_query_table_filter_keys(self):
         """Return the filter keys specific for selecting the query table."""
         excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
         filter_keys = set(self.parameters.get("filter", {}).keys())
-        filter_keys = filter_keys.difference(excluded_filters)
-
-        # Account and org unit are in all views, so don't factor into the
-        # choice of view
-        if len(filter_keys) == 2 and "account" in filter_keys:
-            filter_keys.remove("account")
-        elif len(filter_keys) == 2 and "org_unit_id" in filter_keys:
-            filter_keys.remove("org_unit_id")
-        return filter_keys
+        return filter_keys.difference(excluded_filters)
 
     @property
     def query_table(self):
@@ -152,42 +135,26 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         filter_keys = self._get_query_table_filter_keys()
         group_by_keys = self._get_query_table_group_by_keys()
-
-        # If grouping by more than 1 field, we default to the daily summary table
-        if len(group_by_keys) > 1:
-            return query_table
-        if len(filter_keys) > 1:
-            return query_table
-
-        account_set = {"account", "org_unit_id"}
-        group_by_set = set(group_by_keys).difference(account_set)
-        filter_set = set(filter_keys).difference(account_set)
-        key_diff = filter_set.difference(group_by_set)
-        LOG.info(group_by_set)
-        # If filtering on a different field than grouping by, we default to the daily summary table
-        if group_by_set and len(key_diff) != 0:
-            return query_table
+        key_tuple = tuple(sorted(filter_keys.union(group_by_keys)))
+        if key_tuple:
+            report_group = key_tuple
 
         # Special Casess for Network and Database Cards in the UI
         service_filter = set(self.parameters.get("filter", {}).get("service", []))
-        network_services = ["AmazonVPC", "AmazonCloudFront", "AmazonRoute53", "AmazonAPIGateway"]
-        database_services = [
+        network_services = {"AmazonVPC", "AmazonCloudFront", "AmazonRoute53", "AmazonAPIGateway"}
+        database_services = {
             "AmazonRDS",
             "AmazonDynamoDB",
             "AmazonElastiCache",
             "AmazonNeptune",
             "AmazonRedshift",
             "AmazonDocumentDB",
-        ]
+        }
         if report_type == "costs" and service_filter and not service_filter.difference(network_services):
             report_type = "network"
         elif report_type == "costs" and service_filter and not service_filter.difference(database_services):
             report_type = "database"
 
-        if group_by_set:
-            report_group = group_by_keys[0]
-        elif filter_keys:
-            report_group = list(filter_keys)[0]
         try:
             query_table = self._mapper.views[report_type][report_group]
         except KeyError:
@@ -229,7 +196,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
         obtain the account results, and each sub_org results.
         Else it will return the original query.
         """
-        LOG.info(f"\t\tOur query table: {self.query_table}")
         original_filters = copy.deepcopy(self.parameters.parameters.get("filter"))
         sub_orgs_dict = {}
         query_data_results = {}

@@ -32,7 +32,7 @@ from api.report.queries import is_grouped_or_filtered_by_project
 LOG = logging.getLogger(__name__)
 
 
-def check_view_filter_and_group_by_criteria(filter_set, group_by_set, account_key="account"):
+def check_view_filter_and_group_by_criteria(filter_set, group_by_set):
     """Return a bool for whether a view can be used."""
     no_view_group_bys = {"project", "node"}
     # If grouping by more than 1 field, we default to the daily summary table
@@ -166,38 +166,32 @@ class OCPAWSReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
         query_table = self._mapper.query_table
         report_type = self.parameters.report_type
         report_group = "default"
-        account_key = "account"
 
         filter_keys = self._get_query_table_filter_keys()
         group_by_keys = self._get_query_table_group_by_keys()
+        key_tuple = tuple(sorted(filter_keys.union(group_by_keys)))
+        if key_tuple:
+            report_group = key_tuple
 
-        account_set = {account_key}
-        group_by_set = set(group_by_keys).difference(account_set)
-        filter_set = set(filter_keys).difference(account_set)
-
-        if not check_view_filter_and_group_by_criteria(filter_set, group_by_set):
+        if not check_view_filter_and_group_by_criteria(filter_keys, group_by_keys):
             return query_table
 
         # Special Casess for Network and Database Cards in the UI
         service_filter = set(self.parameters.get("filter", {}).get("service", []))
-        network_services = ["AmazonVPC", "AmazonCloudFront", "AmazonRoute53", "AmazonAPIGateway"]
-        database_services = [
+        network_services = {"AmazonVPC", "AmazonCloudFront", "AmazonRoute53", "AmazonAPIGateway"}
+        database_services = {
             "AmazonRDS",
             "AmazonDynamoDB",
             "AmazonElastiCache",
             "AmazonNeptune",
             "AmazonRedshift",
             "AmazonDocumentDB",
-        ]
+        }
         if report_type == "costs" and service_filter and not service_filter.difference(network_services):
             report_type = "network"
         elif report_type == "costs" and service_filter and not service_filter.difference(database_services):
             report_type = "database"
 
-        if group_by_set:
-            report_group = group_by_keys[0]
-        elif filter_keys:
-            report_group = list(filter_keys)[0]
         try:
             query_table = self._mapper.views[report_type][report_group]
         except KeyError:
