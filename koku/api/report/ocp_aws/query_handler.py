@@ -35,15 +35,6 @@ LOG = logging.getLogger(__name__)
 def check_view_filter_and_group_by_criteria(filter_set, group_by_set):
     """Return a bool for whether a view can be used."""
     no_view_group_bys = {"project", "node"}
-    # If grouping by more than 1 field, we default to the daily summary table
-    if len(group_by_set) > 1:
-        return False
-    if len(filter_set) > 1:
-        return False
-    # If filtering on a different field than grouping by, we default to the daily summary table
-    # If we're not just grouping by account
-    if group_by_set and len(filter_set.difference(group_by_set)) != 0:
-        return False
     # The dashboard does not show any data grouped by OpenShift cluster, node, or project
     # so we do not have views for these group bys
     if group_by_set.intersection(no_view_group_bys) or filter_set.intersection(no_view_group_bys):

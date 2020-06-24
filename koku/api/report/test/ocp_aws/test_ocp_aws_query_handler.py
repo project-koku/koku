@@ -290,36 +290,36 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
         for option in good_group_by_options:
             filter_keys = {option}
-            group_by_keys = []
+            group_by_keys = set()
             self.assertTrue(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
 
             filter_keys = set()
-            group_by_keys = [option]
+            group_by_keys = {option}
             self.assertTrue(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
 
         # Different group by and filter
         filter_keys = {"account"}
-        group_by_keys = ["cluster"]
-        self.assertFalse(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
+        group_by_keys = {"cluster"}
+        self.assertTrue(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
 
         # Multiple group bys
         filter_keys = set()
-        group_by_keys = ["cluster", "account"]
-        self.assertFalse(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
+        group_by_keys = {"cluster", "account"}
+        self.assertTrue(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
 
         # Multiple filters
         filter_keys = {"cluster", "account"}
-        group_by_keys = []
-        self.assertFalse(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
+        group_by_keys = set()
+        self.assertTrue(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
 
         # Project and node unsupported
         for option in bad_group_by_options:
             filter_keys = {option}
-            group_by_keys = []
+            group_by_keys = set()
             self.assertFalse(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
 
             filter_keys = set()
-            group_by_keys = [option]
+            group_by_keys = {option}
             self.assertFalse(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
 
     def test_query_table(self):

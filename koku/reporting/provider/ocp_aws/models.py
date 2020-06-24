@@ -269,7 +269,7 @@ class OCPAWSCostSummaryByAccount(models.Model):
 
     usage_account_id = models.CharField(max_length=50, null=False)
 
-    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
@@ -302,6 +302,10 @@ class OCPAWSCostSummaryByService(models.Model):
     cluster_id = models.CharField(max_length=50, null=True)
 
     cluster_alias = models.CharField(max_length=256, null=True)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
 
     product_code = models.CharField(max_length=50, null=False)
 
@@ -339,6 +343,10 @@ class OCPAWSCostSummaryByRegion(models.Model):
 
     cluster_alias = models.CharField(max_length=256, null=True)
 
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
     region = models.CharField(max_length=50, null=True)
 
     availability_zone = models.CharField(max_length=50, null=True)
@@ -374,6 +382,10 @@ class OCPAWSComputeSummary(models.Model):
     cluster_id = models.CharField(max_length=50, null=True)
 
     cluster_alias = models.CharField(max_length=256, null=True)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
 
     instance_type = models.CharField(max_length=50, null=True)
 
@@ -415,6 +427,10 @@ class OCPAWSStorageSummary(models.Model):
 
     cluster_alias = models.CharField(max_length=256, null=True)
 
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
     product_family = models.CharField(max_length=150, null=True)
 
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -453,6 +469,10 @@ class OCPAWSNetworkSummary(models.Model):
 
     cluster_alias = models.CharField(max_length=256, null=True)
 
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
     product_code = models.CharField(max_length=50, null=False)
 
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -490,6 +510,10 @@ class OCPAWSDatabaseSummary(models.Model):
     cluster_id = models.CharField(max_length=50, null=True)
 
     cluster_alias = models.CharField(max_length=256, null=True)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
 
     product_code = models.CharField(max_length=50, null=False)
 

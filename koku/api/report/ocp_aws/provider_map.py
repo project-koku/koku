@@ -499,7 +499,7 @@ class OCPAWSProviderMap(ProviderMap):
         self.views = {
             "costs": {
                 "default": OCPAWSCostSummary,
-                ("account"): OCPAWSCostSummaryByAccount,
+                ("account",): OCPAWSCostSummaryByAccount,
                 ("service",): OCPAWSCostSummaryByService,
                 ("account", "service"): OCPAWSCostSummaryByService,
                 ("region",): OCPAWSCostSummaryByRegion,
@@ -516,7 +516,7 @@ class OCPAWSProviderMap(ProviderMap):
                 "default": OCPAWSDatabaseSummary,
                 ("service",): OCPAWSDatabaseSummary,
                 ("account", "service"): OCPAWSDatabaseSummary,
-                ("account"): OCPAWSDatabaseSummary,
+                ("account",): OCPAWSDatabaseSummary,
             },
             "network": {
                 "default": OCPAWSNetworkSummary,

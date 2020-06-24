@@ -23,6 +23,7 @@ from unittest.mock import patch
 from unittest.mock import PropertyMock
 
 from dateutil.relativedelta import relativedelta
+from django.db import connection
 from django.db.models import F
 from django.db.models import Sum
 from django.urls import reverse
@@ -72,6 +73,8 @@ class OCPAzureQueryHandlerTestNoData(IamTestCase):
         """Test that the sum query runs properly for instance-types."""
         with tenant_context(self.tenant):
             OCPAzureCostLineItemDailySummary.objects.all().delete()
+            with connection.cursor() as cursor:
+                cursor.execute("REFRESH MATERIALIZED VIEW reporting_ocpazure_compute_summary")
         url = "?group_by[subscription_guid]=*"
         query_params = self.mocked_query_params(url, OCPAzureInstanceTypeView)
         handler = OCPAzureReportQueryHandler(query_params)
