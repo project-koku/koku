@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Kafka message handler."""
+import itertools
 import json
 import logging
 import os
@@ -57,15 +58,8 @@ from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
 
-# from kafka.errors import KafkaError
 
 LOG = logging.getLogger(__name__)
-
-# import ptvsd
-# ptvsd.enable_attach(("0.0.0.0", 5678))
-# LOG.warning("Waiting for debugger attach...")
-# ptvsd.wait_for_attach()
-
 HCCM_TOPIC = "platform.upload.hccm"
 VALIDATION_TOPIC = "platform.upload.validation"
 SUCCESS_CONFIRM_STATUS = "success"
@@ -402,15 +396,6 @@ def send_confirmation(request_id, status):  # pragma: no cover
     Returns:
         None
 
-    max.in.flight.requests.per.connection   1000000         Maximum number of in-flight requests per
-            broker connection. This is a generic property applied to all broker communication, however
-            it is primarily relevant to produce requests. In particular, note that other mechanisms
-            limit the number of outstanding consumer fetch request per broker to one.
-    message.send.max.retries                2               How many times to retry sending a failing
-            Message. Note: retrying may cause reordering unless enable.idempotence is set to true.
-    retry.backoff.ms                        100             The backoff time in milliseconds before
-            retrying a protocol request.
-
     """
     validation = {"request_id": request_id, "validation": status}
     msg = bytes(json.dumps(validation), "utf-8")
@@ -698,7 +683,7 @@ def process_messages(msg):
             LOG.info(f"Conversion of CSV to Parquet uuid: {conversion_task_id}")
     if status:
         count = 0
-        while True:
+        while itertools.count():
             try:
                 if report_metas:
                     file_list = [meta.get("current_file") for meta in report_metas]
@@ -737,12 +722,13 @@ def listen_for_messages_loop():
     """Wrap listen_for_messages in while true."""
     consumer = get_consumer()
     LOG.info("Consumer is listening for messages...")
-    while True:
+    while itertools.count():
         msg = consumer.poll(timeout=1.0)
         if msg is None:
             continue
 
         if msg.error():
+            KAFKA_CONNECTION_ERRORS_COUNTER.inc()
             if msg.error().code() == KafkaError._PARTITION_EOF:
                 # End of partition event
                 LOG.warning(
@@ -754,7 +740,6 @@ def listen_for_messages_loop():
         listen_for_messages(msg, consumer)
 
 
-@KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
 def listen_for_messages(msg, consumer):
     """
     Listen for messages on the hccm topic.
@@ -788,7 +773,7 @@ def listen_for_messages(msg, consumer):
         partition = msg.partition()
         LOG.info(f"Processing message offset: {offset} partition: {partition}")
         process_messages(msg)
-        LOG.warning(f"COMMITTING: message offset: {offset} partition: {partition}")
+        LOG.debug(f"COMMITTING: message offset: {offset} partition: {partition}")
         consumer.store_offsets(msg)
         consumer.commit()
     except (InterfaceError, OperationalError, ReportProcessorDBError) as error:
@@ -800,17 +785,16 @@ def listen_for_messages(msg, consumer):
         time.sleep(Config.RETRY_SECONDS)
     except ReportProcessorError as error:
         LOG.error(f"[listen_for_messages] Report processing error: {str(error)}")
-        LOG.warning(f"COMMITTING: message offset: {offset} partition: {partition}")
+        LOG.debug(f"COMMITTING: message offset: {offset} partition: {partition}")
         consumer.store_offsets(msg)
         consumer.commit()
     except Exception as error:
         LOG.error(f"[listen_for_messages] UNKNOWN error encountered: {type(error).__name__}: {error}", exc_info=True)
 
 
-@KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
-def koku_worker_thread():  # pragma: no cover
+def koku_listener_thread():  # pragma: no cover
     """
-    Configure Worker listener thread.
+    Configure Listener listener thread.
 
     Returns:
         None
@@ -827,7 +811,7 @@ def koku_worker_thread():  # pragma: no cover
 
 def initialize_kafka_handler():  # pragma: no cover
     """
-    Start Worker thread.
+    Start Listener thread.
 
     Args:
         None
@@ -837,7 +821,7 @@ def initialize_kafka_handler():  # pragma: no cover
 
     """
     if Config.KAFKA_CONNECT:
-        event_loop_thread = threading.Thread(target=koku_worker_thread)
+        event_loop_thread = threading.Thread(target=koku_listener_thread)
         event_loop_thread.daemon = True
         event_loop_thread.start()
         event_loop_thread.join()
