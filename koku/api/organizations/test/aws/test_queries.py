@@ -15,12 +15,15 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the AWS Report Queries."""
+import datetime
+
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.organizations.aws.queries import AWSOrgQueryHandler
 from api.organizations.aws.view import AWSOrgView
 from api.utils import DateHelper
+from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
 class AWSOrgQueryHandlerTest(IamTestCase):
@@ -110,3 +113,42 @@ class AWSOrgQueryHandlerTest(IamTestCase):
             query_output = handler.execute_query()
         for data in query_output.get("data"):
             self.assertNotEqual(data["org_unit_id"], excluded_ou)
+
+    def test_data_created_on_enddate_not_excluded(self):
+        """Test that data created on end_datetime is not excluded."""
+        url = "?"
+        query_params = self.mocked_query_params(url, AWSOrgView)
+        handler = AWSOrgQueryHandler(query_params)
+        end_date = handler.end_datetime
+        with tenant_context(self.tenant):
+            org_unit_objs = AWSOrganizationalUnit.objects.update(created_timestamp=end_date)
+            self.assertNotEqual(org_unit_objs, 0)
+        with tenant_context(self.tenant):
+            query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+        self.assertNotEqual(data, [])
+        self.assertGreater(len(data), 1)
+        # Test that accounts show up
+        accounts_check = False
+        for ou in data:
+            if ou.get("org_unit_id") == "OU_001":
+                self.assertNotEqual(ou.get("accounts"), [])
+                accounts_check = True
+        self.assertTrue(accounts_check)
+
+    def test_data_created_after_enddate_is_excluded(self):
+        """Test that data created after end_datetime is excluded."""
+        url = "?"
+        query_params = self.mocked_query_params(url, AWSOrgView)
+        handler = AWSOrgQueryHandler(query_params)
+        end_date = handler.end_datetime
+        exclude_date = end_date + datetime.timedelta(days=1)
+        with tenant_context(self.tenant):
+            org_unit_objs = AWSOrganizationalUnit.objects.update(created_timestamp=exclude_date)
+            self.assertNotEqual(org_unit_objs, 0)
+        with tenant_context(self.tenant):
+            query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+        self.assertEqual(data, [])
