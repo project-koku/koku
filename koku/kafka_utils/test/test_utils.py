@@ -25,8 +25,8 @@ TEST_HOST = "fake-host"
 TEST_PORT = "0000"
 
 
-class StatusAPITest(TestCase):
-    """Test Cases for the Status API."""
+class KafkaUtilsTest(TestCase):
+    """Test Cases for the Kafka utilities."""
 
     def test_check_kafka_connection(self):
         """Test check kafka connections."""
