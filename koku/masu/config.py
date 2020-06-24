@@ -93,6 +93,7 @@ class Config:
     # S3 path root for warehoused data
     WAREHOUSE_PATH = "data"
     CSV_DATA_TYPE = "csv"
+    PARQUET_DATA_TYPE = "parquet"
 
     # Celery settings
     CELERY_BROKER_URL = f"amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}"
