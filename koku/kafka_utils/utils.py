@@ -58,10 +58,3 @@ def is_kafka_connected(host, port):  # pragma: no cover
             backoff(count)
             count += 1
     return result
-
-
-def rewind_consumer_to_retry(consumer, topic_partition, retry_seconds):
-    """Helper method to log and rewind kafka consumer for retry."""
-    LOG.info(f"Seeking back to offset: {topic_partition.offset}, partition: {topic_partition.partition}")
-    consumer.seek(topic_partition)
-    time.sleep(retry_seconds)

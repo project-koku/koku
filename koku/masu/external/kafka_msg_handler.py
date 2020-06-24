@@ -723,10 +723,8 @@ def listen_for_messages_loop():
     consumer = get_consumer()
     LOG.info("Consumer is listening for messages...")
     for _ in itertools.count():  # equivalent to while True, but mockable
-        LOG.info("GETTING MESSAGES")
         msg = consumer.poll(timeout=1.0)
         if msg is None:
-            LOG.info("CONTINUING")
             continue
 
         if msg.error():
