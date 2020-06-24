@@ -148,14 +148,14 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name).filter(billing_period_start=start_date)
 
-    def populate_markup_cost(self, markup, bill_ids=None):
+    def populate_markup_cost(self, markup, start_date, end_date, bill_ids=None):
         """Set markup costs in the database."""
         with schema_context(self.schema):
             if bill_ids:
                 for bill_id in bill_ids:
-                    AzureCostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
-                        markup_cost=(F("pretax_cost") * markup)
-                    )
+                    AzureCostEntryLineItemDailySummary.objects.filter(
+                        cost_entry_bill_id=bill_id, usage_start__gte=start_date, usage_start__lte=end_date
+                    ).update(markup_cost=(F("pretax_cost") * markup))
             else:
                 AzureCostEntryLineItemDailySummary.objects.update(markup_cost=(F("pretax_cost") * markup))
 

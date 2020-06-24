@@ -293,13 +293,13 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
-    def populate_markup_cost(self, markup, bill_ids=None):
+    def populate_markup_cost(self, markup, start_date, end_date, bill_ids=None):
         """Set markup costs in the database."""
         with schema_context(self.schema):
             if bill_ids:
                 for bill_id in bill_ids:
-                    AWSCostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
-                        markup_cost=(F("unblended_cost") * markup)
-                    )
+                    AWSCostEntryLineItemDailySummary.objects.filter(
+                        cost_entry_bill_id=bill_id, usage_start__gte=start_date, usage_start__lte=end_date
+                    ).update(markup_cost=(F("unblended_cost") * markup))
             else:
                 AWSCostEntryLineItemDailySummary.objects.update(markup_cost=(F("unblended_cost") * markup))
