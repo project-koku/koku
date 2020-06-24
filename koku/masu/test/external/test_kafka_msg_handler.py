@@ -112,6 +112,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
     def setUp(self):
         """Set up each test case."""
         super().setUp()
+        logging.disable(logging.NOTSET)
         payload_file = open("./koku/masu/test/data/ocp/payload.tar.gz", "rb")
         bad_payload_file = open("./koku/masu/test/data/ocp/bad_payload.tar.gz", "rb")
         no_manifest_file = open("./koku/masu/test/data/ocp/no_manifest.tar.gz", "rb")
@@ -132,7 +133,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
     @patch("masu.external.kafka_msg_handler.get_consumer")
     def test_listen_for_msg_loop(self, mock_consumer, mock_listen):
         """Test that the message loop only calls listen for messages on valid messages."""
-        logging.disable(logging.NOTSET)
         msg_list = [
             None,
             MockMessage(offset=1),
