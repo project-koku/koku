@@ -16,6 +16,7 @@
 #
 """Test the Kafka msg handler."""
 import json
+import logging
 import os
 import shutil
 import tempfile
@@ -25,6 +26,8 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import requests_mock
+from confluent_kafka import KafkaError
+from confluent_kafka import KafkaException
 from django.db import InterfaceError
 from django.db import OperationalError
 from requests.exceptions import HTTPError
@@ -52,33 +55,27 @@ def raise_OSError(path):
     raise OSError()
 
 
-class KafkaMsg:
-    """A Kafka Message."""
-
-    def __init__(self, topic, url):
-        """Initialize a Kafka Message."""
-        self._topic = topic
-        value_dict = {"url": url}
-        value_str = json.dumps(value_dict)
-        self._value = value_str.encode("utf-8")
-
-    def topic(self):
-        return self._topic
-
-    def value(self):
-        return self._value
+class MockError(KafkaError):
+    """Test error class."""
 
 
-class ConsumerRecord:
+class MockMessage:
     """Test class for kafka msg."""
 
-    def __init__(self, topic, offset, url, value, partition=0):
+    def __init__(self, topic="mocked-topic", url="http://unreal", value_dict={}, offset=50, partition=0, error=None):
         """Initialize Msg."""
+        if error:
+            assert isinstance(error, MockError)
+        self._error = error
         self._topic = topic
         self._offset = offset
         self._partition = partition
-        self.url = url
-        self._value = value
+        value_dict.update({"url": url})
+        value_str = json.dumps(value_dict)
+        self._value = value_str.encode("utf-8")
+
+    def error(self):
+        return self._error
 
     def offset(self):
         return self._offset
@@ -94,11 +91,16 @@ class ConsumerRecord:
 
 
 class MockKafkaConsumer:
-    def __init__(self, preloaded_messages=["hi", "world"]):
+    def __init__(self, preloaded_messages=None):
+        if not preloaded_messages:
+            preloaded_messages = MockMessage()
         self.preloaded_messages = preloaded_messages
 
     def store_offsets(self, msg):
         pass
+
+    def poll(self, *args, **kwargs):
+        return self.preloaded_messages.pop(0)
 
     def commit(self):
         self.preloaded_messages.pop()
@@ -126,6 +128,24 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.cluster_id = "my-ocp-cluster-1"
         self.date_range = "20190201-20190301"
 
+    @patch("masu.external.kafka_msg_handler.listen_for_messages")
+    @patch("masu.external.kafka_msg_handler.get_consumer")
+    def test_listen_for_msg_loop(self, mock_consumer, mock_listen):
+        """Test that the message loop only calls listen for messages on valid messages."""
+        logging.disable(logging.NOTSET)
+        msg_list = [
+            None,
+            MockMessage(offset=1),
+            MockMessage(offset=2, error=MockError(KafkaError._PARTITION_EOF)),
+            MockMessage(offset=3, error=MockError(KafkaError._MSG_TIMED_OUT)),
+        ]
+        mock_consumer.return_value = MockKafkaConsumer(msg_list)
+        with patch("itertools.count", side_effect=[[0, 1, 2, 3]]):  # mocking the infinite loop
+            with self.assertRaises(KafkaException):
+                with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.WARNING):
+                    msg_handler.listen_for_messages_loop()
+        mock_listen.assert_called_once()
+
     @patch("masu.external.kafka_msg_handler.process_messages")
     def test_listen_for_messages(self, mock_process_message):
         """Test to listen for kafka messages."""
@@ -133,22 +153,20 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         test_matrix = [
             {
-                "test_value": json.dumps(
-                    {
-                        "account": "10001",
-                        "category": "tar",
-                        "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
-                    }
-                ),
+                "test_value": {
+                    "account": "10001",
+                    "category": "tar",
+                    "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
+                },
                 "expected_process": True,
             }
         ]
         for test in test_matrix:
-            msg = ConsumerRecord(
+            msg = MockMessage(
                 topic="platform.upload.hccm",
                 offset=5,
                 url="https://insights-quarantine.s3.amazonaws.com/myfile",
-                value=bytes(test.get("test_value"), encoding="utf-8"),
+                value_dict=test.get("test_value"),
             )
 
             mock_consumer = MockKafkaConsumer([msg])
@@ -166,32 +184,28 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         test_matrix = [
             {
-                "test_value": json.dumps(
-                    {
-                        "account": "10001",
-                        "category": "tar",
-                        "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
-                    }
-                ),
+                "test_value": {
+                    "account": "10001",
+                    "category": "tar",
+                    "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
+                },
                 "side_effect": InterfaceError,
             },
             {
-                "test_value": json.dumps(
-                    {
-                        "account": "10001",
-                        "category": "tar",
-                        "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
-                    }
-                ),
+                "test_value": {
+                    "account": "10001",
+                    "category": "tar",
+                    "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
+                },
                 "side_effect": OperationalError,
             },
         ]
         for test in test_matrix:
-            msg = ConsumerRecord(
+            msg = MockMessage(
                 topic="platform.upload.hccm",
                 offset=5,
                 url="https://insights-quarantine.s3.amazonaws.com/myfile",
-                value=bytes(test.get("test_value"), encoding="utf-8"),
+                value_dict=test.get("test_value"),
             )
 
             mock_consumer = MockKafkaConsumer([msg])
@@ -209,32 +223,28 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         test_matrix = [
             {
-                "test_value": json.dumps(
-                    {
-                        "account": "10001",
-                        "category": "tar",
-                        "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
-                    }
-                ),
+                "test_value": {
+                    "account": "10001",
+                    "category": "tar",
+                    "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
+                },
                 "side_effect": KafkaMsgHandlerError,
             },
             {
-                "test_value": json.dumps(
-                    {
-                        "account": "10001",
-                        "category": "tar",
-                        "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
-                    }
-                ),
+                "test_value": {
+                    "account": "10001",
+                    "category": "tar",
+                    "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
+                },
                 "side_effect": ReportProcessorError,
             },
         ]
         for test in test_matrix:
-            msg = ConsumerRecord(
+            msg = MockMessage(
                 topic="platform.upload.hccm",
                 offset=5,
                 url="https://insights-quarantine.s3.amazonaws.com/myfile",
-                value=bytes(test.get("test_value"), encoding="utf-8"),
+                value_dict=test.get("test_value"),
             )
 
             mock_consumer = MockKafkaConsumer([msg])
@@ -265,53 +275,45 @@ class KafkaMsgHandlerTest(MasuTestCase):
         summarize_manifest_uuid = uuid.uuid4()
         test_matrix = [
             {
-                "value": json.dumps(
-                    {
-                        "request_id": "1",
-                        "account": "10001",
-                        "category": "tar",
-                        "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
-                    }
-                ),
+                "test_value": {
+                    "request_id": "1",
+                    "account": "10001",
+                    "category": "tar",
+                    "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
+                },
                 "handle_message_returns": (msg_handler.SUCCESS_CONFIRM_STATUS, [report_meta_1]),
                 "summarize_manifest_returns": summarize_manifest_uuid,
                 "expected_fn": _expected_success_path,
             },
             {
-                "value": json.dumps(
-                    {
-                        "request_id": "1",
-                        "account": "10001",
-                        "category": "tar",
-                        "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
-                    }
-                ),
+                "test_value": {
+                    "request_id": "1",
+                    "account": "10001",
+                    "category": "tar",
+                    "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
+                },
                 "handle_message_returns": (msg_handler.FAILURE_CONFIRM_STATUS, None),
                 "summarize_manifest_returns": summarize_manifest_uuid,
                 "expected_fn": _expected_success_path,
             },
             {
-                "value": json.dumps(
-                    {
-                        "request_id": "1",
-                        "account": "10001",
-                        "category": "tar",
-                        "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
-                    }
-                ),
+                "test_value": {
+                    "request_id": "1",
+                    "account": "10001",
+                    "category": "tar",
+                    "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
+                },
                 "handle_message_returns": (None, None),
                 "summarize_manifest_returns": summarize_manifest_uuid,
                 "expected_fn": _expected_fail_path,
             },
             {
-                "value": json.dumps(
-                    {
-                        "request_id": "1",
-                        "account": "10001",
-                        "category": "tar",
-                        "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
-                    }
-                ),
+                "test_value": {
+                    "request_id": "1",
+                    "account": "10001",
+                    "category": "tar",
+                    "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
+                },
                 "handle_message_returns": (None, [report_meta_1]),
                 "summarize_manifest_returns": summarize_manifest_uuid,
                 "expected_fn": _expected_fail_path,
@@ -319,11 +321,11 @@ class KafkaMsgHandlerTest(MasuTestCase):
         ]
         for test in test_matrix:
             with self.subTest(test=test):
-                msg = ConsumerRecord(
+                msg = MockMessage(
                     topic="platform.upload.hccm",
                     offset=5,
                     url="https://insights-quarantine.s3.amazonaws.com/myfile",
-                    value=bytes(test.get("value"), encoding="utf-8"),
+                    value_dict=test.get("test_value"),
                 )
                 with patch(
                     "masu.external.kafka_msg_handler.handle_message", return_value=test.get("handle_message_returns")
@@ -339,8 +341,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
     def test_handle_messages(self):
         """Test to ensure that kafka messages are handled."""
-        hccm_msg = KafkaMsg(msg_handler.HCCM_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate")
-        advisor_msg = KafkaMsg("platform.upload.advisor", "http://insights-upload.com/quarnantine/file_to_validate")
+        hccm_msg = MockMessage(msg_handler.HCCM_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate")
+        advisor_msg = MockMessage("platform.upload.advisor", "http://insights-upload.com/quarnantine/file_to_validate")
 
         # Verify that when extract_payload is successful with 'hccm' message that SUCCESS_CONFIRM_STATUS is returned
         with patch("masu.external.kafka_msg_handler.extract_payload", return_value=None):

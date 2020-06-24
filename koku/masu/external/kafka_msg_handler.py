@@ -683,7 +683,7 @@ def process_messages(msg):
             LOG.info(f"Conversion of CSV to Parquet uuid: {conversion_task_id}")
     if status:
         count = 0
-        while itertools.count():
+        for _ in itertools.count():  # equivalent to while True, but mockable
             try:
                 if report_metas:
                     file_list = [meta.get("current_file") for meta in report_metas]
@@ -722,9 +722,11 @@ def listen_for_messages_loop():
     """Wrap listen_for_messages in while true."""
     consumer = get_consumer()
     LOG.info("Consumer is listening for messages...")
-    while itertools.count():
+    for _ in itertools.count():  # equivalent to while True, but mockable
+        LOG.info("GETTING MESSAGES")
         msg = consumer.poll(timeout=1.0)
         if msg is None:
+            LOG.info("CONTINUING")
             continue
 
         if msg.error():
@@ -734,6 +736,7 @@ def listen_for_messages_loop():
                 LOG.warning(
                     f"[listen_for_messages_loop] {msg.topic()} {msg.partition()} reached end at offset {msg.offset()}"
                 )
+                continue
             elif msg.error():
                 raise KafkaException(msg.error())
 
