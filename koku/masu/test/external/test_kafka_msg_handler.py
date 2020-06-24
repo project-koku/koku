@@ -647,3 +647,14 @@ class KafkaMsgHandlerTest(MasuTestCase):
         mock_accessor.side_effect = AccountsAccessorError("Sample timeout error")
         ocp_account = msg_handler.get_account(self.ocp_test_provider_uuid, "test_request_id")
         self.assertIsNone(ocp_account)
+
+    def test_delivery_callback(self):
+        """Test that delivery callback raises KafkaMsgHandlerError."""
+        msg = "a mock message"
+        err = MockError(KafkaError._MSG_TIMED_OUT)
+        with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.INFO):
+            msg_handler.delivery_callback(None, msg)
+
+        with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.ERROR):
+            with self.assertRaises(KafkaMsgHandlerError):
+                msg_handler.delivery_callback(err, msg)
