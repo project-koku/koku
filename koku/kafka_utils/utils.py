@@ -44,7 +44,7 @@ def check_kafka_connection(host, port):
     return connected
 
 
-def is_kafka_connected(host, port):  # pragma: no cover
+def is_kafka_connected(host, port):
     """Wait for Kafka to become available."""
     count = 0
     result = False
