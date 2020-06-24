@@ -43,6 +43,7 @@ confluent-kafka = ">=1.4.1"
 kafka-python = ">=2.0.1"
 cachetools = ">=4.1.0"
 pyarrow = ">=0.17.1"
+kombu = ">=4.6.10"
 
 [dev-packages]
 astroid = ">=2.3"
