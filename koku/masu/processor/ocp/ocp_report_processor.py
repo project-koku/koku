@@ -19,7 +19,6 @@ import csv
 import json
 import logging
 from datetime import datetime
-from enum import Enum
 from os import path
 from os import remove
 
@@ -40,15 +39,6 @@ LOG = logging.getLogger(__name__)
 
 class OCPReportProcessorError(Exception):
     """OCPReportProcessor Error."""
-
-
-class OCPReportTypes(Enum):
-    """Types of OCP report files."""
-
-    CPU_MEM_USAGE = 1
-    STORAGE = 2
-    NODE_LABELS = 3
-    UNKNOWN = 4
 
 
 class ProcessedOCPReport:
@@ -74,55 +64,6 @@ class ProcessedOCPReport:
 class OCPReportProcessor:
     """OCP Usage Report processor."""
 
-    storage_columns = [
-        "report_period_start",
-        "report_period_end",
-        "interval_start",
-        "interval_end",
-        "namespace",
-        "pod",
-        "persistentvolumeclaim",
-        "persistentvolume",
-        "storageclass",
-        "persistentvolumeclaim_capacity_bytes",
-        "persistentvolumeclaim_capacity_byte_seconds",
-        "volume_request_storage_byte_seconds",
-        "persistentvolumeclaim_usage_byte_seconds",
-        "persistentvolume_labels",
-        "persistentvolumeclaim_labels",
-    ]
-
-    cpu_mem_usage_columns = [
-        "report_period_start",
-        "report_period_end",
-        "pod",
-        "namespace",
-        "node",
-        "resource_id",
-        "interval_start",
-        "interval_end",
-        "pod_usage_cpu_core_seconds",
-        "pod_request_cpu_core_seconds",
-        "pod_limit_cpu_core_seconds",
-        "pod_usage_memory_byte_seconds",
-        "pod_request_memory_byte_seconds",
-        "pod_limit_memory_byte_seconds",
-        "node_capacity_cpu_cores",
-        "node_capacity_cpu_core_seconds",
-        "node_capacity_memory_bytes",
-        "node_capacity_memory_byte_seconds",
-        "pod_labels",
-    ]
-
-    node_label_columns = [
-        "report_period_start",
-        "report_period_end",
-        "node",
-        "interval_start",
-        "interval_end",
-        "node_labels",
-    ]
-
     def __init__(self, schema_name, report_path, compression, provider_uuid):
         """Initialize the report processor.
 
@@ -134,30 +75,15 @@ class OCPReportProcessor:
 
         """
         self._processor = None
-        self.report_type = self._detect_report_type(report_path)
-        if self.report_type == OCPReportTypes.CPU_MEM_USAGE:
+        _, self.report_type = utils.detect_type(report_path)
+        if self.report_type == utils.OCPReportTypes.CPU_MEM_USAGE:
             self._processor = OCPCpuMemReportProcessor(schema_name, report_path, compression, provider_uuid)
-        elif self.report_type == OCPReportTypes.STORAGE:
+        elif self.report_type == utils.OCPReportTypes.STORAGE:
             self._processor = OCPStorageProcessor(schema_name, report_path, compression, provider_uuid)
-        elif self.report_type == OCPReportTypes.NODE_LABELS:
+        elif self.report_type == utils.OCPReportTypes.NODE_LABELS:
             self._processor = OCPNodeLabelProcessor(schema_name, report_path, compression, provider_uuid)
-        elif self.report_type == OCPReportTypes.UNKNOWN:
+        elif self.report_type == utils.OCPReportTypes.UNKNOWN:
             raise OCPReportProcessorError("Unknown OCP report type.")
-
-    def _detect_report_type(self, report_path):
-        """Detect OCP report type."""
-        report_type = OCPReportTypes.UNKNOWN
-        with open(report_path) as report_file:
-            reader = csv.reader(report_file)
-            column_names = next(reader)
-            sorted_columns = sorted(column_names)
-            if sorted_columns == sorted(self.storage_columns):
-                report_type = OCPReportTypes.STORAGE
-            elif sorted_columns == sorted(self.cpu_mem_usage_columns):
-                report_type = OCPReportTypes.CPU_MEM_USAGE
-            elif sorted_columns == sorted(self.node_label_columns):
-                report_type = OCPReportTypes.NODE_LABELS
-        return report_type
 
     def process(self):
         """Process report file."""
