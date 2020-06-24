@@ -36,9 +36,9 @@ from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_report_processor import OCPReportProcessor
 from masu.processor.ocp.ocp_report_processor import OCPReportProcessorError
-from masu.processor.ocp.ocp_report_processor import OCPReportTypes
 from masu.processor.ocp.ocp_report_processor import ProcessedOCPReport
 from masu.test import MasuTestCase
+from masu.util.ocp.common import OCPReportTypes
 
 
 class ProcessedOCPReportTest(MasuTestCase):
