@@ -547,14 +547,37 @@ class OCPAllProviderMap(ProviderMap):
         self.views = {
             "costs": {
                 "default": OCPAllCostSummary,
-                "account": OCPAllCostSummaryByAccount,
-                "region": OCPAllCostSummaryByRegion,
-                "service": OCPAllCostSummaryByService,
-                "product_family": OCPAllCostSummaryByService,
+                ("account",): OCPAllCostSummaryByAccount,
+                ("region",): OCPAllCostSummaryByRegion,
+                ("account", "region"): OCPAllCostSummaryByRegion,
+                ("service",): OCPAllCostSummaryByService,
+                ("account", "service"): OCPAllCostSummaryByService,
+                ("product_family",): OCPAllCostSummaryByService,
+                ("account", "product_family"): OCPAllCostSummaryByService,
             },
-            "instance_type": {"default": OCPAllComputeSummary, "instance_type": OCPAllComputeSummary},
-            "storage": {"default": OCPAllStorageSummary, "product_family": OCPAllStorageSummary},
-            "database": {"default": OCPAllDatabaseSummary, "service": OCPAllDatabaseSummary},
-            "network": {"default": OCPAllNetworkSummary, "service": OCPAllNetworkSummary},
+            "instance_type": {
+                "default": OCPAllComputeSummary,
+                ("account"): OCPAllComputeSummary,
+                ("instance_type",): OCPAllComputeSummary,
+                ("account", "instance_type"): OCPAllComputeSummary,
+            },
+            "storage": {
+                "default": OCPAllStorageSummary,
+                ("account",): OCPAllStorageSummary,
+                ("product_family",): OCPAllStorageSummary,
+                ("account", "product_family"): OCPAllStorageSummary,
+            },
+            "database": {
+                "default": OCPAllDatabaseSummary,
+                ("account",): OCPAllDatabaseSummary,
+                ("service",): OCPAllDatabaseSummary,
+                ("account", "service"): OCPAllDatabaseSummary,
+            },
+            "network": {
+                "default": OCPAllNetworkSummary,
+                ("account",): OCPAllNetworkSummary,
+                ("service",): OCPAllNetworkSummary,
+                ("account", "service"): OCPAllNetworkSummary,
+            },
         }
         super().__init__(provider, report_type)

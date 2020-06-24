@@ -243,25 +243,30 @@ class AzureProviderMap(ProviderMap):
         self.views = {
             "costs": {
                 "default": AzureCostSummary,
-                "subscription_guid": AzureCostSummaryByAccount,
-                "resource_location": AzureCostSummaryByLocation,
-                "service_name": AzureCostSummaryByService,
+                ("subscription_guid",): AzureCostSummaryByAccount,
+                ("resource_location",): AzureCostSummaryByLocation,
+                ("resource_location", "subscription_guid"): AzureCostSummaryByLocation,
+                ("service_name",): AzureCostSummaryByService,
+                ("service_name", "subscription_guid"): AzureCostSummaryByService,
             },
             "instance_type": {
                 "default": AzureComputeSummary,
-                "instance_type": AzureComputeSummary,
-                "subscription_guid": AzureComputeSummary,
+                ("instance_type",): AzureComputeSummary,
+                ("instance_type", "subscription_guid"): AzureComputeSummary,
+                ("subscription_guid",): AzureComputeSummary,
             },
-            "storage": {"default": AzureStorageSummary, "subscription_guid": AzureStorageSummary},
+            "storage": {"default": AzureStorageSummary, ("subscription_guid",): AzureStorageSummary},
             "database": {
                 "default": AzureDatabaseSummary,
-                "service_name": AzureDatabaseSummary,
-                "subscription_guid": AzureDatabaseSummary,
+                ("service_name",): AzureDatabaseSummary,
+                ("service_name", "subscription_guid"): AzureDatabaseSummary,
+                ("subscription_guid",): AzureDatabaseSummary,
             },
             "network": {
                 "default": AzureNetworkSummary,
-                "service_name": AzureNetworkSummary,
-                "subscription_guid": AzureNetworkSummary,
+                ("service_name",): AzureNetworkSummary,
+                ("service_name", "subscription_guid"): AzureNetworkSummary,
+                ("subscription_guid",): AzureNetworkSummary,
             },
         }
         super().__init__(provider, report_type)
