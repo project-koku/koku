@@ -28,6 +28,7 @@ from django.db import connection
 from tenant_schemas.utils import schema_context
 
 import masu.prometheus_stats as worker_stats
+from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
@@ -62,7 +63,7 @@ def record_all_manifest_files(manifest_id, report_files):
             LOG.debug(f"Logging {report} for manifest ID: {manifest_id}")
 
 
-def record_report_status(manifest_id, file_name):
+def record_report_status(manifest_id, file_name, request_id, context={}):
     """
     Creates initial report status database entry for new report files.
 
@@ -74,6 +75,8 @@ def record_report_status(manifest_id, file_name):
     Args:
         manifest_id (Integer): Manifest Identifier.
         file_name (String): Report file name
+        request_id (String): Identifier associated with the payload
+        context (Dict): Context for logging (account, etc)
 
     Returns:
         DateTime - Last completed date time for a given report file.
@@ -83,9 +86,11 @@ def record_report_status(manifest_id, file_name):
     with ReportStatsDBAccessor(file_name, manifest_id) as db_accessor:
         already_processed = db_accessor.get_last_completed_datetime()
         if already_processed:
-            LOG.info(f"Report {file_name} has already been processed.")
+            msg = f"Report {file_name} has already been processed."
+            LOG.info(log_json(request_id, msg, context))
         else:
-            LOG.info(f"Recording stats entry for {file_name}")
+            msg = f"Recording stats entry for {file_name}"
+            LOG.info(log_json(request_id, msg, context))
     return already_processed
 
 

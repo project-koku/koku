@@ -24,67 +24,12 @@ from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.test.database.helpers import ManifestCreationHelper
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
-
 FAKE = Faker()
-
-
-class ManifestCreationHelper:
-    """Helper to setup number of processed files."""
-
-    def __init__(self, num_total_files, provider_uuid, billing_start, assembly_id=None):
-        self._manifest_id = None
-        self._num_total_files = num_total_files
-        self._assembly_id = assembly_id
-        self._provider_uuid = provider_uuid
-        self._billing_start = billing_start
-        self._report_files = []
-
-    def __del__(self):
-        CostUsageReportStatus.objects.filter(manifest_id=self._manifest_id).delete()
-        CostUsageReportManifest.objects.filter(assembly_id=self._assembly_id).delete()
-
-    def generate_manifest(self):
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest_entry = manifest_accessor.get_manifest(self._assembly_id, self._provider_uuid)
-
-            if not manifest_accessor:
-                manifest_dict = {
-                    "assembly_id": self._assembly_id,
-                    "billing_period_start_datetime": self._billing_start,
-                    "num_total_files": self._num_total_files,
-                    "provider_uuid": self._provider_uuid,
-                }
-                manifest_entry = manifest_accessor.add(**manifest_dict)
-            manifest_accessor.mark_manifest_as_updated(manifest_entry)
-            manifest_id = manifest_entry.id
-            self._manifest_id = manifest_id
-
-        self.generate_test_report_files()
-
-        return manifest_entry
-
-    def generate_test_report_files(self):
-        for file_cnt in range(self._num_total_files):
-            file_name = f"file_{file_cnt}"
-            with ReportStatsDBAccessor(file_name, self._manifest_id):
-                print(f"Generating file entry ({file_name}) for manifest {self._manifest_id}")
-                self._report_files.append(file_name)
-
-    def get_report_filenames(self):
-        return self._report_files
-
-    def mark_report_file_as_completed(self, report_file):
-        with ReportStatsDBAccessor(report_file, self._manifest_id) as stats_accessor:
-            stats_accessor.log_last_completed_datetime()
-
-    def process_all_files(self):
-        for report_file in self._report_files:
-            self.mark_report_file_as_completed(report_file)
 
 
 class ReportManifestDBAccessorTest(IamTestCase):
@@ -182,39 +127,37 @@ class ReportManifestDBAccessorTest(IamTestCase):
     def test_get_last_seen_manifest_ids(self):
         """Test that get_last_seen_manifest_ids returns the appropriate assembly_ids."""
         # test that the most recently seen manifests that haven't been processed are returned
-        manifest1_helper = ManifestCreationHelper(
-            num_total_files=1,
-            provider_uuid=self.manifest_dict.get("provider_uuid"),
-            billing_start=self.billing_start,
-            assembly_id=1234,
-        )
-        manifest = manifest1_helper.generate_manifest()
-        manifest2_helper = ManifestCreationHelper(
-            num_total_files=1,
-            provider_uuid="00000000-0000-0000-0000-000000000002",
-            billing_start=self.billing_start,
-            assembly_id=5678,
-        )
-        manifest2 = manifest2_helper.generate_manifest()
-
-        # manifest2 = self.manifest_accessor.add(**manifest_dict2)
+        manifest_dict2 = {
+            "assembly_id": "5678",
+            "billing_period_start_datetime": self.billing_start,
+            "num_total_files": 1,
+            "provider_uuid": "00000000-0000-0000-0000-000000000002",
+        }
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
+        manifest2 = self.manifest_accessor.add(**manifest_dict2)
         assembly_ids = self.manifest_accessor.get_last_seen_manifest_ids(self.billing_start)
         self.assertEqual(assembly_ids, [manifest.assembly_id, manifest2.assembly_id])
 
         # test that when the manifest's files have been processed - it is no longer returned
+        manifest2_helper = ManifestCreationHelper(
+            manifest2.id, manifest_dict2.get("num_total_files"), manifest_dict2.get("assembly_id")
+        )
+
+        manifest2_helper.generate_test_report_files()
         manifest2_helper.process_all_files()
-        # manifest2.num_processed_files = manifest_dict2.get("num_total_files")
-        # manifest2.save()
+
         assembly_ids = self.manifest_accessor.get_last_seen_manifest_ids(self.billing_start)
         self.assertEqual(assembly_ids, [manifest.assembly_id])
 
         # test that of two manifests with the same provider_ids - that only the most recently
         # seen is returned
-        manifest3_helper = ManifestCreationHelper(
-            num_total_files=1, provider_uuid=self.provider_uuid, billing_start=self.billing_start, assembly_id=91011
-        )
-        manifest3 = manifest3_helper.generate_manifest()
-        # manifest3 = self.manifest_accessor.add(**manifest_dict3)
+        manifest_dict3 = {
+            "assembly_id": "91011",
+            "billing_period_start_datetime": self.billing_start,
+            "num_total_files": 1,
+            "provider_uuid": self.provider_uuid,
+        }
+        manifest3 = self.manifest_accessor.add(**manifest_dict3)
         assembly_ids = self.manifest_accessor.get_last_seen_manifest_ids(self.billing_start)
         self.assertEqual(assembly_ids, [manifest3.assembly_id])
 

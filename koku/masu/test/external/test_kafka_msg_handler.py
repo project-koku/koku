@@ -34,7 +34,6 @@ from requests.exceptions import HTTPError
 import masu.external.kafka_msg_handler as msg_handler
 from api.provider.models import Provider
 from masu.config import Config
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
@@ -422,6 +421,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
             def get_manifest_by_id(self, manifest_id):
                 return self
 
+            def manifest_ready_for_summary(self, manifest_id):
+                return self.num_processed_files == self.num_total_files
+
         # Check when manifest is done
         mock_manifest_accessor = FakeManifest(num_processed_files=2, num_total_files=2)
 
@@ -455,7 +457,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     with patch(
                         "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
                     ):
-                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
+                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
                                 msg_handler.extract_payload(payload_url, "test_request_id")
                                 expected_path = "{}/{}/{}/".format(
@@ -494,7 +496,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     with patch(
                         "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
                     ):
-                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
+                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
                                 msg_handler.extract_payload(payload_url, "test_request_id")
                                 expected_path = "{}/{}/{}/".format(
@@ -617,16 +619,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 ):
                     account = msg_handler.get_account_from_cluster_id(cluster_id, "test_request_id", context)
                     test.get("expected_fn")(account, test)
-
-    def test_record_report_status(self):
-        """Test recording initial report stats."""
-        test_manifest_id = 1
-        test_file_name = "testreportfile.csv"
-        msg_handler.record_report_status(test_manifest_id, test_file_name, "test_request_id")
-
-        with ReportStatsDBAccessor(test_file_name, test_manifest_id) as accessor:
-            self.assertEqual(accessor._manifest_id, test_manifest_id)
-            self.assertEqual(accessor._report_name, test_file_name)
 
     def test_create_manifest_entries(self):
         """Test to create manifest entries."""

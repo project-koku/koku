@@ -187,7 +187,7 @@ class OrchestratorTest(MasuTestCase):
 
     @patch("masu.processor.orchestrator.AccountLabel", spec=True)
     @patch("masu.processor.orchestrator.ProviderStatus", spec=True)
-    @patch("masu.processor.orchestrator.get_report_files.apply_async", return_value=True)
+    @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", return_value=True)
     def test_prepare_w_status_valid(self, mock_task, mock_accessor, mock_labeler):
         """Test that Orchestrator.prepare() works when status is valid."""
         mock_labeler().get_label_details.return_value = (True, True)

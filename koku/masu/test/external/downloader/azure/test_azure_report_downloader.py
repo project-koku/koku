@@ -18,7 +18,6 @@
 import shutil
 from datetime import datetime
 from tempfile import NamedTemporaryFile
-from unittest.mock import Mock
 from unittest.mock import patch
 
 from faker import Faker
@@ -27,7 +26,6 @@ from masu.config import Config
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderError
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
-from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.test import MasuTestCase
 from masu.util import common as utils
 
@@ -116,9 +114,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         self.azure_credentials = self.azure_provider.authentication.credentials
         self.azure_data_source = self.azure_provider.billing_source.data_source
 
-        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()), return_value={}))
         self.downloader = AzureReportDownloader(
-            task=self.mock_task,
             customer_name=self.customer_name,
             auth_credential=self.azure_credentials,
             billing_source=self.azure_data_source,
@@ -166,28 +162,6 @@ class AzureReportDownloaderTest(MasuTestCase):
         with self.assertRaises(AzureReportDownloaderError):
             self.downloader._get_manifest(self.mock_data.bad_test_date)
 
-    def test_get_report_context_for_date_should_download(self):
-        """Test that report context is retrieved for date."""
-        with patch.object(ReportDownloaderBase, "check_if_manifest_should_be_downloaded", return_value=True):
-            manifest = self.downloader.get_report_context_for_date(self.mock_data.test_date)
-        self.assertEqual(manifest.get("assembly_id"), self.mock_data.export_uuid)
-        self.assertEqual(manifest.get("compression"), "PLAIN")
-        self.assertEqual(manifest.get("files"), [self.mock_data.export_file])
-        self.assertIsNotNone(manifest.get("manifest_id"))
-
-    def test_get_report_context_for_date_should_not_download(self):
-        """Test that report context is not retrieved when download check fails."""
-        with patch.object(ReportDownloaderBase, "check_if_manifest_should_be_downloaded", return_value=False):
-            manifest = self.downloader.get_report_context_for_date(self.mock_data.test_date)
-        self.assertEqual(manifest, {})
-
-    def test_get_report_context_for_incorrect_date(self):
-        """Test that report context is not retrieved with an unexpected date."""
-        test_date = datetime(2019, 9, 15)
-        with patch.object(ReportDownloaderBase, "check_if_manifest_should_be_downloaded", return_value=False):
-            manifest = self.downloader.get_report_context_for_date(test_date)
-        self.assertEqual(manifest, {})
-
     def test_download_file(self):
         """Test that Azure report report is downloaded."""
         expected_full_path = "{}/{}/azure/{}/{}".format(
@@ -233,7 +207,6 @@ class AzureReportDownloaderTest(MasuTestCase):
         }
         with self.settings(DEMO_ACCOUNTS=demo_accounts):
             AzureReportDownloader(
-                task=self.mock_task,
                 customer_name=f"acct{account_id}",
                 auth_credential=self.azure_credentials,
                 billing_source=self.azure_data_source,

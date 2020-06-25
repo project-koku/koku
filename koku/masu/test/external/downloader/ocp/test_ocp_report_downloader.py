@@ -19,7 +19,6 @@ import logging
 import os.path
 import shutil
 from datetime import datetime
-from unittest.mock import Mock
 from unittest.mock import patch
 
 from faker import Faker
@@ -67,9 +66,7 @@ class OCPReportDownloaderTest(MasuTestCase):
         self.test_manifest_path = os.path.join(report_path, os.path.basename(test_manifest_path))
         shutil.copyfile(test_manifest_path, os.path.join(report_path, self.test_manifest_path))
 
-        self.mock_task = Mock(request=Mock(id=str(self.fake.uuid4()), return_value={}))
         self.report_downloader = ReportDownloader(
-            task=self.mock_task,
             customer_name=self.fake_customer_name,
             access_credential=self.cluster_id,
             report_source=None,
@@ -80,7 +77,6 @@ class OCPReportDownloaderTest(MasuTestCase):
 
         self.ocp_report_downloader = OCPReportDownloader(
             **{
-                "task": self.mock_task,
                 "customer_name": self.fake_customer_name,
                 "auth_credential": self.cluster_id,
                 "bucket": None,

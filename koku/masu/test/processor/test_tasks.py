@@ -53,6 +53,7 @@ from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import get_report_files
+from masu.processor.tasks import record_report_status
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
@@ -98,6 +99,7 @@ class GetReportFileTests(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
             cache_key=self.fake.word(),
+            report_context={},
         )
 
         self.assertIsInstance(report, list)
@@ -121,6 +123,7 @@ class GetReportFileTests(MasuTestCase):
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
                 cache_key=self.fake.word(),
+                report_context={},
             )
             statement_found = False
             for log in logger.output:
@@ -149,6 +152,7 @@ class GetReportFileTests(MasuTestCase):
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
                 cache_key=self.fake.word(),
+                report_context={},
             )
             statement_found = False
             for log in logger.output:
@@ -171,6 +175,7 @@ class GetReportFileTests(MasuTestCase):
                 provider_uuid=uuid4(),
                 billing_source=self.fake.word(),
                 cache_key=self.fake.word(),
+                report_context={},
             )
 
     @patch("masu.processor._tasks.download.ProviderStatus.set_error")
@@ -192,6 +197,7 @@ class GetReportFileTests(MasuTestCase):
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
                 cache_key=self.fake.word(),
+                report_context={},
             )
         except ReportDownloaderError:
             pass
@@ -212,6 +218,7 @@ class GetReportFileTests(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
             cache_key=self.fake.word(),
+            report_context={},
         )
         fake_status.assert_called_with(ProviderStatusCode.READY)
 
@@ -351,63 +358,6 @@ class ProcessReportFileTests(MasuTestCase):
         summarize_reports(reports_to_summarize)
         mock_update_summary.delay.assert_called()
 
-    @patch("masu.processor.tasks._process_report_file")
-    @patch("masu.processor.tasks._get_report_files")
-    def test_process_report_files_with_transaction_atomic_error(self, mock_files, mock_processor):
-        """Test than an exception rolls back the atomic transaction."""
-        path = "{}/{}".format("test", "file1.csv")
-        mock_files.return_value = [{"file": path, "compression": "GZIP"}]
-        schema_name = self.schema
-        provider = Provider.PROVIDER_AWS
-        provider_uuid = self.aws_provider_uuid
-        report_month = DateHelper().today
-        manifest_dict = {
-            "assembly_id": "12345",
-            "billing_period_start_datetime": report_month,
-            "num_total_files": 1,
-            "provider_uuid": self.aws_provider_uuid,
-            "task": "170653c0-3e66-4b7e-a764-336496d7ca5a",
-        }
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.add(**manifest_dict)
-            manifest.save()
-            manifest_id = manifest.id
-            initial_update_time = manifest.manifest_updated_datetime
-
-        with ReportStatsDBAccessor("file1.csv", manifest_id) as stats_accessor:
-            stats_accessor.get_last_completed_datetime
-
-        with ReportStatsDBAccessor(path, manifest_id) as report_file_accessor:
-            report_file_accessor.get_last_started_datetime()
-
-        mock_processor.side_effect = Exception
-
-        with self.assertRaises(Exception):
-            customer_name = "Fake Customer"
-            authentication = "auth"
-            billing_source = "bill"
-            provider_type = provider
-            get_report_files(
-                customer_name=customer_name,
-                authentication=authentication,
-                billing_source=billing_source,
-                provider_type=provider_type,
-                schema_name=schema_name,
-                provider_uuid=provider_uuid,
-                report_month=report_month,
-            )
-
-        with ReportStatsDBAccessor(path, manifest_id) as report_file_accessor:
-            self.assertIsNone(report_file_accessor.get_last_completed_datetime())
-
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-            self.assertEqual(manifest.num_processed_files, 0)
-            self.assertEqual(manifest.manifest_updated_datetime, initial_update_time)
-
-        with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
-            self.assertFalse(provider_accessor.get_setup_complete())
-
 
 class TestProcessorTasks(MasuTestCase):
     """Test cases for Processor Celery tasks."""
@@ -430,7 +380,8 @@ class TestProcessorTasks(MasuTestCase):
     def setUp(self):
         """Set up shared test variables."""
         super().setUp()
-
+        self.test_assembly_id = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
+        self.test_etag = "fake_etag"
         self.get_report_args = {
             "customer_name": self.schema,
             "authentication": self.aws_provider.authentication.provider_resource_name,
@@ -438,121 +389,21 @@ class TestProcessorTasks(MasuTestCase):
             "schema_name": self.schema,
             "billing_source": self.aws_provider.billing_source.bucket,
             "provider_uuid": self.aws_provider_uuid,
-            "report_month": DateHelper().today.date(),
+            "report_month": DateHelper().today,
+            "report_context": {"current_file": f"/my/{self.test_assembly_id}/koku-1.csv.gz"},
         }
 
-    @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
-    @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
     @patch("masu.processor.tasks._get_report_files")
     @patch("masu.processor.tasks._process_report_file", side_effect=ReportProcessorError("Mocked Error!"))
-    def test_get_report_exception(self, mock_process_files, mock_get_files, mock_started, mock_completed):
+    def test_get_report_exception(self, mock_process_files, mock_get_files):
         """Test raising processor exception is handled."""
-        mock_get_files.return_value = [
-            {"file": self.fake.word(), "compression": "GZIP"},
-            {"file": self.fake.word(), "compression": "PLAIN"},
-        ]
-        mock_started.return_value = None
+        mock_get_files.return_value = {"file": self.fake.word(), "compression": "GZIP"}
 
         # Check that exception is raised
         with self.assertRaises(ReportProcessorError):
             # Check that the exception logs an ERROR
             with self.assertLogs("masu.processor.tasks.get_report_files", level="ERROR"):
                 get_report_files(**self.get_report_args)
-
-    @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
-    @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    def test_get_report_files_timestamps_aligned(self, mock_started, mock_completed):
-        """Test to return reports only when they have not been processed."""
-        mock_started.return_value = self.yesterday
-        mock_completed.return_value = self.today
-
-        reports = get_report_files(**self.get_report_args)
-        self.assertEqual(reports, [])
-
-    @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
-    @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    def test_get_report_files_timestamps_misaligned(self, mock_started, mock_completed):
-        """Test to return reports with misaligned timestamps."""
-        mock_started.return_value = self.today
-        mock_completed.return_value = self.yesterday
-
-        reports = get_report_files(**self.get_report_args)
-        self.assertEqual(reports, [])
-
-    @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
-    @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.processor.tasks._process_report_file")
-    def test_get_report_files_timestamps_empty_start(self, mock_process_files, mock_started, mock_completed):
-        """Test that the chained task is called when no start time is set."""
-        mock_process_files.apply_async = Mock()
-
-        mock_started.return_value = None
-        mock_completed.return_value = self.today
-        reports = get_report_files(**self.get_report_args)
-        self.assertIsNotNone(reports)
-
-    @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
-    @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.external.date_accessor.DateAccessor.today")
-    def test_get_report_files_timestamps_empty_end(self, mock_date, mock_started, mock_completed):
-        """Chained task is not called when no end time is set since processing is in progress."""
-        mock_started.return_value = self.today
-
-        # Make sure today() is only an hour from get_last_started_datetime (within 2 hr timeout)
-        mock_date.return_value = self.today + timedelta(hours=1)
-
-        mock_completed.return_value = None
-        reports = get_report_files(**self.get_report_args)
-        self.assertEqual(reports, [])
-
-    @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
-    @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.processor.tasks._process_report_file")
-    @patch("masu.external.date_accessor.DateAccessor.today_with_timezone")
-    def test_get_report_files_timestamps_empty_end_timeout(
-        self, mock_date, mock_process_files, mock_started, mock_completed
-    ):
-        """Chained task is called when no end time is set since processing has exceeded the timeout."""
-        mock_process_files.apply_async = Mock()
-
-        mock_started.return_value = self.today
-        mock_completed.return_value = None
-
-        mock_date.return_value = self.today + timedelta(hours=3)
-        reports = get_report_files(**self.get_report_args)
-        self.assertIsNotNone(reports)
-
-    @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
-    @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.processor.tasks._process_report_file")
-    @patch("masu.external.date_accessor.DateAccessor.today_with_timezone")
-    def test_get_report_files_timestamps_empty_end_no_timeout(
-        self, mock_date, mock_process_files, mock_started, mock_completed
-    ):
-        """
-        Chained task is not called when no end time is set.
-
-        Since processing is in progress but completion timeout has not been reached.
-        """
-        mock_started.return_value = self.today
-        mock_completed.return_value = None
-
-        mock_date.return_value = self.today + timedelta(hours=1)
-
-        reports = get_report_files(**self.get_report_args)
-        self.assertIsNotNone(reports)
-
-    @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
-    @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_started_datetime")
-    @patch("masu.processor.tasks._process_report_file")
-    def test_get_report_files_timestamps_empty_both(self, mock_process_file, mock_started, mock_completed):
-        """Test that the chained task is called when no timestamps are set."""
-        mock_process_file.return_value = None
-
-        mock_started.return_value = None
-        mock_completed.return_value = None
-        reports = get_report_files(**self.get_report_args)
-        self.assertIsNotNone(reports)
 
 
 class TestRemoveExpiredDataTasks(MasuTestCase):
@@ -823,7 +674,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "billing_period_start_datetime": DateHelper().today,
             "num_total_files": 2,
             "provider_uuid": self.aws_provider_uuid,
-            "task": "170653c0-3e66-4b7e-a764-336496d7ca5a",
         }
 
         with ReportManifestDBAccessor() as manifest_accessor:
@@ -849,7 +699,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "billing_period_start_datetime": DateHelper().today,
             "num_total_files": 2,
             "provider_uuid": self.aws_provider_uuid,
-            "task": "170653c0-3e66-4b7e-a764-336496d7ca5a",
         }
 
         with ReportManifestDBAccessor() as manifest_accessor:
@@ -875,7 +724,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             "billing_period_start_datetime": DateHelper().today,
             "num_total_files": 2,
             "provider_uuid": self.aws_provider_uuid,
-            "task": "170653c0-3e66-4b7e-a764-336496d7ca5a",
         }
 
         with ReportManifestDBAccessor() as manifest_accessor:
@@ -1053,3 +901,13 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         vh = next(iter(koku_celery.app.conf.beat_schedule["vacuum-schemas"]["schedule"].hour))
         avh = next(iter(koku_celery.app.conf.beat_schedule["autovacuum-tune-schemas"]["schedule"].hour))
         self.assertTrue(avh == (23 if vh == 0 else (vh - 1)))
+
+    def test_record_report_status(self):
+        """Test recording initial report stats."""
+        test_manifest_id = 1
+        test_file_name = "testreportfile.csv"
+        record_report_status(test_manifest_id, test_file_name, "test_request_id")
+
+        with ReportStatsDBAccessor(test_file_name, test_manifest_id) as accessor:
+            self.assertEqual(accessor._manifest_id, test_manifest_id)
+            self.assertEqual(accessor._report_name, test_file_name)
