@@ -700,6 +700,7 @@ def get_consumer():  # pragma: no cover
             "enable.auto.commit": False,
             "enable.auto.offset.store": False,
             "max.poll.interval.ms": 100,  # 18 minutes
+            "session.timeout.ms": 50,
         }
     )
     consumer.subscribe([HCCM_TOPIC])
