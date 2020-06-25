@@ -31,7 +31,6 @@ from tarfile import TarFile
 
 import requests
 from confluent_kafka import Consumer
-from confluent_kafka import KafkaError
 from confluent_kafka import Producer
 from django.db import connection
 from django.db import InterfaceError
@@ -717,13 +716,7 @@ def listen_for_messages_loop():
 
         if msg.error():
             KAFKA_CONNECTION_ERRORS_COUNTER.inc()
-            if msg.error().code() == KafkaError._PARTITION_EOF:
-                # End of partition event
-                LOG.warning(
-                    f"[listen_for_messages_loop] {msg.topic()} {msg.partition()} reached end at offset {msg.offset()}"
-                )
-            elif msg.error():
-                LOG.warning(f"[listen_for_messages_loop] consumer.poll message error: {msg.error()}")
+            LOG.error(f"[listen_for_messages_loop] consumer.poll message: {msg}. Error: {msg.error()}")
             continue
 
         listen_for_messages(msg, consumer)
