@@ -27,7 +27,6 @@ from unittest.mock import patch
 
 import requests_mock
 from confluent_kafka import KafkaError
-from confluent_kafka import KafkaException
 from django.db import InterfaceError
 from django.db import OperationalError
 from requests.exceptions import HTTPError
@@ -141,9 +140,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
         ]
         mock_consumer.return_value = MockKafkaConsumer(msg_list)
         with patch("itertools.count", side_effect=[[0, 1, 2, 3]]):  # mocking the infinite loop
-            with self.assertRaises(KafkaException):
-                with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.WARNING):
-                    msg_handler.listen_for_messages_loop()
+            with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.WARNING):
+                msg_handler.listen_for_messages_loop()
         mock_listen.assert_called_once()
 
     @patch("masu.external.kafka_msg_handler.process_messages")
@@ -656,5 +654,4 @@ class KafkaMsgHandlerTest(MasuTestCase):
             msg_handler.delivery_callback(None, msg)
 
         with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.ERROR):
-            with self.assertRaises(KafkaMsgHandlerError):
-                msg_handler.delivery_callback(err, msg)
+            msg_handler.delivery_callback(err, msg)

@@ -32,7 +32,6 @@ from tarfile import TarFile
 import requests
 from confluent_kafka import Consumer
 from confluent_kafka import KafkaError
-from confluent_kafka import KafkaException
 from confluent_kafka import Producer
 from django.db import connection
 from django.db import InterfaceError
@@ -40,7 +39,6 @@ from django.db import OperationalError
 from kombu.exceptions import OperationalError as RabbitOperationalError
 
 from api.common import log_json
-from kafka_utils.utils import backoff
 from kafka_utils.utils import is_kafka_connected
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -74,8 +72,7 @@ class KafkaMsgHandlerError(Exception):
 def delivery_callback(err, msg):
     """Acknowledge message success or failure."""
     if err is not None:
-        LOG.error(f"Failed to deliver message: {str(msg)}: {str(err)}")
-        raise KafkaMsgHandlerError(err)
+        LOG.error(f"Failed to deliver message: {msg}: {err}")
     else:
         LOG.info("Validation message delivered.")
 
@@ -682,22 +679,13 @@ def process_messages(msg):
         if conversion_task_id:
             LOG.info(f"Conversion of CSV to Parquet uuid: {conversion_task_id}")
     if status:
-        count = 0
-        for _ in itertools.count():  # equivalent to while True, but mockable
-            try:
-                if report_metas:
-                    file_list = [meta.get("current_file") for meta in report_metas]
-                    files_string = ",".join(map(str, file_list))
-                    LOG.info(f"Sending Ingress Service confirmation for: {files_string}")
-                else:
-                    LOG.info(f"Sending Ingress Service confirmation for: {value}")
-                send_confirmation(value["request_id"], status)
-                break
-            except KafkaMsgHandlerError as err:
-                LOG.error(f"Resending message confirmation due to error: {err}")
-                backoff(count, Config.INSIGHTS_KAFKA_CONN_RETRY_MAX)
-                count += 1
-                continue
+        if report_metas:
+            file_list = [meta.get("current_file") for meta in report_metas]
+            files_string = ",".join(map(str, file_list))
+            LOG.info(f"Sending Ingress Service confirmation for: {files_string}")
+        else:
+            LOG.info(f"Sending Ingress Service confirmation for: {value}")
+        send_confirmation(value["request_id"], status)
 
     return process_complete
 
@@ -711,7 +699,7 @@ def get_consumer():  # pragma: no cover
             "queued.max.messages.kbytes": 1024,
             "enable.auto.commit": False,
             "enable.auto.offset.store": False,
-            "max.poll.interval.ms": 1080000,  # 18 minutes
+            "max.poll.interval.ms": 100,  # 18 minutes
         }
     )
     consumer.subscribe([HCCM_TOPIC])
@@ -734,9 +722,9 @@ def listen_for_messages_loop():
                 LOG.warning(
                     f"[listen_for_messages_loop] {msg.topic()} {msg.partition()} reached end at offset {msg.offset()}"
                 )
-                continue
             elif msg.error():
-                raise KafkaException(msg.error())
+                LOG.warning(f"[listen_for_messages_loop] consumer.poll message error: {msg.error()}")
+            continue
 
         listen_for_messages(msg, consumer)
 
