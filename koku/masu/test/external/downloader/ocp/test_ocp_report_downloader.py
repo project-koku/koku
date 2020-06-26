@@ -95,7 +95,13 @@ class OCPReportDownloaderTest(MasuTestCase):
         """Test to verify that basic report downloading works."""
         test_report_date = datetime(year=2018, month=9, day=7)
         with patch.object(DateAccessor, "today", return_value=test_report_date):
-            self.report_downloader.download_report(test_report_date)
+            report_context = {
+                "date": test_report_date.date(),
+                "manifest_id": 1,
+                "comporession": "GZIP",
+                "current_file": self.test_file_path,
+            }
+            self.report_downloader.download_report(report_context)
         expected_path = "{}/{}/{}".format(Config.TMP_DIR, self.fake_customer_name, "ocp")
         self.assertTrue(os.path.isdir(expected_path))
 
@@ -106,7 +112,13 @@ class OCPReportDownloaderTest(MasuTestCase):
             os.remove(self.test_file_path)
             os.remove(self.test_storage_file_path)
             with self.assertRaises(FileNotFoundError):
-                self.report_downloader.download_report(test_report_date)
+                report_context = {
+                    "date": test_report_date.date(),
+                    "manifest_id": 1,
+                    "comporession": "GZIP",
+                    "current_file": self.test_file_path,
+                }
+                self.report_downloader.download_report(report_context)
 
     def test_download_bucket_non_csv_found(self):
         """Test to verify that basic report downloading with non .csv file in source directory."""
@@ -120,16 +132,13 @@ class OCPReportDownloaderTest(MasuTestCase):
             txt_file_path = "{}/{}".format(os.path.dirname(self.test_file_path), "report.txt")
             open(txt_file_path, "a").close()
             with self.assertRaises(FileNotFoundError):
-                self.report_downloader.download_report(test_report_date)
-
-    def test_download_bucket_source_directory_missing(self):
-        """Test to verify that basic report downloading when source directory doesn't exist."""
-        reports = []
-        # Set current date to a day that is outside of the test file's date range.
-        test_report_date = datetime(year=2018, month=10, day=7)
-        with patch.object(DateAccessor, "today", return_value=test_report_date):
-            reports = self.report_downloader.download_report(test_report_date)
-        self.assertEqual(reports, [])
+                report_context = {
+                    "date": test_report_date.date(),
+                    "manifest_id": 1,
+                    "comporession": "GZIP",
+                    "current_file": self.test_file_path,
+                }
+                self.report_downloader.download_report(report_context)
 
     def test_remove_manifest_file(self):
         """Test that a manifest file is deleted after use."""

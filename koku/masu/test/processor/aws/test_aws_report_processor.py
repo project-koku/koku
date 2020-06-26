@@ -44,8 +44,10 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_processor import AWSReportProcessor
 from masu.processor.aws.aws_report_processor import ProcessedReport
 from masu.test import MasuTestCase
+from masu.test.database.helpers import ManifestCreationHelper
 from reporting_common import REPORT_COLUMN_MAP
 from reporting_common.models import CostUsageReportManifest
+from reporting_common.models import CostUsageReportStatus
 
 
 class ProcessedReportTest(MasuTestCase):
@@ -922,8 +924,7 @@ class AWSReportProcessorTest(MasuTestCase):
         manifest = CostUsageReportManifest.objects.filter(
             provider__uuid=self.aws_provider_uuid, billing_period_start_datetime=DateHelper().this_month_start
         ).first()
-        manifest.num_processed_files = 0
-        manifest.save()
+        CostUsageReportStatus.objects.filter(manifest_id=manifest.id).delete()
         bill_date = manifest.billing_period_start_datetime
         processor = AWSReportProcessor(
             schema_name=self.schema,
@@ -949,8 +950,13 @@ class AWSReportProcessorTest(MasuTestCase):
 
     def test_delete_line_items_not_first_file_in_manifest(self):
         """Test that data is not deleted once a file has been processed."""
-        self.manifest.num_processed_files = 1
-        self.manifest.save()
+        manifest_helper = ManifestCreationHelper(
+            self.manifest.id, self.manifest.num_total_files, self.manifest.assembly_id
+        )
+
+        report_file = manifest_helper.generate_one_test_file()
+        manifest_helper.mark_report_file_as_completed(report_file)
+
         processor = AWSReportProcessor(
             schema_name=self.schema,
             report_path=self.test_report,

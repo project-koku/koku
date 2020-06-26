@@ -421,12 +421,22 @@ class ManifestCreationHelper:
         CostUsageReportStatus.objects.filter(manifest_id=self._manifest_id).delete()
         CostUsageReportManifest.objects.filter(assembly_id=self._assembly_id).delete()
 
+    def generate_one_test_file(self):
+        file_cnt = len(self._report_files)
+        file_name = f"file_{file_cnt}"
+        with ReportStatsDBAccessor(file_name, self._manifest_id):
+            print(f"Generating file entry ({file_name}) for manifest {self._manifest_id}")
+            self._report_files.append(file_name)
+            return file_name
+        return None
+
     def generate_test_report_files(self):
         for file_cnt in range(self._num_total_files):
             file_name = f"file_{file_cnt}"
             with ReportStatsDBAccessor(file_name, self._manifest_id):
                 print(f"Generating file entry ({file_name}) for manifest {self._manifest_id}")
                 self._report_files.append(file_name)
+                return file_name
 
     def get_report_filenames(self):
         return self._report_files

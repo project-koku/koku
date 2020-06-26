@@ -29,6 +29,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.expired_data_remover import ExpiredDataRemoverError
 from masu.test import MasuTestCase
+from masu.test.database.helpers import ManifestCreationHelper
 from reporting_common.models import CostUsageReportManifest
 
 
@@ -173,7 +174,6 @@ class ExpiredDataRemoverTest(MasuTestCase):
                     "manifest_creation_datetime": manifest_creation_datetime,
                     "manifest_updated_datetime": manifest_updated_datetime,
                     "billing_period_start_datetime": date,
-                    "num_processed_files": 1,
                     "num_total_files": 1,
                     "provider_id": provider_type_dict[provider_type],
                 }
@@ -206,7 +206,6 @@ class ExpiredDataRemoverTest(MasuTestCase):
             "manifest_creation_datetime": None,
             "manifest_updated_datetime": None,
             "billing_period_start_datetime": day_before_cutoff,
-            "num_processed_files": 1,
             "num_total_files": 1,
             "provider_id": self.aws_provider_uuid,
         }
@@ -254,7 +253,6 @@ class ExpiredDataRemoverTest(MasuTestCase):
                 "manifest_creation_datetime": manifest_creation_datetime,
                 "manifest_updated_datetime": manifest_updated_datetime,
                 "billing_period_start_datetime": fixture_record[1],
-                "num_processed_files": 1,
                 "num_total_files": 1,
                 "provider_id": fixture_record[0],
             }
@@ -280,16 +278,24 @@ class ExpiredDataRemoverTest(MasuTestCase):
         remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS)
         expiration_date = remover._calculate_expiration_date()
         day_before_cutoff = expiration_date - relativedelta.relativedelta(days=1)
+        manifest_id = 7766
         day_before_cutoff_data = {
+            "id": manifest_id,
             "assembly_id": uuid4(),
             "manifest_creation_datetime": None,
             "manifest_updated_datetime": None,
             "billing_period_start_datetime": day_before_cutoff,
-            "num_processed_files": 1,
             "num_total_files": 1,
             "provider_id": self.aws_provider_uuid,
         }
-        CostUsageReportManifest(**day_before_cutoff_data).save()
+        manifest_entry = CostUsageReportManifest(**day_before_cutoff_data)
+        manifest_entry.save()
+        manifest_helper = ManifestCreationHelper(
+            manifest_id, manifest_entry.num_total_files, manifest_entry.assembly_id
+        )
+        manifest_helper.generate_test_report_files()
+        manifest_helper.process_all_files()
+
         count_records = CostUsageReportManifest.objects.count()
         with self.assertLogs(logger="masu.processor.expired_data_remover", level="INFO") as cm:
             logging.disable(logging.NOTSET)
