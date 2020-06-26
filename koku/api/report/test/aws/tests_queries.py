@@ -44,9 +44,23 @@ from api.report.queries import strip_tag_prefix
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
+from reporting.models import AWSComputeSummary
+from reporting.models import AWSComputeSummaryByAccount
+from reporting.models import AWSComputeSummaryByRegion
+from reporting.models import AWSComputeSummaryByService
 from reporting.models import AWSCostEntryBill
 from reporting.models import AWSCostEntryLineItemDailySummary
 from reporting.models import AWSCostEntryProduct
+from reporting.models import AWSCostSummary
+from reporting.models import AWSCostSummaryByAccount
+from reporting.models import AWSCostSummaryByRegion
+from reporting.models import AWSCostSummaryByService
+from reporting.models import AWSDatabaseSummary
+from reporting.models import AWSNetworkSummary
+from reporting.models import AWSStorageSummary
+from reporting.models import AWSStorageSummaryByAccount
+from reporting.models import AWSStorageSummaryByRegion
+from reporting.models import AWSStorageSummaryByService
 
 LOG = logging.getLogger(__name__)
 
@@ -1621,3 +1635,65 @@ class AWSQueryHandlerTest(IamTestCase):
         self.assertNotEqual(source_uuid_list, [])
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
+
+    def test_query_table(self):
+        """Test that the correct view is assigned by query table property."""
+        test_cases = [
+            ("?", AWSCostView, AWSCostSummary),
+            ("?group_by[account]=*", AWSCostView, AWSCostSummaryByAccount),
+            ("?group_by[region]=*", AWSCostView, AWSCostSummaryByRegion),
+            ("?group_by[region]=*&group_by[account]=*", AWSCostView, AWSCostSummaryByRegion),
+            ("?group_by[service]=*", AWSCostView, AWSCostSummaryByService),
+            ("?group_by[service]=*&group_by[account]=*", AWSCostView, AWSCostSummaryByService),
+            ("?", AWSInstanceTypeView, AWSComputeSummary),
+            ("?group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryByAccount),
+            ("?group_by[region]=*", AWSInstanceTypeView, AWSComputeSummaryByRegion),
+            ("?group_by[region]=*&group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryByRegion),
+            ("?group_by[service]=*", AWSInstanceTypeView, AWSComputeSummaryByService),
+            ("?group_by[service]=*&group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryByService),
+            ("?group_by[product_family]=*", AWSInstanceTypeView, AWSComputeSummaryByService),
+            ("?group_by[product_family]=*&group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryByService),
+            ("?group_by[instance_type]=*", AWSInstanceTypeView, AWSComputeSummary),
+            ("?group_by[instance_type]=*&group_by[account]=*", AWSInstanceTypeView, AWSComputeSummary),
+            ("?", AWSStorageView, AWSStorageSummary),
+            ("?group_by[account]=*", AWSStorageView, AWSStorageSummaryByAccount),
+            ("?group_by[region]=*", AWSStorageView, AWSStorageSummaryByRegion),
+            ("?group_by[region]=*&group_by[account]=*", AWSStorageView, AWSStorageSummaryByRegion),
+            ("?group_by[service]=*", AWSStorageView, AWSStorageSummaryByService),
+            ("?group_by[service]=*&group_by[account]=*", AWSStorageView, AWSStorageSummaryByService),
+            ("?group_by[product_family]=*", AWSStorageView, AWSStorageSummaryByService),
+            ("?group_by[product_family]=*&group_by[account]=*", AWSStorageView, AWSStorageSummaryByService),
+            (
+                (
+                    "?filter[service]=AmazonRDS,AmazonDynamoDB,AmazonElastiCache,"
+                    "AmazonNeptune,AmazonRedshift,AmazonDocumentDB"
+                ),
+                AWSCostView,
+                AWSDatabaseSummary,
+            ),
+            (
+                (
+                    "?filter[service]=AmazonRDS,AmazonDynamoDB,AmazonElastiCache,"
+                    "AmazonNeptune,AmazonRedshift,AmazonDocumentDB&group_by[account]=*"
+                ),
+                AWSCostView,
+                AWSDatabaseSummary,
+            ),
+            (
+                "?filter[service]=AmazonVPC,AmazonCloudFront,AmazonRoute53,AmazonAPIGateway",  # noqa: E501
+                AWSCostView,
+                AWSNetworkSummary,
+            ),
+            (
+                "?filter[service]=AmazonVPC,AmazonCloudFront,AmazonRoute53,AmazonAPIGateway&group_by[account]=*",  # noqa: E501
+                AWSCostView,
+                AWSNetworkSummary,
+            ),
+        ]
+
+        for test_case in test_cases:
+            with self.subTest(test_case=test_case):
+                url, view, table = test_case
+                query_params = self.mocked_query_params(url, view)
+                handler = AWSReportQueryHandler(query_params)
+                self.assertEqual(handler.query_table, table)
