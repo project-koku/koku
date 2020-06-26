@@ -68,6 +68,7 @@ def _get_report_files(
     request_id = task.request.id
     context = {"account": customer_name[4:], "provider_uuid": provider_uuid}
     month_string = report_month.strftime("%B %Y")
+    report_context["date"] = report_month
     log_statement = (
         f"Downloading report for:\n"
         f" schema_name: {customer_name}\n"

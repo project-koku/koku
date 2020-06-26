@@ -247,6 +247,7 @@ def summarize_reports(reports_to_summarize):
         None
 
     """
+    LOG.info(f"POST_REPORT_TASKS: summarize_report: {str(reports_to_summarize)}")
     reports_deduplicated = [dict(t) for t in {tuple(d.items()) for d in reports_to_summarize}]
 
     for report in reports_deduplicated:
@@ -635,6 +636,7 @@ def convert_to_parquet(request_id, account, provider_uuid, provider_type, start_
         context (dict): A context object for logging
 
     """
+    LOG.info(f"CONVERT_TO_PARQUET: {str(start_date)}")
     if not context:
         context = {"account": account, "provider_uuid": provider_uuid}
 

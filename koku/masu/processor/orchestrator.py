@@ -168,7 +168,7 @@ class Orchestrator:
             report_file = report_file_dict.get("key")
 
             # Check if report file is complete or in progress.
-            if record_report_status(manifest["manifest_id"], local_file):
+            if record_report_status(manifest["manifest_id"], local_file, "no_request"):
                 LOG.info(f"{local_file} was already processed")
                 continue
 
