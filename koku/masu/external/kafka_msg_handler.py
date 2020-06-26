@@ -48,12 +48,13 @@ from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownload
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
-from masu.processor.tasks import convert_reports_to_parquet
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
+
+# from masu.processor.tasks import convert_reports_to_parquet
 
 
 LOG = logging.getLogger(__name__)
@@ -531,9 +532,9 @@ def convert_manifest_to_parquet(request_id, report_meta, context={}):
                 "manifest_id": manifest_id,
                 "start_date": start_date,
             }
-            async_id = convert_reports_to_parquet.delay(
-                request_id=request_id, reports_to_convert=[report_meta], context=context
-            )
+            # async_id = convert_reports_to_parquet.delay(
+            #    request_id=request_id, reports_to_convert=[report_meta], context=context
+            # )
     return async_id
 
 
