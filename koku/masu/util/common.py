@@ -29,6 +29,7 @@ from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
 
 from api.models import Provider
+from masu.config import Config
 from masu.external import LISTEN_INGEST
 from masu.external import POLL_INGEST
 
@@ -200,3 +201,16 @@ def date_range_pair(start_date, end_date, step=5):
         start_date = date + timedelta(days=1)
     if len(dates) != 1 and end_date not in dates:
         yield start_date.date(), end_date.date()
+
+
+def get_path_prefix(account, provider_uuid, start_date, data_type):
+    """
+    Get the S3 bucket prefix
+    """
+    path = None
+    if start_date:
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        path_prefix = f"{Config.WAREHOUSE_PATH}/{data_type}"
+        path = f"{path_prefix}/{account}/{provider_uuid}/{year}/{month}"
+    return path

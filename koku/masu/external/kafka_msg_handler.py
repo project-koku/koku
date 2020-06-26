@@ -15,16 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Kafka message handler."""
-import asyncio
-import concurrent.futures
-import functools
+import itertools
 import json
 import logging
 import os
-import random
 import re
 import shutil
-import signal
 import tempfile
 import threading
 import time
@@ -33,48 +29,51 @@ from tarfile import ReadError
 from tarfile import TarFile
 
 import requests
-from aiokafka import AIOKafkaConsumer
-from aiokafka import AIOKafkaProducer
+from confluent_kafka import Consumer
+from confluent_kafka import Producer
 from django.db import connection
 from django.db import InterfaceError
 from django.db import OperationalError
-from kafka.errors import KafkaError
+from kombu.exceptions import OperationalError as RabbitOperationalError
 
 from api.common import log_json
+from kafka_utils.utils import is_kafka_connected
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
+from masu.external.downloader.ocp.ocp_report_downloader import create_daily_archives
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
+from masu.processor.tasks import convert_reports_to_parquet
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
 
+
 LOG = logging.getLogger(__name__)
-
-EVENT_LOOP = asyncio.get_event_loop()
-
 HCCM_TOPIC = "platform.upload.hccm"
 VALIDATION_TOPIC = "platform.upload.validation"
 SUCCESS_CONFIRM_STATUS = "success"
 FAILURE_CONFIRM_STATUS = "failure"
+PRODUCER = Producer({"bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS, "message.timeout.ms": 1000})
 
 
 class KafkaMsgHandlerError(Exception):
     """Kafka msg handler error."""
 
 
-def backoff(interval, maximum=64):  # pragma: no cover
-    """Exponential back-off."""
-    wait = min(maximum, (2 ** interval)) + random.random()
-    LOG.info("Sleeping for %.2f seconds.", wait)
-    time.sleep(wait)
+def delivery_callback(err, msg):
+    """Acknowledge message success or failure."""
+    if err is not None:
+        LOG.error(f"Failed to deliver message: {msg}: {err}")
+    else:
+        LOG.info("Validation message delivered.")
 
 
 def create_manifest_entries(report_meta, request_id, context={}):
@@ -158,7 +157,7 @@ def download_payload(request_id, url, context={}):
         shutil.rmtree(temp_dir)
         msg = f"Unable to download file. Error: {str(err)}"
         LOG.warning(log_json(request_id, msg))
-        raise KafkaMsgHandlerError("Unable to download file. Error: ", str(err))
+        raise KafkaMsgHandlerError(msg)
 
     sanitized_request_id = re.sub("[^A-Za-z0-9]+", "", request_id)
     gzip_filename = f"{sanitized_request_id}.tar.gz"
@@ -171,8 +170,7 @@ def download_payload(request_id, url, context={}):
         shutil.rmtree(temp_dir)
         msg = f"Unable to write file. Error: {str(error)}"
         LOG.warning(log_json(request_id, msg, context))
-        raise KafkaMsgHandlerError("Unable to write file. Error: ", str(error))
-        LOG.warning(log_json(request_id, msg, context))
+        raise KafkaMsgHandlerError(msg)
 
     return (temp_dir, temp_file, gzip_filename)
 
@@ -270,7 +268,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     manifest_path = extract_payload_contents(request_id, temp_dir, temp_file_path, temp_file, context)
 
     # Open manifest.json file and build the payload dictionary.
-    full_manifest_path = "{}/{}".format(temp_dir, manifest_path[0])
+    full_manifest_path = f"{temp_dir}/{manifest_path[0]}"
     report_meta = utils.get_report_details(os.path.dirname(full_manifest_path))
 
     # Filter and get account from payload's cluster-id
@@ -290,14 +288,16 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     report_meta["provider_uuid"] = account.get("provider_uuid")
     report_meta["provider_type"] = provider_type
     report_meta["schema_name"] = schema_name
+    report_meta["account"] = schema_name[4:]
+    report_meta["request_id"] = request_id
 
     # Create directory tree for report.
     usage_month = utils.month_date_range(report_meta.get("date"))
-    destination_dir = "{}/{}/{}".format(Config.INSIGHTS_LOCAL_REPORT_DIR, report_meta.get("cluster_id"), usage_month)
+    destination_dir = f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{report_meta.get('cluster_id')}/{usage_month}"
     os.makedirs(destination_dir, exist_ok=True)
 
     # Copy manifest
-    manifest_destination_path = "{}/{}".format(destination_dir, os.path.basename(report_meta.get("manifest_path")))
+    manifest_destination_path = f"{destination_dir}/{os.path.basename(report_meta.get('manifest_path'))}"
     shutil.copy(report_meta.get("manifest_path"), manifest_destination_path)
 
     # Save Manifest
@@ -317,6 +317,16 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
             if not record_report_status(report_meta["manifest_id"], report_file, request_id, context):
                 msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
                 LOG.info(log_json(request_id, msg, context))
+                create_daily_archives(
+                    request_id,
+                    report_meta["account"],
+                    report_meta["provider_uuid"],
+                    report_file,
+                    payload_destination_path,
+                    report_meta["manifest_id"],
+                    report_meta["date"],
+                    context,
+                )
                 report_metas.append(current_meta)
             else:
                 # Report already processed
@@ -331,7 +341,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
-async def send_confirmation(request_id, status):  # pragma: no cover
+def send_confirmation(request_id, status):  # pragma: no cover
     """
     Send kafka validation message to Insights Upload service.
 
@@ -347,25 +357,13 @@ async def send_confirmation(request_id, status):  # pragma: no cover
         None
 
     """
-    producer = AIOKafkaProducer(loop=EVENT_LOOP, bootstrap_servers=Config.INSIGHTS_KAFKA_ADDRESS)
-    try:
-        await producer.start()
-    except (KafkaError, TimeoutError) as err:
-        await producer.stop()
-        LOG.exception(f"Unable to connect to kafka server.  Closing producer. {str(err)}")
-        KAFKA_CONNECTION_ERRORS_COUNTER.inc()
-        raise KafkaMsgHandlerError("Unable to connect to kafka server.  Closing producer.")
-
-    LOG.debug("Producer started...")
-    try:
-        validation = {"request_id": request_id, "validation": status}
-        msg = bytes(json.dumps(validation), "utf-8")
-        LOG.info("Validating message: %s", str(msg))
-        await producer.send_and_wait(VALIDATION_TOPIC, msg)
-        LOG.info("Validating message complete.")
-    finally:
-        await producer.stop()
-        LOG.debug("Producer stopped.")
+    validation = {"request_id": request_id, "validation": status}
+    msg = bytes(json.dumps(validation), "utf-8")
+    PRODUCER.produce(VALIDATION_TOPIC, value=msg, callback=delivery_callback)
+    # Wait up to 1 second for events. Callbacks will be invoked during
+    # this method call if the message is acknowledged.
+    # `flush` makes this process synchronous compared to async with `poll`
+    PRODUCER.flush(1)
 
 
 def handle_message(msg):
@@ -407,8 +405,8 @@ def handle_message(msg):
                                  current_file: String
 
     """
-    if msg.topic == HCCM_TOPIC:
-        value = json.loads(msg.value.decode("utf-8"))
+    if msg.topic() == HCCM_TOPIC:
+        value = json.loads(msg.value().decode("utf-8"))
         request_id = value.get("request_id", "no_request_id")
         account = value.get("account", "no_account")
         context = {"account": account}
@@ -417,13 +415,14 @@ def handle_message(msg):
             LOG.info(log_json(request_id, msg, context))
             report_metas = extract_payload(value["url"], request_id, context)
             return SUCCESS_CONFIRM_STATUS, report_metas
-        except (OperationalError, InterfaceError):
-            msg = "Unable to extract payload, database is closed.  Retrying..."
+        except (OperationalError, InterfaceError) as error:
+            connection.close()
+            msg = f"Unable to extract payload, db closed. {type(error).__name__}: {error}"
             LOG.error(log_json(request_id, msg, context))
-            raise KafkaMsgHandlerError("Unable to extract payload, db closed.")
+            raise KafkaMsgHandlerError(msg)
         except Exception as error:  # noqa
             traceback.print_exc()
-            msg = "Unable to extract payload. Error: %s", str(type(error))
+            msg = f"Unable to extract payload. Error: {type(error).__name__}: {error}"
             LOG.warning(log_json(request_id, msg, context))
             return FAILURE_CONFIRM_STATUS, None
     else:
@@ -461,7 +460,84 @@ def get_account(provider_uuid, request_id, context={}):
     return all_accounts.pop() if all_accounts else None
 
 
-def process_report(report):
+def summarize_manifest(report_meta):
+    """
+    Kick off manifest summary when all report files have completed line item processing.
+
+    Args:
+        report (Dict) - keys: value
+                        schema_name: String,
+                        manifest_id: Integer,
+                        provider_uuid: String,
+                        provider_type: String,
+
+    Returns:
+        Celery Async UUID.
+
+    """
+    async_id = None
+    schema_name = report_meta.get("schema_name")
+    manifest_id = report_meta.get("manifest_id")
+    provider_uuid = report_meta.get("provider_uuid")
+    schema_name = report_meta.get("schema_name")
+    provider_type = report_meta.get("provider_type")
+
+    with ReportManifestDBAccessor() as manifest_accesor:
+        if manifest_accesor.manifest_ready_for_summary(manifest_id):
+            report_meta = {
+                "schema_name": schema_name,
+                "provider_type": provider_type,
+                "provider_uuid": provider_uuid,
+                "manifest_id": manifest_id,
+            }
+            async_id = summarize_reports.delay([report_meta])
+    return async_id
+
+
+def convert_manifest_to_parquet(request_id, report_meta, context={}):
+    """
+    Kick off manifest conversion when all report files have completed line item processing.
+
+    Args:
+        request_id (str) - The triggering request identifier
+        report (Dict) - keys: value
+                        schema_name: String,
+                        manifest_id: Integer,
+                        provider_uuid: String,
+                        provider_type: String,
+                        date: DateTime
+        context (Dict) - Logging context
+
+    Returns:
+        Celery Async UUID.
+
+    """
+    async_id = None
+    schema_name = report_meta.get("schema_name")
+    manifest_id = report_meta.get("manifest_id")
+    provider_uuid = report_meta.get("provider_uuid")
+    provider_type = report_meta.get("provider_type")
+    start_date = report_meta.get("date")
+
+    if not context:
+        context = {"account": schema_name[4:], "provider_uuid": provider_uuid, "provider_type": provider_type}
+
+    with ReportManifestDBAccessor() as manifest_accesor:
+        if manifest_accesor.manifest_ready_for_summary(manifest_id):
+            report_meta = {
+                "schema_name": schema_name,
+                "provider_type": provider_type,
+                "provider_uuid": provider_uuid,
+                "manifest_id": manifest_id,
+                "start_date": start_date,
+            }
+            async_id = convert_reports_to_parquet.delay(
+                request_id=request_id, reports_to_convert=[report_meta], context=context
+            )
+    return async_id
+
+
+def process_report(request_id, report):
     """
     Process line item report.
 
@@ -474,12 +550,16 @@ def process_report(report):
     complete.
 
     Args:
+        request_id (Str): The request id
         report (Dict) - keys: value
+                        request_id: String,
+                        account: String,
                         schema_name: String,
                         manifest_id: Integer,
                         provider_uuid: String,
                         provider_type: String,
                         current_file: String,
+                        date: DateTime
 
     Returns:
         True if line item report processing is complete.
@@ -525,43 +605,9 @@ def report_metas_complete(report_metas):
     return process_complete
 
 
-def summarize_manifest(report_meta):
+def process_messages(msg):
     """
-    Kick off manifest summary when all report files have completed line item processing.
-
-    Args:
-        report (Dict) - keys: value
-                        schema_name: String,
-                        manifest_id: Integer,
-                        provider_uuid: String,
-                        provider_type: String,
-
-    Returns:
-        Celery Async UUID.
-
-    """
-    async_id = None
-    schema_name = report_meta.get("schema_name")
-    manifest_id = report_meta.get("manifest_id")
-    provider_uuid = report_meta.get("provider_uuid")
-    schema_name = report_meta.get("schema_name")
-    provider_type = report_meta.get("provider_type")
-
-    with ReportManifestDBAccessor() as manifest_accesor:
-        if manifest_accesor.manifest_ready_for_summary(manifest_id):
-            report_meta = {
-                "schema_name": schema_name,
-                "provider_type": provider_type,
-                "provider_uuid": provider_uuid,
-                "manifest_id": manifest_id,
-            }
-            async_id = summarize_reports.delay([report_meta])
-    return async_id
-
-
-async def process_messages(msg, loop=EVENT_LOOP):
-    """
-    Process asyncio messages and send validation status.
+    Process messages and send validation status.
 
     Processing involves:
     1. Downloading, verifying, extracting, and preparing report files for processing.
@@ -572,67 +618,73 @@ async def process_messages(msg, loop=EVENT_LOOP):
 
     Args:
         msg (ConsumerRecord) - Message from kafka hccm topic.
-        loop (Asyncio Event Loop) - Event loop while listening for messages.
 
     Returns:
         None
 
     """
     process_complete = False
-    with concurrent.futures.ThreadPoolExecutor() as pool:
-        status, report_metas = await loop.run_in_executor(pool, handle_message, msg)
+    status, report_metas = handle_message(msg)
 
+    value = json.loads(msg.value().decode("utf-8"))
+    request_id = value.get("request_id", "no_request_id")
     if report_metas:
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            for report_meta in report_metas:
-                report_meta["process_complete"] = await loop.run_in_executor(pool, process_report, report_meta)
-                LOG.info(f"Processing: {report_meta.get('current_file')} complete.")
-            process_complete = report_metas_complete(report_metas)
-            async_id = await loop.run_in_executor(pool, summarize_manifest, report_meta)
-            if async_id:
-                LOG.info("Summarization celery uuid: %s", str(async_id))
+        for report_meta in report_metas:
+            report_meta["process_complete"] = process_report(request_id, report_meta)
+            LOG.info(f"Processing: {report_meta.get('current_file')} complete.")
+        process_complete = report_metas_complete(report_metas)
+        summary_task_id = summarize_manifest(report_meta)
+        if summary_task_id:
+            LOG.info(f"Summarization celery uuid: {summary_task_id}")
+        conversion_task_id = convert_manifest_to_parquet(request_id=request_id, report_meta=report_meta)
+        if conversion_task_id:
+            LOG.info(f"Conversion of CSV to Parquet uuid: {conversion_task_id}")
     if status:
-        value = json.loads(msg.value.decode("utf-8"))
-        count = 0
-        while True:
-            try:
-                if report_metas:
-                    file_list = [meta.get("current_file") for meta in report_metas]
-                    files_string = ",".join(map(str, file_list))
-                    LOG.info(f"Sending Ingress Service confirmation for: {files_string}")
-                else:
-                    LOG.info(f"Sending Ingress Service confirmation for: {str(value)}")
-                await send_confirmation(value["request_id"], status)
-                break
-            except KafkaMsgHandlerError as err:
-                LOG.error(f"Resending message confirmation due to error: {err}")
-                backoff(count, Config.INSIGHTS_KAFKA_CONN_RETRY_MAX)
-                count += 1
-                continue
+        if report_metas:
+            file_list = [meta.get("current_file") for meta in report_metas]
+            files_string = ",".join(map(str, file_list))
+            LOG.info(f"Sending Ingress Service confirmation for: {files_string}")
+        else:
+            LOG.info(f"Sending Ingress Service confirmation for: {value}")
+        send_confirmation(value["request_id"], status)
 
     return process_complete
 
 
-def get_consumer(event_loop):  # pragma: no cover
+def get_consumer():  # pragma: no cover
     """Create a Kafka consumer."""
-    return AIOKafkaConsumer(
-        HCCM_TOPIC,
-        loop=event_loop,
-        bootstrap_servers=Config.INSIGHTS_KAFKA_ADDRESS,
-        group_id="hccm-group",
-        enable_auto_commit=False,
+    consumer = Consumer(
+        {
+            "bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS,
+            "group.id": "hccm-group",
+            "queued.max.messages.kbytes": 1024,
+            "enable.auto.commit": False,
+            "enable.auto.offset.store": False,
+            "max.poll.interval.ms": 1080000,  # 18 minutes
+        }
     )
+    consumer.subscribe([HCCM_TOPIC])
+    return consumer
 
 
-async def listen_for_messages_loop(event_loop):
+def listen_for_messages_loop():
     """Wrap listen_for_messages in while true."""
-    while True:
-        consumer = get_consumer(event_loop)
-        await listen_for_messages(consumer)
+    consumer = get_consumer()
+    LOG.info("Consumer is listening for messages...")
+    for _ in itertools.count():  # equivalent to while True, but mockable
+        msg = consumer.poll(timeout=1.0)
+        if msg is None:
+            continue
+
+        if msg.error():
+            KAFKA_CONNECTION_ERRORS_COUNTER.inc()
+            LOG.error(f"[listen_for_messages_loop] consumer.poll message: {msg}. Error: {msg.error()}")
+            continue
+
+        listen_for_messages(msg, consumer)
 
 
-@KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
-async def listen_for_messages(consumer):
+def listen_for_messages(msg, consumer):
     """
     Listen for messages on the hccm topic.
 
@@ -654,73 +706,56 @@ async def listen_for_messages(consumer):
     to make the service more tolerant of SIGTERM events.
 
     Args:
-        consumer - (AIOKafkaConsumer): kafka consumer for HCCM ingress topic.
+        consumer - (Consumer): kafka consumer for HCCM ingress topic.
 
     Returns:
         None
 
     """
-    LOG.info("Kafka consumer starting...")
-    await consumer.start()
-    LOG.info("Listener started.  Waiting for messages...")
     try:
-        async for msg in consumer:
-            process_complete = False
-            try:
-                process_complete = await process_messages(msg)
-                if process_complete:
-                    await consumer.commit()
-            except (InterfaceError, OperationalError, ReportProcessorDBError) as err:
-                connection.close()
-                LOG.error(f"[listen_for_messages] database error. Seeking to committed. Error: {str(err)}")
-                await asyncio.sleep(Config.RETRY_SECONDS)
-                await consumer.seek_to_committed()
-            except KafkaMsgHandlerError as error:
-                LOG.error(f"[listen_for_messages] internal error. Seeking to committed. Error: {str(error)}")
-                await asyncio.sleep(Config.RETRY_SECONDS)
-                await consumer.seek_to_committed()
-            except ReportProcessorError as error:
-                LOG.error(f"Report processing error: {str(error)}")
-                await consumer.commit()
-
-    except KafkaError as error:
-        LOG.error(f"[listen_for_messages] Kafka error encountered: {type(error).__name__}: {error}", exc_info=True)
-        KAFKA_CONNECTION_ERRORS_COUNTER.inc()
+        offset = msg.offset()
+        partition = msg.partition()
+        LOG.info(f"Processing message offset: {offset} partition: {partition}")
+        process_messages(msg)
+        LOG.debug(f"COMMITTING: message offset: {offset} partition: {partition}")
+        consumer.store_offsets(msg)
+        consumer.commit()
+    except (InterfaceError, OperationalError, ReportProcessorDBError) as error:
+        connection.close()
+        LOG.error(f"[listen_for_messages] Database error. Error: {type(error).__name__}: {error}. Retrying...")
+        time.sleep(Config.RETRY_SECONDS)
+    except (KafkaMsgHandlerError, RabbitOperationalError) as error:
+        LOG.error(f"[listen_for_messages] Internal error. {type(error).__name__}: {error}. Retrying...")
+        time.sleep(Config.RETRY_SECONDS)
+    except ReportProcessorError as error:
+        LOG.error(f"[listen_for_messages] Report processing error: {str(error)}")
+        LOG.debug(f"COMMITTING: message offset: {offset} partition: {partition}")
+        consumer.store_offsets(msg)
+        consumer.commit()
     except Exception as error:
-        traceback.print_exc()
         LOG.error(f"[listen_for_messages] UNKNOWN error encountered: {type(error).__name__}: {error}", exc_info=True)
-    finally:
-        # Will leave consumer group; perform autocommit if enabled.
-        await consumer.stop()
 
 
-def shutdown(loop):  # pragma: no cover
-    """SIGTERM asyncio event handler."""
-    LOG.info("Received stop signal...")
-
-
-@KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
-def asyncio_worker_thread(loop):  # pragma: no cover
+def koku_listener_thread():  # pragma: no cover
     """
-    Worker thread function to run the asyncio event loop.
-
-    Args:
-        loop - Asyncio event loop
+    Configure Listener listener thread.
 
     Returns:
         None
 
     """
+    if is_kafka_connected(Config.INSIGHTS_KAFKA_HOST, Config.INSIGHTS_KAFKA_PORT):  # Check that Kafka is running
+        LOG.info("Kafka is running.")
+
     try:
-        loop.create_task(listen_for_messages_loop(loop))
-        loop.run_forever()
+        listen_for_messages_loop()
     except KeyboardInterrupt:
         exit(0)
 
 
 def initialize_kafka_handler():  # pragma: no cover
     """
-    Create asyncio tasks and daemon thread to run event loop.
+    Start Listener thread.
 
     Args:
         None
@@ -730,8 +765,7 @@ def initialize_kafka_handler():  # pragma: no cover
 
     """
     if Config.KAFKA_CONNECT:
-        EVENT_LOOP.add_signal_handler(signal.SIGTERM, functools.partial(shutdown, EVENT_LOOP))
-        event_loop_thread = threading.Thread(target=asyncio_worker_thread, args=(EVENT_LOOP,))
+        event_loop_thread = threading.Thread(target=koku_listener_thread)
         event_loop_thread.daemon = True
         event_loop_thread.start()
         event_loop_thread.join()

@@ -21,18 +21,84 @@ import logging
 import os
 import shutil
 
+import pandas as pd
+from django.conf import settings
+
 from api.common import log_json
 from masu.config import Config
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
+from masu.util.common import get_path_prefix
 from masu.util.ocp import common as utils
 
 DATA_DIR = Config.TMP_DIR
 REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
-
+REPORT_TYPES = {
+    "storage_usage": "persistentvolumeclaim_labels",
+    "pod_usage": "pod_labels",
+    "node_labels": "node_labels",
+}
 LOG = logging.getLogger(__name__)
+
+
+def divide_csv_daily(file_path, filename):
+    """
+    Split local file into daily content.
+    """
+    daily_files = []
+    directory = os.path.dirname(file_path)
+
+    data_frame = pd.read_csv(file_path)
+    report_type, _ = utils.detect_type(file_path)
+    unique_times = data_frame.interval_start.unique()
+    days = list({cur_dt[:10] for cur_dt in unique_times})
+    daily_data_frames = [
+        {"data_frame": data_frame[data_frame.interval_start.str.contains(cur_day)], "date": cur_day}
+        for cur_day in days
+    ]
+
+    for daily_data in daily_data_frames:
+        day = daily_data.get("date")
+        df = daily_data.get("data_frame")
+        day_file = f"{report_type}.{day}.csv"
+        day_filepath = f"{directory}/{day_file}"
+        df.to_csv(day_filepath, index=False, header=True)
+        daily_files.append({"filename": day_file, "filepath": day_filepath})
+
+    return daily_files
+
+
+def create_daily_archives(request_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
+    """
+    Create daily CSVs from incoming report and archive to S3.
+
+    Args:
+        request_id (str): The request id
+        account (str): The account number
+        provider_uuid (str): The uuid of a provider
+        filename (str): The OCP file name
+        filepath (str): The full path name of the file
+        manifest_id (int): The manifest identifier
+        start_date (Datetime): The start datetime of incoming report
+        context (Dict): Logging context dictionary
+    """
+    if settings.ENABLE_S3_ARCHIVING:
+        daily_files = divide_csv_daily(filepath, filename)
+        for daily_file in daily_files:
+            # Push to S3
+            s3_csv_path = get_path_prefix(account, provider_uuid, start_date, Config.CSV_DATA_TYPE)
+            copy_local_report_file_to_s3_bucket(
+                request_id,
+                s3_csv_path,
+                daily_file.get("filepath"),
+                daily_file.get("filename"),
+                manifest_id,
+                start_date,
+                context,
+            )
+            os.remove(daily_file.get("filepath"))
 
 
 class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
@@ -178,18 +244,16 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             LOG.info(log_json(self.request_id, msg, self.context))
             shutil.move(key, full_file_path)
 
-        # Push to S3
-        copy_local_report_file_to_s3_bucket(
+        create_daily_archives(
             self.request_id,
             self.account,
             self._provider_uuid,
-            full_file_path,
             local_filename,
+            full_file_path,
             manifest_id,
             start_date,
             self.context,
         )
-
         return full_file_path, ocp_etag
 
     def get_local_file_for_report(self, report):

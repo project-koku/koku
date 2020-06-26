@@ -32,6 +32,7 @@ from masu.exceptions import MasuProviderError
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws import common as utils
+from masu.util.common import get_path_prefix
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -271,19 +272,11 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             LOG.debug("Downloading key: %s to file path: %s", key, full_file_path)
             self.s3_client.download_file(self.report.get("S3Bucket"), key, full_file_path)
             # Push to S3
+            s3_csv_path = get_path_prefix(self.account, self._provider_uuid, start_date, Config.CSV_DATA_TYPE)
             utils.copy_local_report_file_to_s3_bucket(
-                self.request_id,
-                self.account,
-                self._provider_uuid,
-                full_file_path,
-                local_s3_filename,
-                manifest_id,
-                start_date,
-                self.context,
+                self.request_id, s3_csv_path, full_file_path, local_s3_filename, manifest_id, start_date, self.context
             )
-            utils.remove_files_not_in_set_from_s3_bucket(
-                self.request_id, self.account, self._provider_uuid, start_date, manifest_id
-            )
+            utils.remove_files_not_in_set_from_s3_bucket(self.request_id, s3_csv_path, manifest_id)
 
         return full_file_path, s3_etag
 

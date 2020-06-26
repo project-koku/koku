@@ -41,6 +41,7 @@ from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.provider_status_accessor import ProviderStatusCode
@@ -52,6 +53,7 @@ from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import autovacuum_tune_schema
+from masu.processor.tasks import convert_to_parquet
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import refresh_materialized_views
@@ -405,6 +407,91 @@ class TestProcessorTasks(MasuTestCase):
             with self.assertLogs("masu.processor.tasks.get_report_files", level="ERROR"):
                 get_report_files(**self.get_report_args)
 
+    def test_convert_to_parquet(self):
+        """Test the convert_to_parquet task."""
+        logging.disable(logging.NOTSET)
+        expected_logs = [
+            "missing required argument: request_id",
+            "missing required argument: account",
+            "missing required argument: provider_uuid",
+        ]
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
+                convert_to_parquet(None, None, None, None, "start_date", "manifest_id", [])
+                for expected in expected_logs:
+                    self.assertIn(expected, " ".join(logger.output))
+
+        expected = "Skipping convert_to_parquet. S3 archiving feature is disabled."
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            convert_to_parquet("request_id", "account", "provider_uuid", "provider_type", "start_date", "manifest_id")
+            self.assertIn(expected, " ".join(logger.output))
+
+        expected = "S3 archiving feature is enabled, but no start_date was given for processing."
+        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
+            with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+                convert_to_parquet("request_id", "account", "provider_uuid", "provider_type", None, "manifest_id")
+                self.assertIn(expected, " ".join(logger.output))
+
+        expected = "S3 archiving feature is enabled, but the start_date was not a valid date string ISO 8601 format."
+        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
+            with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+                convert_to_parquet(
+                    "request_id", "account", "provider_uuid", "provider_type", "bad_date", "manifest_id"
+                )
+                self.assertIn(expected, " ".join(logger.output))
+
+        expected = "S3 archiving feature is enabled, but no files to process."
+        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.tasks.get_path_prefix"):
+                with patch("masu.processor.tasks.get_file_keys_from_s3_with_manifest_id", return_value=[]):
+                    with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+                        convert_to_parquet(
+                            "request_id",
+                            "account",
+                            "provider_uuid",
+                            "provider_type",
+                            "2020-01-01T12:00:00",
+                            "manifest_id",
+                        )
+                        self.assertIn(expected, " ".join(logger.output))
+
+        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.tasks.get_path_prefix"):
+                with patch("masu.processor.tasks.get_file_keys_from_s3_with_manifest_id", return_value=["cur.csv.gz"]):
+                    with patch("masu.processor.tasks.remove_files_not_in_set_from_s3_bucket"):
+                        with patch("masu.processor.tasks.convert_csv_to_parquet"):
+                            convert_to_parquet(
+                                "request_id", "account", "provider_uuid", "AWS", "2020-01-01T12:00:00", "manifest_id"
+                            )
+
+        expected = "Failed to convert the following files to parquet"
+        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.tasks.get_path_prefix"):
+                with patch(
+                    "masu.processor.tasks.get_file_keys_from_s3_with_manifest_id", return_value=["cost_export.csv"]
+                ):
+                    with patch("masu.processor.tasks.convert_csv_to_parquet", return_value=False):
+                        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+                            convert_to_parquet(
+                                "request_id",
+                                "account",
+                                "provider_uuid",
+                                "provider_type",
+                                "2020-01-01T12:00:00",
+                                "manifest_id",
+                            )
+                            self.assertIn(expected, " ".join(logger.output))
+
+        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.tasks.get_path_prefix"):
+                with patch(
+                    "masu.processor.tasks.get_file_keys_from_s3_with_manifest_id", return_value=["storage_usage.csv"]
+                ):
+                    with patch("masu.processor.tasks.convert_csv_to_parquet"):
+                        convert_to_parquet(
+                            "request_id", "account", "provider_uuid", "OCP", "2020-01-01T12:00:00", "manifest_id"
+                        )
+
 
 class TestRemoveExpiredDataTasks(MasuTestCase):
     """Test cases for Processor Celery tasks."""
@@ -547,11 +634,14 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self.assertEqual(result_start_date, expected_start_date.date())
         self.assertEqual(result_end_date, expected_end_date.date())
 
+    @patch("masu.processor.tasks.CostModelDBAccessor")
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.refresh_materialized_views")
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
-    def test_update_summary_tables_ocp(self, mock_cost_model, mock_charge_info, mock_view, mock_chain):
+    def test_update_summary_tables_ocp(
+        self, mock_cost_model, mock_charge_info, mock_view, mock_chain, mock_task_cost_model
+    ):
         """Test that the summary table task runs."""
         infrastructure_rates = {
             "cpu_core_usage_per_hour": 1.5,
@@ -563,6 +653,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_cost_model.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
         mock_cost_model.return_value.__enter__.return_value.supplementary_rates = {}
         mock_cost_model.return_value.__enter__.return_value.markup = markup
+        # We need to bypass the None check for cost model in update_cost_model_costs
+        mock_task_cost_model.return_value.__enter__.return_value.cost_model = {}
 
         provider = Provider.PROVIDER_OCP
         provider_ocp_uuid = self.ocp_test_provider_uuid
@@ -911,3 +1003,22 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with ReportStatsDBAccessor(test_file_name, test_manifest_id) as accessor:
             self.assertEqual(accessor._manifest_id, test_manifest_id)
             self.assertEqual(accessor._report_name, test_file_name)
+
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    def test_no_cost_model_during_cost_model_update(self, mock_updater):
+        """Test cost model update not called if no cost model is present."""
+
+        provider_ocp_uuid = self.ocp_test_provider_uuid
+        with CostModelDBAccessor(self.schema, provider_ocp_uuid) as cost_model_accessor:
+            test_cost_model = cost_model_accessor.cost_model
+        self.assertIsNone(test_cost_model)
+
+        start_date = DateHelper().last_month_start
+        end_date = DateHelper().last_month_end
+
+        update_cost_model_costs(
+            schema_name=self.schema, provider_uuid=provider_ocp_uuid, start_date=start_date, end_date=end_date
+        )
+
+        self.assertFalse(mock_updater.called)
+        self.assertEqual(mock_updater.call_count, 0)
