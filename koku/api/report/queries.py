@@ -97,7 +97,7 @@ class ReportQueryHandler(QueryHandler):
 
     @property
     def query_table(self):
-        """Return the database table to query against."""
+        """Return the database table or view to query against."""
         query_table = self._mapper.query_table
         report_type = self.parameters.report_type
         report_group = "default"
@@ -117,6 +117,8 @@ class ReportQueryHandler(QueryHandler):
 
         # Special Casess for Network and Database Cards in the UI
         service_filter = set(self.parameters.get("filter", {}).get("service", []))
+        if self.provider in (Provider.PROVIDER_AZURE, Provider.OCP_AZURE):
+            service_filter = set(self.parameters.get("filter", {}).get("service_name", []))
         if report_type == "costs" and service_filter and not service_filter.difference(self.network_services):
             report_type = "network"
         elif report_type == "costs" and service_filter and not service_filter.difference(self.database_services):
