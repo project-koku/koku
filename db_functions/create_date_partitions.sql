@@ -34,14 +34,24 @@ CREATE OR REPLACE PROCEDURE public.create_date_partitions(
 ) AS $$
 DECLARE
     rec record;
+    table_parts text[];
+    check_table_name text;
     partition_name text  = '';
     check_stmt text = '';
     action_stmt text = '';
 BEGIN
+    table_parts = string_to_array(check_table, '.');
+    IF ( cardinality(table_parts) > 1 )
+    THEN
+        check_table_name = quote_ident(table_parts[1]) || '.'::text || quote_ident(table_parts[2]);
+    ELSE
+        check_table_name = quote_ident(table_parts[1]);
+    END IF;
+
     check_stmt = 'WITH distinct_date_key as (' ||
                     'SELECT DISTINCT ' ||
                     '       to_char(' || quote_ident(check_col) || ', ''YYYY-MM-01'')::text as date_key' ||
-                    '  FROM ' || quote_ident(check_table) || ' ' ||
+                    '  FROM ' || check_table_name || ' ' ||
                     ') ' ||
                     'SELECT ddk.date_key::date' ||
                     '  FROM distinct_date_key as ddk ' ||
