@@ -241,3 +241,51 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
             )
             # Re-enable log suppression
             logging.disable(logging.CRITICAL)
+
+    @patch(
+        "masu.external.downloader.aws_local.aws_local_report_downloader.AWSLocalReportDownloader._remove_manifest_file"
+    )
+    @patch("masu.external.downloader.aws_local.aws_local_report_downloader.AWSLocalReportDownloader._get_manifest")
+    def test_get_manifest_context_for_date(self, mock_manifest, mock_delete):
+        """Test that the manifest is read."""
+        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        auth_credential = fake_arn(service="iam", generate_account_id=True)
+        downloader = AWSLocalReportDownloader(
+            self.fake_customer_name, auth_credential, self.fake_bucket_name, provider_uuid=self.aws_provider_uuid
+        )
+
+        start_str = current_month.strftime(downloader.manifest_date_format)
+        assembly_id = "1234"
+        compression = "GZIP"
+        report_keys = ["file1", "file2"]
+        mock_manifest.return_value = (
+            "",
+            {
+                "assemblyId": assembly_id,
+                "Compression": compression,
+                "reportKeys": report_keys,
+                "billingPeriod": {"start": start_str},
+            },
+        )
+
+        result = downloader.get_manifest_context_for_date(current_month)
+        self.assertEqual(result.get("assembly_id"), assembly_id)
+        self.assertEqual(result.get("compression"), compression)
+        self.assertIsNotNone(result.get("files"))
+
+    @patch(
+        "masu.external.downloader.aws_local.aws_local_report_downloader.AWSLocalReportDownloader._remove_manifest_file"
+    )
+    @patch("masu.external.downloader.aws_local.aws_local_report_downloader.AWSLocalReportDownloader._get_manifest")
+    def test_get_manifest_context_for_date_no_manifest(self, mock_manifest, mock_delete):
+        """Test that the manifest is read."""
+        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        auth_credential = fake_arn(service="iam", generate_account_id=True)
+        downloader = AWSLocalReportDownloader(
+            self.fake_customer_name, auth_credential, self.fake_bucket_name, provider_uuid=self.aws_provider_uuid
+        )
+
+        mock_manifest.return_value = ("", {"reportKeys": []})
+
+        result = downloader.get_manifest_context_for_date(current_month)
+        self.assertEqual(result, {})

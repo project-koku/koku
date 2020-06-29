@@ -172,7 +172,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
                 file_dict = {"key": key_full_path, "local_file": self.get_local_file_for_report(key_full_path)}
                 files_list.append(file_dict)
-            LOG.info(f"FILES LIST: {str(files_list)}")
+
             report_dict["files"] = files_list
         return report_dict
 

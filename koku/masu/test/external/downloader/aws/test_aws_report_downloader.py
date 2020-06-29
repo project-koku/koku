@@ -31,6 +31,7 @@ from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProviderError
 from masu.external import AWS_REGIONS
+from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderError
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderNoFileError
@@ -446,3 +447,49 @@ class AWSReportDownloaderTest(MasuTestCase):
                     }
                 )
                 mock_session.assert_called_once()
+
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._remove_manifest_file")
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._get_manifest")
+    @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
+    def test_get_manifest_context_for_date(self, mock_session, mock_manifest, mock_delete):
+        """Test that the manifest is read."""
+        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        auth_credential = fake_arn(service="iam", generate_account_id=True)
+        downloader = AWSReportDownloader(
+            self.fake_customer_name, auth_credential, self.fake_bucket_name, provider_uuid=self.aws_provider_uuid
+        )
+
+        start_str = current_month.strftime(downloader.manifest_date_format)
+        assembly_id = "1234"
+        compression = downloader.report.get("Compression")
+        report_keys = ["file1", "file2"]
+        mock_manifest.return_value = (
+            "",
+            {
+                "assemblyId": assembly_id,
+                "Compression": compression,
+                "reportKeys": report_keys,
+                "billingPeriod": {"start": start_str},
+            },
+        )
+
+        result = downloader.get_manifest_context_for_date(current_month)
+        self.assertEqual(result.get("assembly_id"), assembly_id)
+        self.assertEqual(result.get("compression"), compression)
+        self.assertIsNotNone(result.get("files"))
+
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._remove_manifest_file")
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._get_manifest")
+    @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
+    def test_get_manifest_context_for_date_no_manifest(self, mock_session, mock_manifest, mock_delete):
+        """Test that the manifest is read."""
+        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        auth_credential = fake_arn(service="iam", generate_account_id=True)
+        downloader = AWSReportDownloader(
+            self.fake_customer_name, auth_credential, self.fake_bucket_name, provider_uuid=self.aws_provider_uuid
+        )
+
+        mock_manifest.return_value = ("", {"reportKeys": []})
+
+        result = downloader.get_manifest_context_for_date(current_month)
+        self.assertEqual(result, {})

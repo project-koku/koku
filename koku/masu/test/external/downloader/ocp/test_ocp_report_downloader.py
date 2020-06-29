@@ -195,3 +195,25 @@ class OCPReportDownloaderTest(MasuTestCase):
                     expected = [{"filename": gen_file, "filepath": f"{td}/{gen_file}"} for gen_file in gen_files]
                     for expected_item in expected:
                         self.assertIn(expected_item, daily_files)
+
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.OCPReportDownloader._remove_manifest_file")
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.OCPReportDownloader._get_manifest")
+    def test_get_manifest_context_for_date(self, mock_manifest, mock_delete):
+        """Test that the manifest is read."""
+        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+
+        assembly_id = "1234"
+        compression = "PLAIN"
+        report_keys = ["file1", "file2"]
+        mock_manifest.return_value = {
+            "uuid": assembly_id,
+            "Compression": compression,
+            "reportKeys": report_keys,
+            "date": current_month,
+            "files": report_keys,
+        }
+
+        result = self.ocp_report_downloader.get_manifest_context_for_date(current_month)
+        self.assertEqual(result.get("assembly_id"), assembly_id)
+        self.assertEqual(result.get("compression"), compression)
+        self.assertIsNotNone(result.get("files"))
