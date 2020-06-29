@@ -296,10 +296,15 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
     def populate_markup_cost(self, markup, start_date, end_date, bill_ids=None):
         """Set markup costs in the database."""
         with schema_context(self.schema):
-            if bill_ids:
+            if bill_ids and start_date and end_date:
                 for bill_id in bill_ids:
                     AWSCostEntryLineItemDailySummary.objects.filter(
                         cost_entry_bill_id=bill_id, usage_start__gte=start_date, usage_start__lte=end_date
                     ).update(markup_cost=(F("unblended_cost") * markup))
+            elif bill_ids:
+                for bill_id in bill_ids:
+                    AWSCostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
+                        markup_cost=(F("unblended_cost") * markup)
+                    )
             else:
                 AWSCostEntryLineItemDailySummary.objects.update(markup_cost=(F("unblended_cost") * markup))
