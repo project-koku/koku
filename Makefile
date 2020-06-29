@@ -99,6 +99,7 @@ help:
 	@echo "                                         url:      localhost:3001"
 	@echo "                                         user:     admin"
 	@echo "                                         password: admin12"
+	@echo "  docker-up-min                        run database, koku/masu servers and worker"
 	@echo "  docker-down                          shut down all containers"
 	@echo "  docker-rabbit                        run RabbitMQ container"
 	@echo "  docker-reinitdb                      drop and recreate the database"
@@ -165,7 +166,7 @@ help:
 ### General Commands ###
 
 clean:
-	git clean -fdx -e .idea/ -e *env/
+	git clean -fdx -e .idea/ -e *env/ -e .env
 
 html:
 	@cd docs; $(MAKE) html
@@ -491,7 +492,7 @@ docker-down-db:
 	docker-compose rm -s -v -f db
 
 docker-logs:
-	docker-compose logs -f
+	docker-compose logs -f koku-server koku-worker masu-server
 
 docker-rabbit:
 	docker-compose up -d rabbit
@@ -537,6 +538,9 @@ docker-up:
 
 docker-up-no-build:
 	docker-compose up -d
+
+docker-up-min:
+	docker-compose up --build -d db redis koku-server masu-server koku-worker
 
 docker-up-db:
 	docker-compose up -d db

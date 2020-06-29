@@ -30,11 +30,15 @@ from tenant_schemas.utils import tenant_context
 from api.models import Customer
 from api.models import Tenant
 from api.report.test.utils import NiseDataLoader
+from koku.env import ENVIRONMENT
 from reporting.models import OCPEnabledTagKeys
 
+GITHUB_ACTIONS = ENVIRONMENT.bool("GITHUB_ACTIONS", default=False)
 LOG = logging.getLogger(__name__)
 OCP_ENABLED_TAGS = ["app", "storageclass", "environment", "version"]
-sys.stdout = open(os.devnull, "w")
+
+if GITHUB_ACTIONS:
+    sys.stdout = open(os.devnull, "w")
 
 
 class KokuTestRunner(DiscoverRunner):
@@ -103,8 +107,8 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         tenant = Tenant.objects.get_or_create(schema_name=account[1])[0]
                         tenant.save()
                         Customer.objects.get_or_create(account_id=account[0], schema_name=account[1])
-                except Exception:
-                    pass
+                except Exception as err:
+                    LOG.warning(err)
 
                 if parallel > 1:
                     for index in range(parallel):

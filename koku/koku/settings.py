@@ -355,6 +355,7 @@ LOGGING = {
         "api": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "celery": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL, "propagate": False},
         "cost_models": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
+        "kafka_utils": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "koku": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "providers": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "reporting": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
