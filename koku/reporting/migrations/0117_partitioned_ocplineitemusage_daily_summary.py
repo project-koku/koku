@@ -15,7 +15,7 @@ def convert_ocpusage_lids_to_partitioned(apps, schema_editor):
     target_schema = ppart.resolve_schema(ppart.CURRENT_SCHEMA)
     # This is the table we will model from
     source_table = "reporting_ocpusagelineitem_daily_summary"
-    # This is the target table's name
+    # This is the target table's name (it will be renamed during the conversion to the source table name)
     target_table = f"p_{source_table}"
     # We'll want a new sequence copied from the original sequence
     new_seq = ppart.SequenceDefinition(
@@ -29,7 +29,13 @@ def convert_ocpusage_lids_to_partitioned(apps, schema_editor):
     new_pk = ppart.PKDefinition("reporting_ocpuseagelineitem_daily_summary_pkey", ["usage_start", "id"])
     # Init the converter
     p_converter = ppart.ConvertToPartition(
-        source_table, "usage_start", ppart.PARTITION_RANGE, pk_def=new_pk, col_def=[target_identity_col]
+        source_table,
+        "usage_start",
+        ppart.PARTITION_RANGE,
+        pk_def=new_pk,
+        col_def=[target_identity_col],
+        target_schema=target_schema,
+        source_schema=target_schema,
     )
     # Push the button, Frank.
     p_converter.convert_to_partition()
@@ -78,87 +84,4 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterUniqueTogether(name="partitionedtable", unique_together={("schema_name", "table_name")}),
         migrations.RunPython(code=convert_ocpusage_lids_to_partitioned),
-        #         migrations.RunSQL(
-        #             """
-        # -- ===================================
-        # --   Create the new partitioned table
-        # -- ===================================
-        # CREATE TABLE IF NOT EXISTS p_reporting_ocpusagelineitem_daily_summary (
-        #     LIKE reporting_ocpusagelineitem_daily_summary
-        #     INCLUDING DEFAULTS
-        #     INCLUDING GENERATED
-        #     INCLUDING IDENTITY
-        #     INCLUDING STATISTICS
-        # )
-        # PARTITION BY RANGE (usage_start);
-        # -- SEQUENCE
-        # CREATE SEQUENCE p_reporting_ocpusagelineitem_daily_summary_id_seq AS bigint
-        #        INCREMENT BY 1
-        #        MINVALUE 1
-        #        MAXVALUE 9223372036854775807
-        #        START WITH 1
-        #        CACHE 1
-        #        NO CYCLE ;
-        # ALTER TABLE p_reporting_ocpusagelineitem_daily_summary ALTER COLUMN id
-        #    SET DEFAULT nextval('p_reporting_ocpusagelineitem_daily_summary_id_seq'::regclass) ;
-        # ALTER SEQUENCE reporting_ocpusagelineitem_daily_summary_id_seq owned BY p_reporting_ocpusagelineitem_daily_summary.id ;
-        # SELECT setval('p_reporting_ocpusagelineitem_daily_summary_id_seq'::regclass,
-        #               nextval('reporting_ocpusagelineitem_daily_summary_id_seq'::regclass));
-        # -- PRIMARY KEY
-        # ALTER TABLE p_reporting_ocpusagelineitem_daily_summary ADD
-        # CONSTRAINT p_reporting_ocpusagelineitem_daily_summary_uniq PRIMARY KEY (usage_start, id) ;
-        # -- OTHER CONSTRAINTS
-        # ALTER TABLE p_reporting_ocpusagelineitem_daily_summary ADD
-        # CONSTRAINT p_reporting_ocpusageli_report_period_id_fc68baea_fk_reporting
-        # FOREIGN KEY (report_period_id) REFERENCES reporting_ocpusagereportperiod(id) DEFERRABLE INITIALLY DEFERRED ;
-        # -- INDEXES
-        # CREATE INDEX p_ocpu_lids_pod_labels_idx ON p_reporting_ocpusagelineitem_daily_summary USING gin (pod_labels);
-        # CREATE INDEX p_ocpu_lids_summary_data_source_idx ON p_reporting_ocpusagelineitem_daily_summary USING btree (data_source);
-        # CREATE INDEX p_ocpu_lids_reporting_ocpusagelineitem_report_period_id_fc68baea ON p_reporting_ocpusagelineitem_daily_summary USING btree (report_period_id);
-        # CREATE INDEX p_ocpu_lids_summary_ocp_usage_idx ON p_reporting_ocpusagelineitem_daily_summary USING btree (usage_start);
-        # CREATE INDEX p_ocpu_lids_summary_namespace_idx ON p_reporting_ocpusagelineitem_daily_summary USING btree (namespace varchar_pattern_ops);
-        # CREATE INDEX p_ocpu_lids_summary_node_idx ON p_reporting_ocpusagelineitem_daily_summary USING btree (node varchar_pattern_ops);
-        # CREATE INDEX p_ocpu_lids_ocp_summary_namespace_like_idx ON p_reporting_ocpusagelineitem_daily_summary USING gin (upper((namespace)::text) public.gin_trgm_ops);
-        # CREATE INDEX p_ocpu_lids_ocp_summary_node_like_idx ON p_reporting_ocpusagelineitem_daily_summary USING gin (upper((node)::text) public.gin_trgm_ops);
-        # -- ===================================
-        # --  Create default partition
-        # -- ===================================
-        # CREATE TABLE reporting_ocpusagelineitem_daily_summary_default
-        # PARTITION OF p_reporting_ocpusagelineitem_daily_summary DEFAULT;
-        # INSERT INTO partitioned_tables (
-        #     schema_name,
-        #     table_name,
-        #     partition_of_table_name,
-        #     partition_type,
-        #     partition_col,
-        #     partition_parameters
-        # )
-        # VALUES (
-        #     current_schema,
-        #     'reporting_ocpusagelineitem_daily_summary_default',
-        #     'p_reporting_ocpusagelineitem_daily_summary',
-        #     'default',
-        #     'usage_start',
-        #     '{"default": true}'::jsonb
-        # );
-        # -- ========================================
-        # --    This procedure will scan the target table's target field for
-        # --    distinct start-of-month dates and automagically create the
-        # --    table partitions for the partitioned table
-        # --    These new partitions will also be tracked like the default partition
-        # -- ========================================
-        # CALL public.create_date_partitions(
-        #     'reporting_ocpusagelineitem_daily_summary',
-        #     'usage_start',
-        #     current_schema,
-        #     'p_reporting_ocpusagelineitem_daily_summary',
-        #     'usage_start'
-        # );
-        # -- ========================================
-        # --    Copy the data from the old table to the new table
-        # -- ========================================
-        # INSERT INTO p_reporting_ocpusagelineitem_daily_summary
-        #   SELECT * FROM reporting_ocpusagelineitem_daily_summary;
-        #             """
-        #         ),
     ]

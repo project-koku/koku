@@ -27,6 +27,8 @@ INT = "int"
 PARTITION_RANGE = "RANGE"
 PARTITION_LIST = "LIST"
 
+VIEW_TYPE_MATERIALIZED = "m"
+
 LOG = logging.getLogger(__file__)
 
 
@@ -88,15 +90,16 @@ class Default:
         return True
 
 
-class NoDefault:
-    def default_constraint(self):
-        return ""
+# Possible future use
+# class NoDefault:
+#     def default_constraint(self):
+#         return ""
 
-    def __str__(self):
-        return ""
+#     def __str__(self):
+#         return ""
 
-    def __repr__(self):
-        return ""
+#     def __repr__(self):
+#         return ""
 
 
 class SequenceDefinition:
@@ -241,17 +244,18 @@ class ColumnDefinition:
         sql = f"""
 ALTER TABLE "{self.target_schema}"."{self.target_table}"
 """
-        if self.data_type:
-            using = f"USING {self.using}" if self.using else ""
-            alters.append(
-                f"""      ALTER COLUMN "{self.column_name}" SET DATA TYPE {self.data_type} {using}
-"""
-            )
-        if self.null is not None:
-            alters.append(
-                f"""      ALTER COLUMN "{self.column_name}" SET {'NULL' if self.null else 'NOT NULL'}
-"""
-            )
+        # Possible future use
+        #         if self.data_type:
+        #             using = f"USING {self.using}" if self.using else ""
+        #             alters.append(
+        #                 f"""      ALTER COLUMN "{self.column_name}" SET DATA TYPE {self.data_type} {using}
+        # """
+        #             )
+        #         if self.null is not None:
+        #             alters.append(
+        #                 f"""      ALTER COLUMN "{self.column_name}" SET {'NULL' if self.null else 'NOT NULL'}
+        # """
+        #             )
         if self.default:
             alters.append(
                 f"""      ALTER COLUMN "{self.column_name}" SET DEFAULT {self.default}
@@ -271,7 +275,8 @@ class ConstraintDefinition:
     def alter_add_constraint(self):
         LOG.info("Runing ALTER TABLE ADD CONSTRAINT")
         sql = f"""
-ALTER TABLE "{self.target_schema}"."{self.target_table}" ADD CONSTRAINT "p_{self.constraint_name}" {self.definition} ;
+ALTER TABLE "{self.target_schema}"."{self.target_table}"
+      ADD CONSTRAINT "p_{self.constraint_name}" {self.definition} ;
 """
         return sql
 
@@ -320,23 +325,41 @@ class IndexDefinition:
 class ViewDefinition:
     def __init__(self, target_schema, viewrec):
         self.target_schema = target_schema
-        self.schema_name = viewrec["schema_name"]
-        self.table_name = viewrec["table_name"]
-        self.view_name = viewrec["view_name"]
-        self.view_type = viewrec["view_type"]
+        self.schema_name = viewrec["source_schema"]
+        self.table_name = viewrec["source_table"]
+        self.view_schema = viewrec["dependent_schema"]
+        self.view_name = viewrec["dependent_view"]
+        self.view_type = viewrec["dependent_view_type"]
         self.definition = viewrec["definition"]
-        self.view_owner = viewrec["view_owner"]
+        self.view_owner = viewrec["dependent_view_owner"]
         self.indexes = []
-        for ixrec in viewrec["indexes"].values():
+        for ixrec in viewrec["indexes"] or []:
             self.indexes.append(IndexDefinition(self.target_schema, self.view_name, ixrec))
 
         if ";" not in self.definition[:-10]:
             self.definition += " ;"
 
+    def rename_original_view_indexes(self):
+        return [
+            f"""
+ALTER INDEX "{vix.schema_name}"."{vix.index_name}"
+RENAME TO "__{vix.index_name}" ;
+"""
+            for vix in self.indexes
+        ]
+
+    def rename_original_view(self):
+        view_type = "MATERIALIZED" if self.view_type == VIEW_TYPE_MATERIALIZED else ""
+        return f"""
+ALTER {view_type} VIEW "{self.view_schema}"."{self.view_name}"
+RENAME TO "__{self.view_name}" ;
+"""
+
     def alter_owner(self):
         LOG.info("Alter view owner")
+        view_type = "MATERIALIZED" if self.view_type == VIEW_TYPE_MATERIALIZED else ""
         sql = f"""
-ALTER {'MATERIALIZED' if self.view_type == 'matview' else ''} VIEW "{self.target_schema}"."{self.view_name}"
+ALTER {view_type} VIEW "{self.target_schema}"."{self.view_name}"
       OWNER TO "{self.view_owner}" ;
 """
         return sql
@@ -344,23 +367,24 @@ ALTER {'MATERIALIZED' if self.view_type == 'matview' else ''} VIEW "{self.target
     # Poosible future use
     #     def drop_target(self):
     #         LOG.info("Dropping target view")
+    #         view_type = 'MATERIALIZED' if self.view_type == VIEW_TYPE_MATERIALIZED else ''
     #         sql = f"""
-    # DROP {'MATERIALIZED' if self.view_type == 'matview' else ''} VIEW IF EXISTS
-    # "{self.target_schema}"."{self.view_name}" ;
+    # DROP {view_type} VIEW IF EXISTS "{self.target_schema}"."{self.view_name}" ;
     # """
     #         return sql
 
     #     def drop(self):
+    #         view_type = 'MATERIALIZED' if self.view_type == VIEW_TYPE_MATERIALIZED else ''
     #         sql = f"""
-    # DROP {'MATERIALIZED' if self.view_type == 'matview' else ''} VIEW IF EXISTS
-    # "{self.schema_name}"."{self.view_name}" ;
+    # DROP {view_type} VIEW IF EXISTS "{self.schema_name}"."{self.view_name}" ;
     # """
     #         return sql
 
     def create(self):
-        LOG.info(f'Creating {"MATERIALIZED" if self.view_type == "matview" else ""} view "{self.view_name}')
+        view_type = "MATERIALIZED" if self.view_type == VIEW_TYPE_MATERIALIZED else ""
+        LOG.info(f'Creating {view_type} view "{self.view_name}')
         sql = f"""
-CREATE {'MATERIALIZED' if self.view_type == 'matview' else ''} VIEW "{self.target_schema}"."{self.view_name}" AS
+CREATE {view_type} VIEW "{self.target_schema}"."{self.view_name}" AS
 {self.definition}
 """
         return sql
@@ -481,44 +505,70 @@ select i.*
     def __get_views(self):
         LOG.debug(f"Getting views referencing table {self.source_schema}.{self.source_table_name}")
         sql = """
-select m.schemaname as schema_name,
-       %s as table_name,
-       m.matviewname as view_name,
-       'matview'::text as view_type,
-       m.definition,
-       m.matviewowner as view_owner,
-       coalesce((select jsonb_object_agg(i.indexname::text, row_to_json(i))
-                   from pg_indexes i
-                  where i.schemaname = m.schemaname
-                    and i.tablename = m.matviewname), '{}'::jsonb) as indexes
-  from pg_matviews m
- where m.schemaname = %s
-   and m.definition ~ %s
- union
-select v.schemaname as schema_name,
-       %s as table_name,
-       v.viewname as view_name,
-       'view' as view_type,
-       v.definition,
-       v.viewowner as view_owner,
-       '{}'::jsonb as indexes
-  from pg_views v
- where v.schemaname = %s
-   and v.definition ~ %s
- order
-    by table_name;
+WITH RECURSIVE view_deps AS (
+SELECT DISTINCT
+       dependent_ns.nspname as dependent_schema,
+       dependent_view.oid as dependent_view_oid,
+       dependent_view.relname as dependent_view,
+       dependent_view.relkind as dependent_view_type,
+       dependent_view_owner.rolname as dependent_view_owner,
+       source_ns.nspname as source_schema,
+       source_table.relname as source_table
+  FROM pg_depend
+  JOIN pg_rewrite
+    ON pg_depend.objid = pg_rewrite.oid
+  JOIN pg_class as dependent_view
+    ON pg_rewrite.ev_class = dependent_view.oid
+  JOIN pg_class as source_table
+    ON pg_depend.refobjid = source_table.oid
+  JOIN pg_namespace dependent_ns
+    ON dependent_ns.oid = dependent_view.relnamespace
+  JOIN pg_namespace source_ns
+    ON source_ns.oid = source_table.relnamespace
+  JOIN pg_authid dependent_view_owner
+    ON dependent_view_owner.oid = dependent_view.relowner
+ WHERE NOT (dependent_ns.nspname = source_ns.nspname AND
+            dependent_view.relname = source_table.relname)
+   AND source_table.relnamespace = %s::regnamespace
+   AND source_table.oid = %s::regclass
+UNION
+SELECT DISTINCT
+       dependent_ns.nspname as dependent_schema,
+       dependent_view.oid as dependent_view_oid,
+       dependent_view.relname as dependent_view,
+       dependent_view.relkind as dependent_view_type,
+       dependent_view_owner.rolname as dependent_view_owner,
+       source_ns.nspname as source_schema,
+       source_table.relname as source_table
+  FROM pg_depend
+  JOIN pg_rewrite
+    ON pg_depend.objid = pg_rewrite.oid
+  JOIN pg_class as dependent_view
+    ON pg_rewrite.ev_class = dependent_view.oid
+  JOIN pg_class as source_table
+    ON pg_depend.refobjid = source_table.oid
+  JOIN pg_namespace dependent_ns
+    ON dependent_ns.oid = dependent_view.relnamespace
+  JOIN pg_namespace source_ns
+    ON source_ns.oid = source_table.relnamespace
+  JOIN pg_authid dependent_view_owner
+    ON dependent_view_owner.oid = dependent_view.relowner
+  JOIN view_deps vd
+    ON vd.dependent_schema = source_ns.nspname
+   AND vd.dependent_view = source_table.relname
+   AND NOT (dependent_ns.nspname = vd.dependent_schema AND
+            dependent_view.relname = vd.dependent_view)
+)
+SELECT vd.*,
+       (select array_agg(row_to_json(vi))
+          from pg_indexes vi
+         where vi.schemaname = vd.dependent_schema
+           and vi.tablename = vd.dependent_view)::json[] as indexes,
+       pg_get_viewdef(dependent_view_oid) as definition
+  FROM view_deps vd
+ ORDER BY source_schema, source_table;
 """
-        cur = conn_execute(
-            sql,
-            [
-                self.source_table_name,
-                self.source_schema,
-                self.source_table_name,
-                self.source_table_name,
-                self.source_schema,
-                self.source_table_name,
-            ],
-        )
+        cur = conn_execute(sql, [self.source_schema, self.source_table_name])
         return [ViewDefinition(self.target_schema, rec) for rec in fetchall(cur)]
 
     def __create_table_like_source(self):
@@ -640,19 +690,8 @@ LOCK TABLE "{self.source_schema}"."{self.source_table_name}" ;
 """
         ]
         for vdef in self.views:
-            for vix in vdef.indexes:
-                sql_actions.append(
-                    f"""
-ALTER INDEX "{vix.schema_name}"."{vix.index_name}"
-RENAME TO "__{vix.index_name}" ;
-"""
-                )
-            sql_actions.append(
-                f"""
-ALTER {'MATERIALIZED' if vdef.view_type == 'matview' else ''} VIEW "{vdef.schema_name}"."{vdef.view_name}"
-RENAME TO "__{vdef.view_name}" ;
-"""
-            )
+            sql_actions.extend(vdef.rename_original_view_indexes())
+            sql_actions.append(vdef.rename_original_view())
 
         sql_actions.append(
             f"""
