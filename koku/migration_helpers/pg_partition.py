@@ -20,6 +20,9 @@ import re
 from django.db import connection as conn
 from django.db import transaction
 
+# If this is detected, the code will try to resolve this to a name
+# because, in some functionality, this needs to be a string vs the
+# keyword.
 CURRENT_SCHEMA = "current_schema"
 BIGINT = "bigint"
 INT = "int"
@@ -27,12 +30,23 @@ INT = "int"
 PARTITION_RANGE = "RANGE"
 PARTITION_LIST = "LIST"
 
+# This value from pg_class.relkind denotes a materialized view
 VIEW_TYPE_MATERIALIZED = "m"
 
 LOG = logging.getLogger(__file__)
 
 
+# Standardized SQL executor
 def conn_execute(sql, params=None):
+    """
+    Executes the given sql with any given parameters. This utilized the django.db.connection.
+    Params
+        sql (str) : SQL string
+        params (list) : Parameters for SQL
+    Returns:
+        Cursor (if a SQL string was passed in)
+        None   (if no SQL string was passed in or empty string)
+    """
     if sql:
         cursor = conn.cursor()
         LOG.debug(f"SQL: {sql}")
@@ -43,7 +57,15 @@ def conn_execute(sql, params=None):
         return None
 
 
+# Standardized fetch all routine that will return list(dict)
 def fetchall(cursor):
+    """
+    Fetch all rows from the given cursor
+    Params:
+        cursor (Cursor) : Cursor of previously executed statement
+    Returns:
+        list(dict) : List of dict representing the records selected indexed by column name
+    """
     if cursor:
         cursor_def = [d.name for d in cursor.description]
         return [dict(zip(cursor_def, r)) for r in cursor.fetchall()]
@@ -51,14 +73,30 @@ def fetchall(cursor):
         return []
 
 
+# Standardized fetch that will return dict
 def fetchone(cursor):
+    """
+    Fetch one row from the given cursor
+    Params:
+        cursor (Cursor) : Cursor of previously executed statement
+    Returns:
+        dict : Dict representing the records selected indexed by column name
+    """
     if cursor:
         return dict(zip((d.name for d in cursor.description), cursor.fetchone()))
     else:
         return {}
 
 
+# Resolve "current_schema" to an actual schema name
 def resolve_schema(schema):
+    """
+    Resolve CURRENT_SCHEMA to an actual schema name
+    Params:
+        schema (str) : schema name or CURRENT_SCHEMA
+    Returns:
+        str : Actual schema for CURRENT_SCHEMA or the input schema parameter
+    """
     if schema == CURRENT_SCHEMA:
         cur = conn_execute('select current_schema as "current_schema";')
         schema = cur.fetchone()[0]
@@ -67,7 +105,12 @@ def resolve_schema(schema):
     return schema
 
 
+# Wrapper for a default value for a column to be used in the column definition
 class Default:
+    """
+    Interface to a default value to be used when a column definition needs a default value
+    """
+
     def __init__(self, default_value):
         self.default_value = default_value
 
@@ -102,7 +145,12 @@ class Default:
 #         return ""
 
 
+# Model a schema definition
 class SequenceDefinition:
+    """
+    Model a schema definition. Includes some commans for create, alter owner/owned and setval.
+    """
+
     NOMAXVALUE = "NO MAXVALUE"
     NOMINVALUE = "NO MINVALUE"
     CYCLE = "CYCLE"
@@ -123,7 +171,27 @@ class SequenceDefinition:
         current_value=1,
         owner=None,
     ):
-        self.target_schema = target_schema
+        """
+        Initialize a SchemaDefinition
+        Params:
+            target_schema (str) : schema name in which this new sequence will reside
+            name (str) : name of sequence
+            copy_sequence (dict) : Dict detailing a sequence to copy by specifying its owned-by column
+                                   This dict should have the following keys:
+                                       schema_name : Name of schema containing owner table
+                                       table_name  : Name of owner table
+                                       column_name : Name of owned-by column
+            data_type (str) : data type of sequence (default is BIGINT)
+            min_value (int/CONST) : minimum value (default is 1) NOMINVALUE const can be used
+            max_value (int/CONST) : maximum value (default is NOMAXVALUE const)
+            start_with (int) : Starting value (default is 1)
+            increment_by (int) : Incerement-by value (default is 1)
+            cache (int) : Number of values to cache (default is 100)
+            cycle (CONST) : One of NO_CYCLE or CYCLE (defualt is NO_CYCLE)
+            current_value (int) : Set the current value if this value is different from start_with
+            owner (str) : name of the sequence owner
+        """
+        self.target_schema = resolve_schema(target_schema)
         self.name = name
         self.data_type = data_type
         self.min_value = min_value
@@ -139,6 +207,18 @@ class SequenceDefinition:
             self.copy_from(copy_sequence)
 
     def copy_from(self, source_sequence):
+        """
+        Reinitialize the SequenceDefinition from an existing sequence identified by
+        its owned-by column reference <schema>.<table>.<column>
+        Params:
+            source_sequence (dict) : Dict detailing a sequence to copy by specifying its owned-by column
+                                     This dict should have the following keys:
+                                         schema_name : Name of schema containing owner table
+                                         table_name  : Name of owner table
+                                         column_name : Name of owned-by column
+        Returns:
+            None
+        """
         sql = """
 select t.relname::text as table_name,
        a.attname::text as column_name,
@@ -175,7 +255,7 @@ select t.relname::text as table_name,
         self.start_with = rec["start_value"]
         self.increment_by = rec["increment_by"]
         self.cache = rec["cache_size"]
-        self.cycle = "CYCLE" if rec["cycle"] else "NO CYCLE"
+        self.cycle = self.CYCLE if rec["cycle"] else self.NO_CYCLE
         self.current_value = rec["last_value"]
         self.owner = rec["sequenceowner"]
 
@@ -226,7 +306,22 @@ CREATE SEQUENCE "{self.target_schema}"."{self.name}"
 
 
 class ColumnDefinition:
+    """
+    Define changes to an existing table column that will be applied to the target partitioned table
+    """
+
     def __init__(self, target_schema, target_table, column_name, data_type=None, using=None, null=None, default=None):
+        """
+        Initialize a column definition
+        Params:
+            target_schema (str) : schema containing the target table
+            target_table (str) : name of target table
+            column_name (str) : name of target column
+            data_type (str) : database data type (default is None)
+            using (str) : expression (if needed) to convert existing data to new data type
+            null (bool) : True = remove not null constraint; false = apply not null; default is None
+            default (Default) : The default value to apply. default is None
+        """
         self.target_schema = target_schema
         self.target_table = target_table
         self.column_name = column_name
@@ -266,6 +361,10 @@ ALTER TABLE "{self.target_schema}"."{self.target_table}"
 
 
 class ConstraintDefinition:
+    """
+    Define a constraint. This is used internally to copy contstraint information
+    """
+
     def __init__(self, target_schema, target_table, constraintrec):
         self.target_schema = target_schema
         self.target_table = target_table
@@ -282,7 +381,17 @@ ALTER TABLE "{self.target_schema}"."{self.target_table}"
 
 
 class PKDefinition:
+    """
+    Define a primary key for the partitioned table. This is intended to facilitate a composite key
+    """
+
     def __init__(self, name, column_names):
+        """
+        Initialize a PKDefinition
+        Params:
+            name (str) : Name of the primary key constraint
+            column_names (list(str)) : list of primary key columns that will be created in list order
+        """
         self.column_names = column_names
         self.name = name
 
@@ -296,6 +405,11 @@ ALTER TABLE "{schema_name}"."{table_name}"
 
 
 class IndexDefinition:
+    """
+    Index definition from the source table that will be reapplied to the target table
+    This is used internally during the conversion process
+    """
+
     INDEX_PARSER = re.compile("(^.+INDEX )(.+)( ON )(.+)( USING.+$)", flags=re.IGNORECASE)
     INDEX_NAME_IX = 1
     INDEX_TABLE_IX = -2
@@ -323,6 +437,13 @@ class IndexDefinition:
 
 
 class ViewDefinition:
+    """
+    Definition of a dependent view of the source table that will be reapplied to the target table
+    This does handle single-level dependencies, but has not been tested fully on nested views.
+    This is used internally during the conversion process to reapply views to the partitioned table.
+    This handles "normal" views as well as materialized views.
+    """
+
     def __init__(self, target_schema, viewrec):
         self.target_schema = target_schema
         self.schema_name = viewrec["source_schema"]
@@ -398,19 +519,37 @@ REFRESH MATERIALIZED VIEW "{self.target_schema}"."{self.view_name}" ;
 
 
 class ConvertToPartition:
+    """
+    Driver class to facilitate the conversion of an existing table to a partitioned table
+    with the same table definition, as well as duplicated constraint, sequence, index, and view definitions.
+    """
+
     def __init__(
         self,
         source_table_name,
         partition_key,
-        partition_type,
+        partition_type=PARTITION_RANGE,
+        target_table_name=None,
         pk_def=None,
         col_def=[],
         target_schema=CURRENT_SCHEMA,
         source_schema=CURRENT_SCHEMA,
     ):
+        """
+        Initialize the converter.
+        Params:
+            source_table_name (str) : name of source table
+            partition_key (str) : column in source table to partiton on
+            partition_type (CONST) : Use PARTITION_RANGE or PARTITON_LIST (default is PARTITION_RANGE)
+            target_table_name (str) : name of target table (defualt is 'p_' + source_table_name)
+            pk_def (PKDefinition) : Redefine primary key (default is None)
+            col_def (list(ColumnDefinition)) : Redefine any column(s) (default is [])
+            target_schema (str/CONST) : Schema to contain the partitioned table (default is CURRENT_SCHEMA)
+            source_schema (str/CONST) : Schema containing the source table (default is CURRENT_SCHEMA)
+        """
         self.conn = conn
         self.target_schema = resolve_schema(target_schema)
-        self.partitioned_table_name = "p_" + source_table_name
+        self.partitioned_table_name = target_table_name or ("p_" + source_table_name)
         self.partition_key = partition_key
         self.partition_type = partition_type
         self.source_schema = resolve_schema(source_schema)
@@ -738,6 +877,11 @@ UPDATE partitioned_tables
                 conn_execute(vdef.refresh())
 
     def convert_to_partition(self, drop_orig=True):
+        """
+        Execute the table conversion from the initialized converter
+        Params:
+            drop_orig (bool) : Flag to drop original objects (default is True)
+        """
         # Create structures
         with transaction.atomic():
             self.__create_table_like_source()
@@ -767,6 +911,9 @@ UPDATE partitioned_tables
                 self.drop_original_objects()
 
     def drop_original_objects(self):
+        """
+        Truncate and drop source table and its dependents.
+        """
         sql = f"""
 TRUNCATE TABLE "{self.source_schema}"."{self.source_table_name}" ;
 """

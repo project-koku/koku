@@ -31,7 +31,8 @@ def convert_ocpusage_lids_to_partitioned(apps, schema_editor):
     p_converter = ppart.ConvertToPartition(
         source_table,
         "usage_start",
-        ppart.PARTITION_RANGE,
+        target_table_name=target_table,
+        partition_type=ppart.PARTITION_RANGE,
         pk_def=new_pk,
         col_def=[target_identity_col],
         target_schema=target_schema,
