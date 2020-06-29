@@ -17,7 +17,8 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | s
                 tags,
                 array_agg(DISTINCT p.instance_id) as instance_ids,
                 count(DISTINCT p.instance_id) as instance_count,
-                ab.provider_id as source_uuid
+                ab.provider_id as source_uuid,
+                0.0::decimal as markup_cost
     FROM {{schema | safe}}.reporting_azurecostentrylineitem_daily AS li
     JOIN {{schema | safe}}.reporting_azurecostentryproductservice AS p
         ON li.cost_entry_product_id = p.id
@@ -81,7 +82,8 @@ INSERT INTO {{schema | safe}}.reporting_azurecostentrylineitem_daily_summary (
     instance_ids,
     instance_count,
     unit_of_measure,
-    source_uuid
+    source_uuid,
+    markup_cost
 )
     SELECT cost_entry_bill_id,
         subscription_guid,
@@ -99,6 +101,7 @@ INSERT INTO {{schema | safe}}.reporting_azurecostentrylineitem_daily_summary (
         instance_ids,
         instance_count,
         unit_of_measure,
-        source_uuid
+        source_uuid,
+        markup_cost
     FROM reporting_azurecostentrylineitem_daily_summary_{{uuid | sqlsafe}}
 ;
