@@ -499,13 +499,30 @@ class OCPAWSProviderMap(ProviderMap):
         self.views = {
             "costs": {
                 "default": OCPAWSCostSummary,
-                "account": OCPAWSCostSummaryByAccount,
-                "service": OCPAWSCostSummaryByService,
-                "region": OCPAWSCostSummaryByRegion,
+                ("account",): OCPAWSCostSummaryByAccount,
+                ("service",): OCPAWSCostSummaryByService,
+                ("account", "service"): OCPAWSCostSummaryByService,
+                ("region",): OCPAWSCostSummaryByRegion,
+                ("account", "region"): OCPAWSCostSummaryByRegion,
             },
-            "instance_type": {"default": OCPAWSComputeSummary, "instance_type": OCPAWSComputeSummary},
-            "storage": {"default": OCPAWSStorageSummary},
-            "database": {"default": OCPAWSDatabaseSummary, "service": OCPAWSDatabaseSummary},
-            "network": {"default": OCPAWSNetworkSummary, "service": OCPAWSNetworkSummary},
+            "instance_type": {
+                "default": OCPAWSComputeSummary,
+                ("instance_type",): OCPAWSComputeSummary,
+                ("account", "instance_type"): OCPAWSComputeSummary,
+                ("account",): OCPAWSComputeSummary,
+            },
+            "storage": {"default": OCPAWSStorageSummary, ("account",): OCPAWSStorageSummary},
+            "database": {
+                "default": OCPAWSDatabaseSummary,
+                ("service",): OCPAWSDatabaseSummary,
+                ("account", "service"): OCPAWSDatabaseSummary,
+                ("account",): OCPAWSDatabaseSummary,
+            },
+            "network": {
+                "default": OCPAWSNetworkSummary,
+                ("service",): OCPAWSNetworkSummary,
+                ("account", "service"): OCPAWSNetworkSummary,
+                ("account",): OCPAWSNetworkSummary,
+            },
         }
         super().__init__(provider, report_type)
