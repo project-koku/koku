@@ -66,7 +66,6 @@ def divide_csv_daily(file_path, filename):
         day_filepath = f"{directory}/{day_file}"
         df.to_csv(day_filepath, index=False, header=True)
         daily_files.append({"filename": day_file, "filepath": day_filepath})
-
     return daily_files
 
 
@@ -84,6 +83,7 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
+    daily_file_names = []
     if settings.ENABLE_S3_ARCHIVING:
         daily_files = divide_csv_daily(filepath, filename)
         for daily_file in daily_files:
@@ -98,7 +98,9 @@ def create_daily_archives(request_id, account, provider_uuid, filename, filepath
                 start_date,
                 context,
             )
+            daily_file_names.append(daily_file.get("filename"))
             os.remove(daily_file.get("filepath"))
+    return daily_file_names
 
 
 class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):

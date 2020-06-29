@@ -48,13 +48,12 @@ from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownload
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
+from masu.processor.tasks import convert_to_parquet
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
-
-# from masu.processor.tasks import convert_reports_to_parquet
 
 
 LOG = logging.getLogger(__name__)
@@ -216,6 +215,35 @@ def extract_payload_contents(request_id, out_dir, tarball_path, tarball, context
     return manifest_path
 
 
+def construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file):
+    """Build, upload and convert parquet reports."""
+    daily_parquet_files = create_daily_archives(
+        request_id,
+        report_meta["account"],
+        report_meta["provider_uuid"],
+        report_file,
+        payload_destination_path,
+        report_meta["manifest_id"],
+        report_meta["date"],
+        context,
+    )
+    for daily_file in daily_parquet_files:
+        start_date = report_meta["date"]
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        schema_name = report_meta["schema_name"]
+        conversion_task_id = convert_to_parquet.delay(
+            request_id,
+            schema_name[4:],
+            report_meta["provider_uuid"],
+            report_meta["provider_type"],
+            start_date_str,
+            report_meta["manifest_id"],
+            daily_file,
+        )
+        if conversion_task_id:
+            LOG.info(f"Conversion of CSV to Parquet uuid: {conversion_task_id}")
+
+
 # pylint: disable=too-many-locals
 def extract_payload(url, request_id, context={}):  # noqa: C901
     """
@@ -318,16 +346,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
             if not record_report_status(report_meta["manifest_id"], report_file, request_id, context):
                 msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
                 LOG.info(log_json(request_id, msg, context))
-                create_daily_archives(
-                    request_id,
-                    report_meta["account"],
-                    report_meta["provider_uuid"],
-                    report_file,
-                    payload_destination_path,
-                    report_meta["manifest_id"],
-                    report_meta["date"],
-                    context,
-                )
+                construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file)
                 report_metas.append(current_meta)
             else:
                 # Report already processed
@@ -532,9 +551,7 @@ def convert_manifest_to_parquet(request_id, report_meta, context={}):
                 "manifest_id": manifest_id,
                 "start_date": start_date,
             }
-            # async_id = convert_reports_to_parquet.delay(
-            #    request_id=request_id, reports_to_convert=[report_meta], context=context
-            # )
+
     return async_id
 
 
@@ -637,9 +654,6 @@ def process_messages(msg):
         summary_task_id = summarize_manifest(report_meta)
         if summary_task_id:
             LOG.info(f"Summarization celery uuid: {summary_task_id}")
-        conversion_task_id = convert_manifest_to_parquet(request_id=request_id, report_meta=report_meta)
-        if conversion_task_id:
-            LOG.info(f"Conversion of CSV to Parquet uuid: {conversion_task_id}")
     if status:
         if report_metas:
             file_list = [meta.get("current_file") for meta in report_metas]
