@@ -25,6 +25,10 @@ from api.urls import OCPAllStorageView
 from reporting.models import AWSCostEntryBill
 from reporting.models import AzureCostEntryBill
 from reporting.models import OCPAllComputeSummary
+from reporting.models import OCPAllCostSummary
+from reporting.models import OCPAllCostSummaryByAccount
+from reporting.models import OCPAllCostSummaryByRegion
+from reporting.models import OCPAllCostSummaryByService
 from reporting.models import OCPAllDatabaseSummary
 from reporting.models import OCPAllNetworkSummary
 from reporting.models import OCPAllStorageSummary
@@ -121,3 +125,65 @@ class OCPAllQueryHandlerTest(IamTestCase):
         self.assertNotEquals(source_uuid_list, [])
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
+
+    def test_query_table(self):
+        """Test that the correct view is assigned by query table property."""
+        test_cases = [
+            ("?", OCPAllCostView, OCPAllCostSummary),
+            ("?group_by[account]=*", OCPAllCostView, OCPAllCostSummaryByAccount),
+            ("?group_by[region]=*", OCPAllCostView, OCPAllCostSummaryByRegion),
+            ("?group_by[region]=*&group_by[account]=*", OCPAllCostView, OCPAllCostSummaryByRegion),
+            ("?group_by[service]=*", OCPAllCostView, OCPAllCostSummaryByService),
+            ("?group_by[service]=*&group_by[account]=*", OCPAllCostView, OCPAllCostSummaryByService),
+            ("?", OCPAllInstanceTypeView, OCPAllComputeSummary),
+            ("?group_by[account]=*", OCPAllInstanceTypeView, OCPAllComputeSummary),
+            ("?group_by[service]=*", OCPAllInstanceTypeView, OCPAllComputeSummary),
+            ("?group_by[service]=*&group_by[account]=*", OCPAllInstanceTypeView, OCPAllComputeSummary),
+            ("?group_by[instance_type]=*", OCPAllInstanceTypeView, OCPAllComputeSummary),
+            ("?group_by[instance_type]=*&group_by[account]=*", OCPAllInstanceTypeView, OCPAllComputeSummary),
+            ("?", OCPAllStorageView, OCPAllStorageSummary),
+            ("?group_by[account]=*", OCPAllStorageView, OCPAllStorageSummary),
+            (
+                (
+                    "?filter[service]=AmazonRDS,AmazonDynamoDB,AmazonElastiCache,"
+                    "AmazonNeptune,AmazonRedshift,AmazonDocumentDB,"
+                    "Database,Cosmos DB,Cache for Redis"
+                ),
+                OCPAllCostView,
+                OCPAllDatabaseSummary,
+            ),
+            (
+                (
+                    "?filter[service]=AmazonRDS,AmazonDynamoDB,AmazonElastiCache,"
+                    "AmazonNeptune,AmazonRedshift,AmazonDocumentDB,"
+                    "Database,Cosmos DB,Cache for Redis&group_by[account]=*"
+                ),
+                OCPAllCostView,
+                OCPAllDatabaseSummary,
+            ),
+            (
+                (
+                    "?filter[service]=AmazonVPC,AmazonCloudFront,AmazonRoute53,"
+                    "AmazonAPIGateway,Virtual Network,VPN,DNS,Traffic Manager,"
+                    "ExpressRoute,Load Balancer,Application Gateway"
+                ),
+                OCPAllCostView,
+                OCPAllNetworkSummary,
+            ),
+            (
+                (
+                    "?filter[service]=AmazonVPC,AmazonCloudFront,AmazonRoute53,"
+                    "AmazonAPIGateway,Virtual%20Network,VPN,DNS,Traffic%20Manager,"
+                    "ExpressRoute,Load Balancer,Application Gateway&group_by[account]=*"
+                ),
+                OCPAllCostView,
+                OCPAllNetworkSummary,
+            ),
+        ]
+
+        for test_case in test_cases:
+            with self.subTest(test_case=test_case):
+                url, view, table = test_case
+                query_params = self.mocked_query_params(url, view)
+                handler = OCPAllReportQueryHandler(query_params)
+                self.assertEqual(handler.query_table, table)

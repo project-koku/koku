@@ -86,18 +86,18 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
         report_type = self.parameters.report_type
         report_group = "default"
 
-        excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
-
-        filter_keys = set(self.parameters.get("filter", {}).keys())
-        filter_keys = filter_keys.difference(excluded_filters)
-        group_by_keys = list(self.parameters.get("group_by", {}).keys())
+        filter_keys = self._get_query_table_filter_keys()
+        group_by_keys = self._get_query_table_group_by_keys()
+        key_tuple = tuple(sorted(filter_keys.union(group_by_keys)))
+        if key_tuple:
+            report_group = key_tuple
 
         if not check_view_filter_and_group_by_criteria(filter_keys, group_by_keys):
             return query_table
 
         # Special Casess for Network and Database Cards in the UI
         service_filter = set(self.parameters.get("filter", {}).get("service_name", []))
-        network_services = [
+        network_services = {
             "Virtual Network",
             "VPN",
             "DNS",
@@ -105,17 +105,13 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             "ExpressRoute",
             "Load Balancer",
             "Application Gateway",
-        ]
-        database_services = ["Cosmos DB", "Cache for Redis", "Database"]
+        }
+        database_services = {"Cosmos DB", "Cache for Redis", "Database"}
         if report_type == "costs" and service_filter and not service_filter.difference(network_services):
             report_type = "network"
         elif report_type == "costs" and service_filter and not service_filter.difference(database_services):
             report_type = "database"
 
-        if group_by_keys:
-            report_group = group_by_keys[0]
-        elif filter_keys and not group_by_keys:
-            report_group = list(filter_keys)[0]
         try:
             query_table = self._mapper.views[report_type][report_group]
         except KeyError:

@@ -15,7 +15,8 @@
 #
 """Describes the urls and patterns for the API application."""
 from django.conf.urls import include
-from django.conf.urls import url
+from django.urls import path
+from django.views.generic import RedirectView
 from rest_framework.routers import DefaultRouter
 
 from sources.api.status import get_status
@@ -26,7 +27,8 @@ ROUTER = DefaultRouter()
 ROUTER.register(r"sources", SourcesViewSet)
 
 urlpatterns = [
-    url(r"^status/$", get_status, name="server-status"),
-    url(r"^source-status/?$", source_status, name="source-status"),
-    url(r"^", include(ROUTER.urls)),
+    path("status/", get_status, name="server-status"),
+    path("source-status/", source_status, name="source-status"),
+    path("source-status", RedirectView.as_view(pattern_name="source-status"), name="source-status-redirect"),
+    path("", include(ROUTER.urls)),
 ]
