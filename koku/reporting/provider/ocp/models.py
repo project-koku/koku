@@ -417,7 +417,7 @@ class OCPStorageVolumeLabelSummary(models.Model):
         """Meta for OCPStorageVolumeLabelSummary."""
 
         db_table = "reporting_ocpstoragevolumelabel_summary"
-        unique_together = ("key", "report_period")
+        unique_together = ("key", "report_period", "namespace")
 
     id = models.BigAutoField(primary_key=True)
 

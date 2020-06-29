@@ -7,7 +7,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary (
 SELECT l.key,
     array_agg(DISTINCT l.value) as values,
     l.report_period_id,
-    string_to_array(l.namespace, ',')::character[]
+    array_agg(DISTINCT l.namespace)
 FROM (
     SELECT key,
         value,
