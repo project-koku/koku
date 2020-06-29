@@ -287,3 +287,60 @@ To run IQE Smoke, Vortex or API tests, run one of the following commands, respec
     make docker-iqe-smokes-tests
     make docker-iqe-vortex-tests
     make docker-iqe-api-tests
+
+Testing Performance with cProfile
+=================================
+
+Tools such as `cProfile <https://docs.python.org/3/library/profile.html>`_ and `pstats <https://docs.python.org/3/library/profile.html#module-pstats>`_ can be used to identify potential performance problems within the code base.
+
+**Creating the Profiler Code**
+
+The cProfile code written in this step will heavily depend on what part of the project's code you are trying to profile. For example, the code below is profiling the ``DateHelper`` function inside of ``koku.api.utils``::
+
+    import cProfile
+    profile_text = """
+    # The section of code you want to profile:
+    from api.utils import DateHelper
+    dh = DateHelper
+    dh.now
+    dh.now_utc
+    """
+    cProfile.run(profile_text, filename="ouput_filename.file")
+
+**Runnin the Profiler Code**
+
+The profiler code must be executed inside of a django environment in order to import koku's python modules. The profiler code can be directly ran through a shell through the following method::
+
+    DJANGO_READ_DOT_ENV_FILE=True python koku/manage.py shell
+    >>> import cProfile
+    >>> profile_text = """
+    ... from api.utils import DateHelper
+    ... dh = DateHelper
+    ... dh.now
+    ... dh.now_utc
+    ... """
+    >>> cProfile.run(profile_text, filename="ouput_filename.file")
+
+However, if the profiler code is rather large it can be saved into a python script and executed inside of the django environment::
+
+    DJANGO_READ_DOT_ENV_FILE=True python koku/manage.py shell < profile_code.py
+
+**Analyzing the Results**
+
+After running the profiler code, statistics regarding the code is stored in the filename specified here: ``cProfile.run(profile_text, filename="ouput_filename.file")``. Pstats can be used to organize the information inside of this file, for example::
+
+    import pstats
+
+    ps = pstats.Stats("ouput_filename.file")
+
+    print('###### All Results #######')
+    ps.strip_dirs().sort_stats().print_stats()
+
+    print('#### SORTED BY TOP 25 CUMULATIVE TIME ####')
+    ps.strip_dirs().sort_stats('cumtime').print_stats(25)
+
+    print('#### SORTED BY TOP 25 TOTAL TIME ####')
+    ps.strip_dirs().sort_stats('tottime').print_stats(25)
+
+    print('#### SORTED BY TOP 25 NUMBER OF CALLS ####')
+    ps.strip_dirs().sort_stats('ncalls').print_stats(25)
