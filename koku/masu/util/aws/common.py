@@ -17,8 +17,8 @@
 """AWS utility functions."""
 import datetime
 import logging
+import os
 import re
-import shutil
 from io import BytesIO
 from pathlib import Path
 
@@ -414,7 +414,7 @@ def convert_csv_to_parquet(
         csv_obj = s3_resource.Object(bucket_name=settings.S3_BUCKET_NAME, key=csv_file)
         csv_obj.download_file(tmpfile)
     except Exception as err:
-        shutil.rmtree(local_path, ignore_errors=True)
+        os.remove(tmpfile)
         msg = f"File {csv_filename} could not obtained for parquet conversion. Reason: {str(err)}"
         LOG.warn(log_json(request_id, msg, context))
         return False
@@ -424,7 +424,9 @@ def convert_csv_to_parquet(
         data_frame = pd.read_csv(tmpfile, **kwargs)
         data_frame.to_parquet(output_file)
     except Exception as err:
-        shutil.rmtree(local_path, ignore_errors=True)
+        os.remove(tmpfile)
+        os.remove(output_file)
+
         msg = f"File {csv_filename} could not be written as parquet to temp file {output_file}. Reason: {str(err)}"
         LOG.warn(log_json(request_id, msg, context))
         return False
@@ -436,13 +438,17 @@ def convert_csv_to_parquet(
                 request_id, s3_parquet_path, parquet_file, data, manifest_id=manifest_id, context=context
             )
     except Exception as err:
-        shutil.rmtree(local_path, ignore_errors=True)
+        os.remove(tmpfile)
+        os.remove(output_file)
+
         s3_key = f"{s3_parquet_path}/{parquet_file}"
         msg = f"File {csv_filename} could not be written as parquet to S3 {s3_key}. Reason: {str(err)}"
         LOG.warn(log_json(request_id, msg, context))
         return False
 
-    shutil.rmtree(local_path, ignore_errors=True)
+    os.remove(tmpfile)
+    os.remove(output_file)
+
     return True
 
 

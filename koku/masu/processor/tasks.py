@@ -52,6 +52,7 @@ from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.worker_cache import WorkerCache
 from masu.util.aws.common import convert_csv_to_parquet
+from masu.util.aws.common import get_file_keys_from_s3_with_manifest_id
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.common import get_path_prefix
 from reporting.models import AWS_MATERIALIZED_VIEWS
@@ -207,7 +208,7 @@ def get_report_files(
             provider_type,
             start_date_str,
             manifest_id,
-            report_context.get("local_file"),
+            [report_context.get("local_file")],
         )
     return report_meta
 
@@ -579,7 +580,7 @@ SELECT s.relname as "table_name",
     retry_backoff=10,
 )
 def convert_to_parquet(
-    request_id, account, provider_uuid, provider_type, start_date, manifest_id, csv_filename, context={}
+    request_id, account, provider_uuid, provider_type, start_date, manifest_id, files=[], context={}
 ):
     """
     Convert archived CSV data from our S3 bucket for a given provider to Parquet.
@@ -600,7 +601,6 @@ def convert_to_parquet(
         context (dict): A context object for logging
 
     """
-    LOG.info(f"CONVERT_TO_PARQUET: {str(start_date)}")
     if not context:
         context = {"account": account, "provider_uuid": provider_uuid}
 
@@ -640,24 +640,33 @@ def convert_to_parquet(
     local_path = f"{Config.TMP_DIR}/{account}/{provider_uuid}"
     s3_parquet_path = get_path_prefix(account, provider_uuid, cost_date, Config.PARQUET_DATA_TYPE)
 
+    if not files:
+        file_keys = get_file_keys_from_s3_with_manifest_id(request_id, s3_csv_path, manifest_id, context)
+        files = [os.path.basename(file_key) for file_key in file_keys]
+        if not files:
+            msg = "S3 archiving feature is enabled, but no files to process."
+            LOG.info(log_json(request_id, msg, context))
+            return
+
     # OCP data is daily chunked report files.
     # AWS and Azure are monthly reports. Previous reports should be removed so data isn't duplicated
     if provider_type != Provider.PROVIDER_OCP:
         remove_files_not_in_set_from_s3_bucket(request_id, s3_parquet_path, manifest_id, context)
 
     failed_conversion = []
-    parquet_path = s3_parquet_path
-    if provider_type == Provider.PROVIDER_OCP:
-        for report_type in REPORT_TYPES.keys():
-            if report_type in csv_filename:
-                parquet_path = f"{s3_parquet_path}/{report_type}"
-                break
+    for csv_filename in files:
+        parquet_path = s3_parquet_path
+        if provider_type == Provider.PROVIDER_OCP:
+            for report_type in REPORT_TYPES.keys():
+                if report_type in csv_filename:
+                    parquet_path = f"{s3_parquet_path}/{report_type}"
+                    break
 
-    result = convert_csv_to_parquet(
-        request_id, s3_csv_path, parquet_path, local_path, manifest_id, csv_filename, context
-    )
-    if not result:
-        failed_conversion.append(csv_filename)
+        result = convert_csv_to_parquet(
+            request_id, s3_csv_path, parquet_path, local_path, manifest_id, csv_filename, context
+        )
+        if not result:
+            failed_conversion.append(csv_filename)
 
     if failed_conversion:
         msg = f"Failed to convert the following files to parquet:{','.join(failed_conversion)}."

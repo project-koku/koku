@@ -227,21 +227,24 @@ def construct_parquet_reports(request_id, context, report_meta, payload_destinat
         report_meta["date"],
         context,
     )
-    for daily_file in daily_parquet_files:
-        start_date = report_meta["date"]
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        schema_name = report_meta["schema_name"]
-        conversion_task_id = convert_to_parquet.delay(
-            request_id,
-            schema_name[4:],
-            report_meta["provider_uuid"],
-            report_meta["provider_type"],
-            start_date_str,
-            report_meta["manifest_id"],
-            daily_file,
-        )
-        if conversion_task_id:
-            LOG.info(f"Conversion of CSV to Parquet uuid: {conversion_task_id}")
+    return daily_parquet_files
+
+
+def convert_parquet_files(request_id, report_meta):
+    """Convert manifest file's daily files to parquet."""
+    start_date = report_meta["date"]
+    start_date_str = start_date.strftime("%Y-%m-%d")
+    schema_name = report_meta["schema_name"]
+    conversion_task_id = convert_to_parquet.delay(
+        request_id,
+        schema_name[4:],
+        report_meta["provider_uuid"],
+        report_meta["provider_type"],
+        start_date_str,
+        report_meta["manifest_id"],
+    )
+    if conversion_task_id:
+        LOG.info(f"Conversion of CSV to Parquet uuid: {conversion_task_id}")
 
 
 # pylint: disable=too-many-locals
@@ -654,6 +657,8 @@ def process_messages(msg):
         summary_task_id = summarize_manifest(report_meta)
         if summary_task_id:
             LOG.info(f"Summarization celery uuid: {summary_task_id}")
+            convert_parquet_files(request_id, report_meta)
+
     if status:
         if report_metas:
             file_list = [meta.get("current_file") for meta in report_metas]
