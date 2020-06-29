@@ -34,6 +34,7 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from api.provider.provider_manager import ProviderManagerError
 from koku.middleware import IdentityHeaderMiddleware
+from sources.api.serializers import SourcesDependencyError
 from sources.api.view import SourcesViewSet
 
 
@@ -119,6 +120,37 @@ class SourcesViewTests(IamTestCase):
 
             self.assertEqual(response.status_code, 400)
 
+    @patch("sources.tasks.create_or_update_provider.delay")
+    def test_source_update_exception_failed_dependency(self, mock_delay):
+        """Test the PATCH endpoint with error."""
+        credentials = {
+            "subscription_id": "12345678-1234-5678-1234-567812345678",
+            "tenant_id": "12345678-1234-5678-1234-567812345678",
+            "client_id": "12345678-1234-5678-1234-567812345678",
+        }
+
+        with requests_mock.mock() as m:
+            m.patch(
+                f"http://www.sourcesclient.com/api/v1/sources/{self.test_source_id}/",
+                status_code=200,
+                json={"credentials": credentials},
+            )
+
+            params = {
+                "authentication": {"credentials": {"subscription_id": "this-ain't-real"}},
+                "billing_source": {"data_source": {"resource_group": "group", "storage_account": "storage"}},
+            }
+            url = reverse("sources-detail", kwargs={"pk": self.test_source_id})
+
+            mock_side_effect = SourcesDependencyError("Where's Rabbit")
+            mock_delay.side_effect = mock_side_effect
+
+            response = self.client.patch(
+                url, json.dumps(params), content_type="application/json", **self.request_context["request"].META
+            )
+
+            self.assertEqual(response.status_code, 424)
+
     def test_source_put(self):
         """Test the PUT endpoint."""
         credentials = {"subscription_id": "subscription-uuid"}
@@ -142,7 +174,7 @@ class SourcesViewTests(IamTestCase):
     def test_source_list(self):
         """Test the LIST endpoint."""
         with requests_mock.mock() as m:
-            m.get(f"http://www.sourcesclient.com/api/v1/sources/", status_code=200)
+            m.get("http://www.sourcesclient.com/api/v1/sources/", status_code=200)
 
             url = reverse("sources-list")
 
@@ -160,7 +192,7 @@ class SourcesViewTests(IamTestCase):
         IdentityHeaderMiddleware.create_customer(other_account)
         request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
         with requests_mock.mock() as m:
-            m.get(f"http://www.sourcesclient.com/api/v1/sources/", status_code=200)
+            m.get("http://www.sourcesclient.com/api/v1/sources/", status_code=200)
 
             url = reverse("sources-list")
 

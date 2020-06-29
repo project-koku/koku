@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Sources HTTP Client."""
+from base64 import b64encode
+from json import dumps as json_dumps
 from unittest.mock import patch
 
 import requests
@@ -23,10 +25,12 @@ import responses
 from django.db.models.signals import post_save
 from django.test import TestCase
 from faker import Faker
+from requests.exceptions import RequestException
 
 from api.provider.models import Sources
 from sources.config import Config
 from sources.kafka_listener import storage_callback
+from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
 
@@ -62,6 +66,15 @@ class SourcesHTTPClientTest(TestCase):
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
         with requests_mock.mock() as m:
             m.get(f"http://www.sources.com/api/v1.0/sources/{self.source_id}", status_code=404)
+            with self.assertRaises(SourceNotFoundError):
+                client.get_source_details()
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_source_details_connection_error(self):
+        """Test to get source details with connection error."""
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        with requests_mock.mock() as m:
+            m.get(f"http://www.sources.com/api/v1.0/sources/{self.source_id}", exc=RequestException)
             with self.assertRaises(SourcesHTTPClientError):
                 client.get_source_details()
 
@@ -71,7 +84,7 @@ class SourcesHTTPClientTest(TestCase):
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
         with requests_mock.mock() as m:
             m.get(
-                f"http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
+                "http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
                 status_code=200,
                 json={"data": [{"id": self.application_type}]},
             )
@@ -84,7 +97,7 @@ class SourcesHTTPClientTest(TestCase):
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
         with requests_mock.mock() as m:
             m.get(
-                f"http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
+                "http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
                 exc=requests.exceptions.RequestException,
             )
             with self.assertRaises(SourcesHTTPClientError):
@@ -96,11 +109,11 @@ class SourcesHTTPClientTest(TestCase):
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
         with requests_mock.mock() as m:
             m.get(
-                f"http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
+                "http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management",
                 status_code=404,
                 json={"data": [{"id": self.application_type}]},
             )
-            with self.assertRaises(SourcesHTTPClientError):
+            with self.assertRaises(SourceNotFoundError):
                 client.get_cost_management_application_type_id()
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
@@ -141,6 +154,15 @@ class SourcesHTTPClientTest(TestCase):
             m.get(
                 f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
                 status_code=404,
+                json={"data": [{"name": mock_source_name}]},
+            )
+            with self.assertRaises(SourceNotFoundError):
+                client.get_source_type_name(source_type_id)
+
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}",
+                status_code=401,
                 json={"data": [{"name": mock_source_name}]},
             )
             with self.assertRaises(SourcesHTTPClientError):
@@ -218,6 +240,18 @@ class SourcesHTTPClientTest(TestCase):
                 f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}",
                 status_code=200,
                 json={"data": []},
+            )
+            with self.assertRaises(SourcesHTTPClientError):
+                client.get_aws_role_arn()
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_aws_role_arn_connection_error(self):
+        """Test to get AWS Role ARN from authentication service with connection errors."""
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}", exc=RequestException
             )
             with self.assertRaises(SourcesHTTPClientError):
                 client.get_aws_role_arn()
@@ -301,6 +335,17 @@ class SourcesHTTPClientTest(TestCase):
                 client.get_azure_credentials()
 
     @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_azure_credentials_connection_error(self):
+        """Test to get Azure credentials from authentication service with connection error."""
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}", exc=RequestException
+            )
+            with self.assertRaises(SourcesHTTPClientError):
+                client.get_azure_credentials()
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     def test_get_azure_credentials_no_endpoint(self):
         """Test to get Azure credentials from authentication service with no endpoint."""
         client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
@@ -356,6 +401,17 @@ class SourcesHTTPClientTest(TestCase):
                 status_code=404,
                 json={"data": [{"id": resource_id}]},
             )
+            with self.assertRaises(SourceNotFoundError):
+                client.get_endpoint_id()
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_endpoint_ids_connection_error(self):
+        """Test to get endpoint id with connection error."""
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        with requests_mock.mock() as m:
+            m.get(
+                f"http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}", exc=RequestException
+            )
             with self.assertRaises(SourcesHTTPClientError):
                 client.get_endpoint_id()
 
@@ -403,6 +459,17 @@ class SourcesHTTPClientTest(TestCase):
                 status_code=404,
                 json={"data": [{"id": resource_id}]},
             )
+            with self.assertRaises(SourceNotFoundError):
+                client.get_source_id_from_endpoint_id(resource_id)
+
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_get_source_id_from_endpoint_id_connection_error(self):
+        """Test to get source ID from endpoint ID with connection error."""
+        resource_id = 2
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        with requests_mock.mock() as m:
+            m.get(f"http://www.sources.com/api/v1.0/endpoints?filter[id]={resource_id}", exc=RequestException)
             with self.assertRaises(SourcesHTTPClientError):
                 client.get_source_id_from_endpoint_id(resource_id)
 
@@ -483,6 +550,41 @@ class SourcesHTTPClientTest(TestCase):
             with self.assertRaises(SourcesHTTPClientError):
                 client.set_source_status(error_msg, application_type_id)
 
+    @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
+    def test_set_source_status_unexpected_header(self):
+        """Test to set source status with missing account in header."""
+        test_source_id = 1
+        application_type_id = 2
+        error_msg = "my error"
+        malformed_identity_header = {
+            "not_identity": {
+                "type": "User",
+                "user": {"username": "test-cost-mgmt", "email": "cost-mgmt@redhat.com", "is_org_admin": True},
+            }
+        }
+        json_malformed_identity = json_dumps(malformed_identity_header)
+        malformed_internal_header = b64encode(json_malformed_identity.encode("utf-8"))
+        malformed_auth_header = malformed_internal_header.decode("utf-8")
+
+        missing_account_header = {
+            "identity": {
+                "type": "User",
+                "user": {"username": "test-cost-mgmt", "email": "cost-mgmt@redhat.com", "is_org_admin": True},
+            }
+        }
+        missing_account_identity = json_dumps(missing_account_header)
+        missing_account_internal_header = b64encode(missing_account_identity.encode("utf-8"))
+        missing_account_auth_header = missing_account_internal_header.decode("utf-8")
+
+        test_headers = [malformed_auth_header, missing_account_auth_header]
+        source = Sources.objects.create(source_id=test_source_id, offset=42, source_type="AWS")
+        source.save()
+
+        for header in test_headers:
+            client = SourcesHTTPClient(auth_header=header, source_id=test_source_id)
+            response = client.set_source_status(error_msg, application_type_id)
+            self.assertFalse(response)
+
 
 class SourcesHTTPClientCheckAppTypeTest(TestCase):
     def setUp(self):
@@ -509,7 +611,7 @@ class SourcesHTTPClientCheckAppTypeTest(TestCase):
         )
         responses.add(
             responses.GET,
-            f"http://www.sources.com/api/v1.0/application_types",
+            "http://www.sources.com/api/v1.0/application_types",
             json={"data": [{"id": self.application_type}]},
             status=200,
         )
@@ -533,12 +635,12 @@ class SourcesHTTPClientCheckAppTypeTest(TestCase):
         )
         responses.add(
             responses.GET,
-            f"http://www.sources.com/api/v1.0/application_types",
+            "http://www.sources.com/api/v1.0/application_types",
             json={"data": [{"id": self.application_type}]},
             status=200,
         )
 
-        with self.assertRaises(SourcesHTTPClientError):
+        with self.assertRaises(SourceNotFoundError):
             client.get_application_type_is_cost_management(source_id)
 
     @responses.activate
@@ -557,7 +659,7 @@ class SourcesHTTPClientCheckAppTypeTest(TestCase):
         )
         responses.add(
             responses.GET,
-            f"http://www.sources.com/api/v1.0/application_types",
+            "http://www.sources.com/api/v1.0/application_types",
             json={"data": [{"id": self.application_type}]},
             status=200,
         )

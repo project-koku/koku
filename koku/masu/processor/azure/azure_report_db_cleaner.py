@@ -20,7 +20,6 @@ import logging
 from tenant_schemas.utils import schema_context
 
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 
 LOG = logging.getLogger(__name__)
 
@@ -29,7 +28,6 @@ class AzureReportDBCleanerError(Exception):
     """Raise an error during AWS report cleaning."""
 
 
-# pylint: disable=too-few-public-methods
 class AzureReportDBCleaner:
     """Class to remove report data."""
 
@@ -56,10 +54,7 @@ class AzureReportDBCleaner:
         """
         LOG.info("Calling purge_expired_report_data for azure")
 
-        with ReportingCommonDBAccessor() as reporting_common:
-            column_map = reporting_common.column_map
-
-        with AzureReportDBAccessor(self._schema, column_map) as accessor:
+        with AzureReportDBAccessor(self._schema) as accessor:
             if (expired_date is None and provider_uuid is None) or (  # noqa: W504
                 expired_date is not None and provider_uuid is not None
             ):

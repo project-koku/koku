@@ -42,7 +42,6 @@ class ProviderAuthentication(models.Model):
 
     credentials = JSONField(null=True, default=dict)
 
-    # pylint: disable=too-few-public-methods
     class Meta:
         """Meta class."""
 
@@ -70,7 +69,6 @@ class ProviderBillingSource(models.Model):
 
     data_source = JSONField(null=True, default=dict)
 
-    # pylint: disable=too-few-public-methods
     class Meta:
         """Meta class."""
 
@@ -90,7 +88,6 @@ class Provider(models.Model):
     Used for modeling cost providers like AWS Accounts.
     """
 
-    # pylint: disable=too-few-public-methods
     class Meta:
         """Meta for Provider."""
 
@@ -247,6 +244,10 @@ class Sources(models.Model):
     # this flag will indicate that the update needs to be picked up by the Koku-Provider synchronization
     # handler.
     pending_update = models.BooleanField(default=False)
+
+    # When a source delete occurs before a source create.  Messages can be out of order when arriving
+    # on different kafka partitions.
+    out_of_order_delete = models.BooleanField(default=False)
 
     # Availability status
     status = JSONField(null=True, default=dict)

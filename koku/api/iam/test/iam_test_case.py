@@ -15,13 +15,16 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test Case extension to collect common test data."""
+import functools
 from base64 import b64encode
 from json import dumps as json_dumps
 from unittest.mock import Mock
 from uuid import UUID
 
+from django.conf import settings
 from django.db import connection
 from django.db.models.signals import post_save
+from django.test import override_settings
 from django.test import RequestFactory
 from django.test import TestCase
 from faker import Faker
@@ -33,6 +36,7 @@ from api.models import Tenant
 from api.models import User
 from api.provider.models import Sources
 from api.query_params import QueryParameters
+from koku.dev_middleware import DevelopmentIdentityHeaderMiddleware
 from koku.koku_test_runner import KokuTestRunner
 from sources.kafka_listener import storage_callback
 
@@ -74,7 +78,14 @@ class IamTestCase(TestCase):
     @classmethod
     def _create_user_data(cls):
         """Create user data."""
-        user_data = {"username": cls.fake.user_name(), "email": cls.fake.email()}
+        access = {
+            "aws.account": {"read": ["*"]},
+            "azure.subscription_guid": {"read": ["*"]},
+            "openshift.cluster": {"read": ["*"]},
+            "openshift.project": {"read": ["*"]},
+            "openshift.node": {"read": ["*"]},
+        }
+        user_data = {"username": cls.fake.user_name(), "email": cls.fake.email(), "access": access}
         return user_data
 
     @classmethod
@@ -117,12 +128,17 @@ class IamTestCase(TestCase):
             "identity": {
                 "account_number": account,
                 "type": "User",
-                "user": {"username": user_data["username"], "email": user_data["email"], "is_org_admin": is_admin},
+                "user": {
+                    "username": user_data["username"],
+                    "email": user_data["email"],
+                    "is_org_admin": is_admin,
+                    "access": user_data["access"],
+                },
             },
             "entitlements": {"cost_management": {"is_entitled": is_cost_management}},
         }
         json_identity = json_dumps(identity)
-        mock_header = b64encode(json_identity.encode("utf-8"))
+        mock_header = b64encode(json_identity.encode("utf-8")).decode("utf-8")
         request = Mock()
         request.META = {RH_IDENTITY_HEADER: mock_header}
         if create_user:
@@ -152,3 +168,50 @@ class IamTestCase(TestCase):
             m_request.path = path
         query_params = QueryParameters(m_request, view)
         return query_params
+
+
+class RbacPermissions:
+    """A decorator class for running tests with a custom identity.
+
+    Example usage:
+
+        @RbacPermissions({"openshift.cluster": {"read": ["*"]}})
+        def my_unit_test(self):
+            your_test_code = here()
+
+    """
+
+    def __init__(self, access):
+        """Class constructor."""
+        self.access = access
+        self.customer = IamTestCase._create_customer_data()
+        self.user = IamTestCase._create_user_data()
+
+    def __call__(self, function):
+        """Call method."""
+
+        @functools.wraps(function)
+        def wrapper(*args, **kwargs):
+            user = self.user
+            user["access"] = self.access
+
+            dev_middleware = "koku.dev_middleware.DevelopmentIdentityHeaderMiddleware"
+            middleware = settings.MIDDLEWARE
+            if dev_middleware not in middleware:
+                middleware.insert(5, dev_middleware)
+
+            identity = {
+                "identity": {"account_number": "10001", "type": "User", "user": user},
+                "entitlements": {"cost_management": {"is_entitled": "True"}},
+            }
+
+            with override_settings(DEVELOPMENT=True):
+                with override_settings(DEVELOPMENT_IDENTITY=identity):
+                    with override_settings(MIDDLEWARE=middleware):
+                        request_context = IamTestCase._create_request_context(self.customer, user)
+                        middleware = DevelopmentIdentityHeaderMiddleware()
+                        middleware.process_request(request_context["request"])
+                        result = function(*args, **kwargs)
+            return result
+
+        return wrapper

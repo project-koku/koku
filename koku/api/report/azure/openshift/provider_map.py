@@ -123,6 +123,7 @@ class OCPAzureProviderMap(ProviderMap):
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "count": None,
                         "delta_key": {
@@ -192,6 +193,7 @@ class OCPAzureProviderMap(ProviderMap):
                             ),
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "count": None,
                         "delta_key": {
@@ -254,10 +256,11 @@ class OCPAzureProviderMap(ProviderMap):
                             # FIXME: Waiting on MSFT for usage_units default
                             "usage_units": Coalesce(Max("unit_of_measure"), Value("Storage Type Placeholder")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "count": None,
                         "delta_key": {"usage": Sum("usage_quantity")},
-                        "filter": [{"field": "service_name", "operation": "contains", "parameter": "Storage"}],
+                        "filter": [{"field": "service_name", "operation": "icontains", "parameter": "Storage"}],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit_of_measure",
@@ -326,10 +329,11 @@ class OCPAzureProviderMap(ProviderMap):
                             "usage": Sum("usage_quantity"),
                             "usage_units": Coalesce(Max("unit_of_measure"), Value("Storage Type Placeholder")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "count": None,
                         "delta_key": {"usage": Sum("usage_quantity")},
-                        "filter": [{"field": "service_name", "operation": "contains", "parameter": "Storage"}],
+                        "filter": [{"field": "service_name", "operation": "icontains", "parameter": "Storage"}],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit_of_measure",
@@ -390,6 +394,7 @@ class OCPAzureProviderMap(ProviderMap):
                             # FIXME: Waiting on MSFT for usage_units default
                             "usage_units": Coalesce(Max("unit_of_measure"), Value("Instance Type Placeholder")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "count": "resource_id",
                         "delta_key": {"usage": Sum("usage_quantity")},
@@ -469,6 +474,7 @@ class OCPAzureProviderMap(ProviderMap):
                             # FIXME: Waiting on MSFT for usage_units default
                             "usage_units": Coalesce(Max("unit_of_measure"), Value("Instance Type Placeholder")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "count": "resource_id",
                         "delta_key": {"usage": Sum("usage_quantity")},
@@ -492,13 +498,30 @@ class OCPAzureProviderMap(ProviderMap):
         self.views = {
             "costs": {
                 "default": OCPAzureCostSummary,
-                "subscription_guid": OCPAzureCostSummaryByAccount,
-                "service_name": OCPAzureCostSummaryByService,
-                "resource_location": OCPAzureCostSummaryByLocation,
+                ("subscription_guid",): OCPAzureCostSummaryByAccount,
+                ("service_name",): OCPAzureCostSummaryByService,
+                ("service_name", "subscription_guid"): OCPAzureCostSummaryByService,
+                ("resource_location",): OCPAzureCostSummaryByLocation,
+                ("resource_location", "subscription_guid"): OCPAzureCostSummaryByLocation,
             },
-            "instance_type": {"default": OCPAzureComputeSummary, "instance_type": OCPAzureComputeSummary},
-            "storage": {"default": OCPAzureStorageSummary},
-            "database": {"default": OCPAzureDatabaseSummary, "service_name": OCPAzureDatabaseSummary},
-            "network": {"default": OCPAzureNetworkSummary, "service_name": OCPAzureNetworkSummary},
+            "instance_type": {
+                "default": OCPAzureComputeSummary,
+                ("instance_type",): OCPAzureComputeSummary,
+                ("instance_type", "subscription_guid"): OCPAzureComputeSummary,
+                ("subscription_guid",): OCPAzureComputeSummary,
+            },
+            "storage": {"default": OCPAzureStorageSummary, ("subscription_guid",): OCPAzureStorageSummary},
+            "database": {
+                "default": OCPAzureDatabaseSummary,
+                ("service_name",): OCPAzureDatabaseSummary,
+                ("service_name", "subscription_guid"): OCPAzureDatabaseSummary,
+                ("subscription_guid",): OCPAzureDatabaseSummary,
+            },
+            "network": {
+                "default": OCPAzureNetworkSummary,
+                ("service_name",): OCPAzureNetworkSummary,
+                ("service_name", "subscription_guid"): OCPAzureNetworkSummary,
+                ("subscription_guid",): OCPAzureNetworkSummary,
+            },
         }
         super().__init__(provider, report_type)

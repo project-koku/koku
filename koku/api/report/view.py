@@ -17,6 +17,7 @@
 """View for Reports."""
 import logging
 
+from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext as _
 from django.views.decorators.vary import vary_on_headers
 from pint.errors import DimensionalityError
@@ -26,7 +27,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
-from api.common import RH_IDENTITY_HEADER
+from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.pagination import ReportPagination
 from api.common.pagination import ReportRankedPagination
 from api.query_params import QueryParameters
@@ -112,7 +113,7 @@ def _convert_units(converter, data, to_unit):
                 total["value"] = new_value.magnitude
                 new_unit = to_unit + "-" + suffix if suffix else to_unit
                 total["units"] = new_unit
-            elif key == "total" and not isinstance(data[key], dict):
+            elif key == "total":
                 total = data[key]
                 from_unit = data.get("units", "")
                 if "-Mo" in from_unit:
@@ -135,8 +136,8 @@ class ReportView(APIView):
     It providers one GET endpoint for the reports.
     """
 
-    @vary_on_headers(RH_IDENTITY_HEADER)
-    def get(self, request):
+    @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
+    def get(self, request, **kwargs):
         """Get Report Data.
 
         This method is responsible for passing request data to the reporting APIs.
@@ -151,7 +152,7 @@ class ReportView(APIView):
         LOG.debug(f"API: {request.path} USER: {request.user.username}")
 
         try:
-            params = QueryParameters(request=request, caller=self)
+            params = QueryParameters(request=request, caller=self, **kwargs)
         except ValidationError as exc:
             return Response(data=exc.detail, status=status.HTTP_400_BAD_REQUEST)
         handler = self.query_handler(params)

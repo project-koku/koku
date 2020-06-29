@@ -8,55 +8,6 @@ import django.utils.timezone
 from django.db import migrations
 from django.db import models
 
-# REPORTING_COMMON
-
-# Functions from the following migrations need manual copying.
-# Move them and any dependencies into this file, then update the
-# RunPython operations to refer to the local versions:
-def reload_ocp_map_0007(apps, schema_editor):
-    """Update report to database mapping."""
-    ReportColumnMap = apps.get_model("reporting_common", "ReportColumnMap")
-    ocp_items = ReportColumnMap.objects.filter(provider_type="OCP")
-    ocp_items.delete()
-
-    data = pkgutil.get_data("reporting_common", "data/ocp_report_column_map.json")
-
-    data = json.loads(data)
-
-    for entry in data:
-        map = ReportColumnMap(**entry)
-        map.save()
-
-
-def reload_aws_map(apps, schema_editor):
-    """Update report to database mapping."""
-    ReportColumnMap = apps.get_model("reporting_common", "ReportColumnMap")
-    aws_items = ReportColumnMap.objects.filter(provider_type="AWS")
-    aws_items.delete()
-
-    data = pkgutil.get_data("reporting_common", "data/aws_report_column_map.json")
-
-    data = json.loads(data)
-
-    for entry in data:
-        map = ReportColumnMap(**entry)
-        map.save()
-
-
-def reload_azure_map(apps, schema_editor):
-    """Update report to database mapping."""
-    ReportColumnMap = apps.get_model("reporting_common", "ReportColumnMap")
-    azure_items = ReportColumnMap.objects.filter(provider_type="AZURE")
-    azure_items.delete()
-
-    data = pkgutil.get_data("reporting_common", "data/azure_report_column_map.json")
-
-    data = json.loads(data)
-
-    for entry in data:
-        map = ReportColumnMap(**entry)
-        map.save()
-
 
 class Migration(migrations.Migration):
 
@@ -167,7 +118,4 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "si_unit_scale"},
         ),
-        migrations.RunPython(code=reload_ocp_map_0007),
-        migrations.RunPython(code=reload_aws_map),
-        migrations.RunPython(code=reload_azure_map),
     ]

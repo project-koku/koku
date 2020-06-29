@@ -17,6 +17,10 @@
 """Report processor external interface."""
 import logging
 
+from django.db import InterfaceError as DjangoInterfaceError
+from django.db import OperationalError
+from psycopg2 import InterfaceError
+
 from api.models import Provider
 from masu.processor.aws.aws_report_processor import AWSReportProcessor
 from masu.processor.azure.azure_report_processor import AzureReportProcessor
@@ -31,8 +35,10 @@ class ReportProcessorError(Exception):
     """Report Processor error."""
 
 
-# pylint: disable=too-few-public-methods
-# pylint: disable=too-many-arguments
+class ReportProcessorDBError(Exception):
+    """Report Processor database error."""
+
+
 class ReportProcessor:
     """Interface for masu to use to processor CUR."""
 
@@ -112,6 +118,8 @@ class ReportProcessor:
         """
         try:
             return self._processor.process()
+        except (InterfaceError, DjangoInterfaceError, OperationalError) as err:
+            raise ReportProcessorDBError(str(err))
         except Exception as err:
             raise ReportProcessorError(str(err))
 

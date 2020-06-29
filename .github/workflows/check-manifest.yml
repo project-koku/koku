@@ -1,0 +1,18 @@
+name: Check manifest
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.6'
+    - name: Check manifest
+      run: bash .github/scripts/check_manifest.sh

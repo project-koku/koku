@@ -23,7 +23,10 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sql
         sum(li.public_on_demand_cost) as public_on_demand_cost,
         max(li.public_on_demand_rate) as public_on_demand_rate,
         array_agg(DISTINCT li.resource_id) as resource_ids,
-        count(DISTINCT li.resource_id) as resource_count
+        count(DISTINCT li.resource_id) as resource_count,
+        max(ou.id) as organizational_unit_id,
+        ab.provider_id as source_uuid,
+        0.0::decimal as markup_cost
     FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily AS li
     JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
         ON li.cost_entry_product_id = p.id
@@ -31,6 +34,13 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sql
         ON li.cost_entry_pricing_id = pr.id
     LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_awsorganizationalunit AS ou
+        ON aa.id = ou.account_alias_id
+            AND ou.created_timestamp <= li.usage_start
+            AND (ou.deleted_timestamp is NULL
+                 OR ou.deleted_timestamp > li.usage_start)
+    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrybill as ab
+        ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_start >= {{start_date}}::date
         AND li.usage_start <= {{end_date}}::date
         {% if bill_ids %}
@@ -49,7 +59,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sql
         p.region,
         p.instance_type,
         pr.unit,
-        li.tags
+        li.tags,
+        ab.provider_id
 )
 ;
 
@@ -90,7 +101,10 @@ INSERT INTO {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary (
     public_on_demand_cost,
     public_on_demand_rate,
     resource_ids,
-    resource_count
+    resource_count,
+    organizational_unit_id,
+    source_uuid,
+    markup_cost
 )
 SELECT cost_entry_bill_id,
         usage_start,
@@ -115,6 +129,9 @@ SELECT cost_entry_bill_id,
         public_on_demand_cost,
         public_on_demand_rate,
         resource_ids,
-        resource_count
+        resource_count,
+        organizational_unit_id,
+        source_uuid,
+        markup_cost
     FROM reporting_awscostentrylineitem_daily_summary_{{uuid | sqlsafe}}
 ;

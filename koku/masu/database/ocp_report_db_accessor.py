@@ -58,21 +58,17 @@ def create_filter(data_source, start_date, end_date, cluster_id):
     return filters
 
 
-# pylint: disable=too-many-public-methods
 class OCPReportDBAccessor(ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
-    def __init__(self, schema, column_map):
+    def __init__(self, schema):
         """Establish the database connection.
 
         Args:
             schema (str): The customer schema to associate with
-            column_map (dict): A mapping of report columns to database columns
-
         """
-        super().__init__(schema, column_map)
+        super().__init__(schema)
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
-        self.column_map = column_map
         self.jinja_sql = JinjaSql()
 
     def get_current_usage_report(self):
@@ -117,7 +113,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 usage_period_query = base_query.filter(report_period_start__lte=date)
             return usage_period_query
 
-    # pylint: disable=invalid-name
     def get_usage_period_query_by_provider(self, provider_uuid):
         """Return all report periods for the specified provider."""
         table_name = OCP_REPORT_TABLE_MAP["report_period"]
@@ -298,7 +293,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         filters = create_filter("Storage", start_date, end_date, cluster_id)
         with schema_context(self.schema):
             reports = self._get_reports(table, filters)
-            # pylint: disable=line-too-long
             return {entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
 
     def get_volume_request_storage_gigabyte_months(self, start_date, end_date, cluster_id=None):
@@ -575,25 +569,23 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         cost_summary_query = base_query.filter(cluster_id=cluster_identifier)
         return cost_summary_query
 
-    # pylint: disable=invalid-name
-    def populate_pod_label_summary_table(self):
+    def populate_pod_label_summary_table(self, report_period_ids):
         """Populate the line item aggregated totals data table."""
         table_name = OCP_REPORT_TABLE_MAP["pod_label_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpusagepodlabel_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagepodlabel_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema}
+        agg_sql_params = {"schema": self.schema, "report_period_ids": report_period_ids}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
-    # pylint: disable=invalid-name
-    def populate_volume_label_summary_table(self):
+    def populate_volume_label_summary_table(self, report_period_ids):
         """Populate the OCP volume label summary table."""
         table_name = OCP_REPORT_TABLE_MAP["volume_label_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpstoragevolumelabel_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpstoragevolumelabel_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema}
+        agg_sql_params = {"schema": self.schema, "report_period_ids": report_period_ids}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
@@ -623,7 +615,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             )
             return [node[0] for node in unique_nodes]
 
-    # pylint: disable=too-many-arguments
     def populate_monthly_cost(self, cost_type, rate_type, rate, start_date, end_date, cluster_id, cluster_alias):
         """
         Populate the monthly cost of a customer.

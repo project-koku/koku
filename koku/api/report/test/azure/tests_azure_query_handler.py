@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Azure Provider query handler."""
+import logging
 from datetime import datetime
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
@@ -38,6 +39,7 @@ from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.azure.view import AzureTagView
 from api.utils import DateHelper
 from reporting.models import AzureComputeSummary
+from reporting.models import AzureCostEntryBill
 from reporting.models import AzureCostEntryLineItemDailySummary
 from reporting.models import AzureCostEntryProductService
 from reporting.models import AzureCostSummary
@@ -47,6 +49,8 @@ from reporting.models import AzureCostSummaryByService
 from reporting.models import AzureDatabaseSummary
 from reporting.models import AzureNetworkSummary
 from reporting.models import AzureStorageSummary
+
+LOG = logging.getLogger(__name__)
 
 
 class AzureReportQueryHandlerTest(IamTestCase):
@@ -473,8 +477,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_execute_query_curr_month_by_filtered_resource_location(self):
         """Test execute_query for current month on monthly breakdown by filtered resource_location."""
         with tenant_context(self.tenant):
-            location = AzureCostEntryLineItemDailySummary.objects.values("resource_location")[0].get(
-                "resource_location"
+            location = (
+                AzureCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
+                .values("resource_location")[0]
+                .get("resource_location")
             )
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[resource_location]={location}"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -562,8 +568,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_filter_resource_location(self):
         """Test execute_query for current month on monthly filtered by resource_location."""
         with tenant_context(self.tenant):
-            location = AzureCostEntryLineItemDailySummary.objects.values("resource_location")[0].get(
-                "resource_location"
+            location = (
+                AzureCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
+                .values("resource_location")[0]
+                .get("resource_location")
             )
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[resource_location]={location}"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -590,8 +598,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_filter_resource_location_csv(self, mock_accept):
         """Test execute_query on monthly filtered by resource_location for csv."""
         with tenant_context(self.tenant):
-            location = AzureCostEntryLineItemDailySummary.objects.values("resource_location")[0].get(
-                "resource_location"
+            location = (
+                AzureCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
+                .values("resource_location")[0]
+                .get("resource_location")
             )
         mock_accept.return_value = "text/csv"
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[resource_location]={location}"  # noqa: E501
@@ -1080,12 +1090,30 @@ class AzureReportQueryHandlerTest(IamTestCase):
             ("?", AzureCostView, AzureCostSummary),
             ("?group_by[subscription_guid]=*", AzureCostView, AzureCostSummaryByAccount),
             ("?group_by[resource_location]=*", AzureCostView, AzureCostSummaryByLocation),
+            (
+                "?group_by[resource_location]=*&group_by[subscription_guid]=*",
+                AzureCostView,
+                AzureCostSummaryByLocation,
+            ),
             ("?group_by[service_name]=*", AzureCostView, AzureCostSummaryByService),
+            ("?group_by[service_name]=*&group_by[subscription_guid]=*", AzureCostView, AzureCostSummaryByService),
             ("?", AzureInstanceTypeView, AzureComputeSummary),
+            ("?group_by[subscription_guid]=*", AzureInstanceTypeView, AzureComputeSummary),
             ("?", AzureStorageView, AzureStorageSummary),
+            ("?group_by[subscription_guid]=*", AzureStorageView, AzureStorageSummary),
             ("?filter[service_name]=Database,Cosmos%20DB,Cache%20for%20Redis", AzureCostView, AzureDatabaseSummary),
             (
+                "?filter[service_name]=Database,Cosmos%20DB,Cache%20for%20Redis&group_by[subscription_guid]=*",
+                AzureCostView,
+                AzureDatabaseSummary,
+            ),
+            (
                 "?filter[service_name]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway",  # noqa: E501
+                AzureCostView,
+                AzureNetworkSummary,
+            ),
+            (
+                "?filter[service_name]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway&group_by[subscription_guid]=*",  # noqa: E501
                 AzureCostView,
                 AzureNetworkSummary,
             ),
@@ -1097,3 +1125,35 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 query_params = self.mocked_query_params(url, view)
                 handler = AzureReportQueryHandler(query_params)
                 self.assertEqual(handler.query_table, table)
+
+    def test_source_uuid_mapping(self):  # noqa: C901
+        """Test source_uuid is mapped to the correct source."""
+        # Find the correct expected source uuid:
+        with tenant_context(self.tenant):
+            azure_uuids = AzureCostEntryLineItemDailySummary.objects.distinct().values_list("source_uuid", flat=True)
+            expected_source_uuids = AzureCostEntryBill.objects.distinct().values_list("provider_id", flat=True)
+            for azure_uuid in azure_uuids:
+                self.assertIn(azure_uuid, expected_source_uuids)
+        endpoints = [AzureCostView, AzureInstanceTypeView, AzureStorageView]
+        source_uuid_list = []
+        for endpoint in endpoints:
+            urls = ["?"]
+            if endpoint == AzureCostView:
+                urls.extend(
+                    ["?group_by[subscription_guid]=*", "?group_by[resource_location]=*", "group_by[service_name]=*"]
+                )
+            for url in urls:
+                query_params = self.mocked_query_params(url, endpoint)
+                handler = AzureReportQueryHandler(query_params)
+                query_output = handler.execute_query()
+                for dictionary in query_output.get("data"):
+                    for _, value in dictionary.items():
+                        if isinstance(value, list):
+                            for item in value:
+                                if isinstance(item, dict):
+                                    if "values" in item.keys():
+                                        value = item["values"][0]
+                                        source_uuid_list.extend(value.get("source_uuid"))
+        self.assertNotEquals(source_uuid_list, [])
+        for source_uuid in source_uuid_list:
+            self.assertIn(source_uuid, expected_source_uuids)

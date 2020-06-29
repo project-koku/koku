@@ -21,7 +21,6 @@ from datetime import datetime
 from tenant_schemas.utils import schema_context
 
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 
 LOG = logging.getLogger(__name__)
 
@@ -30,7 +29,6 @@ class AWSReportDBCleanerError(Exception):
     """Raise an error during AWS report cleaning."""
 
 
-# pylint: disable=too-few-public-methods
 class AWSReportDBCleaner:
     """Class to remove report data."""
 
@@ -60,10 +58,7 @@ class AWSReportDBCleaner:
             err = "Parameter expired_date must be a datetime.datetime object."
             raise AWSReportDBCleanerError(err)
 
-        with ReportingCommonDBAccessor() as reporting_common:
-            column_map = reporting_common.column_map
-
-        with AWSReportDBAccessor(self._schema, column_map) as accessor:
+        with AWSReportDBAccessor(self._schema) as accessor:
             removed_items = []
             if provider_uuid is not None:
                 bill_objects = accessor.get_bill_query_before_date(expired_date, provider_uuid)
@@ -92,7 +87,6 @@ class AWSReportDBCleaner:
                     )
         return removed_items
 
-    # pylint: disable=too-many-locals
     def purge_expired_report_data(self, expired_date=None, provider_uuid=None, simulate=False):
         """Remove report data with a billing start period before specified date.
 
@@ -106,10 +100,8 @@ class AWSReportDBCleaner:
 
         """
         LOG.info("Calling purge_expired_report_data for aws")
-        with ReportingCommonDBAccessor() as reporting_common:
-            column_map = reporting_common.column_map
 
-        with AWSReportDBAccessor(self._schema, column_map) as accessor:
+        with AWSReportDBAccessor(self._schema) as accessor:
             if (expired_date is None and provider_uuid is None) or (  # noqa: W504
                 expired_date is not None and provider_uuid is not None
             ):

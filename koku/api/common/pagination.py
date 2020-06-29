@@ -24,7 +24,7 @@ from rest_framework.utils.urls import replace_query_param
 from api import API_VERSION
 
 PATH_INFO = "PATH_INFO"
-logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+logger = logging.getLogger(__name__)
 
 
 class StandardResultsSetPagination(LimitOffsetPagination):
@@ -93,6 +93,34 @@ class StandardResultsSetPagination(LimitOffsetPagination):
                 "data": data,
             }
         )
+
+
+class ListPaginator(StandardResultsSetPagination):
+    """A paginator for a list."""
+
+    def __init__(self, data_set, request):
+        """Initialize the paginator."""
+        self.data_set = data_set
+        self.request = request
+        self.count = len(data_set)
+        self.limit = self.get_limit(self.request)
+        self.offset = self.get_offset(self.request)
+
+    @property
+    def paginated_data_set(self):
+        """Paginate the list."""
+        if self.limit > len(self.data_set):
+            self.limit = len(self.data_set)
+        try:
+            data = self.data_set[self.offset : self.offset + self.limit]  # noqa E203
+        except IndexError:
+            data = []
+        return data
+
+    @property
+    def paginated_response(self):
+        """Return the paginated repsonse."""
+        return self.get_paginated_response(self.paginated_data_set)
 
 
 class ReportPagination(StandardResultsSetPagination):

@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider Mapper for AWS Reports."""
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
@@ -52,7 +53,12 @@ class AWSProviderMap(ProviderMap):
             {
                 "provider": Provider.PROVIDER_AWS,
                 "alias": "account_alias__account_alias",
-                "annotations": {"account": "usage_account_id", "service": "product_code", "az": "availability_zone"},
+                "annotations": {
+                    "account": "usage_account_id",
+                    "service": "product_code",
+                    "az": "availability_zone",
+                    "org_unit_id": "organizational_unit__org_unit_id",
+                },
                 "end_date": "usage_end",
                 "filters": {
                     "account": [
@@ -67,8 +73,9 @@ class AWSProviderMap(ProviderMap):
                     "az": {"field": "availability_zone", "operation": "icontains"},
                     "region": {"field": "region", "operation": "icontains"},
                     "product_family": {"field": "product_family", "operation": "icontains"},
+                    "org_unit_id": {"field": "organizational_unit__org_unit_id", "operation": "icontains"},
                 },
-                "group_by_options": ["service", "account", "region", "az", "product_family"],
+                "group_by_options": ["service", "account", "region", "az", "product_family", "org_unit_id"],
                 "tag_column": "tags",
                 "report_type": {
                     "costs": {
@@ -123,6 +130,7 @@ class AWSProviderMap(ProviderMap):
                                 + Value(0, output_field=DecimalField())
                             ),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "delta_key": {
                             # cost goes to cost_total
@@ -192,6 +200,7 @@ class AWSProviderMap(ProviderMap):
                             "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("Hrs")),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{"field": "instance_type", "operation": "isnull", "parameter": False}],
@@ -259,10 +268,11 @@ class AWSProviderMap(ProviderMap):
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [
-                            {"field": "product_family", "operation": "contains", "parameter": "Storage"},
+                            {"field": "product_family", "operation": "icontains", "parameter": "Storage"},
                             {"field": "unit", "operation": "exact", "parameter": "GB-Mo"},
                         ],
                         "cost_units_key": "currency_code",
@@ -282,27 +292,47 @@ class AWSProviderMap(ProviderMap):
         self.views = {
             "costs": {
                 "default": AWSCostSummary,
-                "account": AWSCostSummaryByAccount,
-                "region": AWSCostSummaryByRegion,
-                "service": AWSCostSummaryByService,
-                "product_family": AWSCostSummaryByService,
+                ("account",): AWSCostSummaryByAccount,
+                ("region",): AWSCostSummaryByRegion,
+                ("account", "region"): AWSCostSummaryByRegion,
+                ("service",): AWSCostSummaryByService,
+                ("account", "service"): AWSCostSummaryByService,
+                ("product_family",): AWSCostSummaryByService,
+                ("account", "product_family"): AWSCostSummaryByService,
             },
             "instance_type": {
                 "default": AWSComputeSummary,
-                "account": AWSComputeSummaryByAccount,
-                "region": AWSComputeSummaryByRegion,
-                "service": AWSComputeSummaryByService,
-                "product_family": AWSComputeSummaryByService,
-                "instance_type": AWSComputeSummary,
+                ("account",): AWSComputeSummaryByAccount,
+                ("region",): AWSComputeSummaryByRegion,
+                ("account", "region"): AWSComputeSummaryByRegion,
+                ("service",): AWSComputeSummaryByService,
+                ("account", "service"): AWSComputeSummaryByService,
+                ("product_family",): AWSComputeSummaryByService,
+                ("account", "product_family"): AWSComputeSummaryByService,
+                ("instance_type",): AWSComputeSummary,
+                ("account", "instance_type"): AWSComputeSummary,
             },
             "storage": {
                 "default": AWSStorageSummary,
-                "account": AWSStorageSummaryByAccount,
-                "region": AWSStorageSummaryByRegion,
-                "service": AWSStorageSummaryByService,
-                "product_family": AWSStorageSummaryByService,
+                ("account",): AWSStorageSummaryByAccount,
+                ("region",): AWSStorageSummaryByRegion,
+                ("account", "region"): AWSStorageSummaryByRegion,
+                ("service",): AWSStorageSummaryByService,
+                ("account", "service"): AWSStorageSummaryByService,
+                ("product_family",): AWSStorageSummaryByService,
+                ("account", "product_family"): AWSStorageSummaryByService,
             },
-            "database": {"default": AWSDatabaseSummary, "service": AWSDatabaseSummary},
-            "network": {"default": AWSNetworkSummary, "service": AWSNetworkSummary},
+            "database": {
+                "default": AWSDatabaseSummary,
+                ("service",): AWSDatabaseSummary,
+                ("account", "service"): AWSDatabaseSummary,
+                ("account",): AWSDatabaseSummary,
+            },
+            "network": {
+                "default": AWSNetworkSummary,
+                ("service",): AWSNetworkSummary,
+                ("account", "service"): AWSNetworkSummary,
+                ("account",): AWSNetworkSummary,
+            },
         }
         super().__init__(provider, report_type)

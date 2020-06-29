@@ -967,8 +967,10 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         max(li.normalized_usage_amount) as normalized_usage_amount,
         max(li.currency_code) as currency_code,
         max(li.unblended_cost) as unblended_cost,
+        max(li.unblended_cost) * {{markup}}::numeric as markup_cost,
         max(li.shared_projects) as shared_projects,
-        pc.project_costs as project_costs
+        pc.project_costs as project_costs,
+        ab.provider_id as source_uuid
     FROM reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} as li
     JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
         ON li.cost_entry_product_id = p.id
@@ -978,10 +980,12 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         ON li.cost_entry_pricing_id = pr.id
     LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrybill as ab
+        ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_start >= {{start_date}}::date
         AND li.usage_start <= {{end_date}}::date
     -- Dedup on AWS line item so we never double count usage or cost
-    GROUP BY li.aws_id, li.tags, pc.project_costs
+    GROUP BY li.aws_id, li.tags, pc.project_costs, ab.provider_id
 
     UNION
 
@@ -1008,8 +1012,10 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         max(li.normalized_usage_amount) as normalized_usage_amount,
         max(li.currency_code) as currency_code,
         max(li.unblended_cost) as unblended_cost,
+        max(li.unblended_cost) * {{markup}}::numeric as markup_cost,
         max(li.shared_projects) as shared_projects,
-        pc.project_costs
+        pc.project_costs,
+        ab.provider_id as source_uuid
     FROM reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS li
     JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
         ON li.cost_entry_product_id = p.id
@@ -1021,10 +1027,12 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         ON li.usage_account_id = aa.account_id
     LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.aws_id = li.aws_id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrybill as ab
+        ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_start >= {{start_date}}::date
         AND li.usage_start <= {{end_date}}::date
         AND ulid.aws_id IS NULL
-    GROUP BY li.aws_id, li.tags, pc.project_costs
+    GROUP BY li.aws_id, li.tags, pc.project_costs, ab.provider_id
 )
 ;
 
@@ -1061,8 +1069,11 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         sum(li.normalized_usage_amount / li.shared_pods) as normalized_usage_amount,
         max(li.currency_code) as currency_code,
         sum(li.unblended_cost / li.shared_pods) as unblended_cost,
+        sum(li.unblended_cost / li.shared_pods) * {{markup}}::numeric as markup_cost,
         max(li.shared_pods) as shared_pods,
-        li.pod_cost
+        li.pod_cost,
+        li.pod_cost * {{markup}}::numeric as project_markup_cost,
+        ab.provider_id as source_uuid
     FROM reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} as li
     JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
         ON li.cost_entry_product_id = p.id
@@ -1070,6 +1081,8 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         ON li.cost_entry_pricing_id = pr.id
     LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrybill as ab
+        ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_start >= {{start_date}}::date
         AND li.usage_start <= {{end_date}}::date
     -- Grouping by OCP this time for the by project view
@@ -1081,7 +1094,8 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         li.pod,
         li.node,
         li.pod_labels,
-        li.pod_cost
+        li.pod_cost,
+        ab.provider_id
 
     UNION
 
@@ -1109,8 +1123,11 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         sum(li.normalized_usage_amount / li.shared_pods) as normalized_usage_amount,
         max(li.currency_code) as currency_code,
         sum(li.unblended_cost / li.shared_pods) as unblended_cost,
+        sum(li.unblended_cost / li.shared_pods) * {{markup}}::numeric as markup_cost,
         max(li.shared_pods) as shared_pods,
-        li.pod_cost
+        li.pod_cost,
+        li.pod_cost * {{markup}}::numeric as project_markup_cost,
+        ab.provider_id as source_uuid
     FROM reporting_ocpawsstoragelineitem_daily_{{uuid | sqlsafe}} AS li
     JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
         ON li.cost_entry_product_id = p.id
@@ -1120,6 +1137,8 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         ON li.usage_account_id = aa.account_id
     LEFT JOIN reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS ulid
         ON ulid.aws_id = li.aws_id
+    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrybill as ab
+        ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_start >= {{start_date}}::date
         AND li.usage_start <= {{end_date}}::date
         AND ulid.aws_id IS NULL
@@ -1132,7 +1151,8 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         li.node,
         li.persistentvolume_labels,
         li.persistentvolumeclaim_labels,
-        li.pod_cost
+        li.pod_cost,
+        ab.provider_id
 )
 ;
 
@@ -1179,8 +1199,10 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
     normalized_usage_amount,
     currency_code,
     unblended_cost,
+    markup_cost,
     shared_projects,
-    project_costs
+    project_costs,
+    source_uuid
 )
     SELECT report_period_id,
         cluster_id,
@@ -1205,8 +1227,10 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
         normalized_usage_amount,
         currency_code,
         unblended_cost,
+        markup_cost,
         shared_projects,
-        project_costs
+        project_costs,
+        source_uuid
     FROM reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsafe}}
 ;
 
@@ -1252,7 +1276,10 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
     normalized_usage_amount,
     currency_code,
     unblended_cost,
-    pod_cost
+    markup_cost,
+    pod_cost,
+    project_markup_cost,
+    source_uuid
 )
     SELECT report_period_id,
         cluster_id,
@@ -1278,5 +1305,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
         normalized_usage_amount,
         currency_code,
         unblended_cost,
-        pod_cost
+        markup_cost,
+        pod_cost,
+        project_markup_cost,
+        source_uuid
     FROM reporting_ocpawscostlineitem_project_daily_summary_{{uuid | sqlsafe}}

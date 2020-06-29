@@ -15,18 +15,16 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Report Downloader."""
-import datetime
 import logging
 from tempfile import mkdtemp
 
+from api.common import log_json
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.processor.worker_cache import WorkerCache
 
 LOG = logging.getLogger(__name__)
 
 
-# pylint: disable=too-few-public-methods
 class ReportDownloaderBase:
     """
     Download cost reports from a provider.
@@ -34,7 +32,6 @@ class ReportDownloaderBase:
     Base object class for downloading cost reports from a cloud provider.
     """
 
-    # pylint: disable=unused-argument
     def __init__(self, task, download_path=None, **kwargs):
         """
         Create a downloader.
@@ -60,8 +57,10 @@ class ReportDownloaderBase:
             self.download_path = mkdtemp(prefix="masu")
         self.worker_cache = WorkerCache()
         self._cache_key = kwargs.get("cache_key")
-        self._provider_uuid = None
         self._provider_uuid = kwargs.get("provider_uuid")
+        self.request_id = kwargs.get("request_id")
+        self.account = kwargs.get("account")
+        self.context = {"request_id": self.request_id, "provider_uuid": self._provider_uuid, "account": self.account}
 
     def _get_existing_manifest_db_id(self, assembly_id):
         """Return a manifest DB object if it exists."""
@@ -86,31 +85,20 @@ class ReportDownloaderBase:
         """
         if self._cache_key and self.worker_cache.task_is_running(self._cache_key):
             msg = f"{self._cache_key} is currently running."
-            LOG.info(msg)
+            LOG.info(log_json(self.request_id, msg, self.context))
             return False
-        today = DateAccessor().today_with_timezone("UTC")
-        last_completed_cutoff = today - datetime.timedelta(hours=1)
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
 
             if manifest:
-
                 manifest_id = manifest.id
-                num_processed_files = manifest.num_processed_files
-                num_total_files = manifest.num_total_files
-                if num_processed_files < num_total_files:
-                    completed_datetime = manifest_accessor.get_last_report_completed_datetime(manifest_id)
-                    if (completed_datetime and completed_datetime < last_completed_cutoff) or not completed_datetime:
-                        # It has been more than an hour since we processed a file
-                        # and we didn't finish processing. Or, if there is a
-                        # start time but no completion time recorded.
-                        # We should download and reprocess.
-                        manifest_accessor.reset_manifest(manifest_id)
-                        self.worker_cache.add_task_to_cache(self._cache_key)
-                        return True
-                # The manifest exists and we have processed all the files.
-                # We should not redownload.
-                return False
+                # check if `last_completed_datetime` is null for any report in the manifest.
+                # if nulls exist, report processing is not complete and reports should be downloaded.
+                need_to_download = manifest_accessor.is_last_completed_datetime_null(manifest_id)
+                if need_to_download:
+                    self.worker_cache.add_task_to_cache(self._cache_key)
+                return need_to_download
+
         # The manifest does not exist, this is the first time we are
         # downloading and processing it.
         self.worker_cache.add_task_to_cache(self._cache_key)
@@ -118,13 +106,14 @@ class ReportDownloaderBase:
 
     def _process_manifest_db_record(self, assembly_id, billing_start, num_of_files):
         """Insert or update the manifest DB record."""
-        LOG.info("Inserting manifest database record for assembly_id: %s", assembly_id)
+        LOG.info("Inserting/updating manifest in database for assembly_id: %s", assembly_id)
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_entry = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
 
             if not manifest_entry:
-                LOG.info("No manifest entry found.  Adding for bill period start: %s", billing_start)
+                msg = f"No manifest entry found in database. Adding for bill period start: {billing_start}"
+                LOG.info(log_json(self.request_id, msg, self.context))
                 manifest_dict = {
                     "assembly_id": assembly_id,
                     "billing_period_start_datetime": billing_start,

@@ -15,11 +15,17 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Azure Service helpers."""
+import logging
 from tempfile import NamedTemporaryFile
 
+from adal.adal_error import AdalError
 from azure.common import AzureException
+from azure.core.exceptions import HttpResponseError
+from msrest.exceptions import ClientException
 
 from providers.azure.client import AzureClientFactory
+
+LOG = logging.getLogger(__name__)
 
 
 class AzureServiceError(Exception):
@@ -39,18 +45,22 @@ class AzureService:
 
     def __init__(
         self,
-        subscription_id,
         tenant_id,
         client_id,
         client_secret,
         resource_group_name,
         storage_account_name,
+        subscription_id=None,
         cloud="public",
     ):
         """Establish connection information."""
         self._resource_group_name = resource_group_name
         self._storage_account_name = storage_account_name
         self._factory = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret, cloud)
+
+        if not self._factory.subscription_id:
+            raise AzureServiceError("Azure Service missing subscription id.")
+
         self._cloud_storage_account = self._factory.cloud_storage_account(resource_group_name, storage_account_name)
 
         if not self._factory.credentials:
@@ -59,8 +69,12 @@ class AzureService:
     def get_cost_export_for_key(self, key, container_name):
         """Get the latest cost export file from given storage account container."""
         report = None
-        container_client = self._cloud_storage_account.get_container_client(container_name)
-        blob_list = container_client.list_blobs(name_starts_with=key)
+        try:
+            container_client = self._cloud_storage_account.get_container_client(container_name)
+            blob_list = container_client.list_blobs(name_starts_with=key)
+        except (AdalError, AzureException, ClientException) as error:
+            raise AzureServiceError("Failed to download cost export. Error: ", str(error))
+
         for blob in blob_list:
             if key == blob.name:
                 report = blob
@@ -83,28 +97,51 @@ class AzureService:
 
             with open(file_path, "wb") as blob_download:
                 blob_download.write(blob_client.download_blob().readall())
-        except (AzureException, IOError) as error:
+        except (AdalError, AzureException, ClientException, IOError) as error:
             raise AzureServiceError("Failed to download cost export. Error: ", str(error))
         return file_path
 
     def get_latest_cost_export_for_path(self, report_path, container_name):
         """Get the latest cost export file from given storage account container."""
         latest_report = None
-        container_client = self._cloud_storage_account.get_container_client(container_name)
-        blob_list = container_client.list_blobs(name_starts_with=report_path)
-        for blob in blob_list:
-            if report_path in blob.name and not latest_report:
-                latest_report = blob
-            elif report_path in blob.name and blob.last_modified > latest_report.last_modified:
-                latest_report = blob
-        if not latest_report:
-            message = f"No cost report found in container {container_name} for " f"path {report_path}."
+        if not container_name:
+            message = "Unable to gather latest export as container name is not provided."
+            LOG.warning(message)
             raise AzureCostReportNotFound(message)
-        return latest_report
+
+        try:
+            container_client = self._cloud_storage_account.get_container_client(container_name)
+            blob_list = container_client.list_blobs(name_starts_with=report_path)
+            for blob in blob_list:
+                if report_path in blob.name and not latest_report:
+                    latest_report = blob
+                elif report_path in blob.name and blob.last_modified > latest_report.last_modified:
+                    latest_report = blob
+            if not latest_report:
+                message = f"No cost report found in container {container_name} for " f"path {report_path}."
+                raise AzureCostReportNotFound(message)
+            return latest_report
+        except (AdalError, AzureException, ClientException) as error:
+            raise AzureServiceError("Failed to download cost export. Error: ", str(error))
+        except HttpResponseError as httpError:
+            if httpError.status_code == 403:
+                message = (
+                    "An authorization error occurred attempting to gather latest export"
+                    f" in container {container_name} for "
+                    f"path {report_path}."
+                )
+            else:
+                message = (
+                    "Unknown error occurred attempting to gather latest export"
+                    f" in container {container_name} for "
+                    f"path {report_path}."
+                )
+            error_msg = message + f" Azure Error: {httpError}."
+            LOG.warning(error_msg)
+            raise AzureCostReportNotFound(message)
 
     def describe_cost_management_exports(self):
         """List cost management export."""
-        cost_management_client = self._factory.cost_management_client
         scope = f"/subscriptions/{self._factory.subscription_id}"
         expected_resource_id = (
             f"/subscriptions/{self._factory.subscription_id}/resourceGroups/"
@@ -113,6 +150,7 @@ class AzureService:
         )
         export_reports = []
         try:
+            cost_management_client = self._factory.cost_management_client
             management_reports = cost_management_client.exports.list(scope)
             for report in management_reports.value:
                 if report.delivery_info.destination.resource_id == expected_resource_id:
@@ -122,7 +160,7 @@ class AzureService:
                         "directory": report.delivery_info.destination.root_folder_path,
                     }
                     export_reports.append(report_def)
-        except AzureException:
-            raise AzureCostReportNotFound(AzureException)
+        except (AdalError, AzureException, ClientException) as exc:
+            raise AzureCostReportNotFound(exc)
 
         return export_reports

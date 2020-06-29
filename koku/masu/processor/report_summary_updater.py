@@ -15,11 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Update reporting summary tables."""
-# pylint: skip-file
 import datetime
 import logging
 
 from api.models import Provider
+from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -37,7 +37,6 @@ class ReportSummaryUpdaterError(Exception):
     pass
 
 
-# pylint: disable=too-few-public-methods
 class ReportSummaryUpdater:
     """Update reporting summary tables."""
 
@@ -115,18 +114,6 @@ class ReportSummaryUpdater:
             end_date = end_date.strftime("%Y-%m-%d")
         return start_date, end_date
 
-    def manifest_is_ready(self):
-        """Check if processing should continue."""
-        if self._manifest and self._manifest.num_processed_files != self._manifest.num_total_files:
-            # Bail if all manifest files have not been processed
-            LOG.info(
-                "Not all manifest files have completed processing."
-                "Summary deferred. Processed Files: %s, Total Files: %s",
-                str(self._manifest.num_processed_files),
-                str(self._manifest.num_total_files),
-            )
-        return True
-
     def update_daily_tables(self, start_date, end_date):
         """
         Update report daily rollup tables.
@@ -143,6 +130,8 @@ class ReportSummaryUpdater:
         start_date, end_date = self._format_dates(start_date, end_date)
 
         start_date, end_date = self._updater.update_daily_tables(start_date, end_date)
+
+        invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
 
         return start_date, end_date
 
@@ -167,6 +156,8 @@ class ReportSummaryUpdater:
 
         self._ocp_cloud_updater.update_summary_tables(start_date, end_date)
 
+        invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
+
     def update_cost_summary_table(self, start_date, end_date):
         """
         Update cost summary tables.
@@ -182,3 +173,5 @@ class ReportSummaryUpdater:
         start_date, end_date = self._format_dates(start_date, end_date)
 
         self._ocp_cloud_updater.update_cost_summary_table(start_date, end_date)
+
+        invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)

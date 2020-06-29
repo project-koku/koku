@@ -21,7 +21,6 @@ from datetime import datetime
 from tenant_schemas.utils import schema_context
 
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 
 LOG = logging.getLogger(__name__)
 
@@ -30,7 +29,6 @@ class OCPReportDBCleanerError(Exception):
     """Raise an error during OCP report cleaning."""
 
 
-# pylint: disable=too-few-public-methods
 class OCPReportDBCleaner:
     """Class to remove report data."""
 
@@ -60,10 +58,7 @@ class OCPReportDBCleaner:
             err = "Parameter expired_date must be a datetime.datetime object."
             raise OCPReportDBCleanerError(err)
 
-        with ReportingCommonDBAccessor() as reporting_common:
-            column_map = reporting_common.column_map
-
-        with OCPReportDBAccessor(self._schema, column_map) as accessor:
+        with OCPReportDBAccessor(self._schema) as accessor:
             removed_items = []
             if provider_uuid is not None:
                 usage_period_objs = accessor.get_usage_period_on_or_before_date(expired_date, provider_uuid)
@@ -88,7 +83,6 @@ class OCPReportDBCleaner:
                     )
         return removed_items
 
-    # pylint: disable=too-many-locals
     def purge_expired_report_data(self, expired_date=None, provider_uuid=None, simulate=False):
         """Remove usage data with a report period before specified date.
 
@@ -103,10 +97,7 @@ class OCPReportDBCleaner:
         """
         LOG.info("Calling purge_expired_report_data for ocp")
 
-        with ReportingCommonDBAccessor() as reporting_common:
-            column_map = reporting_common.column_map
-
-        with OCPReportDBAccessor(self._schema, column_map) as accessor:
+        with OCPReportDBAccessor(self._schema) as accessor:
             if (expired_date is not None and provider_uuid is not None) or (  # noqa: W504
                 expired_date is None and provider_uuid is None
             ):
@@ -154,7 +145,7 @@ class OCPReportDBCleaner:
 
                         qty = accessor.get_ocp_aws_summary_query_for_cluster_id(cluster_id).delete()
                         LOG.info("Removing %s OCP-on-AWS summary items for cluster id %s", qty, cluster_id)
-                        # pylint: disable=line-too-long
+
                         qty = accessor.get_ocp_aws_project_summary_query_for_cluster_id(cluster_id).delete()
                         LOG.info("Removing %s OCP-on-AWS project summary items for cluster id %s", qty, cluster_id)
 

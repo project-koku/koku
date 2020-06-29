@@ -18,15 +18,18 @@
 import logging
 import os.path
 import shutil
+import tempfile
 from datetime import datetime
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import pandas as pd
 from faker import Faker
 
 from api.models import Provider
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
+from masu.external.downloader.ocp.ocp_report_downloader import divide_csv_daily
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
@@ -59,6 +62,10 @@ class OCPReportDownloaderTest(MasuTestCase):
         self.test_file_path = os.path.join(report_path, os.path.basename(test_file_path))
         shutil.copyfile(test_file_path, os.path.join(report_path, self.test_file_path))
 
+        test_storage_file_path = "./koku/masu/test/data/ocp/e6b3701e-1e91" "-433b-b238-a31e49937558_storage.csv"
+        self.test_storage_file_path = os.path.join(report_path, os.path.basename(test_storage_file_path))
+        shutil.copyfile(test_file_path, os.path.join(report_path, self.test_storage_file_path))
+
         test_manifest_path = "./koku/masu/test/data/ocp/manifest.json"
         self.test_manifest_path = os.path.join(report_path, os.path.basename(test_manifest_path))
         shutil.copyfile(test_manifest_path, os.path.join(report_path, self.test_manifest_path))
@@ -90,7 +97,8 @@ class OCPReportDownloaderTest(MasuTestCase):
         super().tearDown()
         shutil.rmtree(REPORTS_DIR, ignore_errors=True)
 
-    def test_download_bucket(self):
+    @patch("masu.util.aws.common.copy_data_to_s3_bucket", return_value=None)
+    def test_download_bucket(self, mock_copys3):
         """Test to verify that basic report downloading works."""
         test_report_date = datetime(year=2018, month=9, day=7)
         with patch.object(DateAccessor, "today", return_value=test_report_date):
@@ -103,8 +111,9 @@ class OCPReportDownloaderTest(MasuTestCase):
         test_report_date = datetime(year=2018, month=9, day=7)
         with patch.object(DateAccessor, "today", return_value=test_report_date):
             os.remove(self.test_file_path)
-            reports = self.report_downloader.download_report(test_report_date)
-        self.assertEqual(reports, [])
+            os.remove(self.test_storage_file_path)
+            with self.assertRaises(FileNotFoundError):
+                self.report_downloader.download_report(test_report_date)
 
     def test_download_bucket_non_csv_found(self):
         """Test to verify that basic report downloading with non .csv file in source directory."""
@@ -112,13 +121,13 @@ class OCPReportDownloaderTest(MasuTestCase):
         with patch.object(DateAccessor, "today", return_value=test_report_date):
             # Remove .csv
             os.remove(self.test_file_path)
+            os.remove(self.test_storage_file_path)
 
             # Create .txt file
             txt_file_path = "{}/{}".format(os.path.dirname(self.test_file_path), "report.txt")
             open(txt_file_path, "a").close()
-
-            reports = self.report_downloader.download_report(test_report_date)
-        self.assertEqual(reports, [])
+            with self.assertRaises(FileNotFoundError):
+                self.report_downloader.download_report(test_report_date)
 
     def test_download_bucket_source_directory_missing(self):
         """Test to verify that basic report downloading when source directory doesn't exist."""
@@ -156,3 +165,28 @@ class OCPReportDownloaderTest(MasuTestCase):
             )
             # Re-enable log suppression
             logging.disable(logging.CRITICAL)
+
+    def test_divide_csv_daily(self):
+        """Test the divide_csv_daily method."""
+
+        with tempfile.TemporaryDirectory() as td:
+            filename = "storage_data.csv"
+            file_path = f"{td}/{filename}"
+            with patch("masu.external.downloader.ocp.ocp_report_downloader.pd") as mock_pd:
+                with patch(
+                    "masu.external.downloader.ocp.ocp_report_downloader.utils.detect_type",
+                    return_value=("storage_usage", None),
+                ):
+                    mock_report = {
+                        "interval_start": ["2020-01-01 00:00:00 +UTC", "2020-01-02 00:00:00 +UTC"],
+                        "persistentvolumeclaim_labels": ["label1", "label2"],
+                    }
+                    df = pd.DataFrame(data=mock_report)
+                    mock_pd.read_csv.return_value = df
+                    daily_files = divide_csv_daily(file_path, filename)
+                    self.assertNotEqual([], daily_files)
+                    self.assertEqual(len(daily_files), 2)
+                    gen_files = ["storage_usage.2020-01-01.csv", "storage_usage.2020-01-02.csv"]
+                    expected = [{"filename": gen_file, "filepath": f"{td}/{gen_file}"} for gen_file in gen_files]
+                    for expected_item in expected:
+                        self.assertIn(expected_item, daily_files)

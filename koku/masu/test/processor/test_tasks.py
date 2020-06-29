@@ -15,12 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the download task."""
+import json
 import logging
 import os
 import shutil
 import tempfile
 from datetime import date
 from datetime import timedelta
+from decimal import Decimal
 from unittest.mock import ANY
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -32,23 +34,26 @@ from django.db.models import Max
 from django.db.models import Min
 from tenant_schemas.utils import schema_context
 
+import koku.celery as koku_celery
 from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.report_processor import ReportProcessorError
+from masu.processor.tasks import autovacuum_tune_schema
+from masu.processor.tasks import convert_to_parquet
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import remove_expired_data
@@ -61,6 +66,8 @@ from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.test.external.downloader.aws import fake_arn
 from reporting.models import AWS_MATERIALIZED_VIEWS
+from reporting.models import AZURE_MATERIALIZED_VIEWS
+from reporting.models import OCP_MATERIALIZED_VIEWS
 
 
 class FakeDownloader(Mock):
@@ -105,7 +112,7 @@ class GetReportFileTests(MasuTestCase):
         os.makedirs(Config.TMP_DIR, exist_ok=True)
 
         account = fake_arn(service="iam", generate_account_id=True)
-        expected = "INFO:masu.processor._tasks.download:Available disk space"
+        expected = "Available disk space"
         with self.assertLogs("masu.processor._tasks.download", level="INFO") as logger:
             _get_report_files(
                 Mock(),
@@ -133,10 +140,7 @@ class GetReportFileTests(MasuTestCase):
         Config.PVC_DIR = "/this/path/does/not/exist"
 
         account = fake_arn(service="iam", generate_account_id=True)
-        expected = (
-            "INFO:masu.processor._tasks.download:Unable to find"
-            + f" available disk space. {Config.PVC_DIR} does not exist"
-        )
+        expected = "Unable to find" + f" available disk space. {Config.PVC_DIR} does not exist"
         with self.assertLogs("masu.processor._tasks.download", level="INFO") as logger:
             _get_report_files(
                 Mock(),
@@ -148,7 +152,11 @@ class GetReportFileTests(MasuTestCase):
                 billing_source=self.fake.word(),
                 cache_key=self.fake.word(),
             )
-            self.assertIn(expected, logger.output)
+            statement_found = False
+            for log in logger.output:
+                if expected in log:
+                    statement_found = True
+            self.assertTrue(statement_found)
 
     @patch("masu.processor._tasks.download.ReportDownloader._set_downloader", side_effect=Exception("only a test"))
     def test_get_report_exception(self, fake_downloader):
@@ -345,18 +353,20 @@ class ProcessReportFileTests(MasuTestCase):
         summarize_reports(reports_to_summarize)
         mock_update_summary.delay.assert_called()
 
-    @patch("masu.processor._tasks.process.ProviderDBAccessor.setup_complete")
-    @patch("masu.processor._tasks.process.ReportProcessor")
-    def test_process_report_files_with_transaction_atomic_error(self, mock_processor, mock_setup_complete):
+    @patch("masu.processor.tasks._process_report_file")
+    @patch("masu.processor.tasks._get_report_files")
+    def test_process_report_files_with_transaction_atomic_error(self, mock_files, mock_processor):
         """Test than an exception rolls back the atomic transaction."""
         path = "{}/{}".format("test", "file1.csv")
+        mock_files.return_value = [{"file": path, "compression": "GZIP"}]
         schema_name = self.schema
         provider = Provider.PROVIDER_AWS
         provider_uuid = self.aws_provider_uuid
+        report_month = DateHelper().today
         manifest_dict = {
             "assembly_id": "12345",
-            "billing_period_start_datetime": DateHelper().today,
-            "num_total_files": 2,
+            "billing_period_start_datetime": report_month,
+            "num_total_files": 1,
             "provider_uuid": self.aws_provider_uuid,
             "task": "170653c0-3e66-4b7e-a764-336496d7ca5a",
         }
@@ -366,20 +376,28 @@ class ProcessReportFileTests(MasuTestCase):
             manifest_id = manifest.id
             initial_update_time = manifest.manifest_updated_datetime
 
+        with ReportStatsDBAccessor("file1.csv", manifest_id) as stats_accessor:
+            stats_accessor.get_last_completed_datetime
+
         with ReportStatsDBAccessor(path, manifest_id) as report_file_accessor:
             report_file_accessor.get_last_started_datetime()
 
-        report_dict = {
-            "file": path,
-            "compression": "gzip",
-            "start_date": str(DateHelper().today),
-            "manifest_id": manifest_id,
-        }
-
-        mock_setup_complete.side_effect = Exception
+        mock_processor.side_effect = Exception
 
         with self.assertRaises(Exception):
-            _process_report_file(schema_name, provider, provider_uuid, report_dict)
+            customer_name = "Fake Customer"
+            authentication = "auth"
+            billing_source = "bill"
+            provider_type = provider
+            get_report_files(
+                customer_name=customer_name,
+                authentication=authentication,
+                billing_source=billing_source,
+                provider_type=provider_type,
+                schema_name=schema_name,
+                provider_uuid=provider_uuid,
+                report_month=report_month,
+            )
 
         with ReportStatsDBAccessor(path, manifest_id) as report_file_accessor:
             self.assertIsNone(report_file_accessor.get_last_completed_datetime())
@@ -538,6 +556,91 @@ class TestProcessorTasks(MasuTestCase):
         reports = get_report_files(**self.get_report_args)
         self.assertIsNotNone(reports)
 
+    def test_convert_to_parquet(self):
+        """Test the convert_to_parquet task."""
+        logging.disable(logging.NOTSET)
+        expected_logs = [
+            "missing required argument: request_id",
+            "missing required argument: account",
+            "missing required argument: provider_uuid",
+        ]
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
+                convert_to_parquet(None, None, None, None, "start_date", "manifest_id", [])
+                for expected in expected_logs:
+                    self.assertIn(expected, " ".join(logger.output))
+
+        expected = "Skipping convert_to_parquet. S3 archiving feature is disabled."
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            convert_to_parquet("request_id", "account", "provider_uuid", "provider_type", "start_date", "manifest_id")
+            self.assertIn(expected, " ".join(logger.output))
+
+        expected = "S3 archiving feature is enabled, but no start_date was given for processing."
+        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
+            with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+                convert_to_parquet("request_id", "account", "provider_uuid", "provider_type", None, "manifest_id")
+                self.assertIn(expected, " ".join(logger.output))
+
+        expected = "S3 archiving feature is enabled, but the start_date was not a valid date string ISO 8601 format."
+        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
+            with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+                convert_to_parquet(
+                    "request_id", "account", "provider_uuid", "provider_type", "bad_date", "manifest_id"
+                )
+                self.assertIn(expected, " ".join(logger.output))
+
+        expected = "S3 archiving feature is enabled, but no files to process."
+        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.tasks.get_path_prefix"):
+                with patch("masu.processor.tasks.get_file_keys_from_s3_with_manifest_id", return_value=[]):
+                    with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+                        convert_to_parquet(
+                            "request_id",
+                            "account",
+                            "provider_uuid",
+                            "provider_type",
+                            "2020-01-01T12:00:00",
+                            "manifest_id",
+                        )
+                        self.assertIn(expected, " ".join(logger.output))
+
+        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.tasks.get_path_prefix"):
+                with patch("masu.processor.tasks.get_file_keys_from_s3_with_manifest_id", return_value=["cur.csv.gz"]):
+                    with patch("masu.processor.tasks.remove_files_not_in_set_from_s3_bucket"):
+                        with patch("masu.processor.tasks.convert_csv_to_parquet"):
+                            convert_to_parquet(
+                                "request_id", "account", "provider_uuid", "AWS", "2020-01-01T12:00:00", "manifest_id"
+                            )
+
+        expected = "Failed to convert the following files to parquet"
+        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.tasks.get_path_prefix"):
+                with patch(
+                    "masu.processor.tasks.get_file_keys_from_s3_with_manifest_id", return_value=["cost_export.csv"]
+                ):
+                    with patch("masu.processor.tasks.convert_csv_to_parquet", return_value=False):
+                        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+                            convert_to_parquet(
+                                "request_id",
+                                "account",
+                                "provider_uuid",
+                                "provider_type",
+                                "2020-01-01T12:00:00",
+                                "manifest_id",
+                            )
+                            self.assertIn(expected, " ".join(logger.output))
+
+        with patch("masu.processor.tasks.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.processor.tasks.get_path_prefix"):
+                with patch(
+                    "masu.processor.tasks.get_file_keys_from_s3_with_manifest_id", return_value=["storage_usage.csv"]
+                ):
+                    with patch("masu.processor.tasks.convert_csv_to_parquet"):
+                        convert_to_parquet(
+                            "request_id", "account", "provider_uuid", "OCP", "2020-01-01T12:00:00", "manifest_id"
+                        )
+
 
 class TestRemoveExpiredDataTasks(MasuTestCase):
     """Test cases for Processor Celery tasks."""
@@ -585,16 +688,14 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         cls.aws_tables = list(AWS_CUR_TABLE_MAP.values())
         cls.ocp_tables = list(OCP_REPORT_TABLE_MAP.values())
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values()) + list(OCP_REPORT_TABLE_MAP.values())
-        with ReportingCommonDBAccessor() as report_common_db:
-            cls.column_map = report_common_db.column_map
 
-        cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
+        cls.creator = ReportObjectCreator(cls.schema)
 
     def setUp(self):
         """Set up each test."""
         super().setUp()
-        self.aws_accessor = AWSReportDBAccessor(schema=self.schema, column_map=self.column_map)
-        self.ocp_accessor = OCPReportDBAccessor(schema=self.schema, column_map=self.column_map)
+        self.aws_accessor = AWSReportDBAccessor(schema=self.schema)
+        self.ocp_accessor = OCPReportDBAccessor(schema=self.schema)
 
         # Populate some line item data so that the summary tables
         # have something to pull from
@@ -682,11 +783,14 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self.assertEqual(result_start_date, expected_start_date.date())
         self.assertEqual(result_end_date, expected_end_date.date())
 
+    @patch("masu.processor.tasks.CostModelDBAccessor")
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.refresh_materialized_views")
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
-    def test_update_summary_tables_ocp(self, mock_cost_model, mock_charge_info, mock_view, mock_chain):
+    def test_update_summary_tables_ocp(
+        self, mock_cost_model, mock_charge_info, mock_view, mock_chain, mock_task_cost_model
+    ):
         """Test that the summary table task runs."""
         infrastructure_rates = {
             "cpu_core_usage_per_hour": 1.5,
@@ -698,6 +802,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_cost_model.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
         mock_cost_model.return_value.__enter__.return_value.supplementary_rates = {}
         mock_cost_model.return_value.__enter__.return_value.markup = markup
+        # We need to bypass the None check for cost model in update_cost_model_costs
+        mock_task_cost_model.return_value.__enter__.return_value.cost_model = {}
 
         provider = Provider.PROVIDER_OCP
         provider_ocp_uuid = self.ocp_test_provider_uuid
@@ -802,7 +908,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         mock_update.delay.assert_called_with(ANY, ANY, ANY, str(start_date), ANY)
 
-    def test_refresh_materialized_views(self):
+    def test_refresh_materialized_views_aws(self):
         """Test that materialized views are refreshed."""
         manifest_dict = {
             "assembly_id": "12345",
@@ -828,6 +934,58 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest = manifest_accessor.get_manifest_by_id(manifest.id)
             self.assertIsNotNone(manifest.manifest_completed_datetime)
 
+    def test_refresh_materialized_views_azure(self):
+        """Test that materialized views are refreshed."""
+        manifest_dict = {
+            "assembly_id": "12345",
+            "billing_period_start_datetime": DateHelper().today,
+            "num_total_files": 2,
+            "provider_uuid": self.aws_provider_uuid,
+            "task": "170653c0-3e66-4b7e-a764-336496d7ca5a",
+        }
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.add(**manifest_dict)
+            manifest.save()
+
+        refresh_materialized_views(self.schema, Provider.PROVIDER_AZURE, manifest_id=manifest.id)
+
+        views_to_check = [view for view in AZURE_MATERIALIZED_VIEWS if "Cost" in view._meta.db_table]
+
+        with schema_context(self.schema):
+            for view in views_to_check:
+                self.assertNotEqual(view.objects.count(), 0)
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(manifest.id)
+            self.assertIsNotNone(manifest.manifest_completed_datetime)
+
+    def test_refresh_materialized_views_ocp(self):
+        """Test that materialized views are refreshed."""
+        manifest_dict = {
+            "assembly_id": "12345",
+            "billing_period_start_datetime": DateHelper().today,
+            "num_total_files": 2,
+            "provider_uuid": self.aws_provider_uuid,
+            "task": "170653c0-3e66-4b7e-a764-336496d7ca5a",
+        }
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.add(**manifest_dict)
+            manifest.save()
+
+        refresh_materialized_views(self.schema, Provider.PROVIDER_OCP, manifest_id=manifest.id)
+
+        views_to_check = [view for view in OCP_MATERIALIZED_VIEWS if "Cost" in view._meta.db_table]
+
+        with schema_context(self.schema):
+            for view in views_to_check:
+                self.assertNotEqual(view.objects.count(), 0)
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(manifest.id)
+            self.assertIsNotNone(manifest.manifest_completed_datetime)
+
     @patch("masu.processor.tasks.connection")
     def test_vacuum_schema(self, mock_conn):
         """Test that the vacuum schema task runs."""
@@ -837,3 +995,172 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             vacuum_schema(self.schema)
             self.assertIn(expected, logger.output)
+
+    @patch("masu.processor.tasks.connection")
+    def test_autovacuum_tune_schema_default_table(self, mock_conn):
+        """Test that the autovacuum tuning runs."""
+        logging.disable(logging.NOTSET)
+
+        # Make sure that the AUTOVACUUM_TUNING environment variable is unset!
+        if "AUTOVACUUM_TUNING" in os.environ:
+            del os.environ["AUTOVACUUM_TUNING"]
+
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 20000000, {})]
+        expected = (
+            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.01);"
+        )
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 2000000, {})]
+        expected = (
+            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.02);"
+        )
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 200000, {})]
+        expected = (
+            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.05);"
+        )
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
+            ("cost_model", 200000, {"autovacuum_vacuum_scale_factor": Decimal("0.05")})
+        ]
+        expected = "INFO:masu.processor.tasks:Altered autovacuum_vacuum_scale_factor on 0 tables"
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
+            ("cost_model", 20000, {"autovacuum_vacuum_scale_factor": Decimal("0.02")})
+        ]
+        expected = "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model reset (autovacuum_vacuum_scale_factor);"
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+
+    @patch("masu.processor.tasks.connection")
+    def test_autovacuum_tune_schema_custom_table(self, mock_conn):
+        """Test that the autovacuum tuning runs."""
+        logging.disable(logging.NOTSET)
+        scale_table = [(10000000, "0.0001"), (1000000, "0.004"), (100000, "0.011")]
+        os.environ["AUTOVACUUM_TUNING"] = json.dumps(scale_table)
+
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 20000000, {})]
+        expected = (
+            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.0001);"
+        )
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 2000000, {})]
+        expected = (
+            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.004);"
+        )
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 200000, {})]
+        expected = (
+            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.011);"
+        )
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
+            ("cost_model", 200000, {"autovacuum_vacuum_scale_factor": Decimal("0.011")})
+        ]
+        expected = "INFO:masu.processor.tasks:Altered autovacuum_vacuum_scale_factor on 0 tables"
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
+            ("cost_model", 20000, {"autovacuum_vacuum_scale_factor": Decimal("0.004")})
+        ]
+        expected = "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model reset (autovacuum_vacuum_scale_factor);"
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+
+        del os.environ["AUTOVACUUM_TUNING"]
+
+    @patch("masu.processor.tasks.connection")
+    def test_autovacuum_tune_schema_manual_setting(self, mock_conn):
+        """Test that the autovacuum tuning runs."""
+        logging.disable(logging.NOTSET)
+
+        # Make sure that the AUTOVACUUM_TUNING environment variable is unset!
+        if "AUTOVACUUM_TUNING" in os.environ:
+            del os.environ["AUTOVACUUM_TUNING"]
+
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
+            ("cost_model", 200000, {"autovacuum_vacuum_scale_factor": Decimal("0.04")})
+        ]
+        expected = "INFO:masu.processor.tasks:Altered autovacuum_vacuum_scale_factor on 0 tables"
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
+            ("cost_model", 200000, {"autovacuum_vacuum_scale_factor": Decimal("0.06")})
+        ]
+        expected = (
+            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.05);"
+        )
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+
+    @patch("masu.processor.tasks.connection")
+    def test_autovacuum_tune_schema_invalid_setting(self, mock_conn):
+        """Test that the autovacuum tuning runs."""
+        logging.disable(logging.NOTSET)
+
+        # Make sure that the AUTOVACUUM_TUNING environment variable is unset!
+        if "AUTOVACUUM_TUNING" in os.environ:
+            del os.environ["AUTOVACUUM_TUNING"]
+
+        # This invalid setting should be treated as though there was no setting
+        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
+            ("cost_model", 20000000, {"autovacuum_vacuum_scale_factor": ""})
+        ]
+        expected = (
+            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.01);"
+        )
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            autovacuum_tune_schema(self.schema)
+            self.assertIn(expected, logger.output)
+
+    def test_autovacuum_tune_schedule(self):
+        vh = next(iter(koku_celery.app.conf.beat_schedule["vacuum-schemas"]["schedule"].hour))
+        avh = next(iter(koku_celery.app.conf.beat_schedule["autovacuum-tune-schemas"]["schedule"].hour))
+        self.assertTrue(avh == (23 if vh == 0 else (vh - 1)))
+
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    def test_no_cost_model_during_cost_model_update(self, mock_updater):
+        """Test cost model update not called if no cost model is present."""
+
+        provider_ocp_uuid = self.ocp_test_provider_uuid
+        with CostModelDBAccessor(self.schema, provider_ocp_uuid) as cost_model_accessor:
+            test_cost_model = cost_model_accessor.cost_model
+        self.assertIsNone(test_cost_model)
+
+        start_date = DateHelper().last_month_start
+        end_date = DateHelper().last_month_end
+
+        update_cost_model_costs(
+            schema_name=self.schema, provider_uuid=provider_ocp_uuid, start_date=start_date, end_date=end_date
+        )
+
+        self.assertFalse(mock_updater.called)
+        self.assertEqual(mock_updater.call_count, 0)

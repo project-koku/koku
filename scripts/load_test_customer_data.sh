@@ -19,7 +19,7 @@
 trap handle_errors ERR
 
 function handle_errors() {
-    echo "An error has occurred. Unable to continue."
+    echo "An error occurred on or around line $(caller). Unable to continue."
     exit 1
 }
 
@@ -34,15 +34,17 @@ KOKU_PATH=$1
 START_DATE=$2
 END_DATE=$3
 
-if [ -z "${KOKU_API_HOSTNAME}" ]; then
-    echo "Please set the KOKU_API_HOSTNAME environment variable. Exiting."
-    exit 2
-fi
+### validation
+function check_var() {
+    if [ -z ${!1:+x} ]; then
+        echo "Environment variable $1 is not set! Unable to continue."
+        exit 2
+    fi
+}
 
-if [ -z "${MASU_API_HOSTNAME}" ]; then
-    echo "Please set the MASU_API_HOSTNAME environment variable. Exiting."
-    exit 2
-fi
+check_var KOKU_API_HOSTNAME
+check_var MASU_API_HOSTNAME
+check_var NISE_REPO_PATH
 
 KOKU_API=$KOKU_API_HOSTNAME
 MASU_API=$MASU_API_HOSTNAME
@@ -70,11 +72,6 @@ if [ -n "$MASU_PORT" ]; then
   MASU_API="$MASU_API_HOSTNAME:$MASU_PORT"
 fi
 
-if [ -z "$NISE_REPO_PATH" ]; then
-  echo "Please set NISE_REPO_PATH in your env"
-  exit
-fi
-
 CHECK=$(curl -s -w "%{http_code}\n" -L "$KOKU_API$API_PATH_PREFIX/v1/status/" -o /dev/null)
 if [[ $CHECK != 200 ]];then
     echo "Koku server is not available at $KOKU_API. Exiting."
@@ -100,15 +97,15 @@ for X in "ocp_on_aws/aws" "ocp_on_aws/ocp" "ocp_on_azure/azure" "ocp_on_azure/oc
 done
 
 # OpenShift on AWS
-nise --aws --static-report-file "$NISE_REPO_PATH/examples/ocp_on_aws/aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$KOKU_PATH/testing/local_providers/aws_local" --start-date "$START_DATE"
-nise --ocp --static-report-file "$NISE_REPO_PATH/examples/ocp_on_aws/ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE"
+nise report aws --static-report-file "$NISE_REPO_PATH/examples/ocp_on_aws/aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$KOKU_PATH/testing/local_providers/aws_local" --start-date "$START_DATE"
+nise report ocp --static-report-file "$NISE_REPO_PATH/examples/ocp_on_aws/ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE"
 
 # OpenShift on Azure
-nise --azure --static-report-file "$NISE_REPO_PATH/examples/ocp_on_azure/azure_static_data.yml" --azure-container-name "$KOKU_PATH/testing/local_providers/azure_local" --azure-report-name azure-report --start-date "$START_DATE"
-nise --ocp --static-report-file "$NISE_REPO_PATH/examples/ocp_on_azure/ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE"
+nise report azure --static-report-file "$NISE_REPO_PATH/examples/ocp_on_azure/azure_static_data.yml" --azure-container-name "$KOKU_PATH/testing/local_providers/azure_local" --azure-report-name azure-report --start-date "$START_DATE"
+nise report ocp --static-report-file "$NISE_REPO_PATH/examples/ocp_on_azure/ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE"
 
 # OpenShift on Prem
-nise --ocp --ocp-cluster-id my-ocp-cluster-3 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE" --end-date "$END_DATE"
+nise report ocp --ocp-cluster-id my-ocp-cluster-3 --insights-upload "$KOKU_PATH/testing/pvc_dir/insights_local" --start-date "$START_DATE" --end-date "$END_DATE"
 
 OCP_ON_PREM_UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = 'Test OCP on Premises'" | head -1 | sed -e 's/^[ \t]*//')
 COST_MODEL_JSON=$(cat "$KOKU_PATH/scripts/openshift_on_prem_cost_model.json" | sed -e "s/PROVIDER_UUID/$OCP_ON_PREM_UUID/g")
@@ -117,6 +114,37 @@ curl --header "Content-Type: application/json" \
   --request POST \
   --data "$COST_MODEL_JSON" \
   http://$KOKU_API$API_PATH_PREFIX/v1/cost-models/
+
+OCP_ON_AWS_UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = 'Test OCP on AWS'" | head -1 | sed -e 's/^[ \t]*//')
+COST_MODEL_JSON=$(cat "$KOKU_PATH/scripts/openshift_on_aws_cost_model.json" | sed -e "s/PROVIDER_UUID/$OCP_ON_AWS_UUID/g")
+
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data "$COST_MODEL_JSON" \
+  http://$KOKU_API$API_PATH_PREFIX/v1/cost-models/
+
+
+AWS_UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = 'Test AWS Source'" | head -1 | sed -e 's/^[ \t]*//')
+COST_MODEL_JSON=$(cat "$KOKU_PATH/scripts/aws_cost_model.json" | sed -e "s/PROVIDER_UUID/$AWS_UUID/g")
+
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data "$COST_MODEL_JSON" \
+  http://$KOKU_API$API_PATH_PREFIX/v1/cost-models/
+
+AZURE_UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = 'Test Azure Source'" | head -1 | sed -e 's/^[ \t]*//')
+COST_MODEL_JSON=$(cat "$KOKU_PATH/scripts/azure_cost_model.json" | sed -e "s/PROVIDER_UUID/$AZURE_UUID/g")
+
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data "$COST_MODEL_JSON" \
+  http://$KOKU_API$API_PATH_PREFIX/v1/cost-models/
+
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data '{"schema": "acct10001","action": "create","tag_keys": ["environment", "app", "version", "storageclass"]}' \
+  http://$MASU_API$API_PATH_PREFIX/v1/enabled_tags/
+
 
 cd "$NISE_REPO_PATH"
 git checkout -- "$NISE_REPO_PATH/examples/ocp_on_aws/aws_static_data.yml"
@@ -127,7 +155,11 @@ git checkout -- "$NISE_REPO_PATH/examples/ocp_on_azure/ocp_static_data.yml"
 if [[ $USE_OC == 1 ]]; then
     WORKER_POD="${KOKU_WORKER_POD_NAME:-koku-worker-0}"
     oc rsync --delete $KOKU_PATH/testing/pvc_dir/insights_local ${WORKER_POD}:/tmp
-    oc rsync --delete $KOKU_PATH/testing/local_providers/aws_local/* ${WORKER_POD}:/tmp/local_bucket
+    for SOURCEDIR in $(ls -1d $KOKU_PATH/testing/local_providers/aws_local*)
+    do
+        DESTDIR="${WORKER_POD}:$(echo $SOURCEDIR | sed 's#'$KOKU_PATH'#/tmp' | sed 's/aws_local/local_bucket/')"
+        oc rsync --delete $SOURCEDIR $DESTDIR
+    done
     oc rsync --delete $KOKU_PATH/testing/local_providers/azure_local/* ${WORKER_POD}:/tmp/local_container
 fi
 

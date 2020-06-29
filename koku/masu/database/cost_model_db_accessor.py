@@ -25,7 +25,6 @@ from masu.database.koku_database_access import KokuDBAccess
 LOG = logging.getLogger(__name__)
 
 
-# pylint: disable=too-many-public-methods
 class CostModelDBAccessor(KokuDBAccess):
     """Class to interact with customer reporting tables."""
 
@@ -34,7 +33,6 @@ class CostModelDBAccessor(KokuDBAccess):
 
         Args:
             schema (str): The customer schema to associate with
-            column_map (dict): A mapping of report columns to database columns
             provider_uuid (str): Provider uuid
 
         """

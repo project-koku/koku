@@ -26,6 +26,7 @@ from api.report.ocp_aws.view import OCPAWSCostView
 from api.report.ocp_aws.view import OCPAWSInstanceTypeView
 from api.report.ocp_aws.view import OCPAWSStorageView
 from api.utils import DateHelper
+from reporting.models import AWSCostEntryBill
 from reporting.models import OCPAWSComputeSummary
 from reporting.models import OCPAWSCostLineItemDailySummary
 from reporting.models import OCPAWSCostSummary
@@ -289,36 +290,36 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
         for option in good_group_by_options:
             filter_keys = {option}
-            group_by_keys = []
+            group_by_keys = set()
             self.assertTrue(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
 
             filter_keys = set()
-            group_by_keys = [option]
+            group_by_keys = {option}
             self.assertTrue(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
 
         # Different group by and filter
         filter_keys = {"account"}
-        group_by_keys = ["cluster"]
-        self.assertFalse(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
+        group_by_keys = {"cluster"}
+        self.assertTrue(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
 
         # Multiple group bys
         filter_keys = set()
-        group_by_keys = ["cluster", "account"]
-        self.assertFalse(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
+        group_by_keys = {"cluster", "account"}
+        self.assertTrue(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
 
         # Multiple filters
         filter_keys = {"cluster", "account"}
-        group_by_keys = []
-        self.assertFalse(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
+        group_by_keys = set()
+        self.assertTrue(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
 
         # Project and node unsupported
         for option in bad_group_by_options:
             filter_keys = {option}
-            group_by_keys = []
+            group_by_keys = set()
             self.assertFalse(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
 
             filter_keys = set()
-            group_by_keys = [option]
+            group_by_keys = {option}
             self.assertFalse(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
 
     def test_query_table(self):
@@ -338,7 +339,17 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         handler = OCPAWSReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAWSCostSummaryByRegion)
 
+        url = "?group_by[region]=*&group_by[account]=*"
+        query_params = self.mocked_query_params(url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAWSCostSummaryByRegion)
+
         url = "?group_by[service]=*"
+        query_params = self.mocked_query_params(url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAWSCostSummaryByService)
+
+        url = "?group_by[service]=*&group_by[account]=*"
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAWSCostSummaryByService)
@@ -348,12 +359,27 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         handler = OCPAWSReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAWSComputeSummary)
 
+        url = "?group_by[account]=*"
+        query_params = self.mocked_query_params(url, OCPAWSInstanceTypeView)
+        handler = OCPAWSReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAWSComputeSummary)
+
         url = "?"
         query_params = self.mocked_query_params(url, OCPAWSStorageView)
         handler = OCPAWSReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAWSStorageSummary)
 
+        url = "?group_by[account]=*"
+        query_params = self.mocked_query_params(url, OCPAWSStorageView)
+        handler = OCPAWSReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAWSStorageSummary)
+
         url = "?filter[service]=AmazonVPC,AmazonCloudFront,AmazonRoute53,AmazonAPIGateway"
+        query_params = self.mocked_query_params(url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAWSNetworkSummary)
+
+        url = "?filter[service]=AmazonVPC,AmazonCloudFront,AmazonRoute53,AmazonAPIGateway&group_by[account]=*"
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAWSNetworkSummary)
@@ -364,3 +390,37 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAWSDatabaseSummary)
+
+        url = (
+            "?filter[service]=AmazonRDS,AmazonDynamoDB,AmazonElastiCache,AmazonNeptune,AmazonRedshift,AmazonDocumentDB"
+            "&group_by[account]=*"
+        )
+        query_params = self.mocked_query_params(url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
+        self.assertEqual(handler.query_table, OCPAWSDatabaseSummary)
+
+    def test_source_uuid_mapping(self):  # noqa: C901
+        """Test source_uuid is mapped to the correct source."""
+        endpoints = [OCPAWSCostView, OCPAWSInstanceTypeView, OCPAWSStorageView]
+        with tenant_context(self.tenant):
+            expected_source_uuids = list(AWSCostEntryBill.objects.distinct().values_list("provider_id", flat=True))
+        source_uuid_list = []
+        for endpoint in endpoints:
+            urls = ["?"]
+            if endpoint == OCPAWSCostView:
+                urls.extend(["?group_by[account]=*", "?group_by[service]=*", "?group_by[region]=*"])
+            for url in urls:
+                query_params = self.mocked_query_params(url, endpoint)
+                handler = OCPAWSReportQueryHandler(query_params)
+                query_output = handler.execute_query()
+                for dictionary in query_output.get("data"):
+                    for _, value in dictionary.items():
+                        if isinstance(value, list):
+                            for item in value:
+                                if isinstance(item, dict):
+                                    if "values" in item.keys():
+                                        value = item["values"][0]
+                                        source_uuid_list.extend(value.get("source_uuid"))
+        self.assertNotEquals(source_uuid_list, [])
+        for source_uuid in source_uuid_list:
+            self.assertIn(source_uuid, expected_source_uuids)

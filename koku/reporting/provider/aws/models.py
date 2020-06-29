@@ -184,8 +184,12 @@ class AWSCostEntryLineItemDailySummary(models.Model):
             models.Index(fields=["account_alias"], name="summary_account_alias_idx"),
             models.Index(fields=["product_family"], name="summary_product_family_idx"),
             models.Index(fields=["instance_type"], name="summary_instance_type_idx"),
-            GinIndex(fields=["product_code"], name="aws_summ_usage_pcode_like", opclasses=["gin_trgm_ops"]),
-            GinIndex(fields=["product_family"], name="aws_summ_usage_pfam_like", opclasses=["gin_trgm_ops"]),
+            # A GIN functional index named "aws_summ_usage_pfam_ilike" was created manually
+            # via RunSQL migration operation
+            # Function: (upper(product_family) gin_trgm_ops)
+            # A GIN functional index named "aws_summ_usage_pcode_ilike" was created manually
+            # via RunSQL migration operation
+            # Function: (upper(product_code) gin_trgm_ops)
         ]
 
     id = models.BigAutoField(primary_key=True)
@@ -203,6 +207,8 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     region = models.CharField(max_length=50, null=True)
     instance_type = models.CharField(max_length=50, null=True)
     unit = models.CharField(max_length=63, null=True)
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
+
     # The following fields are aggregates
     resource_ids = ArrayField(models.CharField(max_length=256), null=True)
     resource_count = models.IntegerField(null=True)
@@ -219,6 +225,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     public_on_demand_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     tax_type = models.TextField(null=True)
     tags = JSONField(null=True)
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AWSCostEntryPricing(models.Model):
@@ -270,6 +277,10 @@ class AWSAccountAlias(models.Model):
     account_id = models.CharField(max_length=50, null=False, unique=True)
     account_alias = models.CharField(max_length=63, null=True)
 
+    def __str__(self):
+        """Convert to string."""
+        return f"{{ id : {self.id}, account_id : {self.account_id}, account_alias : {self.account_alias} }}"
+
 
 class AWSTagsSummary(models.Model):
     """A collection of all current existing tag key and values."""
@@ -314,6 +325,8 @@ class AWSCostSummary(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class AWSCostSummaryByService(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -334,6 +347,12 @@ class AWSCostSummaryByService(models.Model):
 
     usage_end = models.DateField(null=False)
 
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.DO_NOTHING, null=True)
+
     product_code = models.CharField(max_length=50, null=False)
 
     product_family = models.CharField(max_length=150, null=True)
@@ -344,6 +363,8 @@ class AWSCostSummaryByService(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class AWSCostSummaryByAccount(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -353,7 +374,7 @@ class AWSCostSummaryByAccount(models.Model):
     """
 
     class Meta:
-        """Meta for AWSCostSummaryByService."""
+        """Meta for AWSCostSummaryByAccount."""
 
         db_table = "reporting_aws_cost_summary_by_account"
         managed = False
@@ -366,13 +387,17 @@ class AWSCostSummaryByAccount(models.Model):
 
     usage_account_id = models.CharField(max_length=50, null=False)
 
-    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.DO_NOTHING, null=True)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AWSCostSummaryByRegion(models.Model):
@@ -383,7 +408,7 @@ class AWSCostSummaryByRegion(models.Model):
     """
 
     class Meta:
-        """Meta for AWSCostSummaryByService."""
+        """Meta for AWSCostSummaryByRegion."""
 
         db_table = "reporting_aws_cost_summary_by_region"
         managed = False
@@ -394,6 +419,12 @@ class AWSCostSummaryByRegion(models.Model):
 
     usage_end = models.DateField(null=False)
 
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.DO_NOTHING, null=True)
+
     region = models.CharField(max_length=50, null=True)
 
     availability_zone = models.CharField(max_length=50, null=True)
@@ -403,6 +434,8 @@ class AWSCostSummaryByRegion(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AWSComputeSummary(models.Model):
@@ -440,6 +473,8 @@ class AWSComputeSummary(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class AWSComputeSummaryByService(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -460,6 +495,12 @@ class AWSComputeSummaryByService(models.Model):
 
     usage_end = models.DateField(null=False)
 
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.DO_NOTHING, null=True)
+
     product_code = models.CharField(max_length=50, null=False)
 
     product_family = models.CharField(max_length=150, null=True)
@@ -479,6 +520,8 @@ class AWSComputeSummaryByService(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AWSComputeSummaryByAccount(models.Model):
@@ -502,7 +545,9 @@ class AWSComputeSummaryByAccount(models.Model):
 
     usage_account_id = models.CharField(max_length=50, null=False)
 
-    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.DO_NOTHING, null=True)
 
     instance_type = models.CharField(max_length=50, null=True)
 
@@ -519,6 +564,8 @@ class AWSComputeSummaryByAccount(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AWSComputeSummaryByRegion(models.Model):
@@ -540,6 +587,12 @@ class AWSComputeSummaryByRegion(models.Model):
 
     usage_end = models.DateField(null=False)
 
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.DO_NOTHING, null=True)
+
     region = models.CharField(max_length=50, null=True)
 
     availability_zone = models.CharField(max_length=50, null=True)
@@ -559,6 +612,8 @@ class AWSComputeSummaryByRegion(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AWSStorageSummary(models.Model):
@@ -592,6 +647,8 @@ class AWSStorageSummary(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class AWSStorageSummaryByService(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -612,6 +669,12 @@ class AWSStorageSummaryByService(models.Model):
 
     usage_end = models.DateField(null=False)
 
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.DO_NOTHING, null=True)
+
     product_code = models.CharField(max_length=50, null=False)
 
     product_family = models.CharField(max_length=150, null=True)
@@ -625,6 +688,8 @@ class AWSStorageSummaryByService(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AWSStorageSummaryByAccount(models.Model):
@@ -648,7 +713,9 @@ class AWSStorageSummaryByAccount(models.Model):
 
     usage_account_id = models.CharField(max_length=50, null=False)
 
-    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.DO_NOTHING, null=True)
 
     product_family = models.CharField(max_length=150, null=True)
 
@@ -661,6 +728,8 @@ class AWSStorageSummaryByAccount(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AWSStorageSummaryByRegion(models.Model):
@@ -682,6 +751,12 @@ class AWSStorageSummaryByRegion(models.Model):
 
     usage_end = models.DateField(null=False)
 
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.DO_NOTHING, null=True)
+
     region = models.CharField(max_length=50, null=True)
 
     availability_zone = models.CharField(max_length=50, null=True)
@@ -697,6 +772,8 @@ class AWSStorageSummaryByRegion(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AWSNetworkSummary(models.Model):
@@ -718,6 +795,12 @@ class AWSNetworkSummary(models.Model):
 
     usage_end = models.DateField(null=False)
 
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.DO_NOTHING, null=True)
+
     product_code = models.CharField(max_length=50, null=False)
 
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -729,6 +812,8 @@ class AWSNetworkSummary(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class AWSDatabaseSummary(models.Model):
@@ -750,6 +835,12 @@ class AWSDatabaseSummary(models.Model):
 
     usage_end = models.DateField(null=False)
 
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.DO_NOTHING, null=True)
+
     product_code = models.CharField(max_length=50, null=False)
 
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -761,3 +852,46 @@ class AWSDatabaseSummary(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+
+class AWSOrganizationalUnit(models.Model):
+    """The alias table for AWS Organizational Unit."""
+
+    org_unit_name = models.CharField(max_length=250, null=False, unique=False)
+
+    org_unit_id = models.CharField(max_length=50, null=False, unique=False)
+
+    org_unit_path = models.TextField(null=False, unique=False)
+
+    level = models.PositiveSmallIntegerField(null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.PROTECT, null=True)
+
+    created_timestamp = models.DateField(auto_now_add=True)
+
+    deleted_timestamp = models.DateField(null=True)
+
+    def __str__(self):
+        """Convert to string."""
+        return (
+            "{ id : %s, "
+            "org_unit_name : %s, "
+            "org_unit_id : %s, "
+            "org_unit_path : %s, "
+            "level : %s, "
+            "account_alias : %s, "
+            "created_timestamp : %s, "
+            "deleted_timestamp : %s }"
+            % (
+                self.id,
+                self.org_unit_name,
+                self.org_unit_id,
+                self.org_unit_path,
+                self.level,
+                self.account_alias,
+                self.created_timestamp,
+                self.deleted_timestamp,
+            )
+        )

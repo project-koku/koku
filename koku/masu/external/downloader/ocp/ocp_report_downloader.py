@@ -21,23 +21,89 @@ import logging
 import os
 import shutil
 
+import pandas as pd
+from django.conf import settings
+
+from api.common import log_json
 from masu.config import Config
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.util.aws.common import copy_local_report_file_to_s3_bucket
+from masu.util.common import get_path_prefix
 from masu.util.ocp import common as utils
 
 DATA_DIR = Config.TMP_DIR
 REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
-
+REPORT_TYPES = {
+    "storage_usage": "persistentvolumeclaim_labels",
+    "pod_usage": "pod_labels",
+    "node_labels": "node_labels",
+}
 LOG = logging.getLogger(__name__)
+
+
+def divide_csv_daily(file_path, filename):
+    """
+    Split local file into daily content.
+    """
+    daily_files = []
+    directory = os.path.dirname(file_path)
+
+    data_frame = pd.read_csv(file_path)
+    report_type, _ = utils.detect_type(file_path)
+    unique_times = data_frame.interval_start.unique()
+    days = list({cur_dt[:10] for cur_dt in unique_times})
+    daily_data_frames = [
+        {"data_frame": data_frame[data_frame.interval_start.str.contains(cur_day)], "date": cur_day}
+        for cur_day in days
+    ]
+
+    for daily_data in daily_data_frames:
+        day = daily_data.get("date")
+        df = daily_data.get("data_frame")
+        day_file = f"{report_type}.{day}.csv"
+        day_filepath = f"{directory}/{day_file}"
+        df.to_csv(day_filepath, index=False, header=True)
+        daily_files.append({"filename": day_file, "filepath": day_filepath})
+
+    return daily_files
+
+
+def create_daily_archives(request_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
+    """
+    Create daily CSVs from incoming report and archive to S3.
+
+    Args:
+        request_id (str): The request id
+        account (str): The account number
+        provider_uuid (str): The uuid of a provider
+        filename (str): The OCP file name
+        filepath (str): The full path name of the file
+        manifest_id (int): The manifest identifier
+        start_date (Datetime): The start datetime of incoming report
+        context (Dict): Logging context dictionary
+    """
+    if settings.ENABLE_S3_ARCHIVING:
+        daily_files = divide_csv_daily(filepath, filename)
+        for daily_file in daily_files:
+            # Push to S3
+            s3_csv_path = get_path_prefix(account, provider_uuid, start_date, Config.CSV_DATA_TYPE)
+            copy_local_report_file_to_s3_bucket(
+                request_id,
+                s3_csv_path,
+                daily_file.get("filepath"),
+                daily_file.get("filename"),
+                manifest_id,
+                start_date,
+                context,
+            )
+            os.remove(daily_file.get("filepath"))
 
 
 class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """OCP Cost and Usage Report Downloader."""
 
-    # Disabling this linter until we can refactor
-    # pylint: disable=too-many-arguments
     def __init__(self, task, customer_name, auth_credential, bucket, report_name=None, **kwargs):
         """
         Initializer.
@@ -59,11 +125,13 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.cluster_id = auth_credential
         self.temp_dir = None
         self.bucket = bucket
+        self.context["cluster_id"] = self.cluster_id
 
     def _get_manifest(self, date_time):
         dates = utils.month_date_range(date_time)
         directory = f"{REPORTS_DIR}/{self.cluster_id}/{dates}"
-        LOG.info("Looking for manifest at %s", directory)
+        msg = f"Looking for manifest at {directory}"
+        LOG.info(log_json(self.request_id, msg, self.context))
         report_meta = utils.get_report_details(directory)
         return report_meta
 
@@ -75,9 +143,11 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest_path = "{}/{}".format(directory, "manifest.json")
         try:
             os.remove(manifest_path)
-            LOG.info("Deleted manifest file at %s", directory)
+            msg = f"Deleted manifest file at {directory}"
+            LOG.debug(log_json(self.request_id, msg, self.context))
         except OSError:
-            LOG.info("Could not delete manifest file at %s", directory)
+            msg = f"Could not delete manifest file at {directory}"
+            LOG.info(log_json(self.request_id, msg, self.context))
 
         return None
 
@@ -93,28 +163,22 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         dates = utils.month_date_range(date_time)
-        LOG.debug("Looking for cluster %s report for date %s", self.cluster_id, str(dates))
+        msg = f"Looking for cluster {self.cluster_id} report for date {str(dates)}"
+        LOG.debug(log_json(self.request_id, msg, self.context))
         directory = f"{REPORTS_DIR}/{self.cluster_id}/{dates}"
 
         manifest = self._get_manifest(date_time)
-        LOG.info("manifest found: %s", str(manifest))
-        latest_uuid = manifest.get("uuid")
+        msg = f"manifest found: {str(manifest)}"
+        LOG.info(log_json(self.request_id, msg, self.context))
 
         reports = []
-        try:
-            if latest_uuid:
-                for file in os.listdir(directory):
-                    if file.startswith(latest_uuid):
-                        report_full_path = os.path.join(directory, file)
-                        LOG.info("Found file %s", report_full_path)
-                        reports.append(report_full_path)
-            else:
-                LOG.error("Current UUID for report could not be found.")
-        except OSError as error:
-            LOG.error("Unable to get report. Error: %s", str(error))
+        for file in manifest.get("files", []):
+            report_full_path = os.path.join(directory, file)
+            reports.append(report_full_path)
+
         return reports
 
-    def download_file(self, key, stored_etag=None):
+    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
         Download an OCP usage file.
 
@@ -137,8 +201,20 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         ocp_etag = etag_hasher.hexdigest()
 
         if ocp_etag != stored_etag or not os.path.isfile(full_file_path):
-            LOG.info("Downloading %s to %s", key, full_file_path)
+            msg = f"Downloading {key} to {full_file_path}"
+            LOG.info(log_json(self.request_id, msg, self.context))
             shutil.move(key, full_file_path)
+
+        create_daily_archives(
+            self.request_id,
+            self.account,
+            self._provider_uuid,
+            local_filename,
+            full_file_path,
+            manifest_id,
+            start_date,
+            self.context,
+        )
         return full_file_path, ocp_etag
 
     def get_report_context_for_date(self, date_time):

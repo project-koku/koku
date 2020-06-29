@@ -62,7 +62,6 @@ class ReportManifestDBAccessor(KokuDBAccess):
             manifest.manifest_completed_datetime = self.date_accessor.today_with_timezone("UTC")
             manifest.save()
 
-    # pylint: disable=arguments-differ
     def add(self, **kwargs):
         """
         Add a new row to the CUR stats database.
@@ -91,31 +90,18 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
         return super().add(**kwargs)
 
-    # pylint: disable=no-self-use
-    def get_last_report_completed_datetime(self, manifest_id):
-        """Get the most recent report processing completion time for a manifest."""
-        result = (
-            CostUsageReportStatus.objects.filter(manifest_id=manifest_id).order_by("-last_completed_datetime").first()
-        )
-        if result:
-            return result.last_completed_datetime
-        return None
+    def is_last_completed_datetime_null(self, manifest_id):
+        """Determine if nulls exist in last_completed_datetime for manifest_id.
 
-    def reset_manifest(self, manifest_id):
-        """Return the manifest to a state as if it had not been processed.
+        If the record does not exist, that is equivalent to a null completed dateimte.
+        Return True if record either doesn't exist or if null `last_completed_datetime`.
+        Return False otherwise.
 
-        This sets the number of processed files to zero and
-        nullifies the started and completed times on the reports.
         """
-        manifest = self.get_manifest_by_id(manifest_id)
-        manifest.num_processed_files = 0
-        manifest.save()
-
-        files = CostUsageReportStatus.objects.filter(id=manifest_id).all()
-        for file in files:
-            file.last_completed_datetime = None
-            file.last_started_datetime = None
-            file.save()
+        record = CostUsageReportStatus.objects.filter(manifest_id=manifest_id)
+        if record:
+            return record.filter(last_completed_datetime__isnull=True).exists()
+        return True
 
     def get_manifest_list_for_provider_and_bill_date(self, provider_uuid, bill_date):
         """Return all manifests for a provider and bill date."""

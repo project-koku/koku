@@ -25,6 +25,7 @@ from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.serializers import ValidationError
 from rest_framework.settings import api_settings
 
 from api.provider.models import Sources
@@ -44,8 +45,22 @@ class SourceStatus:
         self.user = request.user
         self.source_id = source_id
         self.source = Sources.objects.get(source_id=source_id)
-        self.auth_header = request.headers.get("X-Rh-Identity")
-        self.sources_client = SourcesHTTPClient(auth_header=self.auth_header, source_id=source_id)
+        self.sources_client = SourcesHTTPClient(self.source.auth_header, source_id=source_id)
+
+    @property
+    def sources_response(self):
+        return self.sources_client.build_source_status(self.status())
+
+    def determine_status(self, provider, source_authentication, source_billing_source):
+        """Check cloud configuration status."""
+        interface = ProviderAccessor(provider)
+        error_obj = None
+        try:
+            interface.cost_usage_source_ready(source_authentication, source_billing_source)
+        except ValidationError as validation_error:
+            error_obj = validation_error
+
+        return error_obj
 
     def status(self):
         """Find the source's availability status."""
@@ -65,16 +80,14 @@ class SourceStatus:
             source_authentication = {}
         provider = self.source.source_type
 
-        interface = ProviderAccessor(provider)
-
-        availability_status = interface.availability_status(source_authentication, source_billing_source)
-        return availability_status
+        status_obj = self.determine_status(provider, source_authentication, source_billing_source)
+        return status_obj
 
     def push_status(self):
         """Push status_msg to platform sources."""
         try:
-            status_msg = self.status()
-            self.sources_client.set_source_status(status_msg)
+            status_obj = self.status()
+            self.sources_client.set_source_status(status_obj)
         except SourcesHTTPClientError as error:
             err_msg = "Unable to push source status. Reason: {}".format(str(error))
             LOG.warning(err_msg)
@@ -94,7 +107,7 @@ def _get_source_id_from_request(request):
 def _deliver_status(request, status_obj):
     """Deliver status depending on request."""
     if request.method == "GET":
-        return Response(status_obj.status(), status=status.HTTP_200_OK)
+        return Response(status_obj.sources_response, status=status.HTTP_200_OK)
     elif request.method == "POST":
         LOG.info("Delivering source status for Source ID: %s", status_obj.source_id)
         status_thread = threading.Thread(target=status_obj.push_status)

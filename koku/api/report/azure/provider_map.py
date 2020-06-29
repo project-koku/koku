@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider Mapper for Azure Reports."""
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
@@ -100,6 +101,7 @@ class AzureProviderMap(ProviderMap):
                             "cost_usage": Value(0, output_field=DecimalField()),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "delta_key": {
                             "cost_total": Sum(
@@ -162,6 +164,7 @@ class AzureProviderMap(ProviderMap):
                             "usage": Sum("usage_quantity"),
                             # FIXME: Waiting on MSFT for usage_units default
                             "usage_units": Coalesce(Max("unit_of_measure"), Value("Instance Type Placeholder")),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "delta_key": {"usage": Sum("usage_quantity")},
                         "filter": [{"field": "instance_type", "operation": "isnull", "parameter": False}],
@@ -219,9 +222,10 @@ class AzureProviderMap(ProviderMap):
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
                             "usage": Sum("usage_quantity"),
                             "usage_units": Coalesce(Max("unit_of_measure"), Value("Storage Type Placeholder")),
+                            "source_uuid": ArrayAgg(F("source_uuid"), distinct=True),
                         },
                         "delta_key": {"usage": Sum("usage_quantity")},
-                        "filter": [{"field": "service_name", "operation": "contains", "parameter": "Storage"}],
+                        "filter": [{"field": "service_name", "operation": "icontains", "parameter": "Storage"}],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit_of_measure",
@@ -239,13 +243,30 @@ class AzureProviderMap(ProviderMap):
         self.views = {
             "costs": {
                 "default": AzureCostSummary,
-                "subscription_guid": AzureCostSummaryByAccount,
-                "resource_location": AzureCostSummaryByLocation,
-                "service_name": AzureCostSummaryByService,
+                ("subscription_guid",): AzureCostSummaryByAccount,
+                ("resource_location",): AzureCostSummaryByLocation,
+                ("resource_location", "subscription_guid"): AzureCostSummaryByLocation,
+                ("service_name",): AzureCostSummaryByService,
+                ("service_name", "subscription_guid"): AzureCostSummaryByService,
             },
-            "instance_type": {"default": AzureComputeSummary, "instance_type": AzureComputeSummary},
-            "storage": {"default": AzureStorageSummary},
-            "database": {"default": AzureDatabaseSummary, "service_name": AzureDatabaseSummary},
-            "network": {"default": AzureNetworkSummary, "service_name": AzureNetworkSummary},
+            "instance_type": {
+                "default": AzureComputeSummary,
+                ("instance_type",): AzureComputeSummary,
+                ("instance_type", "subscription_guid"): AzureComputeSummary,
+                ("subscription_guid",): AzureComputeSummary,
+            },
+            "storage": {"default": AzureStorageSummary, ("subscription_guid",): AzureStorageSummary},
+            "database": {
+                "default": AzureDatabaseSummary,
+                ("service_name",): AzureDatabaseSummary,
+                ("service_name", "subscription_guid"): AzureDatabaseSummary,
+                ("subscription_guid",): AzureDatabaseSummary,
+            },
+            "network": {
+                "default": AzureNetworkSummary,
+                ("service_name",): AzureNetworkSummary,
+                ("service_name", "subscription_guid"): AzureNetworkSummary,
+                ("subscription_guid",): AzureNetworkSummary,
+            },
         }
         super().__init__(provider, report_type)

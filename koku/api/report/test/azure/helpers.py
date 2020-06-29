@@ -199,7 +199,6 @@ AZURE_INSTANCE_TYPES = [
 ]
 
 
-# pylint: disable=access-member-before-definition, attribute-defined-outside-init, too-many-instance-attributes
 class FakeAzureConfig(UserDict):
     """Azure Configuration Data Mocker.
 
@@ -409,13 +408,11 @@ class AzureReportDataGenerator:
             ):
                 table.objects.all().delete()
 
-    # pylint: disable=no-self-use
     def remove_data_from_reporting_common(self):
         """Remove the public report statistics."""
         for table in (CostUsageReportManifest, CostUsageReportStatus):
             table.objects.all().delete()
 
-    # pylint: disable=no-self-use
     def _manifest(self, start, provider_uuid):
         """Populate a report manifest entry."""
         manifest_creation_datetime = start + relativedelta(days=random.randint(1, 27))
@@ -433,7 +430,6 @@ class AzureReportDataGenerator:
         manifest_entry.save()
         return manifest_entry
 
-    # pylint: disable=no-self-use
     def _report_status(self, billing_period_start, manifest_id):
         """Populate a report status entry."""
         etag_hash = hashlib.new("ripemd160")
@@ -549,7 +545,7 @@ class AzureReportDataGenerator:
 
     def _tag_summary(self):
         """Populate AzureTagsSummary."""
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_azuretags_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_azuretags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {"schema": connection.schema_name}
         agg_sql, agg_sql_params = JinjaSql().prepare_query(agg_sql, agg_sql_params)

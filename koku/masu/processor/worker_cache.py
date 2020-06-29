@@ -18,7 +18,7 @@
 import logging
 
 from django.conf import settings
-from django.core.cache import cache
+from django.core.cache import caches
 
 LOG = logging.getLogger(__name__)
 
@@ -26,73 +26,75 @@ LOG = logging.getLogger(__name__)
 class WorkerCache:
     """A cache to track celery tasks across container/pod.
 
-    The cache exists as a single Redis key. It is a complex object that can
-    track multiple hosts running Celery and invalidate a single host's
-    information when that host restarts. The values are keyed on the provider
-    uuid and the billing month. This ensures that we are only ever running
-    a single task for a provider and billing period at one time.
+    Each worker has a cache_key in the form :{host}:worker. A set containing each
+    cache_key is stored in a separate cache entry called 'keys'. The worker cache_keys
+    stores a list of task_keys for the task the worker is running. The WorkerCache takes
+    all the entries in the 'keys' cache to build the list of currently running tasks.
 
-    Format: "worker" : {"{worker_host}": ["{provider_uuid}:{billing_month}],}
+    The task_keys are keyed on the provider uuid and the billing month. This ensures that
+    we are only ever running a single task for a provider and billing period at one time.
 
-    Example: "worker" : {
-        "koku-worker-0": ["10c0fb01-9d65-4605-bbf1-6089107ec5e5:2020-02-01 00:00:00],
-        "koku-worker-1": ["10c0fb01-9d65-4605-bbf1-6089107ec5e5:2020-01-01 00:00:00],
-    }
+    Format: ":hostworker:" : "{provider_uuid}:{billing_month}"
+
+    Example:
+
+        cache_key               |                           value                              |        expires
+        ":1:keys:               | {"koku-worker-1", "koku-worker2"}                            |        datetime
+        ":koku-worker-0:worker" | ["10c0fb01-9d65-4605-bbf1-6089107ec5e5:2020-02-01 00:00:00"] |        datetime
+        ":koku-worker-1:worker" | ["10c0fb01-9d65-4605-bbf1-6089107ec5e5:2020-01-01 00:00:00"] |        datetime
 
     """
+
+    cache = caches["worker"]
+
+    def __init__(self):
+        self.add_worker_keys()
+
+    @property
+    def worker_cache_keys(self):
+        """Return worker cache keys."""
+        return self.cache.get("keys", set())
 
     @property
     def worker_cache(self):
         """Return the value of the cache key."""
-        _worker_cache = cache.get(settings.WORKER_CACHE_KEY)
-        if not _worker_cache:
-            _worker_cache = {}
-            cache.set(settings.WORKER_CACHE_KEY, _worker_cache, timeout=None)
-        return _worker_cache
+        return self.cache.get(settings.WORKER_CACHE_KEY, default=[], version=settings.HOSTNAME)
 
-    @property
-    def host_specific_worker_cache(self):
-        """Get the cached list of tasks."""
-        return self.worker_cache.get(settings.HOSTNAME, [])
+    def add_worker_keys(self):
+        """Add worker key verison to list of workers."""
+        worker_keys = self.worker_cache_keys
+        if settings.HOSTNAME not in worker_keys:
+            worker_keys.update((settings.HOSTNAME,))
+            self.cache.set("keys", worker_keys)
 
     def invalidate_host(self):
         """Invalidate the cache for a particular host."""
-        _worker_cache = self.worker_cache
-        _worker_cache[settings.HOSTNAME] = []
-        cache.set(settings.WORKER_CACHE_KEY, _worker_cache, timeout=None)
-
-    def set_host_specific_task_list(self, task_list):
-        """Set the list of tasks in the cache."""
-        _worker_cache = self.worker_cache
-        _worker_cache[settings.HOSTNAME] = task_list
-        cache.set(settings.WORKER_CACHE_KEY, _worker_cache, timeout=None)
+        self.cache.delete(settings.WORKER_CACHE_KEY, version=settings.HOSTNAME)
 
     def add_task_to_cache(self, task_key):
         """Add an entry to the cache for a task."""
-        task_list = self.host_specific_worker_cache
+        task_list = self.worker_cache
         task_list.append(task_key)
-        self.set_host_specific_task_list(task_list)
-        msg = f"Added {task_key} to cache."
-        LOG.info(msg)
+        self.cache.set(settings.WORKER_CACHE_KEY, task_list, version=settings.HOSTNAME)
+        LOG.info(f"Added task key {task_key} to cache.")
 
     def remove_task_from_cache(self, task_key):
         """Remove an entry from the cache for a task."""
-        task_list = self.host_specific_worker_cache
+        task_list = self.worker_cache
         try:
             task_list.remove(task_key)
         except ValueError:
             pass
         else:
-            self.set_host_specific_task_list(task_list)
-            msg = f"Removed {task_key} from cache."
-            LOG.info(msg)
+            self.cache.set(settings.WORKER_CACHE_KEY, task_list, version=settings.HOSTNAME)
+            LOG.info(f"Removed task key {task_key} from cache.")
 
     def get_all_running_tasks(self):
         """Combine each host's running tasks into a single list."""
-        task_list = []
-        for tasks in self.worker_cache.values():
-            task_list.extend(tasks)
-        return task_list
+        tasks = []
+        for key in self.worker_cache_keys:
+            tasks.extend(self.cache.get(settings.WORKER_CACHE_KEY, default=[], version=key))
+        return tasks
 
     def task_is_running(self, task_key):
         """Check if a task is in the cache."""

@@ -286,7 +286,14 @@ class ReportQueryHandler(QueryHandler):
             if not group_data:
                 group_data = self.parameters.get_group_by("or:" + item)
             if group_data:
-                group_pos = self.parameters.url_data.index(item)
+                try:
+                    group_pos = self.parameters.url_data.index(item)
+                except ValueError:
+                    # if we are grouping by org unit we are inserting a group by account
+                    # and popping off the org_unit_id group by - but here we need to get the position
+                    # for org_unit_id
+                    if item == "account" and "org_unit_id" in self.parameters.url_data:
+                        group_pos = self.parameters.url_data.index("org_unit_id")
                 if (item, group_pos) not in group_by:
                     group_by.append((item, group_pos))
 
@@ -627,7 +634,6 @@ class ReportQueryHandler(QueryHandler):
 
         return self.unpack_date_grouped_data(rank_limited_data)
 
-    # needs refactoring, but disabling pylint's complexity check for now.
     def _perform_rank_summation(self, entry, is_offset):  # noqa: C901
         """Do the actual rank limiting for rank_list."""
         other = None
@@ -763,8 +769,7 @@ class ReportQueryHandler(QueryHandler):
         """
         delta_group_by = ["date"] + self._get_group_by()
         delta_filter = self._get_filter(delta=True)
-        q_table = self._mapper.query_table
-        previous_query = q_table.objects.filter(delta_filter)
+        previous_query = self.query_table.objects.filter(delta_filter)
         previous_dict = self._create_previous_totals(previous_query, delta_group_by)
         for row in query_data:
             key = tuple(row[key] for key in delta_group_by)

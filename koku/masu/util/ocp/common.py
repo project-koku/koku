@@ -18,7 +18,9 @@
 import json
 import logging
 import os
+from enum import Enum
 
+import pandas as pd
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
 
@@ -28,6 +30,71 @@ from masu.database.provider_auth_db_accessor import ProviderAuthDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 
 LOG = logging.getLogger(__name__)
+
+
+class OCPReportTypes(Enum):
+    """Types of OCP report files."""
+
+    CPU_MEM_USAGE = 1
+    STORAGE = 2
+    NODE_LABELS = 3
+    UNKNOWN = 4
+
+
+STORAGE_COLUMNS = [
+    "report_period_start",
+    "report_period_end",
+    "interval_start",
+    "interval_end",
+    "namespace",
+    "pod",
+    "persistentvolumeclaim",
+    "persistentvolume",
+    "storageclass",
+    "persistentvolumeclaim_capacity_bytes",
+    "persistentvolumeclaim_capacity_byte_seconds",
+    "volume_request_storage_byte_seconds",
+    "persistentvolumeclaim_usage_byte_seconds",
+    "persistentvolume_labels",
+    "persistentvolumeclaim_labels",
+]
+
+CPU_MEM_USAGE_COLUMNS = [
+    "report_period_start",
+    "report_period_end",
+    "pod",
+    "namespace",
+    "node",
+    "resource_id",
+    "interval_start",
+    "interval_end",
+    "pod_usage_cpu_core_seconds",
+    "pod_request_cpu_core_seconds",
+    "pod_limit_cpu_core_seconds",
+    "pod_usage_memory_byte_seconds",
+    "pod_request_memory_byte_seconds",
+    "pod_limit_memory_byte_seconds",
+    "node_capacity_cpu_cores",
+    "node_capacity_cpu_core_seconds",
+    "node_capacity_memory_bytes",
+    "node_capacity_memory_byte_seconds",
+    "pod_labels",
+]
+
+NODE_LABEL_COLUMNS = [
+    "report_period_start",
+    "report_period_end",
+    "node",
+    "interval_start",
+    "interval_end",
+    "node_labels",
+]
+
+REPORT_TYPES = {
+    "storage_usage": {"columns": STORAGE_COLUMNS, "enum": OCPReportTypes.STORAGE},
+    "pod_usage": {"columns": CPU_MEM_USAGE_COLUMNS, "enum": OCPReportTypes.CPU_MEM_USAGE},
+    "node_labels": {"columns": NODE_LABEL_COLUMNS, "enum": OCPReportTypes.NODE_LABELS},
+}
 
 
 def get_report_details(report_directory):
@@ -191,3 +258,17 @@ def poll_ingest_override_for_provider(provider_uuid):
     cluster_id = get_cluster_id_from_provider(provider_uuid)
     local_ingest_path = "{}/{}".format(Config.INSIGHTS_LOCAL_REPORT_DIR, str(cluster_id))
     return os.path.exists(local_ingest_path)
+
+
+def detect_type(report_path):
+    """
+    Detects the OCP report type.
+    """
+    data_frame = pd.read_csv(report_path)
+    for report_type, report_def in REPORT_TYPES.items():
+        report_columns = sorted(report_def.get("columns"))
+        report_enum = report_def.get("enum")
+        sorted_columns = sorted(data_frame.columns)
+        if report_columns == sorted_columns:
+            return report_type, report_enum
+    return None, OCPReportTypes.UNKNOWN

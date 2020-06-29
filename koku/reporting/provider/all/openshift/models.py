@@ -38,6 +38,12 @@ class OCPAllCostLineItemDailySummary(models.Model):
             GinIndex(fields=["tags"], name="ocpall_tags_idx"),
             models.Index(fields=["product_family"], name="ocpall_product_family_idx"),
             models.Index(fields=["instance_type"], name="ocpall_instance_type_idx"),
+            # A GIN functional index named "ocpall_product_code_ilike" was created manually
+            # via RunSQL migration operation
+            # Function: (upper(product_code) gin_trgm_ops)
+            # A GIN functional index named "ocpall_product_family_ilike" was created manually
+            # via RunSQL migration operation
+            # Function: (upper(product_family) gin_trgm_ops)
         ]
 
     id = models.IntegerField(primary_key=True)
@@ -101,6 +107,8 @@ class OCPAllCostLineItemDailySummary(models.Model):
     # See comment on unblended_cost for project cost explanation
     project_costs = JSONField(null=True)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 # Materialized Views for UI Reporting
 class OCPAllCostSummary(models.Model):
@@ -130,6 +138,8 @@ class OCPAllCostSummary(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class OCPAllCostSummaryByAccount(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
@@ -154,13 +164,15 @@ class OCPAllCostSummaryByAccount(models.Model):
 
     usage_account_id = models.CharField(max_length=50, null=False)
 
-    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAllCostSummaryByService(models.Model):
@@ -184,6 +196,10 @@ class OCPAllCostSummaryByService(models.Model):
 
     cluster_alias = models.CharField(max_length=256, null=True)
 
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
     product_code = models.CharField(max_length=50, null=False)
 
     product_family = models.CharField(max_length=150, null=True)
@@ -193,6 +209,8 @@ class OCPAllCostSummaryByService(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAllCostSummaryByRegion(models.Model):
@@ -216,6 +234,10 @@ class OCPAllCostSummaryByRegion(models.Model):
 
     cluster_alias = models.CharField(max_length=256, null=True)
 
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
     region = models.CharField(max_length=50, null=True)
 
     availability_zone = models.CharField(max_length=50, null=True)
@@ -225,6 +247,8 @@ class OCPAllCostSummaryByRegion(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAllComputeSummary(models.Model):
@@ -241,6 +265,10 @@ class OCPAllComputeSummary(models.Model):
     cluster_id = models.CharField(max_length=50, null=True)
 
     cluster_alias = models.CharField(max_length=256, null=True)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
 
     usage_start = models.DateField(null=False)
 
@@ -262,6 +290,8 @@ class OCPAllComputeSummary(models.Model):
 
     currency_code = models.CharField(max_length=10, null=True)
 
+    source_uuid = models.UUIDField(unique=False, null=True)
+
 
 class OCPAllDatabaseSummary(models.Model):
     """A summarized view of OCP on All infrastructure cost for products in the database service category."""
@@ -279,6 +309,10 @@ class OCPAllDatabaseSummary(models.Model):
 
     cluster_alias = models.CharField(max_length=256, null=True)
 
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
     usage_start = models.DateField(null=False)
 
     usage_end = models.DateField(null=False)
@@ -294,6 +328,8 @@ class OCPAllDatabaseSummary(models.Model):
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAllNetworkSummary(models.Model):
@@ -311,6 +347,10 @@ class OCPAllNetworkSummary(models.Model):
 
     cluster_alias = models.CharField(max_length=256, null=True)
 
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
     usage_start = models.DateField(null=False)
 
     usage_end = models.DateField(null=False)
@@ -326,6 +366,8 @@ class OCPAllNetworkSummary(models.Model):
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAllStorageSummary(models.Model):
@@ -344,6 +386,10 @@ class OCPAllStorageSummary(models.Model):
 
     cluster_alias = models.CharField(max_length=256, null=True)
 
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
     usage_start = models.DateField(null=False)
 
     usage_end = models.DateField(null=False)
@@ -361,6 +407,8 @@ class OCPAllStorageSummary(models.Model):
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
 
 
 class OCPAllCostLineItemProjectDailySummary(models.Model):
@@ -436,3 +484,5 @@ class OCPAllCostLineItemProjectDailySummary(models.Model):
     pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
+
+    source_uuid = models.UUIDField(unique=False, null=True)

@@ -80,6 +80,15 @@ class TagQueryHandler(QueryHandler):
         self._set_start_and_end_dates()
         # super() needs to be called before calling _get_filter()
         self.query_filter = self._get_filter()
+        if parameters.kwargs.get("key"):
+            self.key = parameters.kwargs.get("key")
+            self.query_filter = self._get_key_filter()
+
+    def _get_key_filter(self):
+        """Add new `exact` QueryFilter that filters on the key name."""
+        filters = QueryFilterCollection()
+        filters.add(QueryFilter(field="key", operation="exact", parameter=self.key))
+        return self.query_filter & filters.compose()
 
     def _set_start_and_end_dates(self):
         """Set start and end dates.
@@ -107,9 +116,21 @@ class TagQueryHandler(QueryHandler):
 
         """
         output = copy.deepcopy(self.parameters.parameters)
+        if not (self.parameters.parameters.get("key_only") or hasattr(self, "key")):
+            self._slice_tag_values_list()
         output["data"] = self.query_data
 
         return output
+
+    def _slice_tag_values_list(self, n=50):
+        """Slice the values list to the first n values."""
+        for entry in self.query_data:
+            values = entry.get("values", [])
+            value_length = len(values)
+            values = values[0:n]
+            if value_length > n:
+                values.append(f"{value_length - n} more...")
+            entry["values"] = values
 
     def _get_time_based_filters(self, source, delta=False):
         if delta:

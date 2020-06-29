@@ -20,9 +20,10 @@ import logging
 from uuid import uuid4
 
 from django.db import transaction
-from django.utils.translation import ugettext as _
+from kombu.exceptions import OperationalError
 from rest_framework import serializers
 
+from api.common import error_obj
 from api.provider.models import Provider
 from api.provider.models import Sources
 from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
@@ -44,10 +45,8 @@ ALLOWED_BILLING_SOURCE_PROVIDERS = (
 ALLOWED_AUTHENTICATION_PROVIDERS = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL)
 
 
-def error_obj(key, message):
-    """Create an error object."""
-    error = {key: [_(message)]}
-    return error
+class SourcesDependencyError(Exception):
+    """General Exception for sources dependency errors."""
 
 
 def validate_field(data, valid_fields, key):
@@ -71,7 +70,6 @@ class SourcesSerializer(serializers.ModelSerializer):
     )
     uuid = serializers.SerializerMethodField("get_source_uuid", read_only=True)
 
-    # pylint: disable=too-few-public-methods
     class Meta:
         """Metadata for the serializer."""
 
@@ -149,8 +147,14 @@ class SourcesSerializer(serializers.ModelSerializer):
         instance.save(update_fields=update_fields)
 
         # create provider with celery task
-        create_or_update_provider.delay(instance.source_id)
-
+        try:
+            task = create_or_update_provider.delay(instance.source_id)
+            LOG.info(f"Updating Koku Provider for Source ID: {str(instance.source_id)} in task: {task.id}")
+        except OperationalError:
+            key = "sources"
+            message = f"RabbitMQ unavailable. Unable to update Source ID {instance.source_id}."
+            LOG.error(message)
+            raise SourcesDependencyError(error_obj(key, message))
         return instance
 
 

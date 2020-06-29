@@ -86,8 +86,10 @@ def _azure_provider_ready_for_create(provider):
 
 SCREEN_MAP = {
     Provider.PROVIDER_AWS: _aws_provider_ready_for_create,
+    Provider.PROVIDER_AWS_LOCAL: _aws_provider_ready_for_create,
     Provider.PROVIDER_OCP: _ocp_provider_ready_for_create,
     Provider.PROVIDER_AZURE: _azure_provider_ready_for_create,
+    Provider.PROVIDER_AZURE_LOCAL: _azure_provider_ready_for_create,
 }
 
 
@@ -180,22 +182,33 @@ def get_source(source_id, err_msg, logger):
         raise error
 
 
-def enqueue_source_delete(source_id):
+def enqueue_source_delete(source_id, offset, allow_out_of_order=False):
     """
     Queues a source destroy event to be processed by the synchronize_sources method.
 
     Args:
         queue (Asyncio Queue) - process_queue containing all pending Souces-koku events.
         source_id (Integer) - Platform-Sources identifier.
+        allow_out_of_order (Bool) - Allow for out of order delete events (Application or Source).
 
     Returns:
         None
 
     """
-    source = get_source(source_id, f"Source not enqueued for delete. Source ID {source_id} not found.", LOG.info)
-    if source and not source.pending_delete:
-        source.pending_delete = True
-        source.save()
+    try:
+        source = Sources.objects.get(source_id=source_id)
+        if not source.pending_delete and not source.out_of_order_delete:
+            source.pending_delete = True
+            source.save()
+    except Sources.DoesNotExist:
+        if allow_out_of_order:
+            LOG.info(f"Source ID: {source_id} not known.  Marking as out of order delete.")
+            new_event = Sources(source_id=source_id, offset=offset, out_of_order_delete=True)
+            new_event.save()
+            LOG.info(f"source.storage.create_source_event created Source ID as pending delete: {source_id}")
+    except (InterfaceError, OperationalError) as error:
+        LOG.error(f"Accessing sources resulted in {type(error).__name__}: {error}")
+        raise error
 
 
 def enqueue_source_update(source_id):
@@ -254,12 +267,16 @@ def create_source_event(source_id, auth_header, offset):
         return
 
     try:
-        Sources.objects.get(source_id=source_id)
-        LOG.debug(f"Source ID {str(source_id)} already exists.")
-    except Sources.DoesNotExist:
-        new_event = Sources(source_id=source_id, auth_header=auth_header, offset=offset, account_id=account_id)
-        new_event.save()
-        LOG.info(f"source.storage.create_source_event created Source ID: {source_id}")
+        source = Sources.objects.filter(source_id=source_id).first()
+        if source:
+            LOG.debug(f"Source ID {str(source_id)} already exists.")
+            if source.out_of_order_delete:
+                LOG.info(f"Source ID: {source_id} destroy event already occurred.")
+                source.delete()
+        else:
+            new_event = Sources(source_id=source_id, auth_header=auth_header, offset=offset, account_id=account_id)
+            new_event.save()
+            LOG.info(f"source.storage.create_source_event created Source ID: {source_id}")
     except (InterfaceError, OperationalError) as error:
         LOG.error(f"source.storage.create_provider_event {type(error).__name__}: {error}")
         raise error

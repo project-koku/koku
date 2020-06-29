@@ -37,7 +37,6 @@ class OCPCostModelCostUpdaterError(Exception):
     """OCPCostModelCostUpdater error."""
 
 
-# pylint: disable=too-few-public-methods
 class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
     """Class to update OCP report summary data with charge information."""
 
@@ -162,7 +161,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         with CostModelDBAccessor(self._schema, self._provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup = Decimal(markup.get("value", 0)) / 100
-        with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+        with OCPReportDBAccessor(self._schema) as accessor:
             LOG.info(
                 "Updating markup for" "\n\tSchema: %s \n\t%s Provider: %s (%s) \n\tDates: %s - %s",
                 self._schema,
@@ -178,7 +177,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
     def _update_monthly_cost(self, start_date, end_date):
         """Update the monthly cost for a period of time."""
         try:
-            with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
+            with OCPReportDBAccessor(self._schema) as report_accessor:
                 # Ex. cost_type == "Node", rate_term == "node_cost_per_month", rate == 1000
                 for cost_type, rate_term in OCPUsageLineItemDailySummary.MONTHLY_COST_RATE_MAP.items():
                     rate_type = None
@@ -214,7 +213,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
 
     def _update_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary usage costs."""
-        with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
+        with OCPReportDBAccessor(self._schema) as report_accessor:
             report_accessor.populate_usage_costs(
                 self._infra_rates, self._supplementary_rates, start_date, end_date, self._cluster_id
             )
@@ -246,7 +245,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         self._update_markup_cost(start_date, end_date)
         self._update_monthly_cost(start_date, end_date)
 
-        with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+        with OCPReportDBAccessor(self._schema) as accessor:
             report_periods = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
             with schema_context(self._schema):
                 for period in report_periods:

@@ -19,7 +19,6 @@ from api.models import Provider
 from masu.external.accounts.labels.aws.aws_account_alias import AWSAccountAlias
 
 
-# pylint: disable=too-few-public-methods
 class AccountLabel:
     """Object to retreive and save account aliases."""
 

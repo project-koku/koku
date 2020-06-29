@@ -21,6 +21,7 @@ from django.conf import settings
 from django.db import connection
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.utils.decorators import method_decorator
 from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
 from django_filters import FilterSet
@@ -45,6 +46,7 @@ from api.provider.models import Sources
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
 from sources.api.serializers import AdminSourcesSerializer
+from sources.api.serializers import SourcesDependencyError
 from sources.api.serializers import SourcesSerializer
 from sources.kafka_source_manager import KafkaSourceManager
 from sources.storage import SourcesStorageError
@@ -53,7 +55,7 @@ from sources.storage import SourcesStorageError
 class DestroySourceMixin(mixins.DestroyModelMixin):
     """A mixin for destroying a source."""
 
-    @never_cache
+    @method_decorator(never_cache)
     def destroy(self, request, *args, **kwargs):
         """Delete a source."""
         source = self.get_object()
@@ -92,6 +94,16 @@ class SourcesException(APIException):
         """Initialize with status code 400."""
         super().__init__()
         self.status_code = status.HTTP_400_BAD_REQUEST
+        self.detail = {"detail": force_text(error_msg)}
+
+
+class SourcesDependencyException(APIException):
+    """Dependency error exception."""
+
+    def __init__(self, error_msg):
+        """Initialize with status code 424."""
+        super().__init__()
+        self.status_code = status.HTTP_424_FAILED_DEPENDENCY
         self.detail = {"detail": force_text(error_msg)}
 
 
@@ -181,15 +193,17 @@ class SourcesViewSet(*MIXIN_LIST):
         tenant = tenant = Tenant.objects.get(schema_name=schema_name)
         return (account_id, tenant)
 
-    @never_cache
+    @method_decorator(never_cache)
     def update(self, request, *args, **kwargs):
         """Update a Source."""
         try:
             return super().update(request=request, args=args, kwargs=kwargs)
         except (SourcesStorageError, ParseError) as error:
             raise SourcesException(str(error))
+        except SourcesDependencyError as error:
+            raise SourcesDependencyException(str(error))
 
-    @never_cache
+    @method_decorator(never_cache)
     def list(self, request, *args, **kwargs):
         """Obtain the list of sources."""
         response = super().list(request=request, args=args, kwargs=kwargs)
@@ -214,7 +228,7 @@ class SourcesViewSet(*MIXIN_LIST):
         connection.set_schema_to_public()
         return response
 
-    @never_cache
+    @method_decorator(never_cache)
     def retrieve(self, request, *args, **kwargs):
         """Get a source."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
@@ -237,7 +251,7 @@ class SourcesViewSet(*MIXIN_LIST):
         connection.set_schema_to_public()
         return response
 
-    @never_cache
+    @method_decorator(never_cache)
     @action(methods=["get"], detail=True, permission_classes=[AllowAny])
     def stats(self, request, pk=None):
         """Get source stats."""

@@ -235,33 +235,28 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
         apps = [
             self.fake.word(),
             self.fake.word(),
-            self.fake.word(),  # pylint: disable=no-member
             self.fake.word(),
             self.fake.word(),
             self.fake.word(),
-        ]  # pylint: disable=no-member
-        organizations = [
             self.fake.word(),
-            self.fake.word(),  # pylint: disable=no-member
-            self.fake.word(),
-            self.fake.word(),
-        ]  # pylint: disable=no-member
+        ]
+        organizations = [self.fake.word(), self.fake.word(), self.fake.word(), self.fake.word()]
         markets = [
             self.fake.word(),
             self.fake.word(),
-            self.fake.word(),  # pylint: disable=no-member
             self.fake.word(),
             self.fake.word(),
             self.fake.word(),
-        ]  # pylint: disable=no-member
+            self.fake.word(),
+        ]
         versions = [
             self.fake.word(),
             self.fake.word(),
-            self.fake.word(),  # pylint: disable=no-member
             self.fake.word(),
             self.fake.word(),
             self.fake.word(),
-        ]  # pylint: disable=no-member
+            self.fake.word(),
+        ]
 
         seeded_labels = {
             "environment": ["dev", "ci", "qa", "stage", "prod"],
@@ -273,18 +268,18 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
         gen_label_keys = [
             self.fake.word(),
             self.fake.word(),
-            self.fake.word(),  # pylint: disable=no-member
             self.fake.word(),
             self.fake.word(),
             self.fake.word(),
-        ]  # pylint: disable=no-member
+            self.fake.word(),
+        ]
         all_label_keys = list(seeded_labels.keys()) + gen_label_keys
         num_labels = random.randint(2, len(all_label_keys))
         chosen_label_keys = random.choices(all_label_keys, k=num_labels)
 
         labels = {}
         for label_key in chosen_label_keys:
-            label_value = self.fake.word()  # pylint: disable=no-member
+            label_value = self.fake.word()
             if label_key in seeded_labels:
                 label_value = random.choice(seeded_labels[label_key])
 
@@ -383,7 +378,7 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
 
     def _populate_ocpaws_tag_summary(self):
         """Populate the AWS tag summary table."""
-        agg_sql = pkgutil.get_data("masu.database", f"sql/reporting_ocpawstags_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpawstags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {"schema": connection.schema_name}
         agg_sql, agg_sql_params = JinjaSql().prepare_query(agg_sql, agg_sql_params)

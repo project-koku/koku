@@ -54,16 +54,7 @@ class SettingsViewTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertEqual(len(data), 1)
         primary_object = data[0]
-        tabs = primary_object.get("fields")
-        self.assertIsNotNone(tabs)
-        self.assertEqual(len(tabs), 1)
-        ocp_tab_fields = tabs[0].get("fields")
-        self.assertIsNotNone(ocp_tab_fields)
-        self.assertEqual(len(ocp_tab_fields), 1)
-        ocp_tab_item_fields = ocp_tab_fields[0].get("fields")
-        self.assertIsNotNone(ocp_tab_item_fields)
-        self.assertEqual(len(ocp_tab_item_fields), 1)
-        ocp_subform_fields = ocp_tab_item_fields[0].get("fields")
+        ocp_subform_fields = primary_object.get("fields")
         self.assertIsNotNone(ocp_subform_fields)
         self.assertEqual(len(ocp_subform_fields), 2)
         return ocp_subform_fields[1]

@@ -19,6 +19,8 @@ import logging
 
 from rest_framework.serializers import ValidationError
 
+from .provider_errors import ProviderErrors
+from api.common import error_obj
 from api.provider.models import Provider
 from providers.aws.provider import AWSProvider
 from providers.aws_local.provider import AWSLocalProvider
@@ -49,7 +51,7 @@ class ProviderAccessor:
         valid_services = Provider.PROVIDER_CHOICES
 
         if not [service for service in valid_services if service_name in service]:
-            LOG.error("%s is not a valid provider", service_name)
+            LOG.warning("%s is not a valid provider", service_name)
 
         services = {
             Provider.PROVIDER_AWS: AWSProvider,
@@ -64,6 +66,17 @@ class ProviderAccessor:
         self.service = None
         if callable(services.get(service_name)):
             self.service = services.get(service_name)()
+
+    def check_service(self):
+        """
+        Checks if the service is valid or raises an error.
+
+        Raises: ValidationError
+        """
+        if self.service is None:
+            key = ProviderErrors.INVALID_SOURCE_TYPE
+            message = ProviderErrors.INVALID_SOURCE_TYPE_MESSAGE
+            raise ValidationError(error_obj(key, message))
 
     def service_name(self):
         """
@@ -80,6 +93,7 @@ class ProviderAccessor:
                        example: "AWS"
 
         """
+        self.check_service()
         return self.service.name()
 
     def cost_usage_source_ready(self, credential, source_name):
@@ -103,41 +117,11 @@ class ProviderAccessor:
             ValidationError: Error string
 
         """
-        return self.service.cost_usage_source_is_reachable(credential, source_name)
-
-    def availability_status(self, credential, source_name):
-        """
-        Return the availability status for a provider.
-
-        Connectivity and account validation checks are performed to
-        ensure that Koku can access a cost usage report from the provider.
-
-        This method will return the detailed error message in the event that
-        the provider fails the service provider checks.
-
-        Args:
-            credential (Object): Provider Authorization Credentials
-                                 example: AWS - RoleARN
-                                          arn:aws:iam::589175555555:role/CostManagement
-            source_name (List): Identifier of the cost usage report source
-                                example: AWS - S3 Bucket
-
-        Returns:
-            status (Dict): {'availability_status': 'unavailable/available',
-                            'availability_status_error': ValidationError-detail}
-
-        """
-        error_msg = ""
-        try:
-            self.cost_usage_source_ready(credential, source_name)
-        except ValidationError as validation_error:
-            for error_key in validation_error.detail.keys():
-                error_msg = str(validation_error.detail.get(error_key)[0])
-        if error_msg:
-            status = "unavailable"
-        else:
-            status = "available"
-        return {"availability_status": status, "availability_status_error": str(error_msg)}
+        self.check_service()
+        LOG.info(f"Provider account validation started for {str(source_name)}.")
+        reachable_status = self.service.cost_usage_source_is_reachable(credential, source_name)
+        LOG.info(f"Provider account validation complete for {str(source_name)}.")
+        return reachable_status
 
     def infrastructure_type(self, provider_uuid, schema_name):
         """
@@ -152,6 +136,7 @@ class ProviderAccessor:
                        example: "AWS"
 
         """
+        self.check_service()
         try:
             infrastructure_type = self.service.infra_type_implementation(provider_uuid, schema_name)
         except Exception as error:
@@ -172,6 +157,7 @@ class ProviderAccessor:
                        example: ['ocp-cluster-on-aws-1', 'ocp-cluster-on-aws-2']
 
         """
+        self.check_service()
         keys = []
         try:
             keys = self.service.infra_key_list_implementation(infrastructure_type, schema_name)

@@ -30,6 +30,10 @@ from masu.processor.tasks import update_cost_model_costs
 LOG = logging.getLogger(__name__)
 
 
+class CostModelException(Exception):
+    """Cost Model Manager errors."""
+
+
 class CostModelManager:
     """Cost Model Manager to manage user defined cost model operations."""
 
@@ -53,7 +57,6 @@ class CostModelManager:
         cost_model_data = copy.deepcopy(data)
 
         provider_uuids = cost_model_data.pop("provider_uuids", [])
-
         self._model = CostModel.objects.create(**cost_model_data)
         self.update_provider_uuids(provider_uuids)
         return self._model
@@ -72,9 +75,13 @@ class CostModelManager:
             CostModelMap.objects.filter(provider_uuid=provider_uuid, cost_model=self._model).delete()
 
         for provider_uuid in providers_to_create:
-            # Untie this provider to other cost models before assigning
-            # it to the new model
-            CostModelMap.objects.filter(provider_uuid=provider_uuid).delete()
+            # Raise exception if source is already associated with another cost model.
+            existing_cost_model = CostModelMap.objects.filter(provider_uuid=provider_uuid)
+            if existing_cost_model.exists():
+                cost_model_uuid = existing_cost_model.first().cost_model.uuid
+                log_msg = f"Source {provider_uuid} is already associated with cost model: {cost_model_uuid}."
+                LOG.warning(log_msg)
+                raise CostModelException(log_msg)
             CostModelMap.objects.create(cost_model=self._model, provider_uuid=provider_uuid)
 
         start_date = DateHelper().this_month_start

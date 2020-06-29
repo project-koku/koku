@@ -22,7 +22,6 @@ import os
 LOG = logging.getLogger(__name__)
 
 
-# pylint: disable=too-few-public-methods,simplifiable-if-expression
 class Config:
     """Configuration for app."""
 
@@ -91,11 +90,17 @@ class Config:
     # Processing intermediate report storage
     TMP_DIR = f"{PVC_DIR}/processing"
 
+    # S3 path root for warehoused data
+    WAREHOUSE_PATH = "data"
+    CSV_DATA_TYPE = "csv"
+    PARQUET_DATA_TYPE = "parquet"
+
     # Celery settings
     CELERY_BROKER_URL = f"amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}"
     # CELERY_RESULT_BACKEND = f'amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}'
 
-    REPORT_PROCESSING_BATCH_SIZE = 100000
+    REPORT_PROCESSING_BATCH_SIZE = int(os.getenv("REPORT_PROCESSING_BATCH_SIZE", default=100000))
+    REPORT_PROCESSING_TIMEOUT_HOURS = int(os.getenv("REPORT_PROCESSING_TIMEOUT_HOURS", default=2))
 
     AWS_DATETIME_STR_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
     OCP_DATETIME_STR_FORMAT = "%Y-%m-%d %H:%M:%S +0000 UTC"
@@ -108,7 +113,6 @@ class Config:
     MASU_RETAIN_NUM_MONTHS = int(os.getenv("MASU_RETAIN_NUM_MONTHS", "3"))
     MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY = int(os.getenv("MASU_RETAIN_NUM_MONTHS", "1"))
 
-    # pylint: disable=fixme
     # TODO: Remove this if/when reporting model files are owned by masu
     # The decimal precision of our database Numeric columns
     REPORTING_DECIMAL_PRECISION = 9
@@ -133,3 +137,5 @@ class Config:
 
     # Flag to signal whether or not to connect to upload service
     KAFKA_CONNECT = False if os.getenv("KAFKA_CONNECT", "False") == "False" else True
+
+    RETRY_SECONDS = int(os.getenv("RETRY_SECONDS", "10"))

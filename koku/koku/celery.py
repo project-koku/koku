@@ -2,29 +2,27 @@
 import datetime
 import logging
 import os
+import time
 
 import django
 from celery import Celery
 from celery import Task
 from celery.schedules import crontab
+from celery.signals import celeryd_after_setup
+from celery.signals import worker_shutting_down
 from django.conf import settings
 
-from koku import sentry  # pylint: disable=unused-import # noqa: F401
+from koku import sentry  # noqa: F401
 from koku.env import ENVIRONMENT
-from masu.processor.worker_cache import WorkerCache
 
-# We disable pylint here because we wanted to avoid duplicate code
-# in settings and celery config files, therefore we import a single
-# file, since we don't actually call anything in it, pylint gets angry.
 
 LOGGER = logging.getLogger(__name__)
 
 
-# pylint: disable=abstract-method
 class LogErrorsTask(Task):  # pragma: no cover
     """Log Celery task exceptions."""
 
-    def on_failure(self, exc, task_id, args, kwargs, einfo):  # pylint: disable=too-many-arguments
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
         """Log exceptions when a celery task fails."""
         LOGGER.exception("Task failed: %s", exc, exc_info=exc)
         super().on_failure(exc, task_id, args, kwargs, einfo)
@@ -47,13 +45,10 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
 LOGGER.info("Starting celery.")
 # Setup the database for use in Celery
 django.setup()
-LOGGER.info("Clearing worker task cache.")
-WorkerCache().invalidate_host()
 LOGGER.info("Database configured.")
 
 # 'app' is the recommended convention from celery docs
 # following this for ease of comparison to reference implementation
-# pylint: disable=invalid-name
 app = LoggingCelery("koku", log="koku.log:TaskRootLogging", broker=settings.CELERY_BROKER_URL)
 app.config_from_object("django.conf:settings", namespace="CELERY")
 
@@ -97,16 +92,31 @@ VACUUM_DATA_DAY_OF_WEEK = ENVIRONMENT.get_value("VACUUM_DATA_DAY_OF_WEEK", defau
 VACUUM_DATA_UTC_TIME = ENVIRONMENT.get_value("VACUUM_DATA_UTC_TIME", default="00:00")
 VACUUM_HOUR, VACUUM_MINUTE = VACUUM_DATA_UTC_TIME.split(":")
 
+# Set the autovacuum-tuning task 1 hour prior to the main vacuum task
+av_hour = int(VACUUM_HOUR)
+av_hour = 23 if av_hour == 0 else (av_hour - 1)
+
 if VACUUM_DATA_DAY_OF_WEEK:
     schedule = crontab(day_of_week=VACUUM_DATA_DAY_OF_WEEK, hour=int(VACUUM_HOUR), minute=int(VACUUM_MINUTE))
+    autovacuum_schedule = crontab(day_of_week=VACUUM_DATA_DAY_OF_WEEK, hour=av_hour, minute=int(VACUUM_MINUTE))
 else:
     schedule = crontab(hour=int(VACUUM_HOUR), minute=int(VACUUM_MINUTE))
+    autovacuum_schedule = crontab(hour=av_hour, minute=int(VACUUM_MINUTE))
 
 app.conf.beat_schedule["vacuum-schemas"] = {
     "task": "masu.celery.tasks.vacuum_schemas",
     "schedule": schedule,
     "args": [],
 }
+
+# This will automatically tune the tables (if needed) based on the number of live tuples
+# Based on the latest statistics analysis run
+app.conf.beat_schedule["autovacuum-tune-schemas"] = {
+    "task": "masu.celery.tasks.autovacuum_tune_schemas",
+    "schedule": autovacuum_schedule,
+    "args": [],
+}
+
 
 # Collect prometheus metrics.
 app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(minute="*/15")}
@@ -124,12 +134,11 @@ if not settings.DEVELOPMENT:
     }
 
 
-# Toggle to enable/disable S3 archiving of account data.
-if settings.ENABLE_S3_ARCHIVING:
-    app.conf.beat_schedule["daily_upload_normalized_reports_to_s3"] = {
-        "task": "masu.celery.tasks.upload_normalized_data",
-        "schedule": int(os.getenv("UPLOAD_NORMALIZED_DATA_INTERVAL", "86400")),
-    }
+# Beat used to crawl the account hierarchy
+app.conf.beat_schedule["crawl_account_hierarchy"] = {
+    "task": "masu.celery.tasks.crawl_account_hierarchy",
+    "schedule": crontab(hour=0, minute=0),
+}
 
 # Celery timeout if broker is unavaiable to avoid blocking indefintely
 app.conf.broker_transport_options = {"max_retries": 4, "interval_start": 0, "interval_step": 0.5, "interval_max": 3}
@@ -138,3 +147,27 @@ app.conf.broker_transport_options = {"max_retries": 4, "interval_start": 0, "int
 app.conf.task_routes = {"sources.tasks.*": {"queue": "sources"}}
 
 app.autodiscover_tasks()
+
+
+@celeryd_after_setup.connect
+def clear_worker_cache(sender, instance, **kwargs):  # pragma: no cover
+    """Clear WorkerCache after worker is up and running."""
+    from .database import check_migrations
+    from masu.processor.worker_cache import WorkerCache
+
+    while not check_migrations():
+        LOGGER.warning("Migrations not done. Sleeping")
+        time.sleep(5)
+    LOGGER.info("Clearing worker task cache.")
+    WorkerCache().invalidate_host()
+
+
+@worker_shutting_down.connect
+def clear_worker_cache_on_shutdown(sender, **kwargs):  # pragma: no cover
+    from masu.processor.worker_cache import WorkerCache
+
+    LOGGER.info("Clearing worker task cache.")
+    try:
+        WorkerCache().invalidate_host()
+    except Exception:
+        LOGGER.info("Cache not cleared on shutdown.")

@@ -21,7 +21,6 @@ from tenant_schemas.utils import schema_context
 
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.azure.common import get_bills_from_provider
 
@@ -32,7 +31,6 @@ class AzureCostModelCostUpdaterError(Exception):
     """AzureCostModelCostUpdater error."""
 
 
-# pylint: disable=too-few-public-methods
 class AzureCostModelCostUpdater:
     """Class to update Azure report summary data with charge information."""
 
@@ -45,8 +43,6 @@ class AzureCostModelCostUpdater:
         """
         self._provider = provider
         self._schema = schema
-        with ReportingCommonDBAccessor() as reporting_common:
-            self._column_map = reporting_common.column_map
 
     def _update_markup_cost(self, start_date, end_date):
         """Store markup costs."""
@@ -56,7 +52,7 @@ class AzureCostModelCostUpdater:
                 markup = cost_model_accessor.markup
                 markup_value = float(markup.get("value", 0)) / 100
 
-            with AzureReportDBAccessor(self._schema, self._column_map) as report_accessor:
+            with AzureReportDBAccessor(self._schema) as report_accessor:
                 with schema_context(self._schema):
                     bill_ids = [str(bill.id) for bill in bills]
                 report_accessor.populate_markup_cost(markup_value, bill_ids)
@@ -83,7 +79,7 @@ class AzureCostModelCostUpdater:
 
         self._update_markup_cost(start_date, end_date)
 
-        with AzureReportDBAccessor(self._schema, self._column_map) as accessor:
+        with AzureReportDBAccessor(self._schema) as accessor:
             LOG.debug(
                 "Updating Azure derived cost summary for schema: %s and provider: %s",
                 self._schema,

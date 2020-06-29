@@ -15,44 +15,32 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """View for Cloud Account."""
-import json
+import copy
 import logging
-import os
 
-from rest_framework import viewsets
-from rest_framework.permissions import AllowAny
+from rest_framework import permissions
+from rest_framework.decorators import api_view
+from rest_framework.decorators import permission_classes
+from rest_framework.decorators import renderer_classes
 from rest_framework.renderers import JSONRenderer
 from rest_framework.settings import api_settings
 
-from api.cloud_accounts.serializers import CloudAccountQueryParamsSerializer
-from api.cloud_accounts.serializers import CloudAccountSerializer
-from koku.settings import BASE_DIR
+from api.cloud_accounts import CLOUD_ACCOUNTS
+from api.common.pagination import ListPaginator
+from api.metrics.serializers import QueryParamsSerializer
+
 
 LOG = logging.getLogger(__name__)
-CLOUD_ACCOUNTS_FILE_NAME = os.path.join(BASE_DIR, "api/cloud_accounts/data/cloud_accounts.json")
 """View for Cloud Accounts."""
 
 
-class CloudAccountViewSet(viewsets.ReadOnlyModelViewSet):
-    """View for Cloud Accounts."""
-
-    serializer_class = CloudAccountSerializer
-    permission_classes = (AllowAny,)
-    renderer_classes = [JSONRenderer] + api_settings.DEFAULT_RENDERER_CLASSES
-
-    def get_queryset(self):
-        """ViewSet get_queryset method."""
-        serializer = CloudAccountQueryParamsSerializer(data=self.request.query_params)
-        serializer.is_valid(raise_exception=True)
-        data = self.get_json(CLOUD_ACCOUNTS_FILE_NAME)
-        return data
-
-    def get_json(self, path):
-        """Obtain API JSON data from file path."""
-        json_data = None
-        with open(path) as json_file:
-            try:
-                json_data = json.load(json_file)
-            except (IOError, json.JSONDecodeError) as exc:
-                LOG.exception(exc)
-        return json_data
+@api_view(["GET"])
+@permission_classes((permissions.AllowAny,))
+@renderer_classes([JSONRenderer] + api_settings.DEFAULT_RENDERER_CLASSES)
+def cloud_accounts(request):
+    """View for cloud accounts."""
+    serializer = QueryParamsSerializer(data=request.query_params)
+    serializer.is_valid(raise_exception=True)
+    cloud_accounts_copy = copy.deepcopy(CLOUD_ACCOUNTS)
+    paginator = ListPaginator(cloud_accounts_copy, request)
+    return paginator.paginated_response
